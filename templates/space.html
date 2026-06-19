@@ -1,0 +1,534 @@
+<!-- TEMPLATE: Mood Wall | ARCHETYPE: SPACE - WebGL 3D media-wall fly-through | REF: Codrops scroll-reactive 3D gallery, Active Theory | WHEN TO USE: cinematic portfolio / showreel where you want the viewer to fly the camera THROUGH floating image & video planes while the background mood-color breathes per asset | SWAP: edit the DATA array at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Mood Wall - fly-through showreel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ink:#f3f1ec;
+    --dim:#9a99a3;
+    --bg:#06060a;
+    --edge:rgba(243,241,236,.14);
+    --mood:#11131c; /* updated live by JS to current asset dominant color */
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  html{background:var(--bg)}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"Space Grotesk",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  ::selection{background:var(--ink);color:var(--bg)}
+  a{color:inherit}
+  :focus-visible{outline:2px solid var(--ink);outline-offset:3px;border-radius:2px}
+
+  /* ===== WEBGL STAGE (desktop / tablet) ===== */
+  #scrollSpace{height:1px}              /* tall scroll track set by JS = drives the fly-through */
+  #stage{
+    position:fixed;inset:0;z-index:0;
+    background:
+      radial-gradient(120% 100% at 50% 8%, color-mix(in oklab, var(--mood) 70%, #000 30%), var(--bg) 72%);
+    transition:background .9s linear;
+  }
+  #gl{position:fixed;inset:0;display:block;z-index:1}
+  /* subtle vignette + grain over the canvas, pure CSS, zero JS cost */
+  #veil{
+    position:fixed;inset:0;z-index:2;pointer-events:none;
+    background:
+      radial-gradient(140% 120% at 50% 50%, transparent 55%, rgba(0,0,0,.55) 100%);
+    mix-blend-mode:multiply;
+  }
+  #grain{
+    position:fixed;inset:-50%;z-index:3;pointer-events:none;opacity:.05;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    animation:grain 7s steps(6) infinite;
+  }
+  @keyframes grain{
+    0%{transform:translate(0,0)}20%{transform:translate(-8%,4%)}40%{transform:translate(6%,-6%)}
+    60%{transform:translate(-4%,8%)}80%{transform:translate(8%,-4%)}100%{transform:translate(0,0)}
+  }
+
+  /* ===== HUD overlay (lives above canvas, real selectable text) ===== */
+  .hud{position:fixed;z-index:4;pointer-events:none}
+  .hud .pe{pointer-events:auto}
+  header.hud{top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;
+    padding:clamp(18px,3vw,34px);gap:18px;
+    background:linear-gradient(180deg,rgba(4,4,8,.6),transparent);}
+  .brand{font-family:"Fraunces",serif;font-weight:500;font-size:clamp(17px,2vw,22px);letter-spacing:.01em}
+  .brand i{font-style:italic;color:var(--dim)}
+  .meta{font-size:12px;letter-spacing:.26em;text-transform:uppercase;color:var(--dim);
+    text-align:right;line-height:1.7}
+
+  /* center caption that swaps per focused plane */
+  .caption{position:fixed;left:0;right:0;bottom:0;z-index:4;
+    text-align:center;pointer-events:none;padding:0 24px clamp(74px,12vh,128px);
+    /* scrim keeps caption legible over any bright asset (e.g. the clinic) */
+    background:linear-gradient(0deg,rgba(4,4,8,.86) 0%,rgba(4,4,8,.6) 42%,transparent 100%);}
+  .caption .idx{font-size:12px;letter-spacing:.4em;color:var(--dim);text-transform:uppercase}
+  .caption h2{font-family:"Fraunces",serif;font-weight:300;
+    font-size:clamp(30px,6.2vw,72px);line-height:1.02;margin:.18em 0 .25em;letter-spacing:-.01em}
+  .caption p{margin:0 auto;max-width:46ch;color:#cdcbd4;font-size:clamp(13px,1.5vw,16px);line-height:1.6}
+  .capInner{transition:opacity .5s ease, transform .5s ease;will-change:opacity,transform}
+
+  /* scroll progress rail + cue */
+  .rail{position:fixed;right:clamp(16px,2.4vw,30px);top:50%;transform:translateY(-50%);
+    z-index:4;width:2px;height:min(40vh,320px);background:var(--edge);border-radius:2px;pointer-events:none}
+  .rail b{position:absolute;left:-3px;width:8px;height:8px;border-radius:50%;background:var(--ink);
+    box-shadow:0 0 14px color-mix(in oklab,var(--mood) 80%,#fff 20%);top:0;transition:top .12s linear}
+  .cue{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:4;
+    font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--dim);
+    display:flex;flex-direction:column;align-items:center;gap:9px;transition:opacity .4s}
+  .cue svg{width:16px;height:24px;animation:bob 1.9s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateY(0);opacity:.5}50%{transform:translateY(6px);opacity:1}}
+
+  /* loader */
+  #boot{position:fixed;inset:0;z-index:9;background:var(--bg);display:flex;
+    align-items:center;justify-content:center;flex-direction:column;gap:18px;transition:opacity .8s ease}
+  #boot.gone{opacity:0;pointer-events:none}
+  #boot .bw{width:min(220px,52vw);height:1px;background:var(--edge);position:relative;overflow:hidden}
+  #boot .bw span{position:absolute;inset:0;width:0;background:var(--ink);transition:width .3s ease}
+  #boot small{font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--dim)}
+
+  /* ===== MOBILE FALLBACK (<=640px): NO WebGL, clean vertical stack, letterboxed media ===== */
+  .stack{display:none}
+  @media (max-width:640px){
+    #stage,#gl,#veil,#grain,.rail,.cue,#scrollSpace,.caption{display:none!important}
+    header.hud{position:sticky;background:linear-gradient(180deg,var(--bg),rgba(6,6,10,.4))}
+    body{overflow-x:hidden}
+    .stack{display:block;position:relative;z-index:1;padding:0 0 80px}
+    .lead{padding:14vh 22px 9vh}
+    .lead .idx{font-size:11px;letter-spacing:.4em;color:var(--dim);text-transform:uppercase}
+    .lead h1{font-family:"Fraunces",serif;font-weight:300;font-size:clamp(38px,13vw,60px);
+      line-height:1;margin:.25em 0 .4em;letter-spacing:-.015em}
+    .lead p{color:#cdcbd4;font-size:15px;line-height:1.65;max-width:34ch}
+    .card{padding:6vh 22px;border-top:1px solid var(--edge)}
+    .card .mediaWrap{
+      width:100%;border-radius:14px;overflow:hidden;background:#0c0c12;
+      border:1px solid var(--edge);position:relative;
+      box-shadow:0 24px 60px rgba(0,0,0,.5);
+    }
+    /* letterbox: never crop a landscape asset into a tall phone frame */
+    .card img,.card video{display:block;width:100%;height:auto;object-fit:contain}
+    .card .glow{position:absolute;inset:0;pointer-events:none;
+      box-shadow:inset 0 0 90px -20px var(--c);mix-blend-mode:screen;opacity:.7}
+    .card .idx{font-size:11px;letter-spacing:.36em;color:var(--dim);text-transform:uppercase;margin-top:20px}
+    .card h2{font-family:"Fraunces",serif;font-weight:300;font-size:clamp(26px,8vw,40px);
+      line-height:1.05;margin:.2em 0 .3em}
+    .card p{color:#cdcbd4;font-size:14.5px;line-height:1.62;max-width:40ch;margin:0}
+    .card .tag{display:inline-block;margin-top:18px;font-size:11px;letter-spacing:.2em;
+      text-transform:uppercase;color:var(--dim);border:1px solid var(--edge);
+      padding:6px 12px;border-radius:999px}
+    .foot{padding:8vh 22px 0;color:var(--dim);font-size:12px;letter-spacing:.04em}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    #grain{animation:none}.cue svg{animation:none}#stage{transition:none}
+  }
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+</style>
+</head>
+<body>
+
+<!-- boot loader -->
+<div id="boot"><div class="bw"><span id="bootbar"></span></div><small id="bootlbl">loading the wall</small></div>
+
+<!-- ============ DESKTOP / TABLET: WebGL fly-through ============ -->
+<div id="scrollSpace" aria-hidden="true"></div>   <!-- tall scroll track; height set by JS, drives the camera -->
+<div id="stage" aria-hidden="true"></div>
+<canvas id="gl" aria-hidden="true"></canvas>
+<div id="veil" aria-hidden="true"></div>
+<div id="grain" aria-hidden="true"></div>
+
+<header class="hud">
+  <div class="brand pe">Mood&nbsp;Wall&nbsp;<i>/ showreel</i></div>
+  <div class="meta">Fly-through<br/>Scroll to advance</div>
+</header>
+
+<div class="caption" aria-live="polite">
+  <div class="capInner" id="capInner">
+    <div class="idx" id="capIdx">01 / 09</div>
+    <h2 id="capTitle">Night Pursuit</h2>
+    <p id="capDesc">A matte-black coupe holds the wet street under cold neon.</p>
+  </div>
+</div>
+
+<div class="rail" aria-hidden="true"><b id="railDot"></b></div>
+<div class="cue" id="cue" aria-hidden="true">
+  Scroll
+  <svg viewBox="0 0 16 24" fill="none"><rect x="1" y="1" width="14" height="22" rx="7" stroke="currentColor"/><circle cx="8" cy="7" r="2" fill="currentColor"/></svg>
+</div>
+
+<!-- ============ MOBILE: clean vertical stack (built by JS from same DATA) ============ -->
+<main class="stack" id="stack"></main>
+
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+
+<script type="module">
+import * as THREE from "three";
+
+/* ============================================================
+   DATA - swap these to repurpose the template.
+   color = the dominant "mood" the background interpolates to.
+   kind  = "image" | "video".  src/poster relative to /showcase/templates/.
+   ============================================================ */
+const A = "../assets/";
+const G = "../assets/gen/";
+const DATA = [
+  { kind:"image", src:A+"flux-car-4k.png",                                 color:"#1c2f4a",
+    idx:"01 / 09", title:"Night Pursuit",   desc:"A matte-black AMG coupe holds the wet street under cold neon." },
+  { kind:"video", src:A+"veo-video.mp4",   poster:G+"poster-veo-video.png", color:"#2c1c4e", muted:false,
+    idx:"02 / 09", title:"Violet Run",      desc:"Down a violet avenue, native engine audio under the streetlights." },
+  { kind:"image", src:A+"flux-clinic-4k.png",                              color:"#3f6f5c",
+    idx:"03 / 09", title:"Calm Practice",   desc:"Mint and warm wood, morning light across a serene clinic floor." },
+  { kind:"video", src:A+"fal-video.mp4",   poster:G+"poster-fal-video.png", color:"#43164a", muted:true,
+    idx:"04 / 09", title:"Magenta Drift",   desc:"Reflections smear magenta as the black car cuts through the block." },
+  { kind:"image", src:A+"sdxl.png",                                        color:"#9a4e24",
+    idx:"05 / 09", title:"Autumn Fox",      desc:"A painterly fox curls into a bed of turning maple leaves." },
+  { kind:"video", src:A+"kling-video.mp4", poster:G+"poster-kling-video.png", color:"#173441", muted:true,
+    idx:"06 / 09", title:"Steel Tail",      desc:"Tail-lights bleed across rain-slick asphalt in cold steel blue." },
+  { kind:"image", src:A+"hf-tinysd.png",                                   color:"#6a2b2b",
+    idx:"07 / 09", title:"Lo-fi Apple",     desc:"An abstract, soft-focus still of fruit dissolving into cream." },
+  { kind:"video", src:A+"heygen-avatar.mp4", poster:G+"poster-heygen.png", color:"#1e4a4a", muted:false,
+    idx:"08 / 09", title:"Spoken Word",     desc:"A Thai presenter speaks to camera, with synthesized voice." },
+  { kind:"video", src:A+"did-talking-photo.mp4", poster:G+"poster-did.png", color:"#5a3a1c", muted:false,
+    idx:"09 / 09", title:"Talking Portrait",desc:"A still photo brought to life, lip-synced and addressing you." },
+];
+
+/* shared helpers */
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const isMobile = matchMedia("(max-width: 640px)").matches;
+const lerp = (a,b,t)=>a+(b-a)*t;
+const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+const hex = (h)=>new THREE.Color(h);
+
+/* ---------- MOBILE PATH: build clean stack, skip WebGL entirely ---------- */
+if (isMobile){
+  const boot = document.getElementById("boot");
+  const stack = document.getElementById("stack");
+  stack.innerHTML = `
+    <section class="lead">
+      <div class="idx">Showreel - 2026</div>
+      <h1>Mood Wall</h1>
+      <p>A cinematic media wall. On desktop you fly the camera through it; here, the same nine works, clean and in full.</p>
+    </section>`;
+  DATA.forEach(d=>{
+    const sec=document.createElement("section");
+    sec.className="card";
+    sec.style.setProperty("--c", d.color);
+    let media;
+    if(d.kind==="image"){
+      media=`<img loading="lazy" src="${d.src}" alt="${d.title}: ${d.desc}">`;
+    }else{
+      // poster shown until in-view; play only when visible, pause off-screen.
+      media=`<video playsinline preload="none" loop ${d.muted?"muted":""} poster="${d.poster}"
+                 src="${d.src}" aria-label="${d.title}: ${d.desc}"></video>`;
+    }
+    sec.innerHTML=`
+      <div class="mediaWrap">${media}<span class="glow" style="--c:${d.color}"></span></div>
+      <div class="idx">${d.idx}</div>
+      <h2>${d.title}</h2>
+      <p>${d.desc}</p>
+      <span class="tag">${d.kind==="video"?"Video":"Still"}</span>`;
+    stack.appendChild(sec);
+  });
+  const foot=document.createElement("div");
+  foot.className="foot";
+  foot.textContent="Edit the DATA array to swap in your own work.";
+  stack.appendChild(foot);
+
+  // play videos only while in view, pause + reset when they leave
+  const io=new IntersectionObserver((es)=>{
+    es.forEach(e=>{
+      const v=e.target;
+      if(e.isIntersecting){ const p=v.play(); if(p&&p.catch)p.catch(()=>{}); }
+      else { v.pause(); }
+    });
+  },{threshold:.4});
+  document.querySelectorAll(".card video").forEach(v=>io.observe(v));
+
+  boot.classList.add("gone");
+}
+
+/* ---------- DESKTOP / TABLET PATH: three.js fly-through ---------- */
+else {
+  const boot   = document.getElementById("boot");
+  const bootbar= document.getElementById("bootbar");
+  const bootlbl= document.getElementById("bootlbl");
+  const canvas = document.getElementById("gl");
+  const stageEl= document.getElementById("stage");
+  const root   = document.documentElement;
+
+  /* layout constants */
+  const GAP   = 7;                          // z-distance between consecutive planes
+  const START = 4;                          // camera z offset in front of first plane
+  const N     = DATA.length;
+  const TRACK = (N-1)*GAP;                  // total travel distance in world units
+  const VHper = 130;                        // viewport-heights of scroll per plane
+  document.getElementById("scrollSpace").style.height = `${(N-1)*VHper + 100}vh`;
+
+  /* renderer */
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true, powerPreference:"high-performance" });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));   // cap DPR <= 2
+  renderer.setSize(innerWidth, innerHeight);
+
+  const scene  = new THREE.Scene();
+  scene.fog    = new THREE.FogExp2(0x06060a, 0.022);
+  const camera = new THREE.PerspectiveCamera(58, innerWidth/innerHeight, 0.1, 120);
+  camera.position.set(0,0,START);
+
+  /* texture loader (lazy: textures requested per plane, decoded async) */
+  const texLoader = new THREE.TextureLoader();
+  texLoader.crossOrigin = "anonymous";
+
+  /* build planes */
+  const planes = [];
+  let loadedCount = 0;
+  const markLoaded = ()=>{
+    loadedCount++;
+    const pct = Math.round(loadedCount/N*100);
+    bootbar.style.width = pct+"%";
+    if(loadedCount>=N){
+      bootlbl.textContent = "enter";
+      requestAnimationFrame(()=>{ setTimeout(()=>boot.classList.add("gone"), 220); });
+    }
+  };
+
+  DATA.forEach((d,i)=>{
+    // alternate sides + vary height so the wall reads as a sculpted corridor, not a stack
+    const side = (i%2===0) ? 1 : -1;
+    const xOff = side * (0.9 + (i%3)*0.32);
+    const yOff = (i%2===0 ? -0.22 : 0.30) + Math.sin(i*1.4)*0.18;
+    const baseW = 5.4 + (i%2)*0.8;          // landscape-ish; matches the source assets
+
+    const geo = new THREE.PlaneGeometry(1,1,1,1);
+    const mat = new THREE.MeshBasicMaterial({
+      color:0x0d0d12, transparent:true, opacity:0,
+      side:THREE.FrontSide, toneMapped:false
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(xOff, yOff, -i*GAP);
+    scene.add(mesh);
+
+    // thin emissive frame so an un-textured plane still reads as a "screen"
+    const frameMat = new THREE.MeshBasicMaterial({ color:hex(d.color), transparent:true, opacity:.0, toneMapped:false });
+    const frame = new THREE.Mesh(new THREE.PlaneGeometry(1,1), frameMat);
+    frame.position.copy(mesh.position); frame.position.z -= 0.02;
+    scene.add(frame);
+
+    const rec = {
+      d, mesh, mat, frame, frameMat, side,
+      baseX:xOff, baseY:yOff, z:-i*GAP, baseW,
+      aspect:16/9, video:null, ready:false
+    };
+    planes.push(rec);
+
+    if(d.kind==="image"){
+      texLoader.load(d.src, (tex)=>{
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+        applyTexture(rec, tex, tex.image.width/tex.image.height);
+        markLoaded();
+      }, undefined, ()=>markLoaded());
+    } else {
+      // video: load poster as the texture first (cheap), upgrade to <video> when near.
+      texLoader.load(d.poster, (tex)=>{
+        tex.colorSpace = THREE.SRGBColorSpace;
+        applyTexture(rec, tex, tex.image.width/tex.image.height);
+        markLoaded();
+      }, undefined, ()=>markLoaded());
+    }
+  });
+
+  function applyTexture(rec, tex, aspect){
+    rec.aspect = aspect || rec.aspect;
+    rec.mat.map = tex; rec.mat.color.set(0xffffff); rec.mat.needsUpdate = true;
+    rec.ready = true;
+    sizePlane(rec);
+  }
+  function sizePlane(rec){
+    const w = rec.baseW;
+    const h = w / rec.aspect;
+    rec.mesh.scale.set(w, h, 1);
+    rec.frame.scale.set(w+0.16, h+0.16, 1);
+  }
+
+  /* upgrade a video plane's poster -> live <video> texture when the camera is close */
+  function ensureVideo(rec){
+    if(rec.video || rec.d.kind!=="video") return;
+    const v = document.createElement("video");
+    v.src = rec.d.src; v.loop = true; v.playsInline = true; v.crossOrigin="anonymous";
+    v.muted = rec.d.muted !== false ? true : true; // keep muted by default for autoplay safety
+    v.preload = "auto";
+    rec.video = v;
+    const vt = new THREE.VideoTexture(v);
+    vt.colorSpace = THREE.SRGBColorSpace;
+    v.addEventListener("loadedmetadata", ()=>{
+      if(v.videoWidth) { rec.aspect = v.videoWidth/v.videoHeight; sizePlane(rec); }
+    });
+    rec.mat.map = vt; rec.mat.needsUpdate = true;
+  }
+  function playVideo(rec){ if(rec.video){ const p=rec.video.play(); if(p&&p.catch)p.catch(()=>{}); } }
+  function pauseVideo(rec){ if(rec.video) rec.video.pause(); }
+
+  /* ---- scroll model: progress 0..1 maps camera z from START to -(TRACK)+START ---- */
+  let targetP = 0, curP = 0, lastP = 0, vel = 0;
+  const railDot = document.getElementById("railDot");
+  const railH = ()=>document.querySelector(".rail").clientHeight - 8;
+  const cue = document.getElementById("cue");
+
+  function readScroll(){
+    const max = document.body.scrollHeight - innerHeight;
+    targetP = max>0 ? clamp(scrollY/max, 0, 1) : 0;
+  }
+  addEventListener("scroll", readScroll, {passive:true});
+  readScroll();
+
+  /* caption state */
+  const capInner = document.getElementById("capInner");
+  const capIdx = document.getElementById("capIdx");
+  const capTitle = document.getElementById("capTitle");
+  const capDesc = document.getElementById("capDesc");
+  let activeIdx = -1;
+  function setCaption(i){
+    if(i===activeIdx) return;
+    activeIdx = i;
+    const d = DATA[i];
+    capInner.style.opacity = 0; capInner.style.transform = "translateY(10px)";
+    setTimeout(()=>{
+      capIdx.textContent=d.idx; capTitle.textContent=d.title; capDesc.textContent=d.desc;
+      capInner.style.opacity = 1; capInner.style.transform = "translateY(0)";
+    }, 180);
+  }
+
+  /* mood color interpolation between the two planes the camera sits between */
+  const moodA = new THREE.Color(), moodB = new THREE.Color(), moodCur = new THREE.Color(DATA[0].color);
+  function updateMood(prog){
+    // Drive mood + caption straight from scroll progress so plane i is centered at
+    // fraction i/(N-1). This stays in lock-step with the visual regardless of START.
+    const f = clamp(prog * (N-1), 0, N-1);
+    const i = Math.floor(f), t = f - i;
+    const j = Math.min(i+1, N-1);
+    moodA.set(DATA[i].color); moodB.set(DATA[j].color);
+    moodCur.copy(moodA).lerp(moodB, t);
+    root.style.setProperty("--mood", "#"+moodCur.getHexString());
+    scene.fog.color.copy(moodCur).multiplyScalar(0.18).lerp(new THREE.Color(0x06060a),0.6);
+    setCaption(Math.round(f));
+  }
+
+  /* ---------- render loop (renders only when tab visible) ---------- */
+  let running = true;
+  document.addEventListener("visibilitychange", ()=>{
+    running = !document.hidden;
+    if(running) loop();
+  });
+
+  function frame(){
+    // eased scroll + velocity (drives tilt / scale pulse / parallax "breathing")
+    curP = lerp(curP, targetP, reduced ? 1 : 0.075);
+    vel  = lerp(vel, (curP - lastP), 0.2);
+    lastP = curP;
+    const speed = clamp(Math.abs(vel)*60, 0, 1);   // 0..1 normalized scroll speed
+
+    const camZ = START - curP * (TRACK);
+    camera.position.z = camZ;
+    // gentle idle drift of the camera so a static frame still breathes
+    const drift = reduced ? 0 : 0.12;
+    camera.position.x = Math.sin(curP*Math.PI*2)*0.18 + Math.sin(performance.now()*0.0003)*drift;
+    camera.position.y = Math.cos(curP*Math.PI*1.5)*0.10;
+    camera.lookAt(camera.position.x*0.4, camera.position.y*0.4, camZ-6);
+
+    updateMood(curP);
+
+    // rail dot
+    railDot.style.top = (curP*railH())+"px";
+    cue.style.opacity = curP>0.02 ? 0 : 1;
+
+    // per-plane reactions
+    for(let k=0;k<planes.length;k++){
+      const rec = planes[k];
+      // camera looks toward -z. gap>0 => plane is ahead of camera (approaching/in view);
+      // gap<0 => camera has flown through it.
+      const gap = camZ - rec.z;
+
+      // fade in as it approaches from far, fade out just after the camera passes through
+      const appear = clamp((24 - gap)/16, 0, 1);   // far ahead (gap big) -> 0, near -> 1
+      const passed = clamp((1.4 - gap)/2.2, 0, 1);  // gap>1.4 -> 0 ; once camera passes -> 1 (cull)
+      const op = clamp(appear - passed, 0, 1);
+      rec.mat.opacity = op;
+      rec.frameMat.opacity = op * 0.5 * (0.6 + speed*0.8);
+
+      // scale pulse with scroll velocity (the "breathing")
+      const focus = 1 - clamp(Math.abs(gap)/ (GAP*0.9), 0, 1); // 1 at the plane the cam is at
+      const pulse = 1 + (reduced?0: focus * speed * 0.10 + Math.sin(performance.now()*0.001 + k)*0.006);
+      const w = rec.baseW * pulse, h = (rec.baseW/rec.aspect) * pulse;
+      rec.mesh.scale.set(w, h, 1);
+      rec.frame.scale.set(w+0.16, h+0.16, 1);
+
+      // tilt driven by velocity + side, eased back to rest when still
+      const tilt = reduced ? 0 : (vel*8) * rec.side;
+      rec.mesh.rotation.y = lerp(rec.mesh.rotation.y, tilt*0.5 + rec.side*0.06, 0.1);
+      rec.mesh.rotation.x = lerp(rec.mesh.rotation.x, -vel*5, 0.1);
+      rec.frame.rotation.copy(rec.mesh.rotation);
+
+      // parallax: planes drift opposite the camera x for depth
+      rec.mesh.position.x = rec.baseX - camera.position.x*0.5;
+      rec.mesh.position.y = rec.baseY - camera.position.y*0.4;
+      rec.frame.position.x = rec.mesh.position.x;
+      rec.frame.position.y = rec.mesh.position.y;
+
+      // video lifecycle: upgrade + play only within a near window, pause/cull off-screen
+      const near = Math.abs(gap) < GAP*2.2 && op > 0.04;
+      if(rec.d.kind==="video"){
+        if(near){ ensureVideo(rec); if(running) playVideo(rec); }
+        else { pauseVideo(rec); }
+      }
+    }
+
+    renderer.render(scene, camera);
+  }
+
+  function loop(){
+    if(!running) return;
+    frame();
+    // reduced-motion: no perpetual animation. Render the resolved state once per
+    // frame request; further renders are scheduled on demand by scroll/resize.
+    if(reduced) return;
+    requestAnimationFrame(loop);
+  }
+  // on-demand render scheduler used in reduced-motion (coalesces bursts to one frame)
+  let queued = false;
+  function renderOnce(){
+    if(!reduced || queued || !running) return;
+    queued = true;
+    requestAnimationFrame(()=>{ queued = false; frame(); });
+  }
+
+  /* resize */
+  addEventListener("resize", ()=>{
+    // if the viewport crosses into mobile range, reload to the stack path
+    if(matchMedia("(max-width:640px)").matches){ location.reload(); return; }
+    renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+    renderer.setSize(innerWidth, innerHeight);
+    camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+    renderOnce();
+  }, {passive:true});
+
+  /* reduced-motion: settle to final state on scroll instead of animating continuously */
+  if(reduced) addEventListener("scroll", renderOnce, {passive:true});
+
+  /* if reduced-motion: render the resolved state on demand (scroll/resize); else animate */
+  loop();
+}
+</script>
+</body>
+</html>

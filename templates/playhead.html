@@ -1,0 +1,640 @@
+<!-- TEMPLATE: Playhead | ARCHETYPE: playhead (horizontal timeline reel) | REF: Unseen Studio 2025 Wrapped, OceanX 2025 | WHEN TO USE: a chronological/curated reel where the visitor scrubs left-to-right through full-frame media as if dragging a video playhead | SWAP: edit the DATA array at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Playhead  -  Timeline Reel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,600;0,800;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     PALETTE  -  two colours only. Media supplies all other colour.
+     ============================================================ */
+  :root{
+    --ink:#070707;          /* near-black */
+    --gold:#E4B504;         /* gold */
+    --ink-soft:#0d0d0d;
+    --line:rgba(228,181,4,.22);
+    --line-faint:rgba(228,181,4,.10);
+    --gold-dim:rgba(228,181,4,.55);
+    --frame-w:min(76vw, 1180px);   /* width of each full-height frame on desktop */
+    --gap:clamp(60px, 9vw, 150px); /* gutter that carries the chapter index */
+    --ease:cubic-bezier(.22,.61,.36,1);
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--ink);
+    color:var(--gold);
+    font-family:"Archivo",system-ui,sans-serif;
+    overflow:hidden;                 /* the TRACK scrolls, not the body */
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+  ::selection{background:var(--gold);color:var(--ink)}
+  a{color:inherit}
+
+  /* ---- Focus ring (keyboard) ---- */
+  :focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:2px}
+
+  /* ============================================================
+     GRAIN + faint ASCII texture  -  full-viewport fixed overlays
+     ============================================================ */
+  .grain,.ascii{position:fixed;inset:0;pointer-events:none;z-index:60}
+  .grain{
+    opacity:.05;mix-blend-mode:screen;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    animation:grainShift 1.1s steps(3) infinite;
+  }
+  @keyframes grainShift{
+    0%{transform:translate(0,0)}33%{transform:translate(-3%,2%)}66%{transform:translate(2%,-3%)}100%{transform:translate(0,0)}
+  }
+  .ascii{
+    opacity:.045;z-index:59;
+    font-family:"Space Mono",monospace;font-size:13px;line-height:13px;
+    color:var(--gold);white-space:pre;overflow:hidden;letter-spacing:1px;
+    user-select:none;mix-blend-mode:overlay;
+  }
+
+  /* ============================================================
+     PROGRESS / SCRUBBER  -  the playhead read-out, fixed top
+     ============================================================ */
+  .hud{position:fixed;inset:0 0 auto 0;z-index:50;pointer-events:none}
+  .hud-row{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:clamp(16px,3vw,30px) clamp(18px,4vw,46px) 0;
+    font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.16em;text-transform:uppercase;
+  }
+  .hud .brand{font-weight:700}
+  .hud .brand b{color:var(--gold)}
+  .hud .meta{color:var(--gold-dim)}
+  .scrub{
+    position:fixed;left:clamp(18px,4vw,46px);right:clamp(18px,4vw,46px);
+    bottom:clamp(18px,3.4vw,34px);height:2px;background:var(--line-faint);z-index:50;pointer-events:none;
+  }
+  .scrub__fill{position:absolute;inset:0 auto 0 0;width:0;background:var(--gold);box-shadow:0 0 14px var(--gold)}
+  .scrub__head{
+    position:absolute;top:50%;left:0;width:11px;height:11px;border-radius:50%;
+    background:var(--gold);transform:translate(-50%,-50%);box-shadow:0 0 16px var(--gold);
+  }
+  .scrub__ticks{position:absolute;inset:0;display:flex;justify-content:space-between}
+  .scrub__ticks i{width:1px;height:7px;background:var(--line);align-self:center}
+
+  /* ============================================================
+     TRACK  -  the horizontal scroller. Vertical wheel -> horizontal.
+     ============================================================ */
+  .track{
+    height:100%;width:100%;
+    display:flex;flex-wrap:nowrap;align-items:stretch;
+    overflow-x:auto;overflow-y:hidden;
+    scroll-snap-type:x proximity;         /* proximity, not mandatory: lets JS-eased scroll run without being yanked back */
+    scroll-behavior:auto;                 /* JS owns smoothing */
+    -webkit-overflow-scrolling:touch;
+    padding:0 calc((100vw - var(--frame-w)) / 2);  /* centre first/last frame */
+  }
+  .track::-webkit-scrollbar{display:none}
+  .track{scrollbar-width:none}
+
+  /* ---- INTRO / TITLE rail ---- */
+  .rail{
+    flex:0 0 auto;scroll-snap-align:center;
+    height:100%;display:flex;flex-direction:column;justify-content:center;
+    position:relative;
+  }
+  .intro{
+    width:min(60vw,560px);padding-right:var(--gap);
+  }
+  .intro h1{
+    font-size:clamp(44px,7.4vw,124px);line-height:.92;font-weight:800;letter-spacing:-.02em;
+    text-transform:uppercase;
+  }
+  .intro h1 em{font-style:italic;font-weight:400;color:var(--gold-dim)}
+  .intro p{
+    margin-top:1.4em;max-width:42ch;color:var(--gold-dim);
+    font-size:clamp(14px,1.2vw,17px);line-height:1.6;
+  }
+  .intro .cue{
+    margin-top:2.2em;display:inline-flex;align-items:center;gap:.7em;
+    font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);
+  }
+  .intro .cue .arr{display:inline-block;animation:nudge 1.8s var(--ease) infinite}
+  @keyframes nudge{0%,100%{transform:translateX(0)}50%{transform:translateX(8px)}}
+
+  /* ---- FRAME (one asset = one full-height frame) ---- */
+  .frame{
+    flex:0 0 var(--frame-w);scroll-snap-align:center;
+    height:100%;position:relative;
+    display:flex;align-items:center;
+    margin-right:var(--gap);
+  }
+  .frame:last-of-type{margin-right:0}
+
+  /* chapter index sits in the gutter, half over the seam */
+  .chapter{
+    position:absolute;top:0;bottom:0;right:calc(var(--gap) * -1);
+    width:var(--gap);display:flex;flex-direction:column;justify-content:center;align-items:center;
+    pointer-events:none;z-index:6;
+  }
+  .chapter .num{
+    font-family:"Space Mono",monospace;font-weight:700;
+    font-size:clamp(13px,1vw,15px);letter-spacing:.1em;color:var(--gold);
+    writing-mode:vertical-rl;transform:rotate(180deg);
+  }
+  .chapter .bar{flex:1;width:1px;background:var(--line);margin:18px 0}
+
+  /* the media viewport  -  never cover-crops; letterbox-aware via object-fit */
+  .stage{
+    position:relative;width:100%;height:min(76vh,720px);
+  }
+  /* .mediawrap is the actual clipping box; caption/sound sit OVER it (desktop)
+     or FLOW below it (mobile). Keeping media in its own wrapper is what lets
+     the mobile caption escape the clip instead of overlapping the media. */
+  .mediawrap{
+    position:absolute;inset:0;overflow:hidden;
+    border:1px solid var(--line);background:#000;
+    box-shadow:0 40px 120px -40px rgba(0,0,0,.9);
+  }
+  .mediawrap::after{ /* inner vignette + scanline whisper */
+    content:"";position:absolute;inset:0;pointer-events:none;z-index:3;
+    background:
+      linear-gradient(to top, rgba(7,7,7,.55), transparent 38%),
+      repeating-linear-gradient(0deg, rgba(7,7,7,.10) 0 2px, transparent 2px 4px);
+    mix-blend-mode:multiply;
+  }
+  .media{
+    position:absolute;inset:-7% ;          /* overscan so parallax never reveals an edge */
+    width:114%;height:114%;
+    object-fit:cover;object-position:center;
+    will-change:transform;
+  }
+  /* portrait/talking-head assets letterbox rather than crop faces */
+  .stage[data-fit="contain"] .media{
+    inset:0;width:100%;height:100%;object-fit:contain;background:#000;
+  }
+
+  /* big editorial index, top-left, sitting just inside the media clip */
+  .index{
+    position:absolute;top:0;left:0;z-index:4;
+    font-weight:800;font-size:clamp(64px,11vw,180px);line-height:.8;
+    color:transparent;-webkit-text-stroke:1.4px var(--gold-dim);
+    transform:translate(.06em,-.04em);
+    letter-spacing:-.03em;mix-blend-mode:screen;pointer-events:none;
+  }
+
+  /* caption block, bottom-left of each stage */
+  .caption{
+    position:absolute;left:0;bottom:0;z-index:5;
+    padding:clamp(16px,2.2vw,30px);max-width:min(86%,640px);
+  }
+  .caption .kind{
+    display:inline-flex;align-items:center;gap:.6em;
+    font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--ink);background:var(--gold);padding:.45em .7em;margin-bottom:1em;
+  }
+  .caption h2{
+    font-size:clamp(22px,2.4vw,40px);line-height:1.02;font-weight:800;letter-spacing:-.01em;
+    text-transform:uppercase;color:#fff;
+    text-shadow:0 2px 30px rgba(0,0,0,.8);
+  }
+  .caption p{
+    margin-top:.7em;font-size:clamp(13px,1vw,15px);line-height:1.5;color:rgba(255,255,255,.78);
+    max-width:46ch;text-shadow:0 1px 16px rgba(0,0,0,.9);
+  }
+  .caption .tools{margin-top:1em;font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.1em;color:var(--gold)}
+
+  /* mute / sound badge for audible clips */
+  .sound{
+    position:absolute;top:0;right:0;z-index:5;margin:clamp(14px,2vw,22px);
+    pointer-events:auto;cursor:pointer;
+    font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--gold);background:rgba(7,7,7,.6);border:1px solid var(--line);
+    padding:.5em .7em;backdrop-filter:blur(6px);
+  }
+  .sound:hover{background:var(--gold);color:var(--ink)}
+
+  /* ---- OUTRO rail ---- */
+  .outro{width:min(60vw,560px);padding-left:var(--gap)}
+  .outro h2{font-size:clamp(34px,5vw,84px);line-height:.96;font-weight:800;text-transform:uppercase;letter-spacing:-.02em}
+  .outro h2 em{font-style:italic;font-weight:400;color:var(--gold-dim)}
+  .outro p{margin-top:1.2em;color:var(--gold-dim);max-width:40ch;font-size:clamp(14px,1.1vw,16px);line-height:1.6}
+  .outro .restart{
+    margin-top:2em;display:inline-flex;align-items:center;gap:.6em;pointer-events:auto;cursor:pointer;
+    font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--ink);background:var(--gold);border:none;padding:.9em 1.3em;
+  }
+  .outro .restart:hover{filter:brightness(1.08)}
+
+  /* ============================================================
+     MOBILE (<=640px)  -  graceful VERTICAL stack with snap.
+     Landscape assets letterbox; no face/scene cropping.
+     ============================================================ */
+  @media (max-width:640px){
+    body{overflow:auto}
+    .grain,.ascii{z-index:60}
+    .scrub{display:none}
+    .hud-row{padding:14px 16px 0}
+    .track{
+      height:auto;width:100%;display:block;flex-wrap:initial;
+      overflow:visible;scroll-snap-type:y proximity;padding:0;
+    }
+    .rail,.frame{
+      flex:none;height:auto;width:100%;margin:0;scroll-snap-align:start;
+      display:block;padding:0;
+    }
+    .intro,.outro{width:auto;padding:18vh 22px 8vh}
+    .outro{padding-top:6vh}
+    .frame{padding:0 16px 6vh;scroll-snap-align:center}
+    .frame:first-of-type{padding-top:4vh}
+    .chapter{
+      position:relative;top:auto;bottom:auto;right:auto;width:auto;height:auto;
+      flex-direction:row;justify-content:flex-start;gap:14px;padding:24px 16px 14px;
+    }
+    .chapter .num{writing-mode:initial;transform:none}
+    .chapter .bar{flex:none;height:1px;width:46px;margin:0;align-self:center}
+    /* stage stops clipping so the caption can flow BELOW the media box.
+       The media + index + vignette live in .mediawrap, which keeps clipping. */
+    .stage{height:auto;width:100%;overflow:visible;border:none;box-shadow:none;display:block}
+    .mediawrap{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;border:1px solid var(--line);background:#000;box-shadow:0 30px 80px -40px rgba(0,0,0,.9)}
+    .stage[data-fit="contain"] .mediawrap{aspect-ratio:9/16;max-height:78vh;margin:0 auto;width:auto;max-width:100%}
+    .media{inset:0;width:100%;height:100%}      /* no overscan on mobile: parallax off */
+    /* landscape assets letterbox inside the 16/9 box: never cover-crop on a phone */
+    .stage[data-fit="cover"] .media{object-fit:contain;background:#000}
+    .index{font-size:64px;top:0;left:0;z-index:4}
+    .caption{position:relative;max-width:none;padding:16px 2px 0}
+    .caption h2{color:var(--gold)}
+    .caption p,.caption .tools{color:rgba(228,181,4,.7)}
+    .caption p{color:var(--gold-dim)}
+    .caption .kind{color:var(--ink)}
+  }
+
+  /* ============================================================
+     REDUCED MOTION  -  kill grain/parallax/auto-smooth; show final state
+     ============================================================ */
+  @media (prefers-reduced-motion:reduce){
+    .grain{animation:none}
+    .intro .cue .arr{animation:none}
+    .media{inset:0!important;width:100%!important;height:100%!important;transform:none!important}
+    .track{scroll-behavior:auto}
+  }
+
+  /* lazy frames fade in once observed */
+  .frame{opacity:0;transition:opacity .8s var(--ease)}
+  .frame.seen{opacity:1}
+  @media (prefers-reduced-motion:reduce){.frame{opacity:1!important}}
+</style>
+</head>
+<body>
+
+<!-- texture overlays -->
+<div class="grain" aria-hidden="true"></div>
+<pre class="ascii" id="ascii" aria-hidden="true"></pre>
+
+<!-- HUD -->
+<header class="hud" aria-hidden="true">
+  <div class="hud-row">
+    <span class="brand">REEL<b>//</b>PLAYHEAD</span>
+    <span class="meta" id="hudCount">00 / 00</span>
+  </div>
+</header>
+
+<div class="scrub" aria-hidden="true">
+  <div class="scrub__ticks" id="ticks"></div>
+  <div class="scrub__fill" id="fill"></div>
+  <div class="scrub__head" id="head"></div>
+</div>
+
+<!-- the horizontal reel -->
+<main class="track" id="track" tabindex="0" aria-label="Generation timeline. Use arrow keys to scrub.">
+  <!-- intro + frames + outro injected by script -->
+</main>
+
+<script>
+/* ===========================================================================
+   DATA  -  swap this array to retitle the reel. Order = left-to-right timeline.
+   type: "video" | "image"
+   fit:  "cover"  -> fills frame, gentle parallax (landscape scenes)
+         "contain"-> letterboxed, no crop (portraits / talking heads / waveforms)
+   poster: required for video (shown until in-view + decoded)
+   sound:  true for clips with audio (mute toggle appears; muted by default)
+   Paths are relative to  showcase/templates/playhead.html
+   =========================================================================== */
+const DATA = [
+  {
+    type:"image", src:"../assets/flux-car-4k.png", fit:"cover",
+    kind:"FLUX · stills", title:"Wet Neon, Matte Black",
+    blurb:"A 4K Mercedes coupe parked on a rain-slick downtown street. Diffusion stills set the tone for the whole reel.",
+    tools:"flux-pro · 4096px"
+  },
+  {
+    type:"video", src:"../assets/veo-video.mp4", poster:"../assets/gen/poster-veo-video.png", fit:"cover", sound:true,
+    kind:"VEO · text-to-video", title:"Native-Audio Drive-By",
+    blurb:"A black coupe slides through neon traffic with sound baked in at generation time. Plays only while it owns the playhead.",
+    tools:"veo · audio · loop"
+  },
+  {
+    type:"video", src:"../assets/kling-video.mp4", poster:"../assets/gen/poster-kling-video.png", fit:"cover",
+    kind:"KLING · motion", title:"Silver, In Motion Blur",
+    blurb:"Long-exposure energy on a silver chassis. Heavy clip, lazy-loaded, paused the instant it leaves the frame.",
+    tools:"kling · 21MB · muted"
+  },
+  {
+    type:"video", src:"../assets/flux-car-i2v.mp4", poster:"../assets/gen/poster-flux-car-i2v.png", fit:"cover",
+    kind:"FLUX · image-to-video", title:"The Still, Animated",
+    blurb:"The opening Mercedes still, brought to life. Image-to-video keeps the matte palette and adds breath to the scene.",
+    tools:"flux-i2v · loop"
+  },
+  {
+    type:"image", src:"../assets/flux-clinic-4k.png", fit:"cover",
+    kind:"FLUX · interiors", title:"Mint, Wood, Calm",
+    blurb:"A serene dental clinic in mint and warm wood. A palette pivot the gold UI frames without competing.",
+    tools:"flux-pro · interior"
+  },
+  {
+    type:"video", src:"../assets/heygen-avatar.mp4", poster:"../assets/gen/poster-heygen.png", fit:"contain", sound:true,
+    kind:"HEYGEN · avatar", title:"Synthetic Presenter (TH)",
+    blurb:"A Thai-speaking avatar with synced audio. Letterboxed, never cropped, so the face and frame stay intact.",
+    tools:"heygen · audio · 9:16-safe"
+  },
+  {
+    type:"video", src:"../assets/did-talking-photo.mp4", poster:"../assets/gen/poster-did.png", fit:"contain", sound:true,
+    kind:"D-ID · talking photo", title:"A Photo That Speaks",
+    blurb:"A single portrait animated into a talking head. Contained, audible, mute-by-default until you opt in.",
+    tools:"d-id · audio · portrait"
+  },
+  {
+    type:"image", src:"../assets/sdxl.png", fit:"cover",
+    kind:"SDXL · painterly", title:"Autumn Fox",
+    blurb:"A warm painterly fox in golden foliage. The most colour-rich frame, and the most at home against gold.",
+    tools:"sdxl · illustration"
+  },
+  {
+    type:"image", src:"../assets/hf-tinysd.png", fit:"contain",
+    kind:"TINY-SD · low-fi", title:"Abstract Apple",
+    blurb:"An intentionally low-fidelity apple from a tiny diffusion model. The cheapest pixel in the reel, framed honestly.",
+    tools:"tiny-sd · lo-fi"
+  }
+];
+
+/* the closing rail copy */
+const OUTRO = {
+  h:"END OF<br><em>REEL</em>",
+  p:"You scrubbed the full timeline. Swap the DATA array to load your own generations and the playhead retells your story.",
+};
+
+/* =========================================================================== */
+
+const track = document.getElementById('track');
+const reduceMotion = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+const isMobile = () => window.matchMedia('(max-width:640px)').matches;
+
+/* ---------- build DOM ---------- */
+function el(tag, cls, html){ const n=document.createElement(tag); if(cls)n.className=cls; if(html!=null)n.innerHTML=html; return n; }
+
+// intro rail
+const introRail = el('section','rail');
+introRail.innerHTML = `
+  <div class="intro">
+    <h1>The<br><em>Playhead</em><br>Reel</h1>
+    <p>You are the playhead. Scroll to scrub left-to-right through a timeline of AI generations. Each frame plays only while it is yours.</p>
+    <span class="cue">SCRUB RIGHT <span class="arr">&rarr;</span></span>
+  </div>`;
+track.appendChild(introRail);
+
+// content frames
+DATA.forEach((d,i)=>{
+  const n = String(i+1).padStart(2,'0');
+  const frame = el('section','frame');
+  frame.dataset.index = i;
+
+  const stage = el('div','stage');
+  stage.dataset.fit = d.fit;
+
+  // media element
+  let media;
+  if(d.type==='video'){
+    media = el('video','media');
+    media.muted = true; media.loop = true; media.playsInline = true;
+    media.setAttribute('playsinline',''); media.setAttribute('webkit-playsinline','');
+    media.preload = 'none';
+    media.poster = d.poster || '';
+    media.dataset.src = d.src;          // lazy: real src set on intersect
+  } else {
+    media = el('img','media');
+    media.loading = 'lazy'; media.decoding = 'async';
+    media.dataset.src = d.src;
+    media.alt = d.title;
+  }
+  // mediawrap = the clipping box (media + vignette + index live here).
+  // Keeping it separate lets the caption flow BELOW the media on mobile.
+  const wrap = el('div','mediawrap');
+  wrap.appendChild(media);
+  wrap.appendChild(el('span','index', n));   // big stroked index, bleeds off top-left
+  stage.appendChild(wrap);
+
+  // sound badge for audible clips
+  if(d.type==='video' && d.sound){
+    const btn = el('button','sound','◍ SOUND OFF');
+    btn.type='button';
+    btn.setAttribute('aria-label','Toggle sound for '+d.title);
+    btn.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      media.muted = !media.muted;
+      btn.textContent = media.muted ? '◍ SOUND OFF' : '◉ SOUND ON';
+      if(!media.muted) media.play().catch(()=>{});
+    });
+    stage.appendChild(btn);
+  }
+
+  // caption
+  const cap = el('div','caption');
+  cap.innerHTML = `
+    <span class="kind">[${n}] ${d.kind}</span>
+    <h2>${d.title}</h2>
+    <p>${d.blurb}</p>
+    <div class="tools">${d.tools}</div>`;
+  stage.appendChild(cap);
+
+  frame.appendChild(stage);
+
+  // chapter marker in the gutter (desktop) / inline (mobile)
+  const chap = el('div','chapter');
+  chap.innerHTML = `<div class="bar"></div><div class="num">CH ${n}</div><div class="bar"></div>`;
+  frame.appendChild(chap);
+
+  track.appendChild(frame);
+});
+
+// outro rail
+const outroRail = el('section','rail');
+const outroWrap = el('div','outro');
+outroWrap.innerHTML = `<h2>${OUTRO.h}</h2><p>${OUTRO.p}</p>
+  <button class="restart" type="button" id="restart">↺ REWIND TO START</button>`;
+outroRail.appendChild(outroWrap);
+track.appendChild(outroRail);
+
+/* ---------- HUD count + scrubber ticks ---------- */
+const total = DATA.length;
+document.getElementById('hudCount').textContent = '01 / '+String(total).padStart(2,'0');
+const ticks = document.getElementById('ticks');
+for(let i=0;i<total;i++) ticks.appendChild(el('i'));
+
+/* ---------- wheel -> horizontal travel (desktop only) ----------
+   Snap is disabled DURING the eased animation (otherwise CSS scroll-snap
+   yanks each small increment back toward the nearest snap point and the
+   scroll never accumulates), then re-enabled so it settles on a frame. */
+let targetScroll = 0, rafScroll = null, snapTimer = null;
+function smoothTo(v){
+  targetScroll = Math.max(0, Math.min(v, track.scrollWidth - track.clientWidth));
+  track.style.scrollSnapType = 'none';          // let JS own the scroll
+  if(snapTimer) clearTimeout(snapTimer);
+  if(rafScroll) return;
+  const step = ()=>{
+    const cur = track.scrollLeft;
+    const d = targetScroll - cur;
+    if(Math.abs(d) < .6){
+      track.scrollLeft = targetScroll; rafScroll = null;
+      // restore snap shortly after rest so it gently settles to the frame
+      snapTimer = setTimeout(()=>{ track.style.scrollSnapType = 'x proximity'; }, 120);
+      return;
+    }
+    track.scrollLeft = cur + d * 0.16;          // eased follow
+    rafScroll = requestAnimationFrame(step);
+  };
+  rafScroll = requestAnimationFrame(step);
+}
+
+if(!isMobile()){
+  track.addEventListener('wheel',(e)=>{
+    // ignore mostly-horizontal trackpad gestures (let them pass natively)
+    if(Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+    e.preventDefault();
+    const base = reduceMotion ? track.clientWidth*0.9 : (e.deltaY * 1.65);
+    if(reduceMotion){
+      track.scrollLeft += Math.sign(e.deltaY) * track.clientWidth * 0.85;
+    } else {
+      smoothTo((rafScroll? targetScroll : track.scrollLeft) + base);
+    }
+  },{passive:false});
+
+  // keyboard scrubbing
+  track.addEventListener('keydown',(e)=>{
+    const frameW = track.clientWidth * 0.8;
+    if(e.key==='ArrowRight'||e.key==='PageDown'){ e.preventDefault(); smoothTo((rafScroll?targetScroll:track.scrollLeft)+frameW); }
+    if(e.key==='ArrowLeft' ||e.key==='PageUp'){ e.preventDefault(); smoothTo((rafScroll?targetScroll:track.scrollLeft)-frameW); }
+    if(e.key==='Home'){ e.preventDefault(); smoothTo(0); }
+    if(e.key==='End'){ e.preventDefault(); smoothTo(track.scrollWidth); }
+  });
+}
+
+/* ---------- parallax counter-motion + progress, on scroll ---------- */
+const frames = [...track.querySelectorAll('.frame')];
+let rafProg = null;
+function onScroll(){
+  if(rafProg) return;
+  rafProg = requestAnimationFrame(()=>{
+    rafProg = null;
+    const maxScroll = track.scrollWidth - track.clientWidth;
+    const p = maxScroll>0 ? track.scrollLeft / maxScroll : 0;
+    // scrubber
+    document.getElementById('fill').style.width = (p*100)+'%';
+    document.getElementById('head').style.left  = (p*100)+'%';
+
+    if(reduceMotion || isMobile()) { updateHud(); return; }
+
+    // media parallax: each media drifts opposite to its frame's screen offset
+    const vw = track.clientWidth;
+    frames.forEach(f=>{
+      const r = f.getBoundingClientRect();
+      const centre = r.left + r.width/2;
+      const off = (centre - vw/2) / vw;      // -1..1 roughly
+      const media = f.querySelector('.media');
+      if(media && f.classList.contains('seen')){
+        media.style.transform = `translate3d(${(-off*5).toFixed(2)}%, 0, 0) scale(1.02)`;
+      }
+    });
+    updateHud();
+  });
+}
+function updateHud(){
+  const vw = track.clientWidth;
+  let active = 1;
+  frames.forEach(f=>{
+    const r = f.getBoundingClientRect();
+    const centre = r.left + r.width/2;
+    if(Math.abs(centre - vw/2) < vw*0.45) active = (+f.dataset.index)+1;
+  });
+  document.getElementById('hudCount').textContent =
+    String(active).padStart(2,'0')+' / '+String(total).padStart(2,'0');
+}
+track.addEventListener('scroll', onScroll, {passive:true});
+
+/* ---------- IntersectionObserver: lazy media + play/pause in view ---------- */
+const io = new IntersectionObserver((entries)=>{
+  entries.forEach(entry=>{
+    const frame = entry.target;
+    const media = frame.querySelector('.media');
+    if(entry.isIntersecting){
+      frame.classList.add('seen');
+      // lazy attach real source
+      if(media && media.dataset.src){
+        if(media.tagName==='VIDEO'){ media.src = media.dataset.src; media.load(); }
+        else { media.src = media.dataset.src; }
+        delete media.dataset.src;
+      }
+    }
+  });
+}, { root:isMobile()? null : track, rootMargin:'200px', threshold:0.01 });
+
+// a tighter observer decides who is "on the playhead" and should play
+const playIO = new IntersectionObserver((entries)=>{
+  entries.forEach(entry=>{
+    const media = entry.target.querySelector('video');
+    if(!media) return;
+    if(entry.isIntersecting && entry.intersectionRatio > 0.55){
+      if(media.src || media.dataset.src){
+        if(media.dataset.src){ media.src=media.dataset.src; media.load(); delete media.dataset.src; }
+        media.play().catch(()=>{});
+      }
+    } else {
+      media.pause();
+    }
+  });
+}, { root:isMobile()? null : track, threshold:[0,0.55,1] });
+
+frames.forEach(f=>{ io.observe(f); playIO.observe(f); });
+io.observe(introRail); io.observe(outroRail);
+
+/* ---------- restart ---------- */
+document.getElementById('restart').addEventListener('click',()=>{
+  if(isMobile()){ window.scrollTo({top:0, behavior: reduceMotion?'auto':'smooth'}); }
+  else { smoothTo(0); }
+  track.focus({preventScroll:true});
+});
+
+/* ---------- faint ASCII texture field ---------- */
+(function buildAscii(){
+  const pre = document.getElementById('ascii');
+  const chars = '·:+=*0E4B504/| - ';
+  const cols = Math.ceil(window.innerWidth/8)+4;
+  const rows = Math.ceil(window.innerHeight/13)+2;
+  let out='';
+  for(let r=0;r<rows;r++){
+    let line='';
+    for(let c=0;c<cols;c++){
+      // sparse field: mostly spaces, occasional glyph
+      line += (Math.random()<0.06) ? chars[(Math.random()*chars.length)|0] : ' ';
+    }
+    out += line+'\n';
+  }
+  pre.textContent = out;
+})();
+window.addEventListener('resize', ()=>{ /* keep ascii static after load to avoid churn */ }, {passive:true});
+
+/* initial paint */
+onScroll();
+</script>
+</body>
+</html>

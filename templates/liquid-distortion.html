@@ -1,0 +1,731 @@
+<!-- TEMPLATE: Liquid Distortion - WebGL Displacement Gallery | ARCHETYPE: liquid | REF: Codrops liquid distortion / WebGL image transitions, Active Theory | WHEN TO USE: a portfolio/agency/studio hero where works ripple+melt on hover and morph-dissolve between each other, with a liquid cursor trail; media supplies the only color | SWAP: edit the DATA array at the top of <script type="module"> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>LIQUID - WebGL Displacement Gallery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..600&family=Inter+Tight:wght@400..700&display=swap" rel="stylesheet" />
+<style>
+  /* ============================== TOKENS ============================== */
+  :root{
+    --ink:#060608;            /* near-black */
+    --ink-2:#0b0b10;
+    --paper:#ece9e2;
+    --accent:#3df2c4;         /* one accent; media supplies the rest of the color */
+    --muted:rgba(236,233,226,.46);
+    --faint:rgba(236,233,226,.30);
+    --line:rgba(236,233,226,.12);
+    --maxw:1500px;
+    --ease:cubic-bezier(.16,1,.3,1);
+  }
+
+  *{box-sizing:border-box}
+  html{ -webkit-text-size-adjust:100%; scroll-behavior:smooth; }
+  body{
+    margin:0;
+    background:var(--ink);
+    color:var(--paper);
+    font-family:"Inter Tight",system-ui,sans-serif;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+  ::selection{ background:var(--accent); color:#04140f; }
+  a{color:inherit;text-decoration:none}
+  img,video,canvas{display:block;max-width:100%}
+
+  /* visible keyboard focus everywhere */
+  :focus-visible{
+    outline:2px solid var(--accent);
+    outline-offset:3px;
+    border-radius:3px;
+  }
+
+  .wrap{ max-width:var(--maxw); margin:0 auto; padding:0 clamp(18px,4vw,56px); }
+
+  /* film grain, sits above everything but ignores pointer */
+  body::after{
+    content:"";
+    position:fixed; inset:0; z-index:90; pointer-events:none;
+    opacity:.045; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ============================== TOP CHROME ============================== */
+  header.bar{
+    position:fixed; top:0; left:0; right:0; z-index:50;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:clamp(14px,2.2vw,24px) clamp(18px,4vw,56px);
+    mix-blend-mode:difference;            /* legible over any media */
+  }
+  .brand{
+    font-family:"Fraunces",serif; font-weight:500;
+    font-size:clamp(15px,1.5vw,18px); letter-spacing:.02em;
+    display:flex; align-items:center; gap:.55em;
+  }
+  .brand .dot{ width:.5em; height:.5em; border-radius:50%; background:var(--accent); }
+  nav.top{ display:flex; gap:clamp(14px,2vw,30px); font-size:13px; letter-spacing:.08em; text-transform:uppercase; color:var(--paper); }
+  nav.top a{ opacity:.75; transition:opacity .3s var(--ease); }
+  nav.top a:hover{ opacity:1; }
+  @media (max-width:640px){ nav.top{ display:none; } }
+
+  /* ============================== STAGE (WebGL canvas host) ============================== */
+  .stage-shell{
+    position:relative;
+    min-height:100svh;
+    display:grid;
+    grid-template-columns:1.05fr .95fr;
+    align-items:stretch;
+  }
+  /* canvas covers the whole shell; the left text column sits over it */
+  #gl{
+    position:absolute; inset:0; width:100%; height:100%;
+    z-index:1;
+    cursor:none;                          /* liquid cursor replaces the native one */
+  }
+  #gl.is-fallback{ display:none; }
+
+  /* fallback crossfade stack (mobile / no-webgl / reduced-motion) */
+  .fallback{
+    position:absolute; inset:0; z-index:1; display:none;
+    overflow:hidden; background:var(--ink-2);
+  }
+  .fallback .fimg{
+    position:absolute; inset:0; opacity:0;
+    transition:opacity .9s var(--ease);
+    display:flex; align-items:center; justify-content:center;
+    background:var(--ink-2);
+  }
+  .fallback .fimg.active{ opacity:1; }
+  .fallback .fimg img{
+    width:100%; height:100%; object-fit:cover; object-position:center;
+    filter:saturate(.96) contrast(1.02);
+  }
+
+  /* left copy column */
+  .stage-copy{
+    position:relative; z-index:3;
+    grid-column:1 / 2;
+    display:flex; flex-direction:column; justify-content:flex-end;
+    padding:clamp(80px,12vh,150px) clamp(20px,4vw,60px) clamp(36px,7vh,72px);
+    pointer-events:none;                  /* clicks fall through to nav buttons */
+  }
+  .stage-copy > *{ pointer-events:auto; }
+  .eyebrow{
+    font-size:12px; letter-spacing:.26em; text-transform:uppercase; color:var(--accent);
+    display:flex; align-items:center; gap:.8em; margin:0 0 18px;
+  }
+  .eyebrow::before{ content:""; width:34px; height:1px; background:var(--accent); display:inline-block; }
+  .title{
+    font-family:"Fraunces",serif; font-weight:300; font-optical-sizing:auto;
+    font-size:clamp(40px,7.5vw,104px); line-height:.96; letter-spacing:-.02em;
+    margin:0; max-width:13ch;
+    text-shadow:0 4px 60px rgba(0,0,0,.55);
+  }
+  .title em{ font-style:italic; color:var(--accent); }
+  .lede{
+    margin:22px 0 0; max-width:38ch;
+    font-size:clamp(14px,1.4vw,17px); line-height:1.55; color:var(--muted);
+    text-shadow:0 2px 30px rgba(0,0,0,.6);
+  }
+  .meta-row{
+    margin-top:26px; display:flex; gap:22px; flex-wrap:wrap;
+    font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--faint);
+  }
+  .meta-row b{ color:var(--paper); font-weight:600; }
+
+  /* index rail (right) - the nav between works */
+  .rail{
+    position:relative; z-index:3;
+    grid-column:2 / 3;
+    display:flex; flex-direction:column; justify-content:center;
+    gap:2px; padding:clamp(80px,12vh,140px) clamp(20px,4vw,56px) clamp(36px,7vh,72px) 0;
+    align-items:flex-end; text-align:right;
+  }
+  .rail-item{
+    appearance:none; background:none; border:0; color:var(--paper);
+    font-family:"Fraunces",serif; cursor:pointer;
+    display:flex; align-items:baseline; justify-content:flex-end; gap:.7em;
+    padding:clamp(8px,1.4vh,14px) 0; width:100%;
+    font-size:clamp(20px,2.6vw,34px); line-height:1; letter-spacing:-.01em;
+    opacity:.4; transition:opacity .4s var(--ease), transform .5s var(--ease), color .4s var(--ease);
+    transform:translateX(0);
+  }
+  .rail-item .num{ font-family:"Inter Tight",sans-serif; font-size:.42em; letter-spacing:.1em; color:var(--faint); transform:translateY(-.3em); }
+  .rail-item:hover{ opacity:.85; transform:translateX(-8px); }
+  .rail-item.current{ opacity:1; color:var(--accent); }
+  .rail-item.current .num{ color:var(--accent); }
+  .rail-item.loading::after{
+    content:""; width:.5em; height:.5em; border-radius:50%;
+    border:1.5px solid var(--accent); border-right-color:transparent;
+    display:inline-block; margin-left:.4em; animation:spin .7s linear infinite;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  /* scrub progress + hint */
+  .stage-foot{
+    position:absolute; left:clamp(20px,4vw,60px); bottom:clamp(20px,4vh,34px); z-index:4;
+    display:flex; align-items:center; gap:16px; font-size:11px; letter-spacing:.18em;
+    text-transform:uppercase; color:var(--faint); pointer-events:none;
+  }
+  .progress{ width:120px; height:1px; background:var(--line); position:relative; overflow:hidden; }
+  .progress span{ position:absolute; inset:0; background:var(--accent); transform-origin:left; transform:scaleX(.2); transition:transform .8s var(--ease); }
+
+  /* liquid cursor (custom) */
+  .cursor{
+    position:fixed; top:0; left:0; z-index:80; pointer-events:none;
+    width:14px; height:14px; margin:-7px 0 0 -7px; border-radius:50%;
+    background:var(--accent); mix-blend-mode:difference;
+    transition:width .35s var(--ease), height .35s var(--ease), opacity .3s;
+    will-change:transform;
+  }
+  .cursor.hot{ width:54px; height:54px; margin:-27px 0 0 -27px; background:transparent; border:1px solid var(--accent); }
+  @media (hover:none){ .cursor{ display:none; } #gl{ cursor:auto; } }
+
+  /* ============================== BELOW THE FOLD ============================== */
+  section.notes{
+    position:relative; z-index:5; background:var(--ink);
+    padding:clamp(60px,10vh,120px) 0 clamp(70px,12vh,140px);
+    border-top:1px solid var(--line);
+  }
+  .notes h2{
+    font-family:"Fraunces",serif; font-weight:300;
+    font-size:clamp(28px,5vw,56px); line-height:1.02; letter-spacing:-.02em;
+    margin:0 0 clamp(28px,5vh,52px); max-width:18ch;
+  }
+  .notes h2 em{ font-style:italic; color:var(--accent); }
+  .grid3{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:clamp(22px,3vw,44px);
+  }
+  .note .k{ font-size:12px; letter-spacing:.2em; text-transform:uppercase; color:var(--accent); margin:0 0 10px; }
+  .note p{ margin:0; color:var(--muted); line-height:1.6; font-size:15px; }
+  footer.foot{
+    border-top:1px solid var(--line); margin-top:clamp(48px,8vh,90px); padding-top:26px;
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px;
+    font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--faint);
+  }
+
+  /* ============================== RESPONSIVE ============================== */
+  @media (max-width:980px){
+    .stage-shell{ grid-template-columns:1fr; }
+    .stage-copy{ grid-column:1; justify-content:flex-end; }
+    .rail{
+      grid-column:1; flex-direction:row; align-items:flex-start; justify-content:flex-start;
+      text-align:left; flex-wrap:wrap; gap:14px 22px;
+      padding:clamp(70px,10vh,110px) clamp(20px,4vw,56px) 0;
+      position:absolute; top:0; left:0; right:0;
+    }
+    .rail-item{ width:auto; font-size:clamp(15px,4.5vw,22px); }
+    .rail-item:hover{ transform:none; }
+    .grid3{ grid-template-columns:1fr; gap:30px; }
+  }
+  /* Mobile: never cover-crop a landscape asset into a portrait viewport.
+     Stack media on top, letterbox it, copy beneath. */
+  @media (max-width:640px){
+    .stage-shell{ min-height:auto; display:block; padding-top:64px; }
+    .fallback{
+      position:relative; inset:auto; width:100%;
+      aspect-ratio:4 / 3; max-height:62svh; border-radius:14px;
+      margin:0 clamp(14px,4vw,20px); width:auto;
+    }
+    .fallback .fimg img{ object-fit:contain; background:var(--ink-2); }
+    .stage-copy{
+      position:relative; padding:clamp(26px,7vw,34px) clamp(18px,5vw,22px) 30px;
+      justify-content:flex-start;
+    }
+    .stage-foot{ position:relative; left:auto; bottom:auto; margin:0 clamp(18px,5vw,22px) 24px; }
+    .rail{
+      position:relative; padding:0 clamp(18px,5vw,22px) 10px;
+      gap:10px 18px;
+    }
+  }
+
+  /* ============================== REDUCED MOTION ==============================
+     Kill the WebGL loop AND any heavy transitions; show a clean static state. */
+  @media (prefers-reduced-motion:reduce){
+    html{ scroll-behavior:auto; }
+    *{ transition-duration:.001ms !important; animation-duration:.001ms !important; animation-iteration-count:1 !important; }
+    .cursor{ display:none !important; }
+    #gl{ cursor:auto; }
+    .fallback .fimg{ transition:none; }
+  }
+
+  /* graceful no-JS */
+  .nojs-note{ display:none; }
+  html.no-js .nojs-note{ display:block; }
+</style>
+</head>
+<body>
+<div class="cursor" id="cursor" aria-hidden="true"></div>
+
+<header class="bar">
+  <div class="brand"><span class="dot"></span> LIQUID&nbsp;STUDIO</div>
+  <nav class="top" aria-label="Primary">
+    <a href="#work">Work</a>
+    <a href="#about">Studio</a>
+    <a href="#contact">Contact</a>
+  </nav>
+</header>
+
+<main>
+  <!-- ======================= HERO STAGE ======================= -->
+  <div class="stage-shell" id="stage">
+    <!-- WebGL canvas injected here -->
+    <canvas id="gl" aria-hidden="true"></canvas>
+
+    <!-- CSS-crossfade fallback (mobile / no-webgl / reduced-motion). Built by JS. -->
+    <div class="fallback" id="fallback" role="img" aria-label="Selected work preview"></div>
+
+    <!-- copy column -->
+    <div class="stage-copy">
+      <p class="eyebrow" id="eyebrow">Selected work</p>
+      <h1 class="title" id="title">Surfaces<br>that <em>melt</em>.</h1>
+      <p class="lede" id="lede">Loading the first piece.</p>
+      <div class="meta-row" id="meta"></div>
+    </div>
+
+    <!-- index rail = the nav between works -->
+    <nav class="rail" id="rail" aria-label="Works"></nav>
+
+    <div class="stage-foot">
+      <div class="progress" aria-hidden="true"><span id="prog"></span></div>
+      <span id="footlabel">Hover to ripple, click an index to morph</span>
+    </div>
+  </div>
+
+  <!-- ======================= NOTES ======================= -->
+  <section class="notes" id="about">
+    <div class="wrap">
+      <h2>The distortion is the <em>signature</em>. Everything else gets out of its way.</h2>
+      <div class="grid3">
+        <div class="note">
+          <p class="k">01 / Hover</p>
+          <p>A displacement field melts the plane toward your pointer. Fractal flow plus a pointer ripple, no two frames identical.</p>
+        </div>
+        <div class="note">
+          <p class="k">02 / Transition</p>
+          <p>Switching works does not cut or fade. A displacement map drives a morph-dissolve, one image liquefies into the next.</p>
+        </div>
+        <div class="note">
+          <p class="k">03 / Performance</p>
+          <p>devicePixelRatio capped at 2, textures lazy-loaded as you navigate. Phones drop WebGL for a clean crossfade. Reduced motion shows a still.</p>
+        </div>
+      </div>
+      <footer class="foot" id="contact">
+        <span>LIQUID STUDIO &mdash; index</span>
+        <span class="nojs-note">JavaScript off: showing static previews.</span>
+        <span>Built as a reusable template &middot; swap the DATA array</span>
+      </footer>
+    </div>
+  </section>
+</main>
+
+<script>document.documentElement.classList.remove('no-js');</script>
+<script>
+  // mark no-js for graceful degradation if module below never runs
+  document.documentElement.classList.add('no-js');
+</script>
+
+<!-- three.js only when we actually use WebGL -->
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+
+<script type="module">
+/* ======================================================================
+   DATA - swap these to retarget the template. Each item is one "work".
+   `displace` picks which built-in displacement map drives the morph.
+   ====================================================================== */
+const ASSETS = "../assets/";
+const DATA = [
+  {
+    title: "Wet/Neon",
+    titleHTML: "Surfaces<br>that <em>melt</em>.",
+    img: ASSETS + "flux-car-4k.png",
+    lede: "A matte-black coupe on a rain-slick neon street. Reflections do the talking; the shader makes them run.",
+    meta: [["Client","AURUM"],["Discipline","Direction / WebGL"],["Year","2026"]],
+    displace: "ripple"
+  },
+  {
+    title: "Clinic Light",
+    titleHTML: "Calm,<br><em>liquefied</em>.",
+    img: ASSETS + "flux-clinic-4k.png",
+    lede: "Mint and warm wood under raking daylight. The melt keeps it soft instead of clinical.",
+    meta: [["Client","MERIDIAN"],["Discipline","Brand film"],["Year","2026"]],
+    displace: "swirl"
+  },
+  {
+    title: "Autumn Fox",
+    titleHTML: "Painted,<br>then <em>poured</em>.",
+    img: ASSETS + "sdxl.png",
+    lede: "A storybook fox among falling leaves. Brushwork dissolves into flow on transition.",
+    meta: [["Edition","No. 04"],["Discipline","Illustration"],["Year","2026"]],
+    displace: "drip"
+  },
+  {
+    title: "Low-Fi Apple",
+    titleHTML: "Raw form,<br><em>reflowed</em>.",
+    img: ASSETS + "hf-tinysd.png",
+    lede: "A near-abstract still life. Imperfection is the point; the distortion leans into it.",
+    meta: [["Study","Texture"],["Discipline","R&D"],["Year","2026"]],
+    displace: "ripple"
+  }
+];
+
+/* ----------------------------------------------------------------------
+   Decide path: WebGL on capable desktops, CSS crossfade everywhere else.
+   ---------------------------------------------------------------------- */
+const isCoarse  = window.matchMedia("(hover:none), (pointer:coarse)").matches;
+const isSmall   = window.matchMedia("(max-width:640px)").matches;
+const reduce    = window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+
+function webglOK(){
+  try{
+    const c = document.createElement("canvas");
+    return !!(c.getContext("webgl2") || c.getContext("webgl") || c.getContext("experimental-webgl"));
+  }catch(e){ return false; }
+}
+const USE_GL = webglOK() && !isCoarse && !isSmall && !reduce;
+
+/* ----------------------------------------------------------------------
+   Shared UI: rail, copy, fallback DOM. Used by BOTH paths.
+   ---------------------------------------------------------------------- */
+const railEl = document.getElementById("rail");
+const fbEl   = document.getElementById("fallback");
+const titleEl= document.getElementById("title");
+const ledeEl = document.getElementById("lede");
+const metaEl = document.getElementById("meta");
+const eyebrow= document.getElementById("eyebrow");
+const progEl = document.getElementById("prog");
+const footEl = document.getElementById("footlabel");
+const cursor = document.getElementById("cursor");
+
+let current = 0;
+
+// build rail buttons
+const railBtns = DATA.map((d,i)=>{
+  const b = document.createElement("button");
+  b.className = "rail-item" + (i===0 ? " current" : "");
+  b.type = "button";
+  b.setAttribute("aria-label", "Show " + d.title);
+  b.innerHTML = `<span class="num">0${i+1}</span>${d.title}`;
+  b.addEventListener("click", ()=> goTo(i));
+  railEl.appendChild(b);
+  return b;
+});
+
+// build fallback crossfade frames (always present so no-JS / errors still show media)
+const fbFrames = DATA.map((d,i)=>{
+  const f = document.createElement("div");
+  f.className = "fimg" + (i===0 ? " active" : "");
+  const im = document.createElement("img");
+  im.src = d.img;                     // fallback images load eagerly only when fallback is visible
+  im.alt = d.title;
+  im.loading = i===0 ? "eager" : "lazy";
+  im.decoding = "async";
+  f.appendChild(im);
+  fbEl.appendChild(f);
+  return f;
+});
+
+function paintCopy(i){
+  const d = DATA[i];
+  titleEl.innerHTML = d.titleHTML;
+  ledeEl.textContent = d.lede;
+  metaEl.innerHTML = d.meta.map(([k,v])=>`<span>${k} <b>${v}</b></span>`).join("");
+  railBtns.forEach((b,j)=> b.classList.toggle("current", j===i));
+  progEl.style.transform = `scaleX(${(i+1)/DATA.length})`;
+}
+paintCopy(0);
+
+// custom cursor (desktop only)
+if(!isCoarse && !reduce){
+  let cx=innerWidth/2, cy=innerHeight/2, tx=cx, ty=cy;
+  addEventListener("pointermove", e=>{ tx=e.clientX; ty=e.clientY; }, {passive:true});
+  (function loop(){ cx+=(tx-cx)*.18; cy+=(ty-cy)*.18; cursor.style.transform=`translate(${cx}px,${cy}px)`; requestAnimationFrame(loop); })();
+}
+
+/* `goTo` is wired by whichever engine loads below. Default = fallback crossfade. */
+let goTo = (i)=>{
+  if(i===current) return;
+  fbFrames[current].classList.remove("active");
+  fbFrames[i].classList.add("active");
+  current = i;
+  paintCopy(i);
+};
+
+/* ======================================================================
+   PATH A - CSS crossfade fallback (mobile / no-webgl / reduced motion)
+   ====================================================================== */
+function startFallback(reason){
+  document.getElementById("gl").classList.add("is-fallback");
+  fbEl.style.display = "block";
+  footEl.textContent = reduce ? "Reduced motion - static previews" : "Tap an index to crossfade";
+  // goTo already = crossfade; nothing more to wire.
+}
+
+/* ======================================================================
+   PATH B - WebGL displacement engine
+   ====================================================================== */
+async function startGL(){
+  let THREE;
+  try{
+    THREE = await import("three");
+  }catch(e){
+    startFallback("three-load-failed");
+    return;
+  }
+  const canvas = document.getElementById("gl");
+  const stage  = document.getElementById("stage");
+
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); // CAP dpr at 2
+  renderer.setClearColor(0x060608, 1);
+
+  const scene  = new THREE.Scene();
+  const camera = new THREE.OrthographicCamera(-0.5,0.5,0.5,-0.5,-1,1);
+
+  // ---- texture lazy-loader: only load what we need, cache the rest ----
+  const loader = new THREE.TextureLoader();
+  loader.crossOrigin = "anonymous";
+  const cache = {};
+  function loadTex(src){
+    if(cache[src]) return cache[src];
+    const p = new Promise((res,rej)=>{
+      loader.load(src, t=>{
+        t.minFilter = THREE.LinearFilter;
+        t.magFilter = THREE.LinearFilter;
+        t.generateMipmaps = false;
+        t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+        // try to keep aspect-correct via uv cover in shader; store image dims
+        t.userData = { w: t.image.width, h: t.image.height };
+        res(t);
+      }, undefined, rej);
+    });
+    cache[src] = p;
+    return p;
+  }
+
+  // ---- procedural displacement map (no extra asset to download) ----
+  // Each `displace` style biases the same fractal field differently.
+  function makeDisp(style){
+    const S = 256;
+    const cv = document.createElement("canvas"); cv.width=cv.height=S;
+    const ctx = cv.getContext("2d");
+    const img = ctx.createImageData(S,S);
+    const d = img.data;
+    const cx=S/2, cy=S/2;
+    for(let y=0;y<S;y++){
+      for(let x=0;x<S;x++){
+        const i=(y*S+x)*4;
+        const nx=x/S-.5, ny=y/S-.5;
+        const r = Math.hypot(nx,ny);
+        const ang = Math.atan2(ny,nx);
+        let v;
+        if(style==="swirl"){
+          v = 0.5 + 0.5*Math.sin(ang*4 + r*22) * Math.cos(r*30);
+        }else if(style==="drip"){
+          v = 0.5 + 0.5*Math.sin(y*0.09 + Math.sin(x*0.05)*4) * (0.6+0.4*Math.sin(x*0.07));
+        }else{ // ripple (radial)
+          v = 0.5 + 0.5*Math.sin(r*38 - 1.2) * (1-r);
+        }
+        const c = Math.max(0,Math.min(255, v*255));
+        d[i]=c; d[i+1]=c; d[i+2]=c; d[i+3]=255;
+      }
+    }
+    ctx.putImageData(img,0,0);
+    const t = new THREE.CanvasTexture(cv);
+    t.minFilter=THREE.LinearFilter; t.magFilter=THREE.LinearFilter; t.generateMipmaps=false;
+    t.wrapS=t.wrapT=THREE.RepeatWrapping;
+    return t;
+  }
+  const dispMaps = {
+    ripple: makeDisp("ripple"),
+    swirl:  makeDisp("swirl"),
+    drip:   makeDisp("drip")
+  };
+
+  // ---- shader: two textures, displacement-driven mix + hover melt + cursor ripple ----
+  const VERT = `
+    varying vec2 vUv;
+    void main(){ vUv=uv; gl_Position=vec4(position,1.0); }
+  `;
+  const FRAG = `
+    precision highp float;
+    varying vec2 vUv;
+    uniform sampler2D uTexA;   // current
+    uniform sampler2D uTexB;   // incoming
+    uniform sampler2D uDisp;   // displacement map
+    uniform float uProgress;   // 0..1 morph between A and B
+    uniform float uHover;      // 0..1 hover melt amount
+    uniform vec2  uMouse;      // pointer in uv space
+    uniform vec2  uResA;       // image A aspect (w,h)
+    uniform vec2  uResB;
+    uniform vec2  uPlane;      // plane aspect (w,h)
+    uniform float uTime;
+    uniform float uRipple;     // decaying click/cursor ripple strength
+
+    // cover-fit uv so landscape never distorts into a portrait plane
+    vec2 coverUV(vec2 uv, vec2 res){
+      float planeA = uPlane.x/uPlane.y;
+      float imgA   = res.x/res.y;
+      vec2 s = vec2(1.0);
+      if(imgA > planeA){ s.x = planeA/imgA; } else { s.y = imgA/planeA; }
+      return (uv-0.5)*s + 0.5;
+    }
+
+    void main(){
+      vec2 uv = vUv;
+
+      // pointer ripple: radial wave around the cursor, decays via uRipple
+      float dM = distance(uv, uMouse);
+      float ring = sin(dM*26.0 - uTime*5.0) * exp(-dM*7.0);
+      vec2 rippleOff = normalize(uv-uMouse+0.0001) * ring * 0.018 * (uHover*0.6 + uRipple);
+
+      // displacement sample (animated flow for the "liquid" feel)
+      float disp = texture2D(uDisp, uv*1.4 + vec2(uTime*0.02, -uTime*0.015)).r;
+
+      // melt: hover pulls uv along the displacement gradient toward cursor
+      vec2 toM = (uMouse-uv);
+      vec2 meltOff = toM * disp * uHover * 0.10;
+
+      // morph intensity peaks mid-transition (classic distortion swell)
+      float intensity = 0.42;
+      float swell = uProgress*(1.0-uProgress)*4.0; // 0->1->0
+      vec2 dvA = vec2(disp) * intensity * uProgress;
+      vec2 dvB = vec2(disp) * intensity * (1.0-uProgress);
+
+      vec2 uvA = coverUV(uv + rippleOff + meltOff + dvA*swell, uResA);
+      vec2 uvB = coverUV(uv + rippleOff + meltOff - dvB*swell, uResB);
+
+      vec4 a = texture2D(uTexA, uvA);
+      vec4 b = texture2D(uTexB, uvB);
+
+      // mix gated by displacement so the dissolve looks fluid, not linear
+      float m = smoothstep(disp-0.18, disp+0.18, uProgress);
+      vec3 col = mix(a.rgb, b.rgb, m);
+
+      // subtle accent bloom along the morph front + ripple crest
+      float front = smoothstep(0.0,0.04, abs(uProgress-disp)) ;
+      col += vec3(0.24,0.95,0.77) * (1.0-front) * swell * 0.06;
+      col += vec3(0.24,0.95,0.77) * max(ring,0.0) * (uHover*0.10);
+
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `;
+
+  const uniforms = {
+    uTexA:{value:null}, uTexB:{value:null}, uDisp:{value:dispMaps.ripple},
+    uProgress:{value:0}, uHover:{value:0}, uMouse:{value:new THREE.Vector2(0.5,0.5)},
+    uResA:{value:new THREE.Vector2(16,9)}, uResB:{value:new THREE.Vector2(16,9)},
+    uPlane:{value:new THREE.Vector2(16,9)}, uTime:{value:0}, uRipple:{value:0}
+  };
+  const mat = new THREE.ShaderMaterial({ vertexShader:VERT, fragmentShader:FRAG, uniforms });
+  const quad = new THREE.Mesh(new THREE.PlaneGeometry(1,1), mat);
+  scene.add(quad);
+
+  function fit(){
+    const r = stage.getBoundingClientRect();
+    renderer.setSize(r.width, r.height, false);
+    uniforms.uPlane.value.set(r.width, r.height);
+  }
+  fit();
+  addEventListener("resize", fit);
+
+  // initial textures: load item 0, prefetch item 1
+  footEl.textContent = "Loading...";
+  const t0 = await loadTex(DATA[0].img);
+  uniforms.uTexA.value = t0;
+  uniforms.uTexB.value = t0;
+  uniforms.uResA.value.set(t0.userData.w, t0.userData.h);
+  uniforms.uResB.value.set(t0.userData.w, t0.userData.h);
+  footEl.textContent = "Hover to ripple, click an index to morph";
+  // warm next
+  if(DATA[1]) loadTex(DATA[1].img);
+
+  // ---- interaction state ----
+  let hoverTarget=0, hover=0;
+  let mouseT=new THREE.Vector2(0.5,0.5), mouse=new THREE.Vector2(0.5,0.5);
+  let rippleVal=0;
+
+  canvas.addEventListener("pointerenter", ()=>{ hoverTarget=1; cursor.classList.add("hot"); });
+  canvas.addEventListener("pointerleave", ()=>{ hoverTarget=0; cursor.classList.remove("hot"); });
+  canvas.addEventListener("pointermove", e=>{
+    const r = canvas.getBoundingClientRect();
+    mouseT.set((e.clientX-r.left)/r.width, 1.0-(e.clientY-r.top)/r.height);
+  }, {passive:true});
+  canvas.addEventListener("pointerdown", ()=>{ rippleVal=1; });
+
+  // ---- transition controller (drives uProgress A->B then commits) ----
+  let busy=false;
+  goTo = async (i)=>{
+    if(busy || i===current) return;
+    busy=true;
+    railBtns[i].classList.add("loading");
+    const tB = await loadTex(DATA[i].img);     // lazy load target on demand
+    railBtns[i].classList.remove("loading");
+
+    uniforms.uTexB.value = tB;
+    uniforms.uResB.value.set(tB.userData.w, tB.userData.h);
+    uniforms.uDisp.value = dispMaps[DATA[i].displace] || dispMaps.ripple;
+    paintCopy(i);
+
+    const dur = 1100, start = performance.now();
+    function tween(now){
+      const p = Math.min(1,(now-start)/dur);
+      const e = p<.5 ? 4*p*p*p : 1-Math.pow(-2*p+2,3)/2; // easeInOutCubic
+      uniforms.uProgress.value = e;
+      if(p<1){ requestAnimationFrame(tween); }
+      else{
+        // commit B -> A, reset progress
+        uniforms.uTexA.value = uniforms.uTexB.value;
+        uniforms.uResA.value.copy(uniforms.uResB.value);
+        uniforms.uProgress.value = 0;
+        current = i;
+        busy=false;
+        // prefetch the next neighbour
+        const nx = (i+1)%DATA.length;
+        loadTex(DATA[nx].img);
+      }
+    }
+    requestAnimationFrame(tween);
+  };
+
+  // ---- render loop (pause when stage off-screen) ----
+  let visible=true;
+  if("IntersectionObserver" in window){
+    new IntersectionObserver(es=>{ visible=es[0].isIntersecting; }, {threshold:0.01})
+      .observe(stage);
+  }
+  const clock = new THREE.Clock();
+  function frame(){
+    requestAnimationFrame(frame);
+    if(!visible) return;
+    const dt = clock.getDelta();
+    uniforms.uTime.value += dt;
+    hover += (hoverTarget-hover)*Math.min(1,dt*6);
+    mouse.x += (mouseT.x-mouse.x)*Math.min(1,dt*8);
+    mouse.y += (mouseT.y-mouse.y)*Math.min(1,dt*8);
+    rippleVal *= 0.94;                       // decay click ripple
+    uniforms.uHover.value = hover;
+    uniforms.uRipple.value = rippleVal;
+    uniforms.uMouse.value.copy(mouse);
+    renderer.render(scene, camera);
+  }
+  frame();
+}
+
+/* ----------------------------------------------------------------------
+   boot
+   ---------------------------------------------------------------------- */
+if(USE_GL){
+  startGL().catch(()=> startFallback("gl-threw"));
+}else{
+  startFallback(reduce ? "reduced-motion" : (isSmall ? "small" : "no-webgl"));
+}
+</script>
+</body>
+</html>

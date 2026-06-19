@@ -1,0 +1,817 @@
+<!-- TEMPLATE: Film Strip | ARCHETYPE: film-strip (scrub a 35mm strip) | REF: cutting-room reels, cinema timelines | WHEN TO USE: a curated gallery/reel where each asset is a frame on a literal 35mm strip you scrub left-to-right; centered frame enlarges and plays | SWAP: edit the DATA array at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Reel One — 35mm Cutting Room</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     PALETTE — near-black + amber only. Frames supply all colour.
+     ============================================================ */
+  :root{
+    --ink:#0a0807;            /* near-black base, faint warm */
+    --ink2:#070605;
+    --amber:#f2a900;          /* edge-code / HUD amber */
+    --amber-dim:rgba(242,169,0,.55);
+    --amber-faint:rgba(242,169,0,.14);
+    --amber-ghost:rgba(242,169,0,.07);
+    --film:#100c09;           /* the celluloid base */
+    --film-edge:#1a130d;
+    --sprocket:#000;
+    --ease:cubic-bezier(.22,.61,.36,1);
+    /* frame geometry (desktop, horizontal) */
+    --frame-w:clamp(220px, 30vw, 460px);  /* inactive frame picture width */
+    --frame-h:clamp(124px, 16.9vw, 258px);/* 16:9 picture window height */
+    --gutter:clamp(34px, 4.4vw, 64px);    /* celluloid border carrying sprockets */
+    --gap:clamp(8px, 1vw, 16px);          /* dark line between frames */
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--ink);
+    color:var(--amber);
+    font-family:"Space Mono",ui-monospace,Menlo,monospace;
+    overflow:hidden;                 /* the strip scrolls, not the body */
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    cursor:default;
+  }
+  ::selection{background:var(--amber);color:var(--ink)}
+  a{color:inherit;text-decoration:none}
+  :focus-visible{outline:2px solid var(--amber);outline-offset:3px;border-radius:1px}
+  button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+
+  /* ============================================================
+     FILM GRAIN + scanline dust — fixed overlays, cheap
+     ============================================================ */
+  .grain,.vign{position:fixed;inset:0;pointer-events:none;z-index:80}
+  .grain{
+    opacity:.06;mix-blend-mode:screen;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    animation:grainShift 0.9s steps(2) infinite;
+  }
+  @keyframes grainShift{0%{transform:translate(0,0)}50%{transform:translate(-2%,1%)}100%{transform:translate(1%,-2%)}}
+  .vign{z-index:79;background:radial-gradient(120% 92% at 50% 50%,transparent 52%,rgba(0,0,0,.62) 100%)}
+
+  /* ============================================================
+     STAGE — full viewport. The strip lives on a horizontal rail.
+     ============================================================ */
+  .stage{position:fixed;inset:0;display:flex;align-items:center;overflow:hidden}
+
+  /* the rail is wider than the viewport; we translate it on X */
+  .rail{
+    position:relative;
+    display:flex;align-items:stretch;
+    will-change:transform;
+    padding:0 50vw;                 /* lead/trail so first & last frame can center */
+  }
+
+  /* ---- the celluloid base running the full strip ---- */
+  .strip{
+    position:relative;
+    display:flex;align-items:stretch;
+    background:
+      linear-gradient(180deg,var(--film-edge) 0%,var(--film) calc(var(--gutter) - 2px),var(--film) calc(100% - var(--gutter) + 2px),var(--film-edge) 100%);
+    box-shadow:0 30px 90px -30px #000, inset 0 0 0 1px rgba(0,0,0,.6);
+  }
+  /* sprocket-hole rows top + bottom — repeating rounded squares */
+  .strip::before,.strip::after{
+    content:"";position:absolute;left:0;right:0;height:calc(var(--gutter) * .56);
+    background-image:radial-gradient(rgba(0,0,0,0) 0,rgba(0,0,0,0) 100%);
+    background:
+      repeating-linear-gradient(90deg,
+        transparent 0, transparent 14px,
+        var(--sprocket) 14px, var(--sprocket) 30px,
+        transparent 30px, transparent 44px);
+    -webkit-mask-image:radial-gradient(circle, #000 99%, transparent 100%);
+    z-index:2;pointer-events:none;
+  }
+  /* rounded sprocket holes via mask trick: draw black squares, round corners */
+  .strip::before{top:calc(var(--gutter) * .22)}
+  .strip::after{bottom:calc(var(--gutter) * .22)}
+  /* give the holes rounded corners + subtle inner highlight */
+  .sprockets{position:absolute;inset:0;z-index:2;pointer-events:none}
+  .sprockets .row{
+    position:absolute;left:0;right:0;height:calc(var(--gutter) * .52);
+    display:flex;align-items:center;
+  }
+  .sprockets .row.top{top:calc(var(--gutter) * .24)}
+  .sprockets .row.bot{bottom:calc(var(--gutter) * .24)}
+
+  /* ---- one FRAME = picture window + edge codes ---- */
+  .frame{
+    position:relative;
+    flex:0 0 auto;
+    width:var(--frame-w);
+    padding:var(--gutter) 0;        /* gutters carry sprockets above/below */
+    margin-right:var(--gap);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    transition:width .55s var(--ease);
+  }
+  .frame::before{ /* dark frame-line separating this frame from the next */
+    content:"";position:absolute;top:6px;bottom:6px;right:calc(var(--gap) * -.5);
+    width:2px;background:rgba(0,0,0,.85);
+  }
+
+  /* the actual picture window (16:9), letterboxes any aspect, never crops out */
+  .win{
+    position:relative;
+    width:100%;height:var(--frame-h);
+    background:#000;
+    overflow:hidden;
+    border:1px solid rgba(0,0,0,.9);
+    box-shadow:inset 0 0 0 1px rgba(242,169,0,.10), inset 0 0 40px rgba(0,0,0,.55);
+    transition:height .55s var(--ease);
+    display:grid;place-items:center;
+  }
+  .win img,.win video{
+    max-width:100%;max-height:100%;
+    width:auto;height:auto;                /* CONTAIN — never cover-crop */
+    object-fit:contain;
+    display:block;
+    filter:saturate(.86) contrast(1.04) brightness(.74);
+    transition:filter .55s var(--ease),transform .55s var(--ease);
+  }
+  /* square / portrait assets sit pillar-boxed on pure black — intentional */
+  .win .pad{position:absolute;inset:0;display:grid;place-items:center;background:repeating-linear-gradient(90deg,#000 0 6px,#040302 6px 12px)}
+
+  /* per-frame edge code printed on the celluloid (top gutter) */
+  .edgecode{
+    position:absolute;top:calc(var(--gutter) * .30);left:8px;right:8px;
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:9px;letter-spacing:1.5px;color:var(--amber-dim);
+    text-transform:uppercase;pointer-events:none;z-index:3;
+    mix-blend-mode:screen;
+  }
+  .edgecode .kbox{border:1px solid var(--amber-faint);padding:1px 4px;border-radius:1px}
+  /* bottom gutter: keykode + frame number, like real Kodak edge print */
+  .edgekey{
+    position:absolute;bottom:calc(var(--gutter) * .30);left:8px;right:8px;
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:9px;letter-spacing:1.5px;color:var(--amber-dim);
+    pointer-events:none;z-index:3;mix-blend-mode:screen;
+  }
+
+  /* caption rides just under the picture window, inside the frame gutter zone */
+  .cap{
+    position:absolute;left:10px;right:10px;
+    bottom:calc(var(--gutter) * .92);
+    font-size:10px;letter-spacing:.5px;color:var(--amber-dim);
+    text-transform:uppercase;text-align:left;
+    opacity:0;transition:opacity .5s var(--ease);pointer-events:none;z-index:4;
+  }
+
+  /* ---- ACTIVE (centered) frame: enlarge, play, bloom ---- */
+  .frame.active{width:calc(var(--frame-w) * 1.62)}
+  .frame.active .win{height:calc(var(--frame-h) * 1.62)}
+  .frame.active .win img,.frame.active .win video{filter:saturate(1) contrast(1.02) brightness(1)}
+  .frame.active::before{background:rgba(0,0,0,.95)}
+  .frame.active .win{box-shadow:inset 0 0 0 1px rgba(242,169,0,.30),0 0 0 1px rgba(242,169,0,.18),0 24px 80px -24px rgba(242,169,0,.18),inset 0 0 60px rgba(0,0,0,.45)}
+  .frame.active .cap{opacity:1}
+  .frame.active .edgecode,.frame.active .edgekey{color:var(--amber)}
+
+  /* media-type chip in the corner of active window */
+  .chip{
+    position:absolute;top:8px;left:8px;z-index:6;
+    font-size:9px;letter-spacing:1.5px;color:var(--amber);
+    background:rgba(10,8,7,.72);border:1px solid var(--amber-faint);
+    padding:3px 6px;border-radius:1px;text-transform:uppercase;
+    opacity:0;transition:opacity .5s var(--ease);
+  }
+  .frame.active .chip{opacity:1}
+
+  /* play/pause + sound state badge */
+  .state{
+    position:absolute;top:8px;right:8px;z-index:6;
+    display:flex;gap:5px;opacity:0;transition:opacity .5s var(--ease);
+  }
+  .frame.active .state{opacity:1}
+  .state .dot{
+    font-size:9px;letter-spacing:1px;color:var(--amber);
+    background:rgba(10,8,7,.72);border:1px solid var(--amber-faint);
+    padding:3px 6px;border-radius:1px;text-transform:uppercase;
+  }
+  .state .dot[hidden]{display:none}
+
+  /* ============================================================
+     HUD — frame counter + running timecode, cutting-room style
+     ============================================================ */
+  .hud{position:fixed;z-index:90;pointer-events:none;color:var(--amber)}
+  .hud .mono{font-variant-numeric:tabular-nums}
+
+  /* top-left: reel title + status */
+  .hud.tl{top:max(18px,env(safe-area-inset-top));left:max(18px,env(safe-area-inset-left));text-align:left}
+  .hud.tl .reel{font-size:11px;letter-spacing:3px;text-transform:uppercase}
+  .hud.tl .sub{font-size:9px;letter-spacing:2px;color:var(--amber-dim);margin-top:4px;text-transform:uppercase}
+  .hud.tl .rec{display:inline-flex;align-items:center;gap:6px;margin-top:9px;font-size:9px;letter-spacing:2px;color:var(--amber-dim)}
+  .hud.tl .rec b{width:6px;height:6px;border-radius:50%;background:var(--amber);box-shadow:0 0 8px var(--amber);animation:blink 1.4s steps(2,end) infinite}
+  @keyframes blink{50%{opacity:.15}}
+
+  /* top-right: big timecode */
+  .hud.tr{top:max(18px,env(safe-area-inset-top));right:max(18px,env(safe-area-inset-right));text-align:right}
+  .hud.tr .tc{font-size:clamp(20px,4vw,34px);font-weight:700;letter-spacing:2px;line-height:1}
+  .hud.tr .tc small{font-size:.42em;color:var(--amber-dim);letter-spacing:1px}
+  .hud.tr .fmt{font-size:9px;letter-spacing:2px;color:var(--amber-dim);margin-top:6px;text-transform:uppercase}
+
+  /* bottom: frame counter + the scrub progress ruler */
+  .hud.bottom{left:0;right:0;bottom:max(16px,env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:center;gap:10px}
+  .counter{font-size:12px;letter-spacing:3px;text-transform:uppercase}
+  .counter b{font-size:18px;font-weight:700;color:var(--amber)}
+  .counter span{color:var(--amber-dim)}
+
+  /* clickable ruler / scrubber */
+  .ruler{
+    pointer-events:auto;
+    position:relative;width:min(64vw,720px);height:26px;
+    display:flex;align-items:center;
+  }
+  .ruler .track{position:absolute;left:0;right:0;top:50%;height:1px;background:var(--amber-faint)}
+  .ruler .ticks{position:absolute;inset:0;display:flex;justify-content:space-between}
+  .ruler .ticks i{width:1px;height:7px;background:var(--amber-faint);align-self:flex-start;margin-top:9px}
+  .ruler .ticks i.major{height:12px;background:var(--amber-dim);margin-top:4px}
+  .ruler .head{
+    position:absolute;top:50%;transform:translate(-50%,-50%);
+    width:2px;height:24px;background:var(--amber);box-shadow:0 0 10px var(--amber);
+    transition:left .4s var(--ease);
+  }
+  .ruler .head::after{content:"";position:absolute;top:-6px;left:50%;transform:translateX(-50%);
+    border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid var(--amber)}
+  .ruler .marks{position:absolute;inset:0}
+  .ruler .marks button{position:absolute;top:50%;transform:translate(-50%,-50%);width:10px;height:10px;border-radius:50%;background:transparent;border:1px solid var(--amber-dim)}
+  .ruler .marks button[data-on="1"]{background:var(--amber);border-color:var(--amber)}
+
+  /* hint to scrub */
+  .hint{position:fixed;left:50%;transform:translateX(-50%);bottom:max(96px,calc(env(safe-area-inset-bottom) + 80px));
+    z-index:90;font-size:9px;letter-spacing:3px;color:var(--amber-dim);text-transform:uppercase;
+    opacity:.8;animation:pulse 2.6s ease-in-out infinite;pointer-events:none}
+  @keyframes pulse{0%,100%{opacity:.3}50%{opacity:.85}}
+
+  /* nav arrows (real buttons, keyboard reachable) */
+  .arrow{position:fixed;top:50%;transform:translateY(-50%);z-index:92;
+    width:40px;height:40px;border:1px solid var(--amber-faint);border-radius:1px;
+    display:grid;place-items:center;color:var(--amber);background:rgba(10,8,7,.5);
+    font-size:16px;transition:border-color .3s,background .3s}
+  .arrow:hover{border-color:var(--amber-dim);background:rgba(10,8,7,.8)}
+  .arrow.prev{left:max(14px,env(safe-area-inset-left))}
+  .arrow.next{right:max(14px,env(safe-area-inset-right))}
+
+  /* ============================================================
+     REDUCED MOTION — kill grain/blink/anim, show final state.
+     Strip is positioned by JS (no transition) and stays usable.
+     ============================================================ */
+  @media (prefers-reduced-motion: reduce){
+    .grain{animation:none;opacity:.04}
+    .hud.tl .rec b{animation:none}
+    .hint{animation:none;opacity:.5}
+    .frame,.win,.win img,.win video,.cap,.chip,.state,.ruler .head,.frame.active .win{transition:none !important}
+  }
+
+  /* ============================================================
+     MOBILE  (<=640px) — VERTICAL strip. Sprockets move to the
+     SIDES, scrub is top-to-bottom, frames stay 16:9 letterboxed.
+     ============================================================ */
+  @media (max-width:640px){
+    :root{
+      --gutter:clamp(26px,7vw,34px);
+      --frame-w:min(82vw,440px);
+      --frame-h:calc(min(82vw,440px) * 0.5625); /* keep 16:9 window */
+    }
+    .stage{align-items:stretch;justify-content:center;flex-direction:column}
+    .rail{flex-direction:column;align-items:center;padding:50vh 0;width:100%}
+    .strip{
+      flex-direction:column;align-items:center;width:min(82vw,440px) + (var(--gutter)*2);
+      background:linear-gradient(90deg,var(--film-edge) 0%,var(--film) calc(var(--gutter) - 2px),var(--film) calc(100% - var(--gutter) + 2px),var(--film-edge) 100%);
+    }
+    /* sprocket rows become left + right columns */
+    .strip::before,.strip::after{
+      top:0;bottom:0;left:auto;right:auto;height:auto;width:calc(var(--gutter) * .56);
+      background:repeating-linear-gradient(0deg,
+        transparent 0, transparent 14px,
+        var(--sprocket) 14px, var(--sprocket) 30px,
+        transparent 30px, transparent 44px);
+    }
+    .strip::before{left:calc(var(--gutter) * .22)}
+    .strip::after{right:calc(var(--gutter) * .22)}
+    .frame{
+      width:auto;
+      padding:0 var(--gutter);
+      margin-right:0;margin-bottom:var(--gap);
+      transition:none;
+    }
+    .frame::before{
+      top:auto;left:6px;right:6px;bottom:calc(var(--gap) * -.5);
+      width:auto;height:2px;
+    }
+    .win{width:min(82vw,440px)}
+    /* active on mobile: grow modestly, no horizontal width blowout */
+    .frame.active{width:auto}
+    .frame.active .win{height:calc(var(--frame-h) * 1.18)}
+    .edgecode,.edgekey{font-size:8px;left:4px;right:4px}
+    .edgecode{top:auto;left:calc(var(--gutter)*.20);right:auto;flex-direction:column;height:100%;justify-content:center;writing-mode:vertical-rl;text-orientation:mixed;top:0;bottom:0}
+    .edgekey{bottom:auto;right:calc(var(--gutter)*.20);left:auto;flex-direction:column;height:100%;justify-content:center;writing-mode:vertical-rl;text-orientation:mixed;top:0}
+    .cap{position:static;opacity:1;text-align:center;margin-top:8px;padding:0 8px}
+    .frame .cap{opacity:1}
+    .hud.tr .tc{font-size:22px}
+    .arrow{display:none}        /* swipe / scroll instead */
+    .ruler{width:78vw}
+    .hint{bottom:max(110px,calc(env(safe-area-inset-bottom) + 90px))}
+    .hud.bottom{gap:8px}
+  }
+
+  /* very small height (landscape phones) — shrink HUD */
+  @media (max-height:430px){
+    .hud.tr .tc{font-size:18px}
+    .hint{display:none}
+  }
+
+  .noscript{position:fixed;inset:0;display:grid;place-items:center;text-align:center;padding:24px;font-size:13px;letter-spacing:1px;color:var(--amber)}
+</style>
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="vign" aria-hidden="true"></div>
+
+  <!-- ===================== STAGE / STRIP ===================== -->
+  <main class="stage" aria-label="35mm film strip gallery">
+    <div class="rail" id="rail">
+      <div class="strip" id="strip" role="list" aria-label="Reel frames"></div>
+    </div>
+  </main>
+
+  <!-- ===================== HUD ===================== -->
+  <div class="hud tl" aria-hidden="true">
+    <div class="reel" id="reelName">REEL ONE</div>
+    <div class="sub" id="reelSub">GEN-MEDIA CUTTING ROOM / 24 FPS</div>
+    <div class="rec"><b></b><span>SCRUBBING</span></div>
+  </div>
+
+  <div class="hud tr" aria-hidden="true">
+    <div class="tc mono"><span id="tc">00:00:00:00</span></div>
+    <div class="fmt"><span id="aspect">16:9</span> · <span id="codec">PRORES 422</span></div>
+  </div>
+
+  <div class="hud bottom">
+    <div class="counter mono" aria-live="polite">
+      FR <b id="curN">01</b> <span>/</span> <span id="totN">09</span>
+    </div>
+    <div class="ruler" id="ruler" role="slider" tabindex="0"
+         aria-label="Scrub frame" aria-valuemin="1" aria-valuemax="9" aria-valuenow="1">
+      <div class="track"></div>
+      <div class="ticks" id="ticks"></div>
+      <div class="marks" id="marks"></div>
+      <div class="head" id="head" style="left:0"></div>
+    </div>
+  </div>
+
+  <div class="hint">DRAG · SCROLL · ← → TO SCRUB</div>
+
+  <button class="arrow prev" id="prev" aria-label="Previous frame">‹</button>
+  <button class="arrow next" id="next" aria-label="Next frame">›</button>
+
+  <noscript><div class="noscript">Enable JavaScript to scrub the reel.</div></noscript>
+
+<script>
+/* ============================================================================
+   DATA — swap this array to rebuild the reel. Each entry is one 35mm frame.
+   Asset paths are relative to /showcase/templates/  ->  ../assets/
+   kind: "image" | "video"   (video also needs poster)
+   sound: true if the clip carries audio (shown in HUD; stays muted until play)
+   aspect: source aspect, drives the letterbox label only (window is 16:9)
+   ============================================================================ */
+const DATA = [
+  {
+    kind:"image", src:"../assets/flux-car-4k.png",
+    title:"Matte-black coupe, wet neon street", code:"FLUX · STILL",
+    keykode:"KX 21 7744", aspect:"16:9", codec:"PNG 4K", sound:false
+  },
+  {
+    kind:"video", src:"../assets/flux-car-i2v.mp4", poster:"../assets/gen/poster-flux-car-i2v.png",
+    title:"Coupe, image-to-video drive cycle", code:"FLUX I2V",
+    keykode:"KX 21 8120", aspect:"16:9", codec:"H.264 1080", sound:false
+  },
+  {
+    kind:"video", src:"../assets/kling-video.mp4", poster:"../assets/gen/poster-kling-video.png",
+    title:"Kling motion plate", code:"KLING T2V",
+    keykode:"KX 22 0301", aspect:"16:9", codec:"H.264 1080", sound:false
+  },
+  {
+    kind:"video", src:"../assets/veo-video.mp4", poster:"../assets/gen/poster-veo-video.png",
+    title:"Veo establishing shot", code:"VEO 3",
+    keykode:"KX 22 1198", aspect:"16:9", codec:"H.264 720", sound:true
+  },
+  {
+    kind:"image", src:"../assets/flux-clinic-4k.png",
+    title:"Mint and wood dental interior", code:"FLUX · STILL",
+    keykode:"KX 22 4456", aspect:"16:9", codec:"PNG 4K", sound:false
+  },
+  {
+    kind:"video", src:"../assets/heygen-avatar.mp4", poster:"../assets/gen/poster-heygen.png",
+    title:"HeyGen presenter, sync take", code:"HEYGEN AV",
+    keykode:"KX 23 0077", aspect:"16:9", codec:"H.264 720", sound:true
+  },
+  {
+    kind:"video", src:"../assets/fal-video.mp4", poster:"../assets/gen/poster-fal-video.png",
+    title:"fal motion study", code:"FAL T2V",
+    keykode:"KX 23 5512", aspect:"16:9", codec:"H.264 720", sound:false
+  },
+  {
+    kind:"image", src:"../assets/sdxl.png",
+    title:"Painterly autumn fox", code:"SDXL · STILL",
+    keykode:"KX 24 1903", aspect:"1:1", codec:"PNG 512", sound:false
+  },
+  {
+    kind:"image", src:"../assets/meshy-refined-thumb.png",
+    title:"Meshy 3D mesh render", code:"MESHY 3D",
+    keykode:"KX 24 8841", aspect:"1:1", codec:"GLB · THUMB", sound:false
+  }
+];
+
+/* ----- runtime ----- */
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const isMobile = () => matchMedia("(max-width:640px)").matches;
+
+const strip   = document.getElementById("strip");
+const rail    = document.getElementById("rail");
+const stage   = document.querySelector(".stage");
+const tcEl     = document.getElementById("tc");
+const aspectEl = document.getElementById("aspect");
+const codecEl  = document.getElementById("codec");
+const curNEl   = document.getElementById("curN");
+const totNEl   = document.getElementById("totN");
+const head     = document.getElementById("head");
+const ruler    = document.getElementById("ruler");
+const ticksEl  = document.getElementById("ticks");
+const marksEl  = document.getElementById("marks");
+
+totNEl.textContent = String(DATA.length).padStart(2,"0");
+ruler.setAttribute("aria-valuemax", DATA.length);
+
+/* ---- build frames ---- */
+const frames = [];
+DATA.forEach((d,i)=>{
+  const f = document.createElement("article");
+  f.className = "frame";
+  f.setAttribute("role","listitem");
+  f.dataset.i = i;
+
+  // edge codes printed on the celluloid (top + bottom gutters)
+  const ec = document.createElement("div");
+  ec.className = "edgecode";
+  ec.innerHTML = `<span class="kbox">${d.code}</span><span>${String(i+1).padStart(2,"0")}A</span>`;
+  const ek = document.createElement("div");
+  ek.className = "edgekey";
+  ek.innerHTML = `<span>${d.keykode}</span><span>${d.aspect}</span>`;
+
+  // picture window
+  const win = document.createElement("div");
+  win.className = "win";
+
+  // chip + state badges
+  const chip = document.createElement("div");
+  chip.className = "chip";
+  chip.textContent = d.kind === "video" ? "CLIP" : "STILL";
+  const state = document.createElement("div");
+  state.className = "state";
+  state.innerHTML = `<span class="dot" data-role="play">${d.kind==="video"?"▶ PLAY":"STILL"}</span>`
+                  + (d.sound ? `<span class="dot" data-role="snd">MUTE</span>` : ``);
+
+  let media;
+  if(d.kind === "image"){
+    media = document.createElement("img");
+    media.loading = "lazy";
+    media.decoding = "async";
+    media.src = d.src;
+    media.alt = d.title;
+  } else {
+    media = document.createElement("video");
+    media.muted = true;          // start muted for autoplay policy
+    media.loop = true;
+    media.playsInline = true;
+    media.preload = "none";       // do not download until needed
+    media.poster = d.poster || "";
+    media.setAttribute("aria-label", d.title);
+    // <source> set lazily on activation to avoid eager fetch
+    media.dataset.src = d.src;
+    media.dataset.sound = d.sound ? "1" : "0";
+  }
+  win.appendChild(media);
+  win.appendChild(chip);
+  win.appendChild(state);
+
+  const cap = document.createElement("div");
+  cap.className = "cap";
+  cap.textContent = `${String(i+1).padStart(2,"0")} · ${d.title}`;
+
+  f.appendChild(ec);
+  f.appendChild(win);
+  f.appendChild(cap);
+  f.appendChild(ek);
+  strip.appendChild(f);
+  frames.push({el:f, win, media, data:d});
+});
+
+/* ---- ruler ticks + clickable marks ---- */
+DATA.forEach((d,i)=>{
+  const t = document.createElement("i");
+  if(i % 1 === 0) t.classList.add("major");
+  ticksEl.appendChild(t);
+  const b = document.createElement("button");
+  b.style.left = (DATA.length === 1 ? 50 : (i/(DATA.length-1))*100) + "%";
+  b.setAttribute("aria-label", `Frame ${i+1}: ${d.title}`);
+  b.addEventListener("click", ()=> goTo(i));
+  marksEl.appendChild(b);
+});
+const markBtns = [...marksEl.children];
+
+/* ============================================================================
+   SCRUB ENGINE
+   position = continuous index (0 .. N-1). We center the frame whose index is
+   nearest. Smooth on desktop, snap-on-release. Mobile uses native vertical
+   scroll feel via the same translate, swap axis.
+   ============================================================================ */
+let pos = 0;                 // continuous scrub position
+let target = 0;             // eased target (snap point)
+let active = -1;
+let dragging = false;
+let lastPointer = 0;
+let velocity = 0;
+let rafId = null;
+
+const clamp = (v,a,b)=> Math.max(a, Math.min(b, v));
+
+/* per-frame pixel pitch (distance between frame centers) — measured live */
+function pitch(){
+  if(frames.length < 2){
+    const r = frames[0].el.getBoundingClientRect();
+    return isMobile() ? r.height : r.width;
+  }
+  const a = frames[0].el.getBoundingClientRect();
+  const b = frames[1].el.getBoundingClientRect();
+  return isMobile() ? (b.top - a.top) : (b.left - a.left);
+}
+
+/* layout: translate rail so that `pos` frame is centered */
+function layout(){
+  // measure center of frame 0 relative to its natural flow, then offset
+  const f0 = frames[0].el;
+  const r0 = f0.getBoundingClientRect();
+  const railRect = rail.getBoundingClientRect();
+  const p = pitch();
+  if(isMobile()){
+    // frame0 center y within rail content
+    const f0Center = (r0.top - railRect.top) + r0.height/2 - getTranslate().y;
+    const viewCenter = window.innerHeight/2;
+    const y = viewCenter - (f0Center + pos*p);
+    setTranslate(0, y);
+  } else {
+    const f0Center = (r0.left - railRect.left) + r0.width/2 - getTranslate().x;
+    const viewCenter = window.innerWidth/2;
+    const x = viewCenter - (f0Center + pos*p);
+    setTranslate(x, 0);
+  }
+  updateActive();
+}
+
+let _tx=0,_ty=0;
+function setTranslate(x,y){ _tx=x;_ty=y; rail.style.transform = `translate3d(${x.toFixed(2)}px,${y.toFixed(2)}px,0)`; }
+function getTranslate(){ return {x:_tx,y:_ty}; }
+
+/* which frame is centered */
+function updateActive(){
+  const idx = clamp(Math.round(pos), 0, frames.length-1);
+  if(idx !== active){
+    if(active >= 0) deactivate(active);
+    activate(idx);
+    active = idx;
+    // HUD
+    curNEl.textContent = String(idx+1).padStart(2,"0");
+    aspectEl.textContent = frames[idx].data.aspect;
+    codecEl.textContent = frames[idx].data.codec;
+    ruler.setAttribute("aria-valuenow", idx+1);
+    markBtns.forEach((b,i)=> b.dataset.on = (i===idx ? "1":"0"));
+  }
+  // ruler head follows continuous pos
+  const t = frames.length===1 ? 50 : clamp(pos/(frames.length-1),0,1)*100;
+  head.style.left = t + "%";
+}
+
+function activate(i){
+  const fr = frames[i];
+  fr.el.classList.add("active");
+  if(fr.data.kind === "video"){
+    const v = fr.media;
+    if(!v.querySelector("source") && !v.src){
+      const s = document.createElement("source");
+      s.src = v.dataset.src; s.type = "video/mp4";
+      v.appendChild(s); v.load();
+    }
+    if(!reduce){
+      const playDot = fr.el.querySelector('[data-role="play"]');
+      v.play().then(()=>{ if(playDot) playDot.textContent="❚❚ LIVE"; }).catch(()=>{});
+    }
+  }
+}
+function deactivate(i){
+  const fr = frames[i];
+  fr.el.classList.remove("active");
+  if(fr.data.kind === "video"){
+    const v = fr.media;
+    try{ v.pause(); }catch(e){}
+    const playDot = fr.el.querySelector('[data-role="play"]');
+    if(playDot) playDot.textContent="▶ PLAY";
+  }
+}
+
+/* ---- TIMECODE: derived from continuous pos. 24fps, ~6s per frame slot ---- */
+const FPS = 24, SLOT = 6; // seconds of timeline per frame
+function fmtTC(totalFrames){
+  const tf = Math.max(0, Math.round(totalFrames));
+  const f = tf % FPS;
+  const totalSec = Math.floor(tf / FPS);
+  const s = totalSec % 60;
+  const m = Math.floor(totalSec/60) % 60;
+  const h = Math.floor(totalSec/3600);
+  const p = n => String(n).padStart(2,"0");
+  return `${p(h)}:${p(m)}:${p(s)}:${p(f)}`;
+}
+function paintTC(){
+  const frameTime = clamp(pos,0,frames.length-1) * SLOT * FPS;
+  tcEl.textContent = fmtTC(frameTime);
+}
+
+/* ============================================================================
+   ANIMATION LOOP — eases pos toward target with inertia.
+   Reduced-motion: no loop; jump straight to integer target.
+   ============================================================================ */
+function tick(){
+  rafId = null;
+  if(!dragging){
+    // spring toward target
+    pos += (target - pos) * 0.16;
+    pos += velocity;
+    velocity *= 0.86;
+    if(Math.abs(velocity) < 0.0005) velocity = 0;
+    if(Math.abs(target - pos) < 0.0008 && velocity === 0){ pos = target; }
+  }
+  layout(); paintTC();
+  const settled = !dragging && pos === target && velocity === 0;
+  if(!settled) rafId = requestAnimationFrame(tick);
+}
+function kick(){ if(rafId == null) rafId = requestAnimationFrame(tick); }
+
+/* go to a snap index */
+function goTo(i){
+  target = clamp(i, 0, frames.length-1);
+  if(reduce){ pos = target; velocity = 0; layout(); paintTC(); return; }
+  kick();
+}
+
+/* ============================================================================
+   INPUT — wheel, drag (pointer), keyboard, ruler.
+   ============================================================================ */
+let wheelAccum = 0, wheelTimer = null;
+stage.addEventListener("wheel", (e)=>{
+  e.preventDefault();
+  const delta = (Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX);
+  if(reduce){
+    // step discretely
+    wheelAccum += delta;
+    if(Math.abs(wheelAccum) > 40){ goTo(active + (wheelAccum>0?1:-1)); wheelAccum=0; }
+    return;
+  }
+  pos = clamp(pos + delta / (pitch()*0.9), 0, frames.length-1);
+  target = clamp(Math.round(pos), 0, frames.length-1);
+  velocity = clamp(delta/4000, -0.05, 0.05);
+  layout(); paintTC();
+  clearTimeout(wheelTimer);
+  wheelTimer = setTimeout(()=>{ target = clamp(Math.round(pos),0,frames.length-1); kick(); }, 90);
+  kick();
+}, {passive:false});
+
+/* pointer drag */
+function pointerVal(e){ return isMobile() ? e.clientY : e.clientX; }
+stage.addEventListener("pointerdown", (e)=>{
+  if(e.target.closest(".ruler") || e.target.closest(".arrow")) return;
+  dragging = true; velocity = 0;
+  lastPointer = pointerVal(e);
+  stage.setPointerCapture?.(e.pointerId);
+  stage.style.cursor = "grabbing";
+  kick();
+});
+stage.addEventListener("pointermove", (e)=>{
+  if(!dragging) return;
+  const v = pointerVal(e);
+  const dx = v - lastPointer;
+  lastPointer = v;
+  const dpos = -dx / pitch();
+  pos = clamp(pos + dpos, 0, frames.length-1);
+  if(!reduce) velocity = clamp(dpos*0.6, -0.08, 0.08);
+  layout(); paintTC();
+});
+function endDrag(e){
+  if(!dragging) return;
+  dragging = false;
+  stage.style.cursor = "default";
+  target = clamp(Math.round(pos + velocity*6), 0, frames.length-1);
+  if(reduce){ pos = target; velocity = 0; layout(); paintTC(); }
+  else kick();
+}
+stage.addEventListener("pointerup", endDrag);
+stage.addEventListener("pointercancel", endDrag);
+stage.addEventListener("pointerleave", endDrag);
+
+/* keyboard on the slider + globally */
+function key(e){
+  if(e.key === "ArrowRight" || e.key === "ArrowDown"){ e.preventDefault(); goTo(active+1); }
+  else if(e.key === "ArrowLeft" || e.key === "ArrowUp"){ e.preventDefault(); goTo(active-1); }
+  else if(e.key === "Home"){ e.preventDefault(); goTo(0); }
+  else if(e.key === "End"){ e.preventDefault(); goTo(frames.length-1); }
+}
+ruler.addEventListener("keydown", key);
+window.addEventListener("keydown", (e)=>{
+  if(["ArrowRight","ArrowLeft","ArrowUp","ArrowDown","Home","End"].includes(e.key)) key(e);
+});
+
+/* ruler click-to-scrub (pointer along the track) */
+let rulerDrag = false;
+function rulerTo(e){
+  const r = ruler.getBoundingClientRect();
+  const t = clamp((e.clientX - r.left)/r.width, 0, 1);
+  const idx = Math.round(t * (frames.length-1));
+  goTo(idx);
+}
+ruler.addEventListener("pointerdown",(e)=>{ rulerDrag=true; ruler.setPointerCapture?.(e.pointerId); rulerTo(e); });
+ruler.addEventListener("pointermove",(e)=>{ if(rulerDrag) rulerTo(e); });
+ruler.addEventListener("pointerup",()=>{ rulerDrag=false; });
+ruler.addEventListener("pointercancel",()=>{ rulerDrag=false; });
+
+document.getElementById("prev").addEventListener("click", ()=> goTo(active-1));
+document.getElementById("next").addEventListener("click", ()=> goTo(active+1));
+
+/* click a frame to center it */
+frames.forEach((fr,i)=>{
+  fr.el.addEventListener("click",(e)=>{
+    // ignore if this was a drag (small move tolerance handled by pointer)
+    if(i !== active) goTo(i);
+    else if(fr.data.kind === "video" && !reduce){
+      // toggle sound on the active clip if it carries audio
+      const v = fr.media;
+      if(fr.data.sound){
+        v.muted = !v.muted;
+        const snd = fr.el.querySelector('[data-role="snd"]');
+        if(snd) snd.textContent = v.muted ? "MUTE" : "SOUND";
+        if(!v.muted) v.play().catch(()=>{});
+      }
+    }
+  });
+});
+
+/* ============================================================================
+   LIFECYCLE
+   ============================================================================ */
+function init(){
+  // ensure images have a pad backdrop note for non-16:9 (visual only via CSS)
+  pos = 0; target = 0; active = -1;
+  layout();
+  paintTC();
+  // force first activation
+  updateActive();
+  if(!reduce){
+    // a tiny settle so first video kicks if it's index 0 (it is an image here)
+    kick();
+  }
+}
+
+/* relayout on resize / orientation (axis can flip) */
+let rTimer;
+window.addEventListener("resize", ()=>{
+  clearTimeout(rTimer);
+  rTimer = setTimeout(()=>{ layout(); }, 120);
+});
+window.addEventListener("orientationchange", ()=> setTimeout(layout, 250));
+
+/* pause offscreen / when tab hidden (perf) */
+document.addEventListener("visibilitychange", ()=>{
+  if(document.hidden && active>=0 && frames[active].data.kind==="video"){
+    try{ frames[active].media.pause(); }catch(e){}
+  } else if(!document.hidden && active>=0 && frames[active].data.kind==="video" && !reduce){
+    frames[active].media.play().catch(()=>{});
+  }
+});
+
+/* wait for fonts so pitch measurement is correct, then init */
+if(document.fonts && document.fonts.ready){
+  document.fonts.ready.then(()=> requestAnimationFrame(init));
+} else {
+  window.addEventListener("load", ()=> requestAnimationFrame(init));
+}
+/* also run on load as a safety net (measurements depend on layout) */
+window.addEventListener("load", ()=> requestAnimationFrame(()=>{ layout(); updateActive(); }));
+</script>
+</body>
+</html>

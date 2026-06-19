@@ -1,0 +1,485 @@
+<!-- TEMPLATE: STDOUT | ARCHETYPE: brutalist terminal / CLI-native | REF: data-brutalism, dev-tool aesthetic (fal.ai / replicate console) | WHEN TO USE: dev-tool / MCP / API gallery where generations should "print" to stdout below the command that produced them | SWAP: edit the DATA array at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>stdout  -  media-gen control room</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;0,800;1,400&display=swap" rel="stylesheet">
+<style>
+/* ============================ DESIGN TOKENS ============================ */
+:root{
+  --bg:#0a0a0a;
+  --bg-1:#0e0f0d;
+  --bg-2:#121310;
+  --ink:#c6f24e;          /* phosphor lime */
+  --ink-dim:#7e8f4f;
+  --ink-faint:#3c4a2a;
+  --line:#1f2417;         /* grid lines */
+  --line-2:#2c3522;
+  --amber:#f2b134;        /* secondary accent for warnings/audio */
+  --red:#ff5f56;
+  --paper:#e8eede;        /* high-contrast text on rare inverted blocks */
+  --grid: 13.5px;         /* mono cell-ish rhythm */
+  --maxw: 1180px;
+  --cur: var(--ink);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+body{
+  font-family:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  font-size:14px;line-height:1.55;
+  letter-spacing:.01em;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+  /* faint phosphor grid + corner vignette */
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px),
+    radial-gradient(120% 90% at 50% -10%, rgba(198,242,78,.05), transparent 60%);
+  background-size: 56px 56px, 56px 56px, 100% 100%;
+  background-position: -1px -1px, -1px -1px, 0 0;
+}
+::selection{background:var(--ink);color:#0a0a0a}
+a{color:var(--ink);text-decoration:none}
+img,video{display:block;max-width:100%}
+button{font-family:inherit;color:inherit}
+
+/* scanline + flicker overlay */
+.crt{position:fixed;inset:0;pointer-events:none;z-index:90;mix-blend-mode:overlay;opacity:.5;
+  background:repeating-linear-gradient(to bottom, rgba(255,255,255,.035) 0 1px, transparent 1px 3px);}
+.crt::after{content:"";position:absolute;inset:0;background:radial-gradient(140% 120% at 50% 50%, transparent 60%, rgba(0,0,0,.55));}
+
+/* focus visibility */
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+/* ============================ SHELL CHROME ============================ */
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 clamp(12px,3.5vw,34px)}
+
+.topbar{
+  position:sticky;top:0;z-index:50;
+  background:rgba(10,10,10,.82);backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--line-2);
+}
+.topbar-in{
+  max-width:var(--maxw);margin:0 auto;padding:0 clamp(12px,3.5vw,34px);
+  height:42px;display:flex;align-items:center;gap:14px;
+}
+.dots{display:flex;gap:7px;margin-right:2px}
+.dots i{width:11px;height:11px;border-radius:50%;display:block;border:1px solid rgba(0,0,0,.4)}
+.dots i:nth-child(1){background:var(--red)}
+.dots i:nth-child(2){background:var(--amber)}
+.dots i:nth-child(3){background:var(--ink)}
+.tt{color:var(--ink-dim);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tt b{color:var(--ink)}
+.topbar .right{margin-left:auto;display:flex;gap:16px;align-items:center;font-size:12px;color:var(--ink-dim)}
+.topbar .right .live{display:inline-flex;align-items:center;gap:6px}
+.topbar .right .live::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ink);box-shadow:0 0 8px var(--ink);animation:pulse 1.6s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+@media (max-width:560px){ .topbar .right .clk{display:none} }
+
+/* ============================ HERO ============================ */
+.hero{padding:clamp(34px,7vw,84px) 0 clamp(20px,4vw,40px);border-bottom:1px solid var(--line-2)}
+.kbd{display:inline-flex;align-items:center;gap:8px;font-size:11px;color:var(--ink-dim);
+  border:1px solid var(--line-2);border-radius:2px;padding:3px 8px;margin-bottom:22px}
+.kbd b{color:var(--ink)}
+h1.logo{
+  font-weight:800;letter-spacing:-.02em;line-height:.92;margin:0;
+  font-size:clamp(44px,12vw,128px);
+  color:var(--ink);
+  text-shadow:0 0 22px rgba(198,242,78,.18);
+}
+h1.logo .pmt{color:var(--ink-dim)}
+h1.logo .cur{display:inline-block;width:.56em;height:.86em;background:var(--ink);transform:translateY(.06em);margin-left:.06em;
+  box-shadow:0 0 14px var(--ink);animation:blink 1.05s steps(1) infinite}
+@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+.sub{margin:22px 0 0;max-width:62ch;color:var(--ink-dim);font-size:clamp(13px,1.6vw,15px)}
+.sub b{color:var(--ink)}
+.metrics{display:flex;flex-wrap:wrap;gap:0;margin-top:30px;border:1px solid var(--line-2);border-radius:3px;overflow:hidden}
+.metrics .m{flex:1 1 130px;min-width:120px;padding:12px 16px;border-right:1px solid var(--line-2)}
+.metrics .m:last-child{border-right:0}
+.metrics .m .k{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
+.metrics .m .v{font-size:clamp(18px,2.6vw,26px);font-weight:700;color:var(--ink);margin-top:3px}
+.metrics .m .v small{font-size:11px;color:var(--ink-dim);font-weight:400}
+
+/* ascii rule */
+.rule{color:var(--ink-faint);white-space:nowrap;overflow:hidden;font-size:12px;line-height:1;
+  padding:12px 0;user-select:none;}
+
+/* ============================ STREAM (the feed) ============================ */
+.stream{padding:8px 0 40px}
+.cell{padding:26px 0;border-bottom:1px solid var(--line);scroll-margin-top:60px}
+.cell:last-child{border-bottom:0}
+
+/* command line */
+.cmd{font-size:clamp(12px,1.55vw,14px);line-height:1.7;word-break:break-word;
+  display:flex;gap:8px;align-items:baseline}
+.cmd .ps1{color:var(--ink);font-weight:700;flex:none}
+.cmd .body{color:var(--paper)}
+.cmd .tool{color:var(--ink);font-weight:700}
+.cmd .flag{color:var(--amber)}
+.cmd .str{color:var(--ink-dim)}
+.cmd .cur{display:inline-block;width:.55em;height:1em;background:var(--ink);transform:translateY(.12em);
+  animation:blink 1.05s steps(1) infinite}
+
+.meta-line{display:flex;flex-wrap:wrap;gap:6px 18px;margin:10px 0 14px;font-size:11px;color:var(--ink-faint)}
+.meta-line span b{color:var(--ink-dim);font-weight:500}
+.tag{border:1px solid var(--line-2);border-radius:2px;padding:1px 7px;color:var(--ink-dim);font-size:10.5px;
+  letter-spacing:.06em}
+.tag.ok{color:var(--ink);border-color:var(--ink-faint)}
+.tag.aud{color:var(--amber);border-color:#4a3a17}
+
+/* stdout frame: result "prints" below */
+.out{position:relative;border:1px solid var(--line-2);border-radius:4px;background:#000;
+  overflow:hidden}
+.out .barlabel{position:absolute;top:0;left:0;z-index:3;font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink-dim);background:rgba(10,10,10,.72);border-right:1px solid var(--line-2);border-bottom:1px solid var(--line-2);
+  padding:4px 9px;border-radius:0 0 3px 0;pointer-events:none}
+/* media is letterboxed: NEVER cover-crop. object-fit:contain keeps full frame on any viewport */
+.frame{position:relative;width:100%;background:
+  repeating-linear-gradient(45deg,#0c0c0c 0 10px,#0a0a0a 10px 20px);
+  display:flex;align-items:center;justify-content:center;min-height:160px}
+.frame img,.frame video{width:100%;height:auto;object-fit:contain;max-height:min(74vh,640px)}
+.frame.square{aspect-ratio:auto}
+.frame.square img,.frame.square video{max-width:min(520px,100%);margin:0 auto}
+
+/* corner registration ticks on the frame */
+.out .tick{position:absolute;width:9px;height:9px;border:1px solid var(--ink-faint);z-index:2;pointer-events:none}
+.out .tick.tl{top:-1px;left:-1px;border-right:0;border-bottom:0}
+.out .tick.tr{top:-1px;right:-1px;border-left:0;border-bottom:0}
+.out .tick.bl{bottom:-1px;left:-1px;border-right:0;border-top:0}
+.out .tick.br{bottom:-1px;right:-1px;border-left:0;border-top:0}
+
+/* play overlay for video */
+.playbtn{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:4;
+  background:radial-gradient(50% 50% at 50% 50%,rgba(0,0,0,.25),rgba(0,0,0,.55));
+  cursor:pointer;border:0;width:100%;transition:background .2s}
+.playbtn:hover{background:radial-gradient(50% 50% at 50% 50%,rgba(0,0,0,.1),rgba(0,0,0,.4))}
+.playbtn .glyph{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink);
+  border:1px solid var(--ink-faint);border-radius:2px;padding:9px 16px;background:rgba(10,10,10,.7);
+  display:inline-flex;gap:9px;align-items:center}
+.playbtn .glyph .tri{display:inline-block;border-left:9px solid var(--ink);border-top:6px solid transparent;border-bottom:6px solid transparent}
+.playbtn.hidden{display:none}
+.muteflag{position:absolute;bottom:8px;right:9px;z-index:4;font-size:10px;color:var(--ink-dim);
+  background:rgba(10,10,10,.7);border:1px solid var(--line-2);border-radius:2px;padding:2px 7px;letter-spacing:.08em}
+
+/* exit-code footer of each cell */
+.exit{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:12px;font-size:11px;color:var(--ink-faint);align-items:center}
+.exit .code{color:var(--ink);font-weight:700}
+.exit .bytes{color:var(--ink-dim)}
+.exit .copy{margin-left:auto;border:1px solid var(--line-2);background:transparent;color:var(--ink-dim);
+  border-radius:2px;padding:3px 9px;font-size:10.5px;cursor:pointer;letter-spacing:.06em;transition:.15s}
+.exit .copy:hover{color:var(--ink);border-color:var(--ink-faint)}
+.exit .copy.copied{color:var(--ink);border-color:var(--ink)}
+
+/* progress shimmer shown briefly while "streaming" */
+.streamprog{height:2px;background:var(--line);overflow:hidden;border-radius:2px;margin:6px 0 0}
+.streamprog i{display:block;height:100%;width:38%;background:linear-gradient(90deg,transparent,var(--ink),transparent);
+  animation:slide 1.2s linear infinite}
+@keyframes slide{0%{transform:translateX(-120%)}100%{transform:translateX(360%)}}
+
+/* ============================ FOOTER ============================ */
+footer{border-top:1px solid var(--line-2);padding:30px 0 70px;color:var(--ink-faint);font-size:12px}
+footer .cols{display:flex;flex-wrap:wrap;gap:24px 48px;margin-top:14px}
+footer b{color:var(--ink-dim);font-weight:500}
+footer .ascii{color:var(--ink-faint);font-size:11px;line-height:1.2;white-space:pre;overflow:hidden}
+
+/* reduced motion */
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:0s !important;animation-iteration-count:1 !important;transition:none !important}
+  h1.logo .cur,.cmd .cur{animation:none;opacity:1}
+  .streamprog{display:none}
+  .crt{display:none}
+}
+@media (max-width:560px){
+  body{font-size:13px}
+  .metrics .m{flex-basis:50%;border-bottom:1px solid var(--line-2)}
+  .frame img,.frame video{max-height:62vh}
+}
+</style>
+</head>
+<body>
+<div class="crt" aria-hidden="true"></div>
+
+<!-- ====================== WINDOW TITLEBAR ====================== -->
+<div class="topbar">
+  <div class="topbar-in">
+    <div class="dots" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="tt"> -  <b>media-gen</b> · zsh · 142x46 · ~/atelier/renders</div>
+    <div class="right">
+      <span class="live">stream</span>
+      <span class="clk" id="clk">--:--:--</span>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+
+  <!-- ====================== HERO ====================== -->
+  <section class="hero">
+    <span class="kbd">RUN <b>⌘↵</b> &nbsp;·&nbsp; v1.4.0 &nbsp;·&nbsp; provider <b>fal · replicate · heygen</b></span>
+    <h1 class="logo"><span class="pmt">$&nbsp;</span>stdout<span class="cur" aria-hidden="true"></span></h1>
+    <p class="sub">A control-room for generative media. Every render below <b>prints to stdout</b> beneath the exact command that produced it  -  model, flags, seed, latency, bytes. No cards. No chrome. Just the call and its output.</p>
+    <div class="metrics">
+      <div class="m"><div class="k">renders</div><div class="v" id="mCount">0</div></div>
+      <div class="m"><div class="k">total latency</div><div class="v" id="mLat">0<small> s</small></div></div>
+      <div class="m"><div class="k">bytes out</div><div class="v" id="mBytes">0<small> MB</small></div></div>
+      <div class="m"><div class="k">exit</div><div class="v">0 <small>all ok</small></div></div>
+    </div>
+  </section>
+
+  <div class="rule" aria-hidden="true" id="ruleTop"></div>
+
+  <!-- ====================== STREAM (rendered from DATA) ====================== -->
+  <section class="stream" id="stream"></section>
+
+  <!-- ====================== FOOTER ====================== -->
+  <footer>
+    <div class="rule" aria-hidden="true" id="ruleBot"></div>
+    <div>EOF · process exited <b>0</b> · pipeline <b>media-gen@1.4.0</b></div>
+    <div class="cols">
+      <div><b>$</b> man media-gen  -  pipe model output straight to a reviewable feed</div>
+      <div><b>$</b> swap content  -  edit the <b>DATA</b> array at top of &lt;script&gt;</div>
+      <div><b>$</b> palette  -  #0a0a0a / #c6f24e · JetBrains Mono</div>
+    </div>
+  </footer>
+</main>
+
+<script>
+/* ============================================================ */
+/*  DATA  -  single source of truth. Swap entries here.            */
+/*  type: "image" | "video"                                      */
+/*  src:  path relative to this file (../assets/...)             */
+/*  ratio:"16:9" | "1:1"  → controls letterbox frame, never crop */
+/*  audio:true            → shows AUD tag + unmuted playback      */
+/* ============================================================ */
+const DATA = [
+  {
+    type:"image", tool:"fal", model:"flux-pro/v1.1-ultra",
+    prompt:"matte-black Mercedes CLS on a rain-slick neon street, cinematic, 4k",
+    flags:[["--ar","21:9"],["--seed","48211"],["--steps","28"]],
+    src:"../assets/flux-car-4k.png", ratio:"16:9",
+    latency:"3.10", bytes:"3.2 MB", res:"2048×1152", label:"image/png"
+  },
+  {
+    type:"video", tool:"fal", model:"veo-3 / native-audio",
+    prompt:"black sports car carving through neon city, native engine audio",
+    flags:[["--fps","24"],["--dur","6s"],["--audio","on"]],
+    src:"../assets/veo-video.mp4", poster:"../assets/gen/poster-veo-video.png", ratio:"16:9",
+    audio:true, latency:"41.7", bytes:"6.7 MB", res:"1280×720", label:"video/mp4 · 24fps · audio"
+  },
+  {
+    type:"video", tool:"kling", model:"kling-v1.6/pro",
+    prompt:"silver coupe, long-exposure motion blur, dusk highway",
+    flags:[["--motion","high"],["--dur","5s"],["--seed","9007"]],
+    src:"../assets/kling-video.mp4", poster:"../assets/gen/poster-kling-video.png", ratio:"16:9",
+    latency:"58.2", bytes:"21.1 MB", res:"1920×1080", label:"video/mp4 · loop"
+  },
+  {
+    type:"image", tool:"fal", model:"flux-pro/v1.1",
+    prompt:"serene dental clinic interior, mint + warm wood, soft daylight",
+    flags:[["--ar","16:9"],["--seed","13370"],["--guidance","3.5"]],
+    src:"../assets/flux-clinic-4k.png", ratio:"16:9",
+    latency:"2.84", bytes:"3.1 MB", res:"2048×1152", label:"image/png"
+  },
+  {
+    type:"video", tool:"replicate", model:"flux/image-to-video",
+    prompt:"animate the wet-street Mercedes still  -  slow dolly, reflections shimmer",
+    flags:[["--init","flux-car-4k.png"],["--dur","5s"],["--motion","0.6"]],
+    src:"../assets/flux-car-i2v.mp4", poster:"../assets/gen/poster-flux-car-i2v.png", ratio:"16:9",
+    latency:"72.9", bytes:"11.7 MB", res:"1920×1080", label:"video/mp4 · i2v"
+  },
+  {
+    type:"video", tool:"heygen", model:"avatar-iv / th-voice",
+    prompt:"Thai presenter avatar, lip-synced product walkthrough, with audio",
+    flags:[["--voice","th-female"],["--lang","th"],["--audio","on"]],
+    src:"../assets/heygen-avatar.mp4", poster:"../assets/gen/poster-heygen.png", ratio:"16:9",
+    audio:true, latency:"34.0", bytes:"568 KB", res:"1280×720", label:"video/mp4 · avatar · audio"
+  },
+  {
+    type:"image", tool:"replicate", model:"sdxl-1.0",
+    prompt:"painterly autumn fox among falling leaves, warm impasto brushwork",
+    flags:[["--ar","1:1"],["--seed","7741"],["--refiner","on"]],
+    src:"../assets/sdxl.png", ratio:"1:1",
+    latency:"4.62", bytes:"421 KB", res:"512×512", label:"image/png"
+  },
+  {
+    type:"video", tool:"d-id", model:"talking-photo/express",
+    prompt:"single portrait still, driven to speak  -  natural blink + audio",
+    flags:[["--driver","photo"],["--audio","on"],["--still","portrait.png"]],
+    src:"../assets/did-talking-photo.mp4", poster:"../assets/gen/poster-did.png", ratio:"1:1",
+    audio:true, latency:"19.4", bytes:"210 KB", res:"512×512", label:"video/mp4 · talking-photo · audio"
+  },
+  {
+    type:"image", tool:"hf", model:"tiny-sd / lo-fi",
+    prompt:"abstract low-fidelity apple, dithered, retro-render artifacting",
+    flags:[["--ar","1:1"],["--steps","8"],["--lofi","on"]],
+    src:"../assets/hf-tinysd.png", ratio:"1:1",
+    latency:"0.71", bytes:"356 KB", res:"512×512", label:"image/png"
+  }
+];
+/* ============================================================ */
+
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* --- ascii rule sized to viewport --- */
+function asciiRule(el){
+  if(!el) return;
+  const ch = Math.ceil(el.clientWidth / 7.0);
+  el.textContent = '+'+'='.repeat(Math.max(8,ch-2))+'+';
+}
+function fillRules(){ ['ruleTop','ruleBot'].forEach(id=>asciiRule(document.getElementById(id))); }
+
+/* --- command line markup builder --- */
+function cmdHTML(d){
+  const flags = d.flags.map(([k,v])=>` <span class="flag">${k}</span> <span class="str">${v}</span>`).join('');
+  return `<span class="ps1">$</span><span class="body">`+
+         `<span class="tool">${d.tool} generate</span> <span class="flag">--model</span> <span class="str">${d.model}</span>`+
+         ` <span class="flag">--prompt</span> <span class="str">"${d.prompt}"</span>${flags}`+
+         `<span class="cur" aria-hidden="true"></span></span>`;
+}
+
+/* --- one cell --- */
+function cellHTML(d,i){
+  const sq = d.ratio==='1:1' ? ' square':'';
+  let media;
+  if(d.type==='image'){
+    media = `<img loading="lazy" src="${d.src}" alt="${d.tool} ${d.model}  -  ${d.prompt}" width="100%">`;
+  } else {
+    media = `
+      <video preload="none" playsinline ${d.audio?'':'muted'} loop poster="${d.poster}"
+             data-src="${d.src}" aria-label="${d.tool} ${d.model}  -  ${d.prompt}"></video>
+      <button class="playbtn" data-play aria-label="play render">
+        <span class="glyph"><span class="tri" aria-hidden="true"></span> play ${d.audio?'· sound':''}</span>
+      </button>
+      ${d.audio?'<span class="muteflag">▣ audio on</span>':'<span class="muteflag">muted loop</span>'}`;
+  }
+  const aud = d.audio ? '<span class="tag aud">+audio</span>' : '';
+  return `
+  <article class="cell" id="r${i}">
+    <div class="cmd">${cmdHTML(d)}</div>
+    <div class="meta-line">
+      <span><b>pid</b> ${1000+i*37}</span>
+      <span><b>req</b> #${String(i+1).padStart(2,'0')}</span>
+      <span><b>type</b> ${d.type}</span>
+      <span><b>res</b> ${d.res}</span>
+      <span class="tag ok">200 OK</span>${aud}
+    </div>
+    <div class="out">
+      <span class="barlabel">stdout › ${d.label}</span>
+      <span class="tick tl"></span><span class="tick tr"></span><span class="tick bl"></span><span class="tick br"></span>
+      <div class="frame${sq}">${media}</div>
+    </div>
+    <div class="exit">
+      <span><span class="code">→ exit 0</span></span>
+      <span>latency <b>${d.latency}s</b></span>
+      <span class="bytes">${d.bytes} written</span>
+      <button class="copy" data-copy='${JSON.stringify(`${d.tool} generate --model ${d.model} --prompt "${d.prompt}"`).replace(/'/g,"&#39;")}'>copy ⧉</button>
+    </div>
+  </article>`;
+}
+
+/* --- render stream --- */
+const stream = document.getElementById('stream');
+stream.innerHTML = DATA.map(cellHTML).join('');
+
+/* --- hero metric counters --- */
+function animateCount(el, target, unit, dur=1100, dec=0){
+  if(reduced){ el.innerHTML = target.toFixed(dec)+(unit?`<small> ${unit}</small>`:''); return; }
+  const t0 = performance.now();
+  (function step(t){
+    const p = Math.min(1,(t-t0)/dur);
+    const e = 1-Math.pow(1-p,3);
+    el.innerHTML = (target*e).toFixed(dec)+(unit?`<small> ${unit}</small>`:'');
+    if(p<1) requestAnimationFrame(step);
+  })(performance.now());
+}
+const totLat = DATA.reduce((a,d)=>a+parseFloat(d.latency),0);
+const totBytes = DATA.reduce((a,d)=>{
+  const m = parseFloat(d.bytes); return a + (/KB/.test(d.bytes)? m/1024 : m);
+},0);
+const startMetrics = ()=>{
+  animateCount(document.getElementById('mCount'), DATA.length, '');
+  animateCount(document.getElementById('mLat'), totLat, 's', 1300, 1);
+  animateCount(document.getElementById('mBytes'), totBytes, 'MB', 1500, 1);
+};
+
+/* --- copy buttons --- */
+stream.addEventListener('click', e=>{
+  const b = e.target.closest('[data-copy]');
+  if(!b) return;
+  const txt = b.getAttribute('data-copy');
+  navigator.clipboard?.writeText(txt).then(()=>{
+    const o=b.textContent; b.textContent='copied ✓'; b.classList.add('copied');
+    setTimeout(()=>{b.textContent=o;b.classList.remove('copied')},1200);
+  }).catch(()=>{});
+});
+
+/* --- video: play on click, lazy-attach src, autoplay/pause in view --- */
+stream.addEventListener('click', e=>{
+  const btn = e.target.closest('[data-play]');
+  if(!btn) return;
+  const out = btn.closest('.out');
+  const v = out.querySelector('video');
+  if(!v.src) v.src = v.dataset.src;
+  v.play().then(()=>{ btn.classList.add('hidden'); }).catch(()=>{});
+});
+
+/* in-view: attach src + autoplay muted loops; pause off-screen. Audio clips wait for click. */
+const vObs = new IntersectionObserver((ents)=>{
+  ents.forEach(en=>{
+    const v = en.target;
+    const hasAudio = !v.muted;
+    if(en.isIntersecting){
+      if(!v.src) v.src = v.dataset.src;
+      if(!hasAudio && !reduced){ v.play().catch(()=>{}); }
+    } else {
+      if(!v.paused){ v.pause(); }
+      const btn = v.closest('.out').querySelector('[data-play]');
+      if(hasAudio && btn) btn.classList.remove('hidden'); // re-show play for sound clips
+    }
+  });
+},{rootMargin:'120px 0px', threshold:0.25});
+stream.querySelectorAll('video').forEach(v=>vObs.observe(v));
+
+/* hide play overlay for muted autoplay loops once playing */
+stream.querySelectorAll('video').forEach(v=>{
+  v.addEventListener('playing', ()=>{
+    if(v.muted){ const b=v.closest('.out').querySelector('[data-play]'); b&&b.classList.add('hidden'); }
+  });
+});
+
+/* --- reveal-on-scroll for cells --- */
+if(!reduced){
+  stream.querySelectorAll('.cell').forEach((c,i)=>{
+    c.style.opacity='0'; c.style.transform='translateY(14px)';
+    c.style.transition='opacity .5s ease, transform .5s ease';
+  });
+  const rObs = new IntersectionObserver((ents)=>{
+    ents.forEach(en=>{ if(en.isIntersecting){ en.target.style.opacity='1'; en.target.style.transform='none'; rObs.unobserve(en.target);} });
+  },{threshold:0.12});
+  stream.querySelectorAll('.cell').forEach(c=>rObs.observe(c));
+}
+
+/* --- metrics start when hero scrolled / on load --- */
+const hObs = new IntersectionObserver((ents)=>{
+  ents.forEach(en=>{ if(en.isIntersecting){ startMetrics(); hObs.disconnect(); } });
+},{threshold:0.3});
+hObs.observe(document.getElementById('mCount'));
+
+/* --- ascii rules + clock --- */
+fillRules();
+let rt; addEventListener('resize', ()=>{clearTimeout(rt);rt=setTimeout(fillRules,120)});
+function tick(){
+  const d=new Date(), p=n=>String(n).padStart(2,'0');
+  const el=document.getElementById('clk');
+  if(el) el.textContent = `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+tick(); setInterval(tick,1000);
+</script>
+</body>
+</html>

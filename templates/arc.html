@@ -1,0 +1,553 @@
+<!-- TEMPLATE: Chromatic Arc | ARCHETYPE: arc (cinematic chromatic scroll-story) | REF: Lando Norris (OFF+BRAND), End Speciesism | WHEN TO USE: a product/process told as a felt color-temperature journey (raw -> refined -> premium), each beat a full-bleed cinematic frame | SWAP: edit the BEATS array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Chromatic Arc - cold to hot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   CHROMATIC ARC
+   The palette IS the narrative. One bold accent (--accent),
+   plus a per-beat duotone whose temperature is driven by
+   --warm (0 = cold/raw, 0.5 = warm/refined, 1 = hot/premium).
+   ============================================================ */
+:root{
+  --accent:#ff4d2e;            /* the single bold accent (signal flare) */
+  --ink:#f4f1ea;              /* warm off-white text */
+  --vh:100svh;
+  --ease:cubic-bezier(.7,0,.18,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+html.reduced{scroll-behavior:auto}
+body{
+  background:#05070b;
+  color:var(--ink);
+  font-family:"Bricolage Grotesque",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+::selection{background:var(--accent);color:#0a0a0a}
+img,video{display:block;max-width:100%}
+
+/* ---------- fixed chromatic atmosphere (the "felt" arc) ---------- */
+/* A single fixed layer behind everything whose hue/temperature is
+   interpolated in JS from cold -> warm -> hot as you scroll. */
+.atmos{
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(120% 90% at 18% 12%, var(--g-cool) 0%, transparent 55%),
+    radial-gradient(130% 100% at 82% 88%, var(--g-warm) 0%, transparent 60%),
+    linear-gradient(180deg, var(--g-base-a), var(--g-base-b));
+  transition:none;
+  --g-cool:#0b2a3a;--g-warm:#102434;--g-base-a:#06121b;--g-base-b:#03060a;
+}
+.grain{
+  position:fixed;inset:0;z-index:60;pointer-events:none;opacity:.05;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ---------- progress arc rail (cold->hot meter) ---------- */
+.rail{
+  position:fixed;top:0;right:max(14px,env(safe-area-inset-right));bottom:0;z-index:50;
+  width:42px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  pointer-events:none;
+}
+.rail .track{
+  position:relative;flex:1;width:2px;margin:24vh 0;border-radius:2px;
+  background:linear-gradient(180deg,#2a6f8f,#caa23a 50%,#ff3b30);
+  opacity:.35;
+}
+.rail .pip{
+  position:absolute;left:50%;width:12px;height:12px;border-radius:50%;
+  transform:translate(-50%,-50%);
+  background:var(--accent);box-shadow:0 0 0 4px rgba(255,77,46,.18),0 0 22px var(--accent);
+  top:0;transition:top .25s var(--ease);
+}
+.rail .lab{font-family:"Space Mono",monospace;font-size:9px;letter-spacing:.18em;color:#b9b3a6;writing-mode:vertical-rl}
+
+/* ---------- intro / title card ---------- */
+.cover{
+  position:relative;z-index:2;min-height:var(--vh);
+  display:grid;place-items:center;text-align:center;padding:7vw 6vw;
+}
+.kick{
+  font-family:"Space Mono",monospace;font-size:clamp(10px,2.6vw,13px);
+  letter-spacing:.42em;text-transform:uppercase;color:#9fb6c2;margin-bottom:1.2rem;
+}
+.cover h1{
+  font-weight:300;line-height:.92;letter-spacing:-.03em;
+  font-size:clamp(3rem,15vw,12.5rem);
+}
+.cover h1 b{font-weight:700;font-style:normal;color:var(--accent)}
+.cover .sub{
+  max-width:46ch;margin:1.8rem auto 0;color:#c8c2b6;
+  font-size:clamp(1rem,2.4vw,1.35rem);line-height:1.5;font-weight:300;
+}
+.scrollcue{
+  position:absolute;bottom:max(26px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);
+  font-family:"Space Mono",monospace;font-size:10px;letter-spacing:.3em;color:#9fb6c2;
+  display:flex;flex-direction:column;align-items:center;gap:10px;
+}
+.scrollcue i{width:1px;height:42px;background:linear-gradient(#9fb6c2,transparent);animation:drip 1.8s var(--ease) infinite}
+@keyframes drip{0%{transform:scaleY(0);transform-origin:top}40%{transform:scaleY(1);transform-origin:top}60%{transform:scaleY(1);transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
+
+/* ---------- the beats ---------- */
+.beat{
+  position:relative;z-index:2;min-height:var(--vh);
+  display:grid;grid-template-columns:1fr;align-items:center;
+  padding:clamp(20px,5vw,64px);
+  overflow:clip;
+}
+.beat .stage{
+  position:relative;width:100%;height:min(78vh,calc(var(--vh) - 120px));
+  border-radius:16px;overflow:hidden;
+  box-shadow:0 40px 120px -40px rgba(0,0,0,.85), inset 0 0 0 1px rgba(255,255,255,.06);
+  background:#0a0d12;
+}
+.beat .stage::after{ /* duotone wash tinted by the beat temperature */
+  content:"";position:absolute;inset:0;pointer-events:none;mix-blend-mode:soft-light;
+  background:linear-gradient(120deg,var(--tintA),transparent 55%,var(--tintB));
+  opacity:.85;
+}
+.beat .stage::before{ /* cinematic vignette + bottom scrim for text legibility */
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:2;
+  background:
+    radial-gradient(120% 90% at 50% 30%, transparent 40%, rgba(0,0,0,.5)),
+    linear-gradient(0deg, rgba(0,0,0,.72), transparent 46%);
+}
+.beat .stage img,.beat .stage video{
+  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  transform:scale(1.08);will-change:transform;
+}
+.beat .stage img.contain,.beat .stage video.contain{object-fit:contain;background:#070a0f;transform:scale(1)}
+
+.beat .copy{
+  position:absolute;z-index:3;left:clamp(20px,5vw,64px);right:clamp(20px,5vw,64px);
+  bottom:clamp(22px,5vw,56px);max-width:18ch;
+  pointer-events:none;
+}
+.beat .idx{
+  font-family:"Space Mono",monospace;font-size:clamp(11px,2.4vw,13px);letter-spacing:.34em;
+  color:var(--accent);margin-bottom:.7rem;display:flex;align-items:center;gap:.8rem;
+}
+.beat .idx::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--accent),transparent);max-width:90px}
+.beat h2{
+  font-weight:300;line-height:.94;letter-spacing:-.025em;
+  font-size:clamp(2.4rem,8.5vw,6.4rem);
+}
+.beat h2 b{font-weight:700;font-style:normal}
+.beat .desc{
+  margin-top:1rem;max-width:38ch;color:#e7e2d6;font-weight:300;
+  font-size:clamp(1rem,2.6vw,1.3rem);line-height:1.45;
+}
+.beat .meta{
+  margin-top:1.1rem;display:flex;flex-wrap:wrap;gap:.5rem;
+}
+.beat .meta span{
+  font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.12em;
+  padding:.36em .7em;border-radius:999px;
+  border:1px solid rgba(255,255,255,.22);color:#d8d3c7;background:rgba(0,0,0,.28);
+  backdrop-filter:blur(4px);
+}
+.beat .temp{ /* the temperature word that names this rung of the arc */
+  position:absolute;z-index:3;top:clamp(18px,4vw,40px);left:clamp(20px,5vw,64px);
+  font-family:"Space Mono",monospace;font-size:clamp(10px,2.2vw,12px);letter-spacing:.3em;
+  text-transform:uppercase;color:#fff;opacity:.85;
+  display:flex;align-items:center;gap:.6rem;pointer-events:none;
+}
+.beat .temp .dot{width:9px;height:9px;border-radius:50%;background:var(--tdot);box-shadow:0 0 16px var(--tdot)}
+
+/* audio chip for the sound-bearing beats */
+.soundchip{
+  position:absolute;z-index:3;top:clamp(18px,4vw,40px);right:clamp(20px,5vw,64px);
+  pointer-events:auto;border:1px solid rgba(255,255,255,.25);
+  background:rgba(0,0,0,.4);backdrop-filter:blur(6px);color:#fff;
+  font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.14em;
+  border-radius:999px;padding:.5em .9em;cursor:pointer;display:flex;align-items:center;gap:.5em;
+}
+.soundchip:hover{border-color:var(--accent)}
+.soundchip .eq{display:inline-flex;gap:2px;align-items:flex-end;height:11px}
+.soundchip .eq i{width:2px;background:var(--accent);height:30%;border-radius:2px}
+.soundchip.on .eq i{animation:eq .9s ease-in-out infinite}
+.soundchip .eq i:nth-child(2){animation-delay:.15s}
+.soundchip .eq i:nth-child(3){animation-delay:.3s}
+.soundchip .eq i:nth-child(4){animation-delay:.45s}
+@keyframes eq{0%,100%{height:30%}50%{height:100%}}
+
+/* ---------- cinematic transition wipe (dissolve curtain) ---------- */
+.wipe{
+  position:fixed;inset:0;z-index:40;pointer-events:none;opacity:0;
+  background:linear-gradient(180deg,var(--wipeA),var(--wipeB));
+  --wipeA:#ff3b30;--wipeB:#7a1f12;
+  transition:opacity .42s var(--ease);
+}
+
+/* ---------- closing ---------- */
+.outro{
+  position:relative;z-index:2;min-height:var(--vh);display:grid;place-items:center;
+  text-align:center;padding:8vw 6vw;
+}
+.outro h2{font-weight:300;font-size:clamp(2.4rem,10vw,7rem);line-height:.95;letter-spacing:-.03em}
+.outro h2 b{font-weight:700;font-style:normal;color:var(--accent)}
+.outro p{margin-top:1.4rem;color:#c8c2b6;font-size:clamp(1rem,2.4vw,1.3rem);font-weight:300;max-width:48ch}
+.outro a{
+  display:inline-block;margin-top:2.2rem;text-decoration:none;color:#0a0a0a;background:var(--ink);
+  font-family:"Space Mono",monospace;letter-spacing:.16em;text-transform:uppercase;font-size:13px;
+  padding:1em 2em;border-radius:999px;transition:transform .3s var(--ease),background .3s var(--ease);
+}
+.outro a:hover{transform:translateY(-3px);background:var(--accent);color:#fff}
+
+/* reveal on enter */
+.beat .temp,.beat .copy,.cover .kick,.cover h1,.cover .sub,.outro h2,.outro p,.outro a{
+  opacity:0;transform:translateY(26px);transition:opacity .8s var(--ease),transform .8s var(--ease);
+}
+.inview .temp,.inview .copy,.cover.inview .kick,.cover.inview h1,.cover.inview .sub,.outro.inview h2,.outro.inview p,.outro.inview a{
+  opacity:1;transform:none;
+}
+.cover.inview h1{transition-delay:.08s}.cover.inview .sub{transition-delay:.2s}
+.inview .copy{transition-delay:.12s}
+
+/* focus visibility */
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
+
+/* ===================== MOBILE: never cover-crop landscape into portrait ===================== */
+@media (max-width:640px){
+  .rail{display:none}
+  .beat{padding:14px;align-content:center}
+  .beat .stage{
+    height:auto;border-radius:14px;
+    display:flex;flex-direction:column;
+  }
+  /* letterbox the media to its real aspect, stack copy beneath it */
+  .beat .stage .media{position:relative;width:100%;aspect-ratio:16/9;flex:none}
+  .beat .stage.square .media{aspect-ratio:1/1;max-width:78%;margin:0 auto}
+  .beat .stage img,.beat .stage video{position:absolute;inset:0;transform:none}
+  .beat .stage::before{background:linear-gradient(0deg,rgba(0,0,0,.55),transparent 60%)}
+  .beat .copy{
+    position:relative;left:auto;right:auto;bottom:auto;max-width:none;
+    padding:18px 16px 22px;pointer-events:auto;
+  }
+  .beat .temp{position:relative;top:auto;left:auto;padding:14px 16px 0}
+  .soundchip{top:10px;right:10px}
+  .beat h2{font-size:clamp(2rem,11vw,3rem)}
+  .beat .copy{opacity:1;transform:none}     /* avoid jumpiness on small screens */
+  .beat .temp{opacity:1;transform:none}
+}
+@media (max-width:640px){
+  .beat .stage img,.beat .stage video{object-fit:cover}
+  .beat .stage.square img,.beat .stage.square video{object-fit:contain}
+}
+
+/* reduced motion: show final state, kill heavy transforms/animation */
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+  .beat .stage img,.beat .stage video{transform:none!important}
+  .beat .temp,.beat .copy,.cover .kick,.cover h1,.cover .sub,.outro *{opacity:1!important;transform:none!important}
+  .scrollcue,.wipe{display:none}
+}
+</style>
+</head>
+<body>
+<div class="atmos" id="atmos"></div>
+<div class="wipe" id="wipe"></div>
+<div class="grain" aria-hidden="true"></div>
+
+<!-- cold->hot progress rail -->
+<div class="rail" aria-hidden="true">
+  <span class="lab">COLD</span>
+  <div class="track"><span class="pip" id="pip"></span></div>
+  <span class="lab">HOT</span>
+</div>
+
+<main id="app"></main>
+
+<script>
+/* =============================================================
+   DATA - swap freely. Each beat is one full-viewport frame.
+   warm: 0 = cold/raw/local · 0.5 = warm/refined · 1 = hot/premium
+   The arc (cold blue -> warm amber -> hot red) is computed from
+   `warm`, so just ordering the array sets the color story.
+   media.kind: "img" | "video"
+   contain:true  -> letterbox (low-res / square assets), never crop
+   square:true   -> 1:1 framing on mobile
+   sound:true    -> show the play-sound chip
+   ============================================================= */
+const ACCENT = "#ff4d2e";
+
+const BEATS = [
+  {
+    temp:"Cold · raw · local",
+    warm:0.0,
+    idx:"01 / RAW",
+    title:["The first ", "spark"],
+    desc:"A tiny on-device model. Low resolution, painterly, unsure of itself - but the idea is already alive.",
+    meta:["tiny-sd","512px","on-device","~0.4s"],
+    media:{kind:"img", src:"../assets/hf-tinysd.png", contain:true, square:true}
+  },
+  {
+    temp:"Cold · sketch",
+    warm:0.16,
+    idx:"02 / SKETCH",
+    title:["Texture ", "arrives"],
+    desc:"SDXL fills the frame with light and brushwork. Still local, still cool to the touch, but the world is gaining depth.",
+    meta:["sdxl","512px","diffusion","local GPU"],
+    media:{kind:"img", src:"../assets/sdxl.png", contain:true, square:true}
+  },
+  {
+    temp:"Warming · hosted",
+    warm:0.42,
+    idx:"03 / HOSTED",
+    title:["Stepping ", "outward"],
+    desc:"Hosted inference takes over. The palette warms; geometry sharpens. The motion is no longer imagined - it is rendered.",
+    meta:["fal · i2v","720p","hosted","neon"],
+    media:{kind:"video", src:"../assets/fal-video.mp4", poster:"../assets/gen/poster-fal-video.png"}
+  },
+  {
+    temp:"Warm · refined",
+    warm:0.62,
+    idx:"04 / REFINED",
+    title:["Calm, ", "composed"],
+    desc:"A refined hosted render: mint and wood, soft daylight. The temperature settles into something inhabitable.",
+    meta:["flux","2048px","4K matte","editorial"],
+    media:{kind:"img", src:"../assets/flux-clinic-4k.png"}
+  },
+  {
+    temp:"Hot · motion",
+    warm:0.82,
+    idx:"05 / MOTION",
+    title:["It ", "moves"],
+    desc:"Native-audio video. The Mercedes breathes across wet asphalt - premium tier, full heat, sound included.",
+    meta:["veo","1080p","native audio","cinematic"],
+    sound:true,
+    media:{kind:"video", src:"../assets/veo-video.mp4", poster:"../assets/gen/poster-veo-video.png"}
+  },
+  {
+    temp:"Hot · premium",
+    warm:1.0,
+    idx:"06 / PREMIUM",
+    title:["Final ", "frame"],
+    desc:"4K matte black on a neon street. The arc lands at its hottest point - nothing local, nothing cold, all signal.",
+    meta:["flux · 4K","2048px","hero","premium"],
+    media:{kind:"img", src:"../assets/flux-car-4k.png"}
+  }
+];
+
+/* ---------- chromatic arc math: cold -> warm -> hot ---------- */
+/* Returns a small palette per `warm` (0..1). HSL keeps the hue
+   travelling 200° (cold cyan-blue) -> 38° (amber) -> 8° (red). */
+function lerp(a,b,t){return a+(b-a)*t}
+function hueFor(w){
+  // cold 205 -> warm 36 -> hot 6, eased so the warm band lingers
+  if(w<0.5){ const t=w/0.5; return lerp(205,36,t); }
+  const t=(w-0.5)/0.5; return lerp(36,6,t);
+}
+function palette(w){
+  const h=hueFor(w);
+  const sat=lerp(46,86,w);            // cold is desaturated, hot is vivid
+  return {
+    h, sat,
+    coolGlow:`hsla(${(h+24).toFixed(0)},${(sat*0.7).toFixed(0)}%,${(20+w*14).toFixed(0)}%,.9)`,
+    warmGlow:`hsla(${(h-6).toFixed(0)},${sat.toFixed(0)}%,${(16+w*22).toFixed(0)}%,.9)`,
+    baseA:`hsl(${h.toFixed(0)},${(sat*0.5).toFixed(0)}%,${(7+w*5).toFixed(0)}%)`,
+    baseB:`hsl(${(h+10).toFixed(0)},${(sat*0.4).toFixed(0)}%,${(3+w*2).toFixed(0)}%)`,
+    tintA:`hsla(${(h+30).toFixed(0)},${sat.toFixed(0)}%,55%,.5)`,
+    tintB:`hsla(${(h-8).toFixed(0)},${sat.toFixed(0)}%,48%,.55)`,
+    dot:`hsl(${h.toFixed(0)},${sat.toFixed(0)}%,58%)`
+  };
+}
+
+/* ---------- build DOM ---------- */
+const app=document.getElementById("app");
+const reduced=window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+if(reduced) document.documentElement.classList.add("reduced");
+
+// cover
+const cover=document.createElement("section");
+cover.className="cover";
+cover.innerHTML=`
+  <div>
+    <p class="kick">A chromatic arc · cold → warm → hot</p>
+    <h1>From raw<br>to <b>radiant</b></h1>
+    <p class="sub">Scroll to watch generation heat up - each frame a rung on the temperature ladder, from a cold on-device sketch to a premium 4K render.</p>
+  </div>
+  <div class="scrollcue"><span>SCROLL</span><i></i></div>`;
+app.appendChild(cover);
+
+// beats
+BEATS.forEach((b,i)=>{
+  const p=palette(b.warm);
+  const sec=document.createElement("section");
+  sec.className="beat";
+  sec.dataset.warm=b.warm;
+  sec.style.setProperty("--tintA",p.tintA);
+  sec.style.setProperty("--tintB",p.tintB);
+  sec.style.setProperty("--tdot",p.dot);
+
+  const isVideo=b.media.kind==="video";
+  const containCls=b.media.contain?" contain":"";
+  const mediaInner=isVideo
+    ? `<video class="vid${containCls}" muted loop playsinline preload="none"
+         poster="${b.media.poster||""}" data-src="${b.media.src}"
+         ${b.sound?'data-hassound="1"':''} aria-label="${b.title.join('')}"></video>`
+    : `<img class="im${containCls}" alt="${b.title.join('')} - ${b.desc}" loading="lazy"
+         data-src="${b.media.src}" />`;
+
+  const sound=b.sound
+    ? `<button class="soundchip" data-sound aria-pressed="false">
+         <span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+         <span class="lbl">SOUND</span>
+       </button>`
+    : "";
+
+  sec.innerHTML=`
+    <div class="stage ${b.media.square?"square":""}">
+      <div class="media">${mediaInner}</div>
+      <div class="temp"><span class="dot"></span>${b.temp}</div>
+      ${sound}
+      <div class="copy">
+        <div class="idx">${b.idx}</div>
+        <h2>${b.title[0]}<b>${b.title[1]}</b></h2>
+        <p class="desc">${b.desc}</p>
+        <div class="meta">${b.meta.map(m=>`<span>${m}</span>`).join("")}</div>
+      </div>
+    </div>`;
+  app.appendChild(sec);
+});
+
+// outro
+const outro=document.createElement("section");
+outro.className="outro";
+outro.dataset.warm="1";
+outro.innerHTML=`
+  <div>
+    <h2>The palette <b>is</b><br>the story.</h2>
+    <p>Six frames, one temperature climb. Reorder the BEATS array and the whole arc recolors itself - the narrative follows the heat.</p>
+    <a href="#top">Replay the arc</a>
+  </div>`;
+app.appendChild(outro);
+document.body.insertAdjacentHTML("afterbegin",'<span id="top"></span>');
+
+/* ---------- lazy media + in-view playback ---------- */
+const mediaIO=new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{
+    const el=e.target;
+    if(e.isIntersecting){
+      if(el.dataset.src && !el.src){ el.src=el.dataset.src; if(el.tagName==="VIDEO") el.load(); }
+      if(el.tagName==="VIDEO" && !reduced){ el.play().catch(()=>{}); }
+    }else if(el.tagName==="VIDEO"){
+      el.pause();
+    }
+  });
+},{rootMargin:"200px 0px",threshold:0.1});
+document.querySelectorAll("[data-src]").forEach(el=>mediaIO.observe(el));
+
+/* ---------- reveal + active-beat tracking ---------- */
+const sections=[...document.querySelectorAll(".cover,.beat,.outro")];
+const revealIO=new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{ if(e.isIntersecting) e.target.classList.add("inview"); });
+},{threshold:0.35});
+sections.forEach(s=>revealIO.observe(s));
+
+/* ---------- THE ARC: drive fixed atmosphere + parallax + wipe ---------- */
+const atmos=document.getElementById("atmos");
+const pip=document.getElementById("pip");
+const wipe=document.getElementById("wipe");
+const beatEls=[...document.querySelectorAll(".beat,.outro,.cover")];
+let activeWarm=0, lastBeat=-1, ticking=false;
+
+function setAtmos(w){
+  const p=palette(w);
+  atmos.style.setProperty("--g-cool",p.coolGlow);
+  atmos.style.setProperty("--g-warm",p.warmGlow);
+  atmos.style.setProperty("--g-base-a",p.baseA);
+  atmos.style.setProperty("--g-base-b",p.baseB);
+}
+setAtmos(0);
+
+function onScroll(){
+  const vh=window.innerHeight;
+  const mid=window.scrollY+vh*0.5;
+  // find the beat whose center is nearest the viewport center -> interpolate warm
+  let best=null,bestDist=1e9;
+  beatEls.forEach(el=>{
+    const r=el.getBoundingClientRect();
+    const center=r.top+window.scrollY+r.height/2;
+    const d=Math.abs(center-mid);
+    if(d<bestDist){bestDist=d;best=el;}
+  });
+  // smooth interpolation between current beat and neighbor by overlap
+  let w=parseFloat(best?.dataset.warm||"0");
+  if(best){
+    const r=best.getBoundingClientRect();
+    const prog=Math.max(0,Math.min(1,(vh*0.5-r.top)/r.height)); // 0..1 through the beat
+    const idx=beatEls.indexOf(best);
+    const nb=beatEls[idx+1]||best, pb=beatEls[idx-1]||best;
+    const nW=parseFloat(nb.dataset.warm||w), pW=parseFloat(pb.dataset.warm||w);
+    w = prog<0.5 ? lerp(pW,w,(prog+0.5)) : lerp(w,nW,(prog-0.5));
+    w=Math.max(0,Math.min(1,w));
+  }
+  activeWarm=w;
+  setAtmos(w);
+
+  // progress pip
+  const doc=document.documentElement;
+  const sp=window.scrollY/Math.max(1,(doc.scrollHeight-vh));
+  pip.style.top=(sp*100)+"%";
+
+  // parallax on visible media (skip when reduced)
+  if(!reduced){
+    document.querySelectorAll(".beat .stage .media img,.beat .stage .media video").forEach(m=>{
+      const st=m.closest(".beat").getBoundingClientRect();
+      if(st.bottom<-100||st.top>vh+100) return;
+      const rel=(st.top+st.height/2-vh/2)/vh; // -1..1
+      m.style.transform=`scale(1.12) translateY(${(rel*-26).toFixed(1)}px)`;
+    });
+  }
+
+  // cinematic wipe pulse on crossing a beat boundary
+  const curBeat=beatEls.indexOf(best);
+  if(curBeat!==lastBeat && lastBeat!==-1 && !reduced){
+    const pw=palette(activeWarm);
+    wipe.style.setProperty("--wipeA",pw.tintA.replace(/[\d.]+\)$/,"1)"));
+    wipe.style.setProperty("--wipeB",pw.baseB);
+    wipe.style.opacity="0.5";
+    setTimeout(()=>{wipe.style.opacity="0";},120);
+  }
+  lastBeat=curBeat;
+  ticking=false;
+}
+function reqScroll(){ if(!ticking){ ticking=true; requestAnimationFrame(onScroll); } }
+window.addEventListener("scroll",reqScroll,{passive:true});
+window.addEventListener("resize",reqScroll);
+onScroll();
+
+/* ---------- sound chips: only one plays at a time ---------- */
+let activeSoundEl=null;
+document.querySelectorAll("[data-sound]").forEach(btn=>{
+  const vid=btn.closest(".stage").querySelector("video");
+  btn.addEventListener("click",()=>{
+    const turningOn=!btn.classList.contains("on");
+    // mute everything else
+    document.querySelectorAll("[data-sound]").forEach(b=>{
+      b.classList.remove("on");b.setAttribute("aria-pressed","false");
+      const v=b.closest(".stage").querySelector("video"); if(v) v.muted=true;
+    });
+    if(turningOn){
+      vid.muted=false; vid.currentTime=vid.currentTime; vid.play().catch(()=>{});
+      btn.classList.add("on");btn.setAttribute("aria-pressed","true");
+      activeSoundEl=vid;
+    }else if(vid){ vid.muted=true; }
+  });
+});
+
+/* fix --vh for mobile browser chrome */
+function setVH(){ document.documentElement.style.setProperty("--vh", window.innerHeight+"px"); }
+setVH(); window.addEventListener("resize",setVH);
+</script>
+</body>
+</html>

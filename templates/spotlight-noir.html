@@ -83,19 +83,11 @@ body.rm{cursor:auto;overflow:auto}              /* reduced-motion: normal cursor
   width:var(--w);
   transform:translate(-50%,-50%) rotate(var(--rot,0deg));
   z-index:2;
-  /* each piece is masked by the spotlight: a radial window of
-     opacity centered on the cursor, in PIXELS via --mx/--my. */
-  --d: calc(var(--bloom) * (1 + var(--reveal) * 2.1));
-  -webkit-mask-image:radial-gradient(
-     circle var(--d) at var(--mx) var(--my),
-     #000 calc(100% - var(--edge)*100%), transparent 100%);
-          mask-image:radial-gradient(
-     circle var(--d) at var(--mx) var(--my),
-     #000 calc(100% - var(--edge)*100%), transparent 100%);
-  -webkit-mask-position:0 0;mask-position:0 0;
-  opacity:calc(.5 + .5*var(--reveal));
+  /* works sit dim beneath a single GPU-composited shade overlay
+     (see .shade); the moving hole reveals them. No per-work mask,
+     so the per-frame cost is one transform, not N gradient repaints. */
+  opacity:1;
   transition:opacity .5s ease, filter .6s ease;
-  will-change:mask-image;
 }
 .work .frame{
   position:relative;display:block;
@@ -182,13 +174,17 @@ body.rm{cursor:auto;overflow:auto}              /* reduced-motion: normal cursor
 }
 .stage.has-lock .pin{opacity:0}
 
-/* a darkening curtain everywhere the light is NOT (deepens contrast) */
-.curtain{
-  position:fixed;inset:0;z-index:30;pointer-events:none;
-  background:radial-gradient(
-    circle calc(var(--bloom)*1.15) at var(--mx) var(--my),
-    transparent 0%, transparent 40%, rgba(4,3,2,.55) 78%, rgba(4,3,2,.82) 100%);
-  transition:opacity .5s ease;
+/* the dark shade: a huge overlay with a STATIC radial hole, transform-
+   translated to the cursor (GPU-composited, constant cost). Works sit dim
+   beneath it, revealed only through the hole; scaling blooms it on lock. */
+.shade{
+  position:fixed;left:50%;top:50%;z-index:30;pointer-events:none;
+  width:260vmax;height:260vmax;margin:-130vmax 0 0 -130vmax;
+  background:radial-gradient(circle var(--bloom) at 50% 50%,
+    transparent 0%, transparent 42%, rgba(7,6,5,.88) 70%, var(--void) 86%);
+  transform:translate3d(calc(var(--mx) - 50vw), calc(var(--my) - 50vh), 0) scale(var(--bscale,1));
+  transform-origin:50% 50%;
+  will-change:transform;
 }
 
 /* ---------- MASTHEAD / HUD ---------- */
@@ -259,7 +255,7 @@ body.rm{cursor:auto;overflow:auto}              /* reduced-motion: normal cursor
 @media (max-width:640px){
   body{cursor:auto;overflow:hidden}
   .stage{height:100svh}
-  .lamp,.pin,.curtain,.count,.release{display:none}
+  .lamp,.pin,.shade,.count,.release{display:none}
   .tap-cta{display:block}
 
   /* one piece centered at a time, fully contained (letterboxed) */
@@ -308,7 +304,7 @@ body.rm{cursor:auto;overflow:auto}              /* reduced-motion: normal cursor
    ============================================================ */
 @media (prefers-reduced-motion:reduce){
   body{cursor:auto;overflow:auto;height:auto}
-  .lamp,.pin,.curtain,.hint,.release,.tap-cta{display:none !important}
+  .lamp,.pin,.shade,.hint,.release,.tap-cta{display:none !important}
   .stage{height:auto;min-height:100svh;padding:clamp(80px,12vw,140px) 5vw clamp(60px,10vw,120px);
          display:grid;gap:clamp(40px,6vw,80px);
          grid-template-columns:repeat(auto-fit,minmax(280px,1fr));align-items:start}
@@ -395,7 +391,7 @@ const META = { studio:"OBSCURA", line:"a studio working in the dark" };
 
 <div class="lamp" id="lamp" aria-hidden="true"></div>
 <div class="pin" id="pin" aria-hidden="true"></div>
-<div class="curtain" id="curtain" aria-hidden="true"></div>
+<div class="shade" id="shade" aria-hidden="true"></div>
 <div class="grain" aria-hidden="true"></div>
 
 <div class="hud" aria-hidden="true">
@@ -490,20 +486,9 @@ const META = { studio:"OBSCURA", line:"a studio working in the dark" };
 
   countEl.innerHTML = '<b>'+String(WORKS.length).padStart(2,'0')+'</b> works<br>hidden in the dark';
 
-  /* ---- lazy video: play only in view, attach src on demand ---- */
-  const vidObserver = ('IntersectionObserver' in window) ? new IntersectionObserver((entries)=>{
-    entries.forEach(ent=>{
-      const m = ent.target;
-      if (m.tagName !== 'VIDEO') return;
-      if (ent.isIntersecting){
-        if (!m.src && m.dataset.src){ m.src = m.dataset.src; }
-        const p = m.play(); if (p && p.catch) p.catch(()=>{});
-      } else {
-        m.pause();
-      }
-    });
-  }, { rootMargin:'120px', threshold:0.01 }) : null;
-  nodes.forEach(n=>{ if (n.media.tagName==='VIDEO' && vidObserver) vidObserver.observe(n.media); });
+  /* videos stay as poster stills in the dark; ONLY the locked piece
+     plays (see lockTo). Playing many videos at once on one shared stage,
+     each with mix-blend-mode, was the real per-frame cost. */
 
   /* =====================================================
      REDUCED MOTION:  attach video src so the still gallery
@@ -618,6 +603,7 @@ const META = { studio:"OBSCURA", line:"a studio working in the dark" };
     root.style.setProperty('--mx', cx.toFixed(1)+'px');
     root.style.setProperty('--my', cy.toFixed(1)+'px');
     root.style.setProperty('--reveal', reveal.toFixed(3));
+    root.style.setProperty('--bscale', (1 + reveal*1.6).toFixed(3));
 
     raf = requestAnimationFrame(frame);
   }

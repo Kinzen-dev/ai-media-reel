@@ -4,13 +4,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>Reel One — 35mm Cutting Room</title>
+<title>Reel One - 35mm Cutting Room</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
 <style>
   /* ============================================================
-     PALETTE — near-black + amber only. Frames supply all colour.
+     PALETTE - near-black + amber only. Frames supply all colour.
      ============================================================ */
   :root{
     --ink:#0a0807;            /* near-black base, faint warm */
@@ -47,7 +47,7 @@
   button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 
   /* ============================================================
-     FILM GRAIN + scanline dust — fixed overlays, cheap
+     FILM GRAIN + scanline dust - fixed overlays, cheap
      ============================================================ */
   .grain,.vign{position:fixed;inset:0;pointer-events:none;z-index:80}
   .grain{
@@ -59,7 +59,7 @@
   .vign{z-index:79;background:radial-gradient(120% 92% at 50% 50%,transparent 52%,rgba(0,0,0,.62) 100%)}
 
   /* ============================================================
-     STAGE — full viewport. The strip lives on a horizontal rail.
+     STAGE - full viewport. The strip lives on a horizontal rail.
      ============================================================ */
   .stage{position:fixed;inset:0;display:flex;align-items:center;overflow:hidden}
 
@@ -79,7 +79,7 @@
       linear-gradient(180deg,var(--film-edge) 0%,var(--film) calc(var(--gutter) - 2px),var(--film) calc(100% - var(--gutter) + 2px),var(--film-edge) 100%);
     box-shadow:0 30px 90px -30px #000, inset 0 0 0 1px rgba(0,0,0,.6);
   }
-  /* sprocket-hole rows top + bottom — repeating rounded squares */
+  /* sprocket-hole rows top + bottom - repeating rounded squares */
   .strip::before,.strip::after{
     content:"";position:absolute;left:0;right:0;height:calc(var(--gutter) * .56);
     background-image:radial-gradient(rgba(0,0,0,0) 0,rgba(0,0,0,0) 100%);
@@ -131,13 +131,13 @@
   }
   .win img,.win video{
     max-width:100%;max-height:100%;
-    width:auto;height:auto;                /* CONTAIN — never cover-crop */
+    width:auto;height:auto;                /* CONTAIN - never cover-crop */
     object-fit:contain;
     display:block;
     filter:saturate(.86) contrast(1.04) brightness(.74);
     transition:filter .55s var(--ease),transform .55s var(--ease);
   }
-  /* square / portrait assets sit pillar-boxed on pure black — intentional */
+  /* square / portrait assets sit pillar-boxed on pure black - intentional */
   .win .pad{position:absolute;inset:0;display:grid;place-items:center;background:repeating-linear-gradient(90deg,#000 0 6px,#040302 6px 12px)}
 
   /* per-frame edge code printed on the celluloid (top gutter) */
@@ -199,7 +199,7 @@
   .state .dot[hidden]{display:none}
 
   /* ============================================================
-     HUD — frame counter + running timecode, cutting-room style
+     HUD - frame counter + running timecode, cutting-room style
      ============================================================ */
   .hud{position:fixed;z-index:90;pointer-events:none;color:var(--amber)}
   .hud .mono{font-variant-numeric:tabular-nums}
@@ -261,7 +261,7 @@
   .arrow.next{right:max(14px,env(safe-area-inset-right))}
 
   /* ============================================================
-     REDUCED MOTION — kill grain/blink/anim, show final state.
+     REDUCED MOTION - kill grain/blink/anim, show final state.
      Strip is positioned by JS (no transition) and stays usable.
      ============================================================ */
   @media (prefers-reduced-motion: reduce){
@@ -272,7 +272,7 @@
   }
 
   /* ============================================================
-     MOBILE  (<=640px) — VERTICAL strip. Sprockets move to the
+     MOBILE  (<=640px) - VERTICAL strip. Sprockets move to the
      SIDES, scrub is top-to-bottom, frames stay 16:9 letterboxed.
      ============================================================ */
   @media (max-width:640px){
@@ -323,7 +323,7 @@
     .hud.bottom{gap:8px}
   }
 
-  /* very small height (landscape phones) — shrink HUD */
+  /* very small height (landscape phones) - shrink HUD */
   @media (max-height:430px){
     .hud.tr .tc{font-size:18px}
     .hint{display:none}
@@ -377,7 +377,7 @@
 
 <script>
 /* ============================================================================
-   DATA — swap this array to rebuild the reel. Each entry is one 35mm frame.
+   DATA - swap this array to rebuild the reel. Each entry is one 35mm frame.
    Asset paths are relative to /showcase/templates/  ->  ../assets/
    kind: "image" | "video"   (video also needs poster)
    sound: true if the clip carries audio (shown in HUD; stays muted until play)
@@ -544,42 +544,44 @@ let rafId = null;
 
 const clamp = (v,a,b)=> Math.max(a, Math.min(b, v));
 
-/* per-frame pixel pitch (distance between frame centers) — measured live */
+/* ---- geometry uses OFFSET coordinates (layout space), immune to the rail
+   transform. Each frame center along the scroll axis is read straight from
+   offsetLeft/offsetTop, so feedback from translate3d can never accumulate. */
+function frameCenter(i){
+  const el = frames[i].el;
+  return isMobile()
+    ? el.offsetTop  + el.offsetHeight/2
+    : el.offsetLeft + el.offsetWidth /2;
+}
+/* interpolated center for a continuous position */
+function centerAt(p){
+  const lo = clamp(Math.floor(p), 0, frames.length-1);
+  const hi = clamp(Math.ceil(p),  0, frames.length-1);
+  const f = p - lo;
+  return frameCenter(lo) + (frameCenter(hi) - frameCenter(lo)) * f;
+}
+/* local center-to-center distance around the current position (for input math) */
 function pitch(){
   if(frames.length < 2){
-    const r = frames[0].el.getBoundingClientRect();
-    return isMobile() ? r.height : r.width;
+    const el = frames[0].el;
+    return isMobile() ? el.offsetHeight : el.offsetWidth;
   }
-  const a = frames[0].el.getBoundingClientRect();
-  const b = frames[1].el.getBoundingClientRect();
-  return isMobile() ? (b.top - a.top) : (b.left - a.left);
+  const i = clamp(Math.round(pos), 0, frames.length-2);
+  return Math.abs(frameCenter(i+1) - frameCenter(i)) || 1;
 }
 
-/* layout: translate rail so that `pos` frame is centered */
+/* layout: translate rail so the interpolated `pos` center sits at viewport center */
 function layout(){
-  // measure center of frame 0 relative to its natural flow, then offset
-  const f0 = frames[0].el;
-  const r0 = f0.getBoundingClientRect();
-  const railRect = rail.getBoundingClientRect();
-  const p = pitch();
+  const c = centerAt(pos);
   if(isMobile()){
-    // frame0 center y within rail content
-    const f0Center = (r0.top - railRect.top) + r0.height/2 - getTranslate().y;
-    const viewCenter = window.innerHeight/2;
-    const y = viewCenter - (f0Center + pos*p);
-    setTranslate(0, y);
+    setTranslate(0, window.innerHeight/2 - c);
   } else {
-    const f0Center = (r0.left - railRect.left) + r0.width/2 - getTranslate().x;
-    const viewCenter = window.innerWidth/2;
-    const x = viewCenter - (f0Center + pos*p);
-    setTranslate(x, 0);
+    setTranslate(window.innerWidth/2 - c, 0);
   }
   updateActive();
 }
 
-let _tx=0,_ty=0;
-function setTranslate(x,y){ _tx=x;_ty=y; rail.style.transform = `translate3d(${x.toFixed(2)}px,${y.toFixed(2)}px,0)`; }
-function getTranslate(){ return {x:_tx,y:_ty}; }
+function setTranslate(x,y){ rail.style.transform = `translate3d(${x.toFixed(2)}px,${y.toFixed(2)}px,0)`; }
 
 /* which frame is centered */
 function updateActive(){
@@ -645,7 +647,7 @@ function paintTC(){
 }
 
 /* ============================================================================
-   ANIMATION LOOP — eases pos toward target with inertia.
+   ANIMATION LOOP - eases pos toward target with inertia.
    Reduced-motion: no loop; jump straight to integer target.
    ============================================================================ */
 function tick(){
@@ -672,7 +674,7 @@ function goTo(i){
 }
 
 /* ============================================================================
-   INPUT — wheel, drag (pointer), keyboard, ruler.
+   INPUT - wheel, drag (pointer), keyboard, ruler.
    ============================================================================ */
 let wheelAccum = 0, wheelTimer = null;
 stage.addEventListener("wheel", (e)=>{
@@ -701,7 +703,7 @@ stage.addEventListener("pointerdown", (e)=>{
   lastPointer = pointerVal(e);
   stage.setPointerCapture?.(e.pointerId);
   stage.style.cursor = "grabbing";
-  kick();
+  if(!reduce) kick();   // reduced motion: pointermove drives layout directly, no rAF loop
 });
 stage.addEventListener("pointermove", (e)=>{
   if(!dragging) return;

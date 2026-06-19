@@ -1,0 +1,919 @@
+<!-- TEMPLATE: Chrome Cover Flow | ARCHETYPE: coverflow-3d | REF: Apple Cover Flow (pure CSS 3D preserve-3d carousel, no WebGL) | WHEN TO USE: showcase a media reel (videos/images) one focused hero at a time with cinematic 3D depth | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Chrome Cover Flow</title>
+
+<!-- ============================================================= -->
+<!--  DATA  -  swap these entries to retheme the whole carousel.   -->
+<!--  type: "video" lazy-plays only when centered; "image" static. -->
+<!--  All assets live in ../assets/ relative to this file.         -->
+<!-- ============================================================= -->
+<script id="data">
+const DATA = [
+  {
+    type: "video",
+    src: "../assets/kling-video.mp4",
+    poster: "../assets/gen/poster-kling-video.png",
+    muted: true,
+    kicker: "Generative Video",
+    title: "Kling Reel",
+    desc: "Long-form coherent motion synthesis, rendered straight from a text seed."
+  },
+  {
+    type: "image",
+    src: "../assets/flux-car-4k.png",
+    kicker: "Flux / 4K Still",
+    title: "Midnight Coupe",
+    desc: "Matte-black coupe on a rain-slick neon street. Cinematic key light, wet asphalt bokeh."
+  },
+  {
+    type: "video",
+    src: "../assets/veo-video.mp4",
+    poster: "../assets/gen/poster-veo-video.png",
+    muted: false,
+    kicker: "Veo / Sound",
+    title: "Veo Sequence",
+    desc: "Film-grade camera moves with native synced audio. Unmute when it locks center."
+  },
+  {
+    type: "image",
+    src: "../assets/flux-clinic-4k.png",
+    kicker: "Flux / 4K Still",
+    title: "Mint Clinic",
+    desc: "Calm mint-and-wood dental interior. Soft daylight, clean product-grade composition."
+  },
+  {
+    type: "video",
+    src: "../assets/heygen-avatar.mp4",
+    poster: "../assets/gen/poster-heygen.png",
+    muted: false,
+    kicker: "HeyGen / Avatar",
+    title: "Talking Avatar",
+    desc: "Lip-synced presenter avatar with native voice. Audio enabled on focus."
+  },
+  {
+    type: "video",
+    src: "../assets/fal-video.mp4",
+    poster: "../assets/gen/poster-fal-video.png",
+    muted: true,
+    kicker: "fal / Motion",
+    title: "Fal Loop",
+    desc: "Tight stylised motion loop, optimised for short-form playback."
+  },
+  {
+    type: "image",
+    src: "../assets/sdxl.png",
+    kicker: "SDXL / Painterly",
+    title: "Autumn Fox",
+    desc: "Hand-painted autumn fox study. Square asset letterboxed, never cropped."
+  },
+  {
+    type: "video",
+    src: "../assets/flux-car-i2v.mp4",
+    poster: "../assets/gen/poster-flux-car-i2v.png",
+    muted: true,
+    kicker: "Image-to-Video",
+    title: "Coupe In Motion",
+    desc: "The midnight still, animated. Image-to-video drift across the neon frame."
+  },
+  {
+    type: "image",
+    src: "../assets/hf-tinysd.png",
+    kicker: "Tiny-SD / Lo-fi",
+    title: "Abstract Apple",
+    desc: "Low-fi diffusion sketch. A study in how small models render simple objects."
+  }
+];
+
+/* Accent + theming knobs (single cool accent per brief). */
+const THEME = {
+  accent: "#37e6ff",
+  accentSoft: "rgba(55,230,255,0.55)"
+};
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+
+<style>
+:root{
+  --accent:#37e6ff;
+  --accent-soft:rgba(55,230,255,0.55);
+  --bg:#050608;
+  --ink:#eef3f6;
+  --muted:#8a96a0;
+  --card-w:clamp(260px, 42vw, 460px);
+  --card-h:calc(var(--card-w) * 0.5625);   /* 16:9 cinematic tile */
+  --stage-h:min(78vh, 640px);
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;height:100%;}
+body{
+  background:
+    radial-gradient(120% 80% at 50% -10%, #11161c 0%, #07090c 45%, #040506 100%);
+  color:var(--ink);
+  font-family:"Inter",system-ui,sans-serif;
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* subtle chrome scanline ambience */
+body::before{
+  content:"";
+  position:fixed; inset:0;
+  background:
+    radial-gradient(60% 40% at 50% 38%, rgba(55,230,255,0.10), transparent 70%);
+  pointer-events:none;
+  z-index:0;
+}
+
+/* ---------- header / chrome ---------- */
+.topbar{
+  position:fixed; top:0; left:0; right:0;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:clamp(14px,3vw,26px) clamp(16px,4vw,42px);
+  z-index:6;
+  pointer-events:none;
+}
+.brand{
+  font-family:"Space Grotesk",sans-serif;
+  font-weight:700; letter-spacing:.16em;
+  font-size:clamp(13px,1.4vw,16px);
+  text-transform:uppercase;
+}
+.brand b{color:var(--accent);}
+.counter{
+  font-family:"Space Grotesk",sans-serif;
+  font-size:clamp(12px,1.3vw,15px);
+  letter-spacing:.18em;
+  color:var(--muted);
+}
+.counter .now{color:var(--ink);}
+
+/* ---------- the 3D stage ---------- */
+.scene{
+  position:relative;
+  height:100vh; width:100%;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  z-index:1;
+  touch-action:pan-y;
+  cursor:grab;
+}
+.scene.dragging{cursor:grabbing;}
+
+.flow{
+  position:relative;
+  height:var(--stage-h);
+  width:100%;
+  perspective:1500px;
+  perspective-origin:50% 42%;
+}
+.track{
+  position:absolute;
+  top:42%; left:50%;
+  height:0; width:0;
+  transform-style:preserve-3d;
+}
+
+/* each card. transform set per-frame by JS. */
+.card{
+  position:absolute;
+  top:0; left:0;
+  width:var(--card-w);
+  height:var(--card-h);
+  margin-left:calc(var(--card-w) / -2);
+  margin-top:calc(var(--card-h) / -2);
+  transform-style:preserve-3d;
+  will-change:transform, filter;
+  /* eased only when JS toggles .snap (settle animation) */
+}
+.card.snap{transition:transform .55s cubic-bezier(.22,.61,.16,1), filter .55s ease;}
+
+/* the visible face + its mirror live in one preserve-3d shell */
+.face{
+  position:absolute; inset:0;
+  border-radius:14px;
+  overflow:hidden;
+  background:#0a0d11;
+  box-shadow:0 30px 60px -20px rgba(0,0,0,.85);
+  border:1px solid rgba(255,255,255,.06);
+  backface-visibility:hidden;
+}
+.face .media{
+  position:absolute; inset:0;
+  width:100%; height:100%;
+  object-fit:cover;          /* landscape tiles fill */
+  display:block;
+  background:#06080b;
+}
+/* square assets letterbox instead of crop (flagged per item via .contain) */
+.card[data-fit="contain"] .face .media{object-fit:contain;}
+
+/* glassy top sheen */
+.face::after{
+  content:"";
+  position:absolute; inset:0;
+  background:linear-gradient(160deg, rgba(255,255,255,.16) 0%, rgba(255,255,255,0) 32%);
+  pointer-events:none;
+}
+
+/* centre card gets the accent rim + play affordance */
+.card.active .face{
+  border-color:var(--accent-soft);
+  box-shadow:0 36px 70px -18px rgba(0,0,0,.9),
+             0 0 0 1px var(--accent-soft),
+             0 0 40px -6px var(--accent-soft);
+}
+
+/* poster overlay for video tiles when not playing */
+.poster{
+  position:absolute; inset:0;
+  background-size:cover; background-position:center;
+  background-color:#06080b;
+  transition:opacity .4s ease;
+}
+.card.playing .poster{opacity:0;}
+
+/* play / media badge */
+.badge{
+  position:absolute; top:10px; left:10px;
+  display:flex; align-items:center; gap:6px;
+  padding:5px 9px;
+  font-family:"Space Grotesk",sans-serif;
+  font-size:11px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--ink);
+  background:rgba(8,10,13,.55);
+  backdrop-filter:blur(6px);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:999px;
+}
+.badge .dot{
+  width:7px; height:7px; border-radius:50%;
+  background:var(--accent);
+  box-shadow:0 0 8px var(--accent);
+}
+
+/* ---------- the reflection (mirror) ---------- */
+.mirror{
+  position:absolute;
+  left:0; top:100%;
+  width:100%; height:100%;
+  border-radius:14px;
+  overflow:hidden;
+  transform:scaleY(-1);
+  transform-origin:top;
+  opacity:.42;
+  -webkit-mask-image:linear-gradient(to bottom, rgba(0,0,0,.65) 0%, rgba(0,0,0,0) 58%);
+          mask-image:linear-gradient(to bottom, rgba(0,0,0,.65) 0%, rgba(0,0,0,0) 58%);
+  pointer-events:none;
+}
+.mirror .media{
+  position:absolute; inset:0;
+  width:100%; height:100%;
+  object-fit:cover; display:block;
+  background:#06080b;
+}
+.card[data-fit="contain"] .mirror .media{object-fit:contain;}
+/* inline mobile caption hidden on desktop (media query re-shows it) */
+.m-cap{ display:none; }
+/* floor haze beneath reflections */
+.flow::after{
+  content:"";
+  position:absolute;
+  left:50%; bottom:2%;
+  width:min(90vw, 1100px); height:34%;
+  transform:translateX(-50%);
+  background:radial-gradient(60% 100% at 50% 0%, rgba(55,230,255,.08), transparent 70%);
+  pointer-events:none;
+}
+
+/* ---------- caption ---------- */
+.caption{
+  position:relative;
+  z-index:4;
+  margin-top:clamp(8px,2vh,22px);
+  text-align:center;
+  max-width:min(86vw, 560px);
+  min-height:104px;
+  padding:0 16px;
+}
+.caption .kicker{
+  font-family:"Space Grotesk",sans-serif;
+  font-size:12px; letter-spacing:.28em; text-transform:uppercase;
+  color:var(--accent);
+  margin:0 0 8px;
+}
+.caption h2{
+  font-family:"Space Grotesk",sans-serif;
+  font-weight:700;
+  font-size:clamp(22px,3.4vw,34px);
+  margin:0 0 8px;
+  line-height:1.05;
+}
+.caption p{
+  margin:0;
+  color:var(--muted);
+  font-size:clamp(13px,1.6vw,15px);
+  line-height:1.5;
+}
+/* swap-in fade for caption text */
+.caption .swap{transition:opacity .3s ease, transform .3s ease;}
+.caption.changing .swap{opacity:0; transform:translateY(6px);}
+
+/* ---------- controls ---------- */
+.controls{
+  position:relative; z-index:5;
+  display:flex; align-items:center; gap:18px;
+  margin-top:clamp(10px,2vh,18px);
+}
+.nav{
+  appearance:none; cursor:pointer;
+  width:52px; height:52px; border-radius:50%;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.14);
+  color:var(--ink);
+  display:flex; align-items:center; justify-content:center;
+  transition:background .2s, border-color .2s, transform .12s;
+}
+.nav:hover{background:rgba(55,230,255,.12); border-color:var(--accent-soft);}
+.nav:active{transform:scale(.92);}
+.nav svg{width:20px; height:20px;}
+.nav:focus-visible{outline:2px solid var(--accent); outline-offset:3px;}
+
+.dots{display:flex; gap:9px; align-items:center;}
+.dots button{
+  appearance:none; cursor:pointer;
+  width:9px; height:9px; padding:0; border-radius:50%;
+  border:none;
+  background:rgba(255,255,255,.22);
+  transition:transform .2s, background .2s, width .2s;
+}
+.dots button[aria-current="true"]{
+  background:var(--accent);
+  width:24px; border-radius:6px;
+  box-shadow:0 0 10px var(--accent-soft);
+}
+.dots button:focus-visible{outline:2px solid var(--accent); outline-offset:3px;}
+
+.hint{
+  position:fixed; bottom:14px; left:0; right:0;
+  text-align:center;
+  font-family:"Space Grotesk",sans-serif;
+  font-size:11px; letter-spacing:.2em; text-transform:uppercase;
+  color:rgba(138,150,160,.7);
+  z-index:5; pointer-events:none;
+}
+.hint kbd{
+  font-family:inherit;
+  border:1px solid rgba(255,255,255,.16);
+  border-radius:5px; padding:1px 6px; margin:0 2px;
+  color:var(--ink);
+}
+
+/* sound toggle (only meaningful on audio-bearing focused video) */
+.sound{
+  position:fixed; right:clamp(16px,4vw,42px); bottom:clamp(56px,9vh,84px);
+  z-index:6;
+  appearance:none; cursor:pointer;
+  display:none; align-items:center; gap:8px;
+  padding:9px 14px; border-radius:999px;
+  background:rgba(8,10,13,.6); backdrop-filter:blur(8px);
+  border:1px solid rgba(255,255,255,.14);
+  color:var(--ink); font-family:"Space Grotesk",sans-serif;
+  font-size:12px; letter-spacing:.12em; text-transform:uppercase;
+}
+.sound.show{display:flex;}
+.sound:focus-visible{outline:2px solid var(--accent); outline-offset:3px;}
+.sound .dot{width:7px; height:7px; border-radius:50%; background:var(--muted);}
+.sound.on .dot{background:var(--accent); box-shadow:0 0 8px var(--accent);}
+
+/* ============================================================= */
+/*  MOBILE FALLBACK  (<=640px): horizontal swipe-snap stack.     */
+/*  No 3D rotation, no cropping landscape into portrait.         */
+/* ============================================================= */
+@media (max-width:640px){
+  :root{ --stage-h:auto; }
+  .scene{ height:auto; min-height:100vh; cursor:default; padding:84px 0 132px; justify-content:flex-start; }
+  .flow{
+    height:auto; width:100%;
+    perspective:none;
+    overflow-x:auto; overflow-y:hidden;
+    -webkit-overflow-scrolling:touch;
+    scroll-snap-type:x mandatory;
+    display:flex; gap:18px;
+    padding:0 calc(50vw - 41vw);   /* centre first/last card */
+    scrollbar-width:none;
+  }
+  .flow::-webkit-scrollbar{display:none;}
+  .flow::after{display:none;}
+  .track{ position:static; display:contents; }
+
+  .card{
+    position:relative;
+    top:auto; left:auto; margin:0;
+    flex:0 0 82vw;
+    width:82vw;
+    height:auto;
+    transform:none !important;
+    filter:none !important;
+    scroll-snap-align:center;
+    transition:none;
+  }
+  .face{
+    position:relative; inset:auto;
+    width:100%;
+    aspect-ratio:16 / 9;       /* fixed 16:9 frame */
+    height:auto;
+  }
+  /* letterbox EVERY asset into the frame: never crop a landscape (or any) asset on phones */
+  .face .media{ object-fit:contain; background:#06080b; }
+  /* square assets keep their shape on mobile too */
+  .card[data-fit="contain"] .face{ aspect-ratio:1 / 1; }
+  .card[data-fit="contain"] .face .media{ object-fit:contain; }
+
+  .mirror{ display:none; }     /* reflection too costly + tall on phones */
+  .caption{ display:none; }    /* per-card text shown inline instead */
+  .controls{ display:none; }
+
+  /* inline caption under each mobile card */
+  .m-cap{ display:block; padding:12px 6px 0; }
+  .m-cap .kicker{
+    font-family:"Space Grotesk",sans-serif; font-size:11px;
+    letter-spacing:.24em; text-transform:uppercase; color:var(--accent); margin:0 0 5px;
+  }
+  .m-cap h3{
+    font-family:"Space Grotesk",sans-serif; font-weight:700;
+    font-size:19px; margin:0 0 5px; line-height:1.1;
+  }
+  .m-cap p{ margin:0; color:var(--muted); font-size:13px; line-height:1.45; }
+  .hint{ display:none; }
+  .sound{ bottom:18px; }
+}
+
+/* ---------- reduced motion: show final state, kill heavy motion ---------- */
+@media (prefers-reduced-motion:reduce){
+  .card, .card.snap{ transition:none !important; }
+  .poster{ transition:none !important; }
+  .caption .swap{ transition:none !important; }
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">VESPER<b>FLOW</b></div>
+  <div class="counter"><span class="now" id="cNow">01</span> / <span id="cTotal">09</span></div>
+</header>
+
+<main class="scene" id="scene" aria-roledescription="carousel" aria-label="Media cover flow">
+  <div class="flow" id="flow">
+    <div class="track" id="track"></div>
+  </div>
+
+  <!-- desktop caption (mirrors active card) -->
+  <div class="caption" id="caption" aria-live="polite">
+    <p class="kicker swap" id="capKicker">Generative Video</p>
+    <h2 class="swap" id="capTitle">Kling Reel</h2>
+    <p class="swap" id="capDesc">Long-form coherent motion synthesis.</p>
+  </div>
+
+  <div class="controls">
+    <button class="nav" id="prev" aria-label="Previous">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div class="dots" id="dots" role="tablist" aria-label="Choose slide"></div>
+    <button class="nav" id="next" aria-label="Next">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+    </button>
+  </div>
+</main>
+
+<button class="sound" id="soundBtn" aria-pressed="false" aria-label="Toggle sound">
+  <span class="dot"></span><span id="soundLbl">Muted</span>
+</button>
+
+<div class="hint">
+  <kbd>&larr;</kbd> <kbd>&rarr;</kbd> drag &middot; scroll &middot; click a card
+</div>
+
+<script>
+(() => {
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const isMobile = () => window.matchMedia("(max-width:640px)").matches;
+
+  // apply theme accent
+  document.documentElement.style.setProperty("--accent", THEME.accent);
+  document.documentElement.style.setProperty("--accent-soft", THEME.accentSoft);
+
+  const track   = document.getElementById("track");
+  const flow     = document.getElementById("flow");
+  const scene    = document.getElementById("scene");
+  const dotsWrap = document.getElementById("dots");
+  const capKicker= document.getElementById("capKicker");
+  const capTitle = document.getElementById("capTitle");
+  const capDesc  = document.getElementById("capDesc");
+  const caption  = document.getElementById("caption");
+  const cNow     = document.getElementById("cNow");
+  const cTotal   = document.getElementById("cTotal");
+  const soundBtn = document.getElementById("soundBtn");
+  const soundLbl = document.getElementById("soundLbl");
+
+  cTotal.textContent = String(DATA.length).padStart(2, "0");
+
+  const cards = [];
+  const pad2 = n => String(n + 1).padStart(2, "0");
+
+  // ---- build cards + mirrors + mobile inline captions ----
+  DATA.forEach((item, i) => {
+    const fitContain = ["sdxl.png", "hf-tinysd.png", "did-talking-photo.mp4"]
+      .some(n => item.src.includes(n));
+
+    const card = document.createElement("article");
+    card.className = "card";
+    card.dataset.index = i;
+    card.dataset.fit = fitContain ? "contain" : "cover";
+    card.setAttribute("role", "group");
+    card.setAttribute("aria-roledescription", "slide");
+    card.setAttribute("aria-label", (i + 1) + " of " + DATA.length + ": " + item.title);
+    card.tabIndex = -1;
+
+    const face = document.createElement("div");
+    face.className = "face";
+
+    // badge
+    const badge = document.createElement("div");
+    badge.className = "badge";
+    badge.innerHTML = '<span class="dot"></span>' + (item.type === "video" ? "Video" : "Still");
+    face.appendChild(badge);
+
+    let media;
+    if (item.type === "video") {
+      media = document.createElement("video");
+      media.className = "media";
+      media.muted = true;          // always start muted (autoplay policy)
+      media.loop = true;
+      media.playsInline = true;
+      media.preload = "none";       // lazy: no source bytes until focused
+      media.setAttribute("aria-hidden", "true");
+      if (item.poster) media.poster = item.poster;
+      media.dataset.src = item.src;  // real src attached on focus
+      // poster overlay (so we never decode video until centered)
+      const poster = document.createElement("div");
+      poster.className = "poster";
+      if (item.poster) poster.style.backgroundImage = "url('" + item.poster + "')";
+      face.appendChild(media);
+      face.appendChild(poster);
+    } else {
+      media = document.createElement("img");
+      media.className = "media";
+      media.src = item.src;
+      media.alt = item.title;
+      media.loading = "lazy";
+      media.decoding = "async";
+      face.appendChild(media);
+    }
+
+    // mirror (clone of the face media as a flipped, masked copy)
+    const mirror = document.createElement("div");
+    mirror.className = "mirror";
+    mirror.setAttribute("aria-hidden", "true");
+    if (item.type === "video") {
+      const mp = document.createElement("div");
+      mp.className = "poster mirror-poster";
+      if (item.poster) mp.style.backgroundImage = "url('" + item.poster + "')";
+      mp.style.opacity = "1";
+      mirror.appendChild(mp);
+    } else {
+      const mimg = document.createElement("img");
+      mimg.className = "media";
+      mimg.src = item.src;
+      mimg.alt = "";
+      mimg.loading = "lazy";
+      mirror.appendChild(mimg);
+    }
+
+    card.appendChild(face);
+    card.appendChild(mirror);
+
+    // mobile inline caption
+    const mcap = document.createElement("div");
+    mcap.className = "m-cap";
+    mcap.innerHTML =
+      '<p class="kicker">' + item.kicker + '</p>' +
+      '<h3>' + item.title + '</h3>' +
+      '<p>' + item.desc + '</p>';
+    card.appendChild(mcap);
+
+    card.addEventListener("click", () => {
+      if (isMobile()) return;
+      if (i !== current) go(i);
+    });
+
+    track.appendChild(card);
+    cards.push({ el: card, media, item, mirror, fitContain });
+
+    // dot
+    const dot = document.createElement("button");
+    dot.setAttribute("role", "tab");
+    dot.setAttribute("aria-label", "Go to " + item.title);
+    dot.addEventListener("click", () => go(i));
+    dotsWrap.appendChild(dot);
+  });
+
+  let current = 0;
+  let pos = 0;            // fractional position used during drag for live feel
+  let raf = null;
+
+  // ----- layout math: classic cover-flow placement -----
+  const GAP_CENTER = 1.04;   // horizontal spread of side cards (in card widths)
+  const GAP_SIDE   = 0.62;
+  const ROT        = 58;      // degrees of Y rotation for side cards
+  const DEPTH      = 240;     // px pushed back in Z
+
+  function cardWidthPx() {
+    // read the computed --card-w via a probe card
+    const probe = cards[0] && cards[0].el;
+    return probe ? probe.getBoundingClientRect().width : 360;
+  }
+
+  function layout(centerPos) {
+    if (isMobile()) return;   // mobile uses native scroll-snap, no transforms
+    const w = cardWidthPx();
+    cards.forEach((c, i) => {
+      const d = i - centerPos;           // signed distance from center (fractional)
+      const ad = Math.abs(d);
+      const sign = d === 0 ? 0 : (d > 0 ? 1 : -1);
+
+      let x, rotY, z, scale, opacity, blur;
+      if (ad < 1) {
+        // interpolate between centered (flat) and first side slot
+        const t = ad; // 0..1
+        x = sign * (w * (GAP_CENTER * t));
+        rotY = -sign * (ROT * t);
+        z = -DEPTH * t;
+        scale = 1 - 0.06 * t;
+        opacity = 1;
+        blur = 0;
+      } else {
+        // stacked side cards beyond the first neighbour
+        const k = ad - 1;                  // 0,1,2...
+        x = sign * (w * (GAP_CENTER + GAP_SIDE * k + GAP_SIDE * (k>0?0:0)));
+        // tighten stacking so far cards overlap like real cover flow
+        x = sign * w * (GAP_CENTER + GAP_SIDE * k);
+        rotY = -sign * ROT;
+        z = -DEPTH - 70 * k;
+        scale = 0.94 - Math.min(k * 0.05, 0.22);
+        opacity = Math.max(0.18, 1 - k * 0.26);
+        blur = Math.min(2.2 + k * 1.1, 6);   // depth-of-field on far cards
+      }
+
+      c.el.style.zIndex = String(1000 - Math.round(ad * 10));
+      c.el.style.transform =
+        "translate3d(" + x.toFixed(1) + "px,0," + z.toFixed(1) + "px) " +
+        "rotateY(" + rotY.toFixed(2) + "deg) " +
+        "scale(" + scale.toFixed(3) + ")";
+      c.el.style.filter = (blur > 0.05 && !reduceMotion)
+        ? "brightness(" + (opacity).toFixed(2) + ") blur(" + blur.toFixed(1) + "px)"
+        : "brightness(" + (opacity).toFixed(2) + ")";
+      c.el.style.opacity = "1";
+      c.el.classList.toggle("active", Math.round(centerPos) === i && ad < 0.5);
+    });
+  }
+
+  // ----- focus a card: lazy-load + play only the centered video -----
+  function focusMedia(index) {
+    cards.forEach((c, i) => {
+      const isCenter = i === index;
+      if (c.item.type === "video") {
+        if (isCenter) {
+          if (!c.media.src) c.media.src = c.media.dataset.src; // lazy attach
+          c.el.classList.add("playing");
+          const p = c.media.play();
+          if (p && p.catch) p.catch(() => {});
+        } else {
+          c.el.classList.remove("playing");
+          try { c.media.pause(); } catch (e) {}
+          // free decode pressure on far cards
+          if (Math.abs(i - index) > 1 && c.media.src) {
+            c.media.removeAttribute("src");
+            c.media.load();
+          }
+        }
+      }
+    });
+    updateSoundUI(index);
+  }
+
+  // ----- caption + chrome -----
+  function paintCaption(index) {
+    const it = DATA[index];
+    if (reduceMotion) {
+      capKicker.textContent = it.kicker;
+      capTitle.textContent  = it.title;
+      capDesc.textContent   = it.desc;
+    } else {
+      caption.classList.add("changing");
+      setTimeout(() => {
+        capKicker.textContent = it.kicker;
+        capTitle.textContent  = it.title;
+        capDesc.textContent   = it.desc;
+        caption.classList.remove("changing");
+      }, 180);
+    }
+    cNow.textContent = pad2(index);
+    [...dotsWrap.children].forEach((d, i) =>
+      d.setAttribute("aria-current", i === index ? "true" : "false"));
+  }
+
+  // ----- sound: only offered for focused video that has audio -----
+  let soundOn = false;
+  function audioCapable(index) {
+    const it = DATA[index];
+    return it.type === "video" && it.muted === false;
+  }
+  function updateSoundUI(index) {
+    if (audioCapable(index) && !isMobile()) {
+      soundBtn.classList.add("show");
+    } else {
+      soundBtn.classList.remove("show");
+    }
+    // apply mute state to the centered media
+    const c = cards[index];
+    if (c && c.item.type === "video") {
+      c.media.muted = !(soundOn && audioCapable(index));
+    }
+    soundBtn.classList.toggle("on", soundOn && audioCapable(index));
+    soundLbl.textContent = (soundOn && audioCapable(index)) ? "Sound on" : "Muted";
+    soundBtn.setAttribute("aria-pressed", String(soundOn && audioCapable(index)));
+  }
+  soundBtn.addEventListener("click", () => {
+    soundOn = !soundOn;
+    updateSoundUI(current);
+    const c = cards[current];
+    if (c && c.item.type === "video" && soundOn) {
+      const p = c.media.play(); if (p && p.catch) p.catch(() => {});
+    }
+  });
+
+  // ----- snap transition wrapper -----
+  function setSnap(on) {
+    if (reduceMotion) return;
+    cards.forEach(c => c.el.classList.toggle("snap", on));
+  }
+
+  function go(index) {
+    index = Math.max(0, Math.min(DATA.length - 1, index));
+    const changed = index !== current;
+    current = index;
+    pos = index;
+    setSnap(true);
+    layout(pos);
+    if (changed || true) { paintCaption(index); focusMedia(index); }
+    cards[index].el.tabIndex = 0;
+    cards.forEach((c,i)=>{ if(i!==index) c.el.tabIndex = -1; });
+  }
+
+  function next() { go(current + 1); }
+  function prev() { go(current - 1); }
+
+  document.getElementById("next").addEventListener("click", next);
+  document.getElementById("prev").addEventListener("click", prev);
+
+  // ----- keyboard -----
+  window.addEventListener("keydown", (e) => {
+    if (isMobile()) return;
+    if (e.key === "ArrowRight") { e.preventDefault(); next(); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); prev(); }
+    else if (e.key === "Home") { e.preventDefault(); go(0); }
+    else if (e.key === "End") { e.preventDefault(); go(DATA.length - 1); }
+  });
+
+  // ----- drag (pointer) with live fractional follow -----
+  let dragging = false, startX = 0, startPos = 0, moved = false;
+  const DRAG_DIV = () => Math.max(140, cardWidthPx() * 0.42);
+
+  function onDown(e) {
+    if (isMobile()) return;
+    if (e.target.closest(".nav,.dots,.sound")) return;
+    dragging = true; moved = false;
+    startX = e.clientX;
+    startPos = pos;
+    scene.classList.add("dragging");
+    setSnap(false);
+    try { scene.setPointerCapture(e.pointerId); } catch (err) {}
+  }
+  function onMove(e) {
+    if (!dragging) return;
+    const dx = e.clientX - startX;
+    if (Math.abs(dx) > 4) moved = true;
+    let p = startPos - dx / DRAG_DIV();
+    p = Math.max(-0.4, Math.min(DATA.length - 1 + 0.4, p));
+    if (reduceMotion) {
+      // no live fractional rotation under reduced motion: settle to a discrete slot only
+      const snapped = Math.max(0, Math.min(DATA.length - 1, Math.round(p)));
+      if (snapped !== pos) { pos = snapped; layout(pos); }
+      return;
+    }
+    pos = p;
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => layout(pos));
+  }
+  function onUp(e) {
+    if (!dragging) return;
+    dragging = false;
+    scene.classList.remove("dragging");
+    const target = Math.round(pos);
+    go(target);
+  }
+  scene.addEventListener("pointerdown", onDown);
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp);
+  window.addEventListener("pointercancel", onUp);
+
+  // suppress click after a real drag
+  scene.addEventListener("click", (e) => {
+    if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; }
+  }, true);
+
+  // ----- wheel / trackpad: horizontal or vertical advances flow -----
+  let wheelLock = false;
+  scene.addEventListener("wheel", (e) => {
+    if (isMobile()) return;
+    const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    if (Math.abs(delta) < 8) return;
+    e.preventDefault();
+    if (wheelLock) return;
+    wheelLock = true;
+    delta > 0 ? next() : prev();
+    setTimeout(() => { wheelLock = false; }, 220);
+  }, { passive: false });
+
+  // ----- mobile: observe which card is centered, play only that one -----
+  let mobileObserver = null;
+  function setupMobile() {
+    if (mobileObserver) { mobileObserver.disconnect(); mobileObserver = null; }
+    if (!isMobile()) return;
+    // pause everything, posters stay
+    cards.forEach(c => {
+      if (c.item.type === "video") {
+        try { c.media.pause(); } catch (e) {}
+        c.el.classList.remove("playing");
+        if (c.media.src) { c.media.removeAttribute("src"); c.media.load(); }
+      }
+    });
+    mobileObserver = new IntersectionObserver((entries) => {
+      entries.forEach(en => {
+        const c = cards[+en.target.dataset.index];
+        if (!c || c.item.type !== "video") return;
+        if (en.isIntersecting && en.intersectionRatio > 0.7) {
+          if (!c.media.src) c.media.src = c.media.dataset.src;
+          c.el.classList.add("playing");
+          const p = c.media.play(); if (p && p.catch) p.catch(() => {});
+        } else {
+          try { c.media.pause(); } catch (e) {}
+          c.el.classList.remove("playing");
+        }
+      });
+    }, { root: flow, threshold: [0, 0.7, 1] });
+    cards.forEach(c => mobileObserver.observe(c.el));
+  }
+
+  // ----- init / responsive ----------
+  function init() {
+    if (isMobile()) {
+      // clear any inline desktop transforms
+      cards.forEach(c => { c.el.style.transform = ""; c.el.style.filter = ""; });
+      setupMobile();
+    } else {
+      setSnap(false);
+      layout(current);
+      // next frame, enable snap so first interaction eases
+      requestAnimationFrame(() => requestAnimationFrame(() => setSnap(true)));
+      focusMedia(current);
+    }
+    paintCaption(current);
+  }
+
+  let rsTimer = null;
+  window.addEventListener("resize", () => {
+    clearTimeout(rsTimer);
+    rsTimer = setTimeout(init, 150);
+  });
+
+  // pause media when tab hidden (battery + decode)
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) cards.forEach(c => { try { c.media.pause(); } catch(e){} });
+    else if (!isMobile()) { const c = cards[current]; if (c && c.item.type==="video"){ const p=c.media.play(); if(p&&p.catch)p.catch(()=>{});} }
+  });
+
+  init();
+})();
+</script>
+</body>
+</html>

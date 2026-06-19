@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GENERATING — prompt → result</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Anton&display=swap" rel="stylesheet">
+<script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+<style>
+  :root{
+    --void:#08080a; --ink:#f2f2ec; --dim:#8c8c84; --sig:#ccff33; --sig-dim:#5a6b1f;
+    --noise:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-snap-type:y mandatory;scroll-behavior:smooth}
+  body{background:var(--void);color:var(--ink);font-family:"IBM Plex Sans Thai",system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  .mono{font-family:"JetBrains Mono",monospace}
+  @media(pointer:fine){body{cursor:none}}
+
+  /* persistent grain */
+  .grain{position:fixed;inset:-40%;z-index:60;pointer-events:none;opacity:.045;background-image:var(--noise);animation:gr .7s steps(2) infinite}
+  @keyframes gr{0%{transform:translate(0,0)}50%{transform:translate(-5%,4%)}100%{transform:translate(4%,-3%)}}
+
+  /* query reticle (the entity) */
+  .ret{position:fixed;top:0;left:0;width:40px;height:40px;z-index:80;pointer-events:none;transform:translate(-50%,-50%);transition:width .2s,height .2s}
+  .ret span{position:absolute;width:9px;height:9px;border:1.5px solid var(--sig)}
+  .ret .tl{top:0;left:0;border-right:0;border-bottom:0}.ret .tr{top:0;right:0;border-left:0;border-bottom:0}
+  .ret .bl{bottom:0;left:0;border-right:0;border-top:0}.ret .br{bottom:0;right:0;border-left:0;border-top:0}
+  .ret .dot{position:absolute;top:50%;left:50%;width:3px;height:3px;background:var(--sig);border:0;transform:translate(-50%,-50%);border-radius:50%}
+  .ret.lock{width:84px;height:84px}
+  .ret-tag{position:fixed;z-index:80;pointer-events:none;font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.1em;color:var(--void);background:var(--sig);padding:2px 6px;transform:translate(16px,16px);opacity:0;transition:opacity .15s;white-space:nowrap}
+  @media(pointer:coarse){.ret,.ret-tag{display:none}body{cursor:auto}}
+
+  section{height:100vh;scroll-snap-align:start;position:relative;overflow:hidden}
+
+  /* COLD OPEN */
+  .open{display:flex;flex-direction:column;justify-content:center;padding:0 8vw}
+  .open .tinyk{font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.3em;color:var(--sig);text-transform:uppercase}
+  .open h1{font-family:"Anton",sans-serif;font-weight:400;letter-spacing:-.01em;line-height:.92;
+    font-size:clamp(58px,12vw,190px);margin:18px 0;text-transform:uppercase}
+  .open h1 .cap{color:var(--void);-webkit-text-stroke:1.5px var(--sig);text-stroke:1.5px var(--sig)}
+  .open .type{font-family:"JetBrains Mono",monospace;font-size:clamp(15px,2.2vw,26px);color:var(--ink);min-height:1.6em}
+  .open .type b{color:var(--sig);font-weight:400}
+  .caret{display:inline-block;width:.55ch;background:var(--sig);animation:blink 1s steps(1) infinite;color:transparent}
+  @keyframes blink{50%{opacity:0}}
+  .open .cue{margin-top:42px;font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.22em;color:var(--dim);text-transform:uppercase;display:flex;align-items:center;gap:12px}
+  .open .cue i{width:1px;height:30px;background:linear-gradient(var(--sig),transparent);display:inline-block;position:relative;overflow:hidden}
+  .open .cue i::after{content:"";position:absolute;inset:0;background:var(--sig);animation:run 1.7s linear infinite}
+  @keyframes run{0%{transform:translateY(-100%)}100%{transform:translateY(100%)}}
+
+  /* GENERATION beat */
+  .gen .media-wrap{position:absolute;inset:0;z-index:0}
+  .gen .mediael{width:100%;height:100%;object-fit:cover;display:block;filter:blur(36px) saturate(0) brightness(.45) contrast(1.1);transition:filter 1.3s cubic-bezier(.2,.7,.2,1)}
+  .gen.in .mediael{filter:none}
+  .gen .media-wrap::after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background-image:var(--noise);background-size:200px;mix-blend-mode:screen;opacity:.95;transition:opacity 1.2s ease}
+  .gen.in .media-wrap::after{opacity:0}
+  .gen .scrim{position:absolute;inset:0;z-index:2;pointer-events:none;background:linear-gradient(75deg,rgba(8,8,10,.92) 6%,rgba(8,8,10,.5) 38%,transparent 66%),linear-gradient(0deg,rgba(8,8,10,.85),transparent 36%)}
+  .gen .num{position:absolute;top:clamp(40px,7vh,80px);right:5vw;z-index:3;font-family:"Anton",sans-serif;font-size:clamp(120px,22vw,300px);line-height:.8;color:transparent;-webkit-text-stroke:1.5px rgba(204,255,51,.16);text-stroke:1.5px rgba(204,255,51,.16);pointer-events:none}
+  .gen .overlay{position:absolute;left:0;bottom:0;z-index:4;padding:0 8vw 8vh;max-width:min(900px,86vw)}
+  .plabel{font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.2em;color:var(--sig);text-transform:uppercase;display:flex;gap:10px;align-items:center;margin-bottom:18px}
+  .plabel .ln{width:34px;height:1px;background:var(--sig)}
+  .ptext{font-weight:600;font-size:clamp(26px,4.6vw,62px);line-height:1.04;letter-spacing:-.02em;margin-bottom:22px;text-wrap:balance}
+  .ptext::before{content:"“";color:var(--sig);margin-right:.05em}.ptext::after{content:"”";color:var(--sig)}
+  .credit{font-family:"JetBrains Mono",monospace;font-size:13px;color:var(--dim);display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .credit .tool{color:var(--ink)}.credit .sig{color:var(--sig)}.credit .sep{color:var(--sig-dim)}
+  .gen .play{position:absolute;left:8vw;top:50%;transform:translateY(-50%);z-index:5;width:80px;height:80px;border-radius:50%;
+    background:transparent;border:1.5px solid var(--sig);color:var(--sig);display:grid;place-items:center;cursor:none}
+  .gen .play svg{width:26px;height:26px;margin-left:4px;fill:var(--sig)}.gen .play.hide{display:none}
+  .gen.aud .media-wrap{display:grid;place-items:center;background:#0c0c0e}
+  .gen.aud .mediael{width:74%;height:auto;object-fit:contain;filter:blur(24px) brightness(.6)}
+  .gen.aud.in .mediael{filter:none}
+  .gen model-viewer{width:100%;height:100%;--poster-color:transparent}
+
+  /* END */
+  .end{height:auto;min-height:100vh;scroll-snap-align:start;padding:14vh 8vw 8vh;display:flex;flex-direction:column;justify-content:center}
+  .end h2{font-family:"Anton",sans-serif;font-size:clamp(56px,12vw,180px);line-height:.9;text-transform:uppercase;letter-spacing:-.01em}
+  .end h2 em{font-style:normal;color:var(--sig)}
+  .end .esub{color:var(--dim);font-weight:300;max-width:56ch;margin:18px 0 40px;font-size:clamp(15px,1.6vw,18px)}
+  .endstats{display:flex;flex-wrap:wrap;gap:34px;margin-bottom:50px}
+  .endstats .s{border-left:2px solid var(--sig);padding-left:16px}
+  .endstats .s b{display:block;font-family:"Anton",sans-serif;font-size:clamp(34px,5vw,64px);color:var(--ink);font-weight:400}
+  .endstats .s span{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--dim)}
+  .queue{border-top:1px solid #1c1c1e;padding-top:26px}
+  .queue .qh{font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.2em;color:var(--sig);text-transform:uppercase;margin-bottom:16px}
+  .qgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+  .q{border:1px solid #1c1c1e;border-radius:10px;padding:13px 15px;opacity:.85;transition:.16s}
+  @media(pointer:fine){.q:hover{opacity:1;border-color:var(--sig-dim)}}
+  .q .qt{font-family:"JetBrains Mono",monospace;font-size:13px;color:var(--ink)}
+  .q .qr{font-size:12px;color:var(--dim);margin:4px 0 7px}
+  .q .qa{font-family:"JetBrains Mono",monospace;font-size:10px;color:var(--sig)}
+  .foot{margin-top:54px;font-family:"JetBrains Mono",monospace;font-size:11px;color:#54544c;line-height:1.9;max-width:92ch}
+
+  .musicbtn{position:fixed;right:20px;bottom:20px;z-index:70;font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.1em;color:var(--sig);background:rgba(8,8,10,.8);border:1px solid var(--sig-dim);border-radius:2px;padding:8px 13px;cursor:none}
+  .musicbtn.on{color:var(--void);background:var(--sig)}
+  .progress{position:fixed;top:0;left:0;height:2px;background:var(--sig);z-index:75;width:0}
+
+  :focus-visible{outline:2px solid var(--sig);outline-offset:3px}
+  @media(max-width:640px){.gen .overlay{padding:0 7vw 9vh}.open{padding:0 7vw}}
+  @media(prefers-reduced-motion:reduce){html{scroll-snap-type:none}*{animation:none!important;transition:none!important}.gen .mediael{filter:none!important}.gen .media-wrap::after{opacity:0!important}}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="ret" id="ret"><span class="tl"></span><span class="tr"></span><span class="bl"></span><span class="br"></span><span class="dot"></span></div>
+<div class="ret-tag mono" id="retTag"></div>
+<div class="progress" id="prog"></div>
+
+<!-- COLD OPEN -->
+<section class="open">
+  <div class="tinyk">// THE REEL — GENERATED, NOT STOCKED</div>
+  <h1>GENER<span class="cap">ATING</span></h1>
+  <div class="type" id="typed"><span class="caret">_</span></div>
+  <div class="cue"><i></i> SCROLL TO GENERATE</div>
+</section>
+
+<div id="reel"></div>
+
+<!-- END -->
+<section class="end">
+  <h2>15 PROMPTS.<br>ZERO <em>STOCK.</em></h2>
+  <p class="esub">ทุกเฟรมบนหน้านี้ผม render เองจาก key จริง ไม่มีของก๊อปมาแปะ ทุกชิ้นบอกครบว่าใช้ tool ไหน ต่อผ่าน CLI หรือ MCP</p>
+  <div class="endstats">
+    <div class="s"><b>15</b><span>generations</span></div>
+    <div class="s"><b>6</b><span>modalities</span></div>
+    <div class="s"><b>1</b><span>key · fal</span></div>
+    <div class="s"><b>~$5</b><span>total spend</span></div>
+  </div>
+  <div class="queue">
+    <div class="qh">// queued — awaiting credit</div>
+    <div class="qgrid" id="qgrid"></div>
+  </div>
+  <p class="foot">GENERATING / v4 · prompt→result cinematic reel · เทคนิคจาก Awwwards SOTY 2025-26 (medium-as-claim, single-paradigm, two-color, persistent entity, type-at-scale, chromatic arc) · CLI = terminal · MCP = Cursor/Claude · 2026-06-19</p>
+</section>
+
+<button class="musicbtn" id="musicBtn">♪ SCORE: OFF</button>
+<audio id="reelMusic" src="assets/musicgen.wav" loop preload="none"></audio>
+
+<script>
+  const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const play='<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+
+  // ---- reel data: chromatic arc raw/local -> hosted -> premium ----
+  const REEL=[
+    {t:'img',src:'assets/hf-tinysd.png',p:'a single red apple on a plain background',lab:'IMAGE / LOCAL',tool:'HF tiny-sd',acc:'LOCAL',cost:'$0'},
+    {t:'img',src:'assets/sdxl.png',p:'a sleeping fox curled under autumn maple leaves, painterly',lab:'IMAGE / LOCAL',tool:'SDXL-Turbo',acc:'CLI',cost:'$0'},
+    {t:'aud',src:'assets/piper.wav',wave:'assets/gen/wave-piper.png',p:'สวัสดีครับ — Thai TTS, on-device',lab:'VOICE / LOCAL',tool:'Piper',acc:'CLI',cost:'$0'},
+    {t:'aud',src:'assets/musicgen.wav',wave:'assets/gen/wave-musicgen.png',p:'warm lofi ambient instrumental, mellow',lab:'MUSIC / LOCAL',tool:'MusicGen',acc:'LOCAL',cost:'$0'},
+    {t:'vloop',src:'assets/hyperframes.mp4',poster:'assets/gen/poster-hyperframes.png',p:'render a title card — written as HTML/CSS, output mp4',lab:'VIDEO / CODE→VIDEO',tool:'HyperFrames',acc:'CLI+MCP',cost:'LOCAL'},
+    {t:'aud',src:'assets/elevenlabs-thai.mp3',wave:'assets/gen/wave-elevenlabs.png',p:'สวัสดีค่ะ ยินดีต้อนรับสู่ยิ้มหวานคลินิก',lab:'VOICE / THAI',tool:'ElevenLabs',acc:'SDK+MCP',cost:'FREE'},
+    {t:'3d',src:'assets/meshy-refined.glb',poster:'assets/meshy-refined-thumb.png',p:'a cute cartoon tooth mascot, smiling, game-ready 3D',lab:'3D / DRAG TO ROTATE',tool:'Meshy',acc:'MCP',cost:'100cr/mo'},
+    {t:'vsound',src:'assets/heygen-avatar.mp4',poster:'assets/gen/poster-heygen.png',p:'a presenter avatar speaking Thai, natural lip-sync',lab:'AVATAR / SOUND',tool:'HeyGen',acc:'CLI+MCP',cost:'FREE'},
+    {t:'vsound',src:'assets/did-talking-photo.mp4',poster:'assets/gen/poster-did.png',p:'animate this portrait to speak Thai',lab:'TALKING PHOTO / SOUND',tool:'D-ID',acc:'MCP',cost:'12cr'},
+    {t:'img',src:'assets/flux-clinic-4k.png',p:'serene modern dental clinic, soft morning light, mint and warm wood, photorealistic',lab:'IMAGE / HOSTED 4K',tool:'fal · Flux Pro',acc:'CLI+MCP',cost:'~$0.04'},
+    {t:'img',src:'assets/flux-car-4k.png',p:'cinematic matte black Mercedes-Benz CLS on a wet neon Tokyo street at night, 35mm',lab:'IMAGE / HOSTED 4K',tool:'fal · Flux Pro',acc:'CLI+MCP',cost:'~$0.04'},
+    {t:'vloop',src:'assets/fal-video.mp4',poster:'assets/gen/poster-fal-video.png',p:'a black sports car driving through neon Tokyo streets at night, cinematic tracking',lab:'VIDEO / T2V',tool:'fal · Hailuo',acc:'CLI+MCP',cost:'~$0.5'},
+    {t:'vloop',src:'assets/kling-video.mp4',poster:'assets/gen/poster-kling-video.png',p:'matte black sports car speeding through a neon futuristic city, rain reflections, film-grade',lab:'VIDEO / PREMIUM',tool:'fal · Kling 2.1',acc:'CLI+MCP',cost:'hosted'},
+    {t:'vloop',src:'assets/flux-car-i2v.mp4',poster:'assets/gen/poster-flux-car-i2v.png',p:'[the Flux car] → slow cinematic push-in, neon reflections shimmer, light rain',lab:'IMAGE→VIDEO',tool:'fal · Kling i2v',acc:'CLI+MCP',cost:'hosted'},
+    {t:'vsound',src:'assets/veo-video.mp4',poster:'assets/gen/poster-veo-video.png',p:'a black sports car on a neon street at night, cinematic — with native audio',lab:'VIDEO / VEO 3 · SOUND',tool:'fal · Veo 3',acc:'CLI+MCP',cost:'audio'},
+  ];
+
+  function mediaInner(d){
+    if(d.t==='img') return `<img class="mediael" loading="lazy" src="${d.src}" alt="">`;
+    if(d.t==='aud') return `<img class="mediael" src="${d.wave}" alt=""><audio preload="none" src="${d.src}"></audio>`;
+    if(d.t==='3d')  return `<model-viewer class="mediael" src="${d.src}" poster="${d.poster}" auto-rotate rotation-per-second="20deg" camera-controls touch-action="pan-y" shadow-intensity="1" exposure="0.95" style="background:radial-gradient(circle at 50% 45%,#13160f,#08080a)"></model-viewer>`;
+    if(d.t==='vloop') return `<video class="mediael" muted loop playsinline preload="none" poster="${d.poster}"><source src="${d.src}" type="video/mp4"></video>`;
+    if(d.t==='vsound') return `<video class="mediael vsnd" playsinline preload="none" poster="${d.poster}"><source src="${d.src}" type="video/mp4"></video>`;
+    return '';
+  }
+  const reel=document.getElementById('reel');
+  reel.innerHTML=REEL.map((d,i)=>{
+    const n=String(i+1).padStart(2,'0');
+    const playBtn=(d.t==='vsound'||d.t==='aud')?`<button class="play" data-cursor="PLAY">${play}</button>`:'';
+    const cls=d.t==='aud'?'gen aud':'gen';
+    return `<section class="${cls}" data-cursor="${d.tool}">
+      <div class="media-wrap">${mediaInner(d)}</div>
+      <div class="scrim"></div>
+      <div class="num">${n}</div>
+      ${playBtn}
+      <div class="overlay">
+        <div class="plabel"><span class="ln"></span>PROMPT ${n} / ${d.lab}</div>
+        <h2 class="ptext">${d.p}</h2>
+        <div class="credit"><span class="tool">${d.tool}</span><span class="sep">/</span><span class="sig">${d.acc}</span><span class="sep">/</span>${d.cost}</div>
+      </div>
+    </section>`;
+  }).join('');
+
+  // queued (standby) tools
+  const Q=[
+    {t:'fal · more models',r:'1,000+ โมเดลในคีย์เดียว',a:'fal.ai/dashboard/billing'},
+    {t:'Replicate',r:'OSS gateway',a:'replicate.com'},
+    {t:'Ideogram',r:'typography in-image',a:'developer.ideogram.ai'},
+    {t:'BFL Flux',r:'SOTA Flux direct',a:'docs.bfl.ai'},
+    {t:'Tripo3D',r:'game-ready 3D',a:'platform.tripo3d.ai'},
+    {t:'Sync.so',r:'benchmark lipsync',a:'sync.so'},
+  ];
+  document.getElementById('qgrid').innerHTML=Q.map(o=>`<div class="q"><div class="qt">${o.t}</div><div class="qr">${o.r}</div><div class="qa">▸ ${o.a}</div></div>`).join('');
+
+  // cold-open typewriter
+  const typed=document.getElementById('typed');
+  const lines=['15 prompts.','1 key — <b>fal</b>.','0 stock images.'];
+  if(reduce){typed.innerHTML=lines.join(' &nbsp; ')+'<span class="caret">_</span>';}
+  else{let li=0,ci=0,buf='';(function tw(){if(li<lines.length){const raw=lines[li].replace(/<\/?b>/g,'');if(ci<raw.length){ci++;}else{buf+=lines[li]+'<br>';li++;ci=0;setTimeout(tw,420);typed.innerHTML=buf+'<span class="caret">_</span>';return;}
+    // render current line partial (strip tags for partial safety)
+    typed.innerHTML=buf+lines[li].replace(/<\/?b>/g,'').slice(0,ci)+'<span class="caret">_</span>';setTimeout(tw,55);}else{typed.innerHTML=buf+'<span class="caret">_</span>';}})();}
+
+  // reveal + video control via IntersectionObserver
+  const io=new IntersectionObserver(es=>es.forEach(e=>{
+    const v=e.target.querySelector('video.mediael:not(.vsnd)');
+    if(e.isIntersecting){e.target.classList.add('in');if(v&&!reduce){v.preload='auto';v.play().catch(()=>{});}}
+    else{if(v)v.pause();}
+  }),{threshold:.55});
+  document.querySelectorAll('.gen').forEach(s=>io.observe(s));
+
+  // click-to-play sound (avatar/veo) + audio
+  document.querySelectorAll('.gen .play').forEach(btn=>{
+    const sec=btn.closest('.gen'), v=sec.querySelector('video.vsnd');
+    btn.addEventListener('click',()=>{
+      if(v){document.querySelectorAll('video.vsnd').forEach(o=>{if(o!==v)o.pause();});v.preload='auto';v.play();btn.classList.add('hide');v.addEventListener('ended',()=>btn.classList.remove('hide'),{once:true});}
+      else{const a=sec.querySelector('audio');if(!a)return;document.querySelectorAll('.gen audio').forEach(o=>{if(o!==a)o.pause();});a.paused?a.play():a.pause();}
+    });
+  });
+
+  // reticle
+  if(matchMedia('(pointer:fine)').matches){
+    const ret=document.getElementById('ret'),tag=document.getElementById('retTag');
+    let tx=innerWidth/2,ty=innerHeight/2,cx=tx,cy=ty;
+    addEventListener('mousemove',e=>{tx=e.clientX;ty=e.clientY;tag.style.left=e.clientX+'px';tag.style.top=e.clientY+'px';});
+    (function l(){cx+=(tx-cx)*.35;cy+=(ty-cy)*.35;ret.style.transform=`translate(${cx}px,${cy}px) translate(-50%,-50%)`;requestAnimationFrame(l);})();
+    document.querySelectorAll('[data-cursor]').forEach(el=>{
+      el.addEventListener('mouseenter',()=>{ret.classList.add('lock');tag.textContent=el.dataset.cursor;tag.style.opacity=1;});
+      el.addEventListener('mouseleave',()=>{ret.classList.remove('lock');tag.style.opacity=0;});
+    });
+  }
+  // scroll progress
+  addEventListener('scroll',()=>{const h=document.documentElement;document.getElementById('prog').style.width=(h.scrollTop/(h.scrollHeight-h.clientHeight)*100)+'%';},{passive:true});
+  // music
+  const mb=document.getElementById('musicBtn'),rm=document.getElementById('reelMusic');
+  mb.addEventListener('click',()=>{if(rm.paused){rm.volume=.32;rm.play();mb.classList.add('on');mb.textContent='♪ SCORE: ON';}else{rm.pause();mb.classList.remove('on');mb.textContent='♪ SCORE: OFF';}});
+</script>
+</body>
+</html>

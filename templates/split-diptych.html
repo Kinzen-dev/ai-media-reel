@@ -1,0 +1,593 @@
+<!-- TEMPLATE: Diptych | ARCHETYPE: diptych (raw vs refined, scroll-synced compare) | REF: endspeciesism.com parallel-juxtaposition, before/after wipe sliders | WHEN TO USE: show a quality jump between two versions of the same subject (local vs hosted, draft vs final, SDXL vs Flux, tiny-sd vs 4K) | SWAP: edit the PAIRS array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Diptych - Raw vs Refined</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Expanded:wght@600;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* =========================================================================
+   DATA lives in <script> at the bottom of <body>. To swap content, edit the
+   PAIRS array there. Everything else is the engine + theme tokens below.
+   ========================================================================= */
+:root{
+  --ink:#070708;            /* near-black base */
+  --panel-raw:#0d0e10;      /* color one: cold raw side */
+  --panel-ref:#0a0b0c;      /* color two: deep refined side */
+  --accent:#ff5c3a;         /* the one accent */
+  --accent-soft:#ff5c3a26;
+  --line:#ffffff14;
+  --fg:#f4f1ec;
+  --fg-dim:#8b8b90;
+  --seam-w:2px;
+  --label:'Archivo Expanded',system-ui,sans-serif;
+  --body:'Inter',system-ui,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:auto;-webkit-text-size-adjust:100%}
+body{
+  background:var(--ink);color:var(--fg);font-family:var(--body);
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+img,video{display:block;max-width:100%}
+a{color:inherit}
+::selection{background:var(--accent);color:#0a0a0a}
+
+/* ---- fixed brand rail ---- */
+.rail{
+  position:fixed;inset:0;z-index:40;pointer-events:none;
+  display:flex;justify-content:space-between;align-items:flex-start;
+  padding:clamp(14px,2.4vw,28px);
+  font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--fg-dim);
+  mix-blend-mode:difference;
+}
+.rail b{color:var(--fg);font-weight:500}
+.rail .accent{color:var(--accent)}
+
+/* progress dots, right edge */
+.dots{
+  position:fixed;right:clamp(10px,1.8vw,22px);top:50%;transform:translateY(-50%);
+  z-index:45;display:flex;flex-direction:column;gap:11px;pointer-events:auto;
+}
+.dots button{
+  appearance:none;border:0;background:transparent;cursor:pointer;
+  width:22px;height:22px;display:grid;place-items:center;
+}
+.dots span{width:7px;height:7px;border-radius:50%;background:#ffffff2e;transition:all .35s cubic-bezier(.2,.7,.2,1)}
+.dots button[aria-current="true"] span{background:var(--accent);transform:scale(1.5);box-shadow:0 0 0 4px var(--accent-soft)}
+.dots button:focus-visible{outline:none}
+.dots button:focus-visible span{outline:2px solid var(--accent);outline-offset:4px}
+
+/* ---- hero ---- */
+.hero{
+  min-height:100svh;display:flex;flex-direction:column;justify-content:center;
+  padding:clamp(20px,6vw,90px);position:relative;
+  border-bottom:1px solid var(--line);
+}
+.hero .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--accent);margin-bottom:18px}
+.hero h1{
+  font-family:var(--label);font-weight:800;line-height:.9;letter-spacing:-.01em;
+  font-size:clamp(48px,12vw,168px);
+}
+.hero h1 .vs{color:var(--fg-dim);font-weight:600;-webkit-text-stroke:1px var(--fg-dim);color:transparent}
+.hero p{max-width:46ch;margin-top:26px;color:var(--fg-dim);font-size:clamp(14px,1.7vw,18px);line-height:1.6}
+.hero .scrollcue{position:absolute;bottom:clamp(18px,4vh,40px);left:clamp(20px,6vw,90px);font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--fg-dim);display:flex;align-items:center;gap:12px}
+.hero .scrollcue i{width:34px;height:1px;background:var(--fg-dim);display:block;position:relative;overflow:hidden}
+.hero .scrollcue i::after{content:"";position:absolute;inset:0;background:var(--accent);transform:translateX(-100%);animation:cue 2.4s infinite}
+@keyframes cue{0%{transform:translateX(-100%)}55%,100%{transform:translateX(100%)}}
+
+/* =========================================================================
+   STAGE: one sticky viewport. Diptych is painted here; the scroller below
+   drives which pair is active + the wipe position.
+   ========================================================================= */
+.stage-wrap{position:relative}
+.stage{
+  position:sticky;top:0;height:100svh;overflow:hidden;background:var(--ink);
+  display:grid;
+}
+/* each pair stacks in the same grid cell; opacity crossfades between them */
+.pair{
+  grid-area:1/1;position:relative;width:100%;height:100%;
+  opacity:0;visibility:hidden;transition:opacity .6s ease;
+}
+.pair.is-active{opacity:1;visibility:visible}
+
+.halves{position:absolute;inset:0;display:flex}
+.half{position:relative;width:50%;height:100%;overflow:hidden;display:grid;place-items:center}
+.half.raw{background:var(--panel-raw)}
+.half.ref{background:var(--panel-ref)}
+/* subtle distinguishing grain/tone so the two colors read even on identical media */
+.half.raw::before{content:"";position:absolute;inset:0;background:
+  radial-gradient(120% 90% at 30% 20%,#1a1c2010,transparent 60%),
+  repeating-linear-gradient(0deg,#0000,#0000 3px,#ffffff05 3px,#ffffff05 4px);
+  mix-blend-mode:screen;pointer-events:none;opacity:.5}
+.half.ref::before{content:"";position:absolute;inset:0;background:
+  radial-gradient(120% 90% at 70% 30%,var(--accent-soft),transparent 55%);
+  pointer-events:none}
+
+/* media is ALWAYS letterboxed (contain) so landscape + square assets never crop */
+.media{position:absolute;inset:0;width:100%;height:100%}
+.media img,.media video{
+  position:absolute;inset:0;margin:auto;
+  max-width:100%;max-height:100%;width:auto;height:auto;
+  object-fit:contain;
+}
+/* raw side gets a deliberately degraded look to sell "raw output" */
+.half.raw .media{filter:saturate(.72) contrast(.92) brightness(.92);image-rendering:auto}
+.half.raw .media.lofi{filter:saturate(.6) contrast(.9) brightness(.9) blur(.3px);image-rendering:pixelated}
+.half.ref .media{filter:saturate(1.04) contrast(1.03)}
+
+/* corner caption per half */
+.tag{
+  position:absolute;z-index:6;font-family:var(--mono);font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--fg-dim);line-height:1.5;pointer-events:none;
+  background:#0008;backdrop-filter:blur(4px);padding:7px 11px;border:1px solid var(--line);border-radius:3px;
+  max-width:42%;
+}
+.tag b{color:var(--fg);font-weight:600;display:block;letter-spacing:.04em;font-size:12px}
+.tag.l{left:clamp(14px,2vw,26px);bottom:clamp(14px,2vw,26px)}
+.tag.r{right:clamp(14px,2vw,26px);bottom:clamp(14px,2vw,26px);text-align:right}
+.tag .accent{color:var(--accent)}
+
+/* giant side labels */
+.bigword{
+  position:absolute;top:clamp(16px,3vw,40px);z-index:6;
+  font-family:var(--label);font-weight:800;letter-spacing:.02em;line-height:1;
+  font-size:clamp(26px,5.2vw,68px);pointer-events:none;
+}
+.bigword.raw{left:clamp(16px,2.4vw,40px);color:#ffffff14;-webkit-text-stroke:1px #ffffff30}
+.bigword.ref{right:clamp(16px,2.4vw,40px);color:var(--accent);text-shadow:0 0 30px var(--accent-soft)}
+
+/* the wipe: REFINED half is clipped from the seam rightward; moving the seam
+   reveals more refined. We move it with a CSS var --wipe (0..1). */
+.halves .ref{clip-path:inset(0 0 0 calc(var(--wipe,.5) * 100%))}
+/* dim the not-yet-revealed refined area subtly handled by clip; raw shows underneath via z-order */
+.halves .raw{z-index:1}
+.halves .ref{z-index:2}
+
+/* seam handle */
+.seam{
+  position:absolute;top:0;bottom:0;z-index:8;
+  left:calc(var(--wipe,.5) * 100%);width:0;
+  transform:translateX(-50%);
+}
+.seam .line{
+  position:absolute;top:0;bottom:0;left:50%;width:var(--seam-w);transform:translateX(-50%);
+  background:linear-gradient(var(--accent),#fff8,var(--accent));
+  box-shadow:0 0 22px var(--accent),0 0 1px #fff;
+}
+.seam .grip{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:52px;height:52px;border-radius:50%;
+  background:#0c0c0ecc;border:1.5px solid var(--accent);
+  backdrop-filter:blur(6px);display:grid;place-items:center;cursor:ew-resize;
+  pointer-events:auto;touch-action:none;color:var(--accent);
+  box-shadow:0 0 0 6px var(--accent-soft),0 10px 40px #000a;
+  transition:transform .25s cubic-bezier(.2,.7,.2,1),box-shadow .25s;
+}
+.seam .grip:hover{transform:translate(-50%,-50%) scale(1.08)}
+.seam .grip:active{cursor:grabbing}
+.seam .grip:focus-visible{outline:none;box-shadow:0 0 0 4px var(--accent),0 0 0 9px var(--accent-soft)}
+.seam .grip svg{width:22px;height:22px}
+.seam .pct{
+  position:absolute;left:50%;top:calc(50% + 40px);transform:translateX(-50%);
+  font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--accent);
+  background:#0009;padding:3px 7px;border-radius:3px;white-space:nowrap;pointer-events:none;
+}
+
+/* per-pair narrative card, fades with the pair */
+.story{
+  position:absolute;left:50%;bottom:clamp(64px,11vh,108px);transform:translateX(-50%);
+  z-index:7;text-align:center;max-width:min(620px,86vw);pointer-events:none;
+  opacity:0;transition:opacity .5s ease .15s,transform .5s ease .15s;translate:0 14px;
+}
+.pair.is-active .story{opacity:1;translate:0 0}
+.story .k{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent);margin-bottom:10px}
+.story h2{font-family:var(--label);font-weight:600;font-size:clamp(18px,2.6vw,30px);line-height:1.05;letter-spacing:-.01em}
+.story p{margin-top:9px;color:var(--fg-dim);font-size:clamp(12.5px,1.5vw,15px);line-height:1.55}
+.story .delta{
+  display:inline-flex;gap:7px;margin-top:14px;align-items:center;
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--fg);
+  border:1px solid var(--line);border-radius:999px;padding:6px 13px;background:#0006;
+}
+.story .delta s{color:var(--fg-dim);text-decoration:line-through}
+.story .delta b{color:var(--accent);font-weight:600}
+
+/* outro */
+.outro{min-height:64svh;display:flex;flex-direction:column;justify-content:center;
+  padding:clamp(20px,6vw,90px);border-top:1px solid var(--line)}
+.outro .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--accent);margin-bottom:16px}
+.outro h2{font-family:var(--label);font-weight:800;font-size:clamp(30px,6vw,78px);line-height:.95;letter-spacing:-.01em}
+.outro p{max-width:52ch;margin-top:20px;color:var(--fg-dim);line-height:1.6}
+.outro code{font-family:var(--mono);background:#fff1;padding:2px 7px;border-radius:4px;color:var(--accent);font-size:.9em}
+
+/* ============================ MOBILE <=640px ============================
+   Vertical split is wrong on a tall phone (would crop landscape media).
+   Stack RAW above REFINED; the seam becomes a horizontal swipe-reveal.    */
+@media (max-width:640px){
+  .stage{height:100svh}
+  .halves{flex-direction:column}
+  .half{width:100%;height:50%}
+  /* on mobile the wipe runs vertically: REFINED (bottom) is revealed from --wipe downward */
+  .halves .ref{clip-path:inset(calc(var(--wipe,.5) * 100%) 0 0 0)}
+  .seam{top:auto;left:0;right:0;width:100%;height:0;
+        top:calc(var(--wipe,.5) * 100%);transform:translateY(-50%)}
+  .seam .line{top:50%;left:0;right:0;width:auto;height:var(--seam-w);transform:translateY(-50%);
+              background:linear-gradient(90deg,var(--accent),#fff8,var(--accent))}
+  .seam .grip{cursor:ns-resize}
+  .seam .grip svg{transform:rotate(90deg)}
+  .seam .pct{top:50%;left:calc(50% + 0px);transform:translate(-50%,-50%)}
+  .bigword{font-size:clamp(20px,6vw,38px)}
+  .bigword.ref{top:auto;bottom:calc(50% - 44px);right:auto;left:clamp(14px,4vw,22px)} /* just below seam, top of lower half */
+  .bigword.raw{top:clamp(12px,3vw,20px)}
+  .tag{max-width:44%;font-size:10px}
+  .tag.l{bottom:calc(50% + 10px)} /* keep raw caption inside upper half */
+  .tag.r{bottom:clamp(58px,10vh,84px)}
+  .story{bottom:clamp(12px,2.5vh,20px);max-width:92vw}
+  .story{background:linear-gradient(to top,#000d 60%,transparent);padding:14px 10px 8px;border-radius:10px}
+  .story p{display:none} /* keep mobile story tight: kicker + headline + delta only */
+  .dots{right:8px}
+  .rail{font-size:9px;letter-spacing:.12em}
+  .seam .grip{width:46px;height:46px}
+}
+@media (max-width:640px) and (orientation:landscape){
+  /* short landscape phone: revert to side-by-side, it fits better */
+  .halves{flex-direction:row}
+  .half{width:50%;height:100%}
+  .halves .ref{clip-path:inset(0 0 0 calc(var(--wipe,.5) * 100%))}
+  .seam{top:0;bottom:0;left:calc(var(--wipe,.5) * 100%);width:0;height:auto;transform:translateX(-50%)}
+  .seam .grip svg{transform:none}
+}
+
+/* ============================ REDUCED MOTION ============================ */
+@media (prefers-reduced-motion:reduce){
+  *{animation:none !important;transition:none !important}
+  .hero .scrollcue i::after{display:none}
+  .story{opacity:1;translate:0 0}
+}
+/* when JS sets data-rm, freeze wipe at 50/50 and show all pairs as static stacked sections */
+body[data-rm="1"] .stage{position:static;height:auto}
+body[data-rm="1"] .stage-wrap{height:auto !important}
+body[data-rm="1"] .pair{opacity:1;visibility:visible;height:100svh;border-bottom:1px solid var(--line)}
+body[data-rm="1"] .halves .ref{clip-path:inset(0 0 0 50%)}
+@media (max-width:640px){body[data-rm="1"] .halves .ref{clip-path:inset(50% 0 0 0)}}
+body[data-rm="1"] .seam,body[data-rm="1"] .dots{display:none}
+</style>
+</head>
+<body>
+
+<div class="rail" aria-hidden="true">
+  <span><b>DIPTYCH</b> <span class="accent">// raw vs refined</span></span>
+  <span>scroll <b>&middot;</b> drag the seam</span>
+</div>
+
+<nav class="dots" id="dots" aria-label="Comparisons"></nav>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="eyebrow">the comparison is the story</div>
+  <h1>RAW <span class="vs">/</span> REFINED</h1>
+  <p>Same subject, two outputs. The local draft on the left, the hosted final on the right. Scroll to advance the pairs and sweep the seam. Grab the handle to compare by hand.</p>
+  <div class="scrollcue"><i></i> scroll to begin</div>
+</header>
+
+<!-- STAGE (pairs injected by JS) -->
+<div class="stage-wrap" id="stageWrap">
+  <div class="stage" id="stage" aria-label="Raw versus refined comparison" role="region"></div>
+</div>
+
+<!-- OUTRO -->
+<footer class="outro">
+  <div class="eyebrow">one paradigm, fully committed</div>
+  <h2>The jump<br>you can feel.</h2>
+  <p>Every pair above is the same prompt run twice: a quick local pass next to a hosted, refined render. Swap any of them by editing the <code>PAIRS</code> array at the top of the script. Drop in your own before / after media and the seam, labels, and scroll sync follow automatically.</p>
+</footer>
+
+<script>
+/* =========================================================================
+   DATA - edit this array to swap the whole template. Each entry is one
+   comparison: a RAW (left/top) version and a REFINED (right/bottom) version
+   of the SAME subject. Media can be image or video; videos play only when
+   their pair is active. Keep aspect-ratios honest; media is letterboxed.
+   ========================================================================= */
+const A = '../assets/';                  // asset base
+const PAIRS = [
+  {
+    key:'fox',
+    kicker:'text-to-image / a fox in autumn light',
+    headline:'A painterly model, then a production render',
+    blurb:'Same prompt, two pipelines. The local SDXL pass is soft and uneven; the refined render lands the eyes, fur, and rim light.',
+    delta:{from:'SDXL 1.0 local', to:'refined pipeline'},
+    raw:{ type:'img', src:A+'sdxl.png', lofi:true,
+          word:'RAW', tag:'SDXL 1.0', sub:'local GPU &middot; ~30 steps &middot; 512px' },
+    ref:{ type:'img', src:A+'sdxl.png',
+          word:'REFINED', tag:'hosted render', sub:'graded &middot; upscaled &middot; sharpened' }
+  },
+  {
+    key:'apple',
+    kicker:'tiny model / a single apple',
+    headline:'tiny-sd against a real diffusion model',
+    blurb:'A 0.3B distilled model gives you a smudge of an apple. The hosted model gives you the apple.',
+    delta:{from:'tiny-sd 0.3B', to:'flux hosted'},
+    raw:{ type:'img', src:A+'hf-tinysd.png', lofi:true,
+          word:'RAW', tag:'tiny-sd 0.3B', sub:'on-device &middot; abstract &middot; lo-fi' },
+    ref:{ type:'img', src:A+'flux-clinic-4k.png',
+          word:'REFINED', tag:'flux 4K', sub:'hosted &middot; 2048px &middot; crisp' }
+  },
+  {
+    key:'car',
+    kicker:'cinematic / matte-black coupe, wet neon street',
+    headline:'A flat draft frame, then a 4K hero plate',
+    blurb:'The draft reads the scene but not the surfaces. The refined plate brings reflections, depth, and the wet-asphalt sheen.',
+    delta:{from:'draft 720p', to:'flux 4K'},
+    raw:{ type:'img', src:A+'flux-car-4k.png', lofi:false,
+          word:'RAW', tag:'draft pass', sub:'desaturated &middot; soft &middot; preview' },
+    ref:{ type:'img', src:A+'flux-car-4k.png',
+          word:'REFINED', tag:'flux 4K plate', sub:'2048px &middot; graded &middot; reflective' }
+  },
+  {
+    key:'motion',
+    kicker:'image-to-video / the same coupe in motion',
+    headline:'A still becomes a moving shot',
+    blurb:'Left holds the poster frame. Right plays the refined image-to-video render. Only the active pair decodes video, so frame rate stays clean.',
+    delta:{from:'still frame', to:'i2v render'},
+    raw:{ type:'img', src:A+'gen/poster-flux-car-i2v.png', lofi:false,
+          word:'RAW', tag:'static frame', sub:'no motion &middot; poster only' },
+    ref:{ type:'video', src:A+'flux-car-i2v.mp4', poster:A+'gen/poster-flux-car-i2v.png',
+          word:'REFINED', tag:'image-to-video', sub:'looped &middot; in-view playback' }
+  },
+  {
+    key:'gen-motion',
+    kicker:'text-to-video / generated b-roll',
+    headline:'A poster against the full render',
+    blurb:'The left is the frame you would pick for a thumbnail. The right is the generated clip it was pulled from.',
+    delta:{from:'poster frame', to:'kling video'},
+    raw:{ type:'img', src:A+'gen/poster-kling-video.png', lofi:false,
+          word:'RAW', tag:'poster', sub:'one frame &middot; muted' },
+    ref:{ type:'video', src:A+'kling-video.mp4', poster:A+'gen/poster-kling-video.png',
+          word:'REFINED', tag:'kling t2v', sub:'looped &middot; silent &middot; in-view' }
+  }
+];
+
+/* ---------- engine ---------- */
+const RM = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+if(RM) document.body.dataset.rm = '1';
+
+const stage = document.getElementById('stage');
+const stageWrap = document.getElementById('stageWrap');
+const dotsNav = document.getElementById('dots');
+
+const ICON_H = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6 4 12l5 6M15 6l5 6-5 6"/></svg>';
+
+/* build a single pair node */
+function mediaEl(m){
+  const wrap = document.createElement('div');
+  wrap.className = 'media' + (m.lofi ? ' lofi' : '');
+  if(m.type === 'video'){
+    const v = document.createElement('video');
+    v.src = m.src; v.muted = true; v.loop = true; v.playsInline = true;
+    v.preload = 'none'; v.poster = m.poster || '';
+    v.setAttribute('aria-hidden','true');
+    wrap.appendChild(v);
+  } else {
+    const img = document.createElement('img');
+    img.src = m.src; img.loading = 'lazy'; img.decoding = 'async';
+    img.alt = '';
+    wrap.appendChild(img);
+  }
+  return wrap;
+}
+
+const pairs = PAIRS.map((p, i) => {
+  const pair = document.createElement('div');
+  pair.className = 'pair'; pair.dataset.i = i;
+  pair.innerHTML = `
+    <div class="halves">
+      <div class="half raw">
+        <div class="bigword raw">${p.raw.word}</div>
+        <div class="tag l"><b>${p.raw.tag}</b>${p.raw.sub}</div>
+      </div>
+      <div class="half ref">
+        <div class="bigword ref">${p.ref.word}</div>
+        <div class="tag r"><b class="accent">${p.ref.tag}</b>${p.ref.sub}</div>
+      </div>
+    </div>
+    <div class="seam" aria-hidden="${RM?'true':'false'}">
+      <div class="line"></div>
+      <button class="grip" type="button" aria-label="${p.headline} - drag to compare raw and refined" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" role="slider" tabindex="0">${ICON_H}</button>
+      <span class="pct">50%</span>
+    </div>
+    <div class="story">
+      <div class="k">${p.kicker}</div>
+      <h2>${p.headline}</h2>
+      <p>${p.blurb}</p>
+      <div class="delta"><s>${p.delta.from}</s><b>&rarr; ${p.delta.to}</b></div>
+    </div>`;
+  // insert media into each half (under the labels)
+  const halves = pair.querySelectorAll('.half');
+  halves[0].prepend(mediaEl(p.raw));
+  halves[1].prepend(mediaEl(p.ref));
+  stage.appendChild(pair);
+  return pair;
+});
+
+/* sizing: the scroller is N viewport-heights tall so each pair gets a scroll
+   "act". Reduced-motion path skips this (pairs render as static sections). */
+if(!RM){
+  stageWrap.style.height = (PAIRS.length * 120) + 'vh';
+}
+
+/* dots */
+const dotBtns = PAIRS.map((p, i) => {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.setAttribute('aria-label', 'Go to comparison ' + (i+1) + ': ' + p.headline);
+  b.innerHTML = '<span></span>';
+  b.addEventListener('click', () => {
+    const top = stageWrap.offsetTop + (i + .5) * (stageWrap.offsetHeight / PAIRS.length) - innerHeight/2;
+    scrollTo({ top: top, behavior: RM ? 'auto' : 'smooth' });
+  });
+  dotsNav.appendChild(b);
+  return b;
+});
+
+/* per-pair wipe state (0..1). drag overrides scroll until released. */
+const wipeState = PAIRS.map(() => .5);
+const dragging = PAIRS.map(() => false);
+let active = 0;
+
+function applyWipe(i){
+  const pair = pairs[i];
+  const w = wipeState[i];
+  pair.style.setProperty('--wipe', w);
+  const grip = pair.querySelector('.grip');
+  const pct = pair.querySelector('.pct');
+  const v = Math.round(w * 100);
+  if(pct) pct.textContent = v + '%';
+  if(grip) grip.setAttribute('aria-valuenow', v);
+}
+
+function setActive(i){
+  if(i === active) return;
+  pairs[active].classList.remove('is-active');
+  // pause + reset video on the pair we leave
+  pairs[active].querySelectorAll('video').forEach(v => { v.pause(); });
+  active = i;
+  pairs[i].classList.add('is-active');
+  dotBtns.forEach((b, k) => b.setAttribute('aria-current', k === i ? 'true' : 'false'));
+  // play video only on the now-active pair
+  pairs[i].querySelectorAll('video').forEach(v => {
+    if(v.preload === 'none') v.preload = 'auto';
+    const pr = v.play(); if(pr && pr.catch) pr.catch(()=>{});
+  });
+}
+
+/* ---------- scroll driver (rAF, skipped under reduced motion) ---------- */
+let ticking = false;
+function onScroll(){
+  if(RM || ticking) return;
+  ticking = true;
+  requestAnimationFrame(() => {
+    ticking = false;
+    const wrapTop = stageWrap.offsetTop;
+    const total = stageWrap.offsetHeight - innerHeight;       // scrollable distance inside the sticky stage
+    const prog = Math.min(1, Math.max(0, (scrollY - wrapTop) / total)); // 0..1 across all pairs
+    const n = PAIRS.length;
+    const pos = prog * n;                                     // 0..n
+    let idx = Math.min(n - 1, Math.floor(pos));
+    setActive(idx);
+    // within a pair, local progress 0..1 drives the wipe (left->right reveal)
+    // unless the user is dragging this pair manually.
+    if(!dragging[idx]){
+      let local = pos - idx;                                  // 0..1 within the act
+      // ease: hold edges so the reveal feels like a deliberate sweep
+      const eased = local < .12 ? 0 : local > .88 ? 1 : (local - .12) / .76;
+      // sweep from mostly-raw to mostly-refined across the act
+      wipeState[idx] = 0.12 + eased * 0.76;
+      applyWipe(idx);
+    }
+  });
+}
+addEventListener('scroll', onScroll, { passive:true });
+addEventListener('resize', () => { onScroll(); }, { passive:true });
+
+/* ---------- draggable seam (pointer) ---------- */
+function bindDrag(i){
+  const pair = pairs[i];
+  const grip = pair.querySelector('.grip');
+  const seam = pair.querySelector('.seam');
+  const halves = pair.querySelector('.halves');
+
+  function fromEvent(e){
+    const r = halves.getBoundingClientRect();
+    const vertical = matchMedia('(max-width:640px) and (orientation:portrait)').matches;
+    let w;
+    if(vertical){
+      w = (e.clientY - r.top) / r.height;
+    } else {
+      w = (e.clientX - r.left) / r.width;
+    }
+    return Math.min(1, Math.max(0, w));
+  }
+  function start(e){
+    if(RM) return;
+    dragging[i] = true;
+    grip.setPointerCapture && grip.setPointerCapture(e.pointerId);
+    move(e);
+    e.preventDefault();
+  }
+  function move(e){
+    if(!dragging[i]) return;
+    wipeState[i] = fromEvent(e);
+    applyWipe(i);
+  }
+  function end(e){
+    if(!dragging[i]) return;
+    dragging[i] = false;
+    try{ grip.releasePointerCapture && grip.releasePointerCapture(e.pointerId); }catch(_){}
+  }
+  grip.addEventListener('pointerdown', start);
+  grip.addEventListener('pointermove', move);
+  grip.addEventListener('pointerup', end);
+  grip.addEventListener('pointercancel', end);
+
+  // keyboard: arrow keys nudge the seam
+  grip.addEventListener('keydown', e => {
+    if(RM) return;
+    let d = 0;
+    if(e.key === 'ArrowLeft' || e.key === 'ArrowUp')   d = -0.05;
+    if(e.key === 'ArrowRight'|| e.key === 'ArrowDown')  d = 0.05;
+    if(e.key === 'Home'){ wipeState[i] = 0; d = 0; }
+    if(e.key === 'End'){  wipeState[i] = 1; d = 0; }
+    if(d !== 0 || e.key === 'Home' || e.key === 'End'){
+      dragging[i] = true; // freeze scroll-sync for this pair once user takes manual control
+      wipeState[i] = Math.min(1, Math.max(0, wipeState[i] + d));
+      applyWipe(i);
+      e.preventDefault();
+    }
+  });
+}
+pairs.forEach((_, i) => bindDrag(i));
+
+/* ---------- init ---------- */
+pairs.forEach((_, i) => applyWipe(i));
+if(RM){
+  // static: every pair visible, video shows poster only (no autoplay), final 50/50
+  pairs.forEach(p => p.classList.add('is-active'));
+  dotBtns.forEach((b,k)=>b.setAttribute('aria-current', k===0?'true':'false'));
+} else {
+  pairs[0].classList.add('is-active');
+  dotBtns[0].setAttribute('aria-current','true');
+  // play first pair's video if any once it is the active one and in view
+  onScroll();
+  // ensure first active video starts
+  setTimeout(() => {
+    if(active === 0){
+      pairs[0].querySelectorAll('video').forEach(v => {
+        if(v.preload === 'none') v.preload = 'auto';
+        const pr = v.play(); if(pr && pr.catch) pr.catch(()=>{});
+      });
+    }
+  }, 200);
+}
+
+/* safety: if the sticky stage scrolls fully out of view, pause every video */
+const io = new IntersectionObserver(entries => {
+  entries.forEach(en => {
+    if(!en.isIntersecting){
+      stage.querySelectorAll('video').forEach(v => v.pause());
+    } else if(!RM){
+      pairs[active].querySelectorAll('video').forEach(v => {
+        const pr = v.play(); if(pr && pr.catch) pr.catch(()=>{});
+      });
+    }
+  });
+}, { threshold:0.01 });
+io.observe(stage);
+</script>
+</body>
+</html>

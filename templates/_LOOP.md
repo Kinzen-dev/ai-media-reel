@@ -45,3 +45,14 @@ for his future-project library. He will review them all when he wakes.
   specifies its own palette (e.g. museum=warm, press=light editorial).
 - Commit fully to ONE paradigm per template. Never fall back to a generic dark card grid.
 - Mobile is a first-class gate (King flagged it). Verify at 390px every time.
+
+## CONTEXT ADAPTATION (learned mid-run)
+- The main loop's context bloats with images; after many batches the API rejects new image reads
+  ("exceed max for many-image requests"). When that happens, DELEGATE the visual gate to a
+  FRESH-CONTEXT subagent each batch: give it the PC + Mobile screenshot paths and ask for a demanding
+  PASS / NEEDS-FIX verdict per template. The main loop still measures FPS itself + orchestrates +
+  fixes whatever the judge flags. This keeps the visual ground-truth gate intact.
+- Thumbnails live at `_thumbs/<slug>.png` resized to <=1280px (smaller = better catalog load + readable).
+  The verify harness `~/Projects/_qa-harness/mediagen-tpl-verify.mjs` now uses deviceScaleFactor:1.
+- A verify agent may kill the local server (port 8765); restart it (idempotent) at the start of each
+  verify pass: `cd showcase && python3 -m http.server 8765 &`.

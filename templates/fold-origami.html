@@ -1,0 +1,531 @@
+<!-- TEMPLATE: Foldwork | ARCHETYPE: fold | REF: Exat Typeface, KOKUYO (CSSDA 2025), CSS 3D perspective fold | WHEN TO USE: a portfolio / case-study reel where each work should fold away like a sheet of paper to reveal the next - tactile, editorial, no WebGL | SWAP: edit the WORKS array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Foldwork - papercraft fold portfolio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   DATA lives in the <script> WORKS array at the very bottom.
+   Palette: bone #f0ece3  /  deep cobalt #1d2c6b.
+   Effect: each panel is split into two triangles along a
+   diagonal hinge; the top triangle rotates back in 3D like a
+   folding sheet of paper, a crease shadow tracing the hinge.
+   ============================================================ */
+:root{
+  --bone:#f0ece3;
+  --bone-2:#e6e0d3;
+  --cobalt:#1d2c6b;
+  --cobalt-deep:#141f4d;
+  --ink:#1a1a1a;
+  --crease:rgba(20,31,77,.42);
+  --paper-edge:rgba(255,255,255,.55);
+  --max:1180px;
+  --ease:cubic-bezier(.7,0,.2,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:auto;-webkit-text-size-adjust:100%}
+body{
+  background:var(--bone);
+  color:var(--cobalt);
+  font-family:"Space Grotesk",system-ui,sans-serif;
+  font-size:16px;line-height:1.55;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+img,video{display:block;max-width:100%}
+a{color:inherit}
+::selection{background:var(--cobalt);color:var(--bone)}
+
+/* subtle paper grain over the whole page */
+body::before{
+  content:"";position:fixed;inset:0;z-index:1;pointer-events:none;
+  opacity:.5;mix-blend-mode:multiply;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.05'/%3E%3C/svg%3E");
+}
+
+/* ---------- focus ring ---------- */
+:focus-visible{outline:3px solid var(--cobalt);outline-offset:3px;border-radius:2px}
+
+/* ---------- skip link ---------- */
+.skip{position:fixed;left:14px;top:-60px;z-index:60;background:var(--cobalt);color:var(--bone);
+  padding:10px 16px;border-radius:4px;transition:top .2s;text-decoration:none;font-weight:600}
+.skip:focus{top:14px}
+
+/* ============================ HEADER ============================ */
+.topbar{
+  position:fixed;top:0;left:0;right:0;z-index:40;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:20px clamp(18px,5vw,52px);
+  mix-blend-mode:multiply;pointer-events:none;
+}
+.topbar .pointer{pointer-events:auto}
+.brand{font-family:"Fraunces",serif;font-weight:600;font-size:22px;letter-spacing:.01em;display:flex;align-items:center;gap:10px}
+.brand .mark{
+  width:22px;height:22px;display:inline-block;background:var(--cobalt);
+  clip-path:polygon(0 0,100% 0,0 100%);transform:rotate(0deg);
+}
+.brand .mark.b{margin-left:-16px;background:var(--cobalt-deep);clip-path:polygon(100% 0,100% 100%,0 100%);opacity:.85}
+.nav-meta{font-size:12px;letter-spacing:.18em;text-transform:uppercase;font-weight:500;opacity:.8}
+
+/* ============================ INTRO ============================ */
+.intro{
+  min-height:100svh;display:flex;flex-direction:column;justify-content:center;
+  padding:clamp(90px,16vh,160px) clamp(18px,5vw,52px) clamp(40px,8vh,90px);
+  max-width:var(--max);margin:0 auto;position:relative;z-index:2;
+}
+.eyebrow{font-size:12px;letter-spacing:.32em;text-transform:uppercase;font-weight:600;
+  display:flex;align-items:center;gap:14px;margin-bottom:26px}
+.eyebrow::before{content:"";width:46px;height:1px;background:currentColor;opacity:.6}
+.intro h1{
+  font-family:"Fraunces",serif;font-weight:300;
+  font-size:clamp(2.9rem,9vw,7rem);line-height:.96;letter-spacing:-.02em;
+  margin-bottom:30px;text-wrap:balance;
+}
+.intro h1 em{font-style:italic;font-weight:500}
+.intro .lede{max-width:46ch;font-size:clamp(1rem,2.4vw,1.18rem);opacity:.86;line-height:1.6}
+.scrollcue{margin-top:clamp(34px,7vh,64px);display:flex;align-items:center;gap:14px;
+  font-size:12px;letter-spacing:.2em;text-transform:uppercase;font-weight:500;opacity:.7}
+.scrollcue .sheet{
+  width:30px;height:38px;position:relative;
+}
+.scrollcue .sheet i{
+  position:absolute;inset:0;border:1.5px solid var(--cobalt);border-radius:2px;
+  transform-origin:left center;animation:flip 2.6s var(--ease) infinite;
+}
+@keyframes flip{0%,18%{transform:rotateY(0)}40%,60%{transform:rotateY(-150deg)}82%,100%{transform:rotateY(0)}}
+
+/* ============================ FOLD REEL ============================ */
+.reel{position:relative;z-index:2}
+
+/* Each work occupies a tall scroll track; the visible panel sticks. */
+.panel-track{height:220vh;position:relative}
+.panel-track:last-child{height:140vh}
+
+.stage{
+  position:sticky;top:0;height:100svh;
+  display:flex;align-items:center;justify-content:center;
+  perspective:1700px;perspective-origin:50% 42%;
+  overflow:hidden;
+}
+
+/* the folding sheet */
+.sheet-wrap{
+  position:relative;
+  width:min(86vw,var(--max));
+  aspect-ratio:16/10;
+  transform-style:preserve-3d;
+  will-change:transform;
+  transform:rotateX(var(--enter,0deg));
+}
+
+/* two triangular halves split along the diagonal hinge (TL->BR) */
+.half{
+  position:absolute;inset:0;overflow:hidden;
+  background:var(--bone-2);
+  border-radius:6px;
+  box-shadow:0 30px 80px -30px rgba(20,31,77,.5);
+  backface-visibility:hidden;
+}
+/* lower-left triangle stays flat = the base sheet */
+.half.base{
+  clip-path:polygon(0 0,0 100%,100% 100%);
+  transform:translateZ(0);
+}
+/* upper-right triangle folds back along the diagonal hinge */
+.half.flap{
+  clip-path:polygon(0 0,100% 0,100% 100%);
+  transform-origin:0% 0%;
+  /* hinge axis is the TL->BR diagonal: rotate3d around that vector */
+  transform:rotate3d(1,1,0, var(--fold,0deg));
+  will-change:transform;
+}
+
+/* the media fills the FULL sheet inside each half so the two
+   triangles read as one continuous picture until it folds */
+.face{
+  position:absolute;inset:0;width:100%;height:100%;
+}
+.face .media{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;object-position:center;
+  background:var(--cobalt-deep);
+}
+/* poster overlay (shown until video is locked) */
+.face .poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1}
+.face video.media{z-index:0}
+.face.playing .poster{opacity:0;transition:opacity .5s ease}
+
+/* paper tint + vignette for cohesion */
+.face::after{
+  content:"";position:absolute;inset:0;z-index:2;pointer-events:none;
+  background:
+    linear-gradient(180deg,rgba(20,31,77,.04),rgba(20,31,77,.22)),
+    radial-gradient(120% 80% at 50% 0%,transparent 55%,rgba(20,31,77,.25));
+  mix-blend-mode:multiply;
+}
+
+/* crease shadow tracing the diagonal hinge - lives on the flap */
+.half.flap::before{
+  content:"";position:absolute;inset:0;z-index:3;pointer-events:none;
+  /* a soft dark band along the TL->BR diagonal */
+  background:linear-gradient(135deg,
+     transparent calc(50% - 2.4px),
+     var(--paper-edge) calc(50% - 1.6px),
+     var(--crease) 50%,
+     transparent calc(50% + 14px));
+  opacity:var(--creaseOn,0);
+}
+/* underside that reveals as the flap lifts (cobalt paper back) */
+.half.flap::after{
+  content:"";position:absolute;inset:0;z-index:2;
+  background:
+    linear-gradient(315deg,var(--cobalt-deep),var(--cobalt) 60%,#2c3f8f);
+  opacity:var(--backOn,0);
+  clip-path:polygon(0 0,100% 0,100% 100%);
+}
+
+/* ---------- caption card, pinned bottom-left of stage ---------- */
+.caption{
+  position:absolute;left:max(18px,calc(50% - min(43vw,590px)));
+  bottom:clamp(26px,7vh,64px);z-index:10;
+  max-width:min(78vw,440px);
+  background:rgba(240,236,227,.82);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  border:1px solid rgba(20,31,77,.16);
+  border-radius:8px;
+  padding:18px 22px 20px;
+  box-shadow:0 20px 50px -24px rgba(20,31,77,.45);
+  transform:translateY(var(--capY,12px));opacity:var(--capO,0);
+  transition:transform .6s var(--ease),opacity .6s var(--ease);
+}
+.caption .idx{font-size:12px;letter-spacing:.22em;font-weight:600;opacity:.65;display:flex;gap:10px;align-items:center}
+.caption .idx::after{content:"";flex:1;height:1px;background:currentColor;opacity:.3}
+.caption h2{font-family:"Fraunces",serif;font-weight:500;font-size:clamp(1.5rem,3.6vw,2.1rem);
+  line-height:1.04;letter-spacing:-.01em;margin:8px 0 8px}
+.caption p{font-size:.92rem;line-height:1.5;opacity:.84;margin-bottom:12px}
+.tags{display:flex;flex-wrap:wrap;gap:7px}
+.tags span{font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:500;
+  border:1px solid rgba(20,31,77,.28);border-radius:20px;padding:4px 11px;opacity:.85}
+
+/* counter, pinned top-right of stage */
+.counter{
+  position:absolute;right:max(18px,calc(50% - min(43vw,590px)));
+  top:clamp(78px,12vh,108px);z-index:10;
+  font-family:"Fraunces",serif;font-size:clamp(2.4rem,7vw,4.4rem);font-weight:300;
+  line-height:1;opacity:.16;letter-spacing:-.03em;
+}
+.counter sup{font-size:.34em;vertical-align:super;opacity:.9}
+
+/* ============================ CLOSER ============================ */
+.closer{
+  position:relative;z-index:2;min-height:78svh;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;gap:26px;padding:clamp(60px,12vh,120px) 24px;
+}
+.closer h2{font-family:"Fraunces",serif;font-weight:300;font-size:clamp(2.2rem,7vw,4.4rem);
+  line-height:1;letter-spacing:-.02em}
+.closer h2 em{font-style:italic;font-weight:500}
+.closer p{max-width:42ch;opacity:.82}
+.btn{
+  display:inline-flex;align-items:center;gap:12px;
+  background:var(--cobalt);color:var(--bone);text-decoration:none;
+  font-weight:600;letter-spacing:.02em;padding:15px 26px;border-radius:6px;
+  position:relative;overflow:hidden;transition:transform .4s var(--ease);
+}
+.btn .corner{position:absolute;top:0;right:0;width:0;height:0;
+  border-top:0 solid var(--bone);border-left:0 solid transparent;transition:.4s var(--ease)}
+.btn:hover{transform:translateY(-2px)}
+.btn:hover .corner{border-top-width:18px;border-left-width:18px;border-top-color:rgba(240,236,227,.25)}
+footer{position:relative;z-index:2;text-align:center;padding:30px 24px 46px;font-size:12px;
+  letter-spacing:.16em;text-transform:uppercase;opacity:.55}
+
+/* ============================ MOBILE (<=640px) ============================
+   Simpler VERTICAL paper fold (hinge horizontal across the middle),
+   landscape assets letterboxed - never cover-cropped into portrait. */
+@media (max-width:640px){
+  .topbar{padding:14px 18px}
+  .nav-meta{display:none}
+  .panel-track{height:200vh}
+  .panel-track:last-child{height:130vh}
+  .stage{perspective:1200px;perspective-origin:50% 38%}
+  .sheet-wrap{
+    width:92vw;aspect-ratio:4/5;       /* portrait stage */
+  }
+  /* split horizontally: top half folds up/back along a horizontal hinge */
+  .half.base{clip-path:polygon(0 50%,100% 50%,100% 100%,0 100%)}
+  .half.flap{
+    clip-path:polygon(0 0,100% 0,100% 50%,0 50%);
+    transform-origin:50% 50%;
+    transform:rotateX(var(--fold,0deg));
+  }
+  .half.flap::before{
+    background:linear-gradient(180deg,
+      transparent calc(50% - 2.4px),
+      var(--paper-edge) calc(50% - 1.6px),
+      var(--crease) 50%,
+      transparent calc(50% + 14px));
+  }
+  .half.flap::after{clip-path:polygon(0 0,100% 0,100% 50%,0 50%);
+    background:linear-gradient(180deg,#2c3f8f,var(--cobalt) 40%,var(--cobalt-deep))}
+  /* letterbox: contain landscape media on a cobalt mat, no crop */
+  .face .media,.face .poster{object-fit:contain;background:var(--cobalt-deep)}
+  .caption{left:14px;right:14px;max-width:none;bottom:clamp(18px,5vh,40px);padding:15px 16px 16px}
+  .counter{right:16px;top:74px;font-size:clamp(2rem,12vw,3rem)}
+  .intro h1{font-size:clamp(2.6rem,13vw,4rem)}
+}
+
+/* very small height safety */
+@media (max-height:560px){
+  .caption p{display:none}
+  .counter{display:none}
+}
+
+/* ============================ REDUCED MOTION ============================
+   No fold, no rAF transforms - cross-fade between final states. */
+@media (prefers-reduced-motion:reduce){
+  .scrollcue .sheet i{animation:none;transform:none}
+  .panel-track{height:auto}
+  .stage{position:relative;height:auto;min-height:88svh;perspective:none;padding:30px 0}
+  .sheet-wrap{transform:none!important}
+  .half{box-shadow:0 18px 50px -28px rgba(20,31,77,.5)}
+  .half.flap{transform:none!important}             /* show the picture whole, unfolded */
+  .half.flap::before{opacity:0!important}
+  .half.flap::after{opacity:0!important}
+  .caption{transform:none!important;opacity:1!important;transition:none}
+  .face.playing .poster{transition:none}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#reel">Skip to the work</a>
+
+<header class="topbar">
+  <div class="brand pointer"><span class="mark"></span><span class="mark b"></span>Foldwork</div>
+  <div class="nav-meta pointer">Selected work / 2026</div>
+</header>
+
+<main>
+  <section class="intro" aria-label="Introduction">
+    <p class="eyebrow">Studio reel</p>
+    <h1>Every page is a <em>sheet</em> of paper<br />waiting to be turned.</h1>
+    <p class="lede">A folding portfolio. Each work sits on a single sheet that creases along its diagonal and folds away to reveal the next - pure CSS, no WebGL. Scroll to turn the page.</p>
+    <div class="scrollcue" aria-hidden="true"><span class="sheet"><i></i></span>Scroll to fold</div>
+  </section>
+
+  <div class="reel" id="reel" aria-label="Work reel"><!-- panels injected by script --></div>
+
+  <section class="closer" aria-label="Get in touch">
+    <p class="eyebrow" style="justify-content:center">End of reel</p>
+    <h2>Let's fold something <em>new</em>.</h2>
+    <p>Brand films, product worlds, generative media systems. If it can be designed, it can be turned like a page.</p>
+    <a class="btn" href="#reel">Start a project <span class="corner"></span></a>
+  </section>
+  <footer>Foldwork &middot; papercraft fold template &middot; bone + cobalt</footer>
+</main>
+
+<script>
+/* ============================================================
+   WORKS  -  swap these objects to retheme the whole reel.
+   type: "image" | "video"
+   src : path to the asset
+   poster: required for video (shown until the panel locks)
+   ============================================================ */
+const WORKS = [
+  {
+    type:"image", src:"../assets/flux-car-4k.png",
+    kicker:"Automotive film", title:"Midnight in Motion",
+    blurb:"A matte-black coupe carving a rain-slick neon avenue. Cinematic key art generated, graded, and folded into the reel.",
+    tags:["Key art","Color grade","FLUX"]
+  },
+  {
+    type:"video", src:"../assets/kling-video.mp4", poster:"../assets/gen/poster-kling-video.png",
+    kicker:"Motion study", title:"Kling Loop No.3",
+    blurb:"A silent generative loop, set to play only while its sheet is locked in view - decode stays cheap, the fold stays smooth.",
+    tags:["Video","Loop","Kling"]
+  },
+  {
+    type:"image", src:"../assets/flux-clinic-4k.png",
+    kicker:"Spatial brand", title:"The Mint Practice",
+    blurb:"Mint and warm-wood interior architecture for a dental brand - calm, clinical, premium. One frame from a wider world.",
+    tags:["Interior","Brand world","FLUX"]
+  },
+  {
+    type:"video", src:"../assets/veo-video.mp4", poster:"../assets/gen/poster-veo-video.png",
+    kicker:"Generative film", title:"Veo Sequence",
+    blurb:"A short cinematic beat from a Veo render. Posters carry the weight until the focused panel earns the playback.",
+    tags:["Video","Cinematic","Veo"]
+  },
+  {
+    type:"image", src:"../assets/sdxl.png",
+    kicker:"Illustration", title:"Autumn Vulpine",
+    blurb:"A painterly fox in turning-leaf light - square, warm, hand-feel. Letterboxed on its mat so nothing is ever cropped away.",
+    tags:["Painterly","SDXL","1:1"]
+  }
+];
+
+/* ---------- build panels ---------- */
+const reel = document.getElementById("reel");
+const reduce = window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+
+WORKS.forEach((w,i)=>{
+  const track = document.createElement("section");
+  track.className = "panel-track";
+
+  const stage = document.createElement("div");
+  stage.className = "stage";
+
+  const wrap = document.createElement("div");
+  wrap.className = "sheet-wrap";
+  wrap.setAttribute("role","group");
+  wrap.setAttribute("aria-roledescription","folding sheet");
+  wrap.setAttribute("aria-label", (i+1)+". "+w.title);
+
+  // identical media in both halves -> reads as one picture, splits on fold
+  const mediaHTML = (half)=>{
+    if(w.type==="video"){
+      return `<div class="face" data-face>
+        <img class="poster" src="${w.poster}" alt="" loading="lazy" decoding="async"/>
+        <video class="media" src="${w.src}" poster="${w.poster}" muted loop playsinline preload="none" aria-hidden="true"></video>
+      </div>`;
+    }
+    const alt = half==="base" ? `${w.title} - ${w.kicker}` : "";
+    return `<div class="face" data-face>
+      <img class="media" src="${w.src}" alt="${alt}" loading="lazy" decoding="async"/>
+    </div>`;
+  };
+
+  wrap.innerHTML = `
+    <div class="half base">${mediaHTML("base")}</div>
+    <div class="half flap">${mediaHTML("flap")}</div>
+  `;
+
+  const counter = document.createElement("div");
+  counter.className = "counter";
+  counter.innerHTML = `${String(i+1).padStart(2,"0")}<sup>/${String(WORKS.length).padStart(2,"0")}</sup>`;
+
+  const cap = document.createElement("figcaption");
+  cap.className = "caption";
+  cap.innerHTML = `
+    <div class="idx">${w.kicker}</div>
+    <h2>${w.title}</h2>
+    <p>${w.blurb}</p>
+    <div class="tags">${w.tags.map(t=>`<span>${t}</span>`).join("")}</div>`;
+
+  stage.appendChild(counter);
+  stage.appendChild(wrap);
+  stage.appendChild(cap);
+  track.appendChild(stage);
+  reel.appendChild(track);
+
+  track._wrap = wrap;
+  track._cap = cap;
+  track._isVideo = w.type==="video";
+});
+
+/* ============================================================
+   SCROLL-DRIVEN FOLD
+   For each track: progress 0->1 across its scroll range.
+   - phase A (0 -> .5): the flap of THIS sheet lifts/folds away
+   - the caption fades up while the sheet is settled
+   We only touch CSS vars in rAF, throttled to visible tracks.
+   ============================================================ */
+const tracks = [...document.querySelectorAll(".panel-track")];
+
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function ease(t){return t<.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2}
+
+let ticking=false;
+function update(){
+  ticking=false;
+  const vh = window.innerHeight;
+  tracks.forEach(tr=>{
+    const r = tr.getBoundingClientRect();
+    // progress of the sticky range: 0 when stage enters, 1 when it leaves the top
+    const range = r.height - vh;
+    if(range<=0){ return; }
+    const p = clamp(-r.top / range, 0, 1);
+    const wrap = tr._wrap;
+
+    // fold the flap away across the FIRST 62% of the range,
+    // then hold the next sheet revealed. Diagonal hinge = up to ~118deg.
+    const foldP = ease(clamp(p/0.62,0,1));
+    const angle = -foldP * 118;             // negative folds the corner toward viewer-back
+    wrap.style.setProperty("--fold", angle.toFixed(2)+"deg");
+
+    // crease shadow strongest in the first half of the fold
+    const creaseOn = Math.sin(clamp(foldP,0,1)*Math.PI); // 0->1->0
+    wrap.style.setProperty("--creaseOn", (creaseOn*0.9).toFixed(3));
+    // cobalt underside fades in as the flap passes ~30deg
+    wrap.style.setProperty("--backOn", clamp((foldP-0.18)/0.5,0,1).toFixed(3));
+
+    // gentle entrance tilt for the sheet as it arrives
+    const enter = (1-clamp((p)/0.12,0,1))* -6; // -6deg -> 0
+    wrap.style.setProperty("--enter", enter.toFixed(2)+"deg");
+
+    // caption visible while the sheet is mostly whole (p < .55)
+    const capVis = clamp(1-(p-0.05)/0.5,0,1) * clamp(p/0.04,0,1);
+    tr._cap.style.setProperty("--capO", capVis.toFixed(3));
+    tr._cap.style.setProperty("--capY", ((1-capVis)*14).toFixed(2)+"px");
+  });
+}
+function onScroll(){ if(!ticking){ ticking=true; requestAnimationFrame(update); } }
+
+if(!reduce){
+  window.addEventListener("scroll",onScroll,{passive:true});
+  window.addEventListener("resize",onScroll,{passive:true});
+  update();
+} else {
+  // show final settled state: captions visible, no transforms
+  tracks.forEach(tr=>{ tr._cap.style.setProperty("--capO","1"); tr._cap.style.setProperty("--capY","0px"); });
+}
+
+/* ============================================================
+   VIDEO PLAYBACK GOVERNOR
+   Only the single most-centered video panel plays at a time.
+   Everything else shows its poster (no simultaneous decode).
+   Disabled under reduced-motion (poster only).
+   ============================================================ */
+const videoTracks = tracks.filter(t=>t._isVideo);
+if(videoTracks.length){
+  const govern = ()=>{
+    const mid = window.innerHeight/2;
+    let best=null,bestD=Infinity;
+    videoTracks.forEach(tr=>{
+      const r = tr.getBoundingClientRect();
+      const c = r.top + r.height/2;
+      const d = Math.abs(c-mid);
+      // candidate only if its stage substantially overlaps viewport
+      const onScreen = r.bottom>window.innerHeight*0.25 && r.top<window.innerHeight*0.75;
+      if(onScreen && d<bestD){ bestD=d; best=tr; }
+    });
+    videoTracks.forEach(tr=>{
+      const v = tr.querySelector("video.media");
+      const face = tr.querySelector(".face");
+      if(!v) return;
+      if(tr===best && !reduce){
+        if(v.preload==="none"){ v.preload="auto"; v.load(); }
+        face.classList.add("playing");
+        v.play().catch(()=>{});
+      } else {
+        v.pause();
+        face.classList.remove("playing");
+      }
+    });
+  };
+  if(!reduce){
+    let gtick=false;
+    const onG=()=>{ if(!gtick){ gtick=true; requestAnimationFrame(()=>{gtick=false;govern();}); } };
+    window.addEventListener("scroll",onG,{passive:true});
+    window.addEventListener("resize",onG,{passive:true});
+    // run once after first paint
+    requestAnimationFrame(govern);
+  }
+}
+</script>
+</body>
+</html>

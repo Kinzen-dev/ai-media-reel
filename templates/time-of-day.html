@@ -1,0 +1,680 @@
+<!-- TEMPLATE: Golden Hour | ARCHETYPE: time-of-day ambient theming | REF: context-reactive / time-aware theming 2026 | WHEN TO USE: portfolio or product showcase whose mood should track the visitor's real clock | SWAP: edit the WORKS and BANDS arrays at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Golden Hour - time-aware showcase</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   DATA + BANDS live in the <script> at the very bottom.
+   Everything here reads from CSS custom properties that the
+   script rewrites each time the (real or previewed) hour changes.
+   ============================================================ */
+:root{
+  /* defaults; the script overwrites these on load */
+  --sky-top:#1a1d3a; --sky-mid:#2a2350; --sky-low:#3a2a55;
+  --ground:#0e1020; --ink:#f3efe6; --ink-soft:#bdb6c8;
+  --accent:#ff7a3c; --accent-2:#ffd28a; --card:#181a2e;
+  --card-edge:rgba(255,255,255,.08); --halo:rgba(255,150,80,.0);
+  --sun-x:50%; --sun-y:30%; --sun-size:0px; --sun-glow:rgba(255,200,120,0);
+  --shadow-dx:0px; --shadow-dy:24px; --shadow-blur:48px; --shadow-a:.45;
+  --star-op:0; --window-op:0;
+  --ease:cubic-bezier(.4,0,.1,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Inter',system-ui,sans-serif;
+  color:var(--ink);
+  background:var(--ground);
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+/* ---- the living sky, fixed behind everything ---- */
+.sky{
+  position:fixed; inset:0; z-index:-3;
+  background:linear-gradient(180deg,var(--sky-top) 0%,var(--sky-mid) 45%,var(--sky-low) 100%);
+  transition:background 1.6s var(--ease);
+}
+.sun{
+  position:fixed; left:var(--sun-x); top:var(--sun-y);
+  width:var(--sun-size); height:var(--sun-size); z-index:-2;
+  transform:translate(-50%,-50%);
+  border-radius:50%;
+  background:radial-gradient(circle at 50% 50%,#fff 0%,var(--accent-2) 30%,var(--accent) 60%,transparent 72%);
+  box-shadow:0 0 120px 60px var(--sun-glow);
+  transition:all 1.6s var(--ease);
+  pointer-events:none;
+}
+.stars{
+  position:fixed; inset:0; z-index:-2; pointer-events:none;
+  opacity:var(--star-op); transition:opacity 1.6s var(--ease);
+  background-image:
+    radial-gradient(1px 1px at 12% 18%, #fff, transparent),
+    radial-gradient(1px 1px at 28% 42%, #cfe, transparent),
+    radial-gradient(1.5px 1.5px at 47% 12%, #fff, transparent),
+    radial-gradient(1px 1px at 63% 33%, #fff, transparent),
+    radial-gradient(1px 1px at 78% 20%, #dfe, transparent),
+    radial-gradient(1.5px 1.5px at 88% 48%, #fff, transparent),
+    radial-gradient(1px 1px at 8% 60%, #fff, transparent),
+    radial-gradient(1px 1px at 36% 72%, #cef, transparent),
+    radial-gradient(1px 1px at 55% 64%, #fff, transparent),
+    radial-gradient(1px 1px at 72% 78%, #fff, transparent);
+}
+.stars::after{ /* twinkle */
+  content:""; position:absolute; inset:0;
+  background:inherit; opacity:.5;
+  animation:twinkle 5s steps(1) infinite;
+}
+@keyframes twinkle{0%,100%{opacity:.55}50%{opacity:.2}}
+/* ground gradient at the very bottom of the page so the sky meets a horizon */
+.ground{
+  position:fixed; left:0; right:0; bottom:0; height:42vh; z-index:-3;
+  background:linear-gradient(180deg,transparent 0%,var(--ground) 78%);
+  transition:background 1.6s var(--ease);
+  pointer-events:none;
+}
+
+/* ---- scroll-snap rail ---- */
+main{
+  height:100dvh; overflow-y:scroll;
+  scroll-snap-type:y mandatory;
+  scroll-behavior:smooth;
+}
+section{
+  min-height:100dvh; scroll-snap-align:start;
+  display:flex; flex-direction:column; justify-content:center; align-items:center;
+  padding:max(7vh,84px) clamp(20px,6vw,80px) 12vh;
+  position:relative;
+}
+
+/* ---- intro ---- */
+.hero{gap:clamp(20px,4vh,40px); text-align:center;}
+.kicker{
+  font-size:13px; letter-spacing:.32em; text-transform:uppercase;
+  color:var(--accent-2); font-weight:600;
+}
+.hero h1{
+  font-family:'Fraunces',serif; font-weight:400;
+  font-size:clamp(40px,10vw,118px); line-height:.96; letter-spacing:-.02em;
+  max-width:14ch;
+}
+.hero h1 em{font-style:italic; color:var(--accent)}
+.lede{
+  max-width:46ch; font-size:clamp(15px,2.2vw,19px); line-height:1.6;
+  color:var(--ink-soft);
+}
+.now-readout{
+  display:inline-flex; align-items:center; gap:12px;
+  padding:10px 18px; border-radius:999px;
+  border:1px solid var(--card-edge);
+  background:rgba(0,0,0,.18); backdrop-filter:blur(8px);
+  font-size:14px; letter-spacing:.04em;
+}
+.now-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent)}
+.now-band{color:var(--accent-2);font-weight:600;text-transform:capitalize}
+.scroll-hint{
+  position:absolute; bottom:5vh; left:50%; transform:translateX(-50%);
+  font-size:11px; letter-spacing:.28em; text-transform:uppercase; color:var(--ink-soft);
+  display:flex; flex-direction:column; align-items:center; gap:8px; opacity:.8;
+}
+.scroll-hint::after{content:"";width:1px;height:34px;background:linear-gradient(var(--ink-soft),transparent);animation:fall 2.2s var(--ease) infinite}
+@keyframes fall{0%{transform:scaleY(.2);transform-origin:top;opacity:0}40%{opacity:1}100%{transform:scaleY(1);transform-origin:top;opacity:0}}
+
+/* ---- a work ---- */
+.work{gap:clamp(24px,4vh,48px)}
+.work-inner{
+  display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);
+  gap:clamp(28px,5vw,72px); align-items:center;
+  width:min(1180px,100%);
+}
+.work.flip .work-inner{direction:rtl}
+.work.flip .work-meta{direction:ltr}
+.stage{
+  direction:ltr;
+  position:relative; aspect-ratio:4/3; border-radius:18px; overflow:hidden;
+  background:var(--card);
+  /* the cast shadow is the time-driven hero effect */
+  box-shadow:
+    var(--shadow-dx) var(--shadow-dy) var(--shadow-blur) rgba(0,0,0,var(--shadow-a)),
+    0 0 0 1px var(--card-edge) inset;
+  transition:box-shadow 1.6s var(--ease), transform .6s var(--ease);
+}
+.stage::after{ /* warm light bleed across each work, tinted by hour */
+  content:""; position:absolute; inset:0; pointer-events:none; mix-blend-mode:soft-light;
+  background:linear-gradient(135deg,var(--accent) 0%,transparent 55%,var(--accent-2) 100%);
+  opacity:.5; transition:opacity 1.6s var(--ease);
+}
+.stage img,.stage video{
+  width:100%; height:100%; object-fit:cover; display:block;
+  filter:saturate(var(--media-sat,1)) brightness(var(--media-br,1));
+  transition:filter 1.6s var(--ease);
+}
+.stage .poster{position:absolute;inset:0;z-index:1}
+.stage video{position:relative;z-index:0;opacity:0;transition:opacity .5s ease}
+.stage.playing video{opacity:1}
+.stage.playing .poster{opacity:0;transition:opacity .5s ease}
+.badge{
+  position:absolute; left:14px; top:14px; z-index:2;
+  font-size:11px; letter-spacing:.14em; text-transform:uppercase; font-weight:600;
+  padding:6px 11px; border-radius:7px;
+  background:rgba(0,0,0,.5); backdrop-filter:blur(6px); color:#fff;
+}
+.play-cue{
+  position:absolute; right:14px; bottom:14px; z-index:2;
+  width:46px;height:46px;border-radius:50%;
+  display:grid;place-items:center;
+  background:rgba(0,0,0,.45);backdrop-filter:blur(6px);
+  border:1px solid rgba(255,255,255,.25); color:#fff;
+  transition:transform .3s var(--ease),background .3s ease;
+}
+.stage:hover .play-cue,.stage:focus-within .play-cue{transform:scale(1.08);background:var(--accent)}
+.stage.playing .play-cue{opacity:0;pointer-events:none}
+.no-vid .play-cue{display:none}
+.work-meta{direction:ltr; display:flex; flex-direction:column; gap:18px}
+.work-idx{font-family:'Fraunces',serif;font-size:14px;color:var(--ink-soft);letter-spacing:.1em}
+.work-meta h2{font-family:'Fraunces',serif;font-weight:400;font-size:clamp(28px,5vw,52px);line-height:1.04;letter-spacing:-.01em}
+.work-meta p{max-width:42ch;color:var(--ink-soft);line-height:1.65;font-size:clamp(14px,1.8vw,17px)}
+.tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.tag{font-size:12px;letter-spacing:.04em;color:var(--ink);padding:6px 12px;border-radius:999px;border:1px solid var(--card-edge);background:rgba(255,255,255,.04)}
+
+/* ---- closing ---- */
+.outro{text-align:center;gap:28px}
+.outro h2{font-family:'Fraunces',serif;font-weight:400;font-size:clamp(32px,7vw,76px);line-height:1.02;max-width:16ch}
+.outro a{
+  display:inline-block;margin-top:8px;padding:15px 34px;border-radius:999px;
+  background:var(--ink);color:var(--ground);font-weight:600;letter-spacing:.02em;text-decoration:none;
+  transition:transform .3s var(--ease),box-shadow .3s ease;
+}
+.outro a:hover{transform:translateY(-3px);box-shadow:0 14px 40px rgba(0,0,0,.4)}
+
+/* ============================================================
+   CLOCK SCRUBBER (corner control to preview other hours)
+   ============================================================ */
+.clock{
+  position:fixed; z-index:40; right:clamp(14px,3vw,30px); bottom:clamp(14px,3vw,30px);
+  width:96px; height:96px;
+  display:grid; place-items:center;
+}
+.clock-face{
+  position:relative; width:96px; height:96px; border-radius:50%;
+  background:radial-gradient(circle at 50% 38%,rgba(255,255,255,.08),rgba(0,0,0,.35));
+  border:1px solid var(--card-edge); backdrop-filter:blur(10px);
+  box-shadow:0 10px 30px rgba(0,0,0,.4);
+  cursor:grab; touch-action:none;
+}
+.clock-face:active{cursor:grabbing}
+.clock-face::before{ /* tick ring */
+  content:"";position:absolute;inset:7px;border-radius:50%;
+  background:
+    repeating-conic-gradient(from 0deg, var(--ink-soft) 0deg 1deg, transparent 1deg 30deg);
+  opacity:.35; -webkit-mask:radial-gradient(circle,transparent 60%,#000 62%);mask:radial-gradient(circle,transparent 60%,#000 62%);
+}
+.hand{
+  position:absolute; left:50%; top:50%; width:2px; height:30px;
+  background:var(--accent); border-radius:2px; transform-origin:bottom center;
+  transform:translate(-50%,-100%) rotate(0deg);
+}
+.hand.minute{height:38px;width:2px;background:var(--ink);opacity:.8}
+.hand.hour{height:24px;width:3px;background:var(--accent)}
+.clock-pip{position:absolute;left:50%;top:50%;width:9px;height:9px;border-radius:50%;background:var(--accent-2);transform:translate(-50%,-50%);box-shadow:0 0 10px var(--accent-2)}
+.clock-label{
+  position:absolute; top:calc(100% + 8px); left:50%; transform:translateX(-50%);
+  white-space:nowrap; font-size:10px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--ink-soft); text-align:center;
+}
+.clock-label b{display:block;color:var(--ink);font-size:12px;letter-spacing:.06em;text-transform:none;margin-top:2px}
+.live-tag{
+  position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%);
+  font-size:9px; letter-spacing:.2em; text-transform:uppercase; color:var(--accent-2);
+  display:flex; align-items:center; gap:5px; white-space:nowrap;
+}
+.live-tag .ld{width:6px;height:6px;border-radius:50%;background:var(--accent-2);box-shadow:0 0 8px var(--accent-2)}
+.live-tag.previewing{color:var(--ink-soft)}
+.live-tag.previewing .ld{background:var(--ink-soft);box-shadow:none;animation:none}
+.live-tag .ld{animation:pulse 2s ease infinite}
+@keyframes pulse{50%{opacity:.3}}
+.reset-live{
+  position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%);
+  font-size:9px; letter-spacing:.16em; text-transform:uppercase;
+  background:var(--accent); color:#1a1208; border:none; cursor:pointer;
+  padding:4px 9px; border-radius:999px; white-space:nowrap; display:none; font-weight:600;
+}
+.reset-live.show{display:block}
+
+/* progress dots up the side */
+.rail{
+  position:fixed; left:clamp(12px,2.5vw,26px); top:50%; transform:translateY(-50%);
+  z-index:30; display:flex; flex-direction:column; gap:13px;
+}
+.rail button{
+  width:9px;height:9px;border-radius:50%;border:none;cursor:pointer;padding:0;
+  background:var(--ink-soft);opacity:.35;transition:opacity .3s,transform .3s,background .3s;
+}
+.rail button.active{opacity:1;background:var(--accent);transform:scale(1.35)}
+
+/* ---- focus + a11y ---- */
+:focus-visible{outline:2px solid var(--accent-2);outline-offset:3px;border-radius:4px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+
+/* ============================================================
+   MOBILE: stack the works, letterbox media, shrink clock.
+   Landscape assets must never be cover-cropped into portrait.
+   ============================================================ */
+@media (max-width:640px){
+  section{padding:max(9vh,72px) 18px 14vh}
+  .work-inner{grid-template-columns:1fr;gap:22px}
+  .work.flip .work-inner{direction:ltr}
+  .stage{aspect-ratio:16/10}        /* keep landscape ratio, letterboxed in card, never cropped to portrait */
+  .stage img,.stage video{object-fit:contain;background:#000}
+  .work-meta{align-items:flex-start;text-align:left}
+  .clock{width:74px;height:74px;right:12px;bottom:12px}
+  .clock-face{width:74px;height:74px}
+  .hand.minute{height:28px}.hand{height:23px}.hand.hour{height:18px}
+  .clock-label{font-size:9px}
+  .rail{left:10px;gap:10px}
+  .rail button{width:7px;height:7px}
+  .scroll-hint{display:none}
+}
+/* landscape phones keep letterbox too: contain, never cover-crop a wide asset */
+@media (max-width:640px) and (orientation:landscape){
+  .stage{aspect-ratio:16/9}
+  .stage img,.stage video{object-fit:contain;background:#000}
+}
+
+/* ---- reduced motion: kill rAF-driven motion, show final state ---- */
+@media (prefers-reduced-motion:reduce){
+  *{transition:none !important;animation:none !important;scroll-behavior:auto !important}
+  .sky,.sun,.ground,.stage{transition:none !important}
+}
+</style>
+</head>
+<body>
+
+<div class="sky" aria-hidden="true"></div>
+<div class="stars" aria-hidden="true"></div>
+<div class="sun" aria-hidden="true"></div>
+<div class="ground" aria-hidden="true"></div>
+
+<nav class="rail" aria-label="Section navigation"></nav>
+
+<main id="rail">
+
+  <section class="hero" data-label="Intro">
+    <span class="kicker">Golden Hour</span>
+    <h1>Work stays. <em>The light</em> moves with you.</h1>
+    <p class="lede">This page reads your real local clock. The sky, the warmth, and the angle of every cast shadow shift across five times of day. Same works, different hour. Drag the clock to preview any moment.</p>
+    <span class="now-readout">
+      <span class="now-dot" aria-hidden="true"></span>
+      <span>It is <span id="nowTime">--:--</span> for you - <span class="now-band" id="nowBand">band</span></span>
+    </span>
+    <div class="scroll-hint" aria-hidden="true">Scroll</div>
+  </section>
+
+  <!-- WORK SECTIONS are injected here by the script from the WORKS array -->
+
+  <section class="outro" data-label="Close">
+    <h2>Built once. Lit by whatever hour you arrive.</h2>
+    <p class="lede">Pure CSS variables driven by <code>Date</code>. No WebGL, no canvas. Swap the data array, keep the daylight.</p>
+    <a href="#rail">Back to the top</a>
+  </section>
+
+</main>
+
+<!-- CLOCK SCRUBBER -->
+<div class="clock" role="group" aria-label="Time of day scrubber">
+  <button class="reset-live" id="resetLive">back to now</button>
+  <div class="live-tag" id="liveTag"><span class="ld"></span><span id="liveTxt">live</span></div>
+  <div class="clock-face" id="clockFace" tabindex="0" role="slider"
+       aria-label="Preview hour of day" aria-valuemin="0" aria-valuemax="23" aria-valuenow="12" aria-valuetext="midday">
+    <span class="hand hour" id="handHour" aria-hidden="true"></span>
+    <span class="hand minute" id="handMin" aria-hidden="true"></span>
+    <span class="clock-pip" aria-hidden="true"></span>
+  </div>
+  <div class="clock-label"><span id="clockHr">12:00</span><b id="clockBand">midday</b></div>
+</div>
+
+<script>
+/* =====================================================================
+   DATA - swap these two arrays to reskin the whole template.
+   ===================================================================== */
+
+/* The works on show. media: image OR video(with poster). assetType picks render path. */
+const WORKS = [
+  {
+    idx:"01", title:"Nightdrive", tagline:"Matte-black coupe, wet neon, long exposure.",
+    badge:"Image", type:"image",
+    src:"../assets/flux-car-4k.png",
+    desc:"A cinematic still rendered at 4K. Under night band the page goes deep navy and warm window light; at golden hour the same frame throws a long vermilion shadow off its card.",
+    tags:["Flux","4K still","Automotive"]
+  },
+  {
+    idx:"02", title:"Mint Practice", tagline:"Calm mint-and-wood clinic interior.",
+    badge:"Image", type:"image",
+    src:"../assets/flux-clinic-4k.png",
+    desc:"Interior architecture render. Bone-white midday flattens the shadow to almost nothing; pre-dawn pulls cool indigo across the whole composition.",
+    tags:["Flux","Interior","Healthcare"]
+  },
+  {
+    idx:"03", title:"Karaman", tagline:"Painterly autumn fox, brushwork close-up.",
+    badge:"Image", type:"image",
+    src:"../assets/sdxl.png",
+    desc:"A painterly piece where warm fur reads completely differently per band. Sunrise amber bleeds into the soft-light layer; midday returns it to neutral.",
+    tags:["SDXL","Painterly","Wildlife"]
+  },
+  {
+    idx:"04", title:"First Light", tagline:"Cinematic drive, in motion.",
+    badge:"Video", type:"video",
+    src:"../assets/flux-car-i2v.mp4",
+    poster:"../assets/gen/poster-flux-car-i2v.png",
+    desc:"An image-to-video loop. It stays a poster until focused or hovered, then plays - so a scroll past a dozen works never decodes them all at once.",
+    tags:["i2v","Loop","Silent"]
+  },
+  {
+    idx:"05", title:"Kling Reel", tagline:"Generated motion study.",
+    badge:"Video", type:"video",
+    src:"../assets/kling-video.mp4",
+    poster:"../assets/gen/poster-kling-video.png",
+    desc:"A heavier clip, lazy and in-view only. The card around it keeps living with the hour while the footage itself stays untouched.",
+    tags:["Kling","Motion","Silent"]
+  }
+];
+
+/* The five time-of-day bands. start = hour it begins (24h). Wrap handled in code. */
+const BANDS = [
+  { name:"pre-dawn", start:4,
+    sky:["#0c1030","#161a44","#241f55"], ground:"#070912",
+    ink:"#e7e3f4", inkSoft:"#9b97c0", accent:"#5d6cff", accent2:"#8ad0ff",
+    card:"#10132b", cardEdge:"rgba(150,170,255,.12)",
+    sun:{x:"82%",y:"112%",size:"60px",glow:"rgba(90,110,255,.4)"},
+    shadow:{dx:"34px",dy:"30px",blur:"60px",a:.55},
+    media:{sat:.85,br:.82}, star:.85, mediaTintA:.2 },
+
+  { name:"sunrise", start:6,
+    sky:["#2a2a5c","#7a4a7e","#e88a5a"], ground:"#241326",
+    ink:"#fff3e8", inkSoft:"#d9b7a6", accent:"#ff8a4c", accent2:"#ffd89a",
+    card:"#2a1c2e", cardEdge:"rgba(255,180,120,.16)",
+    sun:{x:"78%",y:"86%",size:"120px",glow:"rgba(255,160,90,.6)"},
+    shadow:{dx:"-46px",dy:"22px",blur:"50px",a:.4},
+    media:{sat:1.08,br:1.02}, star:.12, mediaTintA:.62 },
+
+  { name:"midday", start:10,
+    sky:["#aac6e8","#cfe0f2","#eef1f0"], ground:"#cdc6bd",
+    ink:"#241f1a", inkSoft:"#6a6258", accent:"#e0762f", accent2:"#f3b25a",
+    card:"#f3efe6", cardEdge:"rgba(40,30,20,.1)",
+    sun:{x:"50%",y:"-6%",size:"110px",glow:"rgba(255,240,200,.7)"},
+    shadow:{dx:"4px",dy:"16px",blur:"28px",a:.22},
+    media:{sat:1,br:1.04}, star:0, mediaTintA:.3 },
+
+  { name:"golden hour", start:16,
+    sky:["#5a3f6e","#c5604e","#ff8e3c"], ground:"#2b1620",
+    ink:"#fff1e4", inkSoft:"#e0b39a", accent:"#ff5a2c", accent2:"#ffc861",
+    card:"#33202a", cardEdge:"rgba(255,140,80,.18)",
+    sun:{x:"18%",y:"82%",size:"150px",glow:"rgba(255,110,50,.7)"},
+    shadow:{dx:"68px",dy:"26px",blur:"54px",a:.5},
+    media:{sat:1.12,br:1.0}, star:.05, mediaTintA:.7 },
+
+  { name:"night", start:19,
+    sky:["#0a0e26","#141a3e","#23204c"], ground:"#06070f",
+    ink:"#eef0ff", inkSoft:"#9aa0c4", accent:"#ff9b4a", accent2:"#ffd9a0",
+    card:"#0f1228", cardEdge:"rgba(255,200,140,.1)",
+    sun:{x:"50%",y:"130%",size:"0px",glow:"rgba(255,180,110,0)"},
+    shadow:{dx:"24px",dy:"30px",blur:"58px",a:.55},
+    media:{sat:.92,br:.86}, star:.7, mediaTintA:.34,
+    windows:true }
+];
+
+/* =====================================================================
+   No edits needed below for a content swap.
+   ===================================================================== */
+const root = document.documentElement;
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* --- pick the band for a given hour (0-23) --- */
+function bandForHour(h){
+  // ordered by start; find last band whose start <= h, else wrap to the last (night spans midnight)
+  let chosen = BANDS[BANDS.length-1];
+  for(const b of BANDS){ if(h >= b.start) chosen = b; }
+  // hours before the first band's start (e.g. 0-3) belong to the wrap-around night band
+  if(h < BANDS[0].start) chosen = BANDS[BANDS.length-1];
+  return chosen;
+}
+
+/* --- write a band into CSS variables --- */
+function applyBand(b){
+  const s = root.style;
+  s.setProperty('--sky-top', b.sky[0]);
+  s.setProperty('--sky-mid', b.sky[1]);
+  s.setProperty('--sky-low', b.sky[2]);
+  s.setProperty('--ground', b.ground);
+  s.setProperty('--ink', b.ink);
+  s.setProperty('--ink-soft', b.inkSoft);
+  s.setProperty('--accent', b.accent);
+  s.setProperty('--accent-2', b.accent2);
+  s.setProperty('--card', b.card);
+  s.setProperty('--card-edge', b.cardEdge);
+  s.setProperty('--sun-x', b.sun.x);
+  s.setProperty('--sun-y', b.sun.y);
+  s.setProperty('--sun-size', b.sun.size);
+  s.setProperty('--sun-glow', b.sun.glow);
+  s.setProperty('--shadow-dx', b.shadow.dx);
+  s.setProperty('--shadow-dy', b.shadow.dy);
+  s.setProperty('--shadow-blur', b.shadow.blur);
+  s.setProperty('--shadow-a', b.shadow.a);
+  s.setProperty('--media-sat', b.media.sat);
+  s.setProperty('--media-br', b.media.br);
+  s.setProperty('--star-op', b.star);
+  // tint strength of the per-work soft-light bleed
+  root.style.setProperty('--tint-a', b.mediaTintA);
+  document.querySelectorAll('.stage').forEach(st=>{
+    st.style.setProperty('--bleed-op', b.mediaTintA);
+  });
+  // toggle night windows on the cards
+  document.body.dataset.night = b.windows ? "1" : "0";
+}
+
+/* the soft-light opacity is set per-stage; hook it in via inline style override */
+const tintStyle = document.createElement('style');
+tintStyle.textContent = `.stage::after{opacity:var(--bleed-op,.5)}`;
+document.head.appendChild(tintStyle);
+
+/* --- build work sections from data --- */
+function buildWorks(){
+  const main = document.getElementById('rail');
+  const outro = main.querySelector('.outro');
+  WORKS.forEach((w,i)=>{
+    const sec = document.createElement('section');
+    sec.className = 'work' + (i%2 ? ' flip':'');
+    sec.dataset.label = w.title;
+
+    let media;
+    if(w.type === 'video'){
+      media = `
+        <div class="stage" data-video tabindex="0" role="button" aria-label="Play ${w.title}">
+          <img class="poster" src="${w.poster}" alt="${w.title} preview" loading="lazy" decoding="async" />
+          <video src="${w.src}" muted loop playsinline preload="none" aria-hidden="true"></video>
+          <span class="badge">${w.badge}</span>
+          <span class="play-cue" aria-hidden="true">&#9658;</span>
+        </div>`;
+    } else {
+      media = `
+        <div class="stage no-vid">
+          <img src="${w.src}" alt="${w.title} - ${w.tagline}" loading="lazy" decoding="async" />
+          <span class="badge">${w.badge}</span>
+        </div>`;
+    }
+
+    sec.innerHTML = `
+      <div class="work-inner">
+        ${media}
+        <div class="work-meta">
+          <span class="work-idx">${w.idx} / ${String(WORKS.length).padStart(2,'0')}</span>
+          <h2>${w.title}</h2>
+          <p>${w.desc}</p>
+          <div class="tags">${w.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+        </div>
+      </div>`;
+    main.insertBefore(sec, outro);
+  });
+}
+
+/* --- lazy / in-view video: only the focused-or-hovered one plays --- */
+function wireVideos(){
+  document.querySelectorAll('.stage[data-video]').forEach(stage=>{
+    const vid = stage.querySelector('video');
+    let inView = false;
+
+    const play = ()=>{ if(reduce) return; if(!inView) return;
+      // ensure no other clip is decoding at the same time
+      document.querySelectorAll('.stage.playing').forEach(o=>{ if(o!==stage){ o.classList.remove('playing'); o.querySelector('video').pause(); }});
+      stage.classList.add('playing'); vid.play().catch(()=>{});
+    };
+    const stop = ()=>{ stage.classList.remove('playing'); vid.pause(); };
+
+    stage.addEventListener('mouseenter', play);
+    stage.addEventListener('mouseleave', stop);
+    stage.addEventListener('focus', play);
+    stage.addEventListener('blur', stop);
+    stage.addEventListener('click', ()=> stage.classList.contains('playing') ? stop() : play());
+    stage.addEventListener('keydown', e=>{ if(e.key===' '||e.key==='Enter'){ e.preventDefault(); stage.classList.contains('playing')?stop():play(); }});
+
+    const io = new IntersectionObserver(es=>{
+      es.forEach(en=>{ inView = en.isIntersecting; if(!inView) stop(); });
+    },{threshold:.55});
+    io.observe(stage);
+  });
+}
+
+/* --- side rail dots --- */
+function buildRail(){
+  const nav = document.querySelector('.rail');
+  const secs = [...document.querySelectorAll('main section')];
+  secs.forEach((s,i)=>{
+    const b = document.createElement('button');
+    b.setAttribute('aria-label', 'Go to '+(s.dataset.label||('section '+(i+1))));
+    b.addEventListener('click', ()=> s.scrollIntoView({behavior:reduce?'auto':'smooth'}));
+    nav.appendChild(b);
+  });
+  const btns = [...nav.children];
+  const io = new IntersectionObserver(es=>{
+    es.forEach(en=>{ if(en.isIntersecting){
+      const i = secs.indexOf(en.target);
+      btns.forEach((b,j)=> b.classList.toggle('active', j===i));
+    }});
+  },{threshold:.6});
+  secs.forEach(s=>io.observe(s));
+}
+
+/* =====================================================================
+   CLOCK SCRUBBER + live mode
+   ===================================================================== */
+const face   = document.getElementById('clockFace');
+const handHr = document.getElementById('handHour');
+const handMn = document.getElementById('handMin');
+const clockHr= document.getElementById('clockHr');
+const clockBand = document.getElementById('clockBand');
+const liveTag = document.getElementById('liveTag');
+const liveTxt = document.getElementById('liveTxt');
+const resetBtn= document.getElementById('resetLive');
+const nowTimeEl = document.getElementById('nowTime');
+const nowBandEl = document.getElementById('nowBand');
+
+let previewing = false;       // true once the user drags the clock
+let previewMins = 12*60;      // minutes since midnight being previewed
+
+function fmt(mins){
+  const h = Math.floor(mins/60)%24, m = Math.floor(mins%60);
+  return String(h).padStart(2,'0')+":"+String(m).padStart(2,'0');
+}
+
+/* render the clock hands + apply the matching band */
+function renderClock(mins, live){
+  const h = Math.floor(mins/60)%24;
+  const m = Math.floor(mins%60);
+  // hour hand: 360deg over 12h; minute hand: 360deg over 60m
+  const hourDeg = ((h%12) + m/60) * 30;
+  const minDeg  = m * 6;
+  handHr.style.transform = `translate(-50%,-100%) rotate(${hourDeg}deg)`;
+  handMn.style.transform = `translate(-50%,-100%) rotate(${minDeg}deg)`;
+
+  const b = bandForHour(h);
+  applyBand(b);
+
+  clockHr.textContent = fmt(mins);
+  clockBand.textContent = b.name;
+  face.setAttribute('aria-valuenow', h);
+  face.setAttribute('aria-valuetext', `${fmt(mins)}, ${b.name}`);
+
+  liveTag.classList.toggle('previewing', !live);
+  liveTxt.textContent = live ? 'live' : 'preview';
+  resetBtn.classList.toggle('show', !live);
+
+  // mirror into the hero readout when live
+  if(live){
+    nowTimeEl.textContent = fmt(mins);
+    nowBandEl.textContent = b.name;
+  }
+}
+
+/* ----- live tick from the real Date ----- */
+function tickLive(){
+  if(previewing) return;
+  const d = new Date();
+  const mins = d.getHours()*60 + d.getMinutes();
+  renderClock(mins, true);
+}
+
+/* ----- dragging the clock face previews an hour ----- */
+function angleToMins(clientX, clientY){
+  const r = face.getBoundingClientRect();
+  const cx = r.left + r.width/2, cy = r.top + r.height/2;
+  let a = Math.atan2(clientY-cy, clientX-cx) * 180/Math.PI; // -180..180, 0 = east
+  a = (a + 90 + 360) % 360;          // 0 = top (12 o'clock), clockwise
+  // map full circle to 24 hours so one rotation = a whole day
+  let hourFloat = a/360 * 24;
+  return Math.round(hourFloat*60); // minutes since midnight (0..1440)
+}
+let dragging = false;
+function startPreview(){ previewing = true; }
+function setFromPointer(e){
+  const p = e.touches ? e.touches[0] : e;
+  previewMins = angleToMins(p.clientX, p.clientY) % 1440;
+  renderClock(previewMins, false);
+}
+face.addEventListener('pointerdown', e=>{ dragging=true; startPreview(); face.setPointerCapture?.(e.pointerId); setFromPointer(e); });
+face.addEventListener('pointermove', e=>{ if(dragging) setFromPointer(e); });
+window.addEventListener('pointerup', ()=> dragging=false);
+
+/* keyboard: arrows nudge the previewed hour */
+face.addEventListener('keydown', e=>{
+  let step = 0;
+  if(e.key==='ArrowUp'||e.key==='ArrowRight') step = 60;
+  else if(e.key==='ArrowDown'||e.key==='ArrowLeft') step = -60;
+  else if(e.key==='Home'){ goLive(); return; }
+  else return;
+  e.preventDefault();
+  startPreview();
+  previewMins = (previewMins + step + 1440) % 1440;
+  renderClock(previewMins, false);
+});
+
+/* back to now */
+function goLive(){ previewing=false; tickLive(); }
+resetBtn.addEventListener('click', goLive);
+
+/* =====================================================================
+   BOOT
+   ===================================================================== */
+buildWorks();
+wireVideos();
+buildRail();
+tickLive();
+// reduced motion: render the real hour once and stop; no background polling/re-render churn
+if(!reduce) setInterval(tickLive, 30*1000); // re-check the real clock twice a minute
+</script>
+</body>
+</html>

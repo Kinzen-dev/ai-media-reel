@@ -1,0 +1,744 @@
+<!-- TEMPLATE: Ring Carousel | ARCHETYPE: RING | REF: 3D cylinder/ring carousels (gallery-in-the-round) | WHEN TO USE: orbit a set of works mapped around a rotating 3D cylinder, drag or scroll to spin, only the front panel plays | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Ring Carousel - Gallery in the Round</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<script>
+/* ============================================================
+   DATA  -  swap these objects to repurpose the template.
+   type: "video" plays its src when front-locked, poster otherwise.
+   type: "image" is always a still.
+   All paths relative to /showcase/templates/ -> ../assets/
+   ============================================================ */
+const DATA = [
+  {
+    type: "video",
+    src: "../assets/flux-car-i2v.mp4",
+    poster: "../assets/gen/poster-flux-car-i2v.png",
+    kicker: "Image to Video",
+    title: "Nocturne Drive",
+    meta: "FLUX i2v - 4s loop",
+    muted: true
+  },
+  {
+    type: "image",
+    src: "../assets/flux-car-4k.png",
+    poster: "../assets/flux-car-4k.png",
+    kicker: "Still - 4K",
+    title: "Wet Neon Coupe",
+    meta: "FLUX - matte black on rain",
+    muted: true
+  },
+  {
+    type: "video",
+    src: "../assets/kling-video.mp4",
+    poster: "../assets/gen/poster-kling-video.png",
+    kicker: "Text to Video",
+    title: "Drift Sequence",
+    meta: "Kling - cinematic motion",
+    muted: true
+  },
+  {
+    type: "image",
+    src: "../assets/flux-clinic-4k.png",
+    poster: "../assets/flux-clinic-4k.png",
+    kicker: "Still - 4K",
+    title: "Mint & Timber",
+    meta: "FLUX - clinic interior",
+    muted: true
+  },
+  {
+    type: "video",
+    src: "../assets/fal-video.mp4",
+    poster: "../assets/gen/poster-fal-video.png",
+    kicker: "Generative Motion",
+    title: "Liquid Field",
+    meta: "fal - looping render",
+    muted: true
+  },
+  {
+    type: "image",
+    src: "../assets/sdxl.png",
+    poster: "../assets/sdxl.png",
+    kicker: "Painterly Still",
+    title: "Autumn Fox",
+    meta: "SDXL - oil study",
+    muted: true
+  },
+  {
+    type: "video",
+    src: "../assets/hyperframes.mp4",
+    poster: "../assets/gen/poster-hyperframes.png",
+    kicker: "Frame Synthesis",
+    title: "Hyperframes",
+    meta: "interpolated sequence",
+    muted: true
+  },
+  {
+    type: "video",
+    src: "../assets/veo-video.mp4",
+    poster: "../assets/gen/poster-veo-video.png",
+    kicker: "Cinematic Video",
+    title: "Veo Pass",
+    meta: "Veo - has audio",
+    muted: false
+  },
+  {
+    type: "image",
+    src: "../assets/hf-tinysd.png",
+    poster: "../assets/hf-tinysd.png",
+    kicker: "Lo-fi Study",
+    title: "Abstract Apple",
+    meta: "TinySD - low-step",
+    muted: true
+  }
+];
+
+/* Brand copy - edit freely */
+const BRAND = {
+  eyebrow: "Generative Studio",
+  title: "In the Round",
+  sub: "Drag or scroll to orbit. Only the panel facing you plays."
+};
+</script>
+<style>
+:root{
+  --bg:#0a0908;
+  --bg-2:#100e0c;
+  --ink:#f4efe7;
+  --ink-dim:#9a9286;
+  --ink-faint:#5b554c;
+  --accent:#e8853a;        /* warm amber */
+  --accent-soft:#f0a868;
+  --line:rgba(244,239,231,.10);
+  --panel-w:clamp(220px, 30vw, 380px);
+  --panel-h:clamp(300px, 42vw, 520px);
+  --radius:0px; /* computed in JS */
+  --spin: 1; /* spin direction/idle multiplier */
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:
+    radial-gradient(120% 80% at 50% -10%, #15110d 0%, var(--bg) 55%, #060504 100%);
+  color:var(--ink);
+  font-family:"Inter",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+  position:relative;
+}
+
+/* faint vignette + grain */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:6;
+  background:radial-gradient(130% 110% at 50% 50%, transparent 52%, rgba(0,0,0,.62) 100%);
+}
+body::after{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:7;opacity:.04;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  mix-blend-mode:overlay;
+}
+
+/* ---------- header ---------- */
+header{
+  position:fixed;top:0;left:0;right:0;z-index:8;
+  display:flex;align-items:flex-start;justify-content:space-between;
+  padding:clamp(18px,3vw,34px) clamp(20px,4vw,52px);
+  pointer-events:none;
+}
+.brand .eyebrow{
+  font-size:11px;letter-spacing:.34em;text-transform:uppercase;
+  color:var(--accent-soft);font-weight:600;
+}
+.brand h1{
+  font-family:"Fraunces",serif;font-weight:500;
+  font-size:clamp(26px,4.6vw,52px);line-height:.96;letter-spacing:-.01em;
+  margin-top:6px;
+}
+.brand h1 em{font-style:italic;color:var(--accent)}
+.legend{
+  text-align:right;font-size:12px;color:var(--ink-dim);max-width:230px;
+  line-height:1.5;
+}
+.legend b{color:var(--ink);font-weight:600}
+
+/* ---------- stage (3D) ---------- */
+.stage{
+  position:fixed;inset:0;z-index:3;
+  display:grid;place-items:center;
+  perspective:1600px;
+  cursor:grab;
+  touch-action:pan-y;
+}
+.stage.dragging{cursor:grabbing}
+
+.ring{
+  position:relative;
+  width:var(--panel-w);height:var(--panel-h);
+  transform-style:preserve-3d;
+  transform:translateZ(calc(var(--radius) * -1)) rotateY(var(--angle, 0deg));
+  will-change:transform;
+}
+
+.panel{
+  position:absolute;inset:0;
+  transform-style:preserve-3d;
+  border-radius:14px;
+  overflow:hidden;
+  background:var(--bg-2);
+  border:1px solid var(--line);
+  box-shadow:0 30px 70px rgba(0,0,0,.55);
+  -webkit-backface-visibility:hidden;backface-visibility:hidden;
+}
+.panel .media{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;display:block;
+  filter:saturate(.82) brightness(.7);
+  transition:filter .5s ease, transform .6s ease;
+  transform:scale(1.02);
+}
+.panel .glass{
+  position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg, rgba(0,0,0,.05) 0%, rgba(0,0,0,.0) 30%, rgba(8,6,4,.72) 100%);
+  transition:opacity .5s ease;
+}
+.panel .edge{
+  position:absolute;inset:0;border-radius:14px;pointer-events:none;
+  box-shadow:inset 0 0 0 1px rgba(244,239,231,.06);
+}
+
+/* caption inside panel */
+.cap{
+  position:absolute;left:0;right:0;bottom:0;z-index:2;
+  padding:16px 18px 18px;
+  transform:translateY(8px);opacity:0;
+  transition:opacity .5s ease, transform .5s ease;
+  pointer-events:none;
+}
+.cap .kicker{
+  font-size:10px;letter-spacing:.26em;text-transform:uppercase;
+  color:var(--accent-soft);font-weight:600;
+}
+.cap h2{
+  font-family:"Fraunces",serif;font-weight:500;font-size:23px;
+  line-height:1.04;margin-top:5px;letter-spacing:-.01em;
+}
+.cap .metaline{font-size:11.5px;color:var(--ink-dim);margin-top:4px}
+
+/* front-locked panel: sharp, lit, accent rail, caption visible */
+.panel.is-front .media{filter:saturate(1.05) brightness(1.02);transform:scale(1)}
+.panel.is-front .glass{opacity:1}
+.panel.is-front{
+  box-shadow:0 44px 110px rgba(0,0,0,.6), 0 0 0 1px rgba(232,133,58,.35), 0 0 60px rgba(232,133,58,.14);
+}
+.panel.is-front .cap{opacity:1;transform:translateY(0)}
+.panel.is-front .edge{box-shadow:inset 0 0 0 1px rgba(232,133,58,.5)}
+
+/* accent corner tick on front */
+.panel.is-front::after{
+  content:"";position:absolute;top:12px;left:12px;z-index:3;
+  width:22px;height:22px;
+  border-top:2px solid var(--accent);border-left:2px solid var(--accent);
+  border-top-left-radius:4px;opacity:.9;
+}
+
+/* play badge for video panels (poster state) */
+.badge{
+  position:absolute;top:12px;right:12px;z-index:3;
+  width:30px;height:30px;border-radius:50%;
+  display:grid;place-items:center;
+  background:rgba(10,9,8,.55);backdrop-filter:blur(6px);
+  border:1px solid var(--line);
+  opacity:.85;transition:opacity .4s ease;
+}
+.badge svg{width:12px;height:12px;fill:var(--ink)}
+.panel.is-front .badge{opacity:0}
+.panel:not([data-type="video"]) .badge{display:none}
+
+/* ---------- bottom HUD ---------- */
+.hud{
+  position:fixed;left:0;right:0;bottom:0;z-index:8;
+  display:flex;align-items:center;justify-content:space-between;
+  gap:18px;
+  padding:clamp(16px,3vw,30px) clamp(20px,4vw,52px);
+  pointer-events:none;
+}
+.counter{
+  font-family:"Fraunces",serif;font-size:14px;color:var(--ink-dim);
+  letter-spacing:.04em;min-width:80px;
+}
+.counter b{color:var(--ink);font-size:18px}
+.counter .accent{color:var(--accent)}
+.progress{
+  flex:1;height:1px;background:var(--line);position:relative;max-width:520px;
+}
+.progress i{
+  position:absolute;top:-1px;left:0;height:3px;width:0;
+  background:linear-gradient(90deg,var(--accent),var(--accent-soft));
+  border-radius:2px;transition:width .35s ease,left .35s ease;
+}
+.controls{display:flex;gap:10px;pointer-events:auto}
+.controls button{
+  width:42px;height:42px;border-radius:50%;
+  background:rgba(244,239,231,.04);
+  border:1px solid var(--line);
+  color:var(--ink);cursor:pointer;
+  display:grid;place-items:center;
+  transition:background .25s ease,border-color .25s ease,transform .2s ease;
+}
+.controls button:hover{background:rgba(232,133,58,.14);border-color:rgba(232,133,58,.5)}
+.controls button:active{transform:scale(.92)}
+.controls button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.controls svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8}
+
+.hint{
+  position:fixed;left:50%;bottom:clamp(74px,11vh,108px);transform:translateX(-50%);
+  z-index:8;font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--ink-faint);pointer-events:none;
+  transition:opacity .6s ease;
+}
+.hint.gone{opacity:0}
+
+/* ============================================================
+   MOBILE FALLBACK  -  horizontal snap-scroll, letterboxed.
+   The 3D ring is heavy on small screens and lands assets in
+   portrait; below 640px we swap to a flat snap rail instead.
+   ============================================================ */
+.rail{display:none}
+
+@media (max-width:640px){
+  body{overflow:auto}
+  .stage,.hud,.hint{display:none !important}
+  header{position:static;flex-direction:column;gap:12px;pointer-events:auto;
+    padding:26px 20px 10px}
+  .legend{text-align:left;max-width:100%}
+
+  .rail{
+    display:flex;gap:16px;
+    overflow-x:auto;scroll-snap-type:x mandatory;
+    -webkit-overflow-scrolling:touch;
+    padding:8px 20px 28px;
+  }
+  .rail::-webkit-scrollbar{display:none}
+  .card{
+    flex:0 0 84vw;scroll-snap-align:center;
+    border-radius:14px;overflow:hidden;
+    background:var(--bg-2);border:1px solid var(--line);
+    box-shadow:0 20px 50px rgba(0,0,0,.5);
+    position:relative;
+  }
+  /* letterbox: never cover-crop a landscape asset into portrait */
+  .card .frame{
+    width:100%;aspect-ratio:4/3;background:#060504;
+    display:grid;place-items:center;overflow:hidden;
+  }
+  .card .frame img,.card .frame video{
+    width:100%;height:100%;object-fit:contain;display:block;
+  }
+  .card .cardcap{padding:14px 16px 18px}
+  .card .cardcap .kicker{
+    font-size:10px;letter-spacing:.24em;text-transform:uppercase;
+    color:var(--accent-soft);font-weight:600;
+  }
+  .card .cardcap h2{
+    font-family:"Fraunces",serif;font-weight:500;font-size:21px;
+    margin-top:5px;letter-spacing:-.01em;
+  }
+  .card .cardcap .metaline{font-size:11.5px;color:var(--ink-dim);margin-top:3px}
+  .railhint{
+    color:var(--ink-faint);font-size:11px;letter-spacing:.2em;
+    text-transform:uppercase;padding:0 20px 22px;
+  }
+}
+
+/* ---------- reduced motion: show final state, no spin/rAF ---------- */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:0.001ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:0.001ms !important;
+    scroll-behavior:auto !important;
+  }
+  .ring{transition:none !important}
+  .panel .media,.panel .glass,.cap,.badge,
+  .controls button,.progress i,.hint{transition:none !important}
+  .hint{display:none}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="eyebrow" id="eyebrow">Generative Studio</div>
+    <h1 id="brandtitle">In the <em>Round</em></h1>
+  </div>
+  <div class="legend" id="legend">
+    <b>Gallery in the round.</b><br />
+    Drag, scroll or use arrows to orbit the cylinder.
+  </div>
+</header>
+
+<!-- 3D stage (desktop / tablet) -->
+<div class="stage" id="stage" aria-roledescription="carousel" aria-label="Generative works ring">
+  <div class="ring" id="ring"></div>
+</div>
+
+<div class="hint" id="hint">Drag to orbit</div>
+
+<div class="hud">
+  <div class="counter" id="counter"><b>01</b> <span class="accent">/</span> 09</div>
+  <div class="progress"><i id="progress"></i></div>
+  <div class="controls">
+    <button id="prev" aria-label="Previous work">
+      <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <button id="next" aria-label="Next work">
+      <svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- Mobile snap-scroll fallback -->
+<div class="rail" id="rail" aria-label="Generative works (mobile gallery)"></div>
+<div class="railhint" id="railhint" style="display:none">Swipe to browse</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const isMobile = window.matchMedia("(max-width:640px)").matches;
+
+  // brand copy
+  document.getElementById("eyebrow").textContent = BRAND.eyebrow;
+  document.getElementById("brandtitle").innerHTML =
+    BRAND.title.replace(/(\w+)$/, "<em>$1</em>");
+  document.getElementById("legend").innerHTML =
+    "<b>Gallery in the round.</b><br />" + BRAND.sub;
+
+  const N = DATA.length;
+  const STEP = 360 / N;
+  const pad2 = n => String(n).padStart(2, "0");
+
+  /* ========== MOBILE: build flat letterboxed snap rail, exit ========== */
+  if (isMobile){
+    const rail = document.getElementById("rail");
+    document.getElementById("railhint").style.display = "block";
+    DATA.forEach(d => {
+      const card = document.createElement("article");
+      card.className = "card";
+      const frame = document.createElement("div");
+      frame.className = "frame";
+      let mediaEl;
+      if (d.type === "video"){
+        // poster image only on mobile; tap-to-play to avoid many decodes
+        mediaEl = document.createElement("video");
+        mediaEl.src = d.src;
+        mediaEl.poster = d.poster;
+        mediaEl.muted = true;
+        mediaEl.loop = true;
+        mediaEl.playsInline = true;
+        mediaEl.setAttribute("playsinline","");
+        mediaEl.preload = "none";
+        mediaEl.controls = true;
+      } else {
+        mediaEl = document.createElement("img");
+        mediaEl.src = d.src;
+        mediaEl.alt = d.title;
+        mediaEl.loading = "lazy";
+        mediaEl.decoding = "async";
+      }
+      frame.appendChild(mediaEl);
+      const cap = document.createElement("div");
+      cap.className = "cardcap";
+      cap.innerHTML =
+        '<div class="kicker">'+d.kicker+'</div>'+
+        '<h2>'+d.title+'</h2>'+
+        '<div class="metaline">'+d.meta+'</div>';
+      card.appendChild(frame);
+      card.appendChild(cap);
+      rail.appendChild(card);
+    });
+    return; // skip all 3D setup
+  }
+
+  /* ========== DESKTOP / TABLET: 3D ring ========== */
+  const stage = document.getElementById("stage");
+  const ring  = document.getElementById("ring");
+  const counter = document.getElementById("counter");
+  const progress = document.getElementById("progress");
+  const hint = document.getElementById("hint");
+
+  counter.innerHTML = "<b>01</b> <span class='accent'>/</span> " + pad2(N);
+
+  // radius so panels sit comfortably apart around the cylinder
+  function computeRadius(){
+    const panelW = parseFloat(getComputedStyle(document.documentElement)
+      .getPropertyValue("--panel-w")) ||
+      ring.getBoundingClientRect().width || 300;
+    const w = ring.getBoundingClientRect().width || 300;
+    // r = (w/2) / tan(pi/N) gives edge-to-edge; loosen with a gap factor
+    const r = (w / 2) / Math.tan(Math.PI / N) * 1.18;
+    document.documentElement.style.setProperty("--radius", r + "px");
+    return r;
+  }
+
+  // build panels
+  const panels = [];
+  DATA.forEach((d, i) => {
+    const p = document.createElement("div");
+    p.className = "panel";
+    p.dataset.type = d.type;
+    p.dataset.index = i;
+    p.setAttribute("role","group");
+    p.setAttribute("aria-label", (i+1)+" of "+N+": "+d.title);
+
+    let media;
+    if (d.type === "video"){
+      media = document.createElement("video");
+      media.className = "media";
+      media.src = d.src;
+      media.poster = d.poster;
+      media.muted = d.muted !== false ? true : false;
+      media.loop = true;
+      media.playsInline = true;
+      media.setAttribute("playsinline","");
+      media.preload = "none";        // lazy: only front panel ever loads
+    } else {
+      media = document.createElement("img");
+      media.className = "media";
+      media.src = d.poster;
+      media.alt = d.title;
+      media.loading = "lazy";
+      media.decoding = "async";
+    }
+
+    const glass = document.createElement("div"); glass.className = "glass";
+    const edge  = document.createElement("div"); edge.className = "edge";
+    const badge = document.createElement("div"); badge.className = "badge";
+    badge.innerHTML = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+    const cap = document.createElement("div"); cap.className = "cap";
+    cap.innerHTML =
+      '<div class="kicker">'+d.kicker+'</div>'+
+      '<h2>'+d.title+'</h2>'+
+      '<div class="metaline">'+d.meta+'</div>';
+
+    p.appendChild(media);
+    p.appendChild(glass);
+    p.appendChild(cap);
+    p.appendChild(edge);
+    p.appendChild(badge);
+    ring.appendChild(p);
+    panels.push({el:p, media, data:d});
+  });
+
+  // place each panel around the cylinder once radius known
+  function placePanels(){
+    const r = computeRadius();
+    panels.forEach((p, i) => {
+      p.el.style.transform = "rotateY(" + (i * STEP) + "deg) translateZ(" + r + "px)";
+    });
+  }
+  placePanels();
+  window.addEventListener("resize", () => { placePanels(); applyFront(); });
+
+  /* ---- rotation state ---- */
+  // We rotate the ring by -angle so that panel `index` faces the viewer.
+  let angle = 0;          // current ring rotation (deg)
+  let target = 0;         // eased target
+  let current = 0;        // locked front index
+  let velocity = 0;       // drag inertia
+  let dragging = false;
+  let idleSpin = reduce ? 0 : 0.02; // gentle continuous drift when idle
+
+  function nearestIndex(a){
+    // front index is the one whose -i*STEP is closest to `a`
+    let idx = Math.round(-a / STEP) % N;
+    if (idx < 0) idx += N;
+    return idx;
+  }
+
+  function setRing(a){
+    ring.style.transform =
+      "translateZ(calc(var(--radius) * -1)) rotateY(" + a + "deg)";
+  }
+
+  function applyFront(){
+    const f = nearestIndex(angle);
+    panels.forEach((p, i) => {
+      const isFront = (i === f);
+      p.el.classList.toggle("is-front", isFront);
+      if (p.data.type === "video"){
+        const v = p.media;
+        // reduced motion: never autoplay; show poster as final state only
+        if (isFront && !reduce){
+          if (v.preload === "none"){ v.preload = "auto"; v.load(); }
+          const play = v.play();
+          if (play && play.catch) play.catch(()=>{});
+        } else {
+          if (!v.paused){ v.pause(); }
+        }
+      }
+    });
+    counter.innerHTML = "<b>"+pad2(f+1)+"</b> <span class='accent'>/</span> "+pad2(N);
+    const pct = (f) / (N - 1) * 100;
+    progress.style.width = "calc(" + pct + "% )";
+  }
+
+  // snap target to a specific index
+  function goTo(i){
+    let idx = ((i % N) + N) % N;
+    current = idx;
+    target = -idx * STEP;
+    if (reduce){           // no animation loop in reduced motion
+      angle = target;
+      setRing(angle);
+      applyFront();
+    }
+    hideHint();
+  }
+
+  function hideHint(){ hint.classList.add("gone"); }
+
+  /* ---- animation loop (skipped entirely under reduced motion) ---- */
+  let lastFront = -1;
+  function tick(){
+    if (reduce) return;
+    if (!dragging){
+      if (Math.abs(velocity) > 0.01){
+        angle += velocity;
+        velocity *= 0.94;        // friction
+        target = -nearestIndex(angle) * STEP; // settle toward nearest
+      } else {
+        velocity = 0;
+        // ease toward target snap
+        const diff = target - angle;
+        if (Math.abs(diff) > 0.02){
+          angle += diff * 0.10;
+        } else {
+          angle = target;
+          // idle drift only when fully settled and untouched recently
+          if (idleActive) angle += idleSpin, target = angle;
+        }
+      }
+    }
+    setRing(angle);
+    const f = nearestIndex(angle);
+    if (f !== lastFront){ lastFront = f; applyFront(); }
+    requestAnimationFrame(tick);
+  }
+
+  /* idle drift toggles off as soon as the user interacts, back on after pause */
+  let idleActive = false;
+  let idleTimer = null;
+  function bumpIdle(off){
+    idleActive = false;
+    clearTimeout(idleTimer);
+    if (!off && !reduce){
+      idleTimer = setTimeout(()=>{ idleActive = true; }, 4200);
+    }
+  }
+
+  /* ---- input: drag ---- */
+  let startX = 0, startAngle = 0, lastX = 0, lastT = 0;
+  function down(x){
+    dragging = true; idleActive = false;
+    stage.classList.add("dragging");
+    startX = lastX = x; startAngle = angle; lastT = performance.now();
+    velocity = 0;
+    bumpIdle(true);
+    hideHint();
+  }
+  function move(x){
+    if (!dragging) return;
+    const dx = x - startX;
+    angle = startAngle + dx * 0.28;     // drag sensitivity
+    const now = performance.now();
+    const dt = now - lastT || 16;
+    velocity = (x - lastX) * 0.28 * (16 / dt);
+    lastX = x; lastT = now;
+  }
+  function up(){
+    if (!dragging) return;
+    dragging = false;
+    stage.classList.remove("dragging");
+    // clamp flick velocity
+    velocity = Math.max(-6, Math.min(6, velocity));
+    target = -nearestIndex(angle) * STEP;
+    bumpIdle(false);
+  }
+
+  stage.addEventListener("mousedown", e => { e.preventDefault(); down(e.clientX); });
+  window.addEventListener("mousemove", e => move(e.clientX));
+  window.addEventListener("mouseup", up);
+
+  stage.addEventListener("touchstart", e => down(e.touches[0].clientX), {passive:true});
+  stage.addEventListener("touchmove",  e => move(e.touches[0].clientX), {passive:true});
+  stage.addEventListener("touchend", up);
+
+  /* ---- input: wheel / scroll to spin ---- */
+  let wheelLock = false;
+  stage.addEventListener("wheel", e => {
+    e.preventDefault();
+    bumpIdle(true);
+    hideHint();
+    const dir = (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY);
+    if (reduce){
+      if (!wheelLock){
+        wheelLock = true;
+        goTo(nearestIndex(angle) + (dir > 0 ? 1 : -1));
+        setTimeout(()=>{ wheelLock = false; }, 260);
+      }
+      return;
+    }
+    velocity += -dir * 0.012;
+    velocity = Math.max(-6, Math.min(6, velocity));
+    bumpIdle(false);
+  }, {passive:false});
+
+  /* ---- buttons ---- */
+  document.getElementById("next").addEventListener("click", ()=>{ goTo(nearestIndex(angle)+1); bumpIdle(false); });
+  document.getElementById("prev").addEventListener("click", ()=>{ goTo(nearestIndex(angle)-1); bumpIdle(false); });
+
+  /* ---- keyboard ---- */
+  stage.tabIndex = 0;
+  window.addEventListener("keydown", e => {
+    if (e.key === "ArrowRight"){ goTo(nearestIndex(angle)+1); bumpIdle(false); hideHint(); }
+    else if (e.key === "ArrowLeft"){ goTo(nearestIndex(angle)-1); bumpIdle(false); hideHint(); }
+  });
+
+  /* ---- pause front video when tab hidden (saves decode) ---- */
+  document.addEventListener("visibilitychange", ()=>{
+    if (document.hidden){
+      panels.forEach(p => { if (p.data.type==="video" && !p.media.paused) p.media.pause(); });
+    } else {
+      applyFront();
+    }
+  });
+
+  /* ---- boot ---- */
+  function boot(){
+    placePanels();
+    if (reduce){
+      // static final state: face index 0, no loop, posters only
+      angle = 0; setRing(0); applyFront(); hint.style.display="none";
+      return;
+    }
+    angle = 0; setRing(0); applyFront();
+    bumpIdle(false);
+    requestAnimationFrame(tick);
+  }
+  // wait a frame for fonts/layout so radius is correct
+  requestAnimationFrame(boot);
+
+})();
+</script>
+</body>
+</html>

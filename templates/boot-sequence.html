@@ -1,0 +1,789 @@
+<!-- TEMPLATE: PHOSPHOR-OS Boot Sequence | ARCHETYPE: BOOT | REF: retro OS/BIOS boot, CRT loaders | WHEN TO USE: portfolio/gallery that wants a nostalgic-tech animated reveal where each work powers on like a CRT | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PHOSPHOR-OS // Boot Sequence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   PHOSPHOR-OS  -  animated CRT/BIOS boot loader
+   Near-black + phosphor green. Power-on flash is transform/opacity only.
+   ============================================================ */
+:root{
+  --bg:#04070a;
+  --panel:#060c0a;
+  --green:#41ff8e;
+  --green-dim:#1f7d4d;
+  --green-faint:#0c3a25;
+  --amber:#ffcf6b;
+  --scan:rgba(0,0,0,.34);
+  --glow:0 0 1px var(--green), 0 0 6px rgba(65,255,142,.55), 0 0 18px rgba(65,255,142,.25);
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+  --pixel:'VT323',var(--mono);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--green)}
+body{
+  font-family:var(--mono);
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+  min-height:100vh;
+}
+a{color:inherit}
+img,video{display:block;max-width:100%}
+
+/* ---------- CRT shell wraps everything ---------- */
+#crt{
+  position:relative;
+  min-height:100vh;
+  background:
+    radial-gradient(120% 130% at 50% 50%, #071210 0%, #050a0a 55%, #020403 100%);
+  overflow:hidden;
+}
+/* screen curvature vignette + glass edge */
+#crt::before{
+  content:"";position:fixed;inset:0;z-index:60;pointer-events:none;
+  background:
+    radial-gradient(125% 120% at 50% 50%, transparent 58%, rgba(0,0,0,.55) 90%, rgba(0,0,0,.92) 100%);
+  box-shadow: inset 0 0 120px 30px rgba(0,0,0,.8);
+}
+/* fine scanlines */
+#crt::after{
+  content:"";position:fixed;inset:0;z-index:61;pointer-events:none;mix-blend-mode:multiply;
+  background:repeating-linear-gradient(to bottom,
+     var(--scan) 0, var(--scan) 1px, transparent 1px, transparent 3px);
+  opacity:.7;
+}
+/* rolling refresh bar + faint flicker */
+#flicker{
+  position:fixed;inset:0;z-index:62;pointer-events:none;
+  background:linear-gradient(rgba(65,255,142,.04), rgba(65,255,142,0) 18%);
+  background-size:100% 220px;
+  animation:roll 7s linear infinite;
+  opacity:.6;
+}
+@keyframes roll{from{background-position:0 -220px}to{background-position:0 100vh}}
+
+/* ============================================================
+   BIOS BOOT OVERLAY
+   ============================================================ */
+#boot{
+  position:fixed;inset:0;z-index:50;
+  background:#03060a;
+  padding:clamp(18px,5vw,64px);
+  font-family:var(--mono);
+  font-size:clamp(11px,2.4vw,15px);
+  line-height:1.65;
+  color:var(--green);
+  display:block;
+  overflow:hidden;
+}
+#boot.gone{display:none}
+.boot-head{
+  display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  border-bottom:1px solid var(--green-faint);
+  padding-bottom:8px;margin-bottom:14px;
+  text-shadow:var(--glow);
+  letter-spacing:.04em;
+}
+.boot-head b{font-weight:600}
+.boot-head .v{color:var(--green-dim)}
+#bootlog{white-space:pre-wrap;word-break:break-word;text-shadow:0 0 4px rgba(65,255,142,.4)}
+#bootlog .ok{color:var(--green)}
+#bootlog .dim{color:var(--green-dim)}
+#bootlog .warn{color:var(--amber)}
+.cursor{
+  display:inline-block;width:.6em;height:1.05em;background:var(--green);
+  margin-left:2px;vertical-align:-2px;box-shadow:var(--glow);
+  animation:blink 1s steps(1) infinite;
+}
+@keyframes blink{50%{opacity:0}}
+
+/* BIOS progress bar */
+.boot-bar{
+  margin-top:18px;max-width:560px;
+}
+.boot-bar .lbl{color:var(--green-dim);margin-bottom:6px;font-size:.95em}
+.bar-track{
+  border:1px solid var(--green-dim);height:18px;position:relative;
+  background:repeating-linear-gradient(45deg,#06120c 0 6px,#081a10 6px 12px);
+  box-shadow:inset 0 0 8px rgba(0,0,0,.6);
+}
+.bar-fill{
+  position:absolute;inset:1px auto 1px 1px;width:0%;
+  background:linear-gradient(var(--green),var(--green-dim));
+  box-shadow:0 0 8px rgba(65,255,142,.7);
+  transform-origin:left center;
+}
+.bar-pct{margin-top:6px;color:var(--green);text-shadow:var(--glow)}
+
+/* skip hint */
+.skip-hint{
+  position:absolute;left:clamp(18px,5vw,64px);bottom:clamp(16px,4vw,40px);
+  color:var(--green-dim);font-size:.85em;letter-spacing:.05em;
+}
+.skip-hint kbd{
+  border:1px solid var(--green-dim);padding:1px 6px;border-radius:3px;color:var(--green);
+}
+
+/* ============================================================
+   POWER-ON FLASH  (GPU-cheap: scaleY + opacity only)
+   ============================================================ */
+#flash{
+  position:fixed;left:0;right:0;top:50%;height:60vh;z-index:55;pointer-events:none;
+  transform:translateY(-50%) scaleY(0);
+  background:
+    radial-gradient(60% 50% at 50% 50%, rgba(220,255,235,.95), rgba(120,255,190,.5) 40%, transparent 75%);
+  opacity:0;
+  will-change:transform,opacity;
+}
+#flash.fire{animation:powerOn .62s cubic-bezier(.2,.85,.2,1) forwards}
+@keyframes powerOn{
+  0%  {transform:translateY(-50%) scaleY(.002);opacity:1}
+  22% {transform:translateY(-50%) scaleY(.01); opacity:1}   /* bright thin line */
+  55% {transform:translateY(-50%) scaleY(1.05);opacity:.95} /* expand */
+  100%{transform:translateY(-50%) scaleY(1.6); opacity:0}   /* bloom out */
+}
+
+/* ============================================================
+   DESKTOP / CONTENT (revealed after boot)
+   ============================================================ */
+#os{
+  position:relative;z-index:10;
+  opacity:0;transition:opacity .5s ease;
+  padding:clamp(16px,3vw,40px) clamp(14px,4vw,56px) 80px;
+  max-width:1200px;margin:0 auto;
+}
+#os.lit{opacity:1}
+
+/* status / menu bar */
+.menubar{
+  position:sticky;top:0;z-index:20;
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:10px 14px;margin:0 0 22px;
+  background:linear-gradient(#071711,#04100b);
+  border:1px solid var(--green-faint);
+  text-shadow:var(--glow);
+  font-size:clamp(11px,2.3vw,13px);letter-spacing:.06em;
+}
+.menubar .logo{font-family:var(--pixel);font-size:1.55em;line-height:1;color:var(--green);letter-spacing:.02em}
+.menubar .sep{flex:1}
+.menubar .stat{color:var(--green-dim)}
+.menubar .stat b{color:var(--green)}
+.menubar .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:var(--glow);animation:blink 1.6s steps(1) infinite;margin-right:5px;vertical-align:1px}
+
+.os-intro{
+  margin:0 0 26px;max-width:62ch;
+  color:var(--green-dim);font-size:clamp(12px,2.6vw,15px);line-height:1.7;
+}
+.os-intro .hl{color:var(--green);text-shadow:0 0 4px rgba(65,255,142,.4)}
+
+/* module list (each work) */
+.modules{display:grid;gap:clamp(20px,3vw,34px)}
+
+.module{
+  position:relative;
+  border:1px solid var(--green-faint);
+  background:linear-gradient(180deg,#050f0b,#04090a);
+  box-shadow:inset 0 0 0 1px rgba(65,255,142,.04), 0 0 0 0 rgba(0,0,0,0);
+  opacity:0;transform:translateY(14px);
+  transition:opacity .5s ease, transform .5s ease, box-shadow .35s ease, border-color .35s ease;
+}
+.module.shown{opacity:1;transform:none}
+.module:focus-within{border-color:var(--green-dim)}
+.module:hover{box-shadow:inset 0 0 0 1px rgba(65,255,142,.1), 0 0 24px rgba(65,255,142,.12)}
+
+.mod-bar{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 12px;border-bottom:1px solid var(--green-faint);
+  font-size:clamp(10.5px,2.3vw,12.5px);letter-spacing:.06em;color:var(--green-dim);
+}
+.mod-bar .id{color:var(--green);text-shadow:var(--glow);font-weight:600}
+.mod-bar .tag{
+  margin-left:auto;border:1px solid var(--green-faint);padding:1px 8px;border-radius:2px;
+  color:var(--green-dim);font-size:.92em;
+}
+.mod-bar .led{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:var(--glow)}
+
+/* media stage  -  letterbox, never crop */
+.stage{
+  position:relative;width:100%;
+  aspect-ratio:16/9;
+  background:#02060a;
+  display:grid;place-items:center;
+  overflow:hidden;
+}
+.stage::after{ /* per-cell scanline so media also reads as CRT */
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:3;mix-blend-mode:multiply;
+  background:repeating-linear-gradient(to bottom, rgba(0,0,0,.28) 0 1px, transparent 1px 3px);
+  opacity:.55;
+}
+.stage img, .stage video{
+  width:100%;height:100%;
+  object-fit:contain;            /* letterbox: no cover-crop of landscape into anything */
+  filter:saturate(1.05) contrast(1.03);
+}
+/* power-on micro flash per module when it scrolls in */
+.stage .onflash{
+  position:absolute;left:0;right:0;top:50%;height:100%;z-index:4;pointer-events:none;
+  transform:translateY(-50%) scaleY(0);opacity:0;
+  background:radial-gradient(60% 50% at 50% 50%, rgba(225,255,238,.9), rgba(120,255,190,.45) 45%, transparent 78%);
+}
+.module.shown .stage .onflash{animation:powerOn .55s cubic-bezier(.2,.85,.2,1) forwards}
+
+/* video poster/controls */
+.stage video{background:#02060a}
+.vid-wrap{position:relative;width:100%;height:100%;display:grid;place-items:center}
+.play-btn{
+  position:absolute;z-index:5;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:62px;height:62px;border-radius:50%;
+  border:1px solid var(--green);background:rgba(6,18,12,.7);
+  color:var(--green);cursor:pointer;display:grid;place-items:center;
+  box-shadow:var(--glow);transition:transform .2s ease, background .2s ease;
+  backdrop-filter:blur(2px);
+}
+.play-btn:hover{transform:translate(-50%,-50%) scale(1.08);background:rgba(10,28,18,.85)}
+.play-btn svg{width:22px;height:22px;margin-left:3px}
+.play-btn.hidden{display:none}
+.audtag{
+  position:absolute;z-index:5;right:8px;top:8px;
+  font-size:10px;letter-spacing:.08em;color:var(--green);
+  border:1px solid var(--green-dim);padding:1px 6px;border-radius:2px;background:rgba(2,8,6,.7);
+}
+
+/* audio module (waveform) */
+.wave-stage{aspect-ratio:auto;min-height:150px;padding:18px;display:grid;grid-template-rows:auto 1fr auto;gap:10px}
+.wave-img{width:100%;height:90px;object-fit:contain;filter:hue-rotate(60deg) saturate(2) brightness(1.4) drop-shadow(0 0 5px rgba(65,255,142,.5))}
+.wave-stage .meta{color:var(--green-dim);font-size:12px}
+.wave-ctrl{display:flex;align-items:center;gap:10px}
+.wave-ctrl button{
+  border:1px solid var(--green);background:rgba(6,18,12,.6);color:var(--green);
+  font-family:var(--mono);font-size:12px;padding:5px 12px;cursor:pointer;letter-spacing:.05em;
+  box-shadow:0 0 6px rgba(65,255,142,.2);
+}
+.wave-ctrl button:hover{background:rgba(10,28,18,.85)}
+
+/* meta footer per module */
+.mod-meta{
+  display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  padding:12px 14px;border-top:1px solid var(--green-faint);
+  font-size:clamp(11px,2.4vw,13px);
+}
+.mod-meta h3{margin:0;font-size:1.04em;color:var(--green);text-shadow:0 0 4px rgba(65,255,142,.4);font-weight:600;letter-spacing:.03em}
+.mod-meta p{margin:4px 0 0;color:var(--green-dim);max-width:48ch;line-height:1.55}
+.mod-meta .right{text-align:right;color:var(--green-dim);white-space:nowrap}
+.mod-meta .right b{color:var(--green);display:block;font-weight:600}
+
+/* ---------- INTER-MODULE LOADING BEAT ---------- */
+.loadbeat{
+  display:grid;gap:8px;justify-items:center;text-align:center;
+  padding:6px 0 2px;color:var(--green-dim);font-size:clamp(10.5px,2.2vw,12.5px);
+  letter-spacing:.06em;
+  opacity:0;transition:opacity .4s ease;
+}
+.loadbeat.shown{opacity:1}
+.loadbeat .lb-track{
+  width:min(320px,70vw);height:8px;border:1px solid var(--green-dim);
+  background:repeating-linear-gradient(45deg,#06120c 0 5px,#081a10 5px 10px);position:relative;overflow:hidden;
+}
+.loadbeat .lb-fill{
+  position:absolute;inset:1px auto 1px 1px;width:0;
+  background:linear-gradient(var(--green),var(--green-dim));box-shadow:0 0 6px rgba(65,255,142,.6);
+}
+.loadbeat.run .lb-fill{animation:lbLoad 1.05s ease-out forwards}
+@keyframes lbLoad{to{width:calc(100% - 2px)}}
+.loadbeat .lb-label .blink{animation:blink 1s steps(1) infinite}
+
+/* footer */
+.os-foot{
+  margin-top:46px;padding-top:16px;border-top:1px solid var(--green-faint);
+  display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  color:var(--green-dim);font-size:clamp(10.5px,2.2vw,12.5px);letter-spacing:.05em;
+}
+.os-foot .blink{color:var(--green);animation:blink 1.2s steps(1) infinite}
+
+:focus-visible{outline:2px solid var(--green);outline-offset:3px}
+
+/* ============================================================
+   MOBILE  -  same sequence, scaled; stack/letterbox
+   ============================================================ */
+@media (max-width:640px){
+  #os{padding:12px 12px 64px}
+  .menubar{gap:8px;padding:8px 10px}
+  .menubar .stat.hide-sm{display:none}
+  .mod-meta{flex-direction:column}
+  .mod-meta .right{text-align:left}
+  /* portrait-safe: keep contain so landscape art letterboxes, no crop */
+  .stage{aspect-ratio:16/10}
+}
+@media (max-width:380px){
+  .stage{aspect-ratio:4/3}
+}
+
+/* ============================================================
+   REDUCED MOTION  -  skip boot, show works lit, no flashes/rAF
+   ============================================================ */
+@media (prefers-reduced-motion:reduce){
+  #boot{display:none!important}
+  #flicker,#flash{display:none!important}
+  #os{opacity:1!important}
+  .module{opacity:1!important;transform:none!important;transition:none!important}
+  .loadbeat{opacity:1!important;transition:none!important}
+  .stage .onflash,#flash.fire{display:none!important;animation:none!important}
+  /* loading bars: show filled, never animate */
+  .loadbeat .lb-fill,.loadbeat.run .lb-fill,.bar-fill{animation:none!important;width:calc(100% - 2px)!important}
+  .loadbeat .lb-label .blink{animation:none!important}
+  .menubar .dot,.cursor,.os-foot .blink{animation:none!important}
+  #crt::after{opacity:.4}
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     DATA  -  edit this array to swap works. Order = boot order.
+     kind: image | video | audio | mesh-poster
+     ============================================================ -->
+<script>
+const DATA = [
+  {
+    id:"0x01", kind:"image",
+    src:"../assets/flux-car-4k.png",
+    title:"NOCTURNE / CL-300",
+    sub:"FLUX.1 still  -  matte-black coupe, wet neon arterial",
+    spec:"2048x1152 - PNG", tag:"IMG.RENDER"
+  },
+  {
+    id:"0x02", kind:"video",
+    src:"../assets/flux-car-i2v.mp4",
+    poster:"../assets/gen/poster-flux-car-i2v.png",
+    title:"NOCTURNE / IN-MOTION",
+    sub:"image-to-video drive cycle, looped",
+    spec:"1080p - MP4 - silent", tag:"VID.LOOP"
+  },
+  {
+    id:"0x03", kind:"video",
+    src:"../assets/kling-video.mp4",
+    poster:"../assets/gen/poster-kling-video.png",
+    title:"KLING / SEQUENCE",
+    sub:"long-form generative motion study",
+    spec:"1080p - MP4 - silent", tag:"VID.LOOP"
+  },
+  {
+    id:"0x04", kind:"image",
+    src:"../assets/flux-clinic-4k.png",
+    title:"ATELIER / MINT-WOOD",
+    sub:"FLUX.1 interior  -  dental clinic, warm + clinical",
+    spec:"2048x1152 - PNG", tag:"IMG.RENDER"
+  },
+  {
+    id:"0x05", kind:"video",
+    src:"../assets/veo-video.mp4",
+    poster:"../assets/gen/poster-veo-video.png",
+    title:"VEO / FILM",
+    sub:"cinematic generative footage",
+    spec:"720p - MP4 - audio", tag:"VID.AV", audio:true
+  },
+  {
+    id:"0x06", kind:"video",
+    src:"../assets/heygen-avatar.mp4",
+    poster:"../assets/gen/poster-heygen.png",
+    title:"HEYGEN / PRESENTER",
+    sub:"synthetic avatar, lip-synced delivery",
+    spec:"MP4 - audio", tag:"VID.AV", audio:true
+  },
+  {
+    id:"0x07", kind:"image",
+    src:"../assets/sdxl.png",
+    title:"VULPES / PAINTERLY",
+    sub:"SDXL  -  autumn fox, hand-painted feel",
+    spec:"512x512 - PNG", tag:"IMG.RENDER"
+  },
+  {
+    id:"0x08", kind:"audio",
+    src:"../assets/elevenlabs-thai.mp3",
+    wave:"../assets/gen/wave-elevenlabs.png",
+    title:"ELEVENLABS / VOICE-TH",
+    sub:"Thai neural TTS sample",
+    spec:"MP3 - audio", tag:"AUD.TTS"
+  },
+  {
+    id:"0x09", kind:"audio",
+    src:"../assets/musicgen.wav",
+    wave:"../assets/gen/wave-musicgen.png",
+    title:"MUSICGEN / SCORE",
+    sub:"generative music bed",
+    spec:"WAV - audio", tag:"AUD.MUS"
+  },
+  {
+    id:"0x0A", kind:"image",
+    src:"../assets/meshy-refined-thumb.png",
+    title:"MESHY / 3D-REFINED",
+    sub:"text-to-3D mesh, refined topology (poster)",
+    spec:"GLB available - poster", tag:"MESH.3D"
+  }
+];
+
+const BIOS_NAME = "PHOSPHOR-OS";
+const BIOS_VER  = "v2.6.20";
+</script>
+
+<!-- ============================================================ -->
+<div id="crt">
+  <div id="flicker" aria-hidden="true"></div>
+  <div id="flash" aria-hidden="true"></div>
+
+  <!-- ---------- BIOS BOOT ---------- -->
+  <section id="boot" aria-label="System boot sequence">
+    <div class="boot-head">
+      <b id="bh-name">PHOSPHOR-OS BIOS</b>
+      <span class="v" id="bh-ver">v2.6.20  -  (c) PHOSPHOR SYSTEMS</span>
+    </div>
+    <div id="bootlog" aria-live="polite"></div>
+    <div class="boot-bar" id="bootbar" hidden>
+      <div class="lbl" id="bb-lbl">LOADING MODULE 0x01 ...</div>
+      <div class="bar-track"><div class="bar-fill" id="bb-fill"></div></div>
+      <div class="bar-pct" id="bb-pct">0%</div>
+    </div>
+    <div class="skip-hint">PRESS <kbd>SPACE</kbd> / <kbd>ESC</kbd> / TAP TO SKIP BOOT</div>
+  </section>
+
+  <!-- ---------- DESKTOP / WORKS ---------- -->
+  <main id="os" aria-label="Loaded works">
+    <div class="menubar">
+      <span class="logo">PHOSPHOR-OS</span>
+      <span class="stat hide-sm"><span class="dot"></span>SYSTEM READY</span>
+      <span class="sep"></span>
+      <span class="stat hide-sm">MODULES <b id="m-count">0</b></span>
+      <span class="stat">MEM <b>640K OK</b></span>
+      <span class="stat" id="m-clock">--:--:--</span>
+    </div>
+
+    <p class="os-intro">
+      Boot complete. <span class="hl">All modules mounted.</span> Each work below powered on
+      from cold, frame by frame, like a CRT warming up. Scroll to wake the next module - video
+      and audio play only on demand to keep the bus cool.
+    </p>
+
+    <div class="modules" id="modules"></div>
+
+    <div class="os-foot">
+      <span>PHOSPHOR-OS // <span class="blink">_</span> end of device map</span>
+      <span>RENDER OK - NO ERRORS - HALT</span>
+    </div>
+  </main>
+</div>
+
+<script>
+/* ============================================================
+   BUILD MODULES from DATA
+   ============================================================ */
+const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const modulesEl = document.getElementById('modules');
+document.getElementById('bh-name').textContent = BIOS_NAME + " BIOS";
+document.getElementById('bh-ver').textContent  = BIOS_VER + "  -  (c) PHOSPHOR SYSTEMS";
+document.querySelector('.menubar .logo').textContent = BIOS_NAME;
+document.getElementById('m-count').textContent = DATA.length;
+
+const PLAY_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+
+function mediaMarkup(item){
+  if(item.kind === 'image' || item.kind === 'mesh-poster'){
+    return `<img src="${item.src}" alt="${item.title} - ${item.sub}" loading="lazy" decoding="async">`;
+  }
+  if(item.kind === 'video'){
+    const audtag = item.audio ? '<span class="audtag">AUDIO</span>' : '';
+    return `<div class="vid-wrap">
+        <video preload="none" playsinline ${item.audio?'':'muted'} loop poster="${item.poster}" aria-label="${item.title} - ${item.sub}"></video>
+        <button class="play-btn" aria-label="Play ${item.title}">${PLAY_SVG}</button>
+        ${audtag}
+      </div>`;
+  }
+  return ''; // audio handled separately
+}
+
+DATA.forEach((item, i) => {
+  // loading beat BEFORE each module except first
+  if(i > 0){
+    const beat = document.createElement('div');
+    beat.className = 'loadbeat';
+    beat.dataset.beat = i;
+    beat.innerHTML = `
+      <div class="lb-label">LOADING NEXT MODULE <span class="blink">${item.id}</span> ...</div>
+      <div class="lb-track"><div class="lb-fill"></div></div>`;
+    modulesEl.appendChild(beat);
+  }
+
+  const mod = document.createElement('article');
+  mod.className = 'module';
+  mod.dataset.idx = i;
+
+  let stageInner;
+  if(item.kind === 'audio'){
+    stageInner = `<div class="stage wave-stage">
+        <div class="meta">SIGNAL: ${item.spec}</div>
+        <img class="wave-img" src="${item.wave}" alt="Waveform - ${item.title}" loading="lazy" decoding="async">
+        <div class="wave-ctrl">
+          <button data-aud aria-label="Play ${item.title}">&#9654; PLAY</button>
+          <span class="meta" data-audstate>STOPPED</span>
+        </div>
+        <span class="onflash" aria-hidden="true"></span>
+      </div>
+      <audio preload="none" src="${item.src}"></audio>`;
+  } else {
+    stageInner = `<div class="stage">${mediaMarkup(item)}<span class="onflash" aria-hidden="true"></span></div>`;
+  }
+
+  mod.innerHTML = `
+    <div class="mod-bar">
+      <span class="led" aria-hidden="true"></span>
+      <span class="id">${item.id}</span>
+      <span>${item.kind.toUpperCase()}</span>
+      <span class="tag">${item.tag}</span>
+    </div>
+    ${stageInner}
+    <div class="mod-meta">
+      <div>
+        <h3>${item.title}</h3>
+        <p>${item.sub}</p>
+      </div>
+      <div class="right"><b>${item.spec.split(' - ')[0]}</b>${item.spec.split(' - ').slice(1).join(' - ')}</div>
+    </div>`;
+  modulesEl.appendChild(mod);
+});
+
+/* ============================================================
+   VIDEO  -  single-stream policy: only the clicked clip plays.
+   ============================================================ */
+let activeVideo = null;
+modulesEl.querySelectorAll('.module').forEach(mod=>{
+  const wrap = mod.querySelector('.vid-wrap');
+  if(!wrap) return;
+  const video = wrap.querySelector('video');
+  const btn   = wrap.querySelector('.play-btn');
+  btn.addEventListener('click', ()=>{
+    if(activeVideo && activeVideo !== video){
+      activeVideo.pause();
+      const ob = activeVideo.closest('.vid-wrap').querySelector('.play-btn');
+      if(ob) ob.classList.remove('hidden');
+    }
+    if(!video.src){ video.src = video.getAttribute('data-src') || DATA.find((d,i)=>mod.dataset.idx==i)?.src; }
+    if(!video.src){ video.src = DATA[+mod.dataset.idx].src; }
+    video.play().then(()=>{ btn.classList.add('hidden'); activeVideo = video; }).catch(()=>{});
+  });
+  video.addEventListener('pause', ()=> btn.classList.remove('hidden'));
+  video.addEventListener('click', ()=>{ video.pause(); });
+});
+/* pause off-screen videos to free decode */
+if('IntersectionObserver' in window){
+  const vio = new IntersectionObserver((ents)=>{
+    ents.forEach(e=>{
+      const v = e.target;
+      if(!e.isIntersecting && !v.paused){
+        v.pause();
+        const b = v.closest('.vid-wrap')?.querySelector('.play-btn');
+        if(b) b.classList.remove('hidden');
+      }
+    });
+  },{threshold:.15});
+  modulesEl.querySelectorAll('video').forEach(v=>vio.observe(v));
+}
+
+/* ============================================================
+   AUDIO  -  single-stream policy too.
+   ============================================================ */
+let activeAudio = null;
+modulesEl.querySelectorAll('.module').forEach(mod=>{
+  const audio = mod.querySelector('audio');
+  if(!audio) return;
+  const btn   = mod.querySelector('[data-aud]');
+  const state = mod.querySelector('[data-audstate]');
+  btn.addEventListener('click', ()=>{
+    if(audio.paused){
+      if(activeAudio && activeAudio !== audio){
+        activeAudio.pause();
+        const oc = activeAudio.closest('.module');
+        oc.querySelector('[data-aud]').innerHTML = '&#9654; PLAY';
+        oc.querySelector('[data-audstate]').textContent = 'STOPPED';
+      }
+      audio.play().then(()=>{ btn.innerHTML='&#10073;&#10073; PAUSE'; state.textContent='PLAYING'; activeAudio=audio; }).catch(()=>{});
+    } else {
+      audio.pause(); btn.innerHTML='&#9654; PLAY'; state.textContent='PAUSED';
+    }
+  });
+  audio.addEventListener('ended', ()=>{ btn.innerHTML='&#9654; PLAY'; state.textContent='STOPPED'; });
+});
+
+/* ============================================================
+   REVEAL on scroll: each module fires its CRT micro power-on.
+   Loading beats run their bar when reached.
+   ============================================================ */
+function revealAll(){
+  modulesEl.querySelectorAll('.module').forEach(m=>m.classList.add('shown'));
+  modulesEl.querySelectorAll('.loadbeat').forEach(b=>{b.classList.add('shown');b.classList.add('run');});
+}
+if(reduced){
+  revealAll();
+} else if('IntersectionObserver' in window){
+  const rio = new IntersectionObserver((ents)=>{
+    ents.forEach(e=>{
+      if(e.isIntersecting){
+        if(e.target.classList.contains('loadbeat')){
+          e.target.classList.add('shown');
+          e.target.classList.add('run');
+        } else {
+          e.target.classList.add('shown');
+        }
+        rio.unobserve(e.target);
+      }
+    });
+  },{threshold:.2, rootMargin:'0px 0px -8% 0px'});
+  modulesEl.querySelectorAll('.module, .loadbeat').forEach(el=>rio.observe(el));
+} else {
+  revealAll();
+}
+
+/* clock */
+function tick(){
+  const d=new Date();
+  const p=n=>String(n).padStart(2,'0');
+  const el=document.getElementById('m-clock');
+  if(el) el.textContent=`${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+tick(); setInterval(tick,1000);
+
+/* ============================================================
+   BIOS BOOT TYPEWRITER  +  asset-load progress bar  +  flash
+   ============================================================ */
+const bootEl   = document.getElementById('boot');
+const logEl    = document.getElementById('bootlog');
+const osEl      = document.getElementById('os');
+const flashEl  = document.getElementById('flash');
+const barWrap  = document.getElementById('bootbar');
+const barFill  = document.getElementById('bb-fill');
+const barPct   = document.getElementById('bb-pct');
+const barLbl   = document.getElementById('bb-lbl');
+
+const first = DATA[0];
+const BOOT_LINES = [
+  {t:`${BIOS_NAME} BIOS ${BIOS_VER}  POST ...`, c:'dim', d:55},
+  {t:`CPU ........ PHOSPHOR P1 @ 4.77MHz   [<span class="ok">OK</span>]`, c:'', d:45},
+  {t:`MEMORY ..... 640K BASE / 384K EXT     [<span class="ok">OK</span>]`, c:'', d:45},
+  {t:`VIDEO ...... CRT PHOSPHOR-GREEN 80x25 [<span class="ok">OK</span>]`, c:'', d:45},
+  {t:`SCANLINE GEN ............ ENABLED     [<span class="ok">OK</span>]`, c:'', d:40},
+  {t:`MOUNTING /dev/works  (${DATA.length} modules) ...`, c:'dim', d:55},
+  {t:`DECODING ASSET ${first.id}  "${first.title}"`, c:'', d:70},
+];
+
+let li = 0, ci = 0, cursorEl=null;
+function appendCursor(){
+  if(cursorEl) cursorEl.remove();
+  cursorEl = document.createElement('span');
+  cursorEl.className='cursor';
+  logEl.appendChild(cursorEl);
+}
+function typeLine(){
+  if(li >= BOOT_LINES.length){ appendCursor(); startBar(); return; }
+  const line = BOOT_LINES[li];
+  if(ci === 0){
+    const div = document.createElement('div');
+    div.className = line.c || 'ok';
+    div.dataset.live = '1';
+    logEl.appendChild(div);
+  }
+  const cur = logEl.querySelector('[data-live="1"]');
+  // type the raw text but allow inline tags to land whole at the end
+  const plain = line.t.replace(/<[^>]+>/g,'');
+  // type ~3 chars per frame so a full line lands fast (retro POST feel, not slow)
+  if(ci < plain.length){
+    ci = Math.min(plain.length, ci + 3);
+    cur.textContent = plain.slice(0, ci);
+    appendCursor();
+    setTimeout(typeLine, 6);
+  } else {
+    cur.innerHTML = line.t;               // swap in styled tags
+    cur.removeAttribute('data-live');
+    li++; ci=0;
+    appendCursor();
+    setTimeout(typeLine, line.d);
+  }
+}
+
+/* progress bar = real first-asset preload */
+function startBar(){
+  barWrap.hidden = false;
+  barLbl.innerHTML = `LOADING MODULE ${first.id}  "${first.title}" ...`;
+  let pct = 0;
+  let realLoaded = false;
+
+  // kick a real preload of the first image (or poster)
+  const pre = new Image();
+  const preSrc = first.kind==='image' ? first.src
+              : (first.poster || first.src);
+  pre.onload = pre.onerror = ()=>{ realLoaded = true; };
+  pre.src = preSrc;
+  // hard cap: never let a heavy 4K asset stall the boot past ~1.6s
+  setTimeout(()=>{ realLoaded = true; }, 1600);
+
+  const iv = setInterval(()=>{
+    // ease toward 90, then wait for real load, then finish
+    const ceil = realLoaded ? 100 : 90;
+    const step = realLoaded ? 9 : Math.max(1.5, (ceil-pct)*0.16);
+    pct = Math.min(ceil, pct + step);
+    barFill.style.width = pct.toFixed(0)+'%';
+    barPct.textContent = pct.toFixed(0)+'%';
+    if(pct >= 100){
+      clearInterval(iv);
+      const done = document.createElement('div');
+      done.className='ok';
+      done.innerHTML = `ASSET ${first.id} READY  [<span class="ok">DONE</span>]  -  POWERING DISPLAY`;
+      if(cursorEl) cursorEl.remove();
+      logEl.appendChild(done);
+      setTimeout(powerOn, 360);
+    }
+  }, 60);
+}
+
+/* CRT power-on: bright line expand + glow, then reveal works */
+function powerOn(){
+  flashEl.classList.add('fire');
+  // start fading boot just as the flash blooms
+  setTimeout(()=>{ bootEl.style.transition='opacity .35s ease'; bootEl.style.opacity='0'; }, 120);
+  setTimeout(()=>{
+    bootEl.classList.add('gone');
+    osEl.classList.add('lit');
+    flashEl.classList.remove('fire');
+    // first module appears already powered
+    const m0 = modulesEl.querySelector('.module');
+    if(m0) m0.classList.add('shown');
+  }, 600);
+}
+
+/* skip boot */
+function skipBoot(){
+  if(bootEl.classList.contains('gone')) return;
+  bootEl.classList.add('gone');
+  osEl.classList.add('lit');
+  flashEl.classList.remove('fire');
+  revealAll();
+}
+window.addEventListener('keydown', (e)=>{
+  if(e.code==='Space' || e.code==='Escape'){ e.preventDefault(); skipBoot(); }
+});
+bootEl.addEventListener('click', skipBoot);
+
+/* run boot (or skip entirely under reduced motion) */
+if(reduced){
+  bootEl.classList.add('gone');
+  osEl.classList.add('lit');
+} else {
+  appendCursor();
+  setTimeout(typeLine, 180);
+}
+</script>
+</body>
+</html>

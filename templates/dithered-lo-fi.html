@@ -1,0 +1,832 @@
+<!-- TEMPLATE: Dithered Lo-Fi | ARCHETYPE: DITHER | REF: Niccolo Fanton real-time dithering (Codrops 2025), Game Boy / e-ink | WHEN TO USE: portfolio / gallery / studio index where you want every image+video reduced to a live 1-bit ordered-dither grid that reacts to the mouse | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>HALFTONE INDEX // dithered lo-fi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700;12..96,800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DATA-DRIVEN DITHER GALLERY
+   Two colors only: paper + ink. The dither IS the color system.
+   ============================================================ */
+
+:root{
+  --paper:#e8e4d8;
+  --ink:#1a1a1a;
+  --paper-deep:#dcd7c7;
+  --hair:rgba(26,26,26,.16);
+  --hair-strong:rgba(26,26,26,.34);
+  --grid-gap:clamp(10px,1.6vw,22px);
+  --edge:clamp(16px,4vw,52px);
+  --speed:.5s cubic-bezier(.2,.7,.2,1);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"Bricolage Grotesque",system-ui,sans-serif;
+  line-height:1.32;
+  overflow-x:hidden;
+  /* faint paper tooth, drawn with a tiny repeating dither so the bg matches the medium */
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(26,26,26,.05) 1px, transparent 0);
+  background-size:4px 4px;
+}
+
+/* a thin film-grain / scanline veil pinned over everything, dither-flavoured */
+body::after{
+  content:"";position:fixed;inset:0;z-index:9000;pointer-events:none;
+  background:repeating-linear-gradient(0deg,rgba(26,26,26,.05) 0 1px,transparent 1px 3px);
+  mix-blend-mode:multiply;opacity:.5;
+}
+
+::selection{background:var(--ink);color:var(--paper)}
+
+a{color:inherit}
+
+/* ---------- focus ---------- */
+:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+a:focus-visible,button:focus-visible{outline-offset:4px}
+
+/* ============================================================
+   MASTHEAD
+   ============================================================ */
+header.mast{
+  padding:clamp(22px,4.4vw,46px) var(--edge) clamp(14px,2.4vw,26px);
+  border-bottom:2px solid var(--ink);
+  position:relative;
+}
+.mast-row{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;flex-wrap:wrap}
+.brand{
+  font-weight:800;letter-spacing:-.03em;line-height:.86;
+  font-size:clamp(2.7rem,11vw,8.4rem);text-transform:uppercase;
+}
+.brand .small{display:block;font-size:.18em;letter-spacing:.42em;font-weight:700;margin-bottom:.5em;padding-left:.18em}
+.mast-meta{
+  font-family:"Space Mono",monospace;font-size:clamp(.62rem,1.5vw,.78rem);
+  text-transform:uppercase;letter-spacing:.12em;text-align:right;max-width:30ch;
+}
+.mast-meta b{display:block;font-weight:700}
+.mast-meta span{opacity:.62}
+.ticker{
+  margin-top:clamp(14px,2.4vw,22px);
+  font-family:"Space Mono",monospace;font-size:clamp(.6rem,1.5vw,.74rem);
+  letter-spacing:.14em;text-transform:uppercase;
+  display:flex;gap:1.4em;flex-wrap:wrap;align-items:center;opacity:.78;
+}
+.dot{width:7px;height:7px;background:var(--ink);border-radius:50%;display:inline-block}
+.dot.hollow{background:transparent;box-shadow:inset 0 0 0 1.5px var(--ink)}
+
+/* small inline legend explaining the interaction, accessible text */
+.legend{
+  margin-top:clamp(14px,2.6vw,24px);
+  display:flex;gap:clamp(14px,3vw,34px);flex-wrap:wrap;
+  font-family:"Space Mono",monospace;font-size:.7rem;letter-spacing:.07em;text-transform:uppercase;
+}
+.legend b{font-weight:700}
+.legend i{font-style:normal;opacity:.6}
+
+/* ============================================================
+   GALLERY GRID
+   ============================================================ */
+main{padding:var(--edge);padding-top:clamp(20px,3vw,40px)}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(12,1fr);
+  gap:var(--grid-gap);
+  grid-auto-flow:dense;
+}
+
+/* each tile is a figure that owns its own canvas */
+.tile{
+  position:relative;
+  border:2px solid var(--ink);
+  background:var(--paper-deep);
+  overflow:hidden;
+  cursor:pointer;
+  min-height:0;
+}
+/* spans + aspect; set per-tile from JS by class */
+.tile[data-span="wide"]{grid-column:span 7}
+.tile[data-span="tall"]{grid-column:span 5}
+.tile[data-span="half"]{grid-column:span 6}
+.tile[data-span="third"]{grid-column:span 4}
+.tile[data-span="full"]{grid-column:span 12}
+
+.tile .stage{
+  position:relative;width:100%;height:100%;
+  /* aspect set inline by JS via padding box wrapper */
+}
+.tile canvas{
+  display:block;width:100%;height:100%;object-fit:cover;
+  image-rendering:pixelated;
+}
+.tile .src-media{position:absolute;inset:0;opacity:0;pointer-events:none}
+.tile img.src-media,.tile video.src-media{width:100%;height:100%;object-fit:cover}
+
+/* the corner brackets + label overlay, pure CSS, drawn in ink */
+.tile .frame{
+  position:absolute;inset:0;pointer-events:none;z-index:3;
+}
+.tile .frame::before,.tile .frame::after{
+  content:"";position:absolute;width:18px;height:18px;border:2px solid var(--ink);
+}
+.tile .frame::before{top:8px;left:8px;border-right:0;border-bottom:0}
+.tile .frame::after{bottom:8px;right:8px;border-left:0;border-top:0}
+
+.tile .plate{
+  position:absolute;left:0;bottom:0;z-index:4;
+  background:var(--ink);color:var(--paper);
+  font-family:"Space Mono",monospace;
+  font-size:clamp(.58rem,1.3vw,.72rem);letter-spacing:.08em;text-transform:uppercase;
+  padding:.46em .7em;display:flex;gap:.7em;align-items:baseline;
+  max-width:calc(100% - 16px);
+  transition:transform var(--speed),opacity var(--speed);
+}
+.tile .plate .idx{opacity:.55}
+.tile .plate .ttl{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .plate .typ{opacity:.55;font-style:italic;letter-spacing:.04em}
+
+/* top-right state badge */
+.tile .badge{
+  position:absolute;top:8px;right:8px;z-index:4;
+  font-family:"Space Mono",monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;
+  background:var(--paper);color:var(--ink);border:2px solid var(--ink);
+  padding:.22em .5em;font-weight:700;
+  transition:background var(--speed),color var(--speed);
+}
+.tile.locked .badge{background:var(--ink);color:var(--paper)}
+.tile.locked .badge::after{content:" / RES"}
+.tile:not(.locked) .badge::after{content:" / 1-BIT"}
+
+/* a hairline reveal sweep used on click-dissolve (decorative, motion-gated) */
+.tile .sweep{
+  position:absolute;inset:0;z-index:2;pointer-events:none;
+  background:linear-gradient(90deg,transparent 0,rgba(232,228,216,.0) 100%);
+}
+
+/* hover affordance: lift the ink border weight a touch */
+.tile:hover,.tile:focus-visible{box-shadow:6px 6px 0 var(--ink)}
+.tile.locked{box-shadow:6px 6px 0 var(--ink)}
+
+/* video-only play glyph hint */
+.tile .play{
+  position:absolute;top:8px;left:8px;z-index:4;
+  width:26px;height:26px;border:2px solid var(--ink);background:var(--paper);
+  display:none;place-items:center;
+}
+.tile[data-kind="video"] .play{display:grid}
+.tile .play::after{content:"";border-left:9px solid var(--ink);border-top:6px solid transparent;border-bottom:6px solid transparent;margin-left:2px}
+.tile[data-playing="1"] .play::after{
+  content:"";border:0;width:8px;height:8px;background:var(--ink);margin:0;
+}
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+footer{
+  border-top:2px solid var(--ink);
+  padding:clamp(26px,5vw,56px) var(--edge);
+  display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;align-items:flex-end;
+}
+footer .big{
+  font-weight:800;letter-spacing:-.03em;text-transform:uppercase;
+  font-size:clamp(1.5rem,5vw,3.2rem);line-height:.92;
+}
+footer .fmeta{
+  font-family:"Space Mono",monospace;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;
+  text-align:right;opacity:.72;max-width:34ch;
+}
+footer .fmeta a{text-decoration:none;border-bottom:1.5px solid var(--ink);font-weight:700}
+
+/* ============================================================
+   RESPONSIVE  (never cover-crop a landscape into a phone portrait;
+   tiles already letterbox via fixed aspect-ratio stages -> safe)
+   ============================================================ */
+@media (max-width:980px){
+  .grid{grid-template-columns:repeat(6,1fr)}
+  .tile[data-span="wide"],
+  .tile[data-span="tall"],
+  .tile[data-span="half"],
+  .tile[data-span="third"],
+  .tile[data-span="full"]{grid-column:span 6}
+}
+@media (max-width:640px){
+  :root{--grid-gap:14px}
+  .grid{grid-template-columns:1fr}
+  .tile{grid-column:span 1 !important}
+  .mast-row{align-items:flex-start;flex-direction:column}
+  .mast-meta{text-align:left}
+  .legend{font-size:.62rem;gap:14px}
+  /* keep brackets readable on small tiles */
+  .tile:hover,.tile:focus-visible,.tile.locked{box-shadow:4px 4px 0 var(--ink)}
+}
+
+/* ============================================================
+   REDUCED MOTION:  freeze the dither animation, show final state,
+   kill rAF threshold breathing + sweep transitions.
+   ============================================================ */
+@media (prefers-reduced-motion:reduce){
+  *{transition:none !important;animation:none !important}
+  body::after{display:none}
+}
+
+/* mobile pre-dither note (visually hidden helper for SR + tooltips) */
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style>
+</head>
+<body>
+
+<header class="mast">
+  <div class="mast-row">
+    <h1 class="brand"><span class="small">Studio Index No. 04</span>Halftone</h1>
+    <div class="mast-meta">
+      <b id="modeReadout">WEBGL // ORDERED DITHER 8&times;8</b>
+      <span>Every frame is reduced to two values, paper and ink, in real time. The grid you see is a live Bayer threshold, not a baked filter.</span>
+    </div>
+  </div>
+
+  <div class="ticker" aria-hidden="true">
+    <span class="dot"></span><span>1-BIT</span>
+    <span class="dot hollow"></span><span>BAYER 8&times;8</span>
+    <span class="dot"></span><span>PAPER #E8E4D8</span>
+    <span class="dot hollow"></span><span>INK #1A1A1A</span>
+    <span class="dot"></span><span id="fpsTag">--FPS</span>
+  </div>
+
+  <div class="legend">
+    <span><b>HOVER</b> <i>raises threshold, color bleeds through</i></span>
+    <span><b>CLICK</b> <i>dissolves dither to full resolution</i></span>
+    <span><b>VIDEO</b> <i>one plays at a time on focus</i></span>
+  </div>
+</header>
+
+<main>
+  <div class="grid" id="grid" aria-label="Dithered media gallery"></div>
+</main>
+
+<footer>
+  <div class="big">Anti-polish<br>on purpose</div>
+  <div class="fmeta">
+    A two-color rendering system. No gradients, no glass, no glow. Just a threshold matrix and a mouse.<br><br>
+    REF // Niccolo Fanton real-time dithering, Game Boy DMG, e-ink.<br>
+    SWAP // edit <a href="#">the DATA array</a> at the top of the script.
+  </div>
+</footer>
+
+<script>
+/* ============================================================
+   1. DATA  -- the only thing you edit to reskin the gallery.
+   Each entry:
+     id      : short slug
+     title   : plate label
+     type    : human-readable medium
+     kind    : "image" | "video"
+     src     : path to media
+     poster  : poster image (video only; used as WebGL source until play)
+     aspect  : "16:9" | "1:1"  -> drives the letterbox stage, NEVER cropped to phone
+     span    : "wide" | "tall" | "half" | "third" | "full"  (desktop grid weight)
+     pixel   : dither pixel size in source px (smaller = finer grid)
+   Assets live in ../assets/  relative to this file.
+   ============================================================ */
+const ASSET = "../assets/";
+const GEN   = ASSET + "gen/";
+
+const DATA = [
+  { id:"car",    title:"Nightdrive / wet neon",     type:"flux image 4k",     kind:"image",
+    src:ASSET+"flux-car-4k.png",      aspect:"16:9", span:"wide",  pixel:3 },
+
+  { id:"fox",    title:"Autumn vulpes",             type:"sdxl paint",        kind:"image",
+    src:ASSET+"sdxl.png",             aspect:"1:1",  span:"tall",  pixel:4 },
+
+  { id:"kling",  title:"Kling motion study",        type:"video loop",        kind:"video",
+    src:ASSET+"kling-video.mp4",      poster:GEN+"poster-kling-video.png", aspect:"16:9", span:"wide", pixel:3 },
+
+  { id:"clinic", title:"Mint + wood interior",      type:"flux image 4k",     kind:"image",
+    src:ASSET+"flux-clinic-4k.png",   aspect:"16:9", span:"half",  pixel:3 },
+
+  { id:"flxv",   title:"Mercedes i2v",              type:"video loop",        kind:"video",
+    src:ASSET+"flux-car-i2v.mp4",     poster:GEN+"poster-flux-car-i2v.png", aspect:"16:9", span:"half", pixel:3 },
+
+  { id:"did",    title:"Talking photo",             type:"video / audio",     kind:"video",
+    src:ASSET+"did-talking-photo.mp4",poster:GEN+"poster-did.png", aspect:"1:1", span:"third", pixel:3 },
+
+  { id:"apple",  title:"Low-fi apple",              type:"tiny-sd abstract",  kind:"image",
+    src:ASSET+"hf-tinysd.png",        aspect:"1:1",  span:"third", pixel:4 },
+
+  { id:"veo",    title:"Veo sequence",              type:"video loop",        kind:"video",
+    src:ASSET+"veo-video.mp4",        poster:GEN+"poster-veo-video.png", aspect:"16:9", span:"third", pixel:3 },
+
+  { id:"fal",    title:"Fal generative",            type:"video loop",        kind:"video",
+    src:ASSET+"fal-video.mp4",        poster:GEN+"poster-fal-video.png", aspect:"16:9", span:"half", pixel:3 },
+
+  { id:"hyper",  title:"Hyperframes",               type:"video loop",        kind:"video",
+    src:ASSET+"hyperframes.mp4",      poster:GEN+"poster-hyperframes.png", aspect:"16:9", span:"half", pixel:3 },
+];
+
+/* ============================================================
+   2. CAPABILITY DETECTION
+   ============================================================ */
+const REDUCED = window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+const COARSE  = window.matchMedia("(pointer:coarse)").matches;
+const SMALL   = window.matchMedia("(max-width:640px)").matches;
+/* Mobile / no-WebGL path = static pre-dithered render via 2D canvas, CSS reveal. No live shader. */
+function webglSupported(){
+  try{
+    const c=document.createElement("canvas");
+    return !!(window.WebGLRenderingContext && (c.getContext("webgl")||c.getContext("experimental-webgl")));
+  }catch(e){return false;}
+}
+const USE_GL = webglSupported() && !(COARSE && SMALL); // phones -> 2D fallback
+document.getElementById("modeReadout").innerHTML =
+  USE_GL ? "WEBGL // ORDERED DITHER 8&times;8" : "MOBILE // PRE-DITHERED 2D RENDER";
+
+const DPR = Math.min(window.devicePixelRatio||1, 2); // cap at 2 (per brief)
+
+/* ============================================================
+   3. SHADERS  (WebGL path)
+   Bayer 8x8 ordered-dither. Threshold map sampled per output pixel,
+   luminance compared against (threshold + uBias). uBias lifts on
+   mouse proximity so darker midtones flip to paper -> "brightens".
+   uDissolve mixes between dithered output and full-color source on click.
+   ============================================================ */
+const VERT = `
+attribute vec2 aPos;
+varying vec2 vUv;
+void main(){ vUv = aPos*0.5+0.5; gl_Position = vec4(aPos,0.0,1.0); }`;
+
+const FRAG = `
+precision mediump float;
+varying vec2 vUv;
+uniform sampler2D uTex;
+uniform vec2  uRes;       // canvas size in device px
+uniform float uPixel;     // dither cell size (device px)
+uniform float uBias;      // proximity threshold lift  (-/+)
+uniform float uDissolve;  // 0 = full dither, 1 = full color
+uniform float uTime;
+uniform vec2  uTexSize;   // source texture px (for cover fit)
+uniform vec3  uPaper;
+uniform vec3  uInk;
+
+// 8x8 Bayer matrix, normalized 0..1
+float bayer(vec2 p){
+  int x = int(mod(p.x,8.0));
+  int y = int(mod(p.y,8.0));
+  int idx = x + y*8;
+  // flattened Bayer-8 (value/64)
+  float m[64];
+  m[0]=0.0;  m[1]=32.0; m[2]=8.0;  m[3]=40.0; m[4]=2.0;  m[5]=34.0; m[6]=10.0; m[7]=42.0;
+  m[8]=48.0; m[9]=16.0; m[10]=56.0;m[11]=24.0;m[12]=50.0;m[13]=18.0;m[14]=58.0;m[15]=26.0;
+  m[16]=12.0;m[17]=44.0;m[18]=4.0; m[19]=36.0;m[20]=14.0;m[21]=46.0;m[22]=6.0; m[23]=38.0;
+  m[24]=60.0;m[25]=28.0;m[26]=52.0;m[27]=20.0;m[28]=62.0;m[29]=30.0;m[30]=54.0;m[31]=22.0;
+  m[32]=3.0; m[33]=35.0;m[34]=11.0;m[35]=43.0;m[36]=1.0; m[37]=33.0;m[38]=9.0; m[39]=41.0;
+  m[40]=51.0;m[41]=19.0;m[42]=59.0;m[43]=27.0;m[44]=49.0;m[45]=17.0;m[46]=57.0;m[47]=25.0;
+  m[48]=15.0;m[49]=47.0;m[50]=7.0; m[51]=39.0;m[52]=13.0;m[53]=45.0;m[54]=5.0; m[55]=37.0;
+  m[56]=63.0;m[57]=31.0;m[58]=55.0;m[59]=23.0;m[60]=61.0;m[61]=29.0;m[62]=53.0;m[63]=21.0;
+  float v = 0.0;
+  for(int i=0;i<64;i++){ if(i==idx){ v=m[i]; } }
+  return (v+0.5)/64.0;
+}
+
+// cover-fit uv so source aspect is preserved (no squash), centered
+vec2 coverUv(vec2 uv){
+  float canvasAR = uRes.x/uRes.y;
+  float texAR    = uTexSize.x/uTexSize.y;
+  vec2 s = vec2(1.0);
+  if(canvasAR > texAR){ s.y = texAR/canvasAR; } else { s.x = canvasAR/texAR; }
+  return (uv-0.5)*s + 0.5;
+}
+
+float luma(vec3 c){ return dot(c, vec3(0.299,0.587,0.114)); }
+
+void main(){
+  vec2 cuv = coverUv(vUv);
+  vec3 col = texture2D(uTex, cuv).rgb;
+
+  // snap sampling to dither cell so color reads quantized too
+  vec2 frag = gl_FragCoord.xy;
+  vec2 cell = floor(frag/uPixel)*uPixel + uPixel*0.5;
+  vec2 cellUv = coverUv(cell/uRes);
+  vec3 cellCol = texture2D(uTex, cellUv).rgb;
+
+  float l = luma(cellCol);
+  // subtle live shimmer so the dither feels alive even at rest
+  float shimmer = (sin(uTime*1.4 + frag.x*0.06 + frag.y*0.05))*0.012;
+  float t = bayer(frag/uPixel);
+
+  // proximity bias raises luminance -> more paper -> "brightens / reveals"
+  float lifted = l + uBias + shimmer;
+  float bit = step(t, lifted);             // 1 -> paper, 0 -> ink
+  vec3 dith = mix(uInk, uPaper, bit);
+
+  // when biased high, let a touch of the real color tint the paper cells
+  vec3 tint = mix(uPaper, cellCol, clamp(uBias*1.4,0.0,0.85)*bit);
+  dith = mix(dith, tint, clamp(uBias*1.2,0.0,1.0));
+
+  // dissolve: morph from dithered -> full-res color on click
+  vec3 outc = mix(dith, col, uDissolve);
+  gl_FragColor = vec4(outc,1.0);
+}`;
+
+const PAPER_RGB = [0.909,0.894,0.847]; // #e8e4d8
+const INK_RGB   = [0.102,0.102,0.102]; // #1a1a1a
+
+/* ============================================================
+   4. TILE FACTORY
+   ============================================================ */
+const grid = document.getElementById("grid");
+const tiles = [];            // controller objects
+let activeVideoTile = null;  // enforce one-video-at-a-time
+
+function aspectPad(a){ return a==="1:1" ? "100%" : "56.25%"; }
+
+DATA.forEach((d,i)=>{
+  const fig = document.createElement("figure");
+  fig.className = "tile";
+  fig.dataset.span = d.span;
+  fig.dataset.kind = d.kind;
+  fig.tabIndex = 0;
+  fig.setAttribute("role","button");
+  fig.setAttribute("aria-label",
+    `${d.title}, ${d.type}. ${d.kind==="video"?"Press to play and reveal full resolution.":"Press to reveal full resolution."}`);
+
+  // letterboxed stage (aspect-ratio box) -> never cover-crops landscape into phone portrait
+  const stage = document.createElement("div");
+  stage.className = "stage";
+  stage.style.position = "relative";
+  stage.style.width = "100%";
+  stage.style.paddingBottom = aspectPad(d.aspect);
+
+  const canvas = document.createElement("canvas");
+  canvas.style.position="absolute"; canvas.style.inset="0";
+  stage.appendChild(canvas);
+
+  // hidden source media element
+  let media;
+  if(d.kind==="video"){
+    media = document.createElement("video");
+    media.muted=true; media.loop=true; media.playsInline=true; media.preload="none";
+    media.setAttribute("playsinline","");
+    media.poster = d.poster||"";
+    // do NOT set src yet (lazy)
+  }else{
+    media = document.createElement("img");
+    media.decoding="async"; media.loading="lazy";
+    /* NOTE: no crossOrigin -> assets ship same-origin with this file; setting
+       crossOrigin would taint texImage2D / getImageData over file:// and break the dither. */
+  }
+  media.className="src-media";
+  media.src = d.kind==="video" ? "" : d.src; // images load eagerly-ish; video lazy
+  stage.appendChild(media);
+
+  // overlay chrome
+  const frame = document.createElement("div"); frame.className="frame";
+  const plate = document.createElement("figcaption"); plate.className="plate";
+  plate.innerHTML = `<span class="idx">${String(i+1).padStart(2,"0")}</span><span class="ttl">${d.title}</span><span class="typ">${d.type}</span>`;
+  const badge = document.createElement("div"); badge.className="badge"; badge.textContent="DITHER";
+  const play  = document.createElement("div"); play.className="play"; play.setAttribute("aria-hidden","true");
+  stage.appendChild(frame); stage.appendChild(play); stage.appendChild(badge); stage.appendChild(plate);
+
+  fig.appendChild(stage);
+  grid.appendChild(fig);
+
+  const ctrl = { d, fig, canvas, media, stage, badge, i,
+                 gl:null, prog:null, tex:null, ready:false, texLoaded:false,
+                 bias:0, biasTarget:0, dissolve:0, dissolveTarget:0,
+                 playing:false, srcLoaded:(d.kind!=="video"), inView:false, mobileDithered:false };
+  tiles.push(ctrl);
+
+  // -------- interactions --------
+  function setLock(on){
+    ctrl.dissolveTarget = on?1:0;
+    fig.classList.toggle("locked",on);
+    if(d.kind==="video"){
+      if(on){ playVideo(ctrl); } else { /* keep playing if user wants? pause on unlock */ pauseVideo(ctrl); }
+    }
+    if(!USE_GL){ // mobile CSS reveal: swap to crisp media
+      fig.classList.toggle("revealed",on);
+      if(on) showCrispMobile(ctrl); else showDitherMobile(ctrl);
+    }
+  }
+  fig.addEventListener("click",()=>{ setLock(!fig.classList.contains("locked")); });
+  fig.addEventListener("keydown",(e)=>{
+    if(e.key==="Enter"||e.key===" "){ e.preventDefault(); setLock(!fig.classList.contains("locked")); }
+  });
+
+  // hover proximity (desktop GL): bias rises toward center of tile
+  if(USE_GL && !REDUCED){
+    fig.addEventListener("pointermove",(e)=>{
+      const r = stage.getBoundingClientRect();
+      const cx=(e.clientX-r.left)/r.width-0.5, cy=(e.clientY-r.top)/r.height-0.5;
+      const dist = Math.min(1, Math.hypot(cx,cy)*1.9);
+      ctrl.biasTarget = (1-dist)*0.42;            // closer to center -> brighter reveal
+    });
+    fig.addEventListener("pointerleave",()=>{ ctrl.biasTarget = 0; });
+    fig.addEventListener("focus",()=>{ ctrl.biasTarget = 0.34; });
+    fig.addEventListener("blur",()=>{ ctrl.biasTarget = 0; });
+  }
+});
+
+/* ============================================================
+   5A. WEBGL ENGINE  (lazy per tile via IntersectionObserver)
+   ============================================================ */
+function compile(gl,type,src){
+  const s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)){ console.warn(gl.getShaderInfoLog(s)); }
+  return s;
+}
+function initGL(ctrl){
+  if(ctrl.gl) return;
+  const gl = ctrl.canvas.getContext("webgl",{antialias:false,preserveDrawingBuffer:false,alpha:false});
+  if(!gl){ ctrl.failed=true; fallbackTo2D(ctrl); return; }
+  ctrl.gl=gl;
+  const prog=gl.createProgram();
+  gl.attachShader(prog,compile(gl,gl.VERTEX_SHADER,VERT));
+  gl.attachShader(prog,compile(gl,gl.FRAGMENT_SHADER,FRAG));
+  gl.linkProgram(prog); gl.useProgram(prog); ctrl.prog=prog;
+
+  const buf=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+  const loc=gl.getAttribLocation(prog,"aPos");
+  gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+
+  ctrl.tex=gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D,ctrl.tex);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  // 1px placeholder (paper) so first frame is not black
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,1,1,0,gl.RGB,gl.UNSIGNED_BYTE,new Uint8Array([232,228,216]));
+
+  ctrl.u = {
+    res:gl.getUniformLocation(prog,"uRes"),
+    pixel:gl.getUniformLocation(prog,"uPixel"),
+    bias:gl.getUniformLocation(prog,"uBias"),
+    dissolve:gl.getUniformLocation(prog,"uDissolve"),
+    time:gl.getUniformLocation(prog,"uTime"),
+    texSize:gl.getUniformLocation(prog,"uTexSize"),
+    paper:gl.getUniformLocation(prog,"uPaper"),
+    ink:gl.getUniformLocation(prog,"uInk"),
+  };
+  gl.uniform3fv(ctrl.u.paper,PAPER_RGB);
+  gl.uniform3fv(ctrl.u.ink,INK_RGB);
+  ctrl.texSize=[1,1];
+  ctrl.ready=true;
+  sizeCanvas(ctrl);
+  loadTexture(ctrl);
+}
+
+function loadTexture(ctrl){
+  const d=ctrl.d;
+  if(d.kind==="image"){
+    // image already in <img>; wait for it
+    const apply=()=>uploadTex(ctrl, ctrl.media, ctrl.media.naturalWidth, ctrl.media.naturalHeight);
+    if(ctrl.media.complete && ctrl.media.naturalWidth){ apply(); }
+    else ctrl.media.addEventListener("load",apply,{once:true});
+  }else{
+    // video: first paint poster, then lazy-load src on demand. Use poster <img> for static frame.
+    const pimg=new Image(); pimg.decoding="async";
+    pimg.onload=()=>{ if(!ctrl.playing) uploadTex(ctrl,pimg,pimg.naturalWidth,pimg.naturalHeight); };
+    if(d.poster) pimg.src=d.poster;
+  }
+}
+function uploadTex(ctrl,el,w,h){
+  const gl=ctrl.gl; if(!gl) return;
+  try{
+    gl.bindTexture(gl.TEXTURE_2D,ctrl.tex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,gl.RGB,gl.UNSIGNED_BYTE,el);
+    ctrl.texSize=[w||el.videoWidth||512,h||el.videoHeight||512];
+    ctrl.texLoaded=true;
+  }catch(e){/* tainted or not ready */}
+}
+
+function sizeCanvas(ctrl){
+  const r=ctrl.stage.getBoundingClientRect();
+  const w=Math.max(1,Math.round(r.width*DPR)), h=Math.max(1,Math.round(r.height*DPR));
+  if(ctrl.canvas.width!==w||ctrl.canvas.height!==h){
+    ctrl.canvas.width=w; ctrl.canvas.height=h;
+    if(ctrl.gl) ctrl.gl.viewport(0,0,w,h);
+  }
+}
+
+/* ----- video play control: only ONE at a time ----- */
+function playVideo(ctrl){
+  if(ctrl.d.kind!=="video") return;
+  if(activeVideoTile && activeVideoTile!==ctrl) pauseVideo(activeVideoTile);
+  activeVideoTile=ctrl;
+  if(!ctrl.media.src){ ctrl.media.src=ctrl.d.src; } // lazy attach src now
+  ctrl.media.muted = (ctrl.d.id!=="did"); // did has a talking-photo voice; allow it
+  const p=ctrl.media.play();
+  if(p&&p.catch) p.catch(()=>{ ctrl.media.muted=true; ctrl.media.play().catch(()=>{}); });
+  ctrl.playing=true; ctrl.fig.dataset.playing="1";
+}
+function pauseVideo(ctrl){
+  if(ctrl.d.kind!=="video") return;
+  ctrl.media.pause(); ctrl.playing=false; ctrl.fig.dataset.playing="0";
+  if(activeVideoTile===ctrl) activeVideoTile=null;
+}
+
+/* ============================================================
+   5B. 2D FALLBACK (mobile / no WebGL): pre-dithered render, CSS reveal
+   ============================================================ */
+function fallbackTo2D(ctrl){ ctrl.use2d=true; render2D(ctrl); }
+
+function render2D(ctrl){
+  const d=ctrl.d;
+  const cvs=ctrl.canvas;
+  const ctx=cvs.getContext("2d");
+  const r=ctrl.stage.getBoundingClientRect();
+  const w=Math.max(1,Math.round(r.width*DPR)), h=Math.max(1,Math.round(r.height*DPR));
+  cvs.width=w; cvs.height=h;
+  const srcUrl = d.kind==="video" ? (d.poster||d.src) : d.src;
+  const img=new Image(); img.decoding="async"; /* same-origin: no crossOrigin (would taint getImageData) */
+  img.onload=()=>{ ctrl._srcImg=img; ctrl._ctx=ctx; ctrl._cvsW=w; ctrl._cvsH=h; showDitherMobile(ctrl); };
+  img.onerror=()=>{ ctx.fillStyle="#e8e4d8"; ctx.fillRect(0,0,w,h); };
+  img.src=srcUrl;
+}
+
+// cover-draw helper preserving aspect
+function coverDraw(ctx,img,w,h){
+  const ir=img.width/img.height, cr=w/h;
+  let dw,dh,dx,dy;
+  if(cr>ir){ dw=w; dh=w/ir; } else { dh=h; dw=h*ir; }
+  dx=(w-dw)/2; dy=(h-dh)/2;
+  ctx.drawImage(img,dx,dy,dw,dh);
+}
+
+const BAYER8=[
+  [0,32,8,40,2,34,10,42],[48,16,56,24,50,18,58,26],
+  [12,44,4,36,14,46,6,38],[60,28,52,20,62,30,54,22],
+  [3,35,11,43,1,33,9,41],[51,19,59,27,49,17,57,25],
+  [15,47,7,39,13,45,5,37],[63,31,55,23,61,29,53,21]
+];
+function showDitherMobile(ctrl){
+  if(!ctrl._srcImg) return;
+  const ctx=ctrl._ctx,w=ctrl._cvsW,h=ctrl._cvsH;
+  ctx.clearRect(0,0,w,h);
+  coverDraw(ctx,ctrl._srcImg,w,h);
+  const px = Math.max(2, Math.round((ctrl.d.pixel||3)*DPR));
+  // downscale-by-cell dithering
+  const id=ctx.getImageData(0,0,w,h), data=id.data;
+  const paper=[232,228,216], ink=[26,26,26];
+  for(let y=0;y<h;y+=px){
+    for(let x=0;x<w;x+=px){
+      // average cell luminance
+      let lum=0,n=0;
+      for(let yy=y; yy<Math.min(y+px,h); yy+=2){
+        for(let xx=x; xx<Math.min(x+px,w); xx+=2){
+          const idx=(yy*w+xx)*4;
+          lum += 0.299*data[idx]+0.587*data[idx+1]+0.114*data[idx+2]; n++;
+        }
+      }
+      lum=(n?lum/n:0)/255;
+      const t=(BAYER8[(y/px|0)%8][(x/px|0)%8]+0.5)/64;
+      const bit = lum>t ? paper : ink;
+      // fill the whole cell with the chosen color
+      for(let yy=y; yy<Math.min(y+px,h); yy++){
+        for(let xx=x; xx<Math.min(x+px,w); xx++){
+          const idx=(yy*w+xx)*4;
+          data[idx]=bit[0]; data[idx+1]=bit[1]; data[idx+2]=bit[2]; data[idx+3]=255;
+        }
+      }
+    }
+  }
+  ctx.putImageData(id,0,0);
+  ctrl.mobileDithered=true;
+}
+function showCrispMobile(ctrl){
+  if(!ctrl._srcImg) { return; }
+  const ctx=ctrl._ctx,w=ctrl._cvsW,h=ctrl._cvsH;
+  ctx.clearRect(0,0,w,h);
+  coverDraw(ctx,ctrl._srcImg,w,h);
+  // for video tiles on mobile, swap canvas for a real <video> so it can actually play with sound on tap
+  if(ctrl.d.kind==="video"){
+    if(!ctrl.media.src) ctrl.media.src=ctrl.d.src;
+    ctrl.media.style.opacity="1"; ctrl.media.style.pointerEvents="auto"; ctrl.media.style.zIndex="1";
+    ctrl.canvas.style.opacity="0";
+    playVideo(ctrl);
+  }
+}
+
+/* ============================================================
+   6. LAZY MOUNT  (IntersectionObserver) + video in-view autoplay rule
+   ============================================================ */
+const io=new IntersectionObserver((entries)=>{
+  entries.forEach(en=>{
+    const ctrl=tiles.find(t=>t.fig===en.target); if(!ctrl) return;
+    ctrl.inView=en.isIntersecting && en.intersectionRatio>0.25;
+    if(en.isIntersecting){
+      if(USE_GL) initGL(ctrl); else if(!ctrl.use2d) fallbackTo2D(ctrl);
+    }
+    // video: only the single most-centered in-view video auto-previews (poster->live)
+    if(ctrl.d.kind==="video"){
+      if(!ctrl.inView && ctrl.playing) pauseVideo(ctrl);
+    }
+  });
+  // pick ONE in-view video to play (most visible), pause the rest -> no simultaneous decode
+  if(USE_GL && !REDUCED){
+    const vids=tiles.filter(t=>t.d.kind==="video" && t.inView);
+    if(vids.length){
+      vids.sort((a,b)=>centerDist(a)-centerDist(b));
+      const pick=vids[0];
+      if(activeVideoTile!==pick){ if(activeVideoTile) pauseVideo(activeVideoTile); playVideo(pick); }
+    } else if(activeVideoTile){ pauseVideo(activeVideoTile); }
+  }
+},{threshold:[0,0.25,0.5,0.75,1]});
+
+function centerDist(ctrl){
+  const r=ctrl.fig.getBoundingClientRect();
+  return Math.abs((r.top+r.bottom)/2 - window.innerHeight/2);
+}
+tiles.forEach(t=>io.observe(t.fig));
+
+/* ============================================================
+   7. RENDER LOOP (GL only). Reduced-motion -> single static frame.
+   ============================================================ */
+let lastFpsT=performance.now(), frames=0;
+const fpsTag=document.getElementById("fpsTag");
+
+function lerp(a,b,t){ return a+(b-a)*t; }
+
+function frame(now){
+  for(const ctrl of tiles){
+    if(!ctrl.ready||!ctrl.gl) continue;
+    if(!ctrl.inView){ continue; } // don't draw offscreen tiles
+    const gl=ctrl.gl;
+    sizeCanvas(ctrl);
+
+    // smooth bias + dissolve toward targets
+    if(REDUCED){ ctrl.bias=ctrl.biasTarget; ctrl.dissolve=ctrl.dissolveTarget; }
+    else{
+      ctrl.bias = lerp(ctrl.bias, ctrl.biasTarget, 0.12);
+      ctrl.dissolve = lerp(ctrl.dissolve, ctrl.dissolveTarget, 0.10);
+    }
+
+    // refresh video texture each frame while playing
+    if(ctrl.d.kind==="video" && ctrl.playing && ctrl.media.readyState>=2){
+      uploadTex(ctrl, ctrl.media, ctrl.media.videoWidth, ctrl.media.videoHeight);
+    }
+
+    gl.useProgram(ctrl.prog);
+    gl.uniform2f(ctrl.u.res, ctrl.canvas.width, ctrl.canvas.height);
+    gl.uniform1f(ctrl.u.pixel, Math.max(2,(ctrl.d.pixel||3)*DPR));
+    gl.uniform1f(ctrl.u.bias, ctrl.bias);
+    gl.uniform1f(ctrl.u.dissolve, ctrl.dissolve);
+    gl.uniform1f(ctrl.u.time, REDUCED?0:now*0.001);
+    gl.uniform2f(ctrl.u.texSize, ctrl.texSize[0], ctrl.texSize[1]);
+    gl.bindTexture(gl.TEXTURE_2D, ctrl.tex);
+    gl.drawArrays(gl.TRIANGLES,0,3);
+  }
+
+  // fps readout
+  frames++;
+  if(now-lastFpsT>1000){
+    fpsTag.textContent = Math.round(frames*1000/(now-lastFpsT))+"FPS";
+    frames=0; lastFpsT=now;
+  }
+
+  if(!REDUCED) rafId=requestAnimationFrame(frame);
+}
+
+let rafId;
+if(USE_GL){
+  if(REDUCED){
+    // one static pass after textures likely loaded
+    requestAnimationFrame((t)=>{ frame(t); setTimeout(()=>frame(performance.now()),400); setTimeout(()=>frame(performance.now()),1200); });
+    fpsTag.textContent="STATIC";
+  }else{
+    rafId=requestAnimationFrame(frame);
+  }
+}else{
+  fpsTag.textContent="2D";
+}
+
+/* resize -> re-render mobile dither (debounced) */
+let rT;
+window.addEventListener("resize",()=>{
+  clearTimeout(rT);
+  rT=setTimeout(()=>{
+    tiles.forEach(ctrl=>{
+      if(ctrl.use2d){ render2D(ctrl); }
+      else if(ctrl.ready){ sizeCanvas(ctrl); if(REDUCED) frame(performance.now()); }
+    });
+  },180);
+});
+
+/* pause everything when tab hidden (battery + decode) */
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden){ if(activeVideoTile) pauseVideo(activeVideoTile); if(rafId) cancelAnimationFrame(rafId); }
+  else if(USE_GL && !REDUCED && !rafId){ rafId=requestAnimationFrame(frame); }
+});
+</script>
+</body>
+</html>

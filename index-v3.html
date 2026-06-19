@@ -69,6 +69,27 @@
   .intro h2 .g{background:var(--spectrum);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
   .intro p{color:var(--dim);font-weight:300;max-width:60ch}
 
+  /* whole-site wow: cursor spotlight on every tile (cheap) */
+  .cell::after{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;opacity:0;transition:opacity .25s;
+    background:radial-gradient(340px circle at var(--mx,50%) var(--my,50%),color-mix(in srgb,var(--acc) 20%,transparent),transparent 62%)}
+  @media(pointer:fine){.cell:hover::after{opacity:1}}
+
+  /* kinetic stats band */
+  .stats{padding:64px 0 36px}
+  .statgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:24px}
+  .stat{border-left:2px solid var(--line);padding-left:18px}
+  .stat .num{display:block;font-size:clamp(40px,5vw,76px);font-weight:700;letter-spacing:-.03em;line-height:1;
+    background:var(--spectrum);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .stat .lab{color:var(--dim);font-size:12.5px;font-family:"JetBrains Mono",monospace;margin-top:6px;display:block}
+  @media(max-width:560px){.statgrid{grid-template-columns:repeat(2,1fr)}}
+
+  /* tool marquee */
+  .marquee{overflow:hidden;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:15px 0;white-space:nowrap;-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+  .marquee .track{display:inline-block;animation:marq 30s linear infinite;font-family:"JetBrains Mono",monospace;font-size:14px;color:var(--faint)}
+  .marquee .track span{margin:0 24px}.marquee .track b{color:var(--ink);font-weight:500}
+  .marquee .track i{color:var(--emerald);font-style:normal}
+  @keyframes marq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
   .bento{display:grid;grid-template-columns:repeat(12,1fr);gap:16px;grid-auto-flow:dense}
   .cell{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:18px;overflow:hidden;--acc:#888;min-height:180px;display:flex;flex-direction:column}
   .cell[data-m=image]{--acc:var(--coral)}.cell[data-m=video]{--acc:var(--violet)}.cell[data-m=avatar]{--acc:var(--blue)}.cell[data-m=audio]{--acc:var(--amber)}.cell[data-m=threeD]{--acc:var(--teal)}
@@ -135,6 +156,13 @@
 </header>
 
 <div class="content">
+<section class="stats"><div class="wrap"><div class="statgrid">
+  <div class="stat"><span class="num" data-to="15">0</span><span class="lab">ชิ้น render จริง</span></div>
+  <div class="stat"><span class="num" data-to="6">0</span><span class="lab">หมวดสื่อ</span></div>
+  <div class="stat"><span class="num" data-to="1">0</span><span class="lab">คีย์ (fal · 1,000+ โมเดล)</span></div>
+  <div class="stat"><span class="num">~$5</span><span class="lab">ที่ใช้สร้างทั้งหมด</span></div>
+</div></div></section>
+<div class="marquee"><div class="track" id="mtrack"></div></div>
 <section class="intro"><div class="wrap">
   <div class="k">THE GALLERY · 15 REAL ASSETS</div>
   <h2>หกหมวด <span class="g">หนึ่งคีย์</span> render จริงทั้งหมด</h2>
@@ -216,6 +244,17 @@
   document.querySelectorAll('.aud').forEach(a=>{const au=a.querySelector('audio'),btn=a.querySelector('.ap'),p=a.querySelector('.p'),h=a.querySelector('.wh');btn.addEventListener('click',()=>{document.querySelectorAll('.aud audio').forEach(o=>{if(o!==au)o.pause();});au.paused?au.play():au.pause();});au.addEventListener('timeupdate',()=>{const r=au.currentTime/(au.duration||1);p.style.width=(r*100)+'%';h.style.left=(r*100)+'%';});});
   const mb=document.getElementById('musicBtn'),rm=document.getElementById('reelMusic');
   mb.addEventListener('click',()=>{if(rm.paused){rm.volume=.35;rm.play();mb.classList.add('on');mb.textContent='♪ ปิดเพลง';}else{rm.pause();mb.classList.remove('on');mb.textContent='♪ เปิดเพลงประกอบ';}});
+
+  // cursor spotlight on every tile
+  if(matchMedia('(pointer:fine)').matches){document.querySelectorAll('.cell').forEach(c=>{c.addEventListener('mousemove',e=>{const r=c.getBoundingClientRect();c.style.setProperty('--mx',((e.clientX-r.left)/r.width*100)+'%');c.style.setProperty('--my',((e.clientY-r.top)/r.height*100)+'%');});});}
+  // tool marquee (doubled for seamless -50% loop)
+  const tools=['fal · Flux Pro','Kling 2.1','Veo 3','HeyGen','D-ID','ElevenLabs','MusicGen','Piper','Meshy 3D','HyperFrames','SDXL','Hailuo'];
+  const line=tools.map(t=>`<span><i>◆</i> <b>${t}</b></span>`).join('');
+  document.getElementById('mtrack').innerHTML=line+line;
+  // count-up stats on scroll-in
+  const stats=document.querySelector('.stats');
+  if(reduce){document.querySelectorAll('.stat .num[data-to]').forEach(n=>n.textContent=n.dataset.to);}
+  else{new IntersectionObserver((es,o)=>{es.forEach(e=>{if(e.isIntersecting){document.querySelectorAll('.stat .num[data-to]').forEach(n=>{const to=+n.dataset.to;let v=0,st=Math.max(1,Math.ceil(to/38));const id=setInterval(()=>{v+=st;if(v>=to){v=to;clearInterval(id);}n.textContent=v;},26);});o.disconnect();}});},{threshold:.5}).observe(stats);}
 </script>
 
 <!-- WEBGL HERO -->
@@ -232,18 +271,18 @@
   const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
   renderer.setPixelRatio(Math.min(devicePixelRatio,2));
   renderer.setSize(innerWidth,innerHeight);
-  renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=0.98;
+  renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=0.86;
   const scene=new THREE.Scene();
   const camera=new THREE.PerspectiveCamera(42,innerWidth/innerHeight,0.1,100); camera.position.set(0,0,6.4);
-  const pmrem=new THREE.PMREMGenerator(renderer); scene.environment=pmrem.fromScene(new RoomEnvironment(),0.04).texture;
+  const pmrem=new THREE.PMREMGenerator(renderer); scene.environment=pmrem.fromScene(new RoomEnvironment(),0.04).texture; scene.environmentIntensity=0.6;
 
   // spectrum lighting
-  scene.add(new THREE.AmbientLight(0x2a2f43,0.45));
+  scene.add(new THREE.AmbientLight(0x1c2030,0.28));
   const L=(c,x,y,z,i)=>{const l=new THREE.PointLight(c,i,40);l.position.set(x,y,z);scene.add(l);return l;};
-  L(0xef6f6f,-5,3,4,26); L(0x3ed0c4,5,-1,3,28); L(0xc77dff,0,4,-5,22); L(0x5b8cff,3,2,5,15);
+  L(0xef6f6f,-5,3,4,11); L(0x3ed0c4,5,-1,3,12); L(0xc77dff,0,4,-5,9); L(0x5b8cff,3,2,5,6);
 
   // particle field (spectrum)
-  const N=3200, pos=new Float32Array(N*3), col=new Float32Array(N*3);
+  const N=2400, pos=new Float32Array(N*3), col=new Float32Array(N*3);
   const stops=[[.96,.73,.26],[.94,.44,.44],[.78,.49,1],[.36,.55,1],[.24,.82,.77],[.27,.83,.52]];
   for(let i=0;i<N;i++){const r=3+Math.random()*16,th=Math.random()*Math.PI*2,ph=Math.acos(2*Math.random()-1);
     pos[i*3]=r*Math.sin(ph)*Math.cos(th); pos[i*3+1]=r*Math.sin(ph)*Math.sin(th); pos[i*3+2]=r*Math.cos(ph);
@@ -285,10 +324,11 @@
     camera.lookAt(0.6,0,0);
     particles.rotation.y=t*0.03; particles.rotation.x=Math.sin(t*0.1)*0.05;
     particles.material.opacity=0.9*(1-scrollT*0.85);
-    if(model){model.rotation.y=t*0.35+smx*0.6; model.rotation.x=-0.1+smy*0.3; model.position.y=Math.sin(t*0.7)*0.12; model.scale.setScalar(model.userData.base*(1-scrollT*0.4));}
+    if(model){model.rotation.y=Math.sin(t*0.22)*0.55+smx*0.7; model.rotation.x=-0.05+smy*0.28; model.position.y=Math.sin(t*0.7)*0.12; model.scale.setScalar(model.userData.base*(1-scrollT*0.4));}
     // fade whole canvas out as we leave hero
     canvas.style.opacity=String(Math.max(0,1-scrollT*1.15));
-    composer.render();
+    // PERF: only run the heavy WebGL render while the hero is on screen
+    if(scrollY < innerHeight*1.05) composer.render();
   }
   if(!reduce){animate();}
   else{ // static single frame

@@ -448,6 +448,7 @@ img{image-rendering:auto}
   #clock.blink .sep{ opacity:1 !important; }
   #boot .cursor{ animation:none; }
   .window.snap{ transition:none !important; }
+  #phone .appicon:active .tile{ transform:none; }   /* no press-scale motion */
 }
 
 /* hide the desktop scrollbars cleanly */
@@ -1044,7 +1045,10 @@ async function mountModel(stage, d){
     const key = new THREE.DirectionalLight(0xffffff, 1.4); key.position.set(3,5,4); scene.add(key);
     const rim = new THREE.DirectionalLight(0x3bd2ff, .7); rim.position.set(-4,2,-3); scene.add(rim);
     const ctrl = new OrbitControls(cam, renderer.domElement);
-    ctrl.enableDamping=true; ctrl.autoRotate=!reduce; ctrl.autoRotateSpeed=1.4;
+    // reduced motion: no continuous loop, no damping/auto-rotate; instead re-render
+    // only when the user actually orbits, so the viewer stays interactive but still.
+    ctrl.enableDamping = !reduce; ctrl.autoRotate = !reduce; ctrl.autoRotateSpeed = 1.4;
+    const renderOnce = ()=>{ ctrl.update(); renderer.render(scene,cam); };
     new GLTFLoader().load(d.media, gltf=>{
       const obj = gltf.scene;
       const box = new THREE.Box3().setFromObject(obj);
@@ -1053,9 +1057,10 @@ async function mountModel(stage, d){
       obj.position.sub(center);
       const s = 1.8 / size; obj.scale.setScalar(s);
       scene.add(obj);
+      if(reduce) renderOnce();          // model arrives async: paint it once it exists
     }, undefined, ()=>{ wrap.textContent="3D load failed"; });
     const loop = ()=>{ rec.raf = requestAnimationFrame(loop); ctrl.update(); renderer.render(scene,cam); };
-    if(reduce){ ctrl.autoRotate=false; ctrl.update(); renderer.render(scene,cam); } else loop();
+    if(reduce){ ctrl.addEventListener("change", renderOnce); renderOnce(); } else loop();
     rec.renderer = renderer;
     // resize with the window
     const ro = new ResizeObserver(()=>{ const W=stage.clientWidth,H=stage.clientHeight; if(W&&H){ renderer.setSize(W,H); cam.aspect=W/H; cam.updateProjectionMatrix(); }});

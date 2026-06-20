@@ -23,8 +23,9 @@
   --ink-faint:rgba(22,19,13,.16);
   --accent:#d8482a;          /* the one ribbon thread */
   --accent-deep:#a8331c;
-  --card-w:min(78vw, 560px);
+  --card-w:min(54vw, 340px);   /* narrower so staggered cards read as a strung set */
   --card-h:min(58vh, 480px);
+  --stagger:clamp(70px, 13vw, 172px); /* how far each card hangs off the spine */
   --pin: #16130d;
   --ease-spring:cubic-bezier(.16,1,.3,1);
 }
@@ -62,10 +63,16 @@ a{color:inherit}
 .brand small{display:block;font-family:'Space Grotesk';font-weight:400;
   font-size:.5em;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-soft);margin-top:.5em}
 .howto{
-  text-align:right; font-size:clamp(10px,1.4vw,12px); letter-spacing:.14em;
-  text-transform:uppercase; color:var(--ink-soft); line-height:1.7; max-width:34ch;
+  text-align:right; font-size:clamp(12px,1.5vw,15px); letter-spacing:.12em;
+  text-transform:uppercase; color:var(--ink); line-height:1.85; max-width:30ch;
+  font-weight:500;
 }
-.howto b{color:var(--accent-deep)}
+.howto b{color:var(--accent-deep); font-weight:600}
+.howto .lede{
+  display:block; font-family:'Fraunces',serif; text-transform:none;
+  letter-spacing:-.01em; font-size:clamp(15px,1.9vw,20px); font-weight:500;
+  line-height:1.25; color:var(--ink); margin-bottom:10px; max-width:18ch; margin-left:auto;
+}
 
 /* ---------- the rail (drag surface) ---------- */
 .stage{
@@ -77,10 +84,10 @@ a{color:inherit}
 }
 .stage.dragging{cursor:grabbing}
 
-/* the colored thread - a thin tensioned line down the spine */
+/* the colored thread - a tensioned line that weaves through every pin */
 .thread{
-  position:fixed; left:50%; top:0; height:100%; width:120px;
-  transform:translateX(-50%); z-index:2; pointer-events:none; overflow:visible;
+  position:fixed; inset:0; height:100%; width:100%;
+  z-index:2; pointer-events:none; overflow:visible;
 }
 .thread path{
   fill:none; stroke:var(--accent); stroke-width:2.5;
@@ -97,7 +104,11 @@ a{color:inherit}
 }
 .slot{
   position:absolute; left:50%; top:0;
-  transform:translateX(-50%);
+  /* --off: signed horizontal stagger off the spine (set per-slot by JS, alternating).
+     The pin + card hang left or right of the cord so the strung-along-a-ribbon
+     rhythm reads above the fold; physics only ever moves the belt vertically. */
+  --off: 0px;
+  transform:translateX(calc(-50% + var(--off)));
   width:var(--card-w);
   display:flex; flex-direction:column; align-items:center;
 }
@@ -226,7 +237,10 @@ body.is-fallback .dock{display:none}
 
 /* ---------- MOBILE: never cover-crop a landscape asset ---------- */
 @media (max-width:640px){
-  :root{ --card-w:min(90vw, 440px); }
+  :root{
+    --card-w:min(90vw, 440px);
+    --stagger:0px;            /* keep the strong mobile stack centered on the spine */
+  }
   .howto{display:none}
   .frame img,.frame video{ object-fit:contain; background:#0e0c08; } /* letterbox */
   .tension{display:none}
@@ -339,6 +353,7 @@ const DATA = [
     <small>Works on a string</small>
   </div>
   <div class="howto">
+    <span class="lede">Works pinned to one elastic cord.</span>
     Drag the ribbon - it <b>stretches</b><br>
     let go and it <b>snaps</b> to the next work<br>
     on a phone, just flick
@@ -383,7 +398,18 @@ const DATA = [
   totalEl.textContent = String(DATA.length).padStart(2,'0');
 
   // ---- spacing between works along the ribbon ----
-  const GAP = () => Math.min(window.innerHeight * 0.82, 560);
+  // Desktop: tighter than one card-height so 3-4 staggered works are strung
+  // within the first viewport and the elastic rhythm reads at scroll=0.
+  // Mobile: keep the original generous spacing (one work in focus) so the
+  // strong single-card stack is unchanged. Snap math stays purely vertical and
+  // consistent because GAP() is the single source used everywhere.
+  const isMobile = () => window.matchMedia('(max-width:640px)').matches;
+  const GAP = () => isMobile()
+    ? Math.min(window.innerHeight * 0.82, 560)
+    : Math.min(window.innerHeight * 0.40, 320);
+
+  // signed horizontal stagger for slot i: alternate right / left off the spine
+  const offFor = i => (i % 2 === 0 ? 1 : -1);
 
   // ---------- build the belt ----------
   const slots = [];
@@ -391,6 +417,9 @@ const DATA = [
     const slot = document.createElement('article');
     slot.className = 'slot';
     slot.style.top = (i * GAP()) + 'px';
+    // hang this work off the spine, alternating sides, so the ribbon reads as a
+    // strung set rather than one centered card on a line
+    slot.style.setProperty('--off', `calc(${offFor(i)} * var(--stagger))`);
 
     const isVid = d.type === 'video';
     const mediaPoster = isVid ? d.poster : d.src;
@@ -580,35 +609,80 @@ const DATA = [
     const pct = Math.min(100, (stretch/160)*100);
     tensionFill.style.height = pct.toFixed(0)+'%';
 
-    // scale the focused card up a touch, fade the rest
-    const focus = nearestIndex();
+    // scale the focused card up a touch; keep neighbors clearly legible so the
+    // strung-along-the-cord rhythm reads (don't fade them to near-invisible)
     slots.forEach((s,i)=>{
       const d = Math.abs(i - (-pos/GAP()));
       const card = s.querySelector('.card');
-      const sc = 1 - Math.min(.16, d*0.12);
-      const op = 1 - Math.min(.62, d*0.42);
+      const sc = 1 - Math.min(.20, d*0.10);
+      const op = 1 - Math.min(.42, d*0.22);
       card.style.transform = `scale(${sc.toFixed(3)})`;
       card.style.opacity = op.toFixed(3);
       s.style.zIndex = (100 - Math.round(d*10));
     });
   }
 
-  // draw the SVG cord as a quadratic bow whose belly bulges by `amp`
+  // size the (now full-viewport) thread canvas to the viewport
   function sizeThread(){
-    thread.setAttribute('width', thread.clientWidth);
-    thread.setAttribute('height', thread.clientHeight);
-    thread.setAttribute('viewBox', `0 0 ${thread.clientWidth} ${thread.clientHeight}`);
+    const w = window.innerWidth, h = window.innerHeight;
+    thread.setAttribute('width', w);
+    thread.setAttribute('height', h);
+    thread.setAttribute('viewBox', `0 0 ${w} ${h}`);
   }
+
+  // Draw the cord so it WEAVES through every pin currently on screen. The path
+  // is a smooth Catmull-Rom-ish spline through the live pin centers, so the
+  // staggered left/right pins make the cord visibly zig and tension. `amp` (the
+  // smoothed stretch) exaggerates the sideways bow while dragging/snapping.
   function drawCord(amp){
-    const w = thread.clientWidth || 120;
-    const h = thread.clientHeight || window.innerHeight;
+    const w = window.innerWidth, h = window.innerHeight;
     const cx = w/2;
-    // straight ghost reference
+
+    // collect on-screen pin centers, sorted top-to-bottom
+    const margin = 240; // include just-offscreen pins so the cord enters/exits cleanly
+    const pts = [];
+    for (let i = 0; i < slots.length; i++){
+      const pin = slots[i].querySelector('.pin');
+      if (!pin) continue;
+      const r = pin.getBoundingClientRect();
+      const py = r.top + r.height/2;
+      if (py < -margin || py > h + margin) continue;
+      const px = r.left + r.width/2;
+      // tension bows each pin a touch further off the spine as stretch rises
+      const bow = (px - cx) * (1 + Math.min(0.45, Math.abs(amp)/180));
+      pts.push({ x: cx + bow, y: py });
+    }
+
+    // anchor the cord to the top and bottom edges on the spine so it reads as a
+    // continuous thread even past the first/last visible pin
+    pts.sort((a,b)=> a.y - b.y);
+    const head = { x: cx, y: -40 };
+    const tail = { x: cx, y: h + 40 };
+    const path = [head, ...pts, tail];
+
+    const dCord  = splinePath(path);
+    cord.setAttribute('d', dCord);
+    // ghost = the straight resting spine, for reference
     ghost.setAttribute('d', `M ${cx} 0 L ${cx} ${h}`);
-    // bowed live cord: control point pushed sideways at mid-height
-    const belly = cx + amp;
-    cord.setAttribute('d',
-      `M ${cx} 0 Q ${belly} ${h*0.5} ${cx} ${h}`);
+  }
+
+  // smooth open spline through points (Catmull-Rom -> cubic Bezier)
+  function splinePath(p){
+    if (p.length < 2) return '';
+    if (p.length === 2) return `M ${p[0].x} ${p[0].y} L ${p[1].x} ${p[1].y}`;
+    let d = `M ${p[0].x.toFixed(1)} ${p[0].y.toFixed(1)}`;
+    for (let i = 0; i < p.length - 1; i++){
+      const p0 = p[i-1] || p[i];
+      const p1 = p[i];
+      const p2 = p[i+1];
+      const p3 = p[i+2] || p2;
+      const c1x = p1.x + (p2.x - p0.x) / 6;
+      const c1y = p1.y + (p2.y - p0.y) / 6;
+      const c2x = p2.x - (p3.x - p1.x) / 6;
+      const c2y = p2.y - (p3.y - p1.y) / 6;
+      d += ` C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+    }
+    return d;
   }
 
   // ============================================================

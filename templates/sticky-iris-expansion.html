@@ -109,7 +109,10 @@
   .iris{
     position:absolute; inset:0; z-index:2;
     display:grid;
-    grid-template-columns:repeat(3, 1fr);
+    /* N columns (default 5) so the compressed p=0 state reads as a WIDE wall of
+       packed vertical slats, not a thin central strip. --cols is set from JS to
+       match how many columns the DATA actually fills. */
+    grid-template-columns:repeat(var(--cols, 5), 1fr);
     grid-template-rows: minmax(0, 1fr);   /* one full-height row so columns fill the stage */
     gap:var(--gap);
     padding:var(--gap);
@@ -131,9 +134,10 @@
     transition:none;
   }
 
-  /* a single grid column. Each holds a stack of cells. The whole column is
-     translated horizontally during Phase 1 (inward, from off-stage) and pushed
-     apart during Phase 2 (outward, camera pass-through). */
+  /* a single grid column. Each holds a stack of cells. Every column carries a
+     per-column seat coordinate --seat in [-1 .. +1] (set inline from JS):
+     -1 = leftmost column, 0 = center, +1 = rightmost. The bloom geometry is one
+     formula keyed off --seat, so it generalizes to ANY column count. */
   .col{
     display:grid;
     grid-template-rows: minmax(0, 1fr);    /* fill the iris row height */
@@ -141,34 +145,37 @@
     will-change:transform;
   }
 
-  /* COMPRESSED START STATE (p=0): the three columns are NOT off-stage. They are
-     visibly seated behind the headline but squeezed tight toward center, so the
-     populated grid + the imminent bloom both read instantly in the first frame.
-     The flanks start pulled IN toward center (alternating directions) and the
-     whole column footprint is narrowed via --squeeze.
-     Phase 1 = flanks spread OUTWARD to their full-width seats, staggered.
-     Phase 2 = flanks push further apart (camera passes between them).
-     The center column only ever rides the scale. */
-  .col.left{
-    transform: translateX( calc(
-        ( 30vw) * (1 - var(--p1))          /* P1: starts pulled IN, spreads out  */
-      + (-9vw)  * var(--p2)                /* P2: push further left (zoom)        */
-    ));
+  /* COMPRESSED START STATE (p=0): all N columns are visibly seated behind the
+     headline, side by side, each squeezed into a narrow vertical slat and pulled
+     toward center so the slats pack edge to edge into a WIDE squeezed slab (a
+     nearly-closed iris of vertical slats) spanning the middle of the frame, not
+     one thin central strip.
+       --pack  = how far each column is pulled toward center at p=0. Tuned so the
+                 squeezed slats sit adjacent (no big inter-slat gaps) and the slab
+                 spans a wide central band. Released linearly across Phase 1.
+     Phase 1 = the packed slab blooms OUTWARD, each column easing to its full grid
+               seat (full-bleed wall of media), staggered by seat distance.
+     Phase 2 = columns push further apart from center (camera passes between them).
+     The exact-center column (seat 0) rides the scale only. */
+  .iris{
+    /* pull strength: at p=0 a column at seat=±1 is pulled ~27vw inward; this
+       closes the empty side-margins left by --squeeze so the slats pack tight. */
+    --pack: 27vw;
+    /* outward camera push in Phase 2 (seat-scaled) */
+    --spread: 10vw;
   }
-  .col.center{
-    transform: translateX( 0px );
-    /* center column is the nearest-to-camera plate; rides scale only */
-  }
-  .col.right{
+  .col{
     transform: translateX( calc(
-        (-30vw) * (1 - var(--p1))          /* P1: starts pulled IN, spreads out  */
-      + ( 9vw)  * var(--p2)                /* P2: push further right (zoom)       */
+        var(--seat) * (-1 * var(--pack)) * (1 - var(--p1))   /* P1: packed slab spreads out to full seats */
+      + var(--seat) * ( var(--spread))  * var(--p2)          /* P2: push outward from center (zoom)        */
     ));
   }
 
-  /* footprint squeeze: tight at p=0 (so columns overlap into a dense central
-     slab behind the headline), relaxing to natural width across Phase 1. */
-  .iris{ --squeeze: calc(0.40 + 0.60 * var(--p1)); }
+  /* footprint squeeze: each column compressed to a slat at p=0 (so the packed
+     columns read as a dense slab of vertical slats behind the headline), relaxing
+     to natural full width across Phase 1. Kept high enough that imagery in each
+     slat is still recognizable, low enough that the squeeze is unmistakable. */
+  .iris{ --squeeze: calc(0.46 + 0.54 * var(--p1)); }
   .col{ transform-box:fill-box; }
   .col > .cellwrap{
     transform: scaleX(var(--squeeze));
@@ -387,22 +394,21 @@
      landscape asset is NEVER cover-cropped into a portrait viewport. */
   @media (max-width:640px){
     .iris{
-      grid-template-columns:repeat(2, 1fr);
+      grid-template-columns:repeat(2, 1fr);   /* mobile collapses to 2 columns */
       transform: scale( calc(1 + 0.21 * var(--p2)) );  /* halved zoom */
       gap:8px; padding:8px;
       align-content:center;
     }
-    /* on 2 cols there is no center plate; both flanks START pulled toward
-       center (compressed slab behind the headline), then spread out in P1 and
-       push modestly apart in P2. Signs MATCH the desktop compressed-start
-       convention: left starts shifted RIGHT (+), right starts shifted LEFT (-). */
-    .col.center{ display:none; }
-    .col.left{
-      transform: translateX( calc(( 26vw) * (1 - var(--p1)) + (-3vw) * var(--p2)) );
-    }
-    .col.right{
-      transform: translateX( calc((-26vw) * (1 - var(--p1)) + ( 3vw) * var(--p2)) );
-    }
+    /* keep only the first two columns on mobile; the rest are hidden so the
+       2-column slab + bloom is preserved exactly as before. */
+    .col:nth-child(n+3){ display:none; }
+    /* force the surviving pair to symmetric seats -1 / +1 (the inline JS seats
+       come from the 5-column desktop layout). The generic seat-driven .col
+       transform then packs them toward center at p=0 and spreads them in P1.
+       Mobile uses gentler pack + spread distances tuned for the narrow viewport. */
+    .col:nth-child(1){ --seat: -1 !important; }
+    .col:nth-child(2){ --seat:  1 !important; }
+    .iris{ --pack: 26vw; --spread: 3vw; }
     .iris{ --squeeze: calc(0.50 + 0.50 * var(--p1)); }
 
     /* On mobile we do NOT horizontally squeeze the cellwrap (that would distort
@@ -435,7 +441,7 @@
     .driver{ height:auto !important; }
     .stage{ position:relative !important; height:100svh; }
     .iris{ transform:none !important; }
-    .col.left, .col.right, .col.center{ transform:none !important; }
+    .col{ transform:none !important; }
     .iris{ --squeeze:1 !important; }
     .col > .cellwrap{ transform:none !important; }
     .cell img, .cell video{ transform:none !important; }
@@ -460,12 +466,9 @@
   <section class="driver" id="driver" aria-label="Cinematic intro">
     <div class="stage" id="stage">
 
-      <!-- THE IRIS GRID: 3 columns, each a stack of real media cells -->
-      <div class="iris" id="iris" aria-hidden="true">
-        <div class="col left"   data-col="left"></div>
-        <div class="col center" data-col="center"></div>
-        <div class="col right"  data-col="right"></div>
-      </div>
+      <!-- THE IRIS GRID: N columns (built by JS), each a stack of real media cells.
+           At p=0 the columns pack into a wide squeezed slab of vertical slats. -->
+      <div class="iris" id="iris" aria-hidden="true"></div>
 
       <!-- sand veil: lifts the grid toward the settled daylight state -->
       <div class="iris-veil" aria-hidden="true"></div>
@@ -541,26 +544,37 @@ const FEATURES = [
 ];
 
 /* ==========================================================================
-   BUILD - distribute DATA across the three columns, mount cells.
+   BUILD - distribute DATA across N columns, mount cells.
+   COLS is the desktop column count. With more columns the compressed p=0 state
+   reads as a WIDE wall of packed vertical slats rather than a thin central strip.
+   Round-robin works for any N; we cap COLS so no column is left empty.
+   Mobile (CSS) collapses to 2 columns regardless via --cols + nth-child hiding.
    ========================================================================== */
-const cols = {
-  left:   document.querySelector('[data-col="left"]'),
-  center: document.querySelector('[data-col="center"]'),
-  right:  document.querySelector('[data-col="right"]'),
-};
-const order = ["left","center","right"];
-const colItems = { left:[], center:[], right:[] };
+const irisEl = document.getElementById('iris');
+const COLS = Math.min(5, DATA.length);           // 5 slats on desktop (9 assets -> 2,2,2,2,1)
+irisEl.style.setProperty('--cols', COLS);
 
-DATA.forEach((d,i)=>{ colItems[order[i % 3]].push(d); });
+// distribute round-robin so every column is populated and the load is balanced
+const colItems = Array.from({length:COLS}, ()=>[]);
+DATA.forEach((d,i)=>{ colItems[i % COLS].push(d); });
 
 /* keep track of video cells so we can manage decode load (only one plays) */
 const videoCells = [];
 
-function buildColumn(name){
-  const items = colItems[name];
+function buildColumn(items, colIndex){
+  const col = document.createElement('div');
+  col.className = 'col';
+  col.dataset.col = String(colIndex);
+  // seat: normalized column position in [-1 .. +1] (center = 0). Drives the
+  // pack-in / bloom-out geometry. For a single column COLS===1, seat = 0.
+  const seat = COLS > 1 ? (colIndex / (COLS - 1)) * 2 - 1 : 0;
+  col.style.setProperty('--seat', seat.toFixed(4));
+
   const wrap = document.createElement('div');
   wrap.className = 'cellwrap';
   wrap.style.setProperty('--cellrows', items.length);
+
+  const isCenterCol = Math.abs(seat) < 0.001;     // exact-center column
 
   items.forEach((d, idx)=>{
     const cell = document.createElement('div');
@@ -588,7 +602,8 @@ function buildColumn(name){
     } else {
       const img = document.createElement('img');
       img.src = d.img; img.alt = d.tag;
-      img.loading = (name==='center' && idx<2) ? 'eager' : 'lazy';
+      // eager-load the center column's first cells (they're nearest the camera)
+      img.loading = (isCenterCol && idx<2) ? 'eager' : 'lazy';
       img.decoding = 'async';
       cell.appendChild(img);
     }
@@ -600,9 +615,10 @@ function buildColumn(name){
     wrap.appendChild(cell);
   });
 
-  cols[name].appendChild(wrap);
+  col.appendChild(wrap);
+  irisEl.appendChild(col);
 }
-order.forEach(buildColumn);
+colItems.forEach(buildColumn);
 
 /* build detail features */
 const fg = document.getElementById('featgrid');

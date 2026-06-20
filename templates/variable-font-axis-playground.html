@@ -1,0 +1,588 @@
+<!-- TEMPLATE: Axis Playground | ARCHETYPE: variable-font-axis-playground | REF: variable-font specimen pages, type-foundry product demos (Recursive Mono/Casual axes, wght/slnt) | WHEN TO USE: a type-specimen / foundry page whose product IS live variable-font axis control - oversized specimen + labeled sliders that warp it in real time | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Axis Playground - variable font specimen</title>
+
+<!-- True Google variable font: Recursive exposes wght, slnt, CASL, MONO, CRSV as real variation axes -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Recursive:slnt,wght,CASL,CRSV,MONO@-15..0,300..1000,0..1,0..1,0..1&display=swap" rel="stylesheet">
+
+<script>
+/* =========================================================================
+   DATA  -  edit this single block to re-skin the whole specimen playground.
+   Every axis here is a REAL Recursive variable-font axis. Labels map 1:1 to
+   font-variation-settings tags, so swapping fonts = swap tags + ranges below.
+   ========================================================================= */
+const DATA = {
+  brand:       "RECURSIVE",
+  kicker:      "Variable specimen / 5-axis playground",
+  // The oversized specimen word(s). Keep it short so it spans the viewport.
+  specimen:    "Aa",
+  // Secondary line under the giant glyphs (also live-warped).
+  subline:     "Drag any axis. The type bends in real time.",
+  // Pangram strip shown in the lower band, also driven by the live axes.
+  pangram:     "Pack my box with five dozen liquor jugs.",
+  accent:      "#ff5a3c",
+
+  // Order = render order in the control rail. tag must be a real OpenType axis.
+  axes: [
+    { tag: "wght", label: "Weight",  hint: "Light to Black",        min: 300, max: 1000, step: 1,    value: 860 },
+    { tag: "slnt", label: "Slant",   hint: "Upright to Oblique",    min: -15, max: 0,    step: 1,    value: 0,   invert: true },
+    { tag: "CASL", label: "Casual",  hint: "Linear to Casual",      min: 0,   max: 1,    step: 0.01, value: 0.42 },
+    { tag: "MONO", label: "Mono",    hint: "Sans to Monospace",     min: 0,   max: 1,    step: 0.01, value: 0 },
+    { tag: "CRSV", label: "Cursive", hint: "Roman to Cursive",      min: 0,   max: 1,    step: 0.01, value: 0 }
+  ],
+
+  // Preset styles = named axis combos. Click to snap every slider at once.
+  presets: [
+    { name: "Display Black",  vals: { wght: 1000, slnt: 0,   CASL: 0,    MONO: 0, CRSV: 0 } },
+    { name: "Casual Heavy",   vals: { wght: 900,  slnt: -6,  CASL: 1,    MONO: 0, CRSV: 0 } },
+    { name: "Mono Code",      vals: { wght: 460,  slnt: 0,   CASL: 0,    MONO: 1, CRSV: 0 } },
+    { name: "Oblique Light",  vals: { wght: 360,  slnt: -15, CASL: 0,    MONO: 0, CRSV: 0 } },
+    { name: "Script Cursive", vals: { wght: 640,  slnt: -8,  CASL: 0.7,  MONO: 0, CRSV: 1 } },
+    { name: "Mono Casual",    vals: { wght: 560,  slnt: -4,  CASL: 1,    MONO: 1, CRSV: 0 } },
+    { name: "Editorial",      vals: { wght: 520,  slnt: 0,   CASL: 0.2,  MONO: 0, CRSV: 0 } },
+    { name: "Soft Bold",      vals: { wght: 780,  slnt: 0,   CASL: 0.85, MONO: 0, CRSV: 0 } }
+  ]
+};
+</script>
+
+<style>
+  :root{
+    --ink:#0c0c0e;
+    --bone:#efe9dc;
+    --bone-dim:#b7b1a4;
+    --line:rgba(239,233,220,.14);
+    --accent:#ff5a3c;
+    --pad:clamp(16px,3.4vw,40px);
+    --rail-w:336px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{ -webkit-text-size-adjust:100%; }
+  body{
+    background:var(--ink);
+    color:var(--bone);
+    font-family:"Recursive", ui-sans-serif, system-ui, sans-serif;
+    font-variation-settings:"MONO" 0;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+  ::selection{ background:var(--accent); color:var(--ink); }
+
+  /* subtle film-grain + vignette so the bone+ink reads filmic, not flat */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:60;mix-blend-mode:overlay;opacity:.05;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+  body::after{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:1;
+    background:radial-gradient(120% 90% at 30% 0%, transparent 40%, rgba(0,0,0,.55) 100%);
+  }
+
+  /* ---- top band: brand + kicker + live readout ---- */
+  .topbar{
+    position:relative;z-index:5;
+    display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+    padding:var(--pad) var(--pad) 0;
+  }
+  .brand{
+    display:flex;align-items:baseline;gap:.7ch;
+    font-variation-settings:"wght" 800,"MONO" 1,"slnt" 0;
+    font-size:clamp(13px,1.5vw,16px);letter-spacing:.34em;text-transform:uppercase;
+  }
+  .brand .dot{ width:.62em;height:.62em;border-radius:50%;background:var(--accent);display:inline-block;translate:0 -.04em; }
+  .kicker{
+    font-variation-settings:"MONO" 1,"wght" 420;
+    font-size:clamp(11px,1.2vw,13px);letter-spacing:.12em;color:var(--bone-dim);text-transform:uppercase;
+  }
+
+  /* ---- main signature grid: specimen + control rail, populated at scroll=0 ---- */
+  .stage{
+    position:relative;z-index:5;
+    display:grid;
+    grid-template-columns:1fr var(--rail-w);
+    gap:clamp(20px,3vw,52px);
+    align-items:stretch;
+    padding:clamp(10px,2vw,26px) var(--pad) var(--pad);
+    min-height:calc(100svh - 92px);
+  }
+
+  /* giant specimen, font-variation-settings driven live by JS */
+  .specimen-wrap{
+    position:relative;
+    display:flex;flex-direction:column;justify-content:center;
+    border:1px solid var(--line);border-radius:18px;
+    padding:clamp(14px,2.5vw,34px);
+    overflow:hidden;
+    background:
+      linear-gradient(180deg, rgba(255,90,60,.05), transparent 30%),
+      radial-gradient(80% 60% at 78% 14%, rgba(255,90,60,.10), transparent 60%);
+  }
+  /* faint baseline / axis grid behind the glyph */
+  .specimen-wrap::before{
+    content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
+    background-image:linear-gradient(var(--line) 1px, transparent 1px);
+    background-size:100% clamp(46px,7vh,82px);
+    -webkit-mask-image:linear-gradient(180deg,transparent,#000 18%,#000 82%,transparent);
+            mask-image:linear-gradient(180deg,transparent,#000 18%,#000 82%,transparent);
+  }
+  .axis-tags{
+    position:absolute;top:clamp(12px,2vw,22px);left:clamp(14px,2.5vw,30px);right:clamp(14px,2.5vw,30px);
+    display:flex;gap:10px 14px;flex-wrap:wrap;z-index:3;
+    font-variation-settings:"MONO" 1,"wght" 460;
+    font-size:clamp(10px,1.05vw,12.5px);letter-spacing:.04em;color:var(--bone-dim);
+  }
+  .axis-tags b{ color:var(--accent);font-variation-settings:"MONO" 1,"wght" 640; }
+
+  .specimen{
+    position:relative;z-index:2;
+    font-size:clamp(118px, 30vw, 460px);
+    line-height:.82;letter-spacing:-.02em;
+    will-change:font-variation-settings;
+    word-break:break-word;
+    margin-top:.18em;
+  }
+  .specimen .accent{ color:var(--accent); }
+  .subline{
+    position:relative;z-index:2;margin-top:clamp(10px,1.6vw,18px);
+    font-size:clamp(15px,1.9vw,26px);line-height:1.18;color:var(--bone);
+    max-width:22ch;will-change:font-variation-settings;
+  }
+
+  /* ---- control rail ---- */
+  .rail{
+    display:flex;flex-direction:column;gap:clamp(10px,1.4vw,16px);
+    border:1px solid var(--line);border-radius:18px;
+    padding:clamp(16px,1.8vw,22px);
+    background:linear-gradient(180deg, rgba(255,255,255,.02), transparent);
+  }
+  .rail-head{
+    display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+    padding-bottom:6px;border-bottom:1px solid var(--line);
+  }
+  .rail-head h2{
+    font-variation-settings:"wght" 760,"MONO" 1;
+    font-size:13px;letter-spacing:.22em;text-transform:uppercase;
+  }
+  .rail-head .reset{
+    appearance:none;background:none;border:1px solid var(--line);color:var(--bone-dim);
+    font-family:inherit;font-variation-settings:"MONO" 1,"wght" 480;
+    font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+    padding:5px 10px;border-radius:999px;cursor:pointer;transition:.18s;
+  }
+  .rail-head .reset:hover{ color:var(--accent);border-color:var(--accent); }
+
+  .axis{ display:flex;flex-direction:column;gap:7px; }
+  .axis-label{
+    display:flex;align-items:baseline;justify-content:space-between;gap:8px;
+  }
+  .axis-label .name{
+    font-variation-settings:"wght" 600;
+    font-size:14px;letter-spacing:.01em;
+  }
+  .axis-label .tag{
+    font-variation-settings:"MONO" 1,"wght" 460;
+    font-size:10.5px;letter-spacing:.1em;color:var(--bone-dim);text-transform:uppercase;
+  }
+  .axis-label .val{
+    font-variation-settings:"MONO" 1,"wght" 620;
+    font-size:12.5px;color:var(--accent);font-feature-settings:"tnum" 1;tab-size:4;
+    margin-left:auto;min-width:5ch;text-align:right;
+  }
+  .axis-hint{
+    font-size:10.5px;letter-spacing:.02em;color:var(--bone-dim);
+    font-variation-settings:"wght" 400;margin-top:-2px;
+  }
+
+  /* range slider, styled both webkit + moz */
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:26px;background:transparent;cursor:pointer;
+  }
+  input[type=range]:focus{ outline:none; }
+  input[type=range]:focus-visible::-webkit-slider-thumb{ box-shadow:0 0 0 3px var(--ink),0 0 0 5px var(--accent); }
+  input[type=range]:focus-visible::-moz-range-thumb{ box-shadow:0 0 0 3px var(--ink),0 0 0 5px var(--accent); }
+  /* track */
+  input[type=range]::-webkit-slider-runnable-track{
+    height:3px;border-radius:2px;
+    background:linear-gradient(90deg,var(--accent) var(--fill,40%),rgba(239,233,220,.16) var(--fill,40%));
+  }
+  input[type=range]::-moz-range-track{ height:3px;border-radius:2px;background:rgba(239,233,220,.16); }
+  input[type=range]::-moz-range-progress{ height:3px;border-radius:2px;background:var(--accent); }
+  /* thumb */
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;
+    background:var(--bone);border:3px solid var(--ink);margin-top:-7px;
+    box-shadow:0 0 0 1px rgba(239,233,220,.3);transition:transform .12s, background .12s;
+  }
+  input[type=range]:hover::-webkit-slider-thumb{ background:var(--accent); }
+  input[type=range]:active::-webkit-slider-thumb{ transform:scale(1.15); }
+  input[type=range]::-moz-range-thumb{
+    width:14px;height:14px;border-radius:50%;background:var(--bone);border:3px solid var(--ink);
+    box-shadow:0 0 0 1px rgba(239,233,220,.3);
+  }
+  input[type=range]:hover::-moz-range-thumb{ background:var(--accent); }
+
+  /* ---- preset grid ---- */
+  .presets-head{
+    margin-top:clamp(6px,1vw,10px);padding-top:clamp(10px,1.4vw,14px);
+    border-top:1px solid var(--line);
+    display:flex;align-items:baseline;justify-content:space-between;
+  }
+  .presets-head h3{
+    font-variation-settings:"wght" 700,"MONO" 1;font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+  }
+  .presets-head span{ font-size:10px;color:var(--bone-dim);font-variation-settings:"MONO" 1;letter-spacing:.08em; }
+  .presets{
+    display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;
+  }
+  .preset{
+    appearance:none;text-align:left;cursor:pointer;
+    background:rgba(239,233,220,.03);border:1px solid var(--line);border-radius:11px;
+    color:var(--bone);font-family:inherit;
+    padding:11px 12px;line-height:1.1;transition:.16s;
+    display:flex;flex-direction:column;gap:5px;
+  }
+  .preset:hover{ border-color:var(--accent);background:rgba(255,90,60,.07); }
+  .preset.is-active{ border-color:var(--accent);background:rgba(255,90,60,.1); }
+  .preset .p-name{
+    font-size:13px;letter-spacing:.01em;
+    /* each chip previews its own combo via inline font-variation-settings (set in JS) */
+  }
+  .preset .p-meta{
+    font-variation-settings:"MONO" 1,"wght" 460;
+    font-size:9.5px;letter-spacing:.06em;color:var(--bone-dim);text-transform:uppercase;
+  }
+  .preset:focus-visible{ outline:none;border-color:var(--accent);box-shadow:0 0 0 2px var(--ink),0 0 0 4px var(--accent); }
+
+  /* ---- lower pangram band ---- */
+  .pangram-band{
+    position:relative;z-index:5;
+    border-top:1px solid var(--line);
+    padding:clamp(22px,4vw,56px) var(--pad);
+    overflow:hidden;
+  }
+  .pangram-band .label{
+    font-variation-settings:"MONO" 1,"wght" 460;
+    font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--bone-dim);
+    display:flex;align-items:center;gap:12px;margin-bottom:clamp(12px,2vw,22px);
+  }
+  .pangram-band .label::after{ content:"";flex:1;height:1px;background:var(--line); }
+  .pangram{
+    font-size:clamp(30px,7.2vw,104px);line-height:.96;letter-spacing:-.015em;
+    will-change:font-variation-settings;
+    color:var(--bone);
+  }
+  .pangram .accent{ color:var(--accent); }
+  .glyph-row{
+    margin-top:clamp(18px,3vw,40px);
+    display:flex;flex-wrap:wrap;gap:clamp(8px,1.4vw,18px);
+    font-size:clamp(26px,4.4vw,58px);color:var(--bone-dim);
+    will-change:font-variation-settings;
+  }
+  .glyph-row span{ transition:color .2s; }
+  .glyph-row span:hover{ color:var(--accent); }
+
+  /* ---- footer micro-credits ---- */
+  .foot{
+    position:relative;z-index:5;
+    display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;
+    padding:18px var(--pad) calc(18px + env(safe-area-inset-bottom));
+    border-top:1px solid var(--line);
+    font-variation-settings:"MONO" 1,"wght" 440;
+    font-size:11px;letter-spacing:.1em;color:var(--bone-dim);text-transform:uppercase;
+  }
+  .foot a{ color:var(--bone-dim);text-decoration:none;border-bottom:1px solid var(--line); }
+  .foot a:hover{ color:var(--accent);border-color:var(--accent); }
+
+  /* =================== RESPONSIVE: stack rail UNDER specimen <=900, tighten <=640 =================== */
+  @media (max-width:900px){
+    :root{ --rail-w:auto; }
+    .stage{
+      grid-template-columns:1fr;
+      min-height:auto;
+      gap:clamp(16px,3vw,26px);
+    }
+    .specimen-wrap{ min-height:46svh; }
+    .presets{ grid-template-columns:1fr 1fr 1fr; }
+  }
+  @media (max-width:640px){
+    .topbar{ gap:8px; }
+    .kicker{ width:100%; }
+    .specimen{ font-size:clamp(96px,40vw,200px); }
+    .specimen-wrap{ min-height:40svh; }
+    .axis-tags{ position:static;margin-bottom:8px;justify-content:flex-start; }
+    .presets{ grid-template-columns:1fr 1fr; }
+    .pangram{ font-size:clamp(28px,10vw,52px); }
+  }
+  @media (max-width:380px){
+    .presets{ grid-template-columns:1fr; }
+  }
+
+  /* =================== REDUCED MOTION: kill idle shimmer + transitions, static specimen =================== */
+  @media (prefers-reduced-motion:reduce){
+    *{ animation:none !important;transition:none !important; }
+  }
+</style>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand"><span class="dot"></span><span id="brand">RECURSIVE</span></div>
+    <div class="kicker" id="kicker">Variable specimen / 5-axis playground</div>
+  </header>
+
+  <main class="stage">
+
+    <!-- LEFT: oversized live specimen (signature, visible at scroll=0) -->
+    <section class="specimen-wrap" aria-label="Live variable-font specimen">
+      <div class="axis-tags" id="axisTags" aria-hidden="true"></div>
+      <div class="specimen" id="specimen">Aa</div>
+      <p class="subline" id="subline">Drag any axis. The type bends in real time.</p>
+    </section>
+
+    <!-- RIGHT (stacks under on mobile): labeled axis sliders + preset grid -->
+    <aside class="rail" aria-label="Axis controls">
+      <div class="rail-head">
+        <h2>Axes</h2>
+        <button class="reset" id="reset" type="button">Reset</button>
+      </div>
+      <div id="axisList"></div>
+
+      <div class="presets-head">
+        <h3>Preset styles</h3><span>tap to snap</span>
+      </div>
+      <div class="presets" id="presetGrid" role="group" aria-label="Preset axis combinations"></div>
+    </aside>
+
+  </main>
+
+  <!-- LOWER: pangram strip + glyph row, also driven by the live axes -->
+  <section class="pangram-band" aria-label="Pangram and glyphs in the current style">
+    <div class="label">Pangram / current style</div>
+    <div class="pangram" id="pangram">Pack my box with five dozen liquor jugs.</div>
+    <div class="glyph-row" id="glyphRow" aria-hidden="true"></div>
+  </section>
+
+  <footer class="foot">
+    <span>Recursive variable font - 5 real axes - native CSS / JS</span>
+    <span><a href="https://fonts.google.com/specimen/Recursive" target="_blank" rel="noopener">Google Fonts: Recursive</a></span>
+  </footer>
+
+<script>
+(() => {
+  "use strict";
+
+  // ---- pull DATA into DOM (so the file is swap-by-array) ----
+  document.documentElement.style.setProperty('--accent', DATA.accent || '#ff5a3c');
+  document.getElementById('brand').textContent  = DATA.brand;
+  document.getElementById('kicker').textContent = DATA.kicker;
+  document.getElementById('subline').textContent = DATA.subline;
+
+  // specimen: split last char to accent it
+  const specEl = document.getElementById('specimen');
+  const txt = DATA.specimen;
+  if (txt.length > 1) {
+    specEl.innerHTML = txt.slice(0, -1) + '<span class="accent">' + txt.slice(-1) + '</span>';
+  } else {
+    specEl.textContent = txt;
+  }
+
+  // pangram: accent the first word
+  const panEl = document.getElementById('pangram');
+  const pParts = DATA.pangram.split(' ');
+  panEl.innerHTML = '<span class="accent">' + pParts[0] + '</span> ' + pParts.slice(1).join(' ');
+
+  // glyph row sampler
+  const glyphRow = document.getElementById('glyphRow');
+  "AGRageny0123&@".split('').forEach(ch => {
+    const s = document.createElement('span'); s.textContent = ch; glyphRow.appendChild(s);
+  });
+
+  // ---- state: one object holding every axis' current value ----
+  const state = {};
+  DATA.axes.forEach(a => state[a.tag] = a.value);
+
+  // elements whose font-variation-settings we drive live
+  const liveEls = [specEl, document.getElementById('subline'), panEl, glyphRow];
+
+  // build the font-variation-settings string from state
+  function fvs(extra) {
+    const parts = DATA.axes.map(a => {
+      const v = (extra && extra[a.tag] !== undefined) ? extra[a.tag] : state[a.tag];
+      return '"' + a.tag + '" ' + v;
+    });
+    return parts.join(',');
+  }
+
+  const tagBox = document.getElementById('axisTags');
+  function applyAxes() {
+    const css = fvs();
+    for (const el of liveEls) el.style.fontVariationSettings = css;
+    // readout chips inside the specimen frame
+    tagBox.innerHTML = DATA.axes.map(a => {
+      const v = state[a.tag];
+      const disp = (a.step < 1) ? v.toFixed(2) : Math.round(v);
+      return a.tag + ' <b>' + disp + '</b>';
+    }).join('&nbsp;&nbsp;');
+  }
+
+  // ---- build axis sliders ----
+  const axisList = document.getElementById('axisList');
+  const sliders = {};
+  const valOuts = {};
+
+  DATA.axes.forEach(a => {
+    const wrap = document.createElement('div');
+    wrap.className = 'axis';
+
+    const label = document.createElement('div');
+    label.className = 'axis-label';
+    const name = document.createElement('span'); name.className = 'name'; name.textContent = a.label;
+    const tag  = document.createElement('span'); tag.className  = 'tag';  tag.textContent  = a.tag;
+    const val  = document.createElement('span'); val.className  = 'val';
+    label.append(name, tag, val);
+
+    const hint = document.createElement('div');
+    hint.className = 'axis-hint';
+    hint.textContent = a.hint;
+
+    const range = document.createElement('input');
+    range.type = 'range';
+    range.min = a.min; range.max = a.max; range.step = a.step;
+    range.value = a.value;
+    range.setAttribute('aria-label', a.label + ' axis (' + a.tag + ')');
+    range.setAttribute('aria-valuetext', a.label);
+    range.id = 'axis-' + a.tag;
+
+    function fillPct() {
+      const p = ((range.value - a.min) / (a.max - a.min)) * 100;
+      range.style.setProperty('--fill', p + '%');
+    }
+    function showVal() {
+      const v = parseFloat(range.value);
+      val.textContent = (a.step < 1) ? v.toFixed(2) : Math.round(v);
+    }
+
+    range.addEventListener('input', () => {
+      state[a.tag] = parseFloat(range.value);
+      fillPct(); showVal(); applyAxes();
+      clearActivePreset();
+    });
+
+    wrap.append(label, hint, range);
+    axisList.appendChild(wrap);
+    sliders[a.tag] = range;
+    valOuts[a.tag] = { fillPct, showVal };
+    fillPct(); showVal();
+  });
+
+  // ---- preset grid ----
+  const presetGrid = document.getElementById('presetGrid');
+  const presetEls = [];
+
+  function clearActivePreset() {
+    presetEls.forEach(el => el.classList.remove('is-active'));
+  }
+
+  function snapTo(vals, srcEl) {
+    DATA.axes.forEach(a => {
+      const v = (vals[a.tag] !== undefined) ? vals[a.tag] : a.value;
+      state[a.tag] = v;
+      const sl = sliders[a.tag];
+      sl.value = v;
+      valOuts[a.tag].fillPct();
+      valOuts[a.tag].showVal();
+    });
+    applyAxes();
+    clearActivePreset();
+    if (srcEl) srcEl.classList.add('is-active');
+  }
+
+  DATA.presets.forEach(p => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'preset';
+    // chip previews its own combo
+    const previewFvs = DATA.axes.map(a => '"' + a.tag + '" ' + (p.vals[a.tag] !== undefined ? p.vals[a.tag] : a.value)).join(',');
+
+    const nm = document.createElement('span');
+    nm.className = 'p-name';
+    nm.textContent = p.name;
+    nm.style.fontVariationSettings = previewFvs;
+
+    const meta = document.createElement('span');
+    meta.className = 'p-meta';
+    meta.textContent = 'w' + (p.vals.wght ?? '-') + ' s' + (p.vals.slnt ?? 0);
+
+    btn.append(nm, meta);
+    btn.addEventListener('click', () => snapTo(p.vals, btn));
+    presetGrid.appendChild(btn);
+    presetEls.push(btn);
+  });
+
+  // ---- reset ----
+  document.getElementById('reset').addEventListener('click', () => {
+    const defaults = {};
+    DATA.axes.forEach(a => defaults[a.tag] = a.value);
+    snapTo(defaults, null);
+  });
+
+  // initial paint
+  applyAxes();
+
+  // ---- OPTIONAL idle breathing on the weight axis: gentle, ONLY if motion allowed
+  //      and ONLY while the user is not interacting. Honors prefers-reduced-motion. ----
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let raf = null, idleTimer = null, t0 = 0, baseW = state.wght;
+  const wghtAxis = DATA.axes.find(a => a.tag === 'wght');
+
+  function stopIdle() {
+    if (raf) { cancelAnimationFrame(raf); raf = null; }
+  }
+  function idleLoop(ts) {
+    if (!t0) t0 = ts;
+    const e = (ts - t0) / 1000;
+    // small +-50 breathe around current weight, clamped to axis range
+    const amp = 50;
+    let w = baseW + Math.sin(e * 0.9) * amp;
+    w = Math.max(wghtAxis.min, Math.min(wghtAxis.max, w));
+    state.wght = w;
+    // drive only the giant specimen for the breathe (cheap), leave readout honest-ish
+    specEl.style.fontVariationSettings = fvs();
+    raf = requestAnimationFrame(idleLoop);
+  }
+  function scheduleIdle() {
+    if (reduce.matches) return;
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      baseW = state.wght; t0 = 0;
+      raf = requestAnimationFrame(idleLoop);
+    }, 4200);
+  }
+  function wakeFromIdle() {
+    stopIdle();
+    // snap weight back to the slider's real value so state stays truthful
+    state.wght = parseFloat(sliders.wght.value);
+    applyAxes();
+    scheduleIdle();
+  }
+  if (!reduce.matches) {
+    ['pointerdown','pointermove','keydown','wheel','touchstart'].forEach(ev =>
+      window.addEventListener(ev, wakeFromIdle, { passive:true }));
+    scheduleIdle();
+  }
+  // if the user flips reduced-motion at runtime, kill the loop
+  reduce.addEventListener && reduce.addEventListener('change', e => {
+    if (e.matches) { stopIdle(); clearTimeout(idleTimer); state.wght = parseFloat(sliders.wght.value); applyAxes(); }
+  });
+
+})();
+</script>
+</body>
+</html>

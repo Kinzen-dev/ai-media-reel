@@ -1,0 +1,808 @@
+<!-- TEMPLATE: Dual | ARCHETYPE: light-dark() native color-scheme brand page | REF: CSS light-dark() (2025 Baseline), color-scheme, prefers-color-scheme | WHEN TO USE: a brand/product page whose identity IS adaptive theming - one palette declared once via light-dark(), an in-page scheme toggle plus OS-aware default, hero shows both schemes side by side | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dual - one palette, two schemes, declared once</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+/* =========================================================================
+   DATA-DRIVEN COLOR SYSTEM
+   Every color below is declared exactly ONCE via light-dark(LIGHT, DARK).
+   The root color-scheme decides which half of each pair renders.
+   To rebrand: change these pairs. That is the whole palette.
+   ========================================================================= */
+:root {
+  /* Forces light-dark() to resolve against the toggle, not just the OS.
+     Default value comes from the inline <script> in <head> (OS-aware). */
+  color-scheme: light dark;
+
+  /* ---- the single palette, expressed as light-dark() pairs ---- */
+  --bg:        light-dark(#f4f1ea, #0c0b0d);   /* bone  / ink        */
+  --bg-raise:  light-dark(#ffffff, #161417);   /* card surface       */
+  --bg-sink:   light-dark(#e9e4d8, #050406);   /* recessed surface   */
+  --ink:       light-dark(#15130f, #f4f1ea);   /* primary text        */
+  --ink-soft:  light-dark(#5b564c, #a39d92);   /* secondary text      */
+  --ink-faint: light-dark(#8a8478, #6a655c);   /* tertiary / captions */
+  --line:      light-dark(#d8d2c4, #2a262b);   /* hairlines / borders */
+  --line-soft: light-dark(#e6e1d6, #201d22);   /* faint dividers      */
+
+  /* ---- the one constant accent: stays the same in BOTH schemes ---- */
+  --accent:    #ff5a3c;
+  --accent-ink: light-dark(#ffffff, #0c0b0d);  /* text ON the accent  */
+  --accent-glow: light-dark(rgba(255,90,60,.18), rgba(255,90,60,.30));
+
+  --maxw: 1280px;
+  --gut: clamp(18px, 4vw, 56px);
+  --r: 16px;
+  --ease: cubic-bezier(.22,.61,.36,1);
+  --font-display: "Fraunces", Georgia, serif;
+  --font-sans: "Space Grotesk", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* The toggle simply rewrites color-scheme. light-dark() does the rest.
+   No second set of color declarations anywhere. */
+html[data-scheme="light"] { color-scheme: light; }
+html[data-scheme="dark"]  { color-scheme: dark; }
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+  transition: background-color .5s var(--ease), color .5s var(--ease);
+}
+
+::selection { background: var(--accent); color: var(--accent-ink); }
+
+a { color: inherit; text-decoration: none; }
+img, video { display: block; max-width: 100%; }
+
+:focus-visible {
+  outline: 2.5px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.wrap { max-width: var(--maxw); margin-inline: auto; padding-inline: var(--gut); }
+
+/* ============================ TOP BAR ============================ */
+.topbar {
+  position: sticky; top: 0; z-index: 60;
+  display: flex; align-items: center; gap: 18px;
+  padding: 14px var(--gut);
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  border-bottom: 1px solid var(--line);
+  transition: background-color .5s var(--ease), border-color .5s var(--ease);
+}
+.brand {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 22px;
+  letter-spacing: -.02em;
+  display: flex; align-items: center; gap: 9px;
+}
+.brand .dot {
+  width: 14px; height: 14px; border-radius: 50%;
+  /* a literal light/dark split dot: the brand mark embodies duality */
+  background: linear-gradient(90deg, #f4f1ea 0 50%, #0c0b0d 50% 100%);
+  border: 1.5px solid var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+  flex: none;
+}
+.topbar nav {
+  margin-left: auto;
+  display: flex; align-items: center; gap: 8px;
+}
+.topbar nav a {
+  font-size: 13px; font-weight: 500; color: var(--ink-soft);
+  padding: 7px 12px; border-radius: 99px;
+  transition: color .25s, background-color .25s;
+}
+.topbar nav a:hover { color: var(--ink); background: var(--bg-sink); }
+.topbar nav a.nav-mono { font-family: var(--font-mono); font-size: 12px; }
+@media (max-width: 820px) { .topbar nav a:not(.keep) { display: none; } }
+
+/* The scheme toggle: a labeled, on-state physical switch.
+   This is the literal identity object. */
+.scheme-toggle {
+  --pad: 4px;
+  position: relative;
+  display: inline-flex; align-items: center;
+  gap: 0;
+  height: 38px;
+  padding: var(--pad);
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: var(--bg-sink);
+  cursor: pointer;
+  font: inherit;
+  transition: border-color .4s, background-color .4s;
+}
+.scheme-toggle:hover { border-color: var(--accent); }
+.scheme-toggle .knob {
+  position: absolute;
+  top: var(--pad); left: var(--pad);
+  height: calc(100% - var(--pad) * 2);
+  width: calc(50% - var(--pad));
+  border-radius: 99px;
+  background: var(--accent);
+  box-shadow: 0 2px 10px var(--accent-glow), 0 1px 2px rgba(0,0,0,.25);
+  transition: transform .42s var(--ease);
+}
+html[data-scheme="dark"] .scheme-toggle .knob { transform: translateX(100%); }
+.scheme-toggle .opt {
+  position: relative; z-index: 1;
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 14px;
+  font-family: var(--font-mono);
+  font-size: 12px; font-weight: 500;
+  letter-spacing: .02em;
+  color: var(--ink-soft);
+  transition: color .3s;
+  white-space: nowrap;
+}
+.scheme-toggle .opt svg { width: 13px; height: 13px; }
+html[data-scheme="light"] .scheme-toggle .opt.is-light,
+html[data-scheme="dark"]  .scheme-toggle .opt.is-dark { color: var(--accent-ink); }
+
+/* ============================ HERO SPLIT ============================ */
+/* The hero is a single composition shown in BOTH schemes at once.
+   Each half forces its own color-scheme so light-dark() resolves opposite
+   ways on the SAME markup. Identity-clear at scroll=0. */
+.hero {
+  position: relative;
+  padding-block: clamp(20px, 3vw, 34px) clamp(28px, 4vw, 52px);
+}
+.hero-band {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px 22px;
+  margin-bottom: clamp(16px, 2.4vw, 26px);
+}
+.hero-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 12px; font-weight: 500;
+  letter-spacing: .14em; text-transform: uppercase;
+  color: var(--accent);
+  display: inline-flex; align-items: center; gap: 9px;
+}
+.hero-eyebrow::before {
+  content: ""; width: 28px; height: 1px; background: var(--accent);
+}
+.hero-title {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(40px, 8.5vw, 104px);
+  line-height: .92;
+  letter-spacing: -.035em;
+  margin: 0;
+  flex: 1 1 100%;
+}
+.hero-title .swap {
+  position: relative;
+  /* the word "once" carries the split too */
+  background: linear-gradient(90deg, var(--ink) 0 50%, var(--accent) 50% 100%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+.hero-sub {
+  font-size: clamp(15px, 1.6vw, 18px);
+  color: var(--ink-soft);
+  max-width: 56ch;
+  margin: 14px 0 0;
+  flex: 1 1 100%;
+}
+.hero-sub code {
+  font-family: var(--font-mono); font-size: .9em;
+  color: var(--accent);
+  background: var(--accent-glow);
+  padding: 1px 6px; border-radius: 5px;
+}
+
+/* the split stage */
+.split {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
+  background: var(--bg-raise);
+  box-shadow: 0 30px 80px -40px rgba(0,0,0,.45);
+}
+.split-half {
+  position: relative;
+  padding: clamp(20px, 3vw, 40px);
+  min-height: clamp(330px, 46vh, 460px);
+  display: flex; flex-direction: column;
+}
+/* THIS is the trick: each half pins its own scheme, so the very same
+   light-dark() variables resolve to opposite values left vs right. */
+.split-half.light { color-scheme: light; }
+.split-half.dark  { color-scheme: dark; }
+.split-half { background: var(--bg); color: var(--ink); }
+.split-half.dark { border-left: 1px solid var(--line); }
+@media (max-width: 640px) { .split-half.dark { border-left: none; border-top: 1px solid var(--line); } }
+
+.half-tag {
+  font-family: var(--font-mono);
+  font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--ink-faint);
+  display: inline-flex; align-items: center; gap: 7px;
+  margin-bottom: 18px;
+}
+.half-tag b {
+  color: var(--ink);
+  font-weight: 700;
+}
+.half-tag .pip {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--accent); flex: none;
+}
+
+/* a representative brand card rendered identically in each half;
+   only color-scheme differs, proving the single-source palette */
+.card {
+  margin-top: auto;
+  background: var(--bg-raise);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px 16px 14px;
+  transition: background-color .5s var(--ease), border-color .5s var(--ease);
+}
+.card-media {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-sink);
+  border: 1px solid var(--line-soft);
+}
+.card-media img {
+  width: 100%; height: 100%; object-fit: cover;
+  /* tiny scheme-aware tone so the SAME image feels native in each half */
+  filter: light-dark(none, brightness(.86) contrast(1.04));
+}
+.card-media .badge {
+  position: absolute; top: 8px; left: 8px;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  letter-spacing: .06em;
+  padding: 3px 8px; border-radius: 6px;
+  background: var(--accent); color: var(--accent-ink);
+}
+.card h3 {
+  font-family: var(--font-display);
+  font-size: 19px; font-weight: 600; letter-spacing: -.01em;
+  margin: 12px 0 4px;
+}
+.card p { font-size: 13px; color: var(--ink-soft); margin: 0 0 12px; }
+.card-row { display: flex; align-items: center; gap: 8px; }
+.btn {
+  font-family: var(--font-sans);
+  font-size: 13px; font-weight: 600;
+  padding: 9px 15px; border-radius: 9px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  transition: transform .2s, border-color .2s, background-color .4s, color .4s;
+}
+.btn:hover { transform: translateY(-1px); border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.primary:hover { filter: brightness(1.06); }
+.swatch-row { display: flex; gap: 6px; margin-left: auto; }
+.swatch { width: 16px; height: 16px; border-radius: 5px; border: 1px solid var(--line); }
+.swatch.s1 { background: var(--bg); }
+.swatch.s2 { background: var(--ink); }
+.swatch.s3 { background: var(--accent); border-color: var(--accent); }
+
+/* the seam: a draggable-looking divider with the function name on it */
+.seam {
+  position: absolute;
+  top: 0; bottom: 0; left: 50%;
+  width: 0;
+  z-index: 4;
+  pointer-events: none;
+  display: flex; align-items: center; justify-content: center;
+}
+.seam::before {
+  content: "";
+  position: absolute; top: 0; bottom: 0; left: -1px;
+  width: 2px;
+  background: linear-gradient(var(--accent), color-mix(in srgb, var(--accent) 30%, transparent));
+}
+.seam .chip {
+  position: relative;
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 700;
+  letter-spacing: .02em;
+  padding: 7px 11px;
+  border-radius: 99px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  white-space: nowrap;
+  box-shadow: 0 6px 20px var(--accent-glow);
+}
+@media (max-width: 480px) { .seam .chip { font-size: 10px; padding: 5px 9px; } }
+
+/* MOBILE: stack the two halves, keep the split readable */
+@media (max-width: 640px) {
+  .split { grid-template-columns: 1fr; }
+  .split-half { min-height: auto; }
+  .seam { top: 50%; bottom: auto; left: 0; right: 0; width: auto; transform: translateY(-50%); }
+  .seam::before { left: 0; right: 0; top: -1px; bottom: auto; width: auto; height: 2px;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 30%, transparent), var(--accent), color-mix(in srgb, var(--accent) 30%, transparent)); }
+}
+
+/* ============================ PALETTE PROOF STRIP ============================ */
+.proof {
+  margin-top: clamp(40px, 6vw, 72px);
+}
+.proof-head {
+  display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between;
+  gap: 16px; margin-bottom: 22px;
+}
+.proof-head h2 {
+  font-family: var(--font-display); font-weight: 600;
+  font-size: clamp(24px, 3.4vw, 38px); letter-spacing: -.02em; margin: 0;
+}
+.proof-head p { color: var(--ink-soft); font-size: 14px; margin: 6px 0 0; max-width: 44ch; }
+.token-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+.token {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg-raise);
+  transition: transform .25s var(--ease), border-color .25s;
+}
+.token:hover { transform: translateY(-3px); border-color: var(--accent); }
+.token .chiprow { display: flex; height: 64px; }
+.token .chiprow span { flex: 1; }
+.token .meta { padding: 11px 13px; }
+.token .meta .name { font-family: var(--font-mono); font-size: 12px; font-weight: 700; }
+.token .meta .pair {
+  font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-faint);
+  margin-top: 3px; display: block;
+}
+.token .meta .pair b { color: var(--accent); font-weight: 700; }
+
+/* ============================ GALLERY (same media, scheme-native) ============================ */
+.gallery { margin-top: clamp(40px, 6vw, 72px); }
+.media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: 16px;
+}
+.shot {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
+  background: var(--bg-raise);
+}
+.shot-media {
+  position: relative; aspect-ratio: 16/10; overflow: hidden; background: var(--bg-sink);
+}
+.shot-media img, .shot-media video {
+  width: 100%; height: 100%; object-fit: cover;
+  filter: light-dark(none, brightness(.88) contrast(1.03));
+}
+.shot-media video { position: absolute; inset: 0; opacity: 0; transition: opacity .4s; }
+.shot.playing .shot-media video { opacity: 1; }
+.shot-media .poster { position: absolute; inset: 0; transition: opacity .4s; }
+.shot.playing .shot-media .poster { opacity: 0; }
+.shot-media .play {
+  position: absolute; inset: 0; margin: auto;
+  width: 52px; height: 52px; border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 92%, transparent);
+  display: grid; place-items: center;
+  box-shadow: 0 8px 28px var(--accent-glow);
+  transition: transform .25s, opacity .25s;
+  pointer-events: none;
+}
+.shot.playing .shot-media .play { opacity: 0; transform: scale(.6); }
+.shot-media .play svg { width: 20px; height: 20px; fill: var(--accent-ink); margin-left: 2px; }
+.shot-body { padding: 13px 15px 15px; }
+.shot-body .k {
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--accent);
+}
+.shot-body h4 { font-family: var(--font-display); font-weight: 600; font-size: 18px; margin: 5px 0 4px; letter-spacing: -.01em; }
+.shot-body p { font-size: 13px; color: var(--ink-soft); margin: 0; }
+
+/* ============================ CODE / EXPLAINER ============================ */
+.explain { margin-top: clamp(44px, 6vw, 80px); }
+.explain-grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: clamp(20px, 3vw, 40px); align-items: center; }
+@media (max-width: 860px) { .explain-grid { grid-template-columns: 1fr; } }
+.explain h2 { font-family: var(--font-display); font-weight: 600; font-size: clamp(26px, 4vw, 44px); letter-spacing: -.02em; margin: 0 0 14px; line-height: 1.04; }
+.explain p { color: var(--ink-soft); font-size: 15px; margin: 0 0 14px; max-width: 50ch; }
+.explain ul { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 10px; }
+.explain li { display: flex; gap: 11px; font-size: 14px; color: var(--ink); }
+.explain li svg { flex: none; width: 18px; height: 18px; margin-top: 2px; }
+.explain li svg path { stroke: var(--accent); }
+.codeblock {
+  background: var(--bg-sink);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: clamp(11.5px, 1.3vw, 13.5px);
+  line-height: 1.65;
+}
+.codeblock .cb-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 11px 15px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-raise);
+}
+.codeblock .cb-bar .d { width: 11px; height: 11px; border-radius: 50%; background: var(--line); }
+.codeblock .cb-bar .d.a { background: var(--accent); }
+.codeblock .cb-bar .fn { margin-left: 8px; color: var(--ink-faint); font-size: 11.5px; }
+.codeblock pre { margin: 0; padding: 16px 18px; overflow-x: auto; color: var(--ink-soft); }
+.codeblock .tk { color: var(--accent); }
+.codeblock .tv-l { color: light-dark(#7a8a55, #b6c66f); }
+.codeblock .tv-d { color: light-dark(#5a78a8, #8fb6ff); }
+.codeblock .cm { color: var(--ink-faint); font-style: italic; }
+
+/* ============================ CTA + FOOTER ============================ */
+.cta {
+  margin-top: clamp(48px, 7vw, 90px);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: clamp(30px, 5vw, 60px);
+  text-align: center;
+  position: relative; overflow: hidden;
+  background:
+    radial-gradient(120% 120% at 50% -20%, var(--accent-glow), transparent 60%),
+    var(--bg-raise);
+}
+.cta h2 { font-family: var(--font-display); font-weight: 900; font-size: clamp(28px, 5vw, 56px); letter-spacing: -.03em; margin: 0 0 12px; line-height: 1; }
+.cta p { color: var(--ink-soft); font-size: 15px; margin: 0 auto 24px; max-width: 48ch; }
+.cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.cta .btn { padding: 13px 24px; font-size: 15px; }
+
+footer {
+  margin-top: clamp(40px, 6vw, 70px);
+  padding: 28px 0 40px;
+  border-top: 1px solid var(--line);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 14px;
+  color: var(--ink-faint); font-size: 12.5px;
+  font-family: var(--font-mono);
+}
+footer .brand { font-size: 16px; }
+footer .sp { margin-left: auto; }
+
+/* reveal animation, fully disabled under reduced motion */
+.reveal { opacity: 0; transform: translateY(22px); }
+.reveal.in { opacity: 1; transform: none; transition: opacity .7s var(--ease), transform .7s var(--ease); }
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .reveal.in { opacity: 1 !important; transform: none !important; transition: none !important; }
+  .scheme-toggle .knob, .card, .token, .shot, body { transition: none !important; }
+  .shot-media video, .shot-media .poster, .shot-media .play { transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- OS-aware default scheme: set BEFORE first paint so light-dark() resolves
+     to the user's system preference on load; the toggle overrides it after. -->
+<script>
+  (function () {
+    try {
+      var saved = localStorage.getItem("dual-scheme");
+      var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      var scheme = saved || (prefersDark ? "dark" : "light");
+      document.documentElement.setAttribute("data-scheme", scheme);
+    } catch (e) {
+      document.documentElement.setAttribute("data-scheme", "light");
+    }
+  })();
+</script>
+
+<header class="topbar">
+  <a class="brand keep" href="#top" aria-label="Dual home">
+    <span class="dot" aria-hidden="true"></span>Dual
+  </a>
+  <nav>
+    <a href="#proof">Palette</a>
+    <a href="#gallery">Gallery</a>
+    <a href="#how" class="nav-mono">light-dark()</a>
+    <button class="scheme-toggle keep" id="schemeToggle" type="button" role="switch" aria-label="Toggle color scheme" aria-checked="false">
+      <span class="knob" aria-hidden="true"></span>
+      <span class="opt is-light" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        Light
+      </span>
+      <span class="opt is-dark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        Dark
+      </span>
+    </button>
+  </nav>
+</header>
+
+<main class="wrap" id="top">
+
+  <!-- ===================== HERO: the duality, at scroll=0 ===================== -->
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="hero-band">
+      <span class="hero-eyebrow">CSS light-dark() &middot; 2025 Baseline</span>
+      <h1 class="hero-title" id="hero-title">One palette.<br>Declared <span class="swap">once</span>.</h1>
+      <p class="hero-sub">Every color on this page is written a single time as <code>light-dark(bone, ink)</code>. The same markup, rendered in both schemes below. Flip the toggle, or let your OS decide.</p>
+    </div>
+
+    <!-- the split stage: identical card, two forced schemes -->
+    <div class="split" role="img" aria-label="The same brand card shown in light scheme on the left and dark scheme on the right, proving one palette resolves both ways.">
+      <div class="split-half light">
+        <span class="half-tag"><span class="pip"></span><b>color-scheme: light</b></span>
+        <div class="card">
+          <div class="card-media">
+            <span class="badge">SAME MARKUP</span>
+            <img src="../assets/flux-clinic-4k.png" alt="Mint and wood clinic interior used as the brand visual" loading="eager" decoding="async" />
+          </div>
+          <h3>Bone surface, ink type</h3>
+          <p>Warm paper background, near-black text, one constant coral accent.</p>
+          <div class="card-row">
+            <button class="btn primary">Get started</button>
+            <span class="swatch-row" aria-hidden="true"><span class="swatch s1"></span><span class="swatch s2"></span><span class="swatch s3"></span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="split-half dark">
+        <span class="half-tag"><span class="pip"></span><b>color-scheme: dark</b></span>
+        <div class="card">
+          <div class="card-media">
+            <span class="badge">SAME MARKUP</span>
+            <img src="../assets/flux-clinic-4k.png" alt="The identical clinic visual, tuned for the dark scheme" loading="eager" decoding="async" />
+          </div>
+          <h3>Ink surface, bone type</h3>
+          <p>The pair just swaps. Nothing about the accent changes between halves.</p>
+          <div class="card-row">
+            <button class="btn primary">Get started</button>
+            <span class="swatch-row" aria-hidden="true"><span class="swatch s1"></span><span class="swatch s2"></span><span class="swatch s3"></span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="seam" aria-hidden="true"><span class="chip">light-dark( )</span></div>
+    </div>
+  </section>
+
+  <!-- ===================== PALETTE PROOF ===================== -->
+  <section class="proof reveal" id="proof" aria-labelledby="proof-h">
+    <div class="proof-head">
+      <div>
+        <h2 id="proof-h">The whole palette, both sides shown.</h2>
+        <p>Left swatch is the light resolution, right is dark. One declaration each. The accent is the only token that holds steady.</p>
+      </div>
+      <span class="hero-eyebrow" style="flex:none">8 tokens &middot; 1 accent</span>
+    </div>
+    <div class="token-grid" id="tokenGrid"><!-- injected from DATA --></div>
+  </section>
+
+  <!-- ===================== GALLERY: same media, scheme-native ===================== -->
+  <section class="gallery reveal" id="gallery" aria-labelledby="gallery-h">
+    <div class="proof-head">
+      <div>
+        <h2 id="gallery-h">Brand assets, adaptive by default.</h2>
+        <p>Each tile uses one filter pair so the same asset sits naturally in whichever scheme is live. Hover or tap a motion tile to play it. Only one decodes at a time.</p>
+      </div>
+    </div>
+    <div class="media-grid" id="mediaGrid"><!-- injected from DATA --></div>
+  </section>
+
+  <!-- ===================== HOW IT WORKS ===================== -->
+  <section class="explain reveal" id="how" aria-labelledby="how-h">
+    <div class="explain-grid">
+      <div>
+        <h2 id="how-h">No theme classes. No duplicated variables.</h2>
+        <p>The old way ships two color blocks and a class toggle that can drift out of sync. The native way ships one block. The browser picks the side from <code style="font-family:var(--font-mono);color:var(--accent)">color-scheme</code>.</p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>One source of truth per color, impossible to desync.</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>OS preference honored on first paint, no flash.</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>Nested <code style="font-family:var(--font-mono);color:var(--accent)">color-scheme</code> lets one component pin its own side.</li>
+        </ul>
+      </div>
+      <div class="codeblock" aria-label="Example of the light-dark palette declaration">
+        <div class="cb-bar"><span class="d a"></span><span class="d"></span><span class="d"></span><span class="fn">tokens.css</span></div>
+        <pre><span class="cm">/* declare once, resolve twice */</span>
+:root {
+  <span class="tk">color-scheme</span>: light dark;
+
+  <span class="tk">--bg</span>:    light-dark(<span class="tv-l">#f4f1ea</span>, <span class="tv-d">#0c0b0d</span>);
+  <span class="tk">--ink</span>:   light-dark(<span class="tv-l">#15130f</span>, <span class="tv-d">#f4f1ea</span>);
+  <span class="tk">--line</span>:  light-dark(<span class="tv-l">#d8d2c4</span>, <span class="tv-d">#2a262b</span>);
+  <span class="tk">--accent</span>: <span class="tk">#ff5a3c</span>; <span class="cm">/* constant */</span>
+}
+
+<span class="cm">/* the toggle does only this */</span>
+html[<span class="tk">data-scheme</span>=<span class="tv-l">"dark"</span>] {
+  <span class="tk">color-scheme</span>: dark;
+}</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== CTA ===================== -->
+  <section class="cta reveal" aria-labelledby="cta-h">
+    <h2 id="cta-h">Ship one palette.<br>Render every mood.</h2>
+    <p>Drop the token block in, wire a one-line toggle, and your whole product adapts to light, dark, and the user's system in a single source.</p>
+    <div class="cta-row">
+      <button class="btn primary" id="ctaToggle" type="button">Try the toggle</button>
+      <a class="btn" href="#top">Back to the split</a>
+    </div>
+  </section>
+
+  <footer>
+    <span class="brand"><span class="dot" aria-hidden="true"></span>Dual</span>
+    <span>light-dark() native theming template</span>
+    <span class="sp">No em dashes. No external libs. Pure CSS + a one-line toggle.</span>
+  </footer>
+
+</main>
+
+<script>
+/* =========================================================================
+   DATA  -  edit these arrays to rebrand. Nothing below needs touching.
+   PALETTE pairs mirror the :root light-dark() tokens above so the proof
+   strip stays in sync with the real CSS.
+   ========================================================================= */
+const DATA = {
+  // token name + the light/dark hex pair, shown as live swatches
+  palette: [
+    { name: "--bg",        light: "#f4f1ea", dark: "#0c0b0d", note: "bone / ink" },
+    { name: "--bg-raise",  light: "#ffffff", dark: "#161417", note: "surface" },
+    { name: "--ink",       light: "#15130f", dark: "#f4f1ea", note: "text" },
+    { name: "--ink-soft",  light: "#5b564c", dark: "#a39d92", note: "secondary" },
+    { name: "--line",      light: "#d8d2c4", dark: "#2a262b", note: "hairline" },
+    { name: "--bg-sink",   light: "#e9e4d8", dark: "#050406", note: "recessed" },
+    { name: "--ink-faint", light: "#8a8478", dark: "#6a655c", note: "caption" },
+    { name: "--accent",    light: "#ff5a3c", dark: "#ff5a3c", note: "constant accent", constant: true },
+  ],
+
+  // gallery tiles. `video` is optional; if present the tile becomes playable.
+  // Poster path follows ../assets/gen/poster-<base>.png convention.
+  gallery: [
+    { kind: "Image", title: "Studio car",   desc: "Cinematic matte-black hero plate.", img: "../assets/flux-car-4k.png" },
+    { kind: "Motion", title: "Drive loop",  desc: "Plays only when focused or hovered.", img: "../assets/gen/poster-flux-car-i2v.png", video: "../assets/flux-car-i2v.mp4" },
+    { kind: "Image", title: "Clinic set",   desc: "Mint and wood interior, scheme-tuned.", img: "../assets/flux-clinic-4k.png" },
+    { kind: "Motion", title: "Generative",  desc: "One decode at a time keeps FPS clean.", img: "../assets/gen/poster-kling-video.png", video: "../assets/kling-video.mp4" },
+    { kind: "Image", title: "Painterly fox", desc: "Warm palette reads in both schemes.", img: "../assets/sdxl.png" },
+    { kind: "Image", title: "Lo-fi apple",  desc: "Abstract texture, adaptive contrast.", img: "../assets/hf-tinysd.png" },
+  ],
+};
+
+/* ---------------- 1. THE TOGGLE (the whole theming engine) -------------- */
+const html = document.documentElement;
+const toggle = document.getElementById("schemeToggle");
+
+function applyScheme(scheme) {
+  html.setAttribute("data-scheme", scheme);
+  toggle.setAttribute("aria-checked", scheme === "dark" ? "true" : "false");
+  try { localStorage.setItem("dual-scheme", scheme); } catch (e) {}
+}
+function flip() {
+  applyScheme(html.getAttribute("data-scheme") === "dark" ? "light" : "dark");
+}
+toggle.addEventListener("click", flip);
+document.getElementById("ctaToggle").addEventListener("click", flip);
+// sync aria-checked with the OS-aware default set in <head>
+toggle.setAttribute("aria-checked", html.getAttribute("data-scheme") === "dark" ? "true" : "false");
+
+// live-follow the OS if the user has not made an explicit choice
+try {
+  const mq = window.matchMedia("(prefers-color-scheme: dark)");
+  const onOS = (e) => { if (!localStorage.getItem("dual-scheme")) applyScheme(e.matches ? "dark" : "light"); };
+  mq.addEventListener ? mq.addEventListener("change", onOS) : mq.addListener(onOS);
+} catch (e) {}
+
+/* ---------------- 2. PALETTE PROOF STRIP -------------------------------- */
+const tokenGrid = document.getElementById("tokenGrid");
+tokenGrid.innerHTML = DATA.palette.map(t => `
+  <div class="token">
+    <div class="chiprow" aria-hidden="true">
+      <span style="background:${t.light}"></span>
+      <span style="background:${t.dark}"></span>
+    </div>
+    <div class="meta">
+      <span class="name">${t.name}</span>
+      <span class="pair">${t.constant
+        ? `<b>${t.light}</b> &middot; constant`
+        : `${t.light} &rarr; ${t.dark}`}</span>
+    </div>
+  </div>`).join("");
+
+/* ---------------- 3. GALLERY (lazy posters, single-play) ---------------- */
+const mediaGrid = document.getElementById("mediaGrid");
+const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+mediaGrid.innerHTML = DATA.gallery.map((g, i) => {
+  const media = g.video
+    ? `<video muted loop playsinline preload="none" poster="${g.img}" data-src="${g.video}"></video>
+       <img class="poster" src="${g.img}" alt="${g.title} poster" loading="lazy" decoding="async" />
+       <span class="play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>`
+    : `<img src="${g.img}" alt="${g.title}" loading="lazy" decoding="async" />`;
+  return `
+    <figure class="shot${g.video ? " has-video" : ""}" data-i="${i}">
+      <div class="shot-media">${media}</div>
+      <figcaption class="shot-body">
+        <span class="k">${g.kind}</span>
+        <h4>${g.title}</h4>
+        <p>${g.desc}</p>
+      </figcaption>
+    </figure>`;
+}).join("");
+
+// Single-play discipline: at most one video decodes at a time.
+let playing = null;
+function stopPlaying() {
+  if (!playing) return;
+  const v = playing.querySelector("video");
+  if (v) { v.pause(); }
+  playing.classList.remove("playing");
+  playing = null;
+}
+function startPlay(fig) {
+  if (reduce) return;            // honor reduced motion: no autoplay
+  if (playing === fig) return;
+  stopPlaying();
+  const v = fig.querySelector("video");
+  if (!v) return;
+  if (!v.src && v.dataset.src) v.src = v.dataset.src;  // lazy attach
+  const p = v.play();
+  if (p && p.catch) p.catch(() => {});
+  fig.classList.add("playing");
+  playing = fig;
+}
+
+mediaGrid.querySelectorAll(".shot.has-video").forEach(fig => {
+  fig.addEventListener("mouseenter", () => startPlay(fig));
+  fig.addEventListener("mouseleave", () => { if (playing === fig) stopPlaying(); });
+  fig.addEventListener("click", () => { playing === fig ? stopPlaying() : startPlay(fig); });
+  fig.setAttribute("tabindex", "0");
+  fig.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); playing === fig ? stopPlaying() : startPlay(fig); }
+  });
+});
+
+// Pause any playing video that scrolls fully out of view (perf + battery).
+if ("IntersectionObserver" in window) {
+  const vis = new IntersectionObserver((entries) => {
+    entries.forEach(en => { if (!en.isIntersecting && playing === en.target) stopPlaying(); });
+  }, { threshold: 0.15 });
+  mediaGrid.querySelectorAll(".shot.has-video").forEach(f => vis.observe(f));
+}
+
+/* ---------------- 4. SCROLL REVEAL (skipped under reduced motion) ------- */
+if (reduce) {
+  document.querySelectorAll(".reveal").forEach(el => el.classList.add("in"));
+} else if ("IntersectionObserver" in window) {
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(en => { if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); } });
+  }, { threshold: 0.12, rootMargin: "0px 0px -8% 0px" });
+  document.querySelectorAll(".reveal").forEach(el => io.observe(el));
+} else {
+  document.querySelectorAll(".reveal").forEach(el => el.classList.add("in"));
+}
+</script>
+</body>
+</html>

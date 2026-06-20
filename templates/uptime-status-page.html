@@ -1,0 +1,765 @@
+<!-- TEMPLATE: Sentinel Status | ARCHETYPE: STATUS (public service-status / uptime page) | REF: Atlassian Statuspage, Stripe status, GitHub status | WHEN TO USE: a public uptime page with an "All Systems Operational" banner, per-service 90-day uptime bars, uptime %, and an incident-history feed with post-mortem notes | SWAP: edit the SERVICES, INCIDENTS and STATUS_META arrays at the top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sentinel Status</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1217;
+    --bg-2: #141922;
+    --panel: #161c26;
+    --panel-2: #1b222e;
+    --line: #232c3a;
+    --line-soft: #1d2531;
+    --bone: #ece6da;
+    --bone-dim: #a9b1bd;
+    --bone-fade: #6b7585;
+    --green: #1fa97a;
+    --green-glow: rgba(31,169,122,.35);
+    --amber: #e8a93a;
+    --red: #c0392b;
+    --grey: #3a4252;
+    --radius: 12px;
+    --maxw: 980px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(1100px 540px at 50% -120px, rgba(31,169,122,.10), transparent 60%),
+      radial-gradient(900px 600px at 100% 0%, rgba(40,60,90,.18), transparent 55%),
+      var(--bg);
+    color: var(--bone);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  a { color: inherit; text-decoration: none; }
+
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 22px; }
+
+  /* ---------- top bar ---------- */
+  header.topbar {
+    border-bottom: 1px solid var(--line-soft);
+    background: rgba(15,18,23,.72);
+    backdrop-filter: blur(10px);
+    position: sticky; top: 0; z-index: 40;
+  }
+  .topbar-in {
+    display: flex; align-items: center; gap: 14px;
+    height: 58px;
+  }
+  .brand { display: flex; align-items: center; gap: 11px; font-weight: 600; letter-spacing: .2px; }
+  .brand .logo {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: linear-gradient(150deg, var(--green), #14916a);
+    display: grid; place-items: center;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.06) inset, 0 6px 18px var(--green-glow);
+  }
+  .brand .logo svg { width: 15px; height: 15px; }
+  .brand small { color: var(--bone-fade); font-weight: 500; font-size: 12.5px; letter-spacing: .3px; }
+  .topbar-spacer { flex: 1; }
+  .top-link {
+    color: var(--bone-dim); font-size: 13px; font-weight: 500;
+    padding: 7px 13px; border-radius: 8px; border: 1px solid transparent;
+    transition: color .15s, border-color .15s, background .15s;
+  }
+  .top-link:hover { color: var(--bone); border-color: var(--line); background: var(--panel); }
+  .sub-btn {
+    color: var(--bg); background: var(--bone); font-weight: 600; font-size: 13px;
+    padding: 8px 15px; border-radius: 8px;
+    transition: transform .15s, box-shadow .15s;
+  }
+  .sub-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0,0,0,.4); }
+  a:focus-visible, button:focus-visible, .bar:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--green); outline-offset: 2px; border-radius: 6px;
+  }
+
+  /* ---------- operational banner ---------- */
+  .banner {
+    margin-top: 26px;
+    border-radius: 16px;
+    padding: 26px 28px;
+    display: flex; align-items: center; gap: 20px;
+    border: 1px solid var(--line);
+    background:
+      linear-gradient(180deg, rgba(31,169,122,.10), rgba(31,169,122,.02)),
+      var(--panel);
+    position: relative; overflow: hidden;
+  }
+  .banner::before {
+    content: ""; position: absolute; inset: 0;
+    background: radial-gradient(420px 160px at 12% 0%, var(--green-glow), transparent 70%);
+    opacity: .55; pointer-events: none;
+  }
+  .banner.is-degraded { background: linear-gradient(180deg, rgba(232,169,58,.10), rgba(232,169,58,.02)), var(--panel); }
+  .banner.is-outage { background: linear-gradient(180deg, rgba(192,57,43,.12), rgba(192,57,43,.02)), var(--panel); }
+  .banner.is-degraded::before { background: radial-gradient(420px 160px at 12% 0%, rgba(232,169,58,.35), transparent 70%); }
+  .banner.is-outage::before { background: radial-gradient(420px 160px at 12% 0%, rgba(192,57,43,.35), transparent 70%); }
+
+  .pulse {
+    width: 52px; height: 52px; border-radius: 50%; flex: 0 0 auto;
+    position: relative; display: grid; place-items: center;
+    background: rgba(31,169,122,.12);
+  }
+  .pulse .dot { width: 20px; height: 20px; border-radius: 50%; background: var(--green); box-shadow: 0 0 14px var(--green-glow); position: relative; z-index: 2; }
+  .pulse .ring {
+    position: absolute; inset: 0; border-radius: 50%;
+    border: 2px solid var(--green);
+    animation: pulse 2.4s ease-out infinite;
+  }
+  .banner.is-degraded .pulse { background: rgba(232,169,58,.12); }
+  .banner.is-degraded .pulse .dot { background: var(--amber); box-shadow: 0 0 14px rgba(232,169,58,.4); }
+  .banner.is-degraded .pulse .ring { border-color: var(--amber); }
+  .banner.is-outage .pulse { background: rgba(192,57,43,.12); }
+  .banner.is-outage .pulse .dot { background: var(--red); box-shadow: 0 0 14px rgba(192,57,43,.4); }
+  .banner.is-outage .pulse .ring { border-color: var(--red); }
+  @keyframes pulse {
+    0% { transform: scale(.7); opacity: .9; }
+    100% { transform: scale(1.9); opacity: 0; }
+  }
+  .banner-text h1 { margin: 0; font-size: 23px; font-weight: 700; letter-spacing: -.3px; }
+  .banner-text p { margin: 4px 0 0; color: var(--bone-dim); font-size: 13.5px; }
+  .banner-text p .mono { color: var(--bone-fade); }
+  .banner-meta { margin-left: auto; text-align: right; flex: 0 0 auto; }
+  .banner-meta .chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 12px; font-weight: 600; letter-spacing: .4px; text-transform: uppercase;
+    color: var(--green); background: rgba(31,169,122,.12);
+    border: 1px solid rgba(31,169,122,.28);
+    padding: 5px 11px; border-radius: 999px;
+  }
+  .banner.is-degraded .banner-meta .chip { color: var(--amber); background: rgba(232,169,58,.12); border-color: rgba(232,169,58,.28); }
+  .banner.is-outage .banner-meta .chip { color: #e8786c; background: rgba(192,57,43,.14); border-color: rgba(192,57,43,.3); }
+  .banner-meta .uptime-num { margin-top: 9px; font-size: 13px; color: var(--bone-dim); }
+  .banner-meta .uptime-num b { color: var(--bone); font-weight: 600; }
+
+  /* ---------- section heads ---------- */
+  .sec-head {
+    display: flex; align-items: baseline; gap: 12px;
+    margin: 34px 4px 14px;
+  }
+  .sec-head h2 { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 1.4px; text-transform: uppercase; color: var(--bone-fade); }
+  .sec-head .rule { flex: 1; height: 1px; background: var(--line-soft); }
+  .legend { display: flex; gap: 16px; align-items: center; font-size: 11.5px; color: var(--bone-fade); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+
+  /* ---------- service list ---------- */
+  .services {
+    border: 1px solid var(--line); border-radius: var(--radius);
+    background: var(--panel); overflow: hidden;
+  }
+  .svc {
+    display: grid;
+    grid-template-columns: 214px minmax(0, 1fr) 150px;
+    gap: 18px; align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .svc:last-child { border-bottom: none; }
+  .svc:hover { background: var(--panel-2); }
+  .svc-name { display: flex; align-items: center; gap: 11px; min-width: 0; }
+  .svc-name .ico {
+    width: 30px; height: 30px; border-radius: 8px; flex: 0 0 auto;
+    display: grid; place-items: center; color: var(--bone-dim);
+    background: var(--bg-2); border: 1px solid var(--line-soft);
+  }
+  .svc-name .ico svg { width: 15px; height: 15px; }
+  .svc-name .txt { min-width: 0; }
+  .svc-name .txt b { display: block; font-weight: 600; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .svc-name .txt small { display: block; color: var(--bone-fade); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* 90-day bar chart */
+  .bars { display: flex; gap: 3px; align-items: flex-end; height: 34px; min-width: 0; }
+  .bar {
+    flex: 1 1 0; min-width: 3px; height: 100%; border-radius: 2px;
+    background: var(--green); position: relative; cursor: default;
+    transition: transform .12s ease, filter .12s ease;
+  }
+  .bar[data-s="degraded"] { background: var(--amber); }
+  .bar[data-s="partial"] { background: var(--amber); height: 76%; }
+  .bar[data-s="outage"] { background: var(--red); }
+  .bar[data-s="maint"] { background: var(--grey); height: 62%; }
+  .bar[data-s="nodata"] { background: #232c3a; }
+  .bar:hover, .bar:focus-visible { transform: scaleY(1.08); filter: brightness(1.25); z-index: 3; }
+  .bar:hover .tip, .bar:focus-visible .tip { opacity: 1; transform: translateX(-50%) translateY(-6px); }
+  .tip {
+    position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%) translateY(0);
+    background: #0a0d12; border: 1px solid var(--line);
+    padding: 7px 10px; border-radius: 8px; white-space: nowrap;
+    font-size: 11px; color: var(--bone-dim);
+    opacity: 0; pointer-events: none; transition: opacity .12s; z-index: 50;
+    box-shadow: 0 10px 24px rgba(0,0,0,.5); margin-bottom: 7px;
+  }
+  .tip b { color: var(--bone); display: block; font-weight: 600; margin-bottom: 2px; }
+  .tip .st-ok { color: var(--green); } .tip .st-amber { color: var(--amber); } .tip .st-red { color: #e8786c; } .tip .st-grey { color: var(--bone-fade); }
+  .bars-foot { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--bone-fade); margin-top: 6px; }
+
+  .svc-right { display: flex; flex-direction: column; align-items: flex-end; gap: 7px; flex: 0 0 auto; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 12px; font-weight: 600; letter-spacing: .2px;
+    padding: 4px 10px 4px 8px; border-radius: 999px;
+    border: 1px solid transparent; white-space: nowrap;
+  }
+  .pill .pd { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+  .pill.ok { color: var(--green); background: rgba(31,169,122,.1); border-color: rgba(31,169,122,.24); }
+  .pill.ok .pd { background: var(--green); }
+  .pill.deg { color: var(--amber); background: rgba(232,169,58,.1); border-color: rgba(232,169,58,.24); }
+  .pill.deg .pd { background: var(--amber); }
+  .pill.out { color: #e8786c; background: rgba(192,57,43,.12); border-color: rgba(192,57,43,.28); }
+  .pill.out .pd { background: var(--red); }
+  .pill.mnt { color: var(--bone-dim); background: rgba(58,66,82,.35); border-color: var(--line); }
+  .pill.mnt .pd { background: var(--grey); }
+  .svc-up { font-size: 12px; color: var(--bone-fade); }
+  .svc-up b { color: var(--bone-dim); font-weight: 600; }
+
+  /* ---------- metrics row ---------- */
+  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 16px; }
+  .metric {
+    border: 1px solid var(--line); border-radius: var(--radius); padding: 15px 16px;
+    background: var(--panel);
+  }
+  .metric .k { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--bone-fade); }
+  .metric .v { font-size: 25px; font-weight: 700; margin-top: 6px; letter-spacing: -.5px; }
+  .metric .v.g { color: var(--green); }
+  .metric .spark { display: flex; gap: 2px; align-items: flex-end; height: 22px; margin-top: 9px; }
+  .metric .spark i { flex: 1; border-radius: 1px; background: rgba(31,169,122,.4); min-height: 3px; }
+
+  /* ---------- incidents ---------- */
+  .incidents { display: flex; flex-direction: column; gap: 0; }
+  .inc {
+    border: 1px solid var(--line); border-radius: var(--radius);
+    background: var(--panel); margin-bottom: 14px; overflow: hidden;
+  }
+  .inc summary {
+    list-style: none; cursor: pointer; padding: 16px 18px;
+    display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center;
+  }
+  .inc summary::-webkit-details-marker { display: none; }
+  .inc-sev {
+    width: 4px; align-self: stretch; border-radius: 4px; min-height: 38px;
+  }
+  .inc[data-sev="major"] .inc-sev { background: var(--red); }
+  .inc[data-sev="minor"] .inc-sev { background: var(--amber); }
+  .inc[data-sev="maint"] .inc-sev { background: var(--grey); }
+  .inc-head .ttl { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .inc-tag {
+    font-size: 10.5px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 5px;
+  }
+  .inc[data-sev="major"] .inc-tag { color: #e8786c; background: rgba(192,57,43,.14); }
+  .inc[data-sev="minor"] .inc-tag { color: var(--amber); background: rgba(232,169,58,.13); }
+  .inc[data-sev="maint"] .inc-tag { color: var(--bone-dim); background: rgba(58,66,82,.4); }
+  .inc-head .meta { color: var(--bone-fade); font-size: 12.5px; margin-top: 4px; display: flex; gap: 14px; flex-wrap: wrap; }
+  .inc-head .meta .mono { color: var(--bone-dim); }
+  .inc .chev { color: var(--bone-fade); transition: transform .2s; }
+  .inc[open] .chev { transform: rotate(180deg); }
+  .inc-body { padding: 0 18px 18px 36px; }
+  .inc-body .pm-label {
+    font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--bone-fade);
+    margin: 4px 0 14px;
+  }
+  .tl { border-left: 2px solid var(--line); margin-left: 4px; padding-left: 18px; display: flex; flex-direction: column; gap: 16px; }
+  .tl-item { position: relative; }
+  .tl-item::before {
+    content: ""; position: absolute; left: -25px; top: 4px;
+    width: 11px; height: 11px; border-radius: 50%;
+    background: var(--bg); border: 2px solid var(--green);
+  }
+  .tl-item[data-k="investigating"]::before { border-color: var(--amber); }
+  .tl-item[data-k="identified"]::before { border-color: var(--amber); }
+  .tl-item[data-k="monitoring"]::before { border-color: var(--green); }
+  .tl-item[data-k="resolved"]::before { border-color: var(--green); background: var(--green); }
+  .tl-k {
+    font-size: 11px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+  .tl-k.k-amber { color: var(--amber); } .tl-k.k-green { color: var(--green); } .tl-k.k-bone { color: var(--bone-dim); }
+  .tl-time { font-size: 11.5px; color: var(--bone-fade); margin-bottom: 5px; }
+  .tl-body { color: var(--bone-dim); font-size: 13.5px; line-height: 1.55; }
+  .tl-body b { color: var(--bone); font-weight: 600; }
+  .inc-affected { margin-top: 16px; font-size: 12.5px; color: var(--bone-fade); }
+  .inc-affected b { color: var(--bone-dim); font-weight: 600; }
+  .inc-affected .tg { display: inline-block; padding: 2px 8px; border: 1px solid var(--line); border-radius: 6px; margin: 0 4px 4px 0; color: var(--bone-dim); }
+
+  /* ---------- footer ---------- */
+  footer.foot {
+    margin-top: 46px; border-top: 1px solid var(--line-soft);
+    padding: 24px 0 50px; color: var(--bone-fade); font-size: 12.5px;
+  }
+  .foot-in { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .foot a:hover { color: var(--bone-dim); }
+  .foot .dots { display: flex; gap: 18px; }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 760px) {
+    .svc { grid-template-columns: 1fr; gap: 12px; padding: 16px; }
+    .svc-right { flex-direction: row; align-items: center; justify-content: space-between; width: 100%; order: 2; }
+    .svc-name { order: 1; }
+    .svc-bars-wrap { order: 3; }
+    .metrics { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 640px) {
+    body { font-size: 14px; }
+    .banner { flex-wrap: wrap; padding: 20px; gap: 16px; }
+    .banner-meta { margin-left: 0; text-align: left; width: 100%; display: flex; justify-content: space-between; align-items: flex-end; }
+    .banner-meta .uptime-num { margin-top: 0; }
+    .banner-text h1 { font-size: 19px; }
+    .top-link.hide-sm { display: none; }
+    /* keep the bars: let the row scroll horizontally instead of crushing them */
+    .svc-bars-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; padding-bottom: 2px; }
+    .bars { width: max-content; gap: 2px; }
+    .bar { flex: 0 0 4px; width: 4px; min-width: 4px; }
+    .bars-foot { font-size: 10px; }
+  }
+  @media (max-width: 400px) {
+    .brand small { display: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pulse .ring { animation: none; opacity: .35; }
+    .sub-btn:hover, .top-link:hover, .bar:hover, .bar:focus-visible { transform: none; }
+    .inc[open] .chev, .inc .chev { transition: none; }
+    * { scroll-behavior: auto !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="brand" href="#" aria-label="Sentinel home">
+      <span class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5l-8-3Z" stroke="#06120d" stroke-width="2" stroke-linejoin="round"/><path d="m8.5 12 2.5 2.5 4.5-5" stroke="#06120d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+      <span>Sentinel <small>status</small></span>
+    </a>
+    <div class="topbar-spacer"></div>
+    <a class="top-link hide-sm" href="#incidents">Incident history</a>
+    <a class="top-link hide-sm" href="#">RSS</a>
+    <a class="sub-btn" href="#">Subscribe</a>
+  </div>
+</header>
+
+<main class="wrap" id="app" aria-live="polite">
+  <!-- banner injected here -->
+  <div id="banner-mount"></div>
+
+  <div class="sec-head">
+    <h2>Service status</h2>
+    <span class="rule"></span>
+    <div class="legend" aria-hidden="true">
+      <span><i style="background:var(--green)"></i>Operational</span>
+      <span><i style="background:var(--amber)"></i>Degraded</span>
+      <span><i style="background:var(--red)"></i>Outage</span>
+      <span><i style="background:var(--grey)"></i>Maintenance</span>
+    </div>
+  </div>
+
+  <section class="services" id="services-mount" aria-label="Service status list"></section>
+
+  <div class="sec-head">
+    <h2>System metrics &middot; 90 day</h2>
+    <span class="rule"></span>
+  </div>
+  <section class="metrics" id="metrics-mount" aria-label="Aggregate metrics"></section>
+
+  <div class="sec-head" id="incidents">
+    <h2>Incident history</h2>
+    <span class="rule"></span>
+  </div>
+  <section class="incidents" id="incidents-mount" aria-label="Recent incidents"></section>
+</main>
+
+<footer class="foot">
+  <div class="wrap foot-in">
+    <span>Sentinel Status &middot; powered by demo data &middot; <span class="mono" id="now-stamp"></span></span>
+    <span class="dots">
+      <a href="#">Support</a>
+      <a href="#">API status</a>
+      <a href="#">Subscribe to updates</a>
+    </span>
+  </div>
+</footer>
+
+<script>
+/* =====================================================================
+   DATA  -  swap everything here.  Three arrays:
+     STATUS_META  : maps a status key -> label / color class / pill class
+     SERVICES     : the vertical service list. Each has a 90-day history
+                    string (one char per day, newest LAST):
+                       o = operational   d = degraded   p = partial outage
+                       x = full outage   m = maintenance .  = no data
+     INCIDENTS    : the post-mortem feed. Newest first.
+   ===================================================================== */
+
+const STATUS_META = {
+  operational: { label: 'Operational',          pill: 'ok',  dot: 'green' },
+  degraded:    { label: 'Degraded performance', pill: 'deg', dot: 'amber' },
+  partial:     { label: 'Partial outage',       pill: 'deg', dot: 'amber' },
+  outage:      { label: 'Major outage',         pill: 'out', dot: 'red'   },
+  maintenance: { label: 'Under maintenance',    pill: 'mnt', dot: 'grey'  },
+};
+
+// helper: build a 90-char history string. mostly operational with a few seeded events.
+function hist(seed){
+  // seed = array of [dayIndexFromOldest, charCount, state]
+  const arr = new Array(90).fill('o');
+  seed.forEach(([i, n, s]) => { for (let k=0;k<n;k++) if (i+k<90) arr[i+k]=s; });
+  return arr.join('');
+}
+
+const SERVICES = [
+  {
+    name: 'API Gateway',
+    desc: 'REST and GraphQL ingress, edge routing',
+    status: 'operational',
+    icon: 'api',
+    uptime: '99.998%',
+    history: hist([[71,1,'d']]),
+  },
+  {
+    name: 'Dashboard & Web App',
+    desc: 'app.sentinel.io front end',
+    status: 'operational',
+    icon: 'web',
+    uptime: '99.991%',
+    history: hist([[34,1,'d'],[80,1,'d']]),
+  },
+  {
+    name: 'Realtime Events',
+    desc: 'WebSocket fan-out, webhooks delivery',
+    status: 'degraded',
+    icon: 'bolt',
+    uptime: '99.842%',
+    history: hist([[55,2,'p'],[88,2,'d'],[89,1,'d']]),
+  },
+  {
+    name: 'Background Jobs',
+    desc: 'async queue, scheduled tasks',
+    status: 'operational',
+    icon: 'queue',
+    uptime: '99.987%',
+    history: hist([[12,1,'d'],[63,1,'m']]),
+  },
+  {
+    name: 'Object Storage',
+    desc: 'media uploads, signed asset delivery',
+    status: 'maintenance',
+    icon: 'store',
+    uptime: '99.953%',
+    history: hist([[40,1,'x'],[41,1,'p'],[89,1,'m']]),
+  },
+  {
+    name: 'Authentication',
+    desc: 'OAuth, SSO, session tokens',
+    status: 'operational',
+    icon: 'lock',
+    uptime: '100.000%',
+    history: hist([]),
+  },
+  {
+    name: 'Billing & Invoicing',
+    desc: 'Stripe sync, usage metering',
+    status: 'operational',
+    icon: 'card',
+    uptime: '99.976%',
+    history: hist([[22,1,'d'],[58,2,'p']]),
+  },
+  {
+    name: 'Email & Notifications',
+    desc: 'transactional email, push, SMS relay',
+    status: 'operational',
+    icon: 'mail',
+    uptime: '99.964%',
+    history: hist([[7,1,'d'],[48,1,'d'],[75,1,'p']]),
+  },
+];
+
+const INCIDENTS = [
+  {
+    sev: 'minor',
+    tag: 'Degraded performance',
+    title: 'Elevated WebSocket reconnect latency on Realtime Events',
+    date: 'Jun 20, 2026',
+    duration: '1h 12m',
+    affected: ['Realtime Events', 'Webhooks delivery'],
+    updates: [
+      { k: 'resolved', kc: 'k-green', label: 'Resolved', time: 'Jun 20, 14:38 UTC',
+        body: 'Reconnect latency is back within normal bounds (<span class="mono">p95 &lt; 180ms</span>). A new connection-pool ceiling has been deployed to all edge regions. <b>No events were dropped</b>; delivery retries cleared the backlog within 9 minutes of the fix.' },
+      { k: 'monitoring', kc: 'k-green', label: 'Monitoring', time: 'Jun 20, 14:05 UTC',
+        body: 'A fix has been rolled out to the eu-central and us-east fleets. Reconnect storms have stopped. We are watching delivery queues drain.' },
+      { k: 'identified', kc: 'k-amber', label: 'Identified', time: 'Jun 20, 13:41 UTC',
+        body: 'Root cause is a connection-pool exhaustion triggered by a thundering-herd reconnect after an upstream node was cycled. Clients retried in lockstep, saturating the fan-out tier.' },
+      { k: 'investigating', kc: 'k-amber', label: 'Investigating', time: 'Jun 20, 13:26 UTC',
+        body: 'We are investigating elevated reconnect latency on the realtime tier. Some webhook deliveries are queued but not lost.' },
+    ],
+    pm: 'Post-mortem: jittered client backoff is now mandatory in SDK v4.2. Pool headroom raised 40 percent. A herd-detection alert was added so the on-call is paged before saturation rather than after.',
+  },
+  {
+    sev: 'maint',
+    tag: 'Scheduled maintenance',
+    title: 'Object Storage region migration to new availability zone',
+    date: 'Jun 18, 2026',
+    duration: '45m window',
+    affected: ['Object Storage', 'Media uploads'],
+    updates: [
+      { k: 'resolved', kc: 'k-green', label: 'Completed', time: 'Jun 18, 03:44 UTC',
+        body: 'Migration finished ahead of the maintenance window. All buckets are serving from the new zone with <b>zero data loss</b>. Signed-URL latency improved by roughly 22 percent in early measurements.' },
+      { k: 'monitoring', kc: 'k-bone', label: 'In progress', time: 'Jun 18, 03:10 UTC',
+        body: 'Cutover is underway. Uploads are paused for a short window; reads continue from the replica.' },
+      { k: 'investigating', kc: 'k-bone', label: 'Scheduled', time: 'Jun 18, 03:00 UTC',
+        body: 'Planned maintenance has begun. Expected impact: brief upload pauses, no read interruption.' },
+    ],
+    pm: 'Planned work. Communicated 72 hours in advance to all subscribers. Replica-first read path kept the service available throughout.',
+  },
+  {
+    sev: 'major',
+    tag: 'Major outage',
+    title: 'Object Storage signed-URL failures in us-east',
+    date: 'May 12, 2026',
+    duration: '38m',
+    affected: ['Object Storage', 'Dashboard & Web App', 'Media delivery'],
+    updates: [
+      { k: 'resolved', kc: 'k-green', label: 'Resolved', time: 'May 12, 09:41 UTC',
+        body: 'All signed-URL generation has recovered. The failed credential-rotation job was rolled back and a stale signing key was purged from the edge cache. <b>4.1 percent of upload requests failed</b> during the 38-minute window and have been surfaced to affected accounts.' },
+      { k: 'identified', kc: 'k-amber', label: 'Identified', time: 'May 12, 09:22 UTC',
+        body: 'A credential-rotation job propagated an expired signing key to the us-east edge cache, so a fraction of signed URLs returned <span class="mono">403</span>. We are forcing a key refresh.' },
+      { k: 'investigating', kc: 'k-amber', label: 'Investigating', time: 'May 12, 09:03 UTC',
+        body: 'We are seeing a spike in signed-URL 403 errors for Object Storage in us-east. Media and some dashboard asset loads are affected.' },
+    ],
+    pm: 'Post-mortem: rotation jobs now run canary-first against a single edge node with an automated signing-probe gate before global propagation. Edge key TTL shortened so a stale key self-expires in under 60 seconds. Two follow-up action items tracked to completion.',
+  },
+  {
+    sev: 'minor',
+    tag: 'Degraded performance',
+    title: 'Slow dashboard loads from billing-data join',
+    date: 'Apr 28, 2026',
+    duration: '2h 06m',
+    affected: ['Dashboard & Web App', 'Billing & Invoicing'],
+    updates: [
+      { k: 'resolved', kc: 'k-green', label: 'Resolved', time: 'Apr 28, 18:51 UTC',
+        body: 'Dashboard load times are back to baseline (<span class="mono">p95 ~ 640ms</span>). A missing composite index on the usage-metering table was added and the offending query rewritten to avoid a full scan.' },
+      { k: 'monitoring', kc: 'k-green', label: 'Monitoring', time: 'Apr 28, 18:20 UTC',
+        body: 'Index has been built online and the slow query path is now sub-second. Watching cache hit rates recover.' },
+      { k: 'identified', kc: 'k-amber', label: 'Identified', time: 'Apr 28, 17:30 UTC',
+        body: 'A billing-usage join started doing a sequential scan after a data-volume threshold was crossed, slowing every dashboard that renders usage widgets.' },
+      { k: 'investigating', kc: 'k-amber', label: 'Investigating', time: 'Apr 28, 16:45 UTC',
+        body: 'Investigating slower-than-normal dashboard page loads. The app remains usable; no data is at risk.' },
+    ],
+    pm: 'Post-mortem: query-plan regression tests now run nightly against production-scale fixtures so a sequential-scan flip is caught before it reaches users.',
+  },
+];
+
+/* =====================================================================
+   ICONS  -  inline SVG, no asset files.
+   ===================================================================== */
+const ICONS = {
+  api:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h10" stroke-linecap="round"/><circle cx="18" cy="17" r="2.4"/></svg>',
+  web:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18" stroke-linecap="round"/><path d="M8 21h8" stroke-linecap="round"/></svg>',
+  bolt:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" stroke-linejoin="round"/></svg>',
+  queue: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="10" width="18" height="4" rx="1"/><rect x="3" y="16" width="11" height="4" rx="1"/></svg>',
+  store: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 8V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2"/><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M9 14h6" stroke-linecap="round"/></svg>',
+  lock:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4.5" y="10" width="15" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>',
+  card:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4" stroke-linecap="round"/></svg>',
+  mail:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+};
+const CHEV = '<svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+/* =====================================================================
+   RENDER
+   ===================================================================== */
+const $ = (s, r=document) => r.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+const DAY_STATE = {
+  o: { s: 'operational', label: 'Operational',     cls: 'st-ok',   bar: '' },
+  d: { s: 'degraded',    label: 'Degraded',         cls: 'st-amber',bar: 'degraded' },
+  p: { s: 'partial',     label: 'Partial outage',   cls: 'st-amber',bar: 'partial' },
+  x: { s: 'outage',      label: 'Major outage',     cls: 'st-red',  bar: 'outage' },
+  m: { s: 'maintenance', label: 'Maintenance',      cls: 'st-grey', bar: 'maint' },
+  '.':{ s: 'nodata',     label: 'No data',          cls: 'st-grey', bar: 'nodata' },
+};
+
+// date label for a day offset (0 = oldest, 89 = today)
+function dayLabel(offsetFromOldest){
+  const today = new Date('2026-06-21T00:00:00Z');
+  const d = new Date(today);
+  d.setUTCDate(d.getUTCDate() - (89 - offsetFromOldest));
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+}
+
+// ---- overall status: worst of all services ----
+function overallStatus(){
+  const order = ['operational','maintenance','degraded','partial','outage'];
+  let worst = 'operational';
+  SERVICES.forEach(s => { if (order.indexOf(s.status) > order.indexOf(worst)) worst = s.status; });
+  return worst;
+}
+
+function renderBanner(){
+  const worst = overallStatus();
+  const operationalCount = SERVICES.filter(s => s.status === 'operational').length;
+  let cls = '', chip = '', headline = '', sub = '';
+  if (worst === 'operational') {
+    cls = ''; chip = 'All systems operational';
+    headline = 'All Systems Operational';
+    sub = 'Every monitored service is reporting healthy.';
+  } else if (worst === 'outage') {
+    cls = 'is-outage'; chip = 'Major outage';
+    headline = 'Major Service Outage';
+    sub = 'One or more core services are unavailable. Engineers are engaged.';
+  } else {
+    cls = 'is-degraded'; chip = worst === 'maintenance' ? 'Maintenance in progress' : 'Partial degradation';
+    headline = worst === 'maintenance' ? 'Maintenance In Progress' : 'Some Systems Degraded';
+    sub = `${operationalCount} of ${SERVICES.length} services fully operational. We are actively working on the rest.`;
+  }
+  // 90-day fleet uptime: mean across services
+  const avg = (SERVICES.reduce((a,s)=>a+parseFloat(s.uptime),0)/SERVICES.length).toFixed(3);
+  const stamp = new Date('2026-06-21T14:52:00Z').toLocaleString('en-US',
+    { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', hour12:false, timeZone:'UTC' }) + ' UTC';
+
+  $('#banner-mount').innerHTML = `
+    <section class="banner ${cls}" role="status">
+      <div class="pulse" aria-hidden="true"><span class="ring"></span><span class="dot"></span></div>
+      <div class="banner-text">
+        <h1>${esc(headline)}</h1>
+        <p>${esc(sub)} <span class="mono">Last checked ${esc(stamp)}</span></p>
+      </div>
+      <div class="banner-meta">
+        <span class="chip"><span class="pd" style="width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block"></span>${esc(chip)}</span>
+        <div class="uptime-num">90-day fleet uptime &middot; <b>${avg}%</b></div>
+      </div>
+    </section>`;
+}
+
+function renderBars(history){
+  const days = history.split('');
+  let cells = '';
+  for (let i=0;i<days.length;i++){
+    const st = DAY_STATE[days[i]] || DAY_STATE.o;
+    const label = dayLabel(i);
+    const rel = i === days.length-1 ? 'Today' : (days.length-1-i) + 'd ago';
+    cells += `<div class="bar" data-s="${st.bar||'op'}" tabindex="0" role="img"
+        aria-label="${label}: ${st.label}">
+        <span class="tip"><b>${label} &middot; ${rel}</b><span class="${st.cls}">${st.label}</span></span>
+      </div>`;
+  }
+  return `<div class="svc-bars-wrap"><div class="bars" role="group" aria-label="90 day uptime history">${cells}</div>
+      <div class="bars-foot" aria-hidden="true"><span>90 days ago</span><span>uptime history</span><span>Today</span></div>
+    </div>`;
+}
+
+function renderServices(){
+  const html = SERVICES.map(s => {
+    const meta = STATUS_META[s.status];
+    const pillLabel = meta.label;
+    return `
+      <div class="svc">
+        <div class="svc-name">
+          <span class="ico" aria-hidden="true">${ICONS[s.icon] || ICONS.web}</span>
+          <span class="txt"><b>${esc(s.name)}</b><small>${esc(s.desc)}</small></span>
+        </div>
+        ${renderBars(s.history)}
+        <div class="svc-right">
+          <span class="pill ${meta.pill}"><span class="pd"></span>${esc(pillLabel)}</span>
+          <span class="svc-up"><b>${esc(s.uptime)}</b> uptime</span>
+        </div>
+      </div>`;
+  }).join('');
+  $('#services-mount').innerHTML = html;
+}
+
+function spark(n, hot){
+  let h='';
+  for (let i=0;i<n;i++){
+    let v = 30 + Math.round(60*Math.abs(Math.sin(i*0.9+ (hot||0))));
+    if (i===n-1 && hot) v = 95;
+    h += `<i style="height:${v}%"></i>`;
+  }
+  return h;
+}
+
+function renderMetrics(){
+  const avg = (SERVICES.reduce((a,s)=>a+parseFloat(s.uptime),0)/SERVICES.length).toFixed(3);
+  const incCount = INCIDENTS.filter(i => i.sev !== 'maint').length;
+  const metrics = [
+    { k: 'Overall uptime',   v: avg + '%', g: true,  spark: spark(28,0) },
+    { k: 'Avg response p95', v: '184ms',   g: false, spark: spark(28,1) },
+    { k: 'Incidents (90d)',  v: String(incCount), g: false, spark: spark(28,0) },
+    { k: 'Mean time to fix', v: '41m',     g: false, spark: spark(28,2) },
+  ];
+  $('#metrics-mount').innerHTML = metrics.map(m => `
+    <div class="metric">
+      <div class="k">${esc(m.k)}</div>
+      <div class="v ${m.g?'g':''}">${esc(m.v)}</div>
+      <div class="spark" aria-hidden="true">${m.spark}</div>
+    </div>`).join('');
+}
+
+function renderIncidents(){
+  const html = INCIDENTS.map((inc, idx) => {
+    const updates = inc.updates.map(u => `
+      <div class="tl-item" data-k="${esc(u.k)}">
+        <div class="tl-k ${esc(u.kc)}">${esc(u.label)}</div>
+        <div class="tl-time mono">${esc(u.time)}</div>
+        <div class="tl-body">${u.body}</div>
+      </div>`).join('');
+    const affected = inc.affected.map(a => `<span class="tg">${esc(a)}</span>`).join('');
+    return `
+      <details class="inc" data-sev="${esc(inc.sev)}" ${idx===0?'open':''}>
+        <summary>
+          <span class="inc-sev" aria-hidden="true"></span>
+          <span class="inc-head">
+            <span class="ttl">${esc(inc.title)} <span class="inc-tag">${esc(inc.tag)}</span></span>
+            <span class="meta"><span class="mono">${esc(inc.date)}</span> <span>Duration ${esc(inc.duration)}</span> <span>${inc.updates.length} updates</span></span>
+          </span>
+          ${CHEV}
+        </summary>
+        <div class="inc-body">
+          <div class="pm-label">Timeline &middot; newest first</div>
+          <div class="tl">${updates}</div>
+          <div class="inc-affected"><b>Affected components</b><br>${affected}</div>
+          <div class="inc-affected" style="margin-top:14px"><b>Post-mortem</b><br>${esc(inc.pm)}</div>
+        </div>
+      </details>`;
+  }).join('');
+  $('#incidents-mount').innerHTML = html;
+}
+
+function renderFoot(){
+  const stamp = new Date('2026-06-21T14:52:00Z').toLocaleString('en-US',
+    { year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', hour12:false, timeZone:'UTC' }) + ' UTC';
+  $('#now-stamp').textContent = 'updated ' + stamp;
+}
+
+// ---- mount ----
+renderBanner();
+renderServices();
+renderMetrics();
+renderIncidents();
+renderFoot();
+// reflect overall status onto the banner element class so the colored variant applies
+(function applyBannerClass(){
+  const worst = overallStatus();
+  const b = document.querySelector('.banner');
+  if (!b) return;
+  b.classList.remove('is-degraded','is-outage');
+  if (worst === 'outage') b.classList.add('is-outage');
+  else if (worst !== 'operational') b.classList.add('is-degraded');
+})();
+</script>
+</body>
+</html>

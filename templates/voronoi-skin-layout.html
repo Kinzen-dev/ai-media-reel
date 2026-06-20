@@ -1,0 +1,654 @@
+<!-- TEMPLATE: Voronoi Skin Layout | ARCHETYPE: CELLS | REF: Voronoi/Delaunay generative SVG cell mosaics | WHEN TO USE: portfolio/nav hero where the tessellation IS the layout, each irregular cell a clickable media tile | SWAP: edit the CELLS array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Voronoi Skin Layout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Space+Grotesk:wght@400;500;600&family=Space+Mono&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     VORONOI SKIN LAYOUT
+     palette: ink #0f0f12 / bone strokes / one accent fill
+     ============================================================ */
+  :root{
+    --ink:#0f0f12;
+    --ink-soft:#16161b;
+    --bone:#e9e4d8;
+    --bone-dim:#9a948a;
+    --stroke:#bdb6a6;
+    --stroke-faint:#34343c;
+    --accent:#e8623c;        /* terracotta active fill */
+    --accent-soft:#f2a07f;
+    --gap:7;                 /* svg-units of inset between cells */
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--ink);
+    color:var(--bone);
+    font-family:'Space Grotesk',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  a{color:inherit;text-decoration:none}
+
+  /* ---- top band: headline overlays a compact strip above the mosaic ---- */
+  .shell{
+    position:relative;
+    min-height:100vh;
+    min-height:100svh;
+    display:flex;
+    flex-direction:column;
+  }
+  .topband{
+    position:relative;
+    z-index:5;
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:24px;
+    padding:22px clamp(18px,3.2vw,46px) 14px;
+    flex-wrap:wrap;
+  }
+  .brand{
+    display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+  }
+  .brand h1{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:clamp(26px,4.4vw,52px);
+    line-height:.95;
+    letter-spacing:-.015em;
+    margin:0;
+  }
+  .brand h1 em{font-style:italic;color:var(--accent-soft)}
+  .tag{
+    font-family:'Space Mono',monospace;
+    font-size:11px;
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    color:var(--bone-dim);
+    max-width:34ch;
+    line-height:1.5;
+  }
+  .meta{
+    font-family:'Space Mono',monospace;
+    font-size:10.5px;
+    letter-spacing:.16em;
+    text-transform:uppercase;
+    color:var(--bone-dim);
+    text-align:right;
+    display:flex;flex-direction:column;gap:5px;
+    white-space:nowrap;
+  }
+  .meta b{color:var(--accent);font-weight:400}
+
+  /* ---- the mosaic stage ---- */
+  .stage{
+    position:relative;
+    flex:1;
+    margin:2px clamp(10px,1.6vw,22px) clamp(14px,1.8vw,24px);
+    border:1px solid var(--stroke-faint);
+    border-radius:4px;
+    overflow:hidden;
+    background:
+      radial-gradient(120% 90% at 12% 0%, #1b1b22 0%, rgba(27,27,34,0) 55%),
+      radial-gradient(120% 100% at 100% 100%, #191921 0%, rgba(25,25,33,0) 60%),
+      var(--ink);
+    min-height:60vh;
+  }
+  .stage svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+  /* media layer: each tile is absolutely placed + clipped to its cell polygon */
+  .media-layer{position:absolute;inset:0}
+  .tile{
+    position:absolute;inset:0;
+    -webkit-clip-path:var(--clip);
+    clip-path:var(--clip);
+    cursor:pointer;
+    background:#000;
+    transition:filter .5s ease;
+  }
+  .tile .fill{
+    position:absolute;inset:0;width:100%;height:100%;
+    object-fit:cover;
+    display:block;
+    /* organic monochrome skin: tinted toward ink, accent reveal on focus */
+    filter:grayscale(.55) brightness(.62) contrast(1.05);
+    transition:filter .55s ease, transform .9s cubic-bezier(.16,1,.3,1);
+    transform:scale(1.04);
+  }
+  .tile .scrim{
+    position:absolute;inset:0;
+    background:linear-gradient(180deg, rgba(15,15,18,0) 36%, rgba(15,15,18,.82) 100%);
+    pointer-events:none;
+    transition:opacity .5s ease;
+  }
+  .tile .cap{
+    position:absolute;left:0;bottom:0;
+    padding:clamp(10px,1.4vw,18px);
+    pointer-events:none;
+    max-width:88%;
+  }
+  .tile .kicker{
+    font-family:'Space Mono',monospace;
+    font-size:10px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--bone-dim);
+    display:block;margin-bottom:4px;
+  }
+  .tile .name{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:clamp(15px,1.7vw,23px);
+    line-height:1.02;
+    letter-spacing:-.01em;
+    color:var(--bone);
+  }
+  .tile video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+
+  /* hover / focus / locked emphasis */
+  .tile:hover .fill,
+  .tile:focus-visible .fill,
+  .tile.is-active .fill{
+    filter:grayscale(0) brightness(.92) contrast(1.04) saturate(1.06);
+    transform:scale(1.0);
+  }
+  .tile:focus-visible{outline:none}
+  .tile:focus-visible .name{color:#fff}
+
+  /* the polygon strokes live in SVG; active cell gets an accent fill behind media */
+  .cell-stroke{fill:none;stroke:var(--stroke);stroke-width:1.7;stroke-opacity:.85;
+    transition:stroke-opacity .4s ease, stroke .4s ease}
+  .cell-stroke.faint{stroke-opacity:.22}
+  .cell-hit:hover ~ .strokes .cell-stroke[data-i]{}
+  .active-fill{fill:var(--accent);fill-opacity:.16}
+  .active-stroke{fill:none;stroke:var(--accent);stroke-width:2.2;
+    filter:drop-shadow(0 0 14px rgba(232,98,60,.45))}
+
+  /* focus ring drawn over the active/focused tile via JS-set class */
+  .ring{fill:none;stroke:#fff;stroke-width:2.4;stroke-opacity:0;
+    transition:stroke-opacity .35s ease}
+  .ring.on{stroke-opacity:.9}
+
+  /* corner index + dots, generative-poster feel */
+  .corner{
+    position:absolute;z-index:4;pointer-events:none;
+    font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.2em;
+    color:var(--bone-dim);text-transform:uppercase;
+  }
+  .corner.tl{top:12px;left:14px}
+  .corner.br{bottom:12px;right:14px;color:var(--accent)}
+
+  /* ---------- MOBILE FALLBACK: simpler stacked cells, no cramped mosaic ---------- */
+  .mobile-stack{display:none}
+  @media (max-width:640px){
+    .stage .desk{display:none}
+    .corner{display:none}
+    .stage{
+      margin:6px 10px 12px;
+      min-height:0;
+      flex:none;
+      border:none;background:none;padding:0;border-radius:0;
+      overflow:visible;
+    }
+    .mobile-stack{display:flex;flex-direction:column;gap:10px}
+    .mtile{
+      position:relative;
+      display:block;
+      border:1px solid var(--stroke-faint);
+      border-radius:5px;
+      overflow:hidden;
+      background:var(--ink-soft);
+    }
+    /* angled top edge = a nod to the cell geometry, capture-safe */
+    .mtile::before{
+      content:"";position:absolute;top:0;left:0;right:0;height:14px;
+      background:linear-gradient(120deg, transparent 0 42%, rgba(189,182,166,.16) 42% 43%, transparent 43%);
+      z-index:3;pointer-events:none;
+    }
+    .mtile .frame{
+      position:relative;width:100%;
+      aspect-ratio:16/9;          /* letterbox landscape, never cover-crop */
+      background:#000;
+      display:flex;align-items:center;justify-content:center;
+      overflow:hidden;
+    }
+    .mtile.square .frame{aspect-ratio:4/3}
+    .mtile .frame img,.mtile .frame video{
+      width:100%;height:100%;object-fit:contain;display:block;
+      filter:grayscale(.25) brightness(.95);
+    }
+    .mtile.is-active{border-color:var(--accent)}
+    .mtile.is-active .frame::after{
+      content:"";position:absolute;inset:0;
+      box-shadow:inset 0 0 0 2px var(--accent);
+      background:linear-gradient(180deg,rgba(232,98,60,0) 60%,rgba(232,98,60,.12));
+      pointer-events:none;
+    }
+    .mtile .mcap{
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+      padding:11px 13px 13px;
+    }
+    .mtile .mname{
+      font-family:'Fraunces',serif;font-weight:600;font-size:18px;line-height:1;
+      color:var(--bone);
+    }
+    .mtile .mkick{
+      font-family:'Space Mono',monospace;font-size:9.5px;letter-spacing:.18em;
+      text-transform:uppercase;color:var(--bone-dim);
+    }
+    .mtile.is-active .mkick{color:var(--accent)}
+    .meta{text-align:left}
+    .topband{padding:18px 16px 10px}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none !important;animation:none !important}
+    .tile .fill{transform:scale(1.0)}
+  }
+</style>
+</head>
+<body>
+<!-- ============================================================
+     DATA  -  swap these to repurpose the template.
+     Each entry = one Voronoi cell / clickable tile.
+     `seed` (x,y in 0..1) drives the tessellation; reorder/move
+     seeds to reshape the mosaic. `active:true` = accent cell.
+     `video` optional (plays only when focused/locked).
+     ============================================================ -->
+<script>
+const CELLS = [
+  { id:"01", kicker:"Feature",  name:"Night Drive",   active:true,
+    poster:"../assets/flux-car-4k.png",
+    video:"../assets/flux-car-i2v.mp4",
+    seed:[0.40,0.50], aspect:"wide" },
+
+  { id:"02", kicker:"Studio",   name:"Clinic Mint",
+    poster:"../assets/flux-clinic-4k.png",
+    seed:[0.78,0.30], aspect:"wide" },
+
+  { id:"03", kicker:"Motion",   name:"Kling Loop",
+    poster:"../assets/gen/poster-kling-video.png",
+    video:"../assets/kling-video.mp4",
+    seed:[0.83,0.74], aspect:"wide" },
+
+  { id:"04", kicker:"Render",   name:"Veo Field",
+    poster:"../assets/gen/poster-veo-video.png",
+    video:"../assets/veo-video.mp4",
+    seed:[0.46,0.86], aspect:"wide" },
+
+  { id:"05", kicker:"Painting", name:"Autumn Fox",
+    poster:"../assets/sdxl.png",
+    seed:[0.10,0.70], aspect:"square" },
+
+  { id:"06", kicker:"Sketch",   name:"Low-Fi Apple",
+    poster:"../assets/hf-tinysd.png",
+    seed:[0.12,0.20], aspect:"square" },
+
+  { id:"07", kicker:"Frames",   name:"Hyperframes",
+    poster:"../assets/gen/poster-hyperframes.png",
+    video:"../assets/hyperframes.mp4",
+    seed:[0.62,0.13], aspect:"wide" }
+];
+
+/* mobile shows a curated subset (avoid crowding on phones) */
+const MOBILE_LIMIT = 4;
+</script>
+
+<div class="shell">
+
+  <header class="topband">
+    <div class="brand">
+      <h1>Tessella<em>.</em></h1>
+      <span class="tag">A generative cell index. The mosaic is the navigation - every polygon is a tile.</span>
+    </div>
+    <div class="meta">
+      <span>VORONOI / <b>SEEDED</b></span>
+      <span id="cellcount">--- CELLS</span>
+      <span>SELECTED&nbsp;<b id="selname">01</b></span>
+    </div>
+  </header>
+
+  <main class="stage" id="stage">
+    <span class="corner tl" id="cornerSeed">SEED 0x1F</span>
+    <span class="corner br">VORONOI MOSAIC</span>
+
+    <!-- desktop / tablet mosaic -->
+    <div class="desk" id="desk">
+      <svg id="vsvg" preserveAspectRatio="none" aria-hidden="true"></svg>
+      <div class="media-layer" id="mediaLayer"></div>
+    </div>
+
+    <!-- mobile fallback stack (built by JS) -->
+    <div class="mobile-stack" id="mstack"></div>
+  </main>
+
+</div>
+
+<script>
+/* ============================================================
+   1. SEEDED PRNG  (mulberry32) so the mosaic is deterministic
+   ============================================================ */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+
+/* ============================================================
+   2. VORONOI via half-plane clipping of a bounding rect.
+      For each site, clip the rect by the perpendicular bisector
+      against every other site -> that site's Voronoi polygon.
+      No deps. O(n^2) which is fine for a handful of cells.
+   ============================================================ */
+function clipPolygon(poly, a, b){
+  // keep the half-plane closer to site `a` than site `b`
+  // bisector: points p with |p-a|^2 <= |p-b|^2
+  const nx=b[0]-a[0], ny=b[1]-a[1];
+  const c=( (b[0]*b[0]-a[0]*a[0]) + (b[1]*b[1]-a[1]*a[1]) )/2;
+  // half-plane: nx*x + ny*y <= c  (closer to a)
+  const out=[];
+  const N=poly.length;
+  for(let i=0;i<N;i++){
+    const cur=poly[i], nxt=poly[(i+1)%N];
+    const dCur=nx*cur[0]+ny*cur[1]-c;
+    const dNxt=nx*nxt[0]+ny*nxt[1]-c;
+    const inCur=dCur<=1e-9, inNxt=dNxt<=1e-9;
+    if(inCur) out.push(cur);
+    if(inCur!==inNxt){
+      const t=dCur/(dCur-dNxt);
+      out.push([cur[0]+t*(nxt[0]-cur[0]), cur[1]+t*(nxt[1]-cur[1])]);
+    }
+  }
+  return out;
+}
+
+function voronoiCells(sites, W, H){
+  const rect=[[0,0],[W,0],[W,H],[0,H]];
+  return sites.map((s,i)=>{
+    let poly=rect.map(p=>p.slice());
+    for(let j=0;j<sites.length;j++){
+      if(j===i) continue;
+      poly=clipPolygon(poly, s, sites[j]);
+      if(poly.length<3) break;
+    }
+    return poly;
+  });
+}
+
+/* Lloyd relaxation: move each site to its cell centroid a few times
+   so cells become balanced + organic (no slivers), still seeded. */
+function centroid(poly){
+  let a=0,cx=0,cy=0;
+  for(let i=0;i<poly.length;i++){
+    const p=poly[i], q=poly[(i+1)%poly.length];
+    const cross=p[0]*q[1]-q[0]*p[1];
+    a+=cross; cx+=(p[0]+q[0])*cross; cy+=(p[1]+q[1])*cross;
+  }
+  a*=0.5;
+  if(Math.abs(a)<1e-6){ // degenerate, fall back to vertex avg
+    let sx=0,sy=0; poly.forEach(p=>{sx+=p[0];sy+=p[1]});
+    return [sx/poly.length, sy/poly.length];
+  }
+  return [cx/(6*a), cy/(6*a)];
+}
+
+function buildMosaic(W,H){
+  // jitter the data seeds a touch (seeded) so it feels hand-tuned, not gridded
+  const rng=mulberry32(0x1F35);
+  let sites=CELLS.map(c=>[
+    Math.min(0.95,Math.max(0.05, c.seed[0] + (rng()-0.5)*0.04 )) * W,
+    Math.min(0.95,Math.max(0.05, c.seed[1] + (rng()-0.5)*0.04 )) * H
+  ]);
+  // ONE gentle Lloyd pass at low strength: kills slivers but keeps cells
+  // distinctly irregular (full relaxation collapses toward a grid).
+  for(let pass=0; pass<1; pass++){
+    const cells=voronoiCells(sites,W,H);
+    sites=sites.map((s,i)=>{
+      const cen=centroid(cells[i]);
+      return [ s[0]+(cen[0]-s[0])*0.30, s[1]+(cen[1]-s[1])*0.30 ];
+    });
+  }
+  return voronoiCells(sites,W,H);
+}
+
+/* shrink a polygon toward its centroid to create the bone "gap" gutter */
+function insetPolygon(poly, amount){
+  const c=centroid(poly);
+  return poly.map(p=>{
+    const dx=p[0]-c[0], dy=p[1]-c[1];
+    const len=Math.hypot(dx,dy)||1;
+    const k=Math.max(0,(len-amount))/len;
+    return [c[0]+dx*k, c[1]+dy*k];
+  });
+}
+
+const pts2str=poly=>poly.map(p=>p[0].toFixed(2)+","+p[1].toFixed(2)).join(" ");
+
+/* ============================================================
+   3. RENDER  (desktop mosaic)
+   ============================================================ */
+const VW=1000, VH=620;           // svg viewBox units (preserveAspectRatio:none stretches to stage)
+let currentActive = CELLS.findIndex(c=>c.active);
+if(currentActive<0) currentActive=0;
+
+function renderDesktop(){
+  const svg=document.getElementById('vsvg');
+  const layer=document.getElementById('mediaLayer');
+  svg.setAttribute('viewBox',`0 0 ${VW} ${VH}`);
+
+  const cells=buildMosaic(VW,VH);
+  const inset=cells.map(p=>insetPolygon(p, 3.0));
+
+  // build SVG: defs(clipPaths) + active fill + strokes + ring
+  let defs='<defs>';
+  inset.forEach((poly,i)=>{
+    // clipPath in objectBoundingBox-independent userSpace, but media layer is HTML.
+    // We use CSS clip-path: polygon() in % on the HTML tiles instead (below),
+    // so SVG only draws the bone strokes + accent. clipPaths kept for SVG <image> option.
+    defs+=`<clipPath id="clip${i}" clipPathUnits="userSpaceOnUse"><polygon points="${pts2str(poly)}"/></clipPath>`;
+  });
+  defs+='</defs>';
+
+  let strokes='<g class="strokes">';
+  inset.forEach((poly,i)=>{
+    strokes+=`<polygon class="cell-stroke" data-i="${i}" points="${pts2str(poly)}"/>`;
+  });
+  // accent overlay for active cell
+  const ap=inset[currentActive];
+  strokes+=`<polygon id="activeFill" class="active-fill" points="${pts2str(ap)}"/>`;
+  strokes+=`<polygon id="activeStroke" class="active-stroke" points="${pts2str(ap)}"/>`;
+  strokes+=`<polygon id="focusRing" class="ring" points="${pts2str(ap)}"/>`;
+  strokes+='</g>';
+
+  svg.innerHTML=defs+strokes;
+
+  // HTML media tiles, clipped via CSS polygon() in % of the stage box
+  layer.innerHTML='';
+  inset.forEach((poly,i)=>{
+    const c=CELLS[i];
+    const pctPts=poly.map(p=>`${(p[0]/VW*100).toFixed(2)}% ${(p[1]/VH*100).toFixed(2)}%`).join(", ");
+    const t=document.createElement('button');
+    t.className='tile'+(i===currentActive?' is-active':'');
+    t.style.setProperty('--clip',`polygon(${pctPts})`);
+    t.setAttribute('data-i',i);
+    t.setAttribute('type','button');
+    t.setAttribute('aria-label',`${c.kicker}: ${c.name}`);
+    t.innerHTML=`
+      <img class="fill" src="${c.poster}" alt="${c.name}" loading="lazy" decoding="async" />
+      <div class="scrim"></div>
+      <div class="cap"><span class="kicker">${c.kicker} / ${c.id}</span><span class="name">${c.name}</span></div>`;
+    layer.appendChild(t);
+  });
+
+  wireTiles();
+  positionSvgClips(inset);
+}
+
+/* store inset polys for focus-ring updates */
+let _insetCache=[];
+function positionSvgClips(inset){ _insetCache=inset; }
+
+function setActive(i, {scroll=false}={}){
+  if(i<0||i>=CELLS.length) return;
+  currentActive=i;
+  const inset=_insetCache;
+  const ap=inset[i];
+  const pts=pts2str(ap);
+  ['activeFill','activeStroke','focusRing'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.setAttribute('points',pts);
+  });
+  document.querySelectorAll('.tile').forEach(el=>{
+    el.classList.toggle('is-active', +el.dataset.i===i);
+  });
+  const c=CELLS[i];
+  document.getElementById('selname').textContent=c.id;
+  // play focused video, pause the rest
+  document.querySelectorAll('.tile').forEach(el=>{
+    const idx=+el.dataset.i;
+    const v=el.querySelector('video');
+    if(idx===i){ ensureVideo(el, idx); }
+    else if(v){ v.pause(); }
+  });
+}
+
+const reduceMotion = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+function ensureVideo(tileEl, i){
+  const c=CELLS[i];
+  if(!c.video || reduceMotion) return;
+  let v=tileEl.querySelector('video');
+  if(!v){
+    v=document.createElement('video');
+    v.src=c.video; v.muted=true; v.loop=true; v.playsInline=true;
+    v.setAttribute('playsinline','');
+    v.preload='none';
+    tileEl.insertBefore(v, tileEl.querySelector('.scrim'));
+  }
+  v.play().catch(()=>{});
+}
+
+function wireTiles(){
+  const tiles=[...document.querySelectorAll('.tile')];
+  tiles.forEach(t=>{
+    const i=+t.dataset.i;
+    t.addEventListener('mouseenter',()=>{ if(!reduceMotion) ensureVideo(t,i); document.getElementById('focusRing').classList.add('on'); setRingTo(i); });
+    t.addEventListener('mouseleave',()=>{
+      const v=t.querySelector('video');
+      if(v && i!==currentActive) v.pause();
+      // ring returns to active
+      setRingTo(currentActive);
+      if(currentActive<0) document.getElementById('focusRing').classList.remove('on');
+    });
+    t.addEventListener('focus',()=>{ document.getElementById('focusRing').classList.add('on'); setRingTo(i); });
+    t.addEventListener('blur',()=>{ setRingTo(currentActive); });
+    t.addEventListener('click',()=>setActive(i));
+  });
+  // keep ring on active by default
+  document.getElementById('focusRing').classList.add('on');
+  setRingTo(currentActive);
+}
+
+function setRingTo(i){
+  const ap=_insetCache[i]; if(!ap) return;
+  const r=document.getElementById('focusRing');
+  if(r) r.setAttribute('points', pts2str(ap));
+}
+
+/* ============================================================
+   4. MOBILE FALLBACK  (stacked letterboxed cells)
+   ============================================================ */
+function renderMobile(){
+  const wrap=document.getElementById('mstack');
+  wrap.innerHTML='';
+  CELLS.slice(0,MOBILE_LIMIT).forEach((c,i)=>{
+    const realIdx=i;
+    const a=document.createElement('button');
+    a.type='button';
+    a.className='mtile'+(c.aspect==='square'?' square':'')+(realIdx===currentActive?' is-active':'');
+    a.setAttribute('aria-label',`${c.kicker}: ${c.name}`);
+    a.innerHTML=`
+      <div class="frame">
+        <img src="${c.poster}" alt="${c.name}" loading="lazy" decoding="async" />
+      </div>
+      <div class="mcap">
+        <span class="mname">${c.name}</span>
+        <span class="mkick">${c.kicker} / ${c.id}</span>
+      </div>`;
+    a.addEventListener('click',()=>{
+      [...wrap.children].forEach(el=>el.classList.remove('is-active'));
+      a.classList.add('is-active');
+      document.getElementById('selname').textContent=c.id;
+      // swap focused mobile tile to video (one at a time)
+      mobilePlay(a, realIdx);
+    });
+    wrap.appendChild(a);
+  });
+}
+
+let _mobileVideoTile=null;
+function mobilePlay(tileEl, i){
+  const c=CELLS[i];
+  // pause/clear previous
+  if(_mobileVideoTile && _mobileVideoTile!==tileEl){
+    const ov=_mobileVideoTile.querySelector('video'); if(ov) ov.remove();
+    const oi=_mobileVideoTile.querySelector('img'); if(oi) oi.style.display='';
+  }
+  if(!c.video || reduceMotion) return;
+  const frame=tileEl.querySelector('.frame');
+  let v=tileEl.querySelector('video');
+  if(!v){
+    v=document.createElement('video');
+    v.src=c.video; v.muted=true; v.loop=true; v.playsInline=true; v.preload='none';
+    v.setAttribute('playsinline','');
+    frame.appendChild(v);
+    const img=tileEl.querySelector('img'); if(img) img.style.display='none';
+  }
+  v.play().catch(()=>{});
+  _mobileVideoTile=tileEl;
+}
+
+/* ============================================================
+   5. BOOT + responsive rebuild + viewport video gating
+   ============================================================ */
+function isMobile(){ return window.matchMedia('(max-width:640px)').matches; }
+
+function boot(){
+  document.getElementById('cellcount').textContent=String(CELLS.length).padStart(2,'0')+' CELLS';
+  document.getElementById('cornerSeed').textContent='SEED 0x1F35';
+  if(isMobile()){ renderMobile(); }
+  else { renderDesktop(); setActive(currentActive); }
+}
+boot();
+
+// rebuild on breakpoint cross / resize (debounced)
+let _rt, _wasMobile=isMobile();
+window.addEventListener('resize',()=>{
+  clearTimeout(_rt);
+  _rt=setTimeout(()=>{
+    const m=isMobile();
+    if(m!==_wasMobile){ _wasMobile=m; boot(); }
+    else if(!m){ renderDesktop(); setActive(currentActive); }
+  },180);
+});
+
+// pause every video when the stage scrolls out of view (perf)
+const stage=document.getElementById('stage');
+if('IntersectionObserver' in window){
+  new IntersectionObserver((ents)=>{
+    ents.forEach(e=>{
+      if(!e.isIntersecting){
+        document.querySelectorAll('video').forEach(v=>v.pause());
+      } else {
+        // resume only the active one
+        if(!isMobile()){
+          const at=document.querySelector('.tile.is-active');
+          if(at) ensureVideo(at, currentActive);
+        }
+      }
+    });
+  },{threshold:0.12}).observe(stage);
+}
+</script>
+</body>
+</html>

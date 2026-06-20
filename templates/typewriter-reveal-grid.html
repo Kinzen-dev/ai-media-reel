@@ -1,0 +1,575 @@
+<!-- TEMPLATE: TYPED IN | ARCHETYPE: typewriter-reveal-grid | REF: typewriter-reveal portfolio (Awwwards nominees 2026), monospace editorial (CSS Design Awards 2026) | WHEN TO USE: portfolio/index that should materialize as if authored live, each work title typed char-by-char then its media fades in | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TYPED IN  -  a portfolio that writes itself</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   TYPED IN  -  paper + ink monospace, vermilion caret.
+   Titles type in char-by-char; thumbnail fades in only when the
+   last character lands. Pure JS per-char timer + IntersectionObserver.
+   ============================================================ */
+
+/* ============================ DATA NOTE ============================
+   The work list lives in the JS DATA array at the very top of <script>.
+   Each entry: { title, kind:'image'|'video', src, poster?, meta }.
+   Swap those to repurpose this template. Nothing else needs editing.
+   ================================================================== */
+
+:root{
+  --paper:#f5f2ed;          /* warm paper */
+  --paper-2:#efeae1;        /* recessed cell */
+  --paper-3:#e8e2d6;        /* placeholder fill */
+  --ink:#111111;            /* near-black ink */
+  --ink-2:#3a3733;          /* secondary ink */
+  --ink-faint:#9a948a;      /* muted meta */
+  --rule:#d8d1c4;           /* hairline rules */
+  --rule-2:#c9c1b1;
+  --vermilion:#e03c2c;      /* blinking caret + accents */
+  --maxw:1320px;
+  --mono:"Space Mono",ui-monospace,Menlo,Consolas,monospace;
+  --serif:"Newsreader",Georgia,"Times New Roman",serif;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+html,body{margin:0;background:var(--paper);color:var(--ink)}
+body{
+  font-family:var(--mono);
+  font-size:15px;line-height:1.5;
+  letter-spacing:.01em;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+  /* faint paper tooth + a hair of vignette */
+  background-image:
+    radial-gradient(120% 80% at 50% -8%, rgba(0,0,0,.025), transparent 60%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/></svg>");
+}
+::selection{background:var(--ink);color:var(--paper)}
+img,video{display:block;max-width:100%}
+button{font-family:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--vermilion);outline-offset:3px}
+
+/* ============================ TOP BAND ============================ */
+.shell{max-width:var(--maxw);margin:0 auto;padding:0 clamp(16px,4vw,46px)}
+
+.masthead{
+  display:flex;align-items:flex-end;justify-content:space-between;gap:18px;
+  padding:clamp(20px,3.4vw,40px) 0 clamp(14px,1.8vw,20px);
+  border-bottom:1.5px solid var(--ink);
+}
+.brand{display:flex;flex-direction:column;gap:4px}
+.brand .kicker{
+  font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--ink-faint);
+}
+.brand h1{
+  margin:0;font-family:var(--serif);font-weight:500;font-style:italic;
+  font-size:clamp(30px,5.6vw,58px);line-height:.96;letter-spacing:-.01em;
+}
+.brand h1 b{font-style:normal;font-weight:500}
+.brand h1 .car{
+  font-family:var(--mono);font-style:normal;color:var(--vermilion);font-weight:700;
+  display:inline-block;transform:translateY(-.04em);
+}
+.masthead-right{
+  text-align:right;font-size:11px;line-height:1.7;color:var(--ink-2);
+  letter-spacing:.04em;max-width:42ch;
+}
+.masthead-right .live{
+  display:inline-flex;align-items:center;gap:7px;color:var(--ink);
+  font-weight:700;letter-spacing:.12em;text-transform:uppercase;font-size:10.5px;
+}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--vermilion);
+  box-shadow:0 0 0 0 rgba(224,60,44,.6);animation:pulse 2.2s ease-out infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(224,60,44,.5)}70%{box-shadow:0 0 0 7px rgba(224,60,44,0)}100%{box-shadow:0 0 0 0 rgba(224,60,44,0)}}
+
+.subbar{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  padding:11px 0;border-bottom:1px solid var(--rule);
+  font-size:11px;letter-spacing:.06em;color:var(--ink-faint);text-transform:uppercase;
+}
+.subbar .progress{display:flex;align-items:center;gap:9px;color:var(--ink-2)}
+.subbar .progress b{color:var(--ink);font-weight:700}
+.bar{width:120px;height:5px;border:1px solid var(--rule-2);background:var(--paper-2);position:relative;overflow:hidden}
+.bar i{position:absolute;inset:0;width:0%;background:var(--ink);transition:width .5s ease}
+
+/* ============================ THE GRID ============================ */
+.grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:1px;                       /* hairline gutters via background */
+  background:var(--rule);
+  border:1px solid var(--rule);
+  border-top:none;
+  margin:0 0 clamp(40px,6vw,84px);
+}
+.cell{
+  position:relative;
+  background:var(--paper);
+  padding:clamp(14px,1.6vw,22px) clamp(14px,1.6vw,22px) clamp(16px,1.8vw,24px);
+  display:flex;flex-direction:column;gap:13px;
+  min-height:0;
+}
+
+/* index + caption row (typed) */
+.cap{display:flex;align-items:baseline;gap:10px;min-height:2.9em}
+.cap .idx{
+  font-size:11px;color:var(--vermilion);font-weight:700;letter-spacing:.05em;
+  flex:0 0 auto;padding-top:.18em;
+}
+.cap .titlewrap{flex:1 1 auto;min-width:0}
+.cap .title{
+  font-family:var(--serif);font-weight:500;font-size:clamp(17px,1.55vw,21px);
+  line-height:1.22;letter-spacing:-.005em;color:var(--ink);
+  word-break:break-word;
+}
+/* the blinking caret sits inside .title as a span */
+.caret{
+  display:inline-block;width:.58ch;height:1.02em;margin-left:1px;
+  transform:translateY(.16em);
+  background:var(--vermilion);
+  animation:blink 1s steps(1,end) infinite;
+}
+@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+.cell.done .caret{display:none}
+
+.cap .meta{
+  display:block;margin-top:5px;font-family:var(--mono);font-size:10.5px;
+  letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint);
+  opacity:0;transition:opacity .5s ease .15s;
+}
+.cell.done .meta{opacity:1}
+
+/* media frame: starts as a blank placeholder, thumbnail fades in */
+.frame{
+  position:relative;width:100%;aspect-ratio:4/3;
+  background:var(--paper-3);
+  border:1px solid var(--rule);
+  overflow:hidden;
+}
+/* placeholder ruled paper look while empty */
+.frame::before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background-image:repeating-linear-gradient(transparent 0 22px, var(--rule) 22px 23px);
+  opacity:.5;transition:opacity .6s ease;
+}
+.frame .ph{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:10px;letter-spacing:.28em;text-transform:uppercase;color:var(--ink-faint);
+  transition:opacity .45s ease;
+}
+.cell.typing .frame .ph{opacity:1}
+.frame .media{
+  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  opacity:0;transform:scale(1.04);
+  transition:opacity .8s ease, transform 1.1s ease;
+}
+.frame.letterbox .media{object-fit:contain;background:#111}
+.cell.done .frame .media{opacity:1;transform:scale(1)}
+.cell.done .frame::before{opacity:0}
+.cell.done .frame .ph{opacity:0}
+
+/* play affordance for video cells (real <button> for keyboard a11y) */
+.frame .play{
+  position:absolute;left:11px;bottom:11px;z-index:3;
+  display:inline-flex;align-items:center;gap:7px;
+  padding:5px 10px 5px 8px;-webkit-appearance:none;appearance:none;
+  background:rgba(245,242,237,.92);border:1px solid var(--ink);border-radius:0;
+  font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink);
+  opacity:0;transform:translateY(4px);transition:opacity .4s ease .3s, transform .4s ease .3s;
+}
+.cell.done .frame .play{opacity:1;transform:none}
+.frame .play .tri{
+  width:0;height:0;border-style:solid;border-width:5px 0 5px 8px;
+  border-color:transparent transparent transparent var(--vermilion);
+}
+.frame.playing .play .tri{border-width:5px 3px;border-color:transparent;background:var(--ink)}
+.frame.playing .play{background:var(--ink);color:var(--paper)}
+.frame .badge{
+  position:absolute;right:10px;top:10px;z-index:3;
+  font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;
+  padding:3px 7px;background:var(--ink);color:var(--paper);
+  opacity:0;transition:opacity .5s ease .35s;
+}
+.cell.done .frame .badge{opacity:1}
+.frame.audio .badge{background:var(--vermilion)}
+
+/* hover lift (desktop) */
+@media(hover:hover){
+  .cell.done:hover .frame .media{transform:scale(1.03)}
+}
+
+/* ============================ FOOTER ============================ */
+.colophon{
+  border-top:1.5px solid var(--ink);
+  padding:clamp(22px,3vw,40px) 0 clamp(40px,6vw,70px);
+  display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap;
+}
+.colophon .c-left{max-width:46ch}
+.colophon h2{
+  margin:0 0 8px;font-family:var(--serif);font-style:italic;font-weight:500;
+  font-size:clamp(20px,2.6vw,30px);line-height:1.05;
+}
+.colophon p{margin:0;font-size:12px;line-height:1.7;color:var(--ink-2)}
+.colophon .c-right{font-size:11px;line-height:1.9;color:var(--ink-faint);letter-spacing:.04em;text-transform:uppercase}
+.replay{
+  margin-top:14px;display:inline-flex;align-items:center;gap:8px;
+  background:var(--paper);border:1.5px solid var(--ink);
+  padding:8px 14px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;
+}
+.replay:hover{background:var(--ink);color:var(--paper)}
+.replay .ic{font-family:var(--serif)}
+
+/* ============================ RESPONSIVE ============================ */
+@media(max-width:980px){
+  .grid{grid-template-columns:repeat(2,1fr)}
+  .masthead-right{display:none}
+}
+@media(max-width:640px){
+  body{font-size:14px}
+  .grid{grid-template-columns:1fr}
+  .masthead{flex-direction:column;align-items:flex-start;gap:10px}
+  .frame{aspect-ratio:16/10}            /* media stays landscape, letterboxed not cropped */
+  .frame.letterbox .media{object-fit:contain}
+  .cap{min-height:0}
+  .subbar{font-size:10px}
+  .bar{width:90px}
+}
+
+/* ============================ REDUCED MOTION ============================
+   Show everything immediately: titles complete, thumbnails visible,
+   no caret, no blink, no per-char timer (JS also short-circuits). */
+@media(prefers-reduced-motion:reduce){
+  .caret{display:none !important}
+  .dot{animation:none !important}
+  .frame .media{transition:none !important}
+  .frame::before{transition:none !important}
+  .cap .meta,.frame .play,.frame .badge{transition:none !important}
+  *{scroll-behavior:auto !important}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <header class="masthead">
+    <div class="brand">
+      <span class="kicker">Selected Works  /  Vol. 04</span>
+      <h1><span class="car">&gt;</span> <b>typed</b> <i>in</i></h1>
+    </div>
+    <div class="masthead-right">
+      <span class="live"><span class="dot"></span>Composing index</span><br>
+      Each entry is keyed in live. Titles type themselves character by character; the plate develops only once the last letter lands.
+    </div>
+  </header>
+
+  <div class="subbar">
+    <span>Studio Vesper  /  Generative media, direction, motion</span>
+    <span class="progress">
+      <b id="pCount">0</b>&nbsp;/&nbsp;<span id="pTotal">0</span>&nbsp;committed
+      <span class="bar"><i id="pBar"></i></span>
+    </span>
+  </div>
+
+  <main class="grid" id="grid" aria-label="Portfolio works"></main>
+
+  <footer class="colophon">
+    <div class="c-left">
+      <h2>Set in real time.</h2>
+      <p>A portfolio that authors itself on arrival. The typing is the reveal: nothing is shown until it has been written. Swap the DATA array at the top of the script to make it yours.</p>
+      <button class="replay" id="replay" type="button"><span class="ic">&#8635;</span> Re-type the index</button>
+    </div>
+    <div class="c-right">
+      Space Mono / Newsreader<br>
+      Paper #f5f2ed &middot; Ink #111<br>
+      Caret #e03c2c
+    </div>
+  </footer>
+
+</div>
+
+<script>
+/* ============================================================
+   DATA  -  the work list. Edit this to repurpose the template.
+   kind: 'image' renders the still; 'video' renders a poster
+   that plays on click (only one video plays at a time).
+   ============================================================ */
+const DATA = [
+  { title:"Midnight Coachwork",          kind:"image", src:"../assets/flux-car-4k.png",                                          meta:"FLUX / still / 4K" },
+  { title:"Wet Neon, No. 9",             kind:"video", src:"../assets/kling-video.mp4", poster:"../assets/gen/poster-kling-video.png", meta:"Kling / motion / loop" },
+  { title:"Operatory in Mint",           kind:"image", src:"../assets/flux-clinic-4k.png",                                        meta:"FLUX / still / 4K" },
+  { title:"A Fox, Painted in Autumn",    kind:"image", src:"../assets/sdxl.png",                                                  meta:"SDXL / still / oil" },
+  { title:"Drive Cycle",                 kind:"video", src:"../assets/flux-car-i2v.mp4", poster:"../assets/gen/poster-flux-car-i2v.png", meta:"FLUX i2v / motion" },
+  { title:"Soft Apple, Low Fidelity",    kind:"image", src:"../assets/hf-tinysd.png",                                            meta:"TinySD / still / lo-fi" },
+  { title:"The Presenter",               kind:"video", src:"../assets/heygen-avatar.mp4", poster:"../assets/gen/poster-heygen.png", meta:"HeyGen / avatar / sound" },
+  { title:"Establishing Shot",           kind:"video", src:"../assets/veo-video.mp4", poster:"../assets/gen/poster-veo-video.png", meta:"Veo / cinematic / sound" },
+  { title:"Interpolated Frames",         kind:"video", src:"../assets/fal-video.mp4", poster:"../assets/gen/poster-fal-video.png", meta:"fal / motion / loop" },
+];
+
+/* ============================================================
+   ENGINE
+   ============================================================ */
+const REDUCED = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+const grid = document.getElementById('grid');
+const pCount = document.getElementById('pCount');
+const pTotal = document.getElementById('pTotal');
+const pBar   = document.getElementById('pBar');
+
+let doneCount = 0;
+const cells = [];   // per-cell controller objects
+
+function pad(n){ return String(n+1).padStart(2,'0'); }
+
+/* Build a cell skeleton. Title starts empty (placeholder), media hidden. */
+function buildCell(item, i){
+  const cell = document.createElement('article');
+  cell.className = 'cell';
+  cell.setAttribute('role','group');
+  cell.setAttribute('aria-label', item.title);
+
+  const isVideo = item.kind === 'video';
+  // detect a landscape/standard asset that we letterbox on phones rather than crop
+  const letterbox = true; // all our demo media are landscape; contain on mobile
+
+  cell.innerHTML = `
+    <div class="cap">
+      <span class="idx">${pad(i)}</span>
+      <span class="titlewrap">
+        <span class="title"><span class="txt"></span><span class="caret" aria-hidden="true"></span></span>
+        <span class="meta">${item.meta || ''}</span>
+      </span>
+    </div>
+    <div class="frame ${isVideo?'video':''} ${item.audio?'audio':''}">
+      <span class="ph">awaiting plate</span>
+      ${isVideo
+        ? `<video class="media" playsinline muted loop preload="none" poster="${item.poster||''}"></video>
+           <button type="button" class="play" aria-label="Play ${item.title}"><span class="tri" aria-hidden="true"></span>Play</button>
+           ${/heygen|veo|did/.test(item.src)?'<span class="badge">Sound</span>':'<span class="badge">Loop</span>'}`
+        : `<img class="media" alt="${item.title}" loading="lazy">`}
+    </div>`;
+
+  const frame = cell.querySelector('.frame');
+  if(letterbox) frame.classList.add('letterbox');
+  const txtEl = cell.querySelector('.txt');
+  const mediaEl = cell.querySelector('.media');
+
+  // Controller object: starts typing, lands media on completion.
+  const ctrl = {
+    item, cell, txtEl, mediaEl, frame,
+    started:false, finished:false,
+    pos:0, timer:null, isVideo,
+    start(){
+      if(this.started) return;
+      this.started = true;
+      this.cell.classList.add('typing');
+      this.type();
+    },
+    type(){
+      // pause cleanly when the tab is hidden; resume on visibility change
+      if(document.hidden){ this.timer = setTimeout(()=>this.type(), 220); return; }
+      const full = this.item.title;
+      if(this.pos >= full.length){ this.finish(); return; }
+      this.pos++;
+      this.txtEl.textContent = full.slice(0, this.pos);
+      // realistic variable cadence: base + jitter, longer pause after punctuation/space
+      const ch = full[this.pos-1];
+      let delay = 38 + Math.random()*70;
+      if(ch === ' ') delay += 40;
+      if(/[.,;:]/.test(ch)) delay += 160;
+      if(Math.random() < 0.06) delay += 180; // occasional "thinking" hitch
+      this.timer = setTimeout(()=>this.type(), delay);
+    },
+    finish(){
+      if(this.finished) return;
+      this.finished = true;
+      this.cell.classList.remove('typing');
+      this.cell.classList.add('done');
+      // load the media now (lazy: src assigned only at reveal time)
+      if(this.isVideo){
+        if(!this.mediaEl.dataset.loaded){
+          this.mediaEl.src = this.item.src;
+          this.mediaEl.dataset.loaded = '1';
+          this.mediaEl.load();
+        }
+      } else {
+        this.mediaEl.src = this.item.src;
+      }
+      tickProgress();
+    },
+    /* instantly complete (reduced motion / replay-skip) */
+    complete(){
+      if(this.timer){ clearTimeout(this.timer); this.timer = null; }
+      this.started = true; this.pos = this.item.title.length;
+      this.txtEl.textContent = this.item.title;
+      this.finish();
+    },
+    reset(){
+      if(this.timer){ clearTimeout(this.timer); this.timer = null; }
+      this.started = false; this.finished = false; this.pos = 0;
+      this.txtEl.textContent = '';
+      this.cell.classList.remove('done','typing');
+      this.frame.classList.remove('playing');
+      if(this.isVideo){ try{ this.mediaEl.pause(); }catch(e){} }
+    }
+  };
+
+  // video play control: only one plays at a time
+  if(isVideo){
+    const playBtn = cell.querySelector('.play');
+    const toggle = () => {
+      if(!ctrl.finished) return;
+      if(frame.classList.contains('playing')){
+        mediaEl.pause(); frame.classList.remove('playing');
+        playBtn.lastChild.textContent = 'Play';
+        playBtn.setAttribute('aria-label','Play '+item.title);
+      } else {
+        stopAllVideos();
+        // demo videos with audio stay muted unless the badge is Sound; keep muted for autoplay-safety
+        mediaEl.play().then(()=>{
+          frame.classList.add('playing');
+          playBtn.lastChild.textContent = 'Pause';
+          playBtn.setAttribute('aria-label','Pause '+item.title);
+        }).catch(()=>{});
+      }
+    };
+    playBtn.addEventListener('click', (e)=>{ e.stopPropagation(); toggle(); });
+    // clicking the plate anywhere except the button also toggles
+    frame.addEventListener('click', (e)=>{ if(e.target.closest('.play')) return; toggle(); });
+  }
+
+  cells.push(ctrl);
+  grid.appendChild(cell);
+  return ctrl;
+}
+
+function stopAllVideos(){
+  cells.forEach(c=>{
+    if(c.isVideo && c.frame.classList.contains('playing')){
+      try{ c.mediaEl.pause(); }catch(e){}
+      c.frame.classList.remove('playing');
+      const pb = c.frame.querySelector('.play');
+      if(pb){ pb.lastChild.textContent = 'Play'; pb.setAttribute('aria-label','Play '+c.item.title); }
+    }
+  });
+}
+
+function tickProgress(){
+  doneCount = cells.filter(c=>c.finished).length;
+  pCount.textContent = doneCount;
+  pBar.style.width = (doneCount / cells.length * 100) + '%';
+}
+
+/* ---------- build all cells ---------- */
+DATA.forEach((item,i)=>buildCell(item,i));
+pTotal.textContent = cells.length;
+pCount.textContent = 0;
+
+/* ============================================================
+   REDUCED MOTION: show final state immediately, no timers.
+   ============================================================ */
+if(REDUCED){
+  cells.forEach(c=>c.complete());
+} else {
+  /* ----------------------------------------------------------
+     IntersectionObserver: start a cell typing when it enters view.
+     Stagger cells in the same band so several type in parallel
+     but not in perfect lockstep.
+     ---------------------------------------------------------- */
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{
+      if(e.isIntersecting){
+        const ctrl = cells.find(c=>c.cell===e.target);
+        if(ctrl && !ctrl.started){
+          const idx = cells.indexOf(ctrl);
+          // small per-cell stagger so a row of cells cascades
+          const stagger = (idx % 3) * 260 + Math.random()*180;
+          setTimeout(()=>ctrl.start(), stagger);
+        }
+        io.unobserve(e.target);
+      }
+    });
+  }, { rootMargin:'0px 0px -8% 0px', threshold:0.18 });
+
+  cells.forEach(c=>io.observe(c.cell));
+
+  /* ----------------------------------------------------------
+     FIRST-VIEWPORT SIGNATURE seeding.
+     At scroll=0 we want the mechanic legible without scrolling:
+       - cell 00 already fully typed, its plate developed
+       - cell 01 mid-type, caret blinking, no plate yet
+       - the rest blank placeholders waiting their turn
+     So the scroll=0 screenshot conveys BOTH states at once.
+     IntersectionObserver still governs everything below the fold.
+     ---------------------------------------------------------- */
+  function seedFirstView(){
+    if(cells[0]){ cells[0].complete(); }           // 00: done + plate visible
+    if(cells[1]){
+      cells[1].started = true;
+      cells[1].cell.classList.add('typing');
+      io.unobserve(cells[1].cell);
+      // type to roughly the middle then keep going naturally
+      const mid = Math.max(1, Math.floor(cells[1].item.title.length * 0.45));
+      cells[1].pos = mid;
+      cells[1].txtEl.textContent = cells[1].item.title.slice(0, mid);
+      cells[1].type();
+    }
+  }
+  seedFirstView();
+
+  /* ----------------------------------------------------------
+     Guardrail: pause all per-char timers while the tab is hidden.
+     The type() loop already self-checks document.hidden, but on
+     return we nudge any started-but-unfinished cell to continue
+     immediately rather than wait out a stale 220ms poll.
+     ---------------------------------------------------------- */
+  document.addEventListener('visibilitychange', ()=>{
+    if(!document.hidden){
+      cells.forEach(c=>{
+        if(c.started && !c.finished && !c.timer){ c.type(); }
+      });
+    }
+  });
+
+  /* ----------------------------------------------------------
+     Pause off-screen videos to keep decode load down.
+     ---------------------------------------------------------- */
+  const vIO = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{
+      if(!e.isIntersecting){
+        const ctrl = cells.find(c=>c.cell===e.target);
+        if(ctrl && ctrl.isVideo && ctrl.frame.classList.contains('playing')){
+          try{ ctrl.mediaEl.pause(); }catch(err){}
+          ctrl.frame.classList.remove('playing');
+          const pb = ctrl.frame.querySelector('.play');
+          if(pb){ pb.lastChild.textContent = 'Play'; pb.setAttribute('aria-label','Play '+ctrl.item.title); }
+        }
+      }
+    });
+  }, { threshold:0.01 });
+  cells.forEach(c=>{ if(c.isVideo) vIO.observe(c.cell); });
+}
+
+/* ============================================================
+   REPLAY: re-type the whole index from blank.
+   ============================================================ */
+document.getElementById('replay').addEventListener('click', ()=>{
+  stopAllVideos();
+  cells.forEach(c=>c.reset());
+  tickProgress();
+  if(REDUCED){ cells.forEach(c=>c.complete()); return; }
+  // re-seed first view, then cascade the rest top-down
+  if(cells[0]) cells[0].complete();
+  cells.forEach((c,i)=>{
+    if(i===0) return;
+    setTimeout(()=>{ if(!c.started) c.start(); }, (i)*340 + Math.random()*160);
+  });
+});
+</script>
+</body>
+</html>

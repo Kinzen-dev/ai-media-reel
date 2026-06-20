@@ -1,0 +1,752 @@
+<!-- TEMPLATE: Depth-Map Tilt | ARCHETYPE: DEPTH TILT - per-pixel depth-encoded 2.5D card parallax (Canvas 2D, no WebGL) | REF: 2.5D depth-map tilt (Awwwards interaction-design 2026), depth-parallax card hover (Figma 2026 trends) | WHEN TO USE: a small portfolio of flat images you want to feel volumetric - on hover each card splits into near/far depth bands that slide opposite the tilt, near objects sliding in front of far, with NO 3D engine | SWAP: edit the DATA array at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Depth-Map Tilt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   DEPTH-MAP TILT
+   Each card pairs a colour image with a grayscale depth map
+   (lighter = closer). The map is pre-sampled at load into a
+   64x64 Float32Array. On hover a CSS perspective tilt drives
+   a per-frame split: pixels are bucketed into depth bands and
+   each band is drawn into an OFFSCREEN canvas at DPR 1 with an
+   x/y offset proportional to (depth - 0.5) * tilt. Near bands
+   move opposite to the tilt and are painted last (in front).
+   The composite is blitted onto the visible canvas over the img.
+   NO WebGL, NO three.js - pure Canvas 2D compositing.
+   PERF: rAF runs ONLY while the pointer is over a card; depth is
+   pre-sampled (never getImageData per frame); reduced-motion
+   shows a flat, untilted card.
+   ============================================================ */
+:root{
+  --void:#1c1c20;
+  --void-2:#141417;
+  --ink:#f3f0ea;
+  --muted:#8d8a86;
+  --faint:#5a5854;
+  --line:rgba(243,240,234,0.10);
+  --line-hi:rgba(243,240,234,0.22);
+  --accent:#d8cbb4;
+  --ease:cubic-bezier(0.22,1,0.36,1);
+  --r:14px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{ -webkit-text-size-adjust:100%; }
+body{
+  background:
+    radial-gradient(130% 90% at 80% -10%, #232329 0%, transparent 55%),
+    radial-gradient(120% 100% at 0% 110%, #1f1f26 0%, transparent 50%),
+    var(--void);
+  color:var(--ink);
+  font-family:"Space Grotesk", system-ui, sans-serif;
+  -webkit-font-smoothing:antialiased;
+  line-height:1.5;
+  overflow-x:hidden;
+  min-height:100vh;
+}
+/* fine grain over everything */
+body::before{
+  content:"";position:fixed;inset:0;z-index:60;pointer-events:none;opacity:.05;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  mix-blend-mode:overlay;
+}
+a{color:inherit;text-decoration:none}
+
+/* ---------- shell ---------- */
+.wrap{max-width:1280px;margin:0 auto;padding:clamp(20px,4vw,56px) clamp(18px,4vw,52px) 80px}
+
+/* compact top band - mechanic stays in first viewport */
+header.top{
+  display:flex;align-items:flex-end;justify-content:space-between;gap:24px;
+  flex-wrap:wrap;
+  padding-bottom:clamp(16px,2.4vw,26px);
+  border-bottom:1px solid var(--line);
+  margin-bottom:clamp(20px,3vw,38px);
+}
+.brand{display:flex;flex-direction:column;gap:10px;max-width:680px}
+.eyebrow{
+  font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--accent);
+  display:flex;align-items:center;gap:12px;
+}
+.eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent)}
+h1{
+  font-family:"Fraunces",serif;font-weight:400;
+  font-size:clamp(30px,5.2vw,58px);line-height:.98;letter-spacing:-.012em;
+}
+h1 em{font-style:italic;color:var(--accent)}
+.sub{color:var(--muted);font-size:clamp(13px,1.4vw,15px);max-width:46ch}
+.meta{
+  text-align:right;color:var(--faint);font-size:11px;letter-spacing:.18em;
+  text-transform:uppercase;line-height:1.9;white-space:nowrap;
+}
+.meta b{color:var(--muted);font-weight:500}
+
+/* ---------- grid ---------- */
+.grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:clamp(18px,2.4vw,30px);
+}
+.grid .card:first-child{grid-column:1 / -1}
+
+.card{
+  position:relative;
+  border-radius:var(--r);
+  overflow:hidden;
+  background:var(--void-2);
+  border:1px solid var(--line);
+  box-shadow:0 30px 60px -38px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.02);
+  isolation:isolate;
+  cursor:pointer;
+  /* the tilt lives here, driven by JS vars */
+  perspective:1100px;
+}
+.card:focus-visible{outline:none}
+.card:focus-visible .stage{box-shadow:0 0 0 2px var(--void), 0 0 0 4px var(--accent)}
+
+/* the tilting stage */
+.stage{
+  position:relative;
+  width:100%;
+  aspect-ratio:16/9;
+  border-radius:var(--r);
+  transform-style:preserve-3d;
+  transform:
+    rotateX(calc(var(--ty,0) * -7deg))
+    rotateY(calc(var(--tx,0) * 9deg))
+    scale(calc(1 + var(--hov,0) * 0.012));
+  transition:transform .5s var(--ease), box-shadow .4s var(--ease);
+}
+.card:first-child .stage{aspect-ratio:21/9}
+
+/* underlying real image (sampled, then visually superseded by canvas) */
+.stage img{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;object-position:center;
+  display:block;
+  border-radius:var(--r);
+}
+/* the depth-composited canvas overlays the img once ready */
+.stage canvas{
+  position:absolute;inset:0;width:100%;height:100%;
+  border-radius:var(--r);
+  display:block;
+  opacity:0;
+  transition:opacity .45s var(--ease);
+}
+.card.ready .stage canvas{opacity:1}
+.card.ready .stage img{opacity:0}
+
+/* glare that tracks the tilt - sells the light direction */
+.stage::after{
+  content:"";position:absolute;inset:0;border-radius:var(--r);
+  pointer-events:none;z-index:3;
+  background:radial-gradient(
+    130% 120% at calc(50% + var(--tx,0)*40%) calc(40% + var(--ty,0)*40%),
+    rgba(255,255,255,calc(0.16 * var(--hov,0))) 0%,
+    rgba(255,255,255,0) 42%);
+  mix-blend-mode:screen;
+}
+/* inner vignette + edge ring for the framed-print feel */
+.stage::before{
+  content:"";position:absolute;inset:0;border-radius:var(--r);
+  pointer-events:none;z-index:2;
+  box-shadow:inset 0 0 0 1px var(--line-hi), inset 0 0 60px -20px rgba(0,0,0,.9);
+}
+
+/* caption rail */
+.cap{
+  position:absolute;left:0;right:0;bottom:0;z-index:4;
+  padding:clamp(14px,2vw,22px) clamp(16px,2.2vw,24px);
+  display:flex;align-items:flex-end;justify-content:space-between;gap:16px;
+  background:linear-gradient(to top, rgba(12,12,14,.86) 0%, rgba(12,12,14,.4) 55%, transparent 100%);
+  pointer-events:none;
+}
+.cap .l{display:flex;flex-direction:column;gap:4px}
+.cap .idx{font-size:11px;letter-spacing:.2em;color:var(--accent);text-transform:uppercase}
+.cap .ttl{font-family:"Fraunces",serif;font-size:clamp(16px,2vw,22px);line-height:1.05;letter-spacing:-.01em}
+.cap .desc{font-size:12px;color:var(--muted);max-width:34ch}
+.cap .tag{
+  font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);
+  border:1px solid var(--line-hi);border-radius:999px;padding:5px 11px;white-space:nowrap;
+  background:rgba(243,240,234,.03);
+}
+/* "depth live" badge on the pre-tilted first card */
+.depthbadge{
+  position:absolute;top:14px;left:14px;z-index:5;
+  display:flex;align-items:center;gap:8px;
+  font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink);
+  background:rgba(20,20,23,.62);backdrop-filter:blur(6px);
+  border:1px solid var(--line-hi);border-radius:999px;padding:6px 12px;
+  opacity:0;transition:opacity .5s var(--ease);
+}
+.card.ready .depthbadge{opacity:.9}
+.depthbadge .pulse{
+  width:6px;height:6px;border-radius:50%;background:var(--accent);
+  box-shadow:0 0 0 0 var(--accent);animation:pulse 2.6s var(--ease) infinite;
+}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(216,203,180,.5)}70%{box-shadow:0 0 0 9px rgba(216,203,180,0)}100%{box-shadow:0 0 0 0 rgba(216,203,180,0)}}
+
+/* hint shown until first interaction */
+.hint{
+  position:absolute;bottom:14px;right:14px;z-index:5;
+  font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);
+  display:flex;align-items:center;gap:7px;opacity:.7;
+}
+.hint svg{width:13px;height:13px}
+
+footer{
+  margin-top:clamp(40px,6vw,72px);padding-top:24px;border-top:1px solid var(--line);
+  display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;
+  color:var(--faint);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+}
+footer b{color:var(--muted);font-weight:500}
+
+/* ---------- mobile ---------- */
+@media (max-width:640px){
+  .grid{grid-template-columns:1fr;gap:16px}
+  .grid .card:first-child{grid-column:auto}
+  /* never cover-crop a landscape (or square) asset on a phone: letterbox
+     the whole frame onto a matte so nothing is cut off. The canvas draw
+     switches to contain mode in JS to match (see FIT below). */
+  .stage,.card:first-child .stage{aspect-ratio:16/10;background:var(--void-2)}
+  .stage img,.stage canvas{object-fit:contain}
+  .meta{text-align:left}
+  header.top{align-items:flex-start}
+  .cap .desc{display:none}
+  .hint{display:none}
+  .orient-cta{display:inline-flex}
+}
+.orient-cta{
+  display:none;align-items:center;gap:8px;margin-top:6px;
+  font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--accent);border:1px solid var(--line-hi);
+  border-radius:999px;padding:7px 13px;background:rgba(243,240,234,.03);
+  cursor:pointer;
+}
+
+/* ---------- reduced motion: flat, no tilt, no rAF ---------- */
+@media (prefers-reduced-motion:reduce){
+  .stage{transform:none !important;transition:none}
+  .stage::after{display:none}
+  .depthbadge .pulse{animation:none}
+  .hint{display:none}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <div class="eyebrow"><span class="dot"></span>Depth-Map Tilt &nbsp;/&nbsp; 2.5D Parallax</div>
+      <h1>Flat images, <em>read</em> as volume.</h1>
+      <p class="sub">A grayscale depth map drives a per-pixel Canvas 2D split. Hover any card: near layers slide in front of far, opposite the tilt. No WebGL, no 3D engine.</p>
+    </div>
+    <div class="meta">
+      <div><b>Engine</b> Canvas 2D</div>
+      <div><b>Depth</b> 64&times;64 presample</div>
+      <div><b>Loop</b> rAF on hover only</div>
+    </div>
+  </header>
+
+  <main class="grid" id="grid" aria-label="Selected work, depth-tilt cards"></main>
+
+  <footer>
+    <span><b>Depth-Map Tilt</b> &nbsp; per-pixel parallax</span>
+    <span>Hover to separate layers &nbsp;/&nbsp; mobile tilts to orientation</span>
+  </footer>
+</div>
+
+<script>
+/* ============================================================
+   DATA - swap these to reskin the whole template.
+   Each entry: { src, depth, title, idx, desc, tag }
+   - src   : colour image (the work)
+   - depth : OPTIONAL paired grayscale depth map (lighter = nearer).
+             Omit / null -> pseudo-depth is derived from the image's
+             own luminance + blur at load time.
+   ============================================================ */
+const DATA = [
+  {
+    src:"../assets/flux-car-4k.png",
+    depth:null,                       // pseudo-depth from luminance: wet neon highlights read as "near"
+    title:"Nightfall, Wet Asphalt",
+    idx:"01 / Automotive",
+    desc:"Matte-black coupe on a rain-lit street. Specular reflections pull forward on tilt.",
+    tag:"Cinematic"
+  },
+  {
+    src:"../assets/flux-clinic-4k.png",
+    depth:null,
+    title:"Mint & Wood Clinic",
+    idx:"02 / Interior",
+    desc:"Foreground chair separates from the back wall as the card leans.",
+    tag:"Architectural"
+  },
+  {
+    src:"../assets/sdxl.png",
+    depth:null,
+    title:"Autumn Fox",
+    idx:"03 / Painterly",
+    desc:"Lit subject lifts off the darker bokeh ground.",
+    tag:"Illustration"
+  },
+  {
+    src:"../assets/hf-tinysd.png",
+    depth:null,
+    title:"Low-Fi Apple",
+    idx:"04 / Abstract",
+    desc:"Bright core floats over the muted field.",
+    tag:"Study"
+  }
+];
+
+/* ---------- depth engine config ---------- */
+const D = 64;            // depth sample resolution (DxD Float32Array)
+const BANDS = 6;         // discrete depth slices composited back-to-front
+const MAX_SHIFT = 0.085; // max layer separation as a fraction of card width
+const PRETILT = { tx:0.62, ty:-0.34 }; // first card's standing pose at scroll=0 (~6-9deg)
+
+const reducedMQ = window.matchMedia("(prefers-reduced-motion:reduce)");
+let prefersReduced = reducedMQ.matches;
+const isTouch = matchMedia("(pointer:coarse)").matches;
+// on phones we letterbox (contain) so a landscape/square asset is never
+// cover-cropped; on larger screens we cover-fill the frame.
+const phoneMQ = matchMedia("(max-width:640px)");
+function fitMode(){ return phoneMQ.matches ? "contain" : "cover"; }
+
+const grid = document.getElementById("grid");
+
+/* Build cards from DATA */
+const cards = DATA.map((d,i)=>{
+  const card = document.createElement("article");
+  card.className = "card";
+  card.tabIndex = 0;
+  card.setAttribute("role","group");
+  card.setAttribute("aria-label", d.title);
+
+  const badge = i===0
+    ? `<div class="depthbadge"><span class="pulse"></span>Depth live</div>`
+    : "";
+  const hint = i===0
+    ? `<div class="hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v6M12 15v6M3 12h6M15 12h6"/></svg>Move across</div>`
+    : "";
+
+  card.innerHTML = `
+    <div class="stage">
+      <img src="${d.src}" alt="${d.title}" loading="${i<2?'eager':'lazy'}" decoding="async" />
+      <canvas aria-hidden="true"></canvas>
+      ${badge}${hint}
+      <div class="cap">
+        <div class="l">
+          <span class="idx">${d.idx}</span>
+          <span class="ttl">${d.title}</span>
+          <span class="desc">${d.desc}</span>
+        </div>
+        <span class="tag">${d.tag}</span>
+      </div>
+    </div>`;
+  grid.appendChild(card);
+
+  return {
+    el:card,
+    stage:card.querySelector(".stage"),
+    img:card.querySelector("img"),
+    canvas:card.querySelector("canvas"),
+    data:d,
+    first:i===0,
+    depthMap:null,    // Float32Array DxD, 0..1 (1 = nearest)
+    srcCanvas:null,   // offscreen full-image source at DPR 1
+    srcCtx:null,
+    outCtx:null,
+    raf:0,
+    cur:{tx:0,ty:0,hov:0},
+    tgt:{tx:0,ty:0,hov:0},
+    w:0,h:0,
+    ready:false
+  };
+});
+
+/* ---------- load image + derive/sample depth ---------- */
+/* Assets are SAME-ORIGIN (../assets/...). We deliberately do NOT set
+   crossOrigin: requesting CORS on a same-origin image makes the browser
+   demand Access-Control-Allow-Origin headers the static host does not send,
+   which fails the load and leaves the canvas unpainted. Same-origin draws
+   do not taint the canvas, so getImageData() still works. */
+function loadImage(src){
+  return new Promise((res,rej)=>{
+    const im = new Image();
+    im.decoding = "async";
+    im.onload = ()=>res(im);
+    im.onerror = rej;
+    im.src = src;
+  });
+}
+
+/* sample a DxD Float32 depth map.
+   If depthSrc is given, use its luminance directly.
+   Otherwise derive pseudo-depth from the colour image's luminance,
+   then box-blur it so depth varies smoothly (no per-pixel jitter). */
+async function buildDepth(card){
+  const colour = await loadImage(card.data.src);
+
+  // pick a working canvas sized to the card's render box (DPR 1)
+  const box = card.stage.getBoundingClientRect();
+  const w = Math.max(2, Math.round(box.width));
+  const h = Math.max(2, Math.round(box.height || box.width*0.56));
+  card.w = w; card.h = h;
+
+  // source canvas: the colour image fitted into the box (cover on desktop,
+  // contain on phones so nothing is cropped)
+  const fit = fitMode();
+  card.fit = fit;
+  const sc = document.createElement("canvas");
+  sc.width = w; sc.height = h;
+  const sctx = sc.getContext("2d");
+  drawCover(sctx, colour, w, h, fit);
+  card.srcCanvas = sc; card.srcCtx = sctx;
+
+  // sample buffer: DxD luminance from depth map OR colour
+  const sampleCanvas = document.createElement("canvas");
+  sampleCanvas.width = D; sampleCanvas.height = D;
+  const sctx2 = sampleCanvas.getContext("2d");
+
+  let lumSource;
+  if(card.data.depth){
+    try{ lumSource = await loadImage(card.data.depth); }
+    catch(e){ lumSource = colour; }
+  } else {
+    lumSource = colour;
+  }
+  // sample the luminance with the SAME fit as the source canvas so the depth
+  // bands track the visible (cover or letterboxed) pixels rather than the crop.
+  drawCover(sctx2, lumSource, D, D, fit);
+  const px = sctx2.getImageData(0,0,D,D).data;
+
+  // raw luminance 0..1
+  const raw = new Float32Array(D*D);
+  for(let i=0;i<D*D;i++){
+    const r=px[i*4], g=px[i*4+1], b=px[i*4+2];
+    raw[i] = (0.299*r + 0.587*g + 0.114*b)/255;
+  }
+  // if pseudo-depth: blur so depth is smooth, then normalize + gentle gamma
+  const depth = card.data.depth ? raw : pseudoDepth(raw);
+
+  // normalize to full 0..1 range for consistent separation strength
+  let mn=1, mx=0;
+  for(let i=0;i<depth.length;i++){ if(depth[i]<mn)mn=depth[i]; if(depth[i]>mx)mx=depth[i]; }
+  const span = (mx-mn)||1;
+  for(let i=0;i<depth.length;i++) depth[i] = (depth[i]-mn)/span;
+
+  card.depthMap = depth;
+  card.outCtx = card.canvas.getContext("2d");
+  card.canvas.width = w; card.canvas.height = h;
+  card.ready = true;
+  card.el.classList.add("ready");
+
+  // paint the resting state once. Under reduced motion every card is flat:
+  // no pre-tilt, no hover lift, depth split collapsed to a still image.
+  const restTilt = card.first && !prefersReduced;
+  composite(card, restTilt ? PRETILT.tx : 0,
+                  restTilt ? PRETILT.ty : 0,
+                  restTilt ? 1 : 0);
+  if(card.first && !prefersReduced){
+    card.stage.style.setProperty("--tx", PRETILT.tx);
+    card.stage.style.setProperty("--ty", PRETILT.ty);
+    card.stage.style.setProperty("--hov", 1);
+    card.cur = {tx:PRETILT.tx, ty:PRETILT.ty, hov:1};
+  }
+}
+
+/* box-blur + light gamma to make luminance feel like depth */
+function pseudoDepth(raw){
+  const out = new Float32Array(D*D);
+  const R = 3; // blur radius
+  for(let y=0;y<D;y++){
+    for(let x=0;x<D;x++){
+      let s=0,n=0;
+      for(let dy=-R;dy<=R;dy++){
+        const yy=y+dy; if(yy<0||yy>=D) continue;
+        for(let dx=-R;dx<=R;dx++){
+          const xx=x+dx; if(xx<0||xx>=D) continue;
+          s+=raw[yy*D+xx]; n++;
+        }
+      }
+      // gamma <1 lifts midtones so the subject pops as "near"
+      out[y*D+x] = Math.pow(s/n, 0.85);
+    }
+  }
+  return out;
+}
+
+/* draw img into ctx with object-fit cover OR contain behaviour.
+   contain (phones) letterboxes so a landscape/square asset is never cropped. */
+function drawCover(ctx, img, w, h, fit){
+  const ir = img.width/img.height, br = w/h;
+  let dw,dh,dx,dy;
+  const cover = (fit||"cover")!=="contain";
+  if(cover ? ir>br : ir<br){ dh=h; dw=h*ir; dx=(w-dw)/2; dy=0; }
+  else                     { dw=w; dh=w/ir; dx=0; dy=(h-dh)/2; }
+  ctx.clearRect(0,0,w,h);
+  ctx.drawImage(img, dx, dy, dw, dh);
+}
+
+/* ---------- the depth composite ----------
+   Slice the depth range into BANDS. For each band draw the source
+   pixels whose depth falls in that band, offset by the tilt scaled
+   by (bandDepth - 0.5). Far bands first, near bands last (on top).
+   We use a small DxD mask read ONCE (pre-sampled) - never getImageData
+   per frame. Clipping per band is done with a low-res rect grid. */
+function composite(card, tx, ty, hov){
+  const ctx = card.outCtx;
+  const w = card.w, h = card.h;
+  if(!ctx || !card.depthMap) return;
+  ctx.clearRect(0,0,w,h);
+
+  const depth = card.depthMap;
+  const cellW = w/D, cellH = h/D;
+  const shiftX = tx * MAX_SHIFT * w * hov;
+  const shiftY = ty * MAX_SHIFT * w * hov;
+
+  // pre-bucket cells into bands so we draw each band's clip in one pass
+  for(let band=0; band<BANDS; band++){
+    const lo = band/BANDS, hi = (band+1)/BANDS;
+    const bandDepth = (lo+hi)/2;
+    // near (high depth) moves opposite the tilt; scale by distance from mid plane
+    const k = (bandDepth - 0.5) * 2;        // -1 (far) .. +1 (near)
+    const ox = -shiftX * k;
+    const oy = -shiftY * k;
+
+    ctx.save();
+    ctx.beginPath();
+    // build the clip region for every DxD cell in this band
+    let any=false;
+    for(let gy=0; gy<D; gy++){
+      for(let gx=0; gx<D; gx++){
+        const dv = depth[gy*D+gx];
+        if(dv>=lo && dv<hi){
+          // overlap rects slightly to avoid seams between cells
+          ctx.rect(gx*cellW-0.6, gy*cellH-0.6, cellW+1.2, cellH+1.2);
+          any=true;
+        }
+      }
+    }
+    if(any){
+      ctx.clip();
+      // soft shadow on near bands so they read as lifted
+      if(k>0.15 && hov>0.05){
+        ctx.shadowColor = "rgba(0,0,0,"+(0.28*hov*k)+")";
+        ctx.shadowBlur = 14*hov*k;
+        ctx.shadowOffsetX = 6*k*(tx>=0?1:-1);
+        ctx.shadowOffsetY = 8*k;
+      }
+      ctx.drawImage(card.srcCanvas, ox, oy, w, h);
+    }
+    ctx.restore();
+  }
+}
+
+/* ---------- per-card interaction loop ----------
+   rAF runs ONLY while a card is engaged. cur eases toward tgt; when
+   it has settled AND nothing is engaging the card, the loop stops. */
+function tick(card){
+  const c = card.cur, t = card.tgt;
+  const e = 0.14;
+  c.tx += (t.tx - c.tx)*e;
+  c.ty += (t.ty - c.ty)*e;
+  c.hov += (t.hov - c.hov)*e;
+
+  card.stage.style.setProperty("--tx", c.tx.toFixed(4));
+  card.stage.style.setProperty("--ty", c.ty.toFixed(4));
+  card.stage.style.setProperty("--hov", c.hov.toFixed(4));
+  if(card.ready) composite(card, c.tx, c.ty, Math.max(0.001, c.hov));
+
+  const settled =
+    Math.abs(t.tx-c.tx)<0.002 &&
+    Math.abs(t.ty-c.ty)<0.002 &&
+    Math.abs(t.hov-c.hov)<0.004;
+
+  if(settled && card.idle){
+    card.raf = 0;                 // stop: pointer gone and pose reached
+    // snap exact final state
+    c.tx=t.tx; c.ty=t.ty; c.hov=t.hov;
+    card.stage.style.setProperty("--tx", c.tx);
+    card.stage.style.setProperty("--ty", c.ty);
+    card.stage.style.setProperty("--hov", c.hov);
+    if(card.ready) composite(card, c.tx, c.ty, Math.max(0.001, c.hov));
+    return;
+  }
+  card.raf = requestAnimationFrame(()=>tick(card));
+}
+function ensureLoop(card){
+  if(!card.raf) card.raf = requestAnimationFrame(()=>tick(card));
+}
+
+function engage(card, tx, ty){
+  if(prefersReduced) return;
+  card.idle = false;
+  card.tgt.tx = tx;
+  card.tgt.ty = ty;
+  card.tgt.hov = 1;
+  ensureLoop(card);
+}
+function release(card){
+  if(prefersReduced) return;
+  card.idle = true;
+  if(card.first){
+    // first card returns to its standing pre-tilt, not flat
+    card.tgt.tx = PRETILT.tx;
+    card.tgt.ty = PRETILT.ty;
+    card.tgt.hov = 1;
+  } else {
+    card.tgt.tx = 0; card.tgt.ty = 0; card.tgt.hov = 0;
+  }
+  ensureLoop(card);
+}
+
+/* wire pointer interaction */
+cards.forEach(card=>{
+  const el = card.el;
+  card.idle = true;
+
+  function fromEvent(ev){
+    const r = card.stage.getBoundingClientRect();
+    const px = (ev.clientX - r.left)/r.width;   // 0..1
+    const py = (ev.clientY - r.top)/r.height;
+    const tx = Math.max(-1,Math.min(1,(px-0.5)*2));
+    const ty = Math.max(-1,Math.min(1,(py-0.5)*2));
+    engage(card, tx, ty);
+  }
+
+  el.addEventListener("pointerenter", e=>{ if(e.pointerType!=="touch") fromEvent(e); });
+  el.addEventListener("pointermove",  e=>{ if(e.pointerType!=="touch") fromEvent(e); });
+  el.addEventListener("pointerleave", e=>{ if(e.pointerType!=="touch") release(card); });
+
+  // keyboard: focus engages a gentle 3/4 pose, blur releases
+  el.addEventListener("focus", ()=> engage(card, 0.5, -0.3));
+  el.addEventListener("blur",  ()=> release(card));
+});
+
+/* honor a LIVE prefers-reduced-motion change: stop every rAF, drop inline
+   transforms, and repaint each card in its flat settled state. */
+function settleFlat(){
+  cards.forEach(card=>{
+    if(card.raf){ cancelAnimationFrame(card.raf); card.raf=0; }
+    card.idle=true;
+    card.cur={tx:0,ty:0,hov:0}; card.tgt={tx:0,ty:0,hov:0};
+    card.stage.style.removeProperty("--tx");
+    card.stage.style.removeProperty("--ty");
+    card.stage.style.removeProperty("--hov");
+    if(card.ready) composite(card, 0, 0, 0.001);
+  });
+}
+function onReducedChange(){
+  prefersReduced = reducedMQ.matches;
+  if(prefersReduced) settleFlat();
+}
+if(reducedMQ.addEventListener) reducedMQ.addEventListener("change", onReducedChange);
+else if(reducedMQ.addListener) reducedMQ.addListener(onReducedChange);
+
+/* ---------- mobile: device orientation drives tilt ---------- */
+let orientBound = false, orientCard = null;
+function handleOrient(ev){
+  if(prefersReduced) return;
+  // gamma = left/right (-90..90), beta = front/back (-180..180)
+  const gx = (ev.gamma||0)/30;   // normalize to ~ -1..1 at +-30deg
+  const by = ((ev.beta||0)-45)/30;
+  const tx = Math.max(-1,Math.min(1,gx));
+  const ty = Math.max(-1,Math.min(1,by));
+  // drive whichever card is most in view (default first)
+  const c = orientCard || cards[0];
+  c.idle=false; c.tgt.tx=tx; c.tgt.ty=ty; c.tgt.hov=1; ensureLoop(c);
+}
+function bindOrient(){
+  if(orientBound) return;
+  window.addEventListener("deviceorientation", handleOrient, true);
+  orientBound = true;
+  document.querySelectorAll(".orient-cta").forEach(b=>b.style.display="none");
+}
+// track the most-centered card for orientation on touch devices
+if(isTouch){
+  const io = new IntersectionObserver((ents)=>{
+    ents.forEach(e=>{
+      const c = cards.find(c=>c.el===e.target);
+      if(e.isIntersecting && e.intersectionRatio>0.6) orientCard = c;
+    });
+  }, {threshold:[0.6]});
+  cards.forEach(c=>io.observe(c.el));
+
+  // iOS 13+ needs an explicit permission gesture; add a small CTA into the brand
+  const brand = document.querySelector(".brand");
+  if(typeof DeviceOrientationEvent!=="undefined" &&
+     typeof DeviceOrientationEvent.requestPermission==="function"){
+    const cta = document.createElement("button");
+    cta.className="orient-cta";
+    cta.textContent="Enable tilt control";
+    cta.addEventListener("click", async ()=>{
+      try{ const s = await DeviceOrientationEvent.requestPermission();
+           if(s==="granted") bindOrient(); }catch(e){}
+    });
+    brand.appendChild(cta);
+  } else {
+    // android / older ios: bind directly
+    bindOrient();
+  }
+}
+
+/* ---------- build depth for cards as they near the viewport ---------- */
+const buildIO = new IntersectionObserver((ents)=>{
+  ents.forEach(e=>{
+    if(!e.isIntersecting) return;
+    const card = cards.find(c=>c.el===e.target);
+    if(card && !card.ready && !card.building){
+      card.building = true;
+      buildDepth(card).catch(()=>{ /* fall back to plain img already shown */ });
+      buildIO.unobserve(e.target);
+    }
+  });
+}, {rootMargin:"200px"});
+cards.forEach(c=>buildIO.observe(c.el));
+
+/* rebuild source canvases on resize (depth map itself is resolution-independent).
+   When the fit mode flips across the 640px breakpoint we re-sample depth too so
+   the bands track the new (cover or letterboxed) framing. */
+let rt;
+addEventListener("resize", ()=>{
+  clearTimeout(rt);
+  rt = setTimeout(()=>{
+    const fit = fitMode();
+    cards.forEach(card=>{
+      if(!card.ready) return;
+      const box = card.stage.getBoundingClientRect();
+      const w=Math.max(2,Math.round(box.width)), h=Math.max(2,Math.round(box.height));
+      const fitChanged = card.fit !== fit;
+      if(w===card.w && h===card.h && !fitChanged) return;
+      if(fitChanged){
+        // full rebuild: depth must be re-sampled for the new fit
+        card.ready=false; card.building=true;
+        buildDepth(card).catch(()=>{});
+        return;
+      }
+      card.w=w; card.h=h;
+      card.canvas.width=w; card.canvas.height=h;
+      // redraw source at new size with the current fit
+      loadImage(card.data.src).then(im=>{
+        card.srcCtx = card.srcCanvas.getContext("2d");
+        card.srcCanvas.width=w; card.srcCanvas.height=h;
+        drawCover(card.srcCtx, im, w, h, fit);
+        composite(card, card.cur.tx, card.cur.ty, Math.max(0.001,card.cur.hov));
+      });
+    });
+  }, 160);
+});
+</script>
+</body>
+</html>

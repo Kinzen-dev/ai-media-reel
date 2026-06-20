@@ -1,0 +1,854 @@
+<!-- TEMPLATE: Noise Push | ARCHETYPE: NOISE PUSH - cursor proximity warps cards via a Canvas 2D Perlin noise field | REF: noise-field cursor interaction (Godly 2026, Awwwards interaction-design 2026) / ambient-UI noise displacement (index.dev 2026 trends) | WHEN TO USE: a calm near-white work index where the page itself feels like a slow current - cards drift as the cursor passes, no scroll trickery, the texture IS the brand | SWAP: edit the DATA array at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Noise Push - cards drifting in an invisible current</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23fafaf8'/%3E%3Crect x='7' y='9' width='12' height='9' rx='2' fill='%230e0e0e'/%3E%3Crect x='14' y='14' width='12' height='9' rx='2' fill='%23ff6b35'/%3E%3C/svg%3E" />
+<meta name="theme-color" content="#fafaf8" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<!-- Space Grotesk for the headline geometry, Inter for the index body -->
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper: #fafaf8;
+    --ink: #0e0e0e;
+    --ember: #ff6b35;
+    --hair: rgba(14, 14, 14, 0.12);
+    --muted: rgba(14, 14, 14, 0.52);
+    --max: 1280px;
+    --gap: 22px;
+    /* live cursor seed - drives the ember ring + initial drift before any pointer move */
+    --cx: 62%;
+    --cy: 38%;
+    --ring: 0; /* 0..1 ring intensity, climbs while pointer is active */
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Inter", system-ui, sans-serif;
+    line-height: 1.45;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+    /* faint paper warmth so the white never reads as flat #fff */
+    background-image: radial-gradient(120% 90% at 50% -10%, #ffffff 0%, var(--paper) 46%, #f4f3ee 100%);
+  }
+
+  /* ===== ambient noise canvas - full page, behind content, never catches the pointer ===== */
+  #noise {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.42; /* faint texture, visible at scroll=0 */
+    mix-blend-mode: multiply;
+  }
+
+  /* ===== ember ring that tracks the cursor / device seed ===== */
+  #ring {
+    position: fixed;
+    left: var(--cx);
+    top: var(--cy);
+    width: 320px;
+    height: 320px;
+    margin: -160px 0 0 -160px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 1;
+    background: radial-gradient(
+      circle,
+      rgba(255, 107, 53, 0.20) 0%,
+      rgba(255, 107, 53, 0.10) 28%,
+      rgba(255, 107, 53, 0.0) 62%
+    );
+    box-shadow: inset 0 0 0 1px rgba(255, 107, 53, calc(0.18 * var(--ring)));
+    opacity: calc(0.35 + 0.65 * var(--ring));
+    transition: opacity 0.4s ease;
+    will-change: left, top;
+  }
+
+  .shell {
+    position: relative;
+    z-index: 2;
+    max-width: var(--max);
+    margin: 0 auto;
+    padding: 30px 28px 110px;
+  }
+
+  /* ===== compact top band - sits ABOVE the grid, never a full-screen hero ===== */
+  header.band {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    padding-bottom: 22px;
+    margin-bottom: 26px;
+    border-bottom: 1px solid var(--hair);
+    flex-wrap: wrap;
+  }
+
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+  .brand .mark {
+    width: 13px; height: 13px; border-radius: 50%;
+    background: var(--ember);
+    box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.16);
+    transform: translateY(1px);
+    flex: none;
+  }
+  .brand h1 {
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 700;
+    font-size: clamp(26px, 5.4vw, 52px);
+    letter-spacing: -0.03em;
+    line-height: 0.98;
+  }
+  .brand h1 em {
+    font-style: normal;
+    color: var(--ember);
+  }
+
+  .band .meta {
+    text-align: right;
+    max-width: 360px;
+  }
+  .band .meta p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .band .meta .now {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink);
+    margin-bottom: 7px;
+  }
+  .band .meta .now b {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--ember);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.25} }
+
+  .hint {
+    font-size: 11.5px;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin: 0 0 20px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .hint svg { flex: none; color: var(--ember); }
+
+  /* ===== the work grid - the signature surface, populated at scroll=0 ===== */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: var(--gap);
+  }
+
+  /* each card carries its OWN displacement vars; the wrapper holds the spans */
+  .card {
+    grid-column: span 4;
+    position: relative;
+    /* dx/dy = px push from the noise field; set per-frame in JS */
+    --dx: 0px;
+    --dy: 0px;
+    --lift: 0; /* 0..1 proximity, scales scale + shadow */
+    transform: translate3d(var(--dx), var(--dy), 0) scale(calc(1 + 0.012 * var(--lift)));
+    transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+  }
+  .card.tall { grid-column: span 6; }
+  .card.wide { grid-column: span 8; }
+
+  .card a {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    border-radius: 14px;
+    outline: none;
+  }
+  .card a:focus-visible .frame {
+    box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ember);
+  }
+
+  .frame {
+    position: relative;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #efeee9;
+    border: 1px solid var(--hair);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.6) inset,
+      0 calc(6px + 18px * var(--lift)) calc(18px + 40px * var(--lift)) rgba(14, 14, 14, calc(0.06 + 0.12 * var(--lift)));
+    transition: box-shadow 0.18s ease;
+    /* media box uses aspect-ratio so landscape assets are never cover-cropped to portrait */
+    aspect-ratio: 4 / 3;
+  }
+  .card.tall .frame { aspect-ratio: 3 / 4; }
+  .card.wide .frame { aspect-ratio: 16 / 9; }
+
+  .frame img,
+  .frame video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    /* gentle counter-drift inside the frame so the media itself feels currented too */
+    transform: scale(1.06) translate3d(calc(var(--dx) * -0.5), calc(var(--dy) * -0.5), 0);
+    transition: transform 0.2s ease;
+  }
+  /* a portrait-friendly contain mode for assets we never want cropped */
+  .frame.contain { background: #11110f; }
+  .frame.contain img,
+  .frame.contain video {
+    object-fit: contain;
+    transform: translate3d(calc(var(--dx) * -0.4), calc(var(--dy) * -0.4), 0);
+  }
+
+  .frame .play {
+    position: absolute;
+    right: 12px; bottom: 12px;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: rgba(250, 250, 248, 0.86);
+    backdrop-filter: blur(6px);
+    display: grid;
+    place-items: center;
+    color: var(--ink);
+    z-index: 3;
+    border: 1px solid var(--hair);
+  }
+  .frame .play svg { transform: translateX(1px); }
+  .frame.is-static .play { display: none; }
+
+  .frame .tag {
+    position: absolute;
+    left: 12px; top: 12px;
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: rgba(250, 250, 248, 0.84);
+    backdrop-filter: blur(6px);
+    color: var(--ink);
+    border: 1px solid var(--hair);
+    z-index: 3;
+  }
+  .frame .tag.ember { color: #fff; background: var(--ember); border-color: transparent; }
+
+  .label {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 3px 2px;
+  }
+  .label .t {
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 500;
+    font-size: 15px;
+    letter-spacing: -0.01em;
+  }
+  .label .k {
+    font-size: 11.5px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .card a:hover .label .t { color: var(--ember); }
+
+  .index-num {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+  }
+
+  footer.foot {
+    position: relative;
+    z-index: 2;
+    max-width: var(--max);
+    margin: 0 auto;
+    padding: 0 28px 56px;
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--muted);
+    border-top: 1px solid var(--hair);
+    padding-top: 22px;
+  }
+  footer.foot a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--ember); }
+
+  /* ===== tablet ===== */
+  @media (max-width: 940px) {
+    .card { grid-column: span 6; }
+    .card.tall { grid-column: span 6; }
+    .card.wide { grid-column: span 12; }
+  }
+
+  /* ===== phone: single column, letterboxed media, no cover-crop ===== */
+  @media (max-width: 640px) {
+    .shell { padding: 22px 16px 80px; }
+    .grid { gap: 16px; }
+    .card,
+    .card.tall,
+    .card.wide { grid-column: 1 / -1; }
+    /* uniform 16/10 frame on a dark mat; media letterboxes (contain) so a
+       landscape OR portrait asset is shown whole, never cover-cropped */
+    .frame,
+    .card.tall .frame,
+    .card.wide .frame {
+      aspect-ratio: 16 / 10;
+      background: #11110f;
+    }
+    .frame img,
+    .frame video,
+    .frame.contain img,
+    .frame.contain video {
+      object-fit: contain;
+      /* no internal scale/parallax on phones - keep the whole asset in frame */
+      transform: translate3d(calc(var(--dx) * -0.3), calc(var(--dy) * -0.3), 0);
+    }
+    .band .meta { text-align: left; max-width: none; }
+    header.band { align-items: flex-start; }
+    #ring { width: 220px; height: 220px; margin: -110px 0 0 -110px; }
+  }
+
+  /* ===== reduced motion: kill the current entirely, show the final static state ===== */
+  @media (prefers-reduced-motion: reduce) {
+    #noise { display: none; }
+    #ring { display: none; }
+    .card {
+      transform: none !important;
+      transition: none !important;
+    }
+    /* media sits exactly in its frame, no drift, no parallax scale */
+    .frame img,
+    .frame video,
+    .frame.contain img,
+    .frame.contain video { transform: none !important; transition: none !important; }
+    .band .meta .now b { animation: none !important; }
+    .hint svg, .brand .mark { animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ambient Perlin noise field; DPR 1, faint multiply texture, displacement source -->
+<canvas id="noise" aria-hidden="true"></canvas>
+<!-- ember proximity ring; follows cursor (desktop) or device tilt (mobile) -->
+<div id="ring" aria-hidden="true"></div>
+
+<div class="shell">
+  <header class="band">
+    <div class="brand">
+      <span class="mark" aria-hidden="true"></span>
+      <h1>Noise<br>Push<em>.</em></h1>
+    </div>
+    <div class="meta">
+      <span class="now"><b></b>Index / 2026</span>
+      <p>A studio index that behaves like a slow current. Move the cursor and the cards drift, pushed by a noise field you can only half-see.</p>
+    </div>
+  </header>
+
+  <p class="hint" id="hint">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12c3-4 6-4 9 0s6 4 9 0"/></svg>
+    Move your cursor across the grid to push the cards. The nearer it gets, the harder the current pulls.
+  </p>
+
+  <main class="grid" id="grid" aria-label="Selected work"></main>
+</div>
+
+<footer class="foot">
+  <span>Noise Push - reusable interaction template. Swap the DATA array to make it yours.</span>
+  <span>Canvas 2D Perlin noise, zero libraries. <a href="#" onclick="return false">View source</a></span>
+</footer>
+
+<script>
+/* =========================================================================
+   DATA - swap this array to repopulate the index. Each entry is one card.
+   type: "image" | "video"
+   span: "" (1/3) | "tall" (1/2 portrait) | "wide" (2/3 landscape)
+   contain: true  -> letterbox the media (never crop), dark backing
+   poster only used for video.
+   ========================================================================= */
+const DATA = [
+  {
+    type: "image", span: "wide",
+    src: "../assets/flux-car-4k.png",
+    title: "Nightshift", kind: "Automotive / Key visual",
+    tag: "Featured", ember: true, href: "#"
+  },
+  {
+    type: "video", span: "",
+    src: "../assets/kling-video.mp4",
+    poster: "../assets/gen/poster-kling-video.png",
+    title: "Drift Loop", kind: "Motion / 12s", tag: "Film", href: "#"
+  },
+  {
+    type: "image", span: "tall",
+    src: "../assets/sdxl.png",
+    title: "Vermillion Fox", kind: "Illustration / Print", tag: "Still", href: "#"
+  },
+  {
+    type: "video", span: "",
+    src: "../assets/fal-video.mp4",
+    poster: "../assets/gen/poster-fal-video.png",
+    title: "Surface Tension", kind: "Motion / Loop", tag: "Film", href: "#"
+  },
+  {
+    type: "image", span: "",
+    src: "../assets/flux-clinic-4k.png",
+    title: "Calm Room", kind: "Interior / Brand", tag: "Still", href: "#"
+  },
+  {
+    type: "video", span: "wide",
+    src: "../assets/flux-car-i2v.mp4",
+    poster: "../assets/gen/poster-flux-car-i2v.png",
+    title: "In Motion", kind: "Automotive / I2V", tag: "Film", ember: true, href: "#"
+  },
+  {
+    type: "video", span: "",
+    src: "../assets/veo-video.mp4",
+    poster: "../assets/gen/poster-veo-video.png",
+    title: "Field Notes", kind: "Motion / Veo", tag: "Film", href: "#"
+  },
+  {
+    type: "image", span: "",
+    src: "../assets/hf-tinysd.png",
+    title: "Low-Fi Apple", kind: "Study / Abstract", tag: "Still", href: "#"
+  },
+  {
+    type: "video", span: "",
+    src: "../assets/hyperframes.mp4",
+    poster: "../assets/gen/poster-hyperframes.png",
+    title: "Hyperframes", kind: "Motion / Sequence", tag: "Film", href: "#"
+  }
+];
+
+/* =========================================================================
+   1. CARD RENDER
+   ========================================================================= */
+const grid = document.getElementById("grid");
+const cards = []; // {el, cx, cy, w, h}
+
+DATA.forEach((d, i) => {
+  const card = document.createElement("article");
+  card.className = "card" + (d.span ? " " + d.span : "");
+
+  const a = document.createElement("a");
+  a.href = d.href || "#";
+  a.setAttribute("aria-label", d.title + " - " + d.kind);
+
+  const frame = document.createElement("div");
+  frame.className = "frame" + (d.contain ? " contain" : "");
+
+  // tag chip
+  if (d.tag) {
+    const tag = document.createElement("span");
+    tag.className = "tag" + (d.ember ? " ember" : "");
+    tag.textContent = d.tag;
+    frame.appendChild(tag);
+  }
+
+  if (d.type === "video") {
+    // show POSTER by default; only the in-view focused video plays (no mass autoplay)
+    const v = document.createElement("video");
+    v.muted = true;
+    v.loop = true;
+    v.playsInline = true;
+    v.preload = "none";
+    v.poster = d.poster || "";
+    v.setAttribute("aria-hidden", "true");
+    const s = document.createElement("source");
+    s.dataset.src = d.src; // lazy: src attached when it enters view
+    s.type = "video/mp4";
+    v.appendChild(s);
+    frame.appendChild(v);
+
+    const play = document.createElement("span");
+    play.className = "play";
+    play.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+    frame.appendChild(play);
+  } else {
+    const img = document.createElement("img");
+    img.loading = "lazy";
+    img.decoding = "async";
+    img.src = d.src;
+    img.alt = d.title + " - " + d.kind;
+    frame.appendChild(img);
+    frame.classList.add("is-static");
+  }
+
+  const label = document.createElement("div");
+  label.className = "label";
+  const t = document.createElement("span");
+  t.className = "t";
+  t.textContent = d.title;
+  const k = document.createElement("span");
+  k.className = "k";
+  k.textContent = d.kind;
+  label.appendChild(t);
+  label.appendChild(k);
+
+  const num = document.createElement("span");
+  num.className = "index-num";
+  num.textContent = String(i + 1).padStart(2, "0") + " / " + String(DATA.length).padStart(2, "0");
+
+  a.appendChild(frame);
+  a.appendChild(label);
+  card.appendChild(a);
+  card.appendChild(num);
+  grid.appendChild(card);
+
+  cards.push({ el: card, frame, cx: 0, cy: 0, w: 0, h: 0 });
+});
+
+/* =========================================================================
+   2. PERLIN NOISE - pure JS classic 2D Perlin (Ken Perlin permutation).
+      No library. Used for both the visible canvas texture and the
+      per-card displacement sampling.
+   ========================================================================= */
+const Perlin = (() => {
+  const p = new Uint8Array(512);
+  const perm = [];
+  for (let i = 0; i < 256; i++) perm[i] = i;
+  // deterministic shuffle so the field looks the same on every load
+  let seed = 1337;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+  for (let i = 255; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    const tmp = perm[i]; perm[i] = perm[j]; perm[j] = tmp;
+  }
+  for (let i = 0; i < 512; i++) p[i] = perm[i & 255];
+
+  const fade = t => t * t * t * (t * (t * 6 - 15) + 10);
+  const lerp = (a, b, t) => a + t * (b - a);
+  const grad = (h, x, y) => {
+    const u = (h & 1) === 0 ? x : -x;
+    const v = (h & 2) === 0 ? y : -y;
+    return u + v;
+  };
+  // returns roughly -1..1
+  return function noise2(x, y) {
+    const X = Math.floor(x) & 255;
+    const Y = Math.floor(y) & 255;
+    x -= Math.floor(x); y -= Math.floor(y);
+    const u = fade(x), v = fade(y);
+    const A = p[X] + Y, B = p[X + 1] + Y;
+    return lerp(
+      lerp(grad(p[A], x, y),     grad(p[B], x - 1, y),     u),
+      lerp(grad(p[A + 1], x, y - 1), grad(p[B + 1], x - 1, y - 1), u),
+      v
+    );
+  };
+})();
+
+/* =========================================================================
+   3. STATE - cursor seed, reduced-motion gate
+   ========================================================================= */
+const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const isCoarse = window.matchMedia("(pointer: coarse)").matches;
+
+const root = document.documentElement;
+// seeded default cursor position (used at scroll=0 before any pointer move)
+const state = {
+  px: window.innerWidth * 0.62,
+  py: window.innerHeight * 0.38,
+  tx: window.innerWidth * 0.62,
+  ty: window.innerHeight * 0.38,
+  ring: 0.18,        // resting ring intensity at load
+  active: false
+};
+
+/* =========================================================================
+   4. NOISE CANVAS - DPR 1, low-res buffer scaled up, animated drift.
+      This is the faint texture visible at scroll=0.
+      Reduced motion: canvas is display:none via CSS, and we never start rAF.
+   ========================================================================= */
+const canvas = document.getElementById("noise");
+// Canvas 2D context can be null in locked-down/headless contexts; degrade
+// gracefully (hide the texture, keep displacement + videos working).
+const ctx = canvas.getContext("2d", { alpha: true });
+const hasCanvas = !!ctx;
+if (!hasCanvas) canvas.style.display = "none";
+let buf, bw, bh, img32;
+const TEX_SCALE = 9;     // each noise texel = 9 device px (cheap + soft)
+
+function buildBuffer() {
+  if (!hasCanvas) return;
+  bw = Math.max(2, Math.ceil(window.innerWidth / TEX_SCALE));
+  bh = Math.max(2, Math.ceil(window.innerHeight / TEX_SCALE));
+  canvas.width = bw;
+  canvas.height = bh;
+  buf = ctx.createImageData(bw, bh);
+  img32 = new Uint32Array(buf.data.buffer);
+}
+
+// paint the texture for a given time offset
+function paintNoise(t) {
+  if (!hasCanvas || !img32) return;
+  const z = t * 0.00006;
+  let i = 0;
+  for (let y = 0; y < bh; y++) {
+    for (let x = 0; x < bw; x++) {
+      // two octaves for a softer, organic grain
+      let n = Perlin(x * 0.12 + z, y * 0.12 + z) * 0.7
+            + Perlin(x * 0.26 - z, y * 0.26 + z) * 0.3;
+      n = (n + 1) * 0.5;            // 0..1
+      const ink = Math.floor(180 + n * 60);  // light grey range, stays faint
+      // ABGR packed; alpha modulated so light areas vanish (paper shows through)
+      const a = Math.floor(28 + n * 90);
+      img32[i++] = (a << 24) | (ink << 16) | (ink << 8) | ink;
+    }
+  }
+  ctx.putImageData(buf, 0, 0);
+}
+
+/* =========================================================================
+   5. CARD GEOMETRY - cache centers; recompute on resize/scroll.
+   ========================================================================= */
+function measure() {
+  for (const c of cards) {
+    const r = c.el.getBoundingClientRect();
+    c.cx = r.left + r.width / 2;
+    c.cy = r.top + r.height / 2;
+    c.w = r.width;
+    c.h = r.height;
+  }
+}
+
+/* =========================================================================
+   6. DISPLACEMENT - per card: distance falloff x noise direction.
+      Sampled on a coarse field (not per-pixel). Up to 12px push.
+   ========================================================================= */
+const MAX_PUSH = 12;       // px
+const RADIUS = 460;        // px proximity radius of influence
+const NDIR = 0.0032;       // noise frequency for the displacement direction
+
+function applyDisplacement(t) {
+  const z = t * 0.00022;
+  for (const c of cards) {
+    const dx = state.px - c.cx;
+    const dy = state.py - c.cy;
+    const dist = Math.hypot(dx, dy);
+    // proximity 0..1 (1 = cursor on the card center)
+    let prox = 1 - dist / RADIUS;
+    if (prox < 0) prox = 0;
+    prox = prox * prox; // ease - sharper near the cursor
+
+    // sample the noise field at this card's location for a flow DIRECTION
+    const a = Perlin(c.cx * NDIR + z, c.cy * NDIR - z) * Math.PI * 2.2;
+    // base current always blows a little (visible drift even far from cursor)
+    const ambient = 0.16;
+    const force = (ambient + prox * (1 - ambient)) * MAX_PUSH;
+
+    // push the card roughly toward the cursor, bent by the noise angle
+    const toCur = dist > 0.001 ? Math.atan2(dy, dx) : 0;
+    const ang = toCur * (0.55 * prox) + a * (1 - 0.55 * prox);
+
+    const ox = Math.cos(ang) * force * (0.6 + prox * 0.4);
+    const oy = Math.sin(ang) * force * (0.6 + prox * 0.4);
+
+    c.el.style.setProperty("--dx", ox.toFixed(2) + "px");
+    c.el.style.setProperty("--dy", oy.toFixed(2) + "px");
+    c.el.style.setProperty("--lift", prox.toFixed(3));
+  }
+}
+
+/* =========================================================================
+   7. MAIN LOOP
+   ========================================================================= */
+let raf = 0;
+function frame(t) {
+  // ease the seed toward the target pointer
+  state.px += (state.tx - state.px) * 0.12;
+  state.py += (state.ty - state.py) * 0.12;
+
+  // ring intensity easing
+  const targetRing = state.active ? 1 : 0.18;
+  state.ring += (targetRing - state.ring) * 0.08;
+
+  paintNoise(t);
+  applyDisplacement(t);
+
+  // move the ring + expose the seed as CSS percentages
+  root.style.setProperty("--cx", state.px + "px");
+  root.style.setProperty("--cy", state.py + "px");
+  root.style.setProperty("--ring", state.ring.toFixed(3));
+
+  raf = requestAnimationFrame(frame);
+}
+
+/* =========================================================================
+   8. INPUT - cursor (fine pointer) or device motion (coarse / mobile)
+   ========================================================================= */
+function onPointer(e) {
+  state.tx = e.clientX;
+  state.ty = e.clientY;
+  state.active = true;
+}
+function onLeave() {
+  // drift back to the seeded default so the first card stays gently pushed
+  state.tx = window.innerWidth * 0.62;
+  state.ty = window.innerHeight * 0.38;
+  state.active = false;
+}
+
+let motionWired = false;
+function wireDeviceMotion() {
+  if (motionWired) return;
+  motionWired = true;
+  // device-tilt steers the seed across the viewport (mobile substitute for cursor)
+  window.addEventListener("deviceorientation", (ev) => {
+    if (ev.gamma == null || ev.beta == null) return;
+    // gamma: left/right -90..90, beta: front/back -180..180
+    const nx = Math.max(-1, Math.min(1, ev.gamma / 45));
+    const ny = Math.max(-1, Math.min(1, (ev.beta - 45) / 45));
+    state.tx = window.innerWidth * (0.5 + nx * 0.45);
+    state.ty = window.innerHeight * (0.5 + ny * 0.45);
+    state.active = true;
+  }, true);
+}
+
+function setupInput() {
+  if (isCoarse && "DeviceOrientationEvent" in window) {
+    // iOS needs a user gesture to grant motion access
+    const needsPerm = typeof DeviceOrientationEvent.requestPermission === "function";
+    if (needsPerm) {
+      const ask = () => {
+        DeviceOrientationEvent.requestPermission()
+          .then((r) => { if (r === "granted") wireDeviceMotion(); })
+          .catch(() => {});
+        window.removeEventListener("touchend", ask);
+      };
+      window.addEventListener("touchend", ask, { once: true });
+      // also let touch drag steer the field as an immediate fallback
+    } else {
+      wireDeviceMotion();
+    }
+    // touch drag always works as a direct steer
+    window.addEventListener("touchmove", (e) => {
+      const tch = e.touches[0];
+      if (!tch) return;
+      state.tx = tch.clientX;
+      state.ty = tch.clientY;
+      state.active = true;
+    }, { passive: true });
+  } else {
+    window.addEventListener("pointermove", onPointer);
+    window.addEventListener("pointerdown", onPointer);
+    window.addEventListener("mouseleave", onLeave);
+    document.addEventListener("mouseleave", onLeave);
+  }
+}
+
+/* =========================================================================
+   9. VIDEO - play ONLY the focused/hovered video; posters otherwise.
+      Lazy-attach src on first intent. Avoids simultaneous decode.
+   ========================================================================= */
+let playing = null;
+function attach(v) {
+  const s = v.querySelector("source");
+  if (s && s.dataset.src && !s.src) {
+    s.src = s.dataset.src;
+    v.load();
+  }
+}
+function playOnly(v) {
+  if (playing && playing !== v) { playing.pause(); }
+  attach(v);
+  const pr = v.play();
+  if (pr && pr.catch) pr.catch(() => {});
+  playing = v;
+}
+function wireVideos() {
+  document.querySelectorAll(".frame video").forEach((v) => {
+    const card = v.closest("article");
+    const a = card.querySelector("a");
+    a.addEventListener("mouseenter", () => playOnly(v));
+    a.addEventListener("focus", () => playOnly(v));
+    a.addEventListener("mouseleave", () => { v.pause(); });
+    a.addEventListener("blur", () => { v.pause(); });
+    // tap-to-play on touch (one at a time)
+    a.addEventListener("touchstart", () => playOnly(v), { passive: true });
+  });
+
+  // pause anything that scrolls out of view
+  if ("IntersectionObserver" in window) {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((en) => {
+        if (!en.isIntersecting && en.target === playing) {
+          playing.pause();
+        }
+      });
+    }, { threshold: 0.1 });
+    document.querySelectorAll(".frame video").forEach((v) => io.observe(v));
+  }
+}
+
+/* =========================================================================
+   10. BOOT
+   ========================================================================= */
+function boot() {
+  measure();
+  wireVideos();
+
+  if (reduced) {
+    // reduced motion: no rAF, no canvas, no displacement.
+    // set the seed-driven static lean ONCE so the first card still reads as "pushed".
+    state.px = window.innerWidth * 0.62;
+    state.py = window.innerHeight * 0.38;
+    // a single static displacement pass using the seed (no animation thereafter)
+    applyDisplacement(0);
+    // but CSS forces transform:none under reduced-motion, so cards are fully static.
+    return;
+  }
+
+  buildBuffer();
+  setupInput();
+  raf = requestAnimationFrame(frame);
+}
+
+window.addEventListener("resize", () => {
+  if (!reduced) buildBuffer();
+  measure();
+});
+window.addEventListener("scroll", measure, { passive: true });
+window.addEventListener("load", measure);
+
+// images may shift layout as they decode; remeasure when they finish
+window.addEventListener("DOMContentLoaded", boot);
+document.querySelectorAll(".frame img").forEach((img) => {
+  if (img.complete) return;
+  img.addEventListener("load", measure, { once: true });
+});
+</script>
+</body>
+</html>

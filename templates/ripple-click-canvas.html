@@ -1,0 +1,665 @@
+<!-- TEMPLATE: RIPPLE GRID - Click-Wave Unlock Canvas | ARCHETYPE: ripple-click-canvas | REF: Webflow ripple-on-click (TheeDigital 2026 trends), spatial wave card reveal (CSS Design Awards 2026) | WHEN TO USE: a portfolio/archive where work cards open as a click-origin wave sweeps across them, distance from the click sets the unlock timing; second click re-locks outward | SWAP: edit the DATA array at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>RIPPLE GRID - Click-Wave Unlock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<!-- Editorial serif for display, grotesque for UI, mono for micro-type -->
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..600&family=Inter+Tight:wght@400..700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  /* ============================== TOKENS ============================== */
+  :root{
+    --bone:#f2ede4;            /* warm paper ground */
+    --bone-2:#e8e1d4;
+    --bone-3:#ddd4c3;
+    --ink:#1c1814;             /* near-black ink */
+    --ink-soft:rgba(28,24,20,.62);
+    --ink-faint:rgba(28,24,20,.34);
+    --ink-ghost:rgba(28,24,20,.16);
+    --line:rgba(28,24,20,.18);
+    --line-2:rgba(28,24,20,.09);
+    --ripple:#2c6fad;          /* ripple-blue wavefront */
+    --ripple-2:#5fa3dd;
+    --ripple-soft:rgba(44,111,173,.16);
+    --ripple-glow:rgba(44,111,173,.5);
+    --gap: clamp(7px, 1vw, 13px);
+    --pad: clamp(14px, 2.4vw, 32px);
+    --ease: cubic-bezier(.7,0,.18,1);
+    --ease-out: cubic-bezier(.16,1,.3,1);
+    --unlock-ms: 620ms;        /* per-card lift duration */
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html{ -webkit-text-size-adjust:100%; }
+  body{
+    font-family:"Inter Tight",system-ui,sans-serif;
+    background:var(--bone);
+    color:var(--ink);
+    min-height:100vh;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+  ::selection{ background:var(--ripple); color:var(--bone); }
+
+  /* paper texture: faint dual grid + grain, behind everything */
+  body::before{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:
+      linear-gradient(var(--line-2) 1px,transparent 1px) 0 0/100% 34px,
+      radial-gradient(circle at 18% 12%, rgba(44,111,173,.05), transparent 46%),
+      radial-gradient(circle at 84% 88%, rgba(44,111,173,.04), transparent 50%);
+    opacity:.9;
+  }
+
+  /* the ripple canvas sits above the paper, below the cards' content but above their tint */
+  #ripple-canvas{
+    position:fixed; inset:0; width:100%; height:100%;
+    pointer-events:none; z-index:5; mix-blend-mode:multiply;
+  }
+
+  /* ============================== SHELL ============================== */
+  .wrap{ position:relative; z-index:2; max-width:1500px; margin:0 auto; padding:0 var(--pad); }
+
+  /* compact top band: headline overlays nothing, sits above the grid */
+  header.band{
+    display:flex; align-items:flex-end; justify-content:space-between;
+    gap:24px; flex-wrap:wrap;
+    padding:clamp(20px,3.2vw,40px) 0 clamp(14px,2vw,22px);
+    border-bottom:1px solid var(--line);
+  }
+  .brand{ display:flex; flex-direction:column; gap:6px; min-width:0; }
+  .eyebrow{
+    font-family:"Space Mono",monospace; font-size:11px; letter-spacing:.34em;
+    text-transform:uppercase; color:var(--ripple); display:flex; align-items:center; gap:9px;
+  }
+  .eyebrow .dot{ width:7px;height:7px;border-radius:50%;background:var(--ripple);
+    box-shadow:0 0 0 0 var(--ripple-glow); animation:beacon 2.6s var(--ease-out) infinite; }
+  @keyframes beacon{ 0%{box-shadow:0 0 0 0 var(--ripple-glow);} 70%{box-shadow:0 0 0 11px transparent;} 100%{box-shadow:0 0 0 0 transparent;} }
+  h1.title{
+    font-family:"Fraunces",serif; font-weight:340;
+    font-size:clamp(34px,7.2vw,82px); line-height:.92; letter-spacing:-.02em;
+  }
+  h1.title em{ font-style:italic; color:var(--ripple); }
+  .lede{
+    font-size:clamp(13px,1.15vw,15.5px); color:var(--ink-soft); max-width:42ch; line-height:1.5;
+  }
+  .meta-col{ display:flex; flex-direction:column; align-items:flex-end; gap:10px; text-align:right; }
+  .counter{
+    font-family:"Space Mono",monospace; font-size:12px; letter-spacing:.12em;
+    color:var(--ink-soft); white-space:nowrap;
+  }
+  .counter b{ color:var(--ink); font-weight:700; }
+  .hint{
+    font-family:"Space Mono",monospace; font-size:10.5px; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--ink-faint);
+    display:flex; align-items:center; gap:8px;
+  }
+  .hint .ring{ width:13px;height:13px;border:1.5px solid var(--ripple); border-radius:50%;
+    animation:pulse-ring 2.2s var(--ease-out) infinite; }
+  @keyframes pulse-ring{ 0%{transform:scale(.4);opacity:1;} 100%{transform:scale(1.4);opacity:0;} }
+
+  /* reset-all control */
+  .controls{ display:flex; gap:8px; }
+  button.ctl{
+    font-family:"Space Mono",monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--ink); background:transparent; border:1px solid var(--line);
+    padding:8px 13px; border-radius:999px; cursor:pointer;
+    transition:background .25s, border-color .25s, color .25s;
+  }
+  button.ctl:hover{ background:var(--ink); color:var(--bone); border-color:var(--ink); }
+  button.ctl:focus-visible{ outline:2.5px solid var(--ripple); outline-offset:3px; }
+
+  /* ============================== GRID ============================== */
+  .stage-note{
+    font-family:"Space Mono",monospace; font-size:10.5px; letter-spacing:.18em;
+    text-transform:uppercase; color:var(--ink-faint);
+    display:flex; justify-content:space-between; gap:14px; flex-wrap:wrap;
+    padding:14px 2px 12px;
+  }
+  .stage-note span{ display:flex; align-items:center; gap:7px; }
+
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:var(--gap);
+    padding-bottom:clamp(40px,7vw,90px);
+    /* the click target is the whole stage */
+  }
+
+  .card{
+    position:relative; overflow:hidden; border-radius:13px;
+    aspect-ratio:4/5; background:var(--bone-2);
+    border:1px solid var(--line-2);
+    box-shadow:0 1px 0 rgba(255,255,255,.5) inset, 0 10px 24px -20px rgba(28,24,20,.6);
+    cursor:pointer; isolation:isolate;
+    transition:box-shadow .5s var(--ease-out), border-color .5s;
+  }
+  /* feature spans for editorial rhythm */
+  .card.wide{ grid-column:span 2; aspect-ratio:16/10; }
+  .card.tall{ grid-row:span 2; aspect-ratio:4/6.6; }
+
+  .card .media{
+    position:absolute; inset:0; width:100%; height:100%;
+    display:block; object-fit:cover; object-position:center;
+    /* LOCKED look: blurred + desaturated + dimmed */
+    filter:blur(15px) saturate(.18) brightness(.82) contrast(.92);
+    transform:scale(1.12);
+    transition:filter var(--unlock-ms) var(--ease-out), transform var(--unlock-ms) var(--ease-out);
+    will-change:filter,transform; background:var(--bone-3);
+  }
+  .card video.media{ object-fit:cover; }
+
+  /* ink veil over locked media so the bone palette reads even on rich images */
+  .card::before{
+    content:""; position:absolute; inset:0; z-index:2; pointer-events:none;
+    background:linear-gradient(160deg, rgba(28,24,20,.42), rgba(28,24,20,.66));
+    mix-blend-mode:multiply;
+    transition:opacity var(--unlock-ms) var(--ease-out);
+  }
+  /* blue wash that flashes when the wavefront hits, then fades */
+  .card .flash{
+    position:absolute; inset:0; z-index:3; pointer-events:none;
+    background:radial-gradient(circle at center, var(--ripple-glow), transparent 72%);
+    opacity:0; transition:opacity .12s linear;
+    mix-blend-mode:screen;
+  }
+
+  /* index + lock badge */
+  .card .tag{
+    position:absolute; left:11px; top:11px; z-index:6;
+    font-family:"Space Mono",monospace; font-size:10.5px; letter-spacing:.12em;
+    color:var(--bone); background:rgba(28,24,20,.5); backdrop-filter:blur(3px);
+    padding:4px 8px; border-radius:6px;
+    transition:background .4s, color .4s;
+  }
+  .card .lock{
+    position:absolute; right:11px; top:11px; z-index:6;
+    width:26px; height:26px; border-radius:50%;
+    display:grid; place-items:center;
+    background:rgba(28,24,20,.5); backdrop-filter:blur(3px);
+    transition:opacity .4s var(--ease-out), transform .4s;
+  }
+  .card .lock svg{ width:13px; height:13px; stroke:var(--bone); }
+
+  /* caption sits at the bottom, hidden while locked */
+  .card .cap{
+    position:absolute; left:0; right:0; bottom:0; z-index:6;
+    padding:13px 14px 14px;
+    background:linear-gradient(to top, rgba(28,24,20,.86), rgba(28,24,20,0));
+    color:var(--bone);
+    transform:translateY(8px); opacity:0;
+    transition:opacity .5s var(--ease-out), transform .5s var(--ease-out);
+  }
+  .card .cap .kicker{
+    font-family:"Space Mono",monospace; font-size:9.5px; letter-spacing:.2em;
+    text-transform:uppercase; color:var(--ripple-2); margin-bottom:3px;
+  }
+  .card .cap .name{ font-family:"Fraunces",serif; font-weight:380; font-size:clamp(15px,1.5vw,20px); line-height:1.06; }
+  .card .cap .sub{ font-size:11.5px; color:rgba(242,237,228,.72); margin-top:3px; }
+
+  /* ---------- UNLOCKED STATE ---------- */
+  .card.unlocked .media{
+    filter:blur(0) saturate(1.04) brightness(1) contrast(1);
+    transform:scale(1);
+  }
+  .card.unlocked::before{ opacity:0; }
+  .card.unlocked .lock{ opacity:0; transform:scale(.6) rotate(-12deg); }
+  .card.unlocked .cap{ transform:translateY(0); opacity:1; }
+  .card.unlocked .tag{ background:var(--ripple); color:var(--bone); }
+  .card.unlocked{ border-color:var(--ripple-soft); box-shadow:0 18px 40px -26px rgba(44,111,173,.7); }
+
+  /* keyboard / programmatic focus */
+  .card:focus-visible{ outline:3px solid var(--ripple); outline-offset:3px; }
+
+  /* letterboxed media for landscape assets on narrow cards: handled via .letterbox */
+  .card.letterbox .media{ object-fit:contain; background:#15110d; }
+
+  /* footer */
+  footer.foot{
+    border-top:1px solid var(--line); padding:22px 0 60px;
+    display:flex; justify-content:space-between; gap:18px; flex-wrap:wrap;
+    font-family:"Space Mono",monospace; font-size:11px; letter-spacing:.1em;
+    color:var(--ink-faint); text-transform:uppercase;
+  }
+  footer.foot a{ color:var(--ink-soft); text-decoration:none; border-bottom:1px solid var(--line); }
+  footer.foot a:hover{ color:var(--ripple); border-color:var(--ripple); }
+
+  /* ============================== MOBILE ============================== */
+  @media (max-width:980px){
+    .grid{ grid-template-columns:repeat(2,1fr); }
+    .card.wide{ grid-column:span 2; aspect-ratio:16/10; }
+    .card.tall{ grid-row:span 1; aspect-ratio:4/5; }
+  }
+  @media (max-width:640px){
+    :root{ --gap:9px; }
+    header.band{ flex-direction:column; align-items:flex-start; gap:14px; }
+    .meta-col{ align-items:flex-start; text-align:left; }
+    .grid{ grid-template-columns:repeat(2,1fr); }
+    .card.wide{ grid-column:span 2; aspect-ratio:16/11; }
+    .card.tall{ aspect-ratio:4/5; }
+    /* never cover-crop a landscape asset into a portrait cell on phone: letterbox all.
+       video.media needs the explicit override or its higher-specificity cover rule wins. */
+    .card .media,
+    .card video.media{ object-fit:contain; background:#15110d; transform:scale(1.04); }
+    .card.unlocked .media,
+    .card.unlocked video.media{ transform:scale(1); }
+  }
+  @media (max-width:420px){
+    .grid{ grid-template-columns:1fr; }
+    .card,.card.wide,.card.tall{ grid-column:span 1; grid-row:span 1; aspect-ratio:16/11; }
+  }
+
+  /* ============================== REDUCED MOTION ============================== */
+  @media (prefers-reduced-motion:reduce){
+    *{ animation:none !important; }
+    .card .media{ transition:filter .2s linear, transform .2s linear !important; }
+    .card .cap,.card .lock,.card::before{ transition:opacity .2s linear !important; }
+    #ripple-canvas{ display:none; }    /* no wave rings under reduced motion */
+    .eyebrow .dot, .hint .ring{ animation:none; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="ripple-canvas" aria-hidden="true"></canvas>
+
+<div class="wrap">
+
+  <header class="band">
+    <div class="brand">
+      <div class="eyebrow"><span class="dot"></span>Ripple Index / Vol. 04</div>
+      <h1 class="title">Click to send a <em>wave</em>.</h1>
+      <p class="lede">Twelve works, sealed under glass. Click anywhere on the grid: a wavefront rolls out from where you touched, and each piece snaps to full colour the instant the ring reaches it. Click again to seal them shut, outward from the new point.</p>
+    </div>
+    <div class="meta-col">
+      <div class="counter"><b id="n-open">2</b> / <span id="n-total">12</span> unlocked</div>
+      <div class="hint"><span class="ring"></span>Click the grid</div>
+      <div class="controls">
+        <button class="ctl" id="btn-reset" type="button">Reseal all</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="stage-note">
+    <span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--ripple)" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg>Wavefront: distance &divide; speed = unlock delay</span>
+    <span>Canvas 2D rings, capped at 8 concurrent</span>
+  </div>
+
+  <!-- click target = the grid stage -->
+  <main class="grid" id="grid" aria-label="Work archive. Click to send an unlock wave."></main>
+
+  <footer class="foot">
+    <span>Ripple Grid &middot; click-wave unlock</span>
+    <span>Native Canvas 2D + JS &middot; no libraries</span>
+    <a href="#" id="foot-link">Swap the DATA array to reuse</a>
+  </footer>
+
+</div>
+
+<script>
+/* ============================================================================
+   DATA - swap these to reuse the template.
+   Each item: span ('','wide','tall'), media (img|video), src, poster, alt,
+   kicker, name, sub. Landscape assets letterbox automatically inside the card.
+   ========================================================================== */
+const DATA = [
+  { span:'wide', type:'img', src:'../assets/flux-car-4k.png',
+    kicker:'Automotive / FLUX', name:'Wet Neon, Midnight', sub:'Cinematic matte-black coupe, rain-slick street' },
+  { span:'', type:'video', src:'../assets/kling-video.mp4', poster:'../assets/gen/poster-kling-video.png',
+    kicker:'Motion / Kling', name:'Drift Study No.7', sub:'Generated loop, 1080p' },
+  { span:'tall', type:'img', src:'../assets/flux-clinic-4k.png',
+    kicker:'Interior / FLUX', name:'Mint & Oak Surgery', sub:'Dental clinic concept render' },
+  { span:'', type:'img', src:'../assets/sdxl.png',
+    kicker:'Painterly / SDXL', name:'Autumn Vulpes', sub:'Brushwork fox, warm palette' },
+  { span:'', type:'video', src:'../assets/fal-video.mp4', poster:'../assets/gen/poster-fal-video.png',
+    kicker:'Motion / fal', name:'Fluid Field', sub:'Silent ambient loop' },
+  { span:'', type:'img', src:'../assets/hf-tinysd.png',
+    kicker:'Lo-fi / TinySD', name:'Abstract Apple', sub:'Low-step diffusion sketch' },
+  { span:'wide', type:'video', src:'../assets/flux-car-i2v.mp4', poster:'../assets/gen/poster-flux-car-i2v.png',
+    kicker:'I2V / FLUX', name:'Coupe In Motion', sub:'Still pushed to video' },
+  { span:'', type:'video', src:'../assets/veo-video.mp4', poster:'../assets/gen/poster-veo-video.png',
+    kicker:'Motion / Veo', name:'Veo Vignette', sub:'Cinematic generated clip' },
+  { span:'', type:'video', src:'../assets/heygen-avatar.mp4', poster:'../assets/gen/poster-heygen.png',
+    kicker:'Avatar / HeyGen', name:'Presenter Loop', sub:'Talking avatar, muted preview' },
+  { span:'', type:'video', src:'../assets/hyperframes.mp4', poster:'../assets/gen/poster-hyperframes.png',
+    kicker:'Motion / Hyperframes', name:'Frame Burst', sub:'Short kinetic loop' },
+  { span:'', type:'video', src:'../assets/did-talking-photo.mp4', poster:'../assets/gen/poster-did.png',
+    kicker:'Avatar / D-ID', name:'Spoken Portrait', sub:'Talking-photo, muted preview' },
+  { span:'tall', type:'img', src:'../assets/flux-clinic-4k.png',
+    kicker:'Interior / FLUX', name:'Reception, Daylight', sub:'Clinic concept, second angle' },
+];
+
+/* ============================================================================
+   BUILD GRID
+   ========================================================================== */
+const grid = document.getElementById('grid');
+const REDUCED = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+const LOCK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+
+const cards = [];
+DATA.forEach((d, i) => {
+  const card = document.createElement('article');
+  card.className = 'card' + (d.span ? ' ' + d.span : '');
+  card.tabIndex = 0;
+  card.setAttribute('role','button');
+  card.setAttribute('aria-pressed','false');
+  card.setAttribute('aria-label', `${d.name}. ${d.kicker}. Locked.`);
+
+  let mediaEl;
+  if (d.type === 'video') {
+    mediaEl = document.createElement('video');
+    mediaEl.className = 'media';
+    mediaEl.muted = true; mediaEl.loop = true; mediaEl.playsInline = true;
+    mediaEl.preload = 'none';
+    mediaEl.setAttribute('muted',''); mediaEl.setAttribute('playsinline','');
+    if (d.poster) mediaEl.poster = d.poster;
+    mediaEl.dataset.src = d.src;   // lazy: only load source when unlocked
+  } else {
+    mediaEl = document.createElement('img');
+    mediaEl.className = 'media';
+    mediaEl.loading = 'lazy'; mediaEl.decoding = 'async';
+    mediaEl.src = d.src;
+    mediaEl.alt = d.alt || d.name;
+  }
+
+  card.innerHTML =
+    `<span class="flash"></span>
+     <span class="tag">${String(i+1).padStart(2,'0')}</span>
+     <span class="lock" aria-hidden="true">${LOCK_SVG}</span>
+     <div class="cap">
+       <div class="kicker">${d.kicker}</div>
+       <div class="name">${d.name}</div>
+       <div class="sub">${d.sub}</div>
+     </div>`;
+  card.prepend(mediaEl);
+  grid.appendChild(card);
+
+  cards.push({ el:card, media:mediaEl, data:d, unlocked:false });
+});
+
+document.getElementById('n-total').textContent = cards.length;
+
+function ensureVideoSrc(v){
+  if (v.tagName === 'VIDEO' && !v.src && v.dataset.src){ v.src = v.dataset.src; v.load(); }
+}
+
+/* ----------------------------------------------------------------------------
+   SINGLE-VIDEO GOVERNOR
+   Only ONE video ever decodes/plays at a time on this shared stage: the unlocked
+   video whose centre is closest to the viewport centre AND that is on screen.
+   Every other video is paused. Recomputed on scroll, resize, and unlock change.
+   ---------------------------------------------------------------------------- */
+let activeVideo = null;
+
+function pickActiveVideo(){
+  if (REDUCED) return null;   // reduced motion: no autoplay at all
+  const vh = window.innerHeight, vc = vh / 2;
+  let best = null, bestDist = Infinity;
+  for (const rec of cards){
+    if (!rec.unlocked || rec.media.tagName !== 'VIDEO') continue;
+    const r = rec.el.getBoundingClientRect();
+    // require it to be at least partly on screen
+    if (r.bottom <= 0 || r.top >= vh) continue;
+    const center = r.top + r.height / 2;
+    const dist = Math.abs(center - vc);
+    if (dist < bestDist){ bestDist = dist; best = rec.media; }
+  }
+  return best;
+}
+
+function updateActiveVideo(){
+  const next = pickActiveVideo();
+  if (next === activeVideo){
+    if (next && next.paused) next.play().catch(()=>{});
+    return;
+  }
+  if (activeVideo) activeVideo.pause();   // ensure only one decode at a time
+  activeVideo = next;
+  if (activeVideo){
+    ensureVideoSrc(activeVideo);
+    activeVideo.play().catch(()=>{});
+  }
+}
+
+let videoTick = false;
+function scheduleVideoUpdate(){
+  if (videoTick) return;
+  videoTick = true;
+  requestAnimationFrame(()=>{ videoTick = false; updateActiveVideo(); });
+}
+window.addEventListener('scroll', scheduleVideoUpdate, { passive:true });
+window.addEventListener('resize', scheduleVideoUpdate, { passive:true });
+
+/* ============================================================================
+   STATE TRANSITIONS - unlock / lock a single card
+   ========================================================================== */
+function setUnlocked(rec, on){
+  if (rec.unlocked === on) return;
+  rec.unlocked = on;
+  const c = rec.el;
+  c.classList.toggle('unlocked', on);
+  c.setAttribute('aria-pressed', on ? 'true':'false');
+  c.setAttribute('aria-label', `${rec.data.name}. ${rec.data.kicker}. ${on?'Unlocked':'Locked'}.`);
+
+  // flash the blue wash on hit, then fade
+  const flash = c.querySelector('.flash');
+  if (flash && !REDUCED){
+    flash.style.opacity = on ? '0.9' : '0.5';
+    setTimeout(()=>{ flash.style.opacity = '0'; }, 230);
+  }
+
+  if (rec.media.tagName === 'VIDEO'){
+    if (on){ ensureVideoSrc(rec.media); }
+    else   { rec.media.pause(); if (activeVideo === rec.media) activeVideo = null; }
+    // governor decides which single video actually plays
+    scheduleVideoUpdate();
+  }
+  updateCounter();
+}
+
+function updateCounter(){
+  const n = cards.filter(c=>c.unlocked).length;
+  document.getElementById('n-open').textContent = n;
+}
+
+/* ============================================================================
+   RIPPLE CANVAS - expanding rings, capped, drawn in rAF
+   ========================================================================== */
+const canvas = document.getElementById('ripple-canvas');
+// getContext can return null (no canvas support, GPU memory pressure). Degrade
+// gracefully: cards still unlock by distance timing, just without the painted rings.
+let ctx = null;
+try { ctx = canvas.getContext('2d'); } catch(_) { ctx = null; }
+const CANVAS_OK = !!ctx;
+if (!CANVAS_OK) canvas.style.display = 'none';
+let DPR = 1, W = 0, H = 0;
+const MAX_RINGS = 8;          // guardrail: concurrent ring cap
+let speedPx = 1.0;            // resolved px/ms
+const rings = [];             // {x,y,r,max,born,unlocking}
+let rafId = null;
+
+function sizeCanvas(){
+  // W/H are needed for wave timing whether or not the canvas paints
+  W = window.innerWidth; H = window.innerHeight;
+  // wave speed scales with screen size so timing feels even on phone + desktop
+  speedPx = Math.max(W, H) / 720;   // ~px per ms
+  if (!CANVAS_OK) return;
+  DPR = Math.min(window.devicePixelRatio || 1, 2);   // cap DPR at 2
+  canvas.width = W * DPR; canvas.height = H * DPR;
+  canvas.style.width = W+'px'; canvas.style.height = H+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+sizeCanvas();
+window.addEventListener('resize', ()=>{ sizeCanvas(); }, { passive:true });
+
+/* recompute card centres (viewport coords) on demand */
+function cardCenters(){
+  return cards.map(rec=>{
+    const r = rec.el.getBoundingClientRect();
+    return { rec, cx:r.left + r.width/2, cy:r.top + r.height/2 };
+  });
+}
+
+/* ============================================================================
+   CLICK -> dispatch a wave. Toggle direction: if all open, the wave RE-LOCKS.
+   ========================================================================== */
+let allOpen = false;
+
+function dispatchWave(clientX, clientY){
+  const centers = cardCenters();
+  // farthest card sets the ring's max radius (+margin so it clears the screen)
+  let maxDist = 0;
+  centers.forEach(c=>{
+    const dx=c.cx-clientX, dy=c.cy-clientY;
+    maxDist = Math.max(maxDist, Math.hypot(dx,dy));
+  });
+  const target = !allOpen;   // true = unlock wave, false = relock wave
+
+  if (REDUCED){
+    // reduced motion: no rings, no wave timing - apply final state instantly
+    centers.forEach(c=> setUnlocked(c.rec, target));
+    allOpen = target;
+    return;
+  }
+
+  // schedule each card's flip by distance / speed
+  centers.forEach(c=>{
+    const dx=c.cx-clientX, dy=c.cy-clientY;
+    const dist = Math.hypot(dx,dy);
+    const delay = dist / speedPx;                // ms until the ring reaches it
+    setTimeout(()=> setUnlocked(c.rec, target), delay);
+  });
+  // flip the global state when the wave clears the farthest card
+  setTimeout(()=>{ allOpen = target; }, maxDist/speedPx + 20);
+
+  spawnRing(clientX, clientY, maxDist + Math.max(W,H)*0.12, target);
+}
+
+function spawnRing(x, y, max, unlocking){
+  if (!CANVAS_OK) return;   // no paintable surface: unlock timing still runs, just no rings
+  rings.push({ x, y, r:0, max, born:performance.now(), unlocking });
+  // cap concurrent rings: drop the oldest
+  while (rings.length > MAX_RINGS) rings.shift();
+  if (!rafId) rafId = requestAnimationFrame(drawRings);
+}
+
+function drawRings(now){
+  ctx.clearRect(0,0,W,H);
+  let alive = false;
+  for (let i=rings.length-1; i>=0; i--){
+    const ring = rings[i];
+    const age = now - ring.born;
+    ring.r = age * speedPx;
+    const t = ring.r / ring.max;           // 0..1 progress
+    if (t >= 1.04){ rings.splice(i,1); continue; }
+    alive = true;
+
+    // ripple-blue at the front, washing toward white as it expands
+    const lead = Math.min(1, t*1.25);
+    // colour: blue -> white
+    const r = Math.round(44  + (255-44 )*lead);
+    const g = Math.round(111 + (255-111)*lead);
+    const b = Math.round(173 + (255-173)*lead);
+    const fade = (1 - t) * 0.85;           // ring dims as it grows
+
+    // main wavefront ring
+    ctx.lineWidth = 2.4 + 9*(1-t);
+    ctx.strokeStyle = `rgba(${r},${g},${b},${fade})`;
+    ctx.beginPath();
+    ctx.arc(ring.x, ring.y, Math.max(0,ring.r), 0, Math.PI*2);
+    ctx.stroke();
+
+    // soft trailing glow band just inside the front
+    if (ring.r > 6){
+      const grad = ctx.createRadialGradient(ring.x,ring.y, Math.max(0,ring.r-26), ring.x,ring.y, ring.r);
+      grad.addColorStop(0, `rgba(${r},${g},${b},0)`);
+      grad.addColorStop(1, `rgba(${r},${g},${b},${fade*0.5})`);
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(ring.x, ring.y, ring.r, 0, Math.PI*2);
+      ctx.arc(ring.x, ring.y, Math.max(0,ring.r-26), 0, Math.PI*2, true);
+      ctx.fill();
+    }
+
+    // bright origin pip early in the life of the ring
+    if (age < 320){
+      const op = (1 - age/320);
+      ctx.fillStyle = `rgba(44,111,173,${op})`;
+      ctx.beginPath();
+      ctx.arc(ring.x, ring.y, 4 + 3*op, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+  if (alive){ rafId = requestAnimationFrame(drawRings); }
+  else { ctx.clearRect(0,0,W,H); rafId = null; }
+}
+
+/* ============================================================================
+   INPUT BINDINGS
+   ========================================================================== */
+// click anywhere on the grid stage
+grid.addEventListener('click', (e)=>{
+  dispatchWave(e.clientX, e.clientY);
+});
+// keyboard: pressing Enter/Space on a focused card sends a wave from its centre
+grid.addEventListener('keydown', (e)=>{
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const card = e.target.closest('.card');
+  if (!card) return;
+  e.preventDefault();
+  const r = card.getBoundingClientRect();
+  dispatchWave(r.left + r.width/2, r.top + r.height/2);
+});
+
+// "Reseal all" button: a relock wave from the screen centre
+document.getElementById('btn-reset').addEventListener('click', ()=>{
+  allOpen = true;                       // force a relock direction
+  dispatchWave(W/2, H/2);
+});
+document.getElementById('foot-link').addEventListener('click', e=>e.preventDefault());
+
+/* ============================================================================
+   FIRST-VIEWPORT SIGNATURE
+   Seed the mechanic at scroll=0: a few cards already unlocked AND a live blue
+   ring mid-expansion from an off-centre origin, so the static thumbnail shows
+   the wave in flight. Under reduced motion, just open a couple of cards.
+   ========================================================================== */
+function seedSignature(){
+  if (REDUCED){
+    // reduced motion: open the first two, no ring
+    [0,3].forEach(i=> cards[i] && setUnlocked(cards[i], true));
+    return;
+  }
+  // pre-unlock a small cluster near the seeded origin so the wave looks "in progress"
+  [0,1].forEach(i=> cards[i] && setUnlocked(cards[i], true));
+
+  if (!CANVAS_OK) return;   // no paintable surface: skip the seeded ring, cards stay open
+
+  // seed origin: upper-left third of the first card
+  const first = cards[0].el.getBoundingClientRect();
+  const ox = first.left + first.width*0.32;
+  const oy = first.top  + first.height*0.55;
+
+  // a frozen-then-resuming mid-expansion ring: born in the past so it appears already grown
+  const maxR = Math.max(W, H) * 0.8;
+  const seeded = { x:ox, y:oy, r:0, max:maxR,
+                   born: performance.now() - (maxR*0.38)/speedPx, unlocking:true };
+  rings.push(seeded);
+  if (!rafId) rafId = requestAnimationFrame(drawRings);
+}
+
+// run after layout + fonts settle so getBoundingClientRect is accurate
+if (document.fonts && document.fonts.ready){
+  document.fonts.ready.then(()=> requestAnimationFrame(seedSignature));
+} else {
+  window.addEventListener('load', ()=> requestAnimationFrame(seedSignature));
+}
+// safety: if fonts.ready stalls, seed anyway
+setTimeout(()=>{ if (!cards.some(c=>c.unlocked)) seedSignature(); }, 900);
+</script>
+</body>
+</html>

@@ -44,6 +44,25 @@ Driven by Workflow-completion notifications, so it keeps going across turns unti
    Commit + deploy (rsync to the gh-pages clone, push).
 6. Launch the NEXT batch (pipeline: build next while cataloging current). Refresh the backlog when low.
 
+### The non-stop discipline (King flagged this as a skill on its own, 2026-06-20)
+This is the working STYLE King wants captured, distinct from the loop's plumbing: relentless, never-idle
+autonomous production that keeps quality high without supervision. Ingredients of the skill:
+- NEVER end a turn idle. Drive the loop off Workflow-completion notifications; the moment a batch
+  finishes you verify+judge+catalog it AND have already launched the next one. No waiting, no "should I
+  continue?" - continue until the user interrupts. (King: "ห้ามหยุด", "ลุยต่อยาวๆ".)
+- Pipeline, never serialize: build the next batch WHILE cataloging the current. Wall-clock is the budget.
+- Quality never drops for speed: every unit passes a real gate (FPS + fresh visual judge + fix loop),
+  and a stubborn unit is PARKED honestly, never shipped weak. Relentless != sloppy.
+- Self-refueling: when the work-queue runs low, spawn a research agent to top it up so the loop never
+  starves. Keep STATE in files so a context reset resumes seamlessly.
+- Surface progress without stopping: short status pings to the user between batches, full state in files.
+- Cost is not the constraint the user set; THROUGHPUT of genuinely-great units is. Spawn freely
+  (build agents, verify agents, judges, fix agents, research agents) - it's a swarm, not a soloist.
+- Self-correcting: bank every lesson learned into a notes file mid-run so the loop gets smarter each
+  batch (this file). The longer it runs the better the output, because the rule-set compounds.
+Candidate skill name: "relentless-loop" / "autonomous-factory" - a generic harness for ANY produce-
+verify-improve domain (templates here, but also: bug sweeps, content batches, migrations, audits).
+
 ### Loop-discipline lessons
 - NEVER trust agent self-report for quality. Gate on (a) FPS measured by the harness + (b) a fresh
   visual judge looking at the actual pixels. The verify agents catch real bugs code-reading misses
@@ -107,6 +126,19 @@ Driven by Workflow-completion notifications, so it keeps going across turns unti
 - crossorigin="anonymous" on a same-origin <img> taints canvas getImageData -> remove it.
 - Perf budget: backdrop-filter blur is GPU-bounded (cap ~3 concurrent); mix-blend + many gradients
   repaint every frame (a transform-translated overlay is GPU-composited and far cheaper).
+- SVG <mask> over a <foreignObject> video renders INVERTED on Chromium/ANGLE: the GPU-composited video
+  layer escapes the SVG mask, so you get a full video rectangle with the letters punched out as black
+  HOLES (the opposite of intended). Use CSS `mask-image` with an inline-SVG-text data-URI on a PLAIN DOM
+  element (video/img/gradient div) instead - it clips per-glyph and survives GPU compositing. Resolve
+  the SVG fill to %23fff in the data-URI, never var().
+- em-based letter-spacing/tracking SCALES WITH FONT-SIZE. The exact value (e.g. 0.42em) that reads as
+  tasteful tracking on a ~40px mobile headline becomes scattered illegible gaps (~56px) on a clamp()-
+  sized ~134px desktop headline. A "fix on mobile" can leave desktop broken with the SAME value. Verify
+  the rendered headline WIDTH fits the viewport at the LARGEST breakpoint (a fast DOM probe:
+  h1.getBoundingClientRect().width < viewport), not just eyeball one size.
+- A gradient sized `auto` on a full-viewport MASKED element samples only its midpoint inside small
+  letterforms -> the knockout text looks like a flat solid colour. Size/position the gradient to the
+  glyph BAND (background-size/background-position) so the full colour range renders inside the letters.
 
 ### Process insights
 - Perceptual loop: build -> capture the REAL artifact -> critique as a demanding reviewer (composition,

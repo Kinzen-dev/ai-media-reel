@@ -107,7 +107,8 @@ body {
 }
 .monitor {
   position: relative;
-  aspect-ratio: 16 / 7;
+  aspect-ratio: 16 / 6;
+  max-height: 46vh;
   border-radius: 8px;
   background: #000;
   overflow: hidden;
@@ -123,12 +124,12 @@ body {
   background:
     radial-gradient(120% 140% at 50% 0%, #16202b 0%, #070b10 70%);
 }
-/* letterboxed media - never cover-crop */
+/* letterboxed media - fill the screen box but CONTAIN so nothing is cropped */
 .monitor .screen img,
 .monitor .screen video {
-  max-width: 100%; max-height: 100%;
-  width: auto; height: auto;
-  object-fit: contain;
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: contain;        /* letterbox - never cover-crop, never overflow */
   display: block;
 }
 .monitor .scanlines {
@@ -194,9 +195,9 @@ body {
 
 /* ---------- the desk surface ---------- */
 .desk {
-  margin-top: 14px;
+  margin-top: 12px;
   border-radius: 6px 6px 16px 16px;
-  padding: 18px clamp(8px, 1.6vw, 18px) 22px;
+  padding: 12px clamp(8px, 1.6vw, 18px) 16px;
   background:
     linear-gradient(180deg, #232323 0%, #1b1b1b 8%, #161616 100%);
   box-shadow:
@@ -227,7 +228,7 @@ body {
 .strip {
   position: relative;
   border-radius: 8px;
-  padding: 12px 8px 14px;
+  padding: 10px 8px 12px;
   background:
     linear-gradient(180deg, #313131 0%, var(--strip) 4%, #242424 100%);
   box-shadow:
@@ -235,7 +236,7 @@ body {
     inset 0 0 0 1px rgba(0,0,0,.5),
     0 6px 14px rgba(0,0,0,.4);
   display: flex; flex-direction: column; align-items: center;
-  gap: 10px;
+  gap: 8px;
   user-select: none;
 }
 .strip.active {
@@ -252,7 +253,7 @@ body {
 .ch-name {
   font-size: clamp(11px, 1.2vw, 14px);
   font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
-  text-align: center; min-height: 2.4em;
+  text-align: center; min-height: 2em;
   display: flex; align-items: center; color: var(--ink);
 }
 
@@ -306,7 +307,7 @@ body {
 /* VU meter --------------------------------------------------- */
 .vu {
   width: 100%; max-width: 84px;
-  height: 56px;
+  height: 46px;
   border-radius: 4px;
   background: linear-gradient(180deg, #0a0a0a, #141414);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.04), inset 0 0 0 1px #000;
@@ -328,7 +329,7 @@ body {
 .fader {
   position: relative;
   width: 34px;
-  height: clamp(150px, 26vh, 240px);
+  height: clamp(120px, 20vh, 190px);
   margin-top: 2px;
   border-radius: 6px;
   background: linear-gradient(180deg, #161616, #1f1f1f);
@@ -452,6 +453,9 @@ body {
   border: 1px solid rgba(212,168,75,.35); color: var(--gold);
 }
 
+/* mobile channel switcher: hidden on desktop, shown in the mobile query below */
+.mob-switch { display: none; }
+
 /* ---------- MOBILE: 2-channel simplified strip ---------- */
 @media (max-width: 640px) {
   .desk { transform: none; padding: 14px 8px 18px; }
@@ -475,7 +479,6 @@ body {
     margin: 10px 0 4px;
   }
 }
-.mob-switch { display: none; }
 .mob-switch button {
   font-family: "Space Mono", monospace;
   font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
@@ -774,23 +777,24 @@ const DATA = [
     });
   }
 
-  // ---- generic pointer-capture drag -------------------------------------
+  // ---- generic drag: setPointerCapture for the real device, but listen on
+  //      window so the gesture is robust if capture is lost or unsupported ---
   function pointerDrag(handle, onMove, onDown) {
     handle.addEventListener("pointerdown", (e) => {
       e.preventDefault();
-      handle.setPointerCapture(e.pointerId);
+      try { handle.setPointerCapture(e.pointerId); } catch (_) {}
       handle.focus({ preventScroll: true });
       if (onDown) onDown(e);
       const move = (ev) => onMove(ev);
-      const up = (ev) => {
+      const up = () => {
         try { handle.releasePointerCapture(e.pointerId); } catch (_) {}
-        handle.removeEventListener("pointermove", move);
-        handle.removeEventListener("pointerup", up);
-        handle.removeEventListener("pointercancel", up);
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+        window.removeEventListener("pointercancel", up);
       };
-      handle.addEventListener("pointermove", move);
-      handle.addEventListener("pointerup", up);
-      handle.addEventListener("pointercancel", up);
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up);
+      window.addEventListener("pointercancel", up);
     });
   }
 

@@ -1,0 +1,635 @@
+<!-- TEMPLATE: Spectrum Property Gradient Brand | ARCHETYPE: SPECTRUM @property typed-gradient brand system | REF: CSS @property typed custom properties, animatable gradient hues, Baseline 2024 | WHEN TO USE: kinetic brand identity / launch / wordmark hero where the gradient itself is the logo and must visibly morph through oklch hues | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Spectrum - Property Gradient Brand</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,600;9..144,900&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<script>
+/* ============================================================================
+   DATA - edit this to re-skin the whole template. Nothing else needs touching.
+   Hues are oklch hue angles (0-360). The brand gradient sweeps BETWEEN
+   stop[0].hue and stop[1].hue and morphs continuously through the wheel.
+   ========================================================================== */
+const DATA = {
+  brand:    "SPECTRUM",
+  tagline:  "A brand identity that is never the same color twice. The gradient is the logo, and the logo is alive.",
+  cta:      { label: "Enter the field", href: "#field" },
+  eyebrow:  "Typed @property gradient system",
+  // Two registered @property <color> stops. Each sweeps its oklch hue live.
+  // chroma + lightness stay fixed so the brand stays on-palette while hue moves.
+  stops: [
+    { hueStart: 250, hueEnd: 330, chroma: 0.20, light: 0.62 }, // electric indigo -> magenta
+    { hueStart: 190, hueEnd: 270, chroma: 0.21, light: 0.58 }, // cyan -> violet
+  ],
+  base:        "oklch(0.135 0.008 280)", // near-neutral near-black field the gradient floats over
+  fallback:    "#5b2bd9",                // flat brand color for no-@property browsers
+  angleSweep:  140,                      // degrees the gradient axis rotates over a cycle
+  cycleSec:    18,                       // seconds for one full hue/angle cycle (time mode)
+  reduceStop:  0.5,                      // 0..1 frozen point of the cycle for reduced-motion
+  // Lower band: real generated assets, proving the palette skins live media too.
+  swatches: [
+    { label: "Identity",   sub: "wordmark",  img: "../assets/flux-car-4k.png" },
+    { label: "Surface",    sub: "interior",  img: "../assets/flux-clinic-4k.png" },
+    { label: "Texture",    sub: "painterly", img: "../assets/sdxl.png" },
+    { label: "Mark",       sub: "lo-fi",     img: "../assets/hf-tinysd.png" },
+  ],
+  modeLabels: { time: "TIME", scroll: "SCROLL" },
+};
+</script>
+<style>
+/* ============================================================================
+   THE MECHANIC: register typed custom properties so they INTERPOLATE.
+   Without @property these are opaque strings and the gradient cannot animate.
+   With it, the browser knows the type and tweens hue + angle smoothly.
+   ========================================================================== */
+@property --hue-a   { syntax: "<number>"; inherits: false; initial-value: 250; }
+@property --hue-b   { syntax: "<number>"; inherits: false; initial-value: 190; }
+@property --axis    { syntax: "<angle>";  inherits: false; initial-value: 0deg; }
+@property --stop-a  { syntax: "<color>";  inherits: false; initial-value: oklch(0.62 0.20 250); }
+@property --stop-b  { syntax: "<color>";  inherits: false; initial-value: oklch(0.58 0.21 190); }
+@property --glow    { syntax: "<number>"; inherits: false; initial-value: 0; }
+
+:root{
+  --base: #0c0b10;
+  --fallback: #5b2bd9;
+  --c-a: 0.20; --l-a: 0.62;
+  --c-b: 0.21; --l-b: 0.58;
+  --bone: #ece7df;
+  --bone-dim: #b6b0a6;
+  --ink: #07070d;
+  --cycle: 18s;
+  /* derived live from the registered hue numbers above */
+  --stop-a-live: oklch(var(--l-a) var(--c-a) var(--hue-a));
+  --stop-b-live: oklch(var(--l-b) var(--c-b) var(--hue-b));
+}
+
+*{ box-sizing:border-box; margin:0; padding:0; }
+html{ scroll-behavior:smooth; }
+body{
+  background: var(--base);
+  color: var(--bone);
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  min-height: 100svh;
+}
+
+/* ---- HERO: the living gradient field ---------------------------------- */
+.hero{
+  position: relative;
+  min-height: 100svh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  isolation: isolate;
+  padding: clamp(18px, 4vw, 44px);
+  overflow: hidden;
+}
+
+/* STATIC FALLBACK: flat brand color for browsers without @property.
+   The supports() block below upgrades it to the animated typed gradient. */
+.field{
+  position: absolute;
+  inset: -8%;
+  z-index: -2;
+  background: var(--fallback);
+}
+
+/* Upgrade: the typed oklch gradient field. Browsers WITH @property tween the
+   registered hue/axis numbers through the keyframes; browsers WITHOUT it still
+   paint this gradient statically (no animation) on top of the flat fallback,
+   so there is never a broken half-animated state. */
+.field{
+  background:
+    radial-gradient(125% 105% at 14% 8%,
+      color-mix(in oklch, var(--stop-a-live), white 8%) 0%,
+      var(--stop-a-live) 18%,
+      color-mix(in oklch, var(--stop-a-live), transparent 30%) 40%,
+      transparent 66%),
+    radial-gradient(120% 110% at 88% 94%,
+      color-mix(in oklch, var(--stop-b-live), white 6%) 0%,
+      var(--stop-b-live) 20%,
+      color-mix(in oklch, var(--stop-b-live), transparent 32%) 44%,
+      transparent 68%),
+    conic-gradient(from var(--axis) at 50% 42%,
+      color-mix(in oklch, var(--stop-a-live), var(--base) 30%),
+      color-mix(in oklch, var(--stop-b-live), var(--base) 22%),
+      color-mix(in oklch, var(--stop-a-live), var(--base) 42%),
+      color-mix(in oklch, var(--stop-b-live), var(--base) 26%),
+      color-mix(in oklch, var(--stop-a-live), var(--base) 30%)),
+    var(--base);
+  background-blend-mode: screen, screen, normal, normal;
+  filter: saturate(1.28) contrast(1.05);
+  animation: brand-cycle var(--cycle) linear infinite;
+}
+
+/* The interpolation that ONLY @property registration makes possible:
+   hue numbers and axis angle tween smoothly through the keyframes. */
+/* phase-aligned so 0% (and any early scroll=0 catalog capture) opens on the
+   rich warm/cool oklch peak, then sweeps the wheel and returns to it */
+@keyframes brand-cycle{
+  0%   { --hue-a:18;  --hue-b:255; --axis:0deg;   --glow:1;   }
+  25%  { --hue-a:300; --hue-b:130; --axis:38deg;  --glow:0.4; }
+  50%  { --hue-a:265; --hue-b:155; --axis:74deg;  --glow:0;   }
+  75%  { --hue-a:330; --hue-b:205; --axis:108deg; --glow:0.5; }
+  100% { --hue-a:18;  --hue-b:255; --axis:140deg; --glow:1;   }
+}
+
+/* grain + vignette so the oklch field reads as a crafted surface, not a CSS demo */
+.field::after{
+  content:"";
+  position:absolute; inset:0;
+  background:
+    radial-gradient(130% 120% at 50% 30%, transparent 38%, rgba(4,4,9,.55) 100%);
+  mix-blend-mode: multiply;
+}
+.grain{
+  position:absolute; inset:0; z-index:-1; pointer-events:none;
+  opacity:.06; mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ---- TOP BAR ---------------------------------------------------------- */
+.topbar{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:16px; z-index:2;
+}
+.mono{
+  font-size:11px; letter-spacing:.22em; text-transform:uppercase;
+  color:var(--bone-dim); font-weight:500;
+}
+.dot{
+  display:inline-block; width:8px; height:8px; border-radius:50%;
+  background: var(--stop-a-live);
+  box-shadow:0 0 14px 2px var(--stop-a-live);
+  vertical-align:middle; margin-right:8px;
+  animation: brand-cycle var(--cycle) linear infinite;
+}
+.mode-toggle{
+  display:flex; gap:4px; padding:4px;
+  border:1px solid rgba(236,231,223,.16);
+  border-radius:999px; background:rgba(8,8,16,.32);
+  backdrop-filter:blur(8px);
+}
+.mode-toggle button{
+  font:inherit; font-size:10.5px; letter-spacing:.16em; font-weight:600;
+  color:var(--bone-dim); background:transparent; border:0; cursor:pointer;
+  padding:6px 14px; border-radius:999px; transition:.3s;
+}
+.mode-toggle button[aria-pressed="true"]{
+  color:var(--ink); background:var(--bone);
+}
+.mode-toggle button:focus-visible{
+  outline:2px solid var(--bone); outline-offset:2px;
+}
+
+/* ---- HERO CENTER ------------------------------------------------------ */
+.center{
+  display:flex; flex-direction:column; justify-content:center;
+  z-index:2; max-width:min(92vw, 1040px); margin:clamp(16px,3vh,40px) 0;
+}
+.eyebrow{
+  font-size:clamp(10px,1.4vw,12px); letter-spacing:.34em; text-transform:uppercase;
+  color:var(--bone-dim); margin-bottom:clamp(14px,2vh,22px); font-weight:500;
+}
+.eyebrow::before{
+  content:""; display:inline-block; width:34px; height:1px;
+  background:var(--bone-dim); vertical-align:middle; margin-right:12px;
+}
+.wordmark{
+  font-family:"Fraunces", serif; font-weight:900;
+  font-size:clamp(58px, 16vw, 196px); line-height:.86; letter-spacing:-.03em;
+  color:var(--bone);
+  /* the wordmark itself is filled by the LIVE typed gradient via text clip */
+  background:
+    linear-gradient(96deg,
+      color-mix(in oklch, var(--stop-a-live), white 18%) 0%,
+      color-mix(in oklch, var(--stop-a-live), var(--stop-b-live) 50%) 46%,
+      color-mix(in oklch, var(--stop-b-live), white 14%) 100%),
+    var(--bone);
+  background-clip:text;
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  color:transparent;
+  text-shadow:0 0 64px color-mix(in oklch, var(--stop-a-live), transparent 50%);
+  filter:saturate(1.15);
+  animation: brand-cycle var(--cycle) linear infinite;
+}
+@supports not ((background-clip:text) or (-webkit-background-clip:text)){
+  .wordmark{ color:var(--bone); -webkit-text-fill-color:var(--bone); }
+}
+.tagline{
+  font-size:clamp(15px,2.1vw,21px); line-height:1.45; max-width:42ch;
+  color:var(--bone); opacity:.86; margin-top:clamp(20px,3vh,34px); font-weight:400;
+}
+.actions{
+  margin-top:clamp(24px,4vh,40px); display:flex; gap:16px; align-items:center; flex-wrap:wrap;
+}
+.cta{
+  font:inherit; font-weight:600; font-size:15px; letter-spacing:.01em;
+  color:var(--ink); text-decoration:none;
+  padding:15px 30px; border-radius:999px;
+  background:var(--bone);
+  position:relative; overflow:hidden;
+  display:inline-flex; align-items:center; gap:10px;
+  transition: transform .25s ease, box-shadow .25s ease;
+  box-shadow:0 0 0 0 color-mix(in oklch, var(--stop-a-live), transparent 40%);
+  animation: brand-cycle var(--cycle) linear infinite;
+}
+.cta::before{
+  content:""; position:absolute; inset:0; z-index:0; opacity:0;
+  background:linear-gradient(100deg, var(--stop-a-live), var(--stop-b-live));
+  transition:opacity .3s;
+}
+.cta span{ position:relative; z-index:1; }
+.cta:hover{ transform:translateY(-2px); box-shadow:0 14px 40px -8px color-mix(in oklch, var(--stop-a-live), transparent 30%); }
+.cta:hover::before{ opacity:1; }
+.cta:hover span{ color:var(--bone); }
+.cta:focus-visible{ outline:2px solid var(--bone); outline-offset:3px; }
+.cta .arrow{ transition:transform .3s; }
+.cta:hover .arrow{ transform:translateX(4px); }
+
+.readout{
+  font-size:11px; letter-spacing:.14em; color:var(--bone-dim);
+  font-variant-numeric:tabular-nums; display:flex; gap:14px; align-items:center;
+}
+.readout b{ color:var(--bone); font-weight:600; }
+.readout .chip{
+  padding:5px 10px; border:1px solid rgba(236,231,223,.16); border-radius:6px;
+  background:rgba(8,8,16,.3); backdrop-filter:blur(6px);
+}
+
+/* ---- HERO BOTTOM: live palette swatches (signature populated at scroll=0) - */
+.palette{
+  z-index:2; display:grid;
+  grid-template-columns:repeat(4, 1fr); gap:clamp(8px,1.2vw,16px);
+  margin-top:clamp(18px,3vh,30px);
+}
+.swatch{
+  position:relative; border-radius:14px; overflow:hidden;
+  aspect-ratio:16/10;
+  border:1px solid rgba(236,231,223,.12);
+  background:#11111a;
+  isolation:isolate;
+}
+.swatch img{
+  position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+  filter:saturate(.7) brightness(.92) contrast(1.02);
+}
+.swatch::after{
+  content:""; position:absolute; inset:0; z-index:1;
+  background:linear-gradient(150deg,
+    color-mix(in oklch, var(--stop-a-live), transparent 18%),
+    color-mix(in oklch, var(--stop-b-live), transparent 28%));
+  mix-blend-mode:soft-light;
+  animation: brand-cycle var(--cycle) linear infinite;
+}
+.swatch::before{
+  content:""; position:absolute; inset:0; z-index:1;
+  background:linear-gradient(150deg,
+    color-mix(in oklch, var(--stop-a-live), transparent 70%),
+    transparent 55%,
+    color-mix(in oklch, var(--stop-b-live), transparent 72%));
+  mix-blend-mode:screen;
+  animation: brand-cycle var(--cycle) linear infinite;
+}
+.swatch .meta{
+  position:absolute; left:12px; bottom:10px; z-index:2;
+}
+.swatch .meta .l{ font-family:"Fraunces", serif; font-weight:600; font-size:15px; color:var(--bone); }
+.swatch .meta .s{ font-size:10px; letter-spacing:.18em; text-transform:uppercase; color:var(--bone-dim); }
+.swatch .swatch-bar{
+  position:absolute; left:0; right:0; top:0; height:3px; z-index:3;
+  background:linear-gradient(90deg, var(--stop-a-live), var(--stop-b-live));
+  animation: brand-cycle var(--cycle) linear infinite;
+}
+
+/* ---- SECOND SECTION (proof the system is reusable, not just a hero) --- */
+.field-section{
+  position:relative; padding:clamp(60px,12vh,140px) clamp(18px,4vw,44px) clamp(80px,14vh,160px);
+  background:
+    radial-gradient(140% 100% at 80% 0%,
+      color-mix(in oklch, var(--stop-b-live), transparent 78%), transparent 55%),
+    var(--base);
+  animation: brand-cycle var(--cycle) linear infinite;
+}
+.field-section h2{
+  font-family:"Fraunces", serif; font-weight:300; font-size:clamp(28px,5vw,56px);
+  line-height:1.04; letter-spacing:-.02em; max-width:18ch; color:var(--bone);
+}
+.field-section h2 em{
+  font-style:normal; font-weight:600;
+  background:linear-gradient(96deg, var(--stop-a-live), var(--stop-b-live));
+  background-clip:text; -webkit-background-clip:text; -webkit-text-fill-color:transparent; color:transparent;
+  animation: brand-cycle var(--cycle) linear infinite;
+}
+.specs{
+  margin-top:clamp(40px,7vh,72px);
+  display:grid; grid-template-columns:repeat(3, 1fr); gap:1px;
+  background:rgba(236,231,223,.1); border:1px solid rgba(236,231,223,.1);
+  border-radius:16px; overflow:hidden;
+}
+.spec{
+  background:var(--base); padding:clamp(22px,3vw,34px);
+}
+.spec .k{ font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--bone-dim); }
+.spec .v{
+  font-family:"Fraunces", serif; font-weight:600; font-size:clamp(22px,3vw,34px); margin-top:10px;
+  color:var(--bone);
+}
+.spec code{
+  display:block; margin-top:12px; font-family:"Space Grotesk", monospace;
+  font-size:12px; color:var(--bone-dim); line-height:1.6;
+  background:rgba(8,8,16,.5); padding:10px 12px; border-radius:8px;
+  border:1px solid rgba(236,231,223,.08); overflow-x:auto;
+}
+.spec code b{ color: var(--stop-a-live); font-weight:600; animation: brand-cycle var(--cycle) linear infinite; }
+
+.footnote{
+  margin-top:clamp(40px,7vh,80px); font-size:12px; color:var(--bone-dim); letter-spacing:.04em;
+  max-width:60ch; line-height:1.6;
+}
+
+/* ============================================================================
+   ACCESSIBILITY: prefers-reduced-motion freezes the gradient at one chosen
+   stop (no rAF, no keyframes) and shows the final, fully-formed brand state.
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce){
+  *{ animation: none !important; }
+  html{ scroll-behavior:auto; }
+  :root{
+    /* frozen at 50% of the cycle - the richest warm/cool oklch spread */
+    --hue-a: 25; --hue-b: 255; --axis: 78deg;
+  }
+  .field, .wordmark, .cta, .dot, .swatch::after, .swatch-bar,
+  .field-section, .field-section h2 em, .spec code b{
+    --hue-a: 25; --hue-b: 255; --axis: 78deg;
+  }
+}
+
+/* ---- RESPONSIVE: mobile identical mechanic, never crops landscape -------- */
+@media (max-width: 880px){
+  .palette{ grid-template-columns:repeat(2, 1fr); }
+  .specs{ grid-template-columns:1fr; }
+}
+@media (max-width: 640px){
+  .hero{ padding:14px; grid-template-rows:auto auto auto; }
+  .topbar{ flex-wrap:wrap; }
+  .center{ margin:24px 0; }
+  /* size the wordmark to FIT the content width so the last glyph is never
+     clipped by the .center box (Fraunces 900 + negative tracking runs wide) */
+  .wordmark{ font-size:clamp(38px, 15vw, 92px); letter-spacing:-.04em; }
+  .tagline{ font-size:16px; }
+  .palette{ grid-template-columns:repeat(2, 1fr); gap:10px; }
+  /* swatches keep their own 16/10 box so the landscape assets are never
+     forced into a portrait crop - the box letterboxes the asset cleanly */
+  .swatch{ aspect-ratio:16/10; }
+  .readout{ flex-wrap:wrap; }
+}
+@media (max-width: 420px){
+  .actions{ flex-direction:column; align-items:flex-start; }
+  .cta{ width:100%; justify-content:center; }
+}
+</style>
+</head>
+<body>
+
+<main class="hero" id="top">
+  <div class="field" aria-hidden="true"></div>
+  <div class="grain" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="mono" id="brandMono"><span class="dot" aria-hidden="true"></span><span id="brandName">SPECTRUM</span></div>
+    <nav class="mode-toggle" aria-label="Gradient drive mode">
+      <button id="modeTime" aria-pressed="true">TIME</button>
+      <button id="modeScroll" aria-pressed="false">SCROLL</button>
+    </nav>
+  </header>
+
+  <section class="center">
+    <p class="eyebrow" id="eyebrow">Typed @property gradient system</p>
+    <h1 class="wordmark" id="wordmark">SPECTRUM</h1>
+    <p class="tagline" id="tagline">A brand identity that is never the same color twice.</p>
+    <div class="actions">
+      <a class="cta" id="cta" href="#field"><span>Enter the field</span><span class="arrow" aria-hidden="true">-&gt;</span></a>
+      <div class="readout" aria-live="off">
+        <span class="chip">oklch hue A <b id="rdHueA">250</b></span>
+        <span class="chip">hue B <b id="rdHueB">190</b></span>
+        <span class="chip">axis <b id="rdAxis">0</b></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="palette" id="palette" aria-label="Live palette applied to media"></section>
+</main>
+
+<section class="field-section" id="field">
+  <h2>The gradient is not a background. It is the <em>brand</em>, and it is registered, typed, and alive.</h2>
+
+  <div class="specs">
+    <div class="spec">
+      <div class="k">The mechanic</div>
+      <div class="v">@property</div>
+      <code>@property <b>--hue-a</b> {<br>&nbsp;&nbsp;syntax: "&lt;number&gt;";<br>&nbsp;&nbsp;inherits: false;<br>&nbsp;&nbsp;initial-value: 250;<br>}</code>
+    </div>
+    <div class="spec">
+      <div class="k">Why it works</div>
+      <div class="v">It interpolates</div>
+      <code>Unregistered custom props are opaque strings. Registration gives the browser a TYPE, so <b>--hue-a</b> and <b>--axis</b> tween between keyframes. No JS needed for the core animation.</code>
+    </div>
+    <div class="spec">
+      <div class="k">The palette</div>
+      <div class="v">oklch</div>
+      <code>oklch(L C <b>H</b>) over a near-black field. Only the hue H sweeps, so chroma and lightness hold the brand on-palette while every frame is a new color.</code>
+    </div>
+  </div>
+
+  <p class="footnote" id="footnote">
+    Static fallback: browsers without @property render the flat brand color and never see a broken half-animated gradient. prefers-reduced-motion freezes the field at a single chosen oklch stop and shows the final, fully-formed identity. Same mechanic on mobile - no cropping, the gradient is resolution-independent. Build native CSS, no GSAP, no canvas, no WebGL.
+  </p>
+</section>
+
+<script>
+(function(){
+  "use strict";
+
+  /* --- bind DATA into the document so the file is genuinely data-driven --- */
+  const root = document.documentElement;
+  root.style.setProperty("--base", DATA.base);
+  root.style.setProperty("--fallback", DATA.fallback);
+  root.style.setProperty("--cycle", DATA.cycleSec + "s");
+  root.style.setProperty("--l-a", DATA.stops[0].light);
+  root.style.setProperty("--c-a", DATA.stops[0].chroma);
+  root.style.setProperty("--l-b", DATA.stops[1].light);
+  root.style.setProperty("--c-b", DATA.stops[1].chroma);
+
+  document.getElementById("brandName").textContent = DATA.brand;
+  document.getElementById("wordmark").textContent  = DATA.brand;
+  document.getElementById("eyebrow").textContent   = DATA.eyebrow;
+  document.getElementById("tagline").textContent   = DATA.tagline;
+  const ctaEl = document.getElementById("cta");
+  ctaEl.querySelector("span").textContent = DATA.cta.label;
+  ctaEl.setAttribute("href", DATA.cta.href);
+
+  document.getElementById("modeTime").textContent   = DATA.modeLabels.time;
+  document.getElementById("modeScroll").textContent = DATA.modeLabels.scroll;
+
+  /* --- build the live-palette swatch band --- */
+  const pal = document.getElementById("palette");
+  pal.innerHTML = DATA.swatches.map(s => `
+    <figure class="swatch">
+      <div class="swatch-bar" aria-hidden="true"></div>
+      <img src="${s.img}" alt="${s.label} surface tinted by the live brand gradient" loading="lazy" decoding="async" />
+      <figcaption class="meta"><span class="l">${s.label}</span><br><span class="s">${s.sub}</span></figcaption>
+    </figure>`).join("");
+
+  /* --- feature + motion detection --- */
+  const supportsProperty = (typeof CSS !== "undefined" && CSS.registerProperty) || (typeof CSS !== "undefined" && CSS.supports && CSS.supports("background", "linear-gradient(in oklch, red, blue)"));
+  const reduceMQ = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  /* --- readout: reflect the current computed hue/axis so the mechanic is
+         legible. In TIME mode we read the animated computed style; in SCROLL
+         mode we drive the vars ourselves. Cheap, throttled to rAF. --- */
+  const rdA = document.getElementById("rdHueA");
+  const rdB = document.getElementById("rdHueB");
+  const rdX = document.getElementById("rdAxis");
+  const field = document.querySelector(".field");
+
+  let mode = "time";              // "time" | "scroll"
+  let scrollAngleVars = false;    // when scroll mode active we set vars inline
+
+  function setMode(next){
+    mode = next;
+    const t = document.getElementById("modeTime");
+    const s = document.getElementById("modeScroll");
+    t.setAttribute("aria-pressed", String(next === "time"));
+    s.setAttribute("aria-pressed", String(next === "scroll"));
+
+    // toggling animation-play-state on every animated element
+    const animated = document.querySelectorAll(
+      ".field, .wordmark, .cta, .dot, .swatch::after, .swatch-bar, .field-section, .field-section h2 em, .spec code b"
+    );
+    // NOTE: pseudo-elements can't be queried; we pause via a root class instead.
+    if(next === "scroll" && !reduceMQ.matches){
+      root.classList.add("scroll-driven");
+      document.body.style.setProperty("--play", "paused");
+      // pause CSS keyframes by setting animation-play-state through a style tag
+      pauseStyle.textContent = ".scroll-driven .field,.scroll-driven .wordmark,.scroll-driven .cta,.scroll-driven .dot,.scroll-driven .swatch::after,.scroll-driven .swatch-bar,.scroll-driven .field-section,.scroll-driven .field-section h2 em,.scroll-driven .spec code b{animation-play-state:paused !important;}";
+      scrollAngleVars = true;
+      onScroll(); // immediate paint
+    } else {
+      root.classList.remove("scroll-driven");
+      pauseStyle.textContent = "";
+      scrollAngleVars = false;
+    }
+  }
+
+  const pauseStyle = document.createElement("style");
+  document.head.appendChild(pauseStyle);
+
+  document.getElementById("modeTime").addEventListener("click", () => setMode("time"));
+  document.getElementById("modeScroll").addEventListener("click", () => setMode("scroll"));
+
+  /* --- SCROLL DRIVE: map scroll progress to the same typed vars the
+         keyframes touch, so the brand morphs as you read. We set the vars on
+         the elements that carry the gradient. Because they are @property
+         <number>/<angle>, the values still type-check and render correctly. --- */
+  const driven = () => document.querySelectorAll(
+    ".field, .wordmark, .cta, .dot, .swatch, .swatch-bar, .field-section, .field-section em, .spec code b"
+  );
+  let cachedDriven = null;
+
+  function lerp(a, b, t){ return a + (b - a) * t; }
+
+  function applyVars(hueA, hueB, axis){
+    if(!cachedDriven) cachedDriven = driven();
+    const ha = hueA.toFixed(1), hb = hueB.toFixed(1), ax = axis.toFixed(1) + "deg";
+    cachedDriven.forEach(el => {
+      el.style.setProperty("--hue-a", ha);
+      el.style.setProperty("--hue-b", hb);
+      el.style.setProperty("--axis", ax);
+    });
+    root.style.setProperty("--hue-a", ha);
+    root.style.setProperty("--hue-b", hb);
+    root.style.setProperty("--axis", ax);
+    rdA.textContent = Math.round(((hueA % 360) + 360) % 360);
+    rdB.textContent = Math.round(((hueB % 360) + 360) % 360);
+    rdX.textContent = Math.round(axis);
+  }
+
+  let ticking = false;
+  function onScroll(){
+    if(mode !== "scroll" || reduceMQ.matches) return;
+    if(ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+      const p = Math.min(1, Math.max(0, window.scrollY / max)); // 0..1
+      // sweep using the DATA-defined ranges, looping once across the page
+      const sA = DATA.stops[0], sB = DATA.stops[1];
+      const hueA = lerp(sA.hueStart, sA.hueEnd + 80, p);  // overshoot for a richer arc
+      const hueB = lerp(sB.hueStart, sB.hueEnd + 60, p);
+      const axis = lerp(0, DATA.angleSweep, p);
+      applyVars(hueA, hueB, axis);
+      ticking = false;
+    });
+  }
+  window.addEventListener("scroll", onScroll, { passive:true });
+  window.addEventListener("resize", () => { cachedDriven = driven(); onScroll(); });
+
+  /* --- TIME mode readout: sample the live computed hue from the field so the
+         numbers move with the CSS animation. Throttled, pauses when hidden. --- */
+  let rafId = null;
+  function sampleLoop(){
+    if(mode === "time" && !reduceMQ.matches){
+      const cs = getComputedStyle(field);
+      const ha = cs.getPropertyValue("--hue-a").trim();
+      const hb = cs.getPropertyValue("--hue-b").trim();
+      const ax = cs.getPropertyValue("--axis").trim();
+      if(ha) rdA.textContent = Math.round(parseFloat(ha));
+      if(hb) rdB.textContent = Math.round(parseFloat(hb));
+      if(ax) rdX.textContent = Math.round(parseFloat(ax));
+    }
+    rafId = requestAnimationFrame(sampleLoop);
+  }
+
+  /* --- reduced motion: freeze everything at the chosen stop, no rAF --- */
+  function applyReduced(){
+    if(reduceMQ.matches){
+      if(rafId) cancelAnimationFrame(rafId);
+      rafId = null;
+      // freeze readout to match the CSS frozen stop exactly (honest numbers)
+      rdA.textContent = "25";
+      rdB.textContent = "255";
+      rdX.textContent = "78";
+      document.getElementById("modeScroll").disabled = true;
+      document.getElementById("modeScroll").style.opacity = ".4";
+    } else {
+      if(!rafId) sampleLoop();
+    }
+  }
+  reduceMQ.addEventListener ? reduceMQ.addEventListener("change", applyReduced) : reduceMQ.addListener(applyReduced);
+
+  /* --- visibility: stop the sampling rAF when tab is hidden (perf) --- */
+  document.addEventListener("visibilitychange", () => {
+    if(document.hidden){ if(rafId){ cancelAnimationFrame(rafId); rafId = null; } }
+    else { applyReduced(); }
+  });
+
+  /* --- init --- */
+  applyReduced();
+  if(!reduceMQ.matches) sampleLoop();
+
+  /* graceful note if @property is missing: the static fallback color is
+     already painted via CSS; we just keep the readout honest. */
+  if(!supportsProperty){
+    rdA.textContent = "--"; rdB.textContent = "--"; rdX.textContent = "--";
+    document.getElementById("modeScroll").disabled = true;
+  }
+})();
+</script>
+</body>
+</html>

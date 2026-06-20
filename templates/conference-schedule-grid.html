@@ -1,0 +1,677 @@
+<!-- TEMPLATE: Multitrack Schedule Grid | ARCHETYPE: schedule-grid | REF: SmashingConf / Config / WWDC schedule pages | WHEN TO USE: dense multi-track conference timetable, festival or event program, any time x track agenda | SWAP: edit the TRACKS + DAYS data in the <script> at the bottom -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIGNAL // 2026 Conference Schedule</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DATA lives in the <script> at the bottom. Edit there to swap.
+   ============================================================ */
+:root{
+  --paper:#f6f3ec;
+  --ink:#15110d;
+  --ink-soft:#4a443b;
+  --ink-faint:#8a8278;
+  --line:#d8d1c2;
+  --line-strong:#c3bba8;
+  --card:#fffdf8;
+  --amber:#e8820c;
+  --amber-glow:rgba(232,130,12,.16);
+  /* per-track hues */
+  --t-craft:#c2410c;   /* burnt orange */
+  --t-systems:#2563a8; /* steel blue */
+  --t-ai:#7b3fa0;      /* plum */
+  --t-design:#1f8a6d;  /* teal-green */
+  --t-keynote:#15110d; /* ink (special) */
+  --rail-w:64px;
+  --row-h:13px;        /* px per 5 minutes -> cell height = duration */
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:'Space Grotesk',system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  line-height:1.3;
+  overflow-x:hidden;
+  background-image:
+    radial-gradient(rgba(21,17,13,.025) 1px, transparent 1px);
+  background-size:22px 22px;
+}
+.mono{font-family:'Space Mono',monospace}
+
+/* ---------- TOP BAND ---------- */
+header{
+  position:sticky;top:0;z-index:60;
+  background:linear-gradient(180deg,var(--paper) 72%,rgba(246,243,236,.0));
+  padding:14px 22px 8px;
+}
+.brandrow{
+  display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+  border-bottom:2px solid var(--ink);
+  padding-bottom:10px;
+}
+.logo{
+  font-size:clamp(22px,3.4vw,34px);
+  font-weight:700;letter-spacing:-.03em;
+  display:flex;align-items:center;gap:9px;
+}
+.logo .dot{
+  width:13px;height:13px;border-radius:50%;
+  background:var(--amber);
+  box-shadow:0 0 0 4px var(--amber-glow);
+  animation:pulse 2.4s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 4px var(--amber-glow)}50%{box-shadow:0 0 0 9px rgba(232,130,12,.05)}}
+.tag{
+  font-family:'Space Mono',monospace;font-size:11px;
+  color:var(--ink-soft);letter-spacing:.04em;
+}
+.tag b{color:var(--ink)}
+.meta-right{margin-left:auto;text-align:right;font-family:'Space Mono',monospace;font-size:11px;color:var(--ink-soft)}
+.meta-right .live{
+  display:inline-flex;align-items:center;gap:6px;color:var(--amber);font-weight:700;
+}
+.meta-right .live::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--amber);animation:pulse 2.4s infinite}
+
+/* ---------- FILTER CHIPS ---------- */
+.controls{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:10px 0 4px;
+}
+.chip{
+  font-family:'Space Mono',monospace;font-size:11px;font-weight:700;
+  letter-spacing:.02em;
+  border:1.5px solid var(--line-strong);
+  background:var(--card);
+  color:var(--ink-soft);
+  padding:6px 12px 6px 10px;border-radius:40px;
+  cursor:pointer;display:inline-flex;align-items:center;gap:7px;
+  transition:transform .12s ease,box-shadow .12s ease,background .12s,color .12s,border-color .12s;
+  user-select:none;
+}
+.chip .swatch{width:10px;height:10px;border-radius:3px;background:var(--c);flex:none}
+.chip[aria-pressed="true"]{
+  color:var(--paper);background:var(--c);border-color:var(--c);
+  box-shadow:0 3px 0 rgba(21,17,13,.18);
+}
+.chip[aria-pressed="true"] .swatch{background:var(--paper)}
+.chip:hover{transform:translateY(-1px)}
+.chip:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+.chip.allchip{border-color:var(--ink);color:var(--ink)}
+.chip.allchip[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.controls .hint{font-family:'Space Mono',monospace;font-size:10.5px;color:var(--ink-faint);margin-left:auto}
+
+/* ---------- GRID FRAME ---------- */
+.gridwrap{
+  padding:6px 22px 60px;
+  position:relative;
+}
+.daysrow{
+  display:grid;
+  grid-template-columns:var(--rail-w) repeat(3,1fr);
+  gap:0;
+  position:sticky;top:0;z-index:40;
+  background:var(--paper);
+}
+.daysrow .corner{
+  border-bottom:2px solid var(--ink);
+}
+.dayhead{
+  border-bottom:2px solid var(--ink);
+  border-left:1px solid var(--line);
+  padding:8px 12px 9px;
+}
+.dayhead .dnum{font-family:'Space Mono',monospace;font-size:11px;color:var(--ink-faint);letter-spacing:.05em}
+.dayhead .dname{font-size:clamp(15px,1.8vw,20px);font-weight:700;letter-spacing:-.02em;margin-top:1px}
+.dayhead .dsub{font-family:'Space Mono',monospace;font-size:10.5px;color:var(--ink-soft);margin-top:2px}
+
+.gridbody{
+  display:grid;
+  grid-template-columns:var(--rail-w) repeat(3,1fr);
+  position:relative;
+}
+/* time rail */
+.rail{
+  position:relative;
+  border-right:1px solid var(--line-strong);
+}
+.railtick{
+  position:absolute;left:0;right:0;
+  border-top:1px dashed var(--line);
+  padding-top:2px;
+}
+.railtick .t{
+  font-family:'Space Mono',monospace;font-size:10px;color:var(--ink-faint);
+  padding-left:6px;letter-spacing:.02em;
+}
+.railtick.hour{border-top:1px solid var(--line-strong)}
+.railtick.hour .t{color:var(--ink-soft);font-weight:700}
+
+/* day column track area */
+.daycol{
+  position:relative;
+  border-left:1px solid var(--line);
+}
+.daycol .hgrid{
+  position:absolute;left:0;right:0;border-top:1px dashed var(--line);
+}
+.daycol .hgrid.hour{border-top:1px solid var(--line-strong)}
+
+/* SESSION CELL */
+.session{
+  position:absolute;left:5px;right:5px;
+  background:var(--card);
+  border:1px solid var(--line-strong);
+  border-left:5px solid var(--c);
+  border-radius:7px;
+  padding:7px 9px 7px 10px;
+  overflow:hidden;
+  display:flex;flex-direction:column;
+  box-shadow:0 1px 0 rgba(21,17,13,.05);
+  transition:transform .14s ease,box-shadow .14s ease,opacity .25s ease,filter .25s ease;
+  cursor:pointer;
+  text-decoration:none;color:inherit;
+}
+.session::before{
+  /* track-tinted wash */
+  content:"";position:absolute;inset:0;
+  background:var(--c);opacity:.045;pointer-events:none;
+}
+.session:hover{
+  transform:translateY(-2px);
+  box-shadow:0 8px 22px rgba(21,17,13,.14),0 2px 0 var(--c);
+  z-index:30;
+}
+.session:focus-visible{outline:3px solid var(--amber);outline-offset:2px;z-index:31}
+.session .stime{
+  font-family:'Space Mono',monospace;font-size:9.5px;color:var(--c);
+  font-weight:700;letter-spacing:.02em;margin-bottom:2px;
+  display:flex;justify-content:space-between;
+}
+.session .stime .room{color:var(--ink-faint);font-weight:400}
+.session .stitle{
+  font-size:12.5px;font-weight:600;letter-spacing:-.01em;
+  line-height:1.18;color:var(--ink);
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
+}
+.session .spk{
+  margin-top:auto;display:flex;align-items:center;gap:6px;padding-top:5px;
+}
+.session .avatar{
+  width:22px;height:22px;border-radius:50%;flex:none;
+  object-fit:cover;object-position:center;
+  border:1.5px solid var(--c);background:var(--paper);
+}
+.session .spkname{
+  font-family:'Space Mono',monospace;font-size:9.5px;color:var(--ink-soft);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+/* very short sessions: compact mode */
+.session.short{padding:5px 8px}
+.session.short .stitle{-webkit-line-clamp:2;font-size:11.5px}
+.session.short .spk{display:none}
+.session.tiny .stitle{-webkit-line-clamp:1;font-size:11px}
+.session.tiny .stime .room,.session.tiny .spk{display:none}
+
+/* keynote special treatment */
+.session.keynote{
+  border:1px solid var(--ink);border-left:5px solid var(--ink);
+  background:var(--ink);color:var(--paper);
+}
+.session.keynote::before{background:var(--amber);opacity:.1}
+.session.keynote .stitle{color:var(--paper)}
+.session.keynote .stime{color:var(--amber)}
+.session.keynote .spkname{color:#cfc7ba}
+.session.keynote .avatar{border-color:var(--amber)}
+.session.keynote:hover{box-shadow:0 8px 22px rgba(21,17,13,.3),0 2px 0 var(--amber)}
+
+/* dimmed when filtered out */
+.session.dim{opacity:.12;filter:saturate(.2);pointer-events:none}
+
+/* HAPPENING NOW amber line */
+.nowline{
+  position:absolute;left:var(--rail-w);right:0;
+  height:0;z-index:35;pointer-events:none;
+}
+.nowline::before{
+  content:"";position:absolute;left:0;right:0;top:0;height:2px;
+  background:var(--amber);
+  box-shadow:0 0 10px 1px var(--amber-glow);
+}
+.nowline .nowtag{
+  position:absolute;left:8px;top:-9px;
+  background:var(--amber);color:#fff;
+  font-family:'Space Mono',monospace;font-size:9px;font-weight:700;
+  padding:2px 6px;border-radius:4px;white-space:nowrap;letter-spacing:.04em;
+  box-shadow:0 1px 4px rgba(232,130,12,.4);
+}
+.nowline .nowdot{
+  position:absolute;left:-5px;top:-4px;width:10px;height:10px;border-radius:50%;
+  background:var(--amber);box-shadow:0 0 0 4px var(--amber-glow);
+  animation:pulse 2.4s infinite;
+}
+
+/* ---------- MOBILE AGENDA (single day vertical list) ---------- */
+.mobilebar{display:none}
+.agenda{display:none}
+
+@media (max-width:640px){
+  header{padding:12px 14px 6px}
+  .meta-right{display:none}
+  .controls .hint{display:none}
+  .gridwrap{display:none}        /* hide dense grid */
+  .mobilebar{
+    display:flex;gap:7px;overflow-x:auto;padding:10px 14px 8px;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none;
+    position:sticky;top:0;z-index:40;background:var(--paper);
+    border-bottom:1px solid var(--line);
+  }
+  .mobilebar::-webkit-scrollbar{display:none}
+  .daypill{
+    flex:none;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;
+    padding:7px 14px;border-radius:30px;border:1.5px solid var(--line-strong);
+    background:var(--card);color:var(--ink-soft);cursor:pointer;white-space:nowrap;
+  }
+  .daypill[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  .daypill:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+
+  .agenda{display:block;padding:6px 14px 50px}
+  .ag-day{}
+  .ag-nowbanner{
+    display:flex;align-items:center;gap:8px;
+    background:var(--amber);color:#fff;border-radius:8px;
+    padding:8px 12px;margin:8px 0 12px;
+    font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.03em;
+  }
+  .ag-nowbanner .pip{width:8px;height:8px;border-radius:50%;background:#fff;animation:pulse 2.4s infinite}
+  .ag-item{
+    display:grid;grid-template-columns:54px 1fr;gap:12px;
+    padding:13px 0;border-top:1px solid var(--line);
+    position:relative;
+  }
+  .ag-item:first-child{border-top:none}
+  .ag-item.now{background:linear-gradient(90deg,var(--amber-glow),transparent);margin:0 -8px;padding-left:8px;padding-right:8px;border-radius:8px}
+  .ag-time{
+    font-family:'Space Mono',monospace;font-size:12px;font-weight:700;color:var(--ink);
+    line-height:1.25;
+  }
+  .ag-time .end{display:block;font-weight:400;color:var(--ink-faint);font-size:10.5px;margin-top:2px}
+  .ag-body{min-width:0}
+  .ag-track{
+    display:inline-flex;align-items:center;gap:6px;
+    font-family:'Space Mono',monospace;font-size:9.5px;font-weight:700;
+    color:var(--c);letter-spacing:.04em;text-transform:uppercase;margin-bottom:3px;
+  }
+  .ag-track .tdot{width:8px;height:8px;border-radius:50%;background:var(--c);flex:none}
+  .ag-title{font-size:15px;font-weight:600;letter-spacing:-.01em;line-height:1.22}
+  .ag-spk{display:flex;align-items:center;gap:8px;margin-top:7px}
+  .ag-spk img{width:26px;height:26px;border-radius:50%;object-fit:cover;border:1.5px solid var(--c);background:var(--paper)}
+  .ag-spk span{font-family:'Space Mono',monospace;font-size:11px;color:var(--ink-soft)}
+  .ag-item.keynote .ag-title{color:var(--ink)}
+  .ag-item.keynote{background:var(--ink);color:var(--paper);margin:8px -8px;padding:13px 12px;border-radius:10px;border-top:none}
+  .ag-item.keynote .ag-title,.ag-item.keynote .ag-time{color:var(--paper)}
+  .ag-item.keynote .ag-time .end{color:#a59a8a}
+  .ag-item.keynote .ag-track{color:var(--amber)}
+  .ag-item.keynote .ag-spk span{color:#cfc7ba}
+
+  footer{padding:18px 14px 30px}
+}
+
+footer{
+  padding:14px 22px 40px;
+  font-family:'Space Mono',monospace;font-size:11px;color:var(--ink-faint);
+  display:flex;gap:16px;flex-wrap:wrap;align-items:center;
+  border-top:1px solid var(--line);margin-top:8px;
+}
+footer .legendkey{display:inline-flex;align-items:center;gap:6px}
+footer .legendkey i{width:10px;height:10px;border-radius:3px;background:var(--c);font-style:normal}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brandrow">
+    <div class="logo"><span class="dot"></span>SIGNAL<span style="color:var(--amber)">/26</span></div>
+    <div class="tag"><b>3 days</b> &middot; <b>4 tracks</b> &middot; Lisbon + remote</div>
+    <div class="meta-right">
+      <div class="live">LIVE NOW</div>
+      <div id="clock">Day 2 &middot; 11:05 WEST</div>
+    </div>
+  </div>
+
+  <div class="controls" id="chips" role="group" aria-label="Filter sessions by track">
+    <!-- chips injected -->
+  </div>
+</header>
+
+<!-- ============ DESKTOP / TABLET: DENSE MULTITRACK GRID ============ -->
+<div class="gridwrap" id="gridwrap">
+  <div class="daysrow" id="daysrow"><div class="corner"></div></div>
+  <div class="gridbody" id="gridbody">
+    <div class="rail" id="rail"></div>
+    <!-- day columns injected -->
+  </div>
+</div>
+
+<!-- ============ MOBILE: SINGLE-DAY VERTICAL AGENDA ============ -->
+<div class="mobilebar" id="mobilebar" role="tablist" aria-label="Pick a day"></div>
+<div class="agenda" id="agenda"></div>
+
+<footer id="legend"></footer>
+
+<script>
+/* ============================================================================
+   DATA  -  swap freely. Times in 24h "HH:MM". Each session: start,end,title,
+   speaker, avatar (path under ../assets/, contained), track (key), room.
+   Tracks define color + label. 'keynote' track renders as a special dark cell
+   spanning all rooms conceptually.
+   ============================================================================ */
+const TRACKS = {
+  keynote: { label:"Keynote",      color:"var(--t-keynote)", short:"KEY" },
+  craft:   { label:"Craft + CSS",  color:"var(--t-craft)",   short:"CRAFT" },
+  systems: { label:"Systems",      color:"var(--t-systems)", short:"SYS" },
+  ai:      { label:"AI + Agents",  color:"var(--t-ai)",      short:"AI" },
+  design:  { label:"Design",       color:"var(--t-design)",  short:"DSGN" },
+};
+
+// avatars reused from ../assets/ (painterly / cinematic stills, shown contained)
+const AV = {
+  fox:    "../assets/sdxl.png",
+  clinic: "../assets/flux-clinic.png",
+  car:    "../assets/flux-car.png",
+  apple:  "../assets/hf-tinysd.png",
+};
+
+// Grid window: day starts 09:00, ends 18:00
+const DAY_START = "09:00";
+const DAY_END   = "18:00";
+
+const DAYS = [
+  { num:"DAY 01", name:"Tue 09 Jun", sub:"Opening + Craft", sessions:[
+    { start:"09:00", end:"09:45", track:"keynote", title:"Opening Keynote: The Web Is Still Wide Open", speaker:"Mara Okonkwo", avatar:AV.fox, room:"Main Stage" },
+    { start:"10:00", end:"10:45", track:"craft", title:"CSS Grid Subgrid in Production", speaker:"Lena Vossberg", avatar:AV.apple, room:"Studio A" },
+    { start:"10:00", end:"10:30", track:"systems", title:"Edge Caching Without Tears", speaker:"Tomas Reyes", avatar:AV.car, room:"Studio B" },
+    { start:"10:00", end:"11:15", track:"ai", title:"Building Reliable Agent Loops", speaker:"Priya Nandakumar", avatar:AV.clinic, room:"Lab" },
+    { start:"10:45", end:"11:30", track:"systems", title:"Event Sourcing, Honestly", speaker:"Dale Whitcomb", avatar:AV.car, room:"Studio B" },
+    { start:"11:00", end:"11:50", track:"craft", title:"Fluid Type, Real Devices", speaker:"Ola Berdal", avatar:AV.apple, room:"Studio A" },
+    { start:"11:30", end:"12:15", track:"design", title:"Editorial Layout on the Web", speaker:"Yuki Tanaka", avatar:AV.fox, room:"Loft" },
+    { start:"12:30", end:"13:30", track:"keynote", title:"Lunch + Lightning Talks", speaker:"Hosts", avatar:AV.clinic, room:"Atrium" },
+    { start:"13:45", end:"14:45", track:"ai", title:"Evals That Actually Catch Regressions", speaker:"Priya Nandakumar", avatar:AV.clinic, room:"Lab" },
+    { start:"13:45", end:"14:30", track:"craft", title:"Container Queries in Anger", speaker:"Lena Vossberg", avatar:AV.apple, room:"Studio A" },
+    { start:"14:00", end:"14:40", track:"design", title:"Color Systems for Dense UI", speaker:"Yuki Tanaka", avatar:AV.fox, room:"Loft" },
+    { start:"15:00", end:"15:45", track:"systems", title:"Queues Are a UX Decision", speaker:"Dale Whitcomb", avatar:AV.car, room:"Studio B" },
+    { start:"15:00", end:"16:15", track:"craft", title:"View Transitions Deep Dive", speaker:"Ola Berdal", avatar:AV.apple, room:"Studio A" },
+    { start:"16:30", end:"17:30", track:"keynote", title:"Closing Panel: Shipping Under Constraint", speaker:"All Speakers", avatar:AV.fox, room:"Main Stage" },
+  ]},
+  { num:"DAY 02", name:"Wed 10 Jun", sub:"Systems + AI", sessions:[
+    { start:"09:00", end:"09:40", track:"keynote", title:"Day 2 Welcome", speaker:"Mara Okonkwo", avatar:AV.fox, room:"Main Stage" },
+    { start:"09:45", end:"10:45", track:"ai", title:"Retrieval That Doesn't Hallucinate", speaker:"Sven Aaltonen", avatar:AV.clinic, room:"Lab" },
+    { start:"09:45", end:"10:30", track:"systems", title:"Observability On a Budget", speaker:"Tomas Reyes", avatar:AV.car, room:"Studio B" },
+    { start:"10:00", end:"10:40", track:"craft", title:"Anchor Positioning Now", speaker:"Lena Vossberg", avatar:AV.apple, room:"Studio A" },
+    { start:"10:45", end:"11:50", track:"craft", title:"Scroll-Driven Animations, No Library", speaker:"Ola Berdal", avatar:AV.apple, room:"Studio A" },
+    { start:"11:00", end:"11:45", track:"systems", title:"Idempotency Keys, End to End", speaker:"Dale Whitcomb", avatar:AV.car, room:"Studio B" },
+    { start:"11:00", end:"12:15", track:"ai", title:"Tool-Calling Agents in Prod", speaker:"Priya Nandakumar", avatar:AV.clinic, room:"Lab" },
+    { start:"11:30", end:"12:10", track:"design", title:"Designing for Density", speaker:"Yuki Tanaka", avatar:AV.fox, room:"Loft" },
+    { start:"12:30", end:"13:30", track:"keynote", title:"Lunch + Sponsor Demos", speaker:"Hosts", avatar:AV.car, room:"Atrium" },
+    { start:"13:45", end:"14:30", track:"ai", title:"Streaming UIs for LLM Apps", speaker:"Sven Aaltonen", avatar:AV.clinic, room:"Lab" },
+    { start:"13:45", end:"14:25", track:"design", title:"Type on the Timetable", speaker:"Yuki Tanaka", avatar:AV.fox, room:"Loft" },
+    { start:"14:00", end:"15:00", track:"systems", title:"Migrating a Live Database", speaker:"Tomas Reyes", avatar:AV.car, room:"Studio B" },
+    { start:"14:45", end:"15:40", track:"craft", title:"Pure-CSS Carousels", speaker:"Lena Vossberg", avatar:AV.apple, room:"Studio A" },
+    { start:"15:00", end:"16:00", track:"ai", title:"Cost-Aware Model Routing", speaker:"Priya Nandakumar", avatar:AV.clinic, room:"Lab" },
+    { start:"16:15", end:"17:15", track:"keynote", title:"Fireside: Ten Years of Build Tools", speaker:"Sven + Mara", avatar:AV.fox, room:"Main Stage" },
+  ]},
+  { num:"DAY 03", name:"Thu 11 Jun", sub:"Design + Wrap", sessions:[
+    { start:"09:15", end:"10:00", track:"design", title:"Grid Systems From Print", speaker:"Yuki Tanaka", avatar:AV.fox, room:"Loft" },
+    { start:"09:15", end:"10:15", track:"craft", title:"Houdini Paint Worklets", speaker:"Ola Berdal", avatar:AV.apple, room:"Studio A" },
+    { start:"09:30", end:"10:10", track:"systems", title:"Backpressure Patterns", speaker:"Dale Whitcomb", avatar:AV.car, room:"Studio B" },
+    { start:"10:30", end:"11:30", track:"ai", title:"Multi-Agent Coordination", speaker:"Priya Nandakumar", avatar:AV.clinic, room:"Lab" },
+    { start:"10:30", end:"11:10", track:"design", title:"Motion With Restraint", speaker:"Yuki Tanaka", avatar:AV.fox, room:"Loft" },
+    { start:"11:00", end:"11:45", track:"craft", title:":has() Changed Everything", speaker:"Lena Vossberg", avatar:AV.apple, room:"Studio A" },
+    { start:"11:30", end:"12:30", track:"systems", title:"Schema Evolution at Scale", speaker:"Tomas Reyes", avatar:AV.car, room:"Studio B" },
+    { start:"12:30", end:"13:30", track:"keynote", title:"Community Lunch", speaker:"Everyone", avatar:AV.clinic, room:"Atrium" },
+    { start:"13:45", end:"14:30", track:"design", title:"Accessible Color Contrast", speaker:"Yuki Tanaka", avatar:AV.fox, room:"Loft" },
+    { start:"13:45", end:"14:50", track:"ai", title:"Guardrails and Refusals", speaker:"Sven Aaltonen", avatar:AV.clinic, room:"Lab" },
+    { start:"14:00", end:"14:40", track:"craft", title:"Native Nesting Pitfalls", speaker:"Ola Berdal", avatar:AV.apple, room:"Studio A" },
+    { start:"15:00", end:"15:45", track:"systems", title:"Zero-Downtime Deploys", speaker:"Dale Whitcomb", avatar:AV.car, room:"Studio B" },
+    { start:"15:00", end:"15:50", track:"design", title:"Designing the Schedule Page", speaker:"Yuki Tanaka", avatar:AV.fox, room:"Loft" },
+    { start:"16:00", end:"17:00", track:"keynote", title:"Closing Keynote: Make Good Things", speaker:"Mara Okonkwo", avatar:AV.fox, room:"Main Stage" },
+  ]},
+];
+
+/* "Happening now" anchor (demo). Set to a real Date for live use. */
+const NOW = { day:1, time:"11:05" };   // day index (0-based), time HH:MM
+
+/* ---------------------------- helpers ---------------------------- */
+const PX_PER_MIN = 13/5;             // matches --row-h (13px per 5 min)
+const toMin = t => { const [h,m]=t.split(":").map(Number); return h*60+m; };
+const fmt = t => { const [h,m]=t.split(":").map(Number); const ap=h<12?"AM":"PM"; let hh=h%12; if(hh===0)hh=12; return hh+":"+String(m).padStart(2,"0")+" "+ap; };
+const startMin = toMin(DAY_START), endMin = toMin(DAY_END);
+const totalH = (endMin-startMin)*PX_PER_MIN;
+const yOf = t => (toMin(t)-startMin)*PX_PER_MIN;
+
+const root = document.documentElement;
+let activeTracks = new Set(Object.keys(TRACKS)); // all on
+
+/* ---------------------------- CHIPS ---------------------------- */
+const chipsEl = document.getElementById("chips");
+function buildChips(){
+  const all = document.createElement("button");
+  all.className="chip allchip"; all.textContent="All tracks";
+  all.setAttribute("aria-pressed","true");
+  all.addEventListener("click",()=>{ activeTracks=new Set(Object.keys(TRACKS)); syncChips(); applyFilter(); });
+  chipsEl.appendChild(all);
+
+  Object.entries(TRACKS).forEach(([key,tr])=>{
+    const b=document.createElement("button");
+    b.className="chip"; b.dataset.track=key;
+    b.style.setProperty("--c",tr.color);
+    b.setAttribute("aria-pressed","true");
+    b.innerHTML=`<span class="swatch"></span>${tr.label}`;
+    b.addEventListener("click",()=>{
+      // toggle: if all on, this becomes a solo; else toggle membership
+      if(activeTracks.size===Object.keys(TRACKS).length){
+        activeTracks=new Set([key]);
+      } else if(activeTracks.has(key)){
+        activeTracks.delete(key);
+        if(activeTracks.size===0) activeTracks=new Set(Object.keys(TRACKS));
+      } else {
+        activeTracks.add(key);
+      }
+      syncChips(); applyFilter();
+    });
+    chipsEl.appendChild(b);
+  });
+  syncChips();
+}
+function syncChips(){
+  const full = activeTracks.size===Object.keys(TRACKS).length;
+  chipsEl.querySelector(".allchip").setAttribute("aria-pressed", full?"true":"false");
+  chipsEl.querySelectorAll(".chip[data-track]").forEach(b=>{
+    b.setAttribute("aria-pressed", activeTracks.has(b.dataset.track)?"true":"false");
+  });
+}
+function applyFilter(){
+  document.querySelectorAll(".session").forEach(s=>{
+    s.classList.toggle("dim", !activeTracks.has(s.dataset.track));
+  });
+  document.querySelectorAll(".ag-item").forEach(s=>{
+    s.style.display = activeTracks.has(s.dataset.track) ? "" : "none";
+  });
+}
+
+/* ---------------------------- DESKTOP GRID ---------------------------- */
+const daysrow = document.getElementById("daysrow");
+const gridbody= document.getElementById("gridbody");
+const rail    = document.getElementById("rail");
+
+function buildGrid(){
+  // column count = number of days
+  daysrow.style.gridTemplateColumns = `var(--rail-w) repeat(${DAYS.length},1fr)`;
+  gridbody.style.gridTemplateColumns = `var(--rail-w) repeat(${DAYS.length},1fr)`;
+
+  // day headers
+  DAYS.forEach(d=>{
+    const h=document.createElement("div");
+    h.className="dayhead";
+    h.innerHTML=`<div class="dnum">${d.num}</div><div class="dname">${d.name}</div><div class="dsub">${d.sub}</div>`;
+    daysrow.appendChild(h);
+  });
+
+  // time rail (every 30 min, hour emphasized)
+  rail.style.height = totalH+"px";
+  for(let m=startMin; m<=endMin; m+=30){
+    const tick=document.createElement("div");
+    const isHour = m%60===0;
+    tick.className="railtick"+(isHour?" hour":"");
+    tick.style.top=((m-startMin)*PX_PER_MIN)+"px";
+    const hh=Math.floor(m/60), mm=m%60;
+    const ap=hh<12?"am":"pm"; let h12=hh%12; if(h12===0)h12=12;
+    tick.innerHTML=`<span class="t">${h12}:${String(mm).padStart(2,"0")} ${ap}</span>`;
+    rail.appendChild(tick);
+  }
+
+  // day columns with sessions
+  DAYS.forEach((d,di)=>{
+    const col=document.createElement("div");
+    col.className="daycol";
+    col.style.height=totalH+"px";
+
+    // horizontal guide lines
+    for(let m=startMin; m<=endMin; m+=30){
+      const g=document.createElement("div");
+      g.className="hgrid"+(m%60===0?" hour":"");
+      g.style.top=((m-startMin)*PX_PER_MIN)+"px";
+      col.appendChild(g);
+    }
+
+    d.sessions.forEach(s=>{
+      const tr=TRACKS[s.track];
+      const top=yOf(s.start);
+      const height=(toMin(s.end)-toMin(s.start))*PX_PER_MIN;
+      const a=document.createElement("a");
+      a.href="#"; a.className="session"+(s.track==="keynote"?" keynote":"");
+      if(height<46) a.classList.add("tiny");
+      else if(height<64) a.classList.add("short");
+      a.dataset.track=s.track;
+      a.style.setProperty("--c",tr.color);
+      a.style.top=top+"px";
+      a.style.height=(height-4)+"px";
+      a.setAttribute("aria-label",`${s.title}, ${fmt(s.start)} to ${fmt(s.end)}, ${tr.label} track, ${s.room}, by ${s.speaker}`);
+      a.innerHTML=`
+        <div class="stime"><span>${s.start} to ${s.end}</span><span class="room">${tr.short}</span></div>
+        <div class="stitle">${s.title}</div>
+        <div class="spk">
+          <img class="avatar" src="${s.avatar}" alt="" loading="lazy" decoding="async">
+          <span class="spkname">${s.speaker}</span>
+        </div>`;
+      col.appendChild(a);
+    });
+
+    gridbody.appendChild(col);
+  });
+
+  // happening-now amber line on the matching day column
+  const nowEl=document.createElement("div");
+  nowEl.className="nowline";
+  // position: rail offset handled by left:var(--rail-w); compute top from time
+  const nowTop=yOf(NOW.time);
+  nowEl.style.top=nowTop+"px";
+  // restrict the visual line to the active day's column via left offset
+  const colFrac = 1; // full-width line spanning all day columns reads as "this time, every track"
+  nowEl.innerHTML=`<div class="nowdot"></div><div class="nowtag">NOW &middot; ${fmt(NOW.time)}</div>`;
+  gridbody.appendChild(nowEl);
+
+  // auto-scroll the now line into a comfortable view on load (only if motion ok)
+}
+
+/* ---------------------------- MOBILE AGENDA ---------------------------- */
+const mobilebar=document.getElementById("mobilebar");
+const agenda=document.getElementById("agenda");
+let mobileDay = NOW.day;
+
+function buildMobile(){
+  DAYS.forEach((d,i)=>{
+    const p=document.createElement("button");
+    p.className="daypill"; p.setAttribute("role","tab");
+    p.setAttribute("aria-pressed", i===mobileDay?"true":"false");
+    p.textContent=d.name;
+    p.addEventListener("click",()=>{ mobileDay=i; renderAgenda(); syncPills(); });
+    mobilebar.appendChild(p);
+  });
+  renderAgenda();
+}
+function syncPills(){
+  [...mobilebar.children].forEach((p,i)=>p.setAttribute("aria-pressed", i===mobileDay?"true":"false"));
+}
+function renderAgenda(){
+  const d=DAYS[mobileDay];
+  const isNowDay = mobileDay===NOW.day;
+  const nowM = toMin(NOW.time);
+  let html="";
+  if(isNowDay){
+    html+=`<div class="ag-nowbanner"><span class="pip"></span> HAPPENING NOW &middot; ${fmt(NOW.time)} &middot; tap a session for details</div>`;
+  }
+  const sorted=[...d.sessions].sort((a,b)=>toMin(a.start)-toMin(b.start));
+  sorted.forEach(s=>{
+    const tr=TRACKS[s.track];
+    const live = isNowDay && nowM>=toMin(s.start) && nowM<toMin(s.end);
+    html+=`
+      <div class="ag-item${s.track==="keynote"?" keynote":""}${live?" now":""}" data-track="${s.track}" style="--c:${tr.color}">
+        <div class="ag-time">${s.start}<span class="end">to ${s.end}</span></div>
+        <div class="ag-body">
+          <div class="ag-track"><span class="tdot"></span>${tr.label} &middot; ${s.room}</div>
+          <div class="ag-title">${s.title}</div>
+          <div class="ag-spk"><img src="${s.avatar}" alt="" loading="lazy" decoding="async"><span>${s.speaker}</span></div>
+        </div>
+      </div>`;
+  });
+  agenda.innerHTML=html;
+  applyFilter();
+}
+
+/* ---------------------------- LEGEND ---------------------------- */
+function buildLegend(){
+  const el=document.getElementById("legend");
+  let html=`<span>SIGNAL/26 &middot; cell height = session length</span>`;
+  Object.values(TRACKS).forEach(tr=>{
+    html+=`<span class="legendkey" style="--c:${tr.color}"><i></i>${tr.label}</span>`;
+  });
+  html+=`<span style="color:var(--amber);font-weight:700">-&nbsp;amber line = happening now</span>`;
+  el.innerHTML=html;
+}
+
+/* ---------------------------- INIT ---------------------------- */
+buildChips();
+buildGrid();
+buildMobile();
+buildLegend();
+
+/* gentle auto-scroll to bring the NOW line into view on desktop (motion-safe) */
+const reduce = window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+window.addEventListener("load",()=>{
+  if(reduce) return;
+  if(window.innerWidth<=640) return;
+  const gw=document.getElementById("gridwrap");
+  // nothing to scroll inside; page-level scroll only nudges slightly so first viewport already shows grid
+});
+
+/* live-ish clock label (cosmetic; no heavy timers) */
+(function tick(){
+  const el=document.getElementById("clock");
+  if(!el) return;
+  el.textContent = `Day ${NOW.day+1} · ${NOW.time} WEST`;
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,753 @@
+<!-- TEMPLATE: Flowfield Terrain | ARCHETYPE: feturbulence-organic-hero | REF: SVG feTurbulence + feDisplacementMap, generative contour fields | WHEN TO USE: studio / brand / generative-design hero that must render headless and capture clean at scroll=0 | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Flowfield Terrain - Generative Contour Hero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     DATA-DRIVEN: everything human-facing lives in the JS DATA
+     array at the very top of <script>. Swap copy / palette / seed
+     there. The visual engine below is pure CSS + inline SVG filter
+     primitives. No GPU, no canvas, no rAF for the field itself.
+     ============================================================ */
+
+  :root {
+    /* palette - overridden from DATA at boot */
+    --ground: #0d1a17;      /* deep terrain ground */
+    --brand: #2fae8f;       /* one flat brand color (contour ink) */
+    --brand-2: #c75b39;     /* alternate accent for ridge highlights */
+    --bone: #ece5d6;        /* bone for type */
+    --bone-dim: #9aa39a;
+
+    --maxw: 1340px;
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+
+  body {
+    background: var(--ground);
+    color: var(--bone);
+    font-family: "Space Grotesk", system-ui, sans-serif;
+    line-height: 1.5;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection { background: var(--brand); color: var(--ground); }
+
+  a { color: inherit; text-decoration: none; }
+
+  /* hide the raw filter source SVG (zero-size, defs only) */
+  .filter-defs {
+    position: absolute;
+    width: 0; height: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  /* ============================================================
+     HERO STAGE
+     The field is built from stacked layers, each a div whose
+     background is filtered by an inline SVG feTurbulence chain.
+     ============================================================ */
+
+  .hero {
+    position: relative;
+    width: 100%;
+    min-height: 100svh;
+    overflow: hidden;
+    isolation: isolate;
+    background: var(--ground);
+  }
+
+  /* base ground gradient under everything (gives depth, not flat wash) */
+  .hero__ground {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background:
+      radial-gradient(120% 90% at 18% 8%, color-mix(in oklab, var(--brand) 22%, var(--ground)) 0%, transparent 46%),
+      radial-gradient(140% 120% at 88% 96%, color-mix(in oklab, var(--brand-2) 16%, var(--ground)) 0%, transparent 50%),
+      linear-gradient(160deg, color-mix(in oklab, var(--ground) 80%, #000) 0%, var(--ground) 55%, color-mix(in oklab, var(--ground) 86%, #000) 100%);
+  }
+
+  /* --- FIELD LAYER A: the broad terrain body (filled turbulence) --- */
+  .field {
+    position: absolute;
+    inset: -6%;            /* bleed so displaced edges never reveal seams */
+    z-index: 1;
+    will-change: transform;
+  }
+
+  .field--body {
+    /* contour body: posterized turbulence tinted brand over the deep ground.
+       kept restrained so the ground reads dark and rich, not a flat wash. */
+    background: var(--brand);
+    filter: url(#flow-body);
+    mix-blend-mode: screen;
+    opacity: 0.5;
+  }
+
+  .field--contour {
+    /* the contour LINES: thresholded turbulence = thin map isolines.
+       brand-tinted + screened => glowing topographic isolines are the
+       DOMINANT read, the body fill only supports them. */
+    background: color-mix(in oklab, var(--brand) 78%, var(--bone));
+    filter: url(#flow-contour);
+    mix-blend-mode: screen;
+    opacity: 0.85;
+  }
+
+  .field--ridge {
+    /* warm ridge accents from a displaced second turbulence */
+    background: var(--brand-2);
+    filter: url(#flow-ridge);
+    mix-blend-mode: screen;
+    opacity: 0.34;
+  }
+
+  .field--grain {
+    /* fine high-frequency grain to keep it from banding flat */
+    background: #808080;
+    filter: url(#flow-grain);
+    mix-blend-mode: overlay;
+    opacity: 0.32;
+  }
+
+  /* vignette + bottom legibility scrim so the wordmark sits clean */
+  .hero__scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    background:
+      radial-gradient(130% 100% at 50% 36%, transparent 26%, color-mix(in oklab, var(--ground) 80%, transparent) 100%),
+      linear-gradient(105deg, color-mix(in oklab, var(--ground) 78%, transparent) 0%, color-mix(in oklab, var(--ground) 30%, transparent) 38%, transparent 60%),
+      linear-gradient(to bottom, color-mix(in oklab, var(--ground) 50%, transparent) 0%, transparent 24%, transparent 52%, color-mix(in oklab, var(--ground) 78%, transparent) 82%, color-mix(in oklab, var(--ground) 94%, transparent) 100%);
+  }
+
+  /* ---- ELEVATION LEGEND (left rail, contour-map vibe) ---- */
+  .legend {
+    position: absolute;
+    right: clamp(20px, 4vw, 56px);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    text-align: right;
+    gap: 14px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--bone-dim);
+  }
+  .legend__row { display: flex; flex-direction: row-reverse; align-items: center; gap: 10px; }
+  .legend__swatch {
+    width: 26px; height: 3px; border-radius: 2px;
+    background: var(--brand);
+    box-shadow: 0 0 12px color-mix(in oklab, var(--brand) 60%, transparent);
+  }
+  .legend__row:nth-child(2) .legend__swatch { width: 20px; opacity: 0.78; }
+  .legend__row:nth-child(3) .legend__swatch { width: 14px; opacity: 0.56; background: var(--brand-2); box-shadow: 0 0 12px color-mix(in oklab, var(--brand-2) 60%, transparent); }
+  .legend__row:nth-child(4) .legend__swatch { width: 9px;  opacity: 0.4; }
+
+  /* ---- TOP BAR ---- */
+  .topbar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: clamp(20px, 3vw, 34px) clamp(22px, 5vw, 64px);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--bone-dim);
+  }
+  .topbar__mark {
+    display: flex; align-items: center; gap: 9px;
+    color: var(--bone);
+  }
+  .topbar__dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--brand);
+    box-shadow: 0 0 14px var(--brand);
+  }
+  .topbar__nav { display: flex; gap: clamp(14px, 2.4vw, 30px); }
+  .topbar__nav a { transition: color 0.3s var(--ease); }
+  .topbar__nav a:hover, .topbar__nav a:focus-visible { color: var(--brand); }
+
+  /* ---- HERO COPY ---- */
+  .hero__copy {
+    position: relative;
+    z-index: 5;
+    max-width: var(--maxw);
+    margin: 0 auto;
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 132px clamp(22px, 6vw, 96px) clamp(120px, 16vh, 180px);
+  }
+  .hero__eyebrow {
+    font-family: "JetBrains Mono", monospace;
+    font-size: clamp(11px, 1.1vw, 13px);
+    letter-spacing: 0.34em;
+    text-transform: uppercase;
+    color: var(--brand);
+    margin-bottom: clamp(18px, 2.4vw, 30px);
+    display: flex; align-items: center; gap: 14px;
+  }
+  .hero__eyebrow::before {
+    content: ""; width: clamp(28px, 5vw, 64px); height: 1px;
+    background: linear-gradient(to right, var(--brand), transparent);
+  }
+  .hero__wordmark {
+    font-family: "Fraunces", serif;
+    font-weight: 500;
+    font-size: clamp(3.1rem, 11.5vw, 9.2rem);
+    line-height: 0.92;
+    letter-spacing: -0.02em;
+    color: var(--bone);
+    max-width: 14ch;
+  }
+  .hero__wordmark em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--brand);
+    text-shadow: 0 0 50px color-mix(in oklab, var(--brand) 50%, transparent);
+  }
+  .hero__tag {
+    margin-top: clamp(22px, 3.2vw, 40px);
+    max-width: 46ch;
+    font-size: clamp(1rem, 1.5vw, 1.32rem);
+    line-height: 1.55;
+    color: color-mix(in oklab, var(--bone) 82%, transparent);
+  }
+  .hero__cta {
+    margin-top: clamp(30px, 4vw, 52px);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: center;
+  }
+  .btn {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 0.95rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    padding: 15px 30px;
+    border-radius: 100px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: transform 0.35s var(--ease), background 0.35s var(--ease), color 0.35s var(--ease), border-color 0.35s var(--ease);
+  }
+  .btn--solid {
+    background: var(--brand);
+    color: var(--ground);
+  }
+  .btn--solid:hover, .btn--solid:focus-visible {
+    transform: translateY(-3px);
+    background: color-mix(in oklab, var(--brand) 84%, white);
+  }
+  .btn--ghost {
+    background: transparent;
+    color: var(--bone);
+    border-color: color-mix(in oklab, var(--bone) 28%, transparent);
+  }
+  .btn--ghost:hover, .btn--ghost:focus-visible {
+    border-color: var(--brand);
+    color: var(--brand);
+    transform: translateY(-3px);
+  }
+
+  /* ---- BOTTOM META STRIP (coordinates, capture-safe info row) ---- */
+  .hero__meta {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    z-index: 5;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 28px;
+    justify-content: space-between;
+    padding: clamp(16px, 2.4vw, 26px) clamp(22px, 6vw, 96px);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    color: var(--bone-dim);
+    border-top: 1px solid color-mix(in oklab, var(--bone) 9%, transparent);
+    background: linear-gradient(to top, color-mix(in oklab, var(--ground) 70%, transparent), transparent);
+  }
+  .hero__meta span b { color: var(--brand); font-weight: 500; }
+
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 4px;
+    border-radius: 4px;
+  }
+
+  /* ============================================================
+     CONTENT BELOW THE FOLD (lightweight, keeps page real-feeling)
+     ============================================================ */
+  .panel {
+    position: relative;
+    max-width: var(--maxw);
+    margin: 0 auto;
+    padding: clamp(72px, 12vh, 140px) clamp(22px, 6vw, 96px);
+  }
+  .panel__label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--brand);
+    margin-bottom: 24px;
+  }
+  .panel__title {
+    font-family: "Fraunces", serif;
+    font-weight: 500;
+    font-size: clamp(1.9rem, 4.6vw, 3.4rem);
+    line-height: 1.04;
+    letter-spacing: -0.015em;
+    max-width: 18ch;
+    margin-bottom: 56px;
+  }
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(16px, 2vw, 28px);
+  }
+  .card {
+    position: relative;
+    border-radius: 18px;
+    padding: 30px;
+    background: color-mix(in oklab, var(--ground) 78%, #000);
+    border: 1px solid color-mix(in oklab, var(--bone) 8%, transparent);
+    overflow: hidden;
+    min-height: 230px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.4s var(--ease), border-color 0.4s var(--ease);
+  }
+  .card:hover { transform: translateY(-5px); border-color: color-mix(in oklab, var(--brand) 40%, transparent); }
+  /* each card gets its own miniature flow-field swatch (re-uses the filter) */
+  .card__swatch {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    opacity: 0.5;
+    mix-blend-mode: screen;
+  }
+  .card__swatch--a { background: var(--brand);   filter: url(#flow-card-a); }
+  .card__swatch--b { background: var(--brand-2); filter: url(#flow-card-b); }
+  .card__swatch--c { background: var(--brand);   filter: url(#flow-card-c); }
+  .card__body { position: relative; z-index: 1; }
+  .card__idx {
+    position: relative; z-index: 1;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px; color: var(--brand);
+    letter-spacing: 0.1em;
+  }
+  .card h3 {
+    font-family: "Fraunces", serif;
+    font-weight: 500;
+    font-size: 1.5rem;
+    margin: 14px 0 10px;
+    line-height: 1.1;
+  }
+  .card p { font-size: 0.95rem; color: var(--bone-dim); line-height: 1.55; }
+
+  .foot {
+    border-top: 1px solid color-mix(in oklab, var(--bone) 9%, transparent);
+    padding: clamp(40px, 7vh, 80px) clamp(22px, 6vw, 96px);
+    max-width: var(--maxw);
+    margin: 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    color: var(--bone-dim);
+  }
+  .foot strong { color: var(--bone); font-weight: 500; }
+
+  /* ============================================================
+     MOBILE  (<= 640px) - keep the field, re-seed it narrower,
+     stack the copy, never crop. No landscape asset to crop here.
+     ============================================================ */
+  @media (max-width: 640px) {
+    .legend { display: none; }            /* free up edges on phone */
+    .topbar__nav { display: none; }
+    .hero__copy {
+      padding: 116px clamp(20px, 7vw, 30px) 120px;
+      justify-content: flex-end;
+    }
+    .hero__wordmark { font-size: clamp(2.9rem, 17vw, 4.6rem); max-width: 100%; }
+    .hero__tag { font-size: 1rem; }
+    .hero__meta { font-size: 10px; gap: 6px 16px; }
+    .cards { grid-template-columns: 1fr; }
+    /* the narrower hero box uses a re-seeded, higher baseFrequency
+       field (see #flow-body-m) so the terrain reads dense, not stretched */
+    .field--body   { filter: url(#flow-body-m); }
+    .field--contour{ filter: url(#flow-contour-m); }
+    .field--ridge  { filter: url(#flow-ridge-m); }
+  }
+
+  @media (max-width: 380px) {
+    .hero__wordmark { font-size: clamp(2.5rem, 16vw, 3.6rem); }
+  }
+
+  /* ============================================================
+     REDUCED MOTION - the field is already static (filter, no rAF),
+     but we ALSO kill the one optional parallax drift + all hover
+     transforms, and force final state.
+     ============================================================ */
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { transition: none !important; animation: none !important; }
+    .field { transform: none !important; }
+    .card:hover, .btn:hover, .btn:focus-visible { transform: none !important; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- ===========================================================
+       INLINE SVG FILTER DEFS  (the entire visual engine)
+       Each filter is a feTurbulence chain producing a contour-map.
+       feTurbulence  -> organic noise
+       feColorMatrix -> drive noise into one channel as alpha
+       feComponentTransfer (discrete) -> POSTERIZE into elevation bands
+       feDisplacementMap (ridge) -> warp a second pass for flow lines
+       =========================================================== -->
+  <svg class="filter-defs" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+
+      <!-- ===== DESKTOP FIELD ===== -->
+
+      <!-- BODY: broad terrain mass, posterized into ~6 elevation bands -->
+      <filter id="flow-body" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+        <feTurbulence type="fractalNoise" baseFrequency="0.009 0.016" numOctaves="5" seed="7" stitchTiles="stitch" result="n"/>
+        <!-- collapse RGB noise into a single luminance-ish alpha -->
+        <feColorMatrix in="n" type="matrix" result="lum"
+          values="0 0 0 0 0
+                   0 0 0 0 0
+                   0 0 0 0 0
+                   0.7 0.7 0.7 0 0"/>
+        <!-- posterize alpha into discrete elevation bands -> contour terrain.
+             lower bands kept near-transparent so the deep ground shows through
+             between elevations (rich, not a flat fill). -->
+        <feComponentTransfer in="lum" result="bands">
+          <feFuncA type="discrete" tableValues="0 0.06 0.16 0.3 0.46 0.66 0.9"/>
+        </feComponentTransfer>
+        <!-- paint the brand color (SourceGraphic) through those bands -->
+        <feComposite in="SourceGraphic" in2="bands" operator="in"/>
+      </filter>
+
+      <!-- CONTOUR: thin isolines = the edges between elevation bands -->
+      <filter id="flow-contour" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+        <feTurbulence type="fractalNoise" baseFrequency="0.009 0.016" numOctaves="5" seed="7" stitchTiles="stitch" result="n"/>
+        <feColorMatrix in="n" type="matrix" result="lum"
+          values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.7 0.7 0.7 0 0"/>
+        <!-- a tight sawtooth on alpha turns each band boundary into a thin line -->
+        <feComponentTransfer in="lum" result="lines">
+          <feFuncA type="discrete" tableValues="0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1"/>
+        </feComponentTransfer>
+        <!-- soften the lines a touch so they read as inked contours -->
+        <feGaussianBlur in="lines" stdDeviation="0.55" result="soft"/>
+        <feComposite in="SourceGraphic" in2="soft" operator="in"/>
+      </filter>
+
+      <!-- RIDGE: a second turbulence DISPLACED by a third = warm flow ribbons -->
+      <filter id="flow-ridge" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
+        <feTurbulence type="fractalNoise" baseFrequency="0.006 0.022" numOctaves="4" seed="31" result="rn"/>
+        <feTurbulence type="turbulence" baseFrequency="0.02 0.03" numOctaves="2" seed="12" result="warp"/>
+        <feDisplacementMap in="rn" in2="warp" scale="60" xChannelSelector="R" yChannelSelector="G" result="dn"/>
+        <feColorMatrix in="dn" type="matrix" result="lum"
+          values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.9 0.9 0.9 0 0"/>
+        <feComponentTransfer in="lum" result="bands">
+          <feFuncA type="discrete" tableValues="0 0 0 0.4 0 0 0 0.7 0 0 1"/>
+        </feComponentTransfer>
+        <feComposite in="SourceGraphic" in2="bands" operator="in"/>
+      </filter>
+
+      <!-- GRAIN: fine high-frequency monochrome noise, keeps it from banding flat -->
+      <filter id="flow-grain" x="0%" y="0%" width="100%" height="100%" color-interpolation-filters="linearRGB">
+        <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" stitchTiles="stitch" result="g"/>
+        <feColorMatrix in="g" type="matrix"
+          values="0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0.5 0"/>
+      </filter>
+
+      <!-- ===== MOBILE RE-SEED (different baseFrequency for the narrow box) ===== -->
+      <filter id="flow-body-m" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+        <feTurbulence type="fractalNoise" baseFrequency="0.018 0.03" numOctaves="5" seed="19" stitchTiles="stitch" result="n"/>
+        <feColorMatrix in="n" type="matrix" result="lum"
+          values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.7 0.7 0.7 0 0"/>
+        <feComponentTransfer in="lum" result="bands">
+          <feFuncA type="discrete" tableValues="0 0.18 0.34 0.5 0.66 0.82 1"/>
+        </feComponentTransfer>
+        <feComposite in="SourceGraphic" in2="bands" operator="in"/>
+      </filter>
+      <filter id="flow-contour-m" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+        <feTurbulence type="fractalNoise" baseFrequency="0.018 0.03" numOctaves="5" seed="19" stitchTiles="stitch" result="n"/>
+        <feColorMatrix in="n" type="matrix" result="lum"
+          values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.7 0.7 0.7 0 0"/>
+        <feComponentTransfer in="lum" result="lines">
+          <feFuncA type="discrete" tableValues="0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1"/>
+        </feComponentTransfer>
+        <feGaussianBlur in="lines" stdDeviation="0.5" result="soft"/>
+        <feComposite in="SourceGraphic" in2="soft" operator="in"/>
+      </filter>
+      <filter id="flow-ridge-m" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
+        <feTurbulence type="fractalNoise" baseFrequency="0.014 0.04" numOctaves="4" seed="44" result="rn"/>
+        <feTurbulence type="turbulence" baseFrequency="0.04 0.05" numOctaves="2" seed="9" result="warp"/>
+        <feDisplacementMap in="rn" in2="warp" scale="42" xChannelSelector="R" yChannelSelector="G" result="dn"/>
+        <feColorMatrix in="dn" type="matrix" result="lum"
+          values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.9 0.9 0.9 0 0"/>
+        <feComponentTransfer in="lum" result="bands">
+          <feFuncA type="discrete" tableValues="0 0 0 0.4 0 0 0 0.7 0 0 1"/>
+        </feComponentTransfer>
+        <feComposite in="SourceGraphic" in2="bands" operator="in"/>
+      </filter>
+
+      <!-- ===== CARD MINI-SWATCHES (cheap, reuse the same recipe, new seeds) ===== -->
+      <filter id="flow-card-a" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+        <feTurbulence type="fractalNoise" baseFrequency="0.02 0.035" numOctaves="4" seed="5" stitchTiles="stitch" result="n"/>
+        <feColorMatrix in="n" type="matrix" result="l" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.7 0.7 0.7 0 0"/>
+        <feComponentTransfer in="l" result="b"><feFuncA type="discrete" tableValues="0 0.25 0.5 0.75 1"/></feComponentTransfer>
+        <feComposite in="SourceGraphic" in2="b" operator="in"/>
+      </filter>
+      <filter id="flow-card-b" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+        <feTurbulence type="fractalNoise" baseFrequency="0.024 0.03" numOctaves="4" seed="22" stitchTiles="stitch" result="n"/>
+        <feColorMatrix in="n" type="matrix" result="l" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.7 0.7 0.7 0 0"/>
+        <feComponentTransfer in="l" result="b"><feFuncA type="discrete" tableValues="0 0.25 0.5 0.75 1"/></feComponentTransfer>
+        <feComposite in="SourceGraphic" in2="b" operator="in"/>
+      </filter>
+      <filter id="flow-card-c" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+        <feTurbulence type="fractalNoise" baseFrequency="0.018 0.04" numOctaves="4" seed="48" stitchTiles="stitch" result="n"/>
+        <feColorMatrix in="n" type="matrix" result="l" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.7 0.7 0.7 0 0"/>
+        <feComponentTransfer in="l" result="b"><feFuncA type="discrete" tableValues="0 0.25 0.5 0.75 1"/></feComponentTransfer>
+        <feComposite in="SourceGraphic" in2="b" operator="in"/>
+      </filter>
+
+    </defs>
+  </svg>
+
+  <!-- =================== HERO =================== -->
+  <header class="hero" id="top">
+    <div class="hero__ground"></div>
+
+    <!-- the generative flow-field: 4 stacked filtered layers -->
+    <div class="field field--body"    data-drift="0.6"  aria-hidden="true"></div>
+    <div class="field field--contour" data-drift="1.0"  aria-hidden="true"></div>
+    <div class="field field--ridge"   data-drift="1.5"  aria-hidden="true"></div>
+    <div class="field field--grain"   aria-hidden="true"></div>
+
+    <div class="hero__scrim" aria-hidden="true"></div>
+
+    <!-- elevation legend (contour-map signature, capture-safe) -->
+    <aside class="legend" aria-hidden="true">
+      <div class="legend__row"><span class="legend__swatch"></span><span data-bind="legend.0">+340</span></div>
+      <div class="legend__row"><span class="legend__swatch"></span><span data-bind="legend.1">+220</span></div>
+      <div class="legend__row"><span class="legend__swatch"></span><span data-bind="legend.2">+110</span></div>
+      <div class="legend__row"><span class="legend__swatch"></span><span data-bind="legend.3">+000</span></div>
+    </aside>
+
+    <nav class="topbar">
+      <a class="topbar__mark" href="#top">
+        <span class="topbar__dot"></span>
+        <span data-bind="brand.mark">FLOWFIELD</span>
+      </a>
+      <div class="topbar__nav">
+        <a href="#work" data-bind="nav.0">Field</a>
+        <a href="#work" data-bind="nav.1">Studio</a>
+        <a href="#work" data-bind="nav.2">Contact</a>
+      </div>
+    </nav>
+
+    <div class="hero__copy">
+      <p class="hero__eyebrow" data-bind="hero.eyebrow">Generative design studio</p>
+      <h1 class="hero__wordmark" data-bind-html="hero.wordmark">Terrain rendered from <em>pure noise</em></h1>
+      <p class="hero__tag" data-bind="hero.tagline">A contour field grown entirely from SVG filter primitives. No canvas, no GPU, no script for the surface. It draws itself the moment the page loads, and it captures clean every time.</p>
+      <div class="hero__cta">
+        <a class="btn btn--solid" href="#work" data-bind="hero.ctaPrimary">See the field</a>
+        <a class="btn btn--ghost" href="#work" data-bind="hero.ctaSecondary">How it is built</a>
+      </div>
+    </div>
+
+    <div class="hero__meta">
+      <span data-bind="meta.0">SVG / feTurbulence / fractalNoise</span>
+      <span data-bind-html="meta.1">seed <b>07</b> &middot; octaves <b>5</b> &middot; bands <b>7</b></span>
+      <span data-bind="meta.2">render: static / headless-safe</span>
+    </div>
+  </header>
+
+  <!-- =================== BELOW FOLD =================== -->
+  <main>
+    <section class="panel" id="work">
+      <p class="panel__label" data-bind="panel.label">The recipe</p>
+      <h2 class="panel__title" data-bind="panel.title">Three filter passes, one flat brand color, infinite seeds.</h2>
+      <div class="cards" id="cards"><!-- injected from DATA.cards --></div>
+    </section>
+
+    <footer class="foot">
+      <span data-bind-html="foot.left">Built with <strong>SVG filter primitives only</strong></span>
+      <span data-bind="foot.right">Flowfield Terrain template / 2026</span>
+    </footer>
+  </main>
+
+<script>
+  /* ============================================================
+     DATA  -  edit everything here to re-skin the template.
+     Swap copy, palette, seeds; the engine reads from this object.
+     ============================================================ */
+  const DATA = {
+    palette: {
+      ground: "#0d1a17",   // deep terrain ground
+      brand:  "#2fae8f",   // one flat brand color (try "#c75b39" for the warm cut)
+      brand2: "#c75b39",   // ridge accent
+      bone:   "#ece5d6",
+      boneDim:"#9aa39a"
+    },
+    brand: { mark: "FLOWFIELD" },
+    nav: ["Field", "Studio", "Contact"],
+    legend: ["+340", "+220", "+110", "+000"],
+    hero: {
+      eyebrow: "Generative design studio",
+      // <em>...</em> renders as the brand-tinted italic
+      wordmark: "Terrain grown from <em>pure noise</em>",
+      tagline: "A contour field grown entirely from SVG filter primitives. No canvas, no GPU, no script driving the surface. It draws itself the moment the page loads, and it captures clean every single time.",
+      ctaPrimary: "See the field",
+      ctaSecondary: "How it is built"
+    },
+    meta: [
+      "SVG / feTurbulence / fractalNoise",
+      "seed <b>07</b> &middot; octaves <b>5</b> &middot; bands <b>7</b>",
+      "render: static / headless-safe"
+    ],
+    panel: {
+      label: "The recipe",
+      title: "Three filter passes, one flat brand color, infinite seeds."
+    },
+    cards: [
+      {
+        idx: "01 / BODY",
+        title: "Posterized terrain",
+        body: "feTurbulence fractalNoise drives one alpha channel, then feComponentTransfer snaps it into seven discrete elevation bands. That is the terrain mass.",
+        swatch: "a"
+      },
+      {
+        idx: "02 / CONTOUR",
+        title: "Inked isolines",
+        body: "A sawtooth table on the same noise alternates the bands on and off, leaving only the thin boundaries: the contour lines of a topographic map.",
+        swatch: "b"
+      },
+      {
+        idx: "03 / RIDGE",
+        title: "Displaced flow",
+        body: "A second turbulence is warped through feDisplacementMap by a third, then tinted with the warm accent for ribbons of flow over the cool body.",
+        swatch: "c"
+      }
+    ],
+    foot: {
+      left: "Built with <strong>SVG filter primitives only</strong>",
+      right: "Flowfield Terrain template / 2026"
+    }
+  };
+
+  /* ---------------- bind DATA into the DOM ---------------- */
+  (function applyData() {
+    // palette -> CSS vars
+    const r = document.documentElement.style;
+    r.setProperty("--ground",   DATA.palette.ground);
+    r.setProperty("--brand",    DATA.palette.brand);
+    r.setProperty("--brand-2",  DATA.palette.brand2);
+    r.setProperty("--bone",     DATA.palette.bone);
+    r.setProperty("--bone-dim", DATA.palette.boneDim);
+
+    // resolve a dotted path like "hero.wordmark" or "nav.1"
+    const get = (path) => path.split(".").reduce((o, k) => (o == null ? o : o[k]), DATA);
+
+    document.querySelectorAll("[data-bind]").forEach((el) => {
+      const v = get(el.getAttribute("data-bind"));
+      if (v != null) el.textContent = v;
+    });
+    document.querySelectorAll("[data-bind-html]").forEach((el) => {
+      const v = get(el.getAttribute("data-bind-html"));
+      if (v != null) el.innerHTML = v;
+    });
+
+    // cards
+    const wrap = document.getElementById("cards");
+    if (wrap) {
+      wrap.innerHTML = DATA.cards.map((c) => `
+        <article class="card">
+          <div class="card__swatch card__swatch--${c.swatch}" aria-hidden="true"></div>
+          <span class="card__idx">${c.idx}</span>
+          <div class="card__body">
+            <h3>${c.title}</h3>
+            <p>${c.body}</p>
+          </div>
+        </article>`).join("");
+    }
+  })();
+
+  /* ---------------- OPTIONAL: featherweight parallax drift ----------------
+     The FIELD itself is fully static (pure SVG filter, renders at scroll=0,
+     captures headless). This only nudges the already-rendered layers a few
+     px on scroll for depth. It is gated behind prefers-reduced-motion and
+     uses transform only (no filter recompute => cheap, no jank).
+  ------------------------------------------------------------------------ */
+  (function parallax() {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (reduce.matches) return;
+
+    const layers = [...document.querySelectorAll(".field[data-drift]")];
+    if (!layers.length) return;
+
+    let ticking = false;
+    const hero = document.getElementById("top");
+
+    function update() {
+      ticking = false;
+      const y = window.scrollY;
+      // only drift while the hero is on screen
+      if (y > hero.offsetHeight) return;
+      for (const el of layers) {
+        const d = parseFloat(el.getAttribute("data-drift")) || 0;
+        el.style.transform = `translate3d(0, ${(y * d * 0.06).toFixed(2)}px, 0)`;
+      }
+    }
+    function onScroll() {
+      if (!ticking) { ticking = true; requestAnimationFrame(update); }
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    // if the user flips reduced-motion on at runtime, freeze final state
+    reduce.addEventListener("change", (e) => {
+      if (e.matches) {
+        window.removeEventListener("scroll", onScroll);
+        layers.forEach((el) => (el.style.transform = "none"));
+      }
+    });
+  })();
+</script>
+</body>
+</html>

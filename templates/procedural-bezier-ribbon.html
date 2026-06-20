@@ -533,7 +533,7 @@
        (s - offset) so the whole chain scrolls as offset changes.
        GUARDRAIL: chain length capped at MAX_POINTS (~200). */
     const MAX_POINTS = 200;
-    const SEG = 120;             // vertical spacing (px) between control points in river space
+    const SEG = 104;             // vertical spacing (px) between control points in river space
     let nextS = 0;              // next arc index to spawn
     let points = [];           // { s, phase, amp }
     let seedRand = 8123;
@@ -545,11 +545,13 @@
     }
 
     function makePoint(s) {
-      // alternating-ish meander with jittered amplitude + phase.
-      // phase steps ~0.62 rad per point so the river makes a full S-bend
-      // every ~5 control points - winds up the page, not flat across it.
-      const amp = 0.20 + rnd() * 0.14;           // fraction of width
-      const phase = s * 0.62 + (rnd() - 0.5) * 0.9;
+      // alternating meander with jittered amplitude + phase.
+      // phase steps ~1.15 rad per point so the river completes a full S-bend
+      // every ~3 control points - within the first viewport (~7 points tall)
+      // that is two-plus full weaves left->right, a clear winding river rather
+      // than a single slow diagonal. amp is the swing as a fraction of width.
+      const amp = 0.30 + rnd() * 0.10;           // fraction of width (swing)
+      const phase = s * 1.7 + (rnd() - 0.5) * 0.6;
       return { s, phase, amp };
     }
 
@@ -572,10 +574,15 @@
       const worldY = H - (p.s - offset) * SEG + flowY;
       // breathing: horizontal position oscillates slowly over time + per-point phase
       const centerX = W * 0.5;
-      const ampPx = (mobile ? W * 0.14 : W * (0.5 - (p.amp))) ; // narrower river on mobile
-      const breathe = reduceMotion ? 0 : Math.sin(t * 0.00035 + p.phase * 0.6) * 0.18;
+      // amp now drives the swing DIRECTLY (bigger amp = wider weave). On desktop
+      // the river is biased left of center so its right-swinging pins leave room
+      // for the 360px card body; the swing is capped so the river meanders hard
+      // but pinned cards never run off a 1440px viewport.
+      const ampPx = mobile ? W * 0.16 : W * p.amp;
+      const breathe = reduceMotion ? 0 : Math.sin(t * 0.00035 + p.phase * 0.6) * 0.16;
       const meander = Math.sin(p.phase) * (mobile ? 0.5 : 1.0);
-      const x = centerX + (meander + breathe) * ampPx * (mobile ? 1 : 1);
+      const bias = mobile ? 0 : -W * 0.10;       // shift river left so right pins keep card-room
+      const x = centerX + bias + (meander + breathe) * ampPx;
       return { x, y: worldY };
     }
 
@@ -701,6 +708,23 @@
     const cards = [];
     const CARD_SPACING = 3.4;     // river-space units between cards
     const CARD_START = 2.2;       // first card a bit up the river
+    const CARD_PX = 360;          // --card-w on desktop (keep in sync with CSS)
+    const CARD_GAP = 26;          // gap from pin to card body (CSS margin)
+
+    /* the river is free to swing to the viewport edges, but a pinned card body
+       must never be clipped. clamp the x we ANCHOR a card at (not the drawn
+       river) so a right-side body fits to the right and a left-side body to the
+       left of a 1440px-class viewport. */
+    function clampPinX(x, side) {
+      const margin = 12;
+      if (mobile) return x;
+      if (side === "left") {
+        const minX = CARD_GAP + CARD_PX + margin;        // body extends left of pin
+        return Math.max(minX, x);
+      }
+      const maxX = W - (CARD_GAP + CARD_PX + margin);     // body extends right of pin
+      return Math.min(maxX, x);
+    }
 
     function pinSvg() {
       // vermilion pin marker. Hex literals only (never CSS var()) in
@@ -753,6 +777,7 @@
         el, media, video,
         loaded: false, playing: false,
         s: CARD_START + i * CARD_SPACING,
+        side: i % 2 === 0 ? "right" : "left",
         type: wk.type
       });
     });
@@ -819,8 +844,9 @@
 
         card.el.style.opacity = op.toFixed(3);
         card.el.style.pointerEvents = op > 0.4 ? "auto" : "none";
+        const pinX = clampPinX(sample.x, card.side);
         card.el.style.transform =
-          "translate(" + sample.x.toFixed(1) + "px," + sample.y.toFixed(1) + "px) rotate(" + deg.toFixed(2) + "deg)";
+          "translate(" + pinX.toFixed(1) + "px," + sample.y.toFixed(1) + "px) rotate(" + deg.toFixed(2) + "deg)";
 
         // pick the most central video to be the one playing
         if (card.type === "video" && op > 0.5) {

@@ -1,0 +1,599 @@
+<!-- TEMPLATE: Scope Cascade Gallery | ARCHETYPE: scope-chain (CSS @scope proximity cascade) | REF: MDN @scope, Smashing Feb 2026, CSS-Tricks 2026 proximity portfolio | WHEN TO USE: portfolio/work gallery where nested category+card states should ripple with zero JS visual logic | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Scope Cascade Gallery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<script>
+/* ============================================================================
+   DATA - swap these to retheme. Each category becomes an outer @scope (.cat);
+   each work becomes an inner @scope (.card). The scope-proximity cascade does
+   ALL the colour/dim logic with zero JS. media: {type:'image'|'video', src,
+   poster?}. Landscape assets letterbox on phones (focus replaces hover there).
+   ========================================================================== */
+const DATA = {
+  brand:    "SCOPE",
+  kicker:   "CSS @scope proximity cascade // zero-JS state ripple",
+  title:    "A gallery where the cascade does the hovering",
+  blurb:    "Each card lives in a nested @scope. Hover one and its inner scope wins by proximity - amber on the card, blue ring on its category, siblings dim. No JavaScript touches a single colour.",
+  categories: [
+    {
+      id: "motion",
+      label: "Motion",
+      note:  "generated video loops",
+      cards: [
+        { title: "Neon Drift",     meta: "i2v // 1080p",  media: { type: "video", src: "../assets/flux-car-i2v.mp4", poster: "../assets/gen/poster-flux-car-i2v.png" } },
+        { title: "Kling Study",    meta: "t2v // loop",   media: { type: "video", src: "../assets/kling-video.mp4",  poster: "../assets/gen/poster-kling-video.png" } },
+        { title: "Veo Plate",      meta: "veo // 720p",   media: { type: "video", src: "../assets/veo-video.mp4",    poster: "../assets/gen/poster-veo-video.png" } },
+        { title: "Fal Sequence",   meta: "fal // loop",   media: { type: "video", src: "../assets/fal-video.mp4",    poster: "../assets/gen/poster-fal-video.png" } }
+      ]
+    },
+    {
+      id: "stills",
+      label: "Stills",
+      note:  "diffusion frames",
+      cards: [
+        { title: "Wet Street",     meta: "flux // 4k",    media: { type: "image", src: "../assets/flux-car-4k.png" } },
+        { title: "Mint Clinic",    meta: "flux // 4k",    media: { type: "image", src: "../assets/flux-clinic-4k.png" } },
+        { title: "Autumn Fox",     meta: "sdxl // sq",    media: { type: "image", src: "../assets/sdxl.png" } },
+        { title: "Low-Fi Apple",   meta: "tinysd // sq",  media: { type: "image", src: "../assets/hf-tinysd.png" } }
+      ]
+    },
+    {
+      id: "faces",
+      label: "Faces",
+      note:  "talking avatars",
+      cards: [
+        { title: "Avatar Take",    meta: "heygen // hd",  media: { type: "video", src: "../assets/heygen-avatar.mp4",     poster: "../assets/gen/poster-heygen.png" } },
+        { title: "Talking Photo",  meta: "d-id // sq",    media: { type: "video", src: "../assets/did-talking-photo.mp4", poster: "../assets/gen/poster-did.png" } },
+        { title: "Hyperframes",    meta: "frame // loop", media: { type: "video", src: "../assets/hyperframes.mp4",       poster: "../assets/gen/poster-hyperframes.png" } }
+      ]
+    }
+  ]
+};
+/* Which card is pre-locked at scroll=0 so the static thumbnail shows the
+   cascade. Format "catId:cardIndex". */
+const LOCKED = "stills:0";
+</script>
+<style>
+  :root{
+    --graphite:#1c1c1e;
+    --graphite-2:#232326;
+    --bone:#f0ede8;
+    --bone-dim:#c9c4ba;
+    --amber:#d4a84b;
+    --blue:#3a7bd5;
+    --ink:#0e0e10;
+    --line:rgba(240,237,232,.10);
+    --r:18px;
+    --ease:cubic-bezier(.22,.61,.36,1);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(120% 80% at 12% -8%, #26262b 0%, transparent 55%),
+      radial-gradient(120% 90% at 100% 0%, #1f1f24 0%, transparent 50%),
+      var(--graphite);
+    color:var(--bone);
+    font-family:"Space Grotesk",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.5;
+    overflow-x:hidden;
+  }
+  ::selection{background:var(--amber);color:var(--ink);}
+  a{color:inherit;}
+
+  .shell{max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,40px);}
+
+  /* ---- TOP BAND: compact, lets the grid into first viewport --------------- */
+  header.top{
+    padding:clamp(20px,4vw,38px) 0 clamp(14px,2.4vw,22px);
+  }
+  .brandrow{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:16px;flex-wrap:wrap;
+  }
+  .brandrow .mark{
+    display:flex;align-items:center;gap:12px;font-family:"JetBrains Mono",monospace;
+    font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--bone-dim);
+  }
+  .brandrow .mark b{
+    color:var(--bone);font-weight:600;letter-spacing:.28em;
+  }
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--amber);
+    box-shadow:0 0 0 4px rgba(212,168,75,.18);}
+  .legend{
+    display:flex;gap:14px;flex-wrap:wrap;font-family:"JetBrains Mono",monospace;
+    font-size:11px;letter-spacing:.04em;color:var(--bone-dim);
+  }
+  .legend span{display:inline-flex;align-items:center;gap:7px;}
+  .swatch{width:11px;height:11px;border-radius:3px;display:inline-block;}
+  .sw-amber{background:var(--amber);}
+  .sw-blue{background:var(--blue);}
+  .sw-dim{background:var(--bone-dim);opacity:.4;}
+
+  .headline{
+    margin:clamp(14px,2.6vw,24px) 0 0;
+    display:grid;grid-template-columns:1.5fr 1fr;gap:clamp(16px,4vw,48px);
+    align-items:end;
+  }
+  .kicker{
+    font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.06em;
+    color:var(--amber);text-transform:uppercase;margin:0 0 10px;
+  }
+  h1{
+    font-family:"Fraunces",serif;font-weight:900;
+    font-size:clamp(30px,5.4vw,62px);line-height:1.02;letter-spacing:-.015em;
+    margin:0;color:var(--bone);
+  }
+  h1 .it{font-style:italic;font-weight:400;color:var(--amber);}
+  .blurb{
+    font-size:clamp(14px,1.5vw,16px);color:var(--bone-dim);max-width:42ch;margin:0;
+    align-self:end;
+  }
+
+  /* ---- GALLERY ----------------------------------------------------------- */
+  main{padding:clamp(10px,2vw,18px) 0 clamp(60px,9vw,120px);}
+
+  /* CATEGORY: the OUTER scope root. Carries its base colour + the blue
+     proximity ring + dims when a SIBLING category is being browsed. */
+  .cat{
+    --cat-color:var(--blue);
+    position:relative;
+    margin-top:clamp(26px,4vw,46px);
+    padding:clamp(16px,2.4vw,26px);
+    border-radius:calc(var(--r) + 6px);
+    border:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(255,255,255,.018), rgba(0,0,0,.10));
+    transition:box-shadow .5s var(--ease), border-color .5s var(--ease),
+               transform .5s var(--ease), opacity .45s var(--ease);
+  }
+  .cat-head{
+    display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+    margin:0 2px clamp(14px,1.8vw,18px);cursor:default;
+  }
+  .cat-head .num{
+    font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--bone-dim);
+    letter-spacing:.1em;
+  }
+  .cat-head h2{
+    font-family:"Fraunces",serif;font-weight:600;font-size:clamp(22px,3vw,34px);
+    margin:0;letter-spacing:-.01em;
+    transition:color .45s var(--ease);
+  }
+  .cat-head .note{
+    font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--bone-dim);
+    letter-spacing:.05em;margin-left:auto;
+  }
+  .scope-tag{
+    font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.08em;
+    color:var(--bone-dim);opacity:.55;border:1px solid var(--line);
+    padding:2px 8px;border-radius:99px;white-space:nowrap;
+    transition:color .4s var(--ease),border-color .4s var(--ease),opacity .4s var(--ease);
+  }
+
+  .grid{
+    display:grid;gap:clamp(12px,1.5vw,18px);
+    grid-template-columns:repeat(4,1fr);
+  }
+
+  /* CARD: the INNER scope root. */
+  .card{
+    --card-accent:var(--cat-color);
+    position:relative;display:block;width:100%;text-align:left;
+    border:0;padding:0;margin:0;background:transparent;color:inherit;
+    border-radius:var(--r);cursor:pointer;font:inherit;
+    outline:none;
+  }
+  .card .frame{
+    position:relative;border-radius:var(--r);overflow:hidden;
+    aspect-ratio:4/5;
+    background:var(--graphite-2);
+    border:1px solid var(--line);
+    box-shadow:0 1px 0 rgba(255,255,255,.04) inset, 0 18px 40px -28px #000;
+    transition:transform .5s var(--ease), box-shadow .5s var(--ease),
+               border-color .5s var(--ease), opacity .45s var(--ease),
+               filter .45s var(--ease);
+  }
+  .card .media{
+    position:absolute;inset:0;width:100%;height:100%;
+    object-fit:cover;display:block;
+    transition:transform .9s var(--ease), filter .5s var(--ease);
+    will-change:transform;
+  }
+  .card video.media{background:var(--graphite-2);}
+  /* tint wash, recoloured by scope cascade */
+  .card .frame::after{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(180deg, transparent 38%, rgba(28,28,30,.78) 100%);
+    mix-blend-mode:normal;
+    transition:opacity .5s var(--ease);
+  }
+  .card .frame::before{
+    content:"";position:absolute;inset:0;pointer-events:none;z-index:2;
+    border-radius:var(--r);
+    box-shadow:inset 0 0 0 0 transparent;
+    transition:box-shadow .5s var(--ease), background .5s var(--ease);
+  }
+  .card .cap{
+    position:absolute;left:0;right:0;bottom:0;z-index:3;
+    padding:14px 14px 13px;display:flex;align-items:flex-end;
+    justify-content:space-between;gap:10px;
+  }
+  .card .cap .t{
+    font-family:"Fraunces",serif;font-weight:600;font-size:clamp(14px,1.5vw,18px);
+    letter-spacing:-.01em;line-height:1.1;
+  }
+  .card .cap .m{
+    font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.04em;
+    color:var(--bone-dim);white-space:nowrap;
+  }
+  .card .pill{
+    position:absolute;top:11px;left:11px;z-index:3;
+    font-family:"JetBrains Mono",monospace;font-size:9.5px;letter-spacing:.08em;
+    text-transform:uppercase;
+    padding:3px 8px;border-radius:99px;
+    color:var(--bone);background:rgba(14,14,16,.55);
+    border:1px solid var(--line);backdrop-filter:blur(6px);
+    transition:color .4s var(--ease),background .4s var(--ease),border-color .4s var(--ease);
+  }
+  .card .accent-bar{
+    position:absolute;top:11px;right:11px;z-index:3;
+    width:30px;height:5px;border-radius:99px;
+    background:var(--card-accent);opacity:.5;
+    transition:opacity .4s var(--ease), width .4s var(--ease), background .4s var(--ease);
+  }
+  /* play glyph for videos */
+  .card .play{
+    position:absolute;z-index:3;inset:0;margin:auto;width:54px;height:54px;
+    display:grid;place-items:center;border-radius:50%;
+    background:rgba(14,14,16,.42);border:1px solid rgba(240,237,232,.22);
+    backdrop-filter:blur(4px);opacity:0;transform:scale(.8);
+    transition:opacity .4s var(--ease),transform .4s var(--ease),background .4s var(--ease);
+  }
+  .card .play svg{width:18px;height:18px;fill:var(--bone);margin-left:2px;}
+  .card[data-type="video"] .frame:hover .play,
+  .card[data-type="video"].is-locked .play{opacity:1;transform:scale(1);}
+
+  /* =========================================================================
+     THE CASCADE PRIMITIVE
+     Base layer: OUTER @scope per category paints the card accent with the
+     category colour. INNER @scope per card overrides it with amber and wins
+     by SCOPE PROXIMITY (1 hop to .card beats N hops to .cat) - no specificity
+     bump, no JS. @supports gates the whole thing; fallback below is plain
+     hover-opacity.
+     ====================================================================== */
+  @supports selector(:scope) {
+
+    /* per-category base colour, set on the outer scope root */
+    .cat--motion{--cat-color:#3a7bd5;}
+    .cat--stills{--cat-color:#3a7bd5;}
+    .cat--faces {--cat-color:#3a7bd5;}
+
+    /* ---- OUTER SCOPE: category -> card --------------------------------- */
+    @scope (.cat) to (.card) {
+      /* category paints its cards. This selector is FAR from .card (it lives
+         on the category scope) so the inner scope will out-proximity it. */
+      :scope .card .accent-bar { background: var(--cat-color); }
+      :scope .card .pill       { /* neutral by default */ }
+    }
+
+    /* ---- INNER SCOPE: the card itself ---------------------------------- */
+    /* Same low specificity as the outer rules, but ONE hop from .card, so on
+       hover/focus/lock it WINS by proximity and turns the card amber. */
+    @scope (.card) {
+      :scope:hover           .accent-bar,
+      :scope:focus-visible   .accent-bar,
+      :scope.is-locked       .accent-bar{
+        background:var(--amber);opacity:1;width:46px;
+      }
+      :scope:hover           .frame,
+      :scope:focus-visible   .frame,
+      :scope.is-locked       .frame{
+        transform:translateY(-6px);
+        border-color:rgba(212,168,75,.55);
+        box-shadow:0 1px 0 rgba(255,255,255,.06) inset,
+                   0 34px 60px -30px #000,
+                   0 0 0 1px rgba(212,168,75,.25);
+      }
+      :scope:hover         .frame::before,
+      :scope:focus-visible .frame::before,
+      :scope.is-locked     .frame::before{
+        box-shadow:inset 0 0 0 2px rgba(212,168,75,.8),
+                   inset 0 0 44px rgba(212,168,75,.22);
+        background:radial-gradient(120% 80% at 50% 120%, rgba(212,168,75,.16), transparent 60%);
+      }
+      :scope:hover         .frame::after,
+      :scope:focus-visible .frame::after,
+      :scope.is-locked     .frame::after{opacity:.55;}
+      :scope:hover         .media,
+      :scope:focus-visible .media,
+      :scope.is-locked     .media{transform:scale(1.06);}
+      :scope:hover         .pill,
+      :scope:focus-visible .pill,
+      :scope.is-locked     .pill{
+        color:var(--ink);background:var(--amber);border-color:var(--amber);
+      }
+      :scope:hover         .cap .t,
+      :scope:focus-visible .cap .t,
+      :scope.is-locked     .cap .t{color:var(--bone);}
+    }
+
+    /* ---- CATEGORY RESPONSE ---------------------------------------------
+       When a card inside this category is hovered/locked, the category
+       container itself shifts to the BLUE proximity ring and its siblings
+       dim. :has() reads the inner state up to the category scope root. */
+    .cat:has(.card:hover) ,
+    .cat:has(.card:focus-visible),
+    .cat:has(.card.is-locked){
+      border-color:rgba(58,123,213,.50);
+      box-shadow:0 0 0 1px rgba(58,123,213,.30),
+                 0 40px 90px -50px rgba(58,123,213,.55);
+    }
+    .cat:has(.card:hover) .cat-head h2,
+    .cat:has(.card:focus-visible) .cat-head h2,
+    .cat:has(.card.is-locked) .cat-head h2{ color:var(--blue); }
+    .cat:has(.card:hover) .scope-tag,
+    .cat:has(.card:focus-visible) .scope-tag,
+    .cat:has(.card.is-locked) .scope-tag{
+      color:var(--blue);border-color:rgba(58,123,213,.5);opacity:1;
+    }
+
+    /* sibling cards in the SAME category dim (the hovered/locked one stays lit) */
+    .cat:has(.card:hover) .card:not(:hover):not(.is-locked) .frame,
+    .cat:has(.card:focus-visible) .card:not(:focus-visible):not(.is-locked) .frame,
+    .cat:has(.card.is-locked) .card:not(.is-locked):not(:hover):not(:focus-visible) .frame{
+      opacity:.42;filter:saturate(.55) brightness(.82);transform:none;
+    }
+
+    /* ---- SECOND LEVEL: header-scope cross-category dim ------------------
+       Hovering a category HEADER (or browsing a category) dims cards in
+       OTHER categories - the scope-proximity "gap" rule across siblings. */
+    main:has(.cat-head:hover) .cat:not(:hover) .frame,
+    main:has(.cat:hover) .cat:not(:hover) .frame{
+      opacity:.5;
+    }
+    main:has(.cat-head:hover) .cat:not(:hover),
+    main:has(.cat:hover) .cat:not(:hover){
+      opacity:.7;transform:scale(.992);
+    }
+    /* the category whose header is hovered gets the blue tag treatment too */
+    .cat:has(.cat-head:hover) .scope-tag{
+      color:var(--blue);border-color:rgba(58,123,213,.5);opacity:1;
+    }
+    .cat:has(.cat-head:hover) .cat-head h2{ color:var(--blue); }
+  }
+
+  /* ---- FALLBACK (no :scope support): plain hover-only opacity ----------- */
+  @supports not selector(:scope) {
+    .card:hover .frame{transform:translateY(-6px);opacity:1;}
+    .grid:hover .card:not(:hover) .frame{opacity:.5;}
+    .card:hover .accent-bar{background:var(--amber);}
+    .scope-tag{display:none;}
+  }
+
+  /* ---- RESPONSIVE -------------------------------------------------------- */
+  @media (max-width:1024px){
+    .grid{grid-template-columns:repeat(3,1fr);}
+    .headline{grid-template-columns:1fr;gap:14px;}
+    .blurb{max-width:60ch;}
+  }
+  @media (max-width:680px){
+    .grid{grid-template-columns:repeat(2,1fr);}
+    .cat-head .note{margin-left:0;width:100%;}
+  }
+  /* PHONE: never cover-crop landscape assets. Letterbox + stack single col.
+     On touch there is no hover, so the LOCKED card carries the demo and any
+     tap (focus) drives the cascade. */
+  @media (max-width:640px){
+    .grid{grid-template-columns:1fr;gap:14px;}
+    .card .frame{aspect-ratio:16/10;}
+    .card .media{
+      object-fit:contain;            /* letterbox, no crop */
+      background:#141416;
+    }
+    .legend{display:none;}
+    .headline h1{font-size:clamp(26px,8vw,40px);}
+    .card .accent-bar{width:40px;}
+  }
+  @media (max-width:380px){
+    .card .frame{aspect-ratio:4/3;}
+  }
+
+  /* ---- REDUCED MOTION: kill transitions, keep final static cascade ------- */
+  @media (prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto;}
+    *{transition:none !important;animation:none !important;}
+    .card .media{transform:none !important;}
+  }
+
+  /* visible keyboard focus ring (blue, matches the proximity colour) */
+  .card:focus-visible{
+    outline:none;
+  }
+  .card:focus-visible .frame{
+    box-shadow:0 0 0 3px rgba(58,123,213,.9),
+               0 1px 0 rgba(255,255,255,.06) inset,
+               0 34px 60px -30px #000 !important;
+  }
+
+  footer{
+    border-top:1px solid var(--line);
+    padding:26px 0 60px;color:var(--bone-dim);
+    font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.04em;
+    display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  }
+  footer b{color:var(--bone);font-weight:600;}
+</style>
+</head>
+<body>
+  <div class="shell">
+    <!-- TOP BAND (compact) -->
+    <header class="top">
+      <div class="brandrow">
+        <div class="mark"><span class="dot"></span><b id="brand">SCOPE</b><span>cascade gallery</span></div>
+        <div class="legend">
+          <span><i class="swatch sw-amber"></i> inner scope wins</span>
+          <span><i class="swatch sw-blue"></i> category proximity</span>
+          <span><i class="swatch sw-dim"></i> siblings dim</span>
+        </div>
+      </div>
+      <div class="headline">
+        <div>
+          <p class="kicker" id="kicker"></p>
+          <h1 id="title"></h1>
+        </div>
+        <p class="blurb" id="blurb"></p>
+      </div>
+    </header>
+
+    <!-- GALLERY (rendered from DATA) -->
+    <main id="gallery"></main>
+
+    <footer>
+      <span>CSS <b>@scope</b> proximity cascade // zero-JS visual logic</span>
+      <span>hover a card // hover a category header // <b>tab</b> to drive by keyboard</span>
+    </footer>
+  </div>
+
+<script>
+/* =============================================================================
+   RENDER + light JS. The JS does NOT compute any colours or dim states - that
+   is 100% CSS @scope. JS only: builds markup from DATA, sets the locked card,
+   lazy-plays the ONE focused/hovered/locked video (no simultaneous decode),
+   and wires keyboard focus so tab drives the same cascade as hover.
+   ========================================================================== */
+(function () {
+  const $ = (s, r=document) => r.querySelector(s);
+
+  // header text
+  $("#brand").textContent  = DATA.brand;
+  $("#kicker").textContent = DATA.kicker;
+  $("#blurb").textContent  = DATA.blurb;
+  // italicise the last word of the title for a typographic accent
+  (function(){
+    const words = DATA.title.trim().split(" ");
+    const last = words.pop();
+    $("#title").innerHTML = words.join(" ") + ' <span class="it">' + last + "</span>";
+  })();
+
+  const playSvg = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+  const gallery = $("#gallery");
+  const [lockCat, lockIdx] = LOCKED.split(":");
+
+  DATA.categories.forEach((cat, ci) => {
+    const section = document.createElement("section");
+    section.className = "cat cat--" + cat.id;
+
+    const head = document.createElement("div");
+    head.className = "cat-head";
+    head.innerHTML =
+      '<span class="num">' + String(ci + 1).padStart(2, "0") + "</span>" +
+      "<h2>" + cat.label + "</h2>" +
+      '<span class="scope-tag">@scope (.' + cat.id + ') to (.card)</span>' +
+      '<span class="note">' + cat.note + "</span>";
+    section.appendChild(head);
+
+    const grid = document.createElement("div");
+    grid.className = "grid";
+
+    cat.cards.forEach((card, idx) => {
+      const isLocked = (cat.id === lockCat && String(idx) === lockIdx);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "card" + (isLocked ? " is-locked" : "");
+      btn.setAttribute("data-type", card.media.type);
+      btn.setAttribute("aria-label", card.title + " - " + card.meta);
+
+      let mediaEl;
+      if (card.media.type === "video") {
+        mediaEl =
+          '<video class="media" muted loop playsinline preload="none" ' +
+          'poster="' + card.media.poster + '" data-src="' + card.media.src + '"></video>';
+      } else {
+        mediaEl =
+          '<img class="media" loading="lazy" decoding="async" ' +
+          'src="' + card.media.src + '" alt="' + card.title + '" />';
+      }
+
+      btn.innerHTML =
+        '<div class="frame">' +
+          mediaEl +
+          '<span class="pill">' + (card.media.type === "video" ? "loop" : "still") + "</span>" +
+          '<span class="accent-bar"></span>' +
+          (card.media.type === "video"
+            ? '<span class="play">' + playSvg + "</span>"
+            : "") +
+          '<div class="cap">' +
+            '<span class="t">' + card.title + "</span>" +
+            '<span class="m">' + card.meta + "</span>" +
+          "</div>" +
+        "</div>";
+
+      grid.appendChild(btn);
+    });
+
+    section.appendChild(grid);
+    gallery.appendChild(section);
+  });
+
+  /* ---- VIDEO: play only the ONE focused/hovered/locked card. Never let
+     several decode at once (FPS killer on a shared stage). IntersectionObserver
+     pauses + frees offscreen videos. -------------------------------------- */
+  const reduce = matchMedia("(prefers-reduced-motion:reduce)").matches;
+
+  function loadAndPlay(video) {
+    if (reduce) return;
+    if (!video.src && video.dataset.src) video.src = video.dataset.src;
+    const p = video.play();
+    if (p && p.catch) p.catch(() => {});
+  }
+  function stop(video) {
+    try { video.pause(); } catch (e) {}
+  }
+  // pause every other video so only one is live
+  function soloPlay(video) {
+    document.querySelectorAll("video.media").forEach(v => { if (v !== video) stop(v); });
+    loadAndPlay(video);
+  }
+
+  document.querySelectorAll(".card[data-type='video']").forEach(card => {
+    const v = card.querySelector("video.media");
+    if (!v) return;
+    const enter = () => soloPlay(v);
+    const leave = () => { if (!card.classList.contains("is-locked")) stop(v); };
+    card.addEventListener("mouseenter", enter);
+    card.addEventListener("mouseleave", leave);
+    card.addEventListener("focus", enter);
+    card.addEventListener("blur", leave);
+  });
+
+  // only auto-start the locked video, and only while it is in view
+  const locked = document.querySelector(".card.is-locked[data-type='video'] video.media");
+  if (locked) {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => { e.isIntersecting ? loadAndPlay(locked) : stop(locked); });
+    }, { threshold: 0.35 });
+    io.observe(locked);
+  }
+
+  // Free any video that scrolls fully out of view (keeps decode count at ~1)
+  const offscreen = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (!e.isIntersecting) {
+        const v = e.target.querySelector("video.media");
+        if (v && !e.target.classList.contains("is-locked")) stop(v);
+      }
+    });
+  }, { threshold: 0 });
+  document.querySelectorAll(".card[data-type='video']").forEach(c => offscreen.observe(c));
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,497 @@
+<!-- TEMPLATE: Cinematic Scrub | ARCHETYPE: pure-scrub CSS animation-timeline:view() multi-beat sequence (zero JS) | REF: CSS scroll-driven animations view() timeline (Baseline 2024, Codrops 2026); animation-timeline:view() hero patterns (Smashing 2026) | WHEN TO USE: a single cinematic hero where one tall scroll authors a precise multi-beat reveal (letter-spacing close, clip wipe, color grade, CTA rise) with literally zero JavaScript | SWAP: edit the inline HTML in <section class="film"> below - copy lives in the markup, no JS DATA array (this template ships 0 bytes of script on purpose) -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cinematic Scrub - one tall scroll, four beats, zero JavaScript</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     CINEMATIC SCRUB
+     Pure CSS scroll-driven cinema. ZERO JavaScript, zero
+     IntersectionObserver, zero rAF.
+
+     Mechanic: a single tall hero (~500vh) carries a named
+     `view-timeline`. Four @keyframes are bound to that timeline
+     and each is scoped to a slice of the scroll via
+     `animation-range`, so the WHOLE composed shot scrubs to the
+     scroll position as one authored sequence:
+
+       BEAT 1  headline letter-spacing 2em -> 0      (0%  - 26%)
+       BEAT 2  image plate clip-path wipe in         (18% - 52%)
+       BEAT 3  color grade cool -> warm via @property (44% - 78%)
+       BEAT 4  CTA fades + scales up                 (70% - 100%)
+
+     BEAT 1 is intentionally mid-play at scroll=0 so the static
+     catalog thumbnail already shows the sequence underway: the
+     plate is partly wiped in, the grade reads cold, a composed
+     hero is on screen.
+     ============================================================ */
+
+  /* ---- animated custom property: the cool->hot color grade ---- */
+  @property --grade {
+    syntax: "<number>"; inherits: true; initial-value: 0;
+  }
+  /* ---- animated custom property: plate wipe edge (0..100) ---- */
+  @property --wipe {
+    syntax: "<number>"; inherits: false; initial-value: 0;
+  }
+
+  :root {
+    --ink:    #0d0d0f;   /* near-black ground          */
+    --ink-2:  #131318;
+    --bone:   #e8e0d0;   /* warm bone foreground       */
+    --bone-60: rgba(232,224,208,0.6);
+    --bone-30: rgba(232,224,208,0.3);
+    --bone-12: rgba(232,224,208,0.12);
+    --cold:   #3a7bd5;   /* accent at sequence start   */
+    --hot:    #e8472a;   /* accent at sequence end     */
+    --serif:  "Fraunces", Georgia, "Times New Roman", serif;
+    --mono:   "Space Grotesk", ui-monospace, "SFMono-Regular", monospace;
+
+    /* live accent: interpolates cold -> hot as --grade goes 0 -> 1.
+       color-mix gives us a real channel blend, not a hue rotate. */
+    --accent: color-mix(in oklab, var(--cold), var(--hot) calc(var(--grade) * 100%));
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: var(--bone);
+    font-family: var(--mono);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection { background: var(--accent); color: var(--ink); }
+  a { color: inherit; }
+  img { display: block; }
+
+  /* ====================  FIXED CHROME  ==================== */
+  .chrome {
+    position: fixed; inset: 0 0 auto 0; z-index: 40;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem clamp(1rem, 4vw, 2.4rem);
+    font-size: 0.72rem; letter-spacing: 0.34em; text-transform: uppercase;
+    color: var(--bone-60);
+    pointer-events: none;
+    mix-blend-mode: difference;
+  }
+  .chrome .mark { color: var(--bone); letter-spacing: 0.24em; }
+  .chrome .mark b { color: var(--accent); font-weight: 700; }
+  .chrome .rt { display: flex; gap: 1.4rem; }
+
+  /* scrub progress rail (pure CSS, scroll(root) timeline) */
+  .rail {
+    position: fixed; left: 0; right: 0; bottom: 0; height: 3px; z-index: 41;
+    background: var(--bone-12);
+  }
+  .rail::after {
+    content: ""; position: absolute; inset: 0 auto 0 0;
+    width: 100%; transform-origin: left center; transform: scaleX(0);
+    background: linear-gradient(90deg, var(--cold), var(--hot));
+    animation: rail-fill linear both;
+    animation-timeline: scroll(root block);
+  }
+  @keyframes rail-fill { to { transform: scaleX(1); } }
+
+  /* ====================  THE FILM  ==================== */
+  /* The tall element that owns the view-timeline. Everything that
+     scrubs reads from this single named timeline `--reel`. */
+  .film {
+    position: relative;
+    height: 500vh;            /* the scroll budget for the whole shot */
+    view-timeline-name: --reel;
+    view-timeline-axis: block;
+  }
+
+  /* sticky stage = the framed 1-viewport "screen" the shot plays on */
+  .stage {
+    position: sticky; top: 0;
+    height: 100vh; width: 100%;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    background:
+      radial-gradient(120% 90% at 50% 8%, var(--ink-2), var(--ink) 62%);
+    /* the global grade tint as a faint wash over the whole frame */
+    --grade: 0;
+    animation: grade-drive linear both;
+    animation-timeline: --reel;
+    animation-range: contain 44% contain 78%;
+  }
+  /* drive the shared --grade property along the timeline.
+     contain 44%..78% = BEAT 3 window. */
+  @keyframes grade-drive {
+    from { --grade: 0; }
+    to   { --grade: 1; }
+  }
+
+  /* faint film grain + vignette, fixed, cheap, GPU-friendly */
+  .stage::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background:
+      radial-gradient(130% 120% at 50% 50%, transparent 52%, rgba(0,0,0,0.55) 100%);
+    mix-blend-mode: multiply;
+    z-index: 6;
+  }
+
+  /* ---- the plate: the cinematic image that wipes in (BEAT 2) ---- */
+  .plate {
+    position: absolute; inset: 0;
+    z-index: 1;
+    display: grid; place-items: center;
+  }
+  .plate .frame {
+    position: relative;
+    width: min(92vw, 1180px);
+    aspect-ratio: 16 / 9;          /* honour the landscape asset */
+    max-height: 78vh;
+    overflow: hidden;
+    border: 1px solid var(--bone-12);
+    box-shadow:
+      0 40px 120px rgba(0,0,0,0.6),
+      inset 0 0 0 1px rgba(255,255,255,0.03);
+  }
+  .plate img {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;             /* fills the 16:9 frame, never the phone */
+    /* the live color grade: cool, low-contrast at start; warm, punchy at end */
+    --grade: inherit;
+    filter:
+      saturate(calc(0.55 + var(--grade) * 0.85))
+      contrast(calc(0.92 + var(--grade) * 0.30))
+      brightness(calc(0.86 + var(--grade) * 0.20))
+      hue-rotate(calc((1 - var(--grade)) * -18deg));
+    will-change: clip-path, filter;
+    /* BEAT 2: clip-path wipe driven by --wipe (0 hidden -> 100 full).
+       polygon reveals left-to-right with a slight diagonal leading edge. */
+    clip-path: polygon(
+      0 0,
+      calc(var(--wipe) * 1%) 0,
+      calc(var(--wipe) * 1% - 6%) 100%,
+      0 100%
+    );
+    animation: plate-wipe linear both;
+    animation-timeline: --reel;
+    animation-range: contain 18% contain 52%;
+  }
+  @keyframes plate-wipe {
+    from { --wipe: 26; }   /* partly open at scroll=0 = thumbnail reads as a shot */
+    to   { --wipe: 112; }  /* >100 so the diagonal trailing edge clears the frame */
+  }
+  /* a cool->warm color cast bar that rides the leading wipe edge */
+  .plate .frame::before {
+    content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+    background: linear-gradient(90deg, transparent 70%, var(--accent) 100%);
+    opacity: 0.5;
+    mix-blend-mode: screen;
+  }
+  .plate .frame::after {
+    content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none;
+    box-shadow: inset 0 0 90px rgba(0,0,0,0.7);
+  }
+
+  /* ---- the headline: letter-spacing closes (BEAT 1) ---- */
+  .title {
+    position: relative; z-index: 5;
+    text-align: center;
+    padding: 0 6vw;
+    mix-blend-mode: difference;   /* legible over the plate either way */
+    pointer-events: none;
+  }
+  .title .kicker {
+    font-family: var(--mono);
+    font-size: clamp(0.6rem, 1.6vw, 0.8rem);
+    letter-spacing: 0.5em; text-transform: uppercase;
+    color: var(--bone); margin: 0 0 clamp(0.8rem, 2.5vh, 1.6rem);
+    padding-left: 0.5em;
+  }
+  .title h1 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(2.6rem, 9.5vw, 8.4rem);
+    line-height: 0.92;
+    margin: 0;
+    color: var(--bone);
+    /* BEAT 1: open wide at start, close to 0 by 26%. Starts already
+       part-closed at scroll=0 so the thumbnail reads composed. */
+    letter-spacing: 0.62em;
+    animation: title-close linear both;
+    animation-timeline: --reel;
+    animation-range: contain 0% contain 26%;
+    will-change: letter-spacing;
+  }
+  @keyframes title-close {
+    from { letter-spacing: 2em;   opacity: 0.34; }
+    40%  { opacity: 1; }
+    to   { letter-spacing: 0em;   opacity: 1; }
+  }
+  .title h1 em {
+    font-style: italic; font-weight: 300;
+    color: var(--accent);
+  }
+
+  /* ---- the CTA: fades + scales up last (BEAT 4) ---- */
+  .cta-wrap {
+    position: absolute; left: 50%; bottom: clamp(8vh, 14vh, 16vh);
+    transform: translateX(-50%);
+    z-index: 7;
+    text-align: center;
+    /* BEAT 4 */
+    opacity: 0;
+    --cs: 0.7;
+    transform: translateX(-50%) scale(var(--cs));
+    animation: cta-rise linear both;
+    animation-timeline: --reel;
+    animation-range: contain 70% contain 100%;
+    will-change: opacity, transform;
+  }
+  @keyframes cta-rise {
+    from { opacity: 0;  --cs: 0.7; }
+    60%  { opacity: 1; }
+    to   { opacity: 1;  --cs: 1; }
+  }
+  .cta-wrap .lede {
+    font-family: var(--serif); font-style: italic; font-weight: 300;
+    font-size: clamp(1rem, 2.6vw, 1.5rem);
+    color: var(--bone-60); margin: 0 0 1.1rem;
+  }
+  .cta {
+    pointer-events: auto;
+    display: inline-flex; align-items: center; gap: 0.7rem;
+    font-family: var(--mono); font-weight: 700;
+    font-size: clamp(0.8rem, 1.6vw, 0.95rem);
+    letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--ink);
+    background: var(--accent);
+    padding: 1rem 1.8rem;
+    border: 0; border-radius: 999px;
+    text-decoration: none;
+    box-shadow: 0 18px 50px color-mix(in oklab, var(--accent), transparent 55%);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+  .cta:hover { transform: translateY(-2px); }
+  .cta:focus-visible {
+    outline: 3px solid var(--bone);
+    outline-offset: 3px;
+  }
+  .cta .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink); }
+
+  /* beat markers on the right edge - tiny diegetic timecode */
+  .beats {
+    position: absolute; right: clamp(1rem, 3vw, 2rem); top: 50%;
+    transform: translateY(-50%); z-index: 8;
+    display: flex; flex-direction: column; gap: 0.9rem;
+    font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.2em;
+    color: var(--bone-30); text-align: right;
+    pointer-events: none;
+  }
+  .beats span { display: flex; align-items: center; gap: 0.5rem; justify-content: flex-end; }
+  .beats span::after { content: ""; width: 18px; height: 1px; background: var(--bone-12); }
+  .beats span:nth-child(1) { animation: lit linear both; animation-timeline: --reel; animation-range: contain 0% contain 26%; }
+  .beats span:nth-child(2) { animation: lit linear both; animation-timeline: --reel; animation-range: contain 18% contain 52%; }
+  .beats span:nth-child(3) { animation: lit linear both; animation-timeline: --reel; animation-range: contain 44% contain 78%; }
+  .beats span:nth-child(4) { animation: lit linear both; animation-timeline: --reel; animation-range: contain 70% contain 100%; }
+  @keyframes lit {
+    from { color: var(--bone-30); }
+    50%  { color: var(--accent); }
+    to   { color: var(--bone-30); }
+  }
+  .beats span b { color: var(--bone-60); font-weight: 400; }
+
+  /* scroll hint, fades out fast as BEAT 1 closes */
+  .hint {
+    position: absolute; left: 50%; bottom: 2.4vh; transform: translateX(-50%);
+    z-index: 9; font-size: 0.62rem; letter-spacing: 0.34em; text-transform: uppercase;
+    color: var(--bone-30); pointer-events: none;
+    animation: hint-out linear both; animation-timeline: --reel;
+    animation-range: contain 0% contain 14%;
+  }
+  @keyframes hint-out { to { opacity: 0; transform: translateX(-50%) translateY(8px); } }
+
+  /* ====================  CAPTION OUTRO  ==================== */
+  .outro {
+    position: relative; z-index: 2;
+    padding: clamp(4rem, 12vh, 9rem) clamp(1.4rem, 6vw, 5rem) clamp(3rem, 8vh, 6rem);
+    max-width: 860px; margin: 0 auto;
+    border-top: 1px solid var(--bone-12);
+  }
+  .outro h2 {
+    font-family: var(--serif); font-weight: 600;
+    font-size: clamp(1.6rem, 4.5vw, 2.6rem); line-height: 1.05; margin: 0 0 1.2rem;
+  }
+  .outro p { color: var(--bone-60); line-height: 1.7; max-width: 60ch; margin: 0 0 1rem; }
+  .outro .meta {
+    margin-top: 2.2rem; display: flex; flex-wrap: wrap; gap: 0.6rem;
+    font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  .outro .meta span {
+    border: 1px solid var(--bone-12); border-radius: 999px;
+    padding: 0.45rem 0.9rem; color: var(--bone-60);
+  }
+
+  /* ====================  CAPABILITY GATE  ==================== */
+  /* Default (no scroll-driven support): show a STATIC composed layout.
+     Everything above assumed the gate; here we neutralise the scrub. */
+  @supports not (animation-timeline: view()) {
+    .film { height: auto; }
+    .stage { position: relative; height: 100vh; }
+    .stage, .plate img, .title h1, .cta-wrap, .beats span {
+      animation: none !important;
+    }
+    /* freeze the shot at a finished, composed final frame */
+    :root { --grade: 0.62; }
+    .plate img { --wipe: 100; clip-path: none; }
+    .title h1 { letter-spacing: 0.02em; opacity: 1; }
+    .cta-wrap { opacity: 1; transform: translateX(-50%) scale(1); }
+    .hint { display: none; }
+    .rail { display: none; }
+    .fallback-note { display: block; }
+  }
+  .fallback-note {
+    display: none;
+    position: fixed; left: 50%; bottom: 1.2rem; transform: translateX(-50%);
+    z-index: 60; font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--bone-30);
+    border: 1px solid var(--bone-12); border-radius: 999px; padding: 0.4rem 0.9rem;
+    background: rgba(13,13,15,0.7); backdrop-filter: blur(6px);
+  }
+
+  /* ====================  REDUCED MOTION  ==================== */
+  /* Collapse the scrub to instant opacity fades. Show the FINAL state,
+     kill heavy clip/letter-spacing/filter sweeps. */
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .film { height: auto; }
+    .stage { position: relative; height: 100vh; animation: none; }
+    .plate img, .title h1, .cta-wrap, .beats span, .rail::after, .hint {
+      animation: none !important;
+    }
+    :root { --grade: 0.6; }
+    .plate img { --wipe: 100; clip-path: none; filter: saturate(1.1) contrast(1.05); }
+    .title h1 { letter-spacing: 0.03em; opacity: 1; }
+    .cta-wrap { opacity: 1; transform: translateX(-50%) scale(1); }
+    .hint, .rail { display: none; }
+  }
+
+  /* ====================  MOBILE (<=640px)  ==================== */
+  /* view() is supported on mobile, so the scrub stays. We only relax
+     layout: letterbox the landscape plate (never cover-crop a 16:9
+     asset into a portrait viewport), shrink chrome, move beats out. */
+  @media (max-width: 640px) {
+    .plate .frame {
+      width: 94vw;
+      max-height: 56vh;          /* sits as a letterboxed band, no crop */
+      aspect-ratio: 16 / 9;
+    }
+    .plate img { object-fit: cover; }  /* cover within the 16:9 frame only */
+    .title h1 { font-size: clamp(2.2rem, 12vw, 3.6rem); letter-spacing: 0.4em; }
+    .title .kicker { font-size: 0.58rem; letter-spacing: 0.36em; }
+    .beats { display: none; }
+    .chrome { font-size: 0.6rem; letter-spacing: 0.22em; padding: 0.8rem 1rem; }
+    .chrome .rt span:nth-child(2) { display: none; }
+    .cta-wrap { bottom: 9vh; width: 86vw; }
+  }
+  @media (max-width: 390px) {
+    .plate .frame { max-height: 48vh; }
+    .title h1 { font-size: clamp(2rem, 13vw, 3rem); }
+  }
+</style>
+</head>
+<body>
+
+  <!-- fixed chrome: brand + live status, blends over the shot -->
+  <header class="chrome">
+    <div class="mark">VESPER<b>/</b>WERK &nbsp; FILM SERIES</div>
+    <div class="rt">
+      <span>NO.07</span>
+      <span>PURE CSS</span>
+      <span>0 KB JS</span>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       THE FILM. One tall element. One view-timeline. Four beats.
+       Swap the IMAGE, HEADLINE, and CTA copy right here in markup.
+       ============================================================ -->
+  <section class="film">
+    <div class="stage">
+
+      <!-- BEAT 2 subject: the cinematic plate that wipes in -->
+      <div class="plate">
+        <div class="frame">
+          <img
+            src="../assets/flux-car-4k.png"
+            alt="Matte-black Mercedes coupe parked on a rain-slicked neon street at night"
+            decoding="async" fetchpriority="high" />
+        </div>
+      </div>
+
+      <!-- BEAT 1 subject: headline whose letter-spacing closes -->
+      <div class="title">
+        <p class="kicker">A single scroll, authored frame by frame</p>
+        <h1>NIGHT<br /><em>RUN</em></h1>
+      </div>
+
+      <!-- BEAT 3 timecode markers -->
+      <nav class="beats" aria-hidden="true">
+        <span><b>01</b> SPACING</span>
+        <span><b>02</b> WIPE</span>
+        <span><b>03</b> GRADE</span>
+        <span><b>04</b> CALL</span>
+      </nav>
+
+      <!-- BEAT 4 subject: the CTA that rises last -->
+      <div class="cta-wrap">
+        <p class="lede">Shot, graded and resolved in pure CSS.</p>
+        <a class="cta" href="#outro"><span class="dot"></span> See the build</a>
+      </div>
+
+      <div class="hint" aria-hidden="true">Scroll to play</div>
+    </div>
+  </section>
+
+  <!-- caption / build notes, real text under the shot -->
+  <section class="outro" id="outro">
+    <h2>One timeline. Four beats. Zero scripts.</h2>
+    <p>
+      This entire hero is driven by a single <code>view-timeline</code> on a tall
+      element. Each beat is an ordinary <code>@keyframes</code> bound to that
+      timeline and scoped to a slice of scroll with <code>animation-range</code>,
+      so the whole shot scrubs to scroll position with no JavaScript, no
+      IntersectionObserver and no requestAnimationFrame.
+    </p>
+    <p>
+      The grade is a real channel blend - an <code>@property</code> custom
+      property animates from cold blue to hot orange and feeds a
+      <code>color-mix(in oklab, ...)</code> accent plus a live
+      <code>filter</code> on the plate. Where the browser cannot drive scroll
+      timelines, an <code>@supports</code> gate renders a static composed final
+      frame instead, and reduced-motion collapses every sweep to its resolved
+      state.
+    </p>
+    <div class="meta">
+      <span>animation-timeline: view()</span>
+      <span>@property --grade</span>
+      <span>clip-path wipe</span>
+      <span>color-mix oklab</span>
+      <span>0 bytes JavaScript</span>
+    </div>
+  </section>
+
+  <!-- scroll progress rail (scroll(root) timeline, still 0 JS) -->
+  <div class="rail" aria-hidden="true"></div>
+
+  <!-- shown only when scroll-driven animations are unsupported -->
+  <div class="fallback-note">Static frame - your browser does not support CSS scroll timelines</div>
+
+</body>
+</html>

@@ -1,0 +1,493 @@
+<!-- TEMPLATE: Countdown RSVP Launch | ARCHETYPE: countdown | REF: product-launch teaser pages, event RSVP microsites, segmented-display countdown convention | WHEN TO USE: a pre-launch or event RSVP single page where a giant live-ticking DD HH MM SS clock is the hero and an inline email field captures interest | SWAP: edit the DATA object at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Countdown RSVP Launch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   COUNTDOWN RSVP LAUNCH  -  native CSS/JS, no libs
+   Palette: #0a0a0f void + bone + electric accent
+   ============================================================ */
+:root{
+  --void:#0a0a0f;
+  --void-2:#0d0d15;
+  --bone:#ece8df;
+  --bone-dim:#8d8a83;
+  --accent:#5b8cff;        /* electric blue; swap to #e8c547 amber via DATA.accent */
+  --accent-2:#e8c547;
+  --line:rgba(236,232,223,.10);
+  --seg-on:var(--accent);
+  --seg-off:rgba(91,140,255,.07);
+  --card:rgba(255,255,255,.025);
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+html{scroll-behavior:smooth}
+body{
+  background:var(--void);
+  color:var(--bone);
+  font-family:"Space Grotesk",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+  line-height:1.4;
+}
+
+/* ---- ambient stage --------------------------------------- */
+.stage{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.stage .bg{
+  position:absolute;inset:0;
+  background-position:center;
+  background-repeat:no-repeat;
+  background-size:cover;          /* contain swap below for landscape safety on phone */
+  opacity:.16;
+  filter:saturate(.65) contrast(1.05);
+  transform:scale(1.04);
+}
+.stage::after{               /* vignette + void wash so type stays readable */
+  content:"";position:absolute;inset:0;
+  background:
+    radial-gradient(120% 90% at 50% 8%, rgba(91,140,255,.16), transparent 55%),
+    radial-gradient(140% 120% at 50% 120%, rgba(10,10,15,.0), var(--void) 72%),
+    linear-gradient(180deg, rgba(10,10,15,.55) 0%, rgba(10,10,15,.2) 35%, var(--void) 100%);
+}
+/* the one ambient motion accent: a slow horizon sweep */
+.sweep{
+  position:absolute;left:-30%;right:-30%;top:0;height:62vh;
+  background:linear-gradient(100deg,transparent 0%,rgba(91,140,255,.10) 45%,rgba(91,140,255,.18) 50%,rgba(91,140,255,.10) 55%,transparent 100%);
+  mix-blend-mode:screen;
+  filter:blur(8px);
+  animation:sweep 13s var(--ease) infinite;
+  will-change:transform,opacity;
+}
+@keyframes sweep{
+  0%{transform:translateX(-22%);opacity:.0}
+  18%{opacity:.9}
+  82%{opacity:.9}
+  100%{transform:translateX(22%);opacity:0}
+}
+.scan{
+  position:absolute;inset:0;
+  background:repeating-linear-gradient(180deg,rgba(255,255,255,.018) 0 1px,transparent 1px 3px);
+  mix-blend-mode:overlay;opacity:.5;
+}
+
+/* ---- shell ----------------------------------------------- */
+.wrap{position:relative;z-index:2;min-height:100%;display:flex;flex-direction:column}
+.bar{
+  display:flex;align-items:center;justify-content:space-between;gap:1rem;
+  padding:1.15rem clamp(1.1rem,4vw,3rem);
+}
+.brand{display:flex;align-items:center;gap:.6rem;font-weight:600;letter-spacing:.02em}
+.brand .dot{
+  width:9px;height:9px;border-radius:50%;background:var(--accent);
+  box-shadow:0 0 0 4px rgba(91,140,255,.16),0 0 14px var(--accent);
+  animation:pulse 2.4s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.78)}}
+.kicker{
+  font-family:"Space Mono",monospace;font-size:.72rem;letter-spacing:.32em;
+  text-transform:uppercase;color:var(--bone-dim);
+}
+.status{
+  display:inline-flex;align-items:center;gap:.5rem;
+  font-family:"Space Mono",monospace;font-size:.7rem;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--accent);
+  border:1px solid var(--line);border-radius:999px;
+  padding:.42rem .8rem;background:var(--card);backdrop-filter:blur(6px);
+}
+.status .live{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent);animation:pulse 1.6s ease-in-out infinite}
+
+/* ---- hero ------------------------------------------------ */
+.hero{
+  flex:1;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;
+  padding:clamp(1rem,3vw,2.4rem) clamp(1rem,5vw,3rem) clamp(2rem,5vw,3.6rem);
+  gap:clamp(1.4rem,3vw,2.4rem);
+}
+.eyebrow{
+  font-family:"Space Mono",monospace;font-size:clamp(.66rem,1.5vw,.82rem);
+  letter-spacing:.4em;text-transform:uppercase;color:var(--bone-dim);
+}
+
+/* ---- the clock (signature) ------------------------------- */
+.clock{
+  display:flex;align-items:flex-start;justify-content:center;
+  gap:clamp(.5rem,2.4vw,1.8rem);
+  width:100%;max-width:min(1180px,94vw);
+}
+.unit{display:flex;flex-direction:column;align-items:center;gap:.7rem;flex:0 0 auto}
+.digits{display:flex;gap:clamp(.25rem,.9vw,.55rem)}
+.card{
+  position:relative;
+  width:clamp(54px,11vw,148px);
+  height:clamp(80px,16vw,206px);
+  border-radius:clamp(8px,1.2vw,16px);
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,0) 46%,rgba(0,0,0,.35)),
+    var(--void-2);
+  border:1px solid var(--line);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.06),
+    inset 0 -18px 30px rgba(0,0,0,.45),
+    0 24px 60px rgba(0,0,0,.5);
+  overflow:hidden;
+}
+.card::before{ /* split line of a split-flap / segmented display */
+  content:"";position:absolute;left:0;right:0;top:50%;height:1px;
+  background:rgba(0,0,0,.6);box-shadow:0 1px 0 rgba(255,255,255,.04);z-index:3;
+}
+.card .glyph{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:"Space Mono",monospace;font-weight:700;
+  font-size:clamp(2.6rem,8.4vw,7.6rem);line-height:1;
+  color:var(--seg-on);
+  text-shadow:0 0 18px rgba(91,140,255,.5),0 0 2px rgba(91,140,255,.9);
+  letter-spacing:-.02em;
+}
+.card .glow{
+  position:absolute;inset:0;
+  background:radial-gradient(60% 40% at 50% 50%,rgba(91,140,255,.16),transparent 70%);
+  mix-blend-mode:screen;
+}
+/* flip animation: a quick top-half fold when the digit changes */
+.card.flip .glyph{animation:flip .42s var(--ease)}
+@keyframes flip{
+  0%{transform:translateY(0) scaleY(1);opacity:1}
+  42%{transform:translateY(-6%) scaleY(.86);opacity:.35;filter:blur(1px)}
+  100%{transform:translateY(0) scaleY(1);opacity:1}
+}
+.ulabel{
+  font-family:"Space Mono",monospace;font-size:clamp(.55rem,1.3vw,.78rem);
+  letter-spacing:.34em;text-transform:uppercase;color:var(--bone-dim);
+}
+.sep{
+  align-self:center;
+  font-family:"Space Mono",monospace;font-weight:700;
+  font-size:clamp(2rem,6vw,5.2rem);line-height:1;
+  color:rgba(91,140,255,.55);
+  margin-top:-.4em;
+  animation:blink 2s steps(1) infinite;
+}
+@keyframes blink{0%,49%{opacity:.85}50%,100%{opacity:.18}}
+
+/* ---- title + copy ---------------------------------------- */
+.title{
+  font-size:clamp(2.1rem,7vw,5rem);
+  font-weight:700;letter-spacing:-.035em;line-height:.96;
+  max-width:14ch;
+}
+.title .hl{
+  color:transparent;
+  background:linear-gradient(100deg,var(--accent),#a9c2ff 60%,var(--accent));
+  -webkit-background-clip:text;background-clip:text;
+}
+.lede{
+  max-width:54ch;color:var(--bone-dim);
+  font-size:clamp(.95rem,1.7vw,1.12rem);line-height:1.55;
+}
+
+/* ---- RSVP form ------------------------------------------- */
+.rsvp{
+  display:flex;gap:.6rem;width:100%;max-width:520px;
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:.55rem;
+  backdrop-filter:blur(10px);
+  box-shadow:0 18px 50px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.05);
+  transition:border-color .25s var(--ease),box-shadow .25s var(--ease);
+}
+.rsvp:focus-within{
+  border-color:rgba(91,140,255,.6);
+  box-shadow:0 18px 50px rgba(0,0,0,.45),0 0 0 4px rgba(91,140,255,.14),inset 0 1px 0 rgba(255,255,255,.06);
+}
+.rsvp input{
+  flex:1;min-width:0;
+  background:transparent;border:0;outline:0;
+  color:var(--bone);
+  font-family:"Space Grotesk",sans-serif;font-size:1rem;
+  padding:.7rem .85rem;
+}
+.rsvp input::placeholder{color:var(--bone-dim)}
+.rsvp button{
+  flex:0 0 auto;
+  border:0;cursor:pointer;
+  font-family:"Space Grotesk",sans-serif;font-weight:600;font-size:.95rem;
+  letter-spacing:.01em;
+  color:#06070d;
+  background:linear-gradient(180deg,#7ea3ff,var(--accent));
+  border-radius:9px;
+  padding:.7rem 1.3rem;
+  box-shadow:0 6px 18px rgba(91,140,255,.4),inset 0 1px 0 rgba(255,255,255,.4);
+  transition:transform .18s var(--ease),box-shadow .18s var(--ease),filter .18s var(--ease);
+}
+.rsvp button:hover{transform:translateY(-1px);filter:brightness(1.06);box-shadow:0 10px 26px rgba(91,140,255,.5),inset 0 1px 0 rgba(255,255,255,.45)}
+.rsvp button:active{transform:translateY(0)}
+.note{font-family:"Space Mono",monospace;font-size:.7rem;letter-spacing:.06em;color:var(--bone-dim)}
+.note.ok{color:var(--accent)}
+
+/* keyboard focus ring */
+a:focus-visible,button:focus-visible,input:focus-visible{
+  outline:2px solid var(--accent);outline-offset:3px;border-radius:6px;
+}
+
+/* meta row below */
+.meta{
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:center;
+  gap:.55rem clamp(1rem,3vw,2.2rem);
+  font-family:"Space Mono",monospace;font-size:.72rem;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--bone-dim);
+}
+.meta b{color:var(--bone);font-weight:700}
+.meta .pipe{width:1px;height:14px;background:var(--line)}
+
+/* ---- responsive: keep clock dominant, wrap to 2x2 -------- */
+@media (max-width:640px){
+  .stage .bg{background-size:contain;opacity:.13}   /* never crop a landscape asset on a phone */
+  .bar{padding:.9rem 1.1rem}
+  .kicker{display:none}
+  .hero{justify-content:flex-start;padding-top:1.2rem;gap:1.5rem}
+  .clock{
+    flex-wrap:wrap;max-width:340px;gap:.7rem 1rem;
+    justify-content:center;
+  }
+  .unit{flex:0 0 calc(50% - .5rem)}        /* 2x2 grid */
+  .digits{justify-content:center}
+  .card{width:clamp(56px,21vw,84px);height:clamp(86px,30vw,120px)}
+  .card .glyph{font-size:clamp(2.6rem,15vw,4rem)}
+  .sep{display:none}                        /* separators noisy in a wrapped grid */
+  .title{font-size:clamp(2rem,9vw,2.8rem);max-width:18ch}
+  .rsvp{flex-direction:column;padding:.7rem}
+  .rsvp button{padding:.8rem}
+}
+
+/* ---- reduced motion: clock still shows time, no animation -- */
+@media (prefers-reduced-motion:reduce){
+  *{animation:none !important;transition:none !important;scroll-behavior:auto !important}
+  .sweep{display:none}
+  .card.flip .glyph{animation:none}
+  .sep{opacity:.6}
+}
+</style>
+</head>
+<body>
+<script>
+/* =================== SWAP HERE: edit this DATA object =================== */
+const DATA = {
+  brand:      "VESPER LABS",
+  kicker:     "ITER // 07",
+  statusText: "RSVP OPEN",
+  eyebrow:    "Early access drops in",
+  title:      ['The ', 'Atlas', ' release.'],   // [plain, highlighted, plain]
+  lede:       "A new way to ship voice and chat agents to production. We open the gates to the first 500 builders. Reserve your seat before the counter hits zero.",
+  // target launch moment. ISO string with timezone. If in the past, clock shows a launched state.
+  targetISO:  null,            // null = auto target (see fallbackDays); or e.g. "2026-09-01T19:00:00+07:00"
+  fallbackDays: 47,            // used only when targetISO is null, relative to load
+  inputPlaceholder: "you@studio.com",
+  ctaLabel:   "Reserve seat",
+  successText:"You are on the list. Watch your inbox.",
+  meta: [
+    { label:"Seats left",  value:"312 / 500" },
+    { label:"Venue",       value:"Online + Bangkok" },
+    { label:"Format",      value:"Live launch" },
+  ],
+  accent:     "#5b8cff",       // swap to "#e8c547" for the amber variant
+  // optional ambient background from ../assets/ (landscape image; rendered contain on phone)
+  bgImage:    "../assets/flux-car-4k.png",
+};
+/* ====================================================================== */
+</script>
+
+<div class="stage" aria-hidden="true">
+  <div class="bg" id="bg"></div>
+  <div class="sweep"></div>
+  <div class="scan"></div>
+</div>
+
+<main class="wrap">
+  <header class="bar">
+    <div class="brand"><span class="dot"></span><span id="brand">VESPER LABS</span></div>
+    <span class="kicker" id="kicker">ITER // 07</span>
+    <span class="status"><span class="live"></span><span id="statusText">RSVP OPEN</span></span>
+  </header>
+
+  <section class="hero">
+    <p class="eyebrow" id="eyebrow">Early access drops in</p>
+
+    <!-- SIGNATURE: live segmented countdown clock -->
+    <div class="clock" id="clock" role="timer" aria-live="off" aria-label="Time until launch">
+      <div class="unit">
+        <div class="digits">
+          <div class="card"><div class="glow"></div><div class="glyph" id="d0">0</div></div>
+          <div class="card"><div class="glow"></div><div class="glyph" id="d1">0</div></div>
+        </div>
+        <span class="ulabel">Days</span>
+      </div>
+      <span class="sep">:</span>
+      <div class="unit">
+        <div class="digits">
+          <div class="card"><div class="glow"></div><div class="glyph" id="h0">0</div></div>
+          <div class="card"><div class="glow"></div><div class="glyph" id="h1">0</div></div>
+        </div>
+        <span class="ulabel">Hours</span>
+      </div>
+      <span class="sep">:</span>
+      <div class="unit">
+        <div class="digits">
+          <div class="card"><div class="glow"></div><div class="glyph" id="m0">0</div></div>
+          <div class="card"><div class="glow"></div><div class="glyph" id="m1">0</div></div>
+        </div>
+        <span class="ulabel">Minutes</span>
+      </div>
+      <span class="sep">:</span>
+      <div class="unit">
+        <div class="digits">
+          <div class="card"><div class="glow"></div><div class="glyph" id="s0">0</div></div>
+          <div class="card"><div class="glow"></div><div class="glyph" id="s1">0</div></div>
+        </div>
+        <span class="ulabel">Seconds</span>
+      </div>
+    </div>
+
+    <h1 class="title" id="title">The <span class="hl">Atlas</span> release.</h1>
+    <p class="lede" id="lede"></p>
+
+    <form class="rsvp" id="rsvp" novalidate>
+      <input id="email" type="email" inputmode="email" autocomplete="email"
+             placeholder="you@studio.com" aria-label="Email address" required />
+      <button type="submit" id="cta">Reserve seat</button>
+    </form>
+    <p class="note" id="note">No spam. One launch email, then you decide.</p>
+
+    <div class="meta" id="meta"></div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---- apply DATA ---- */
+  document.documentElement.style.setProperty("--accent", DATA.accent);
+  // derive segment colors from chosen accent
+  const hexToRgb = (h) => { const n = parseInt(h.replace("#",""),16); return [n>>16&255,n>>8&255,n&255]; };
+  const [r,g,b] = hexToRgb(DATA.accent);
+  document.documentElement.style.setProperty("--seg-off",`rgba(${r},${g},${b},.07)`);
+
+  $("brand").textContent = DATA.brand;
+  $("kicker").textContent = DATA.kicker;
+  $("statusText").textContent = DATA.statusText;
+  $("eyebrow").textContent = DATA.eyebrow;
+  $("title").innerHTML = `${escapeHtml(DATA.title[0])}<span class="hl">${escapeHtml(DATA.title[1])}</span>${escapeHtml(DATA.title[2])}`;
+  $("lede").textContent = DATA.lede;
+  $("email").placeholder = DATA.inputPlaceholder;
+  $("cta").textContent = DATA.ctaLabel;
+
+  if (DATA.bgImage) $("bg").style.backgroundImage = `url("${DATA.bgImage}")`;
+
+  // meta row
+  $("meta").innerHTML = DATA.meta.map((m,i) =>
+    `${i ? '<span class="pipe"></span>' : ''}<span>${escapeHtml(m.label)} <b>${escapeHtml(m.value)}</b></span>`
+  ).join("");
+
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  /* ---- target time ---- */
+  let target;
+  if (DATA.targetISO) {
+    target = new Date(DATA.targetISO).getTime();
+  } else {
+    target = Date.now() + DATA.fallbackDays * 86400000;
+  }
+
+  /* ---- countdown engine ---- */
+  const cells = {
+    d0:$("d0"), d1:$("d1"),
+    h0:$("h0"), h1:$("h1"),
+    m0:$("m0"), m1:$("m1"),
+    s0:$("s0"), s1:$("s1"),
+  };
+  const last = {}; // remember last value per cell to trigger flip only on change
+
+  function setCell(id, ch){
+    const el = cells[id];
+    if (last[id] === ch) return;
+    last[id] = ch;
+    el.textContent = ch;
+    if (!reduce){
+      const card = el.parentElement;
+      card.classList.remove("flip");
+      // force reflow so the animation restarts even on consecutive changes
+      void card.offsetWidth;
+      card.classList.add("flip");
+    }
+  }
+
+  function pad2(n){ return String(Math.max(0,n)).padStart(2,"0"); }
+
+  function render(){
+    let diff = target - Date.now();
+    const launched = diff <= 0;
+    if (launched) diff = 0;
+
+    let totalSec = Math.floor(diff / 1000);
+    let days = Math.floor(totalSec / 86400);
+    let hours = Math.floor((totalSec % 86400) / 3600);
+    let mins = Math.floor((totalSec % 3600) / 60);
+    let secs = totalSec % 60;
+
+    // days can exceed 99: clamp the 2-digit display gracefully
+    const dStr = days > 99 ? "99" : pad2(days);
+    const [dh,dl] = dStr.split("");
+    const [hh,hl] = pad2(hours).split("");
+    const [mh,ml] = pad2(mins).split("");
+    const [sh,sl] = pad2(secs).split("");
+
+    setCell("d0",dh); setCell("d1",dl);
+    setCell("h0",hh); setCell("h1",hl);
+    setCell("m0",mh); setCell("m1",ml);
+    setCell("s0",sh); setCell("s1",sl);
+
+    if (launched){
+      $("eyebrow").textContent = "We are live";
+      $("statusText").textContent = "LAUNCHED";
+      return false; // stop ticking
+    }
+    return true;
+  }
+
+  render();
+  // tick once per second; cheap, no rAF needed for a clock
+  const timer = setInterval(() => { if (!render()) clearInterval(timer); }, 1000);
+
+  /* ---- RSVP form: never actually submit ---- */
+  const form = $("rsvp"), email = $("email"), note = $("note");
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();                       // IMPORTANT: do not submit
+    const val = email.value.trim();
+    const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+    if (!valid){
+      note.textContent = "Enter a valid email to reserve your seat.";
+      note.classList.remove("ok");
+      email.focus();
+      return;
+    }
+    note.textContent = DATA.successText;
+    note.classList.add("ok");
+    email.value = "";
+    email.placeholder = "Seat reserved";
+    email.blur();
+  });
+})();
+</script>
+</body>
+</html>

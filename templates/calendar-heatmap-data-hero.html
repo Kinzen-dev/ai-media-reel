@@ -1,0 +1,535 @@
+<!-- TEMPLATE: Contribution Heatmap | ARCHETYPE: HEATMAP (GitHub-style calendar heatmap data hero) | REF: GitHub contribution graph, calendar-heatmap data viz, activity-grid hero | WHEN TO USE: a brand/product data hero where a year of activity reads as a 52x7 green-ramp contribution grid at a glance - headline plus one big total figure, month + weekday labels, Less-to-More legend; brand-facing not a control-room dashboard | SWAP: edit the DATA object at the top of <script> (seed, totalLabel, headline, ramp, weekStart) -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contribution Heatmap</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0d1117;
+    --panel:#0f161e;
+    --panel-2:#10171f;
+    --line:#21262d;
+    --line-soft:#1b2129;
+    --bone:#e6edf3;
+    --bone-dim:#8b949e;
+    --bone-faint:#5c6670;
+    --green:#39d353;
+    --green-deep:#006d32;
+    --empty:#161b22;
+    --maxw:1180px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 700px at 78% -8%, rgba(57,211,83,.10), transparent 60%),
+      radial-gradient(900px 600px at 6% 110%, rgba(0,109,50,.10), transparent 55%),
+      var(--bg);
+    color:var(--bone);
+    font-family:"Space Grotesk",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.5;
+    overflow-x:hidden;
+  }
+  .mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 26px}
+
+  /* ---- top band ---- */
+  header.band{
+    padding:30px 0 8px;
+    border-bottom:1px solid var(--line-soft);
+  }
+  .brandrow{display:flex;align-items:center;gap:13px;flex-wrap:wrap}
+  .logo{
+    width:30px;height:30px;border-radius:9px;flex:0 0 auto;
+    background:linear-gradient(150deg,#26a641,#006d32);
+    display:grid;place-items:center;
+    box-shadow:0 0 0 1px rgba(57,211,83,.35), 0 8px 24px -10px rgba(57,211,83,.5);
+  }
+  .logo svg{display:block}
+  .brandname{font-weight:700;letter-spacing:.3px;font-size:15px}
+  .brandname b{color:var(--green)}
+  .badge{
+    margin-left:auto;
+    font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--bone-dim);
+    border:1px solid var(--line);border-radius:999px;
+    padding:5px 12px;background:rgba(255,255,255,.015);
+    white-space:nowrap;
+  }
+  .badge .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:7px;vertical-align:middle;box-shadow:0 0 8px var(--green);animation:pulse 2.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+  /* ---- hero copy ---- */
+  .hero{padding:26px 0 6px}
+  .kicker{
+    font-size:12.5px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--green);font-weight:600;margin:0 0 14px;
+    display:flex;align-items:center;gap:10px;
+  }
+  .kicker::after{content:"";height:1px;flex:1;background:linear-gradient(90deg,rgba(57,211,83,.4),transparent)}
+  h1.headline{
+    margin:0;
+    font-size:clamp(30px,5.2vw,58px);
+    line-height:1.04;
+    font-weight:700;
+    letter-spacing:-.02em;
+  }
+  h1.headline em{font-style:normal;color:var(--green)}
+  .sub{
+    margin:16px 0 0;max-width:560px;
+    color:var(--bone-dim);font-size:clamp(14px,1.6vw,16.5px);
+  }
+
+  /* ---- total figure ---- */
+  .totalrow{
+    display:flex;align-items:flex-end;gap:30px;flex-wrap:wrap;
+    margin-top:22px;
+  }
+  .total{
+    display:flex;align-items:baseline;gap:14px;
+  }
+  .total .num{
+    font-family:"JetBrains Mono",monospace;
+    font-weight:800;
+    font-size:clamp(46px,8.4vw,92px);
+    line-height:.86;letter-spacing:-.04em;
+    background:linear-gradient(180deg,#e6edf3 8%,#39d353 130%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    font-variant-numeric:tabular-nums;
+  }
+  .total .lab{
+    color:var(--bone-dim);font-size:13px;line-height:1.35;max-width:170px;
+    text-transform:uppercase;letter-spacing:.1em;
+  }
+  .ministats{display:flex;gap:26px;flex-wrap:wrap;padding-bottom:6px}
+  .ministat .v{font-family:"JetBrains Mono",monospace;font-weight:700;font-size:21px;color:var(--bone)}
+  .ministat .k{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--bone-faint);margin-top:3px}
+  .ministat .v.up{color:var(--green)}
+
+  /* ---- heatmap card ---- */
+  .graphcard{
+    margin:26px 0 0;
+    background:linear-gradient(180deg,var(--panel),var(--panel-2));
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:20px 22px 18px;
+    box-shadow:0 24px 60px -34px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.02);
+    position:relative;
+    overflow:hidden;
+  }
+  .graphcard::before{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(620px 220px at 88% 0%, rgba(57,211,83,.07), transparent 70%);
+  }
+  .graphhead{
+    display:flex;align-items:center;justify-content:space-between;gap:14px;
+    margin-bottom:14px;flex-wrap:wrap;
+  }
+  .graphhead .ttl{font-size:13.5px;color:var(--bone-dim)}
+  .graphhead .ttl b{color:var(--bone);font-weight:600}
+  .yeartabs{display:flex;gap:6px}
+  .yeartabs button{
+    font-family:"JetBrains Mono",monospace;
+    background:transparent;border:1px solid var(--line);color:var(--bone-dim);
+    border-radius:7px;padding:5px 11px;font-size:12px;cursor:pointer;
+    transition:.18s border-color,.18s color,.18s background;
+  }
+  .yeartabs button:hover{border-color:#39455066;color:var(--bone)}
+  .yeartabs button[aria-pressed="true"]{
+    color:var(--bg);background:var(--green);border-color:var(--green);font-weight:700;
+  }
+  .yeartabs button:focus-visible,.legend a:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+
+  /* scroll container so mobile keeps cells legible */
+  .gridscroll{
+    overflow-x:auto;overflow-y:hidden;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:thin;scrollbar-color:#2a313a transparent;
+    padding-bottom:4px;
+  }
+  .gridscroll::-webkit-scrollbar{height:8px}
+  .gridscroll::-webkit-scrollbar-thumb{background:#2a313a;border-radius:8px}
+  .gridscroll::-webkit-scrollbar-track{background:transparent}
+  svg.heat{display:block}
+  svg.heat text{font-family:"JetBrains Mono",monospace}
+  rect.cell{cursor:default;transition:fill .15s ease}
+  rect.cell:hover{stroke:#e6edf3;stroke-width:1px}
+
+  /* ---- footer of card: legend + tooltip ---- */
+  .cardfoot{
+    display:flex;align-items:center;justify-content:space-between;gap:16px;
+    margin-top:14px;flex-wrap:wrap;
+  }
+  .legend{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--bone-faint)}
+  .legend .squares{display:flex;gap:3px}
+  .legend i{width:12px;height:12px;border-radius:3px;display:block;outline:1px solid rgba(255,255,255,.04);outline-offset:-1px}
+  .tip{
+    font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--bone-dim);
+    min-height:18px;
+  }
+  .tip b{color:var(--bone)}
+  .tip .lvl{color:var(--green)}
+  .learn{font-size:12px;color:var(--bone-faint)}
+  .learn a{color:var(--green);text-decoration:none;border-bottom:1px solid transparent}
+  .learn a:hover{border-bottom-color:var(--green)}
+
+  footer.foot{
+    padding:28px 0 46px;color:var(--bone-faint);font-size:12.5px;
+    display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  }
+  footer.foot a{color:var(--bone-dim);text-decoration:none}
+  footer.foot a:hover{color:var(--green)}
+
+  /* wave-in entrance (disabled under reduced motion) */
+  rect.cell{opacity:0;transform-box:fill-box;transform-origin:center;}
+  .anim-ready rect.cell{animation:cellIn .5s cubic-bezier(.2,.7,.3,1) forwards}
+  @keyframes cellIn{from{opacity:0;transform:scale(.45)}to{opacity:1;transform:scale(1)}}
+
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto}
+    .badge .dot{animation:none}
+    rect.cell{opacity:1 !important;transform:none !important;animation:none !important}
+  }
+
+  @media (max-width:640px){
+    .wrap{padding:0 16px}
+    .totalrow{gap:18px}
+    .total .lab{max-width:140px}
+    .ministats{gap:18px}
+    .graphcard{padding:16px 14px 14px;border-radius:14px}
+    .cardfoot{flex-direction:column;align-items:flex-start;gap:10px}
+  }
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="wrap">
+    <div class="brandrow">
+      <span class="logo" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 16 16"><path fill="#06210f" d="M2 9.2 6.4 13 14 4l-1.5-1.3L6.2 10 3.4 7.6z"/></svg>
+      </span>
+      <span class="brandname">Pulse<b>grid</b></span>
+      <span class="badge mono"><span class="dot"></span>live activity index</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <p class="kicker mono">2025 contribution index</p>
+    <h1 class="headline">A year of shipping, <em>one square at a time.</em></h1>
+    <p class="sub">Every commit, deploy, and release rolled into a single 52-week grid. Brighter cells mean busier days. The whole story reads at a glance.</p>
+
+    <div class="totalrow">
+      <div class="total">
+        <span class="num mono" id="totalNum" data-target="0">0</span>
+        <span class="lab" id="totalLab">contributions<br>in the last year</span>
+      </div>
+      <div class="ministats">
+        <div class="ministat"><div class="v up mono" id="msStreak">0</div><div class="k">longest streak</div></div>
+        <div class="ministat"><div class="v mono" id="msBest">0</div><div class="k">busiest day</div></div>
+        <div class="ministat"><div class="v mono" id="msAvg">0</div><div class="k">daily avg</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="graphcard" aria-label="Contribution heatmap">
+    <div class="graphhead">
+      <div class="ttl"><b id="ghCount">0</b> contributions in <span id="ghYear">2025</span></div>
+      <div class="yeartabs" role="group" aria-label="Select year">
+        <button data-seed="2025" aria-pressed="true">2025</button>
+        <button data-seed="2024" aria-pressed="false">2024</button>
+        <button data-seed="2023" aria-pressed="false">2023</button>
+      </div>
+    </div>
+
+    <div class="gridscroll">
+      <svg class="heat" id="heat" role="img" aria-labelledby="heatTitle">
+        <title id="heatTitle">Calendar heatmap of daily contributions across 52 weeks</title>
+      </svg>
+    </div>
+
+    <div class="cardfoot">
+      <div class="tip mono" id="tip" aria-live="polite">Hover a square to inspect a day.</div>
+      <div class="legend" aria-hidden="true">
+        <span>Less</span>
+        <span class="squares" id="legendSquares"></span>
+        <span>More</span>
+      </div>
+    </div>
+  </section>
+
+  <p class="learn" style="margin:14px 2px 0">Color encodes daily intensity along a green ramp from <span style="color:var(--green)">#0e4429 to #39d353</span>. <a href="#" onclick="return false">How activity is counted</a></p>
+</main>
+
+<footer class="foot wrap">
+  <span>Pulsegrid - activity index. Synthetic data, deterministic seed.</span>
+  <span class="mono">52 weeks &times; 7 days = 364 cells</span>
+</footer>
+
+<script>
+/* =========================================================================
+   DATA - swap everything here. No real data fetch: a deterministic seed
+   generates a believable year of activity so the hero always renders.
+   ========================================================================= */
+const DATA = {
+  brand:        "Pulsegrid",
+  totalLabel:   "contributions<br>in the last year",
+  weekStartMon: false,            // false = week starts Sunday (GitHub style)
+  // green-to-dark ramp, index 0 = empty/least, 4 = most. SVG fills must be hex (never var()).
+  ramp:         ["#161b22", "#0e4429", "#006d32", "#26a641", "#39d353"],
+  months:       ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
+  days:         ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],
+  // one entry per selectable year tab -> drives the deterministic generator
+  years: {
+    "2025": { seed: 20250413, intensity: 1.18, label: "2025" },
+    "2024": { seed: 19831127, intensity: 0.92, label: "2024" },
+    "2023": { seed: 77123451, intensity: 0.70, label: "2023" }
+  }
+};
+
+/* ---- layout constants for the inline SVG grid ---- */
+const WEEKS = 52, ROWS = 7;
+const CELL = 14, GAP = 3, STEP = CELL + GAP;     // square + gutter
+const PAD_L = 34, PAD_T = 22, PAD_R = 6, PAD_B = 6; // room for weekday + month labels
+const GRID_W = WEEKS * STEP - GAP;
+const GRID_H = ROWS  * STEP - GAP;
+const SVG_W  = PAD_L + GRID_W + PAD_R;
+const SVG_H  = PAD_T + GRID_H + PAD_B;
+
+/* ---- tiny deterministic PRNG (mulberry32) so the grid is stable per seed ---- */
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+/* Build a year: array[week][row] = {count, level, date} with weekend dips,
+   sprint bursts, and a couple of vacation gaps so it reads human. */
+function buildYear(cfg){
+  const rnd = mulberry32(cfg.seed);
+  const grid = [];
+  let total = 0, best = 0, streak = 0, curStreak = 0, activeDays = 0;
+  // pick 2 "vacation" windows (low activity)
+  const vac1 = 6 + Math.floor(rnd()*8);
+  const vac2 = 30 + Math.floor(rnd()*10);
+  for(let w=0; w<WEEKS; w++){
+    const col = [];
+    // a slow seasonal momentum wave + a sprint pulse every ~5 weeks
+    const wave   = (Math.sin((w/WEEKS) * Math.PI * 2 - 1.1) + 1) / 2;   // 0..1
+    const sprint = (Math.sin(w * 0.62) + 1) / 2;                        // 0..1
+    const inVac  = (w >= vac1 && w < vac1+2) || (w >= vac2 && w < vac2+2);
+    for(let d=0; d<ROWS; d++){
+      const weekend = (d === 0 || d === 6);
+      let base = (0.32 + 0.55*wave + 0.45*sprint) * cfg.intensity;
+      if(weekend) base *= 0.30;
+      if(inVac)   base *= 0.12;
+      const noise = rnd();
+      let count = 0;
+      // probability of an active day scales with base
+      if(noise < Math.min(0.97, base)){
+        count = Math.round(1 + rnd() * 14 * base);
+      }
+      count = Math.max(0, count);
+      const level =
+        count === 0 ? 0 :
+        count <= 2  ? 1 :
+        count <= 6  ? 2 :
+        count <= 11 ? 3 : 4;
+      if(count > 0){ activeDays++; curStreak++; if(curStreak>streak) streak=curStreak; }
+      else { curStreak = 0; }
+      total += count;
+      if(count > best) best = count;
+      col.push({ count, level, w, d });
+    }
+    grid.push(col);
+  }
+  const avg = (total / (WEEKS*ROWS)).toFixed(1);
+  return { grid, total, best, streak, avg };
+}
+
+/* map week index -> calendar-ish month label position for the top axis */
+function monthLabels(){
+  // 52 weeks, roughly 4.33 weeks per month; place a label at each month start
+  const out = [];
+  for(let m=0; m<12; m++){
+    const w = Math.round(m * (WEEKS / 12));
+    out.push({ w, name: DATA.months[m] });
+  }
+  return out;
+}
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs){
+  const n = document.createElementNS(SVG_NS, tag);
+  for(const k in attrs) n.setAttribute(k, attrs[k]);
+  return n;
+}
+
+let currentSeed = "2025";
+const prefersReduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function render(seedKey){
+  currentSeed = seedKey;
+  const cfg = DATA.years[seedKey];
+  const model = buildYear(cfg);
+  const svg = document.getElementById("heat");
+  svg.setAttribute("viewBox", `0 0 ${SVG_W} ${SVG_H}`);
+  svg.setAttribute("width", SVG_W);
+  svg.setAttribute("height", SVG_H);
+  // keep the title node, clear the rest
+  const title = svg.querySelector("title");
+  svg.innerHTML = "";
+  if(title) svg.appendChild(title);
+
+  /* --- month labels (top axis) --- */
+  monthLabels().forEach(ml=>{
+    const t = el("text", {
+      x: PAD_L + ml.w * STEP,
+      y: PAD_T - 8,
+      fill: "#8b949e",
+      "font-size": "10.5",
+      "text-anchor": "start"
+    });
+    t.textContent = ml.name;
+    svg.appendChild(t);
+  });
+
+  /* --- weekday labels (left axis) - show Mon/Wed/Fri like GitHub --- */
+  const showDays = DATA.weekStartMon ? [1,3,5] : [1,3,5];
+  for(let d=0; d<ROWS; d++){
+    if(!showDays.includes(d)) continue;
+    const t = el("text", {
+      x: PAD_L - 8,
+      y: PAD_T + d * STEP + CELL - 3,
+      fill: "#8b949e",
+      "font-size": "10.5",
+      "text-anchor": "end"
+    });
+    t.textContent = DATA.days[d];
+    svg.appendChild(t);
+  }
+
+  /* --- the 52 x 7 cells --- */
+  let i = 0;
+  for(let w=0; w<WEEKS; w++){
+    for(let d=0; d<ROWS; d++){
+      const cell = model.grid[w][d];
+      const r = el("rect", {
+        class: "cell",
+        x: PAD_L + w * STEP,
+        y: PAD_T + d * STEP,
+        width: CELL,
+        height: CELL,
+        rx: 3, ry: 3,
+        fill: DATA.ramp[cell.level],
+        "data-count": cell.count,
+        "data-level": cell.level,
+        "data-w": w,
+        "data-d": d,
+        tabindex: "-1"
+      });
+      // staggered wave-in by diagonal (skipped entirely under reduced motion via CSS)
+      if(!prefersReduce){
+        r.style.animationDelay = ((w + d) * 7) + "ms";
+      }
+      svg.appendChild(r);
+      i++;
+    }
+  }
+
+  if(!prefersReduce){
+    // arm the animation on next frame so delays apply cleanly
+    requestAnimationFrame(()=>svg.parentElement.parentElement.classList.add("anim-ready"));
+  } else {
+    svg.parentElement.parentElement.classList.add("anim-ready");
+  }
+
+  /* --- bind stats --- */
+  setTotal(model.total);
+  document.getElementById("msStreak").textContent = model.streak + "d";
+  document.getElementById("msBest").textContent   = model.best;
+  document.getElementById("msAvg").textContent    = model.avg;
+  document.getElementById("ghCount").textContent  = model.total.toLocaleString();
+  document.getElementById("ghYear").textContent   = cfg.label;
+  document.getElementById("totalLab").innerHTML   = DATA.totalLabel;
+
+  bindHover(svg);
+  return model;
+}
+
+/* count-up for the big total (respects reduced motion = instant) */
+function setTotal(target){
+  const node = document.getElementById("totalNum");
+  if(prefersReduce){ node.textContent = target.toLocaleString(); return; }
+  const start = performance.now(), dur = 1100, from = 0;
+  function tick(now){
+    const p = Math.min(1, (now - start) / dur);
+    const e = 1 - Math.pow(1 - p, 3);
+    node.textContent = Math.round(from + (target - from) * e).toLocaleString();
+    if(p < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+/* --- legend swatches --- */
+(function legend(){
+  const box = document.getElementById("legendSquares");
+  DATA.ramp.forEach(hex=>{
+    const i = document.createElement("i");
+    i.style.background = hex;
+    box.appendChild(i);
+  });
+})();
+
+/* --- hover / focus tooltip text --- */
+const WD = DATA.days, MO = DATA.months;
+function dayLabel(w, d){
+  // synthesize a readable date from week+row
+  const dayOfYear = w * 7 + d;
+  const month = MO[Math.min(11, Math.floor(dayOfYear / 30.4))];
+  const dom = (dayOfYear % 30) + 1;
+  return `${WD[d]}, ${month} ${dom}`;
+}
+function bindHover(svg){
+  const tip = document.getElementById("tip");
+  function show(r){
+    const c = +r.getAttribute("data-count");
+    const w = +r.getAttribute("data-w"), d = +r.getAttribute("data-d");
+    const word = c === 0 ? "No contributions" : (c === 1 ? "1 contribution" : c + " contributions");
+    tip.innerHTML = `<b>${word}</b> &middot; <span class="lvl">${dayLabel(w,d)}</span>`;
+  }
+  svg.addEventListener("mouseover", e=>{ if(e.target.classList.contains("cell")) show(e.target); });
+  svg.addEventListener("focusin",  e=>{ if(e.target.classList.contains("cell")) show(e.target); });
+  svg.addEventListener("mouseleave", ()=>{ tip.innerHTML = "Hover a square to inspect a day."; });
+}
+
+/* --- year tabs --- */
+document.querySelectorAll(".yeartabs button").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll(".yeartabs button").forEach(b=>b.setAttribute("aria-pressed","false"));
+    btn.setAttribute("aria-pressed","true");
+    // re-arm wave so it replays on tab switch
+    const card = document.querySelector(".graphcard");
+    card.classList.remove("anim-ready");
+    render(btn.getAttribute("data-seed"));
+  });
+});
+
+/* initial paint */
+render("2025");
+</script>
+</body>
+</html>

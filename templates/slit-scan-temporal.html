@@ -1,0 +1,761 @@
+<!-- TEMPLATE: TIME SMEAR | ARCHETYPE: slit-scan temporal displacement reel | REF: Codrops + Coding Train slit-scan time-displacement, real-time slitscan shader tutorials 2026 | WHEN TO USE: motion-media / AI-video reel where each work should read as a time-warped streak (column x = frame now-minus-x), cursor bends the smear, click freezes the buffer | SWAP: edit the DATA array at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TIME SMEAR // slit-scan temporal reel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* ============================ DESIGN TOKENS ============================ */
+:root{
+  --void:#0b0b0d;          /* near-black stage */
+  --void-1:#101013;
+  --void-2:#16161a;
+  --bone:#f0ece4;          /* HUD / labels */
+  --bone-dim:#9a968d;
+  --bone-faint:#56544e;
+  --vermilion:#e8472a;     /* scan-edge */
+  --cobalt:#2c6fad;        /* past-frame tint */
+  --line:#1d1d22;
+  --line-2:#2a2a31;
+  --maxw:1320px;
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+html,body{margin:0;background:var(--void);color:var(--bone)}
+body{
+  font-family:"Archivo",system-ui,sans-serif;
+  font-size:16px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+  background:
+    radial-gradient(1100px 700px at 78% -8%, rgba(44,111,173,.16), transparent 60%),
+    radial-gradient(900px 600px at 8% 108%, rgba(232,71,42,.08), transparent 55%),
+    var(--void);
+}
+a{color:inherit}
+.mono{font-family:"Space Mono",ui-monospace,monospace}
+::selection{background:var(--vermilion);color:var(--void)}
+
+/* ============================ SCAFFOLD ============================ */
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+.rule{height:1px;background:var(--line);border:0;margin:0}
+
+/* fixed corner HUD frame */
+.frame{position:fixed;inset:0;pointer-events:none;z-index:40;mix-blend-mode:screen}
+.frame::before,.frame::after{
+  content:"";position:absolute;width:26px;height:26px;border:1px solid var(--bone-faint);
+}
+.frame::before{top:14px;left:14px;border-right:0;border-bottom:0}
+.frame::after{bottom:14px;right:14px;border-left:0;border-top:0}
+
+/* ---------- top band ---------- */
+header{position:relative;z-index:20;border-bottom:1px solid var(--line)}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 24px;max-width:var(--maxw);margin:0 auto}
+.brand{display:flex;align-items:baseline;gap:12px}
+.brand b{font-weight:800;letter-spacing:.02em;font-size:18px}
+.brand .tag{font-size:11px;letter-spacing:.34em;color:var(--bone-dim);text-transform:uppercase}
+.nav{display:flex;gap:22px;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--bone-dim)}
+.nav span:first-child{color:var(--vermilion)}
+@media(max-width:760px){.nav{display:none}}
+
+/* ============================ HERO STAGE ============================ */
+/* hero is intentionally compact so a populated slice of the live streak
+   peeks above the fold at scroll=0 (the catalog thumb is a scroll=0 shot). */
+.hero{position:relative;padding:16px 0 22px}
+.hero-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:12px}
+.kicker{font-size:11px;letter-spacing:.4em;text-transform:uppercase;color:var(--vermilion);margin:0 0 8px}
+h1{
+  font-size:clamp(34px,5.4vw,72px);line-height:.92;margin:0;font-weight:800;letter-spacing:-.02em;
+  text-transform:uppercase;
+}
+h1 .smear{
+  display:inline-block;color:transparent;
+  background:linear-gradient(96deg,var(--cobalt),var(--bone) 38%,var(--vermilion));
+  -webkit-background-clip:text;background-clip:text;
+  filter:drop-shadow(0 0 14px rgba(232,71,42,.12));
+}
+.lede{max-width:46ch;color:var(--bone-dim);font-size:14px;margin:8px 0 0}
+.lede b{color:var(--bone);font-weight:600}
+
+/* the live stage holds the canvas */
+.stage{
+  position:relative;margin-top:12px;border:1px solid var(--line-2);
+  border-radius:8px;overflow:hidden;background:#000;
+  box-shadow:0 30px 80px -40px rgba(0,0,0,.9), inset 0 0 0 1px rgba(240,236,228,.02);
+}
+.stage{outline:none}
+.stage:focus-visible{box-shadow:0 0 0 2px var(--vermilion), 0 30px 80px -40px rgba(0,0,0,.9)}
+.stage canvas{display:block;width:100%;height:auto;aspect-ratio:16/9}
+/* fine scanline veil over the canvas */
+.stage::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,0) 0 2px,rgba(0,0,0,.16) 2px 3px);
+  mix-blend-mode:multiply;opacity:.5;
+}
+
+/* moving scan-edge marker driven by --sx (0..1) */
+.scanedge{
+  position:absolute;top:0;bottom:0;width:2px;left:calc(var(--sx,.5) * 100%);
+  background:linear-gradient(180deg,transparent,var(--vermilion) 14%,var(--vermilion) 86%,transparent);
+  box-shadow:0 0 18px 2px rgba(232,71,42,.55);
+  transform:translateX(-1px);pointer-events:none;z-index:6;transition:opacity .3s;
+}
+.scanedge b{
+  position:absolute;top:-1px;left:50%;transform:translateX(-50%);
+  width:7px;height:7px;background:var(--vermilion);border-radius:1px;
+}
+
+/* HUD overlay on stage */
+.hud{position:absolute;inset:0;pointer-events:none;z-index:5;font-family:"Space Mono",monospace}
+.hud .corner{position:absolute;font-size:10.5px;letter-spacing:.16em;color:var(--bone);text-shadow:0 1px 4px rgba(0,0,0,.8);text-transform:uppercase}
+.hud .tl{top:12px;left:14px}
+.hud .tr{top:12px;right:14px;text-align:right;color:var(--cobalt)}
+.hud .bl{bottom:12px;left:14px;color:var(--bone-dim)}
+.hud .br{bottom:12px;right:14px;text-align:right;color:var(--vermilion)}
+.hud .big{position:absolute;left:14px;bottom:34px;font-family:"Archivo";font-weight:800;font-size:clamp(20px,4vw,44px);letter-spacing:.01em;text-transform:uppercase;line-height:1;color:var(--bone);text-shadow:0 2px 14px rgba(0,0,0,.7)}
+.hud .rec{display:inline-flex;align-items:center;gap:6px}
+.hud .rec i{width:8px;height:8px;border-radius:50%;background:var(--vermilion);box-shadow:0 0 8px var(--vermilion);animation:blink 1.4s steps(2,jump-none) infinite}
+@keyframes blink{50%{opacity:.25}}
+.hud .froze{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:"Archivo";font-weight:800;font-size:clamp(18px,3vw,30px);letter-spacing:.28em;color:var(--bone);border:1px solid var(--bone);padding:8px 18px;background:rgba(11,11,13,.45);opacity:0;transition:opacity .25s;text-transform:uppercase}
+.stage.frozen .froze{opacity:1}
+.stage.frozen .rec i{animation:none;background:var(--cobalt);box-shadow:0 0 8px var(--cobalt)}
+
+/* readouts row under stage */
+.readout{display:flex;gap:0;flex-wrap:wrap;margin-top:0;border:1px solid var(--line-2);border-top:0;border-radius:0 0 8px 8px;overflow:hidden}
+.readout .cell{flex:1 1 0;min-width:120px;padding:11px 14px;border-right:1px solid var(--line);background:var(--void-1)}
+.readout .cell:last-child{border-right:0}
+.readout .k{font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--bone-faint)}
+.readout .v{font-family:"Space Mono",monospace;font-size:14px;margin-top:3px;color:var(--bone)}
+.readout .v em{font-style:normal;color:var(--vermilion)}
+.readout .v.cob em{color:var(--cobalt)}
+
+.hint{margin-top:12px;font-size:12px;color:var(--bone-faint);letter-spacing:.06em;font-family:"Space Mono",monospace;display:flex;gap:18px;flex-wrap:wrap}
+.hint b{color:var(--bone-dim);font-weight:400}
+.hint kbd{font-family:inherit;color:var(--bone);border:1px solid var(--line-2);border-radius:3px;padding:1px 6px;font-size:11px}
+
+/* ============================ REEL (other works) ============================ */
+.reel{padding:54px 0 30px}
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap}
+.sec-head h2{font-size:clamp(20px,3vw,30px);margin:0;font-weight:800;text-transform:uppercase;letter-spacing:-.01em}
+.sec-head .note{font-size:12px;color:var(--bone-dim);font-family:"Space Mono",monospace;max-width:42ch}
+
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+@media(max-width:980px){.grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.grid{grid-template-columns:1fr}}
+
+.tile{
+  position:relative;border:1px solid var(--line-2);border-radius:7px;overflow:hidden;
+  background:#000;cursor:pointer;outline:none;
+  transition:border-color .25s var(--ease),transform .25s var(--ease);
+}
+.tile:hover,.tile:focus-visible{border-color:var(--vermilion);transform:translateY(-3px)}
+.tile:focus-visible{box-shadow:0 0 0 2px rgba(232,71,42,.5)}
+.tile canvas{display:block;width:100%;height:auto;aspect-ratio:16/10}
+.tile .tlabel{position:absolute;left:0;right:0;bottom:0;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;
+  background:linear-gradient(0deg,rgba(11,11,13,.92),rgba(11,11,13,0));font-family:"Space Mono",monospace}
+.tile .tlabel .nm{font-size:12px;letter-spacing:.02em;color:var(--bone)}
+.tile .tlabel .id{font-size:10px;color:var(--cobalt);letter-spacing:.1em}
+.tile .badge{position:absolute;top:10px;left:10px;font-family:"Space Mono",monospace;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--bone);background:rgba(11,11,13,.6);border:1px solid var(--line-2);padding:3px 7px;border-radius:3px}
+.tile .live{position:absolute;top:10px;right:10px;font-family:"Space Mono",monospace;font-size:9.5px;letter-spacing:.16em;color:var(--bone-faint);text-transform:uppercase}
+.tile.active .live{color:var(--vermilion)}
+.tile .live i{display:inline-block;width:6px;height:6px;border-radius:50%;background:currentColor;margin-right:5px;vertical-align:middle}
+
+/* ============================ FOOTER ============================ */
+footer{padding:48px 0 60px;border-top:1px solid var(--line);margin-top:40px}
+.foot{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;align-items:flex-end}
+.foot .col h3{font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--bone-dim);margin:0 0 10px}
+.foot .col p{margin:0;font-size:13px;color:var(--bone-faint);font-family:"Space Mono",monospace;line-height:1.7}
+.foot .big{font-size:clamp(30px,7vw,82px);font-weight:800;text-transform:uppercase;letter-spacing:-.02em;line-height:.85;color:transparent;
+  background:linear-gradient(96deg,var(--cobalt),var(--bone) 50%,var(--vermilion));-webkit-background-clip:text;background-clip:text}
+
+/* ============================ MOBILE: pre-baked still ============================ */
+.mobile-still{display:none}
+@media(max-width:640px){
+  .wrap{padding:0 16px}
+  .hero{padding:18px 0 22px}
+  /* swap live stage for a contained, letterboxed pre-baked streak */
+  .stage{display:none}
+  .scanedge{display:none}
+  .mobile-still{display:block;position:relative;margin-top:16px;border:1px solid var(--line-2);border-radius:8px;overflow:hidden;background:#000}
+  .mobile-still canvas{display:block;width:100%;height:auto;aspect-ratio:16/9}
+  .mobile-still .hud .big{font-size:22px}
+  .readout .cell{min-width:50%}
+  .hint{display:none}
+}
+@media(max-width:380px){.readout .cell{min-width:100%}}
+
+/* ============================ REDUCED MOTION ============================ */
+@media(prefers-reduced-motion:reduce){
+  .hud .rec i{animation:none}
+  .scanedge{transition:none}
+  .tile{transition:none}
+}
+</style>
+</head>
+<body>
+<div class="frame" aria-hidden="true"></div>
+
+<header>
+  <div class="topbar">
+    <div class="brand">
+      <b>TIME&nbsp;SMEAR</b>
+      <span class="tag">slit-scan temporal reel</span>
+    </div>
+    <nav class="nav" aria-label="sections">
+      <span>// reel</span><span>process</span><span>archive</span><span>contact</span>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============= HERO: live slit-scan stage ============= -->
+  <section class="hero">
+    <div class="hero-head">
+      <div>
+        <p class="kicker">column x reads frame now minus x</p>
+        <h1>EVERY COLUMN<br>IS A <span class="smear">DIFFERENT</span><br>MOMENT</h1>
+      </div>
+      <p class="lede">A short loop streamed into a <b>120-frame ring buffer</b>. The display samples a different instant per column, so motion smears into a time-warped streak. <b>Move the cursor</b> to bend the gradient steeper or shallower. <b>Click</b> to freeze the buffer.</p>
+    </div>
+
+    <!-- LIVE STAGE (desktop) -->
+    <div class="stage" id="stage" tabindex="0" role="img"
+         aria-label="Slit-scan time-displacement of the active clip: each vertical column shows the scene a fraction of a second earlier than the one to its right, producing a smeared temporal streak.">
+      <canvas id="liveCanvas" width="1280" height="720"></canvas>
+      <div class="scanedge" id="scanedge"><b></b></div>
+      <div class="hud" aria-hidden="true">
+        <div class="corner tl"><span class="rec"><i></i></span> SLIT-SCAN / T-DISPLACE</div>
+        <div class="corner tr">PAST-TINT&nbsp;COBALT</div>
+        <div class="big" id="hudTitle">NEON RUN</div>
+        <div class="corner bl" id="hudMeta">RING 120f / 30fps</div>
+        <div class="corner br" id="hudSlope">SLOPE 1.00x</div>
+        <div class="froze">BUFFER FROZEN</div>
+      </div>
+    </div>
+
+    <!-- MOBILE pre-baked still (no live buffer) -->
+    <div class="mobile-still" aria-hidden="true">
+      <canvas id="stillCanvas" width="960" height="540"></canvas>
+      <div class="hud">
+        <div class="corner tl">SLIT-SCAN / STILL</div>
+        <div class="corner tr" style="color:var(--cobalt)">PRE-BAKED</div>
+        <div class="big">NEON RUN</div>
+        <div class="corner br" style="color:var(--vermilion)">STREAK 0001</div>
+      </div>
+    </div>
+
+    <!-- live readouts -->
+    <div class="readout" aria-hidden="true">
+      <div class="cell"><div class="k">active work</div><div class="v" id="roTitle">NEON RUN</div></div>
+      <div class="cell"><div class="k">scan column</div><div class="v"><em id="roCol">640</em> px</div></div>
+      <div class="cell"><div class="k">time offset</div><div class="v cob"><em id="roTime">-2.13s</em></div></div>
+      <div class="cell"><div class="k">smear slope</div><div class="v"><em id="roSlope">1.00x</em></div></div>
+      <div class="cell"><div class="k">buffer</div><div class="v" id="roBuf">LIVE</div></div>
+    </div>
+
+    <div class="hint">
+      <b>MOVE</b> cursor X bends the smear gradient
+      <b>CLICK</b> <kbd>freeze</kbd> / <kbd>release</kbd> the ring buffer
+      <b>SELECT</b> a work below to stream it into the stage
+    </div>
+  </section>
+
+  <!-- ============= REEL ============= -->
+  <section class="reel" id="reel">
+    <div class="sec-head">
+      <h2>// THE REEL</h2>
+      <p class="note">Hover or focus a tile to preview its baked streak. Selecting one streams that clip into the live stage above. Only the focused work runs a live buffer.</p>
+    </div>
+    <div class="grid" id="grid"><!-- tiles injected --></div>
+  </section>
+</main>
+
+<footer id="contact">
+  <div class="wrap foot">
+    <div class="col">
+      <h3>time smear / studio</h3>
+      <p>Canvas 2D ring-buffer slit-scan.<br>No WebGL. No libraries.<br>Swap the DATA array to reskin.</p>
+    </div>
+    <div class="col" style="flex:1;text-align:right">
+      <div class="big">SMEAR<br>TIME</div>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ============================================================================
+   DATA  -  swap these to reskin the whole template.
+   `kind:"video"` streams a real clip into the ring buffer.
+   `kind:"image"` uses a still source (the buffer is seeded by a synthetic
+   pan so a streak still forms). poster = first paint + tile baseline.
+   ========================================================================== */
+const ASSET = "../assets/";
+const GEN   = "../assets/gen/";
+const DATA = [
+  { id:"S-001", title:"NEON RUN",   kind:"video", src:ASSET+"flux-car-i2v.mp4", poster:GEN+"poster-flux-car-i2v.png", hero:true,  badge:"MOTION" },
+  { id:"S-002", title:"DRIFT FIELD",kind:"video", src:ASSET+"kling-video.mp4",  poster:GEN+"poster-kling-video.png",  hero:false, badge:"MOTION" },
+  { id:"S-003", title:"FLUX BREAK", kind:"video", src:ASSET+"fal-video.mp4",    poster:GEN+"poster-fal-video.png",    hero:false, badge:"MOTION" },
+  { id:"S-004", title:"HYPERFRAME", kind:"video", src:ASSET+"hyperframes.mp4",  poster:GEN+"poster-hyperframes.png",  hero:false, badge:"MOTION" },
+  { id:"S-005", title:"WET STREET", kind:"image", src:ASSET+"flux-car-4k.png",  poster:ASSET+"flux-car.png",          hero:false, badge:"STILL"  },
+  { id:"S-006", title:"AUTUMN FOX", kind:"image", src:ASSET+"sdxl.png",         poster:ASSET+"sdxl.png",              hero:false, badge:"STILL"  },
+];
+
+/* ---- temporal engine constants ---- */
+const SRC_W   = 320;          // offscreen source width cap (decode cheap)
+const RING    = 120;          // ring buffer depth (frames)
+const PALETTE = { void:"#0b0b0d", bone:"#f0ece4", vermilion:"#e8472a", cobalt:"#2c6fad" };
+
+/* ========================================================================== */
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const isMobile = window.matchMedia("(max-width: 640px)").matches;
+
+/* ----- offscreen source canvas (small, the only thing we decode video into) */
+function makeBuf(w,h){ const c=document.createElement("canvas"); c.width=w; c.height=h; return c; }
+
+/* ============================================================================
+   RingBuffer: holds RING small frames as offscreen canvases.
+   Each frame is SRC_W wide. The slit-scan renderer reads a 1px-wide column
+   from frame[now - x] for output column x, via drawImage (no per-pixel loop).
+   ========================================================================== */
+class SlitScan{
+  constructor(canvas, srcAspect){
+    this.cv = canvas;
+    this.ctx = canvas.getContext("2d", { alpha:false });
+    this.srcAspect = srcAspect || (16/9);
+    this.srcW = SRC_W;
+    this.srcH = Math.round(SRC_W / this.srcAspect);
+    this.frames = [];                       // ring of offscreen canvases
+    for(let i=0;i<RING;i++) this.frames.push(makeBuf(this.srcW, this.srcH));
+    this.head = 0;                          // index of newest frame
+    this.filled = 0;                        // how many valid frames captured
+    this.frozen = false;
+    this.slope = 1.0;                       // smear steepness, cursor-driven
+    this.scanX = 0.5;                       // cursor X (0..1) for marker
+    this.scratch = makeBuf(this.srcW, this.srcH);
+  }
+  // push a freshly drawn source canvas into the ring
+  capture(drawFn){
+    if(this.frozen) return;
+    this.head = (this.head + 1) % RING;
+    const f = this.frames[this.head];
+    const fc = f.getContext("2d");
+    drawFn(fc, this.srcW, this.srcH);
+    if(this.filled < RING) this.filled++;
+  }
+  // get the offscreen canvas for "age" frames in the past (0 = newest)
+  frameAtAge(age){
+    age = Math.min(age, this.filled-1);
+    if(age < 0) age = 0;
+    let idx = this.head - age;
+    while(idx < 0) idx += RING;
+    return this.frames[idx];
+  }
+  // render the slit-scan: output column x reads frame now-minus-mappedAge
+  render(){
+    const ctx = this.ctx, W = this.cv.width, H = this.cv.height;
+    const cols = this.srcW;                 // we sample at source resolution then upscale-blit
+    // draw into the scratch at source res, then one scaled blit to the visible canvas
+    const sc = this.scratch.getContext("2d");
+    const maxAge = Math.max(1, this.filled - 1);
+    // slope > 1 => steeper time gradient (more spread over fewer columns) ;
+    // clamp so we never exceed available history
+    for(let x=0; x<cols; x++){
+      // normalized column 0..1 left->right
+      const t = x / (cols - 1);
+      // age grows with column position; slope bends the curve
+      let age = Math.round(maxAge * Math.pow(t, 1/this.slope));
+      if(age > maxAge) age = maxAge;
+      const src = this.frameAtAge(age);
+      // copy a 1px vertical slice from source column x of that aged frame
+      sc.drawImage(src, x, 0, 1, this.srcH, x, 0, 1, this.srcH);
+      // cobalt past-frame tint: older columns get a faint cobalt wash
+      if(age > 1){
+        const a = Math.min(0.42, age / maxAge * 0.42);
+        sc.fillStyle = "rgba(44,111,173,"+a.toFixed(3)+")";
+        sc.globalCompositeOperation = "overlay";
+        sc.fillRect(x, 0, 1, this.srcH);
+        sc.globalCompositeOperation = "source-over";
+      }
+    }
+    // upscale the source-res streak to the visible canvas
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(this.scratch, 0, 0, this.srcW, this.srcH, 0, 0, W, H);
+    // vermilion "present" glow on the left edge: age == 0 is the live now
+    const edgeW = Math.max(3, W*0.045);
+    const g = ctx.createLinearGradient(0,0,edgeW,0);
+    g.addColorStop(0,"rgba(232,71,42,.22)");
+    g.addColorStop(1,"rgba(232,71,42,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, edgeW, H);
+  }
+}
+
+/* ============================================================================
+   Source drawers
+   ========================================================================== */
+// draw a live video frame, zoomed + horizontally drifted by `phase` so that
+// consecutive captured frames sit at visibly different X. Real clip motion
+// rides on top; the drift guarantees the slit-scan streak stays iconic even
+// when the source barely moves.
+function videoDrawer(video, phase){
+  return (fc, w, h)=>{
+    const vw = video.videoWidth || 1280, vh = video.videoHeight || 720;
+    const da = w/h;
+    let bw,bh; if(vw/vh > da){ bh=vh; bw=vh*da; } else { bw=vw; bh=vw/da; }
+    const Z=1.5, sw=bw/Z, sh=bh/Z, roomX=vw-sw, roomY=vh-sh;
+    const tri = 1 - Math.abs(2*((phase||0)%1) - 1);
+    const sx = roomX * (0.06 + 0.88*tri);
+    const sy = roomY * (0.5 + 0.18*Math.sin((phase||0)*Math.PI*2));
+    try{ fc.drawImage(video, sx, sy, sw, sh, 0, 0, w, h); }
+    catch(e){ fc.fillStyle=PALETTE.void; fc.fillRect(0,0,w,h); }
+  };
+}
+// (imageDrawer is unused; imgPhaseDraw below is the single shared still drawer)
+
+/* ============================================================================
+   Seed a full streak instantly (so scroll=0 screenshot is fully formed).
+   We synthesize a fake "history" by drawing the source at RING progressively
+   offset phases BEFORE any rAF runs.
+   ========================================================================== */
+function seedBuffer(engine, drawerForPhase){
+  for(let i=0;i<RING;i++){
+    const phase = i / RING;                 // 0..1 across the seeded history
+    engine.head = (engine.head + 1) % RING;
+    const f = engine.frames[engine.head];
+    const fc = f.getContext("2d");
+    drawerForPhase(fc, engine.srcW, engine.srcH, phase);
+  }
+  engine.filled = RING;
+}
+
+/* ============================================================================
+   LIVE STAGE controller
+   ========================================================================== */
+const stageEl   = document.getElementById("stage");
+const liveCv    = document.getElementById("liveCanvas");
+const scanedge  = document.getElementById("scanedge");
+const hudTitle  = document.getElementById("hudTitle");
+const hudMeta   = document.getElementById("hudMeta");
+const hudSlope  = document.getElementById("hudSlope");
+const roTitle   = document.getElementById("roTitle");
+const roCol     = document.getElementById("roCol");
+const roTime    = document.getElementById("roTime");
+const roSlope   = document.getElementById("roSlope");
+const roBuf     = document.getElementById("roBuf");
+
+let engine, activeItem, activeVideo=null, activeImg=null, panPhase=0;
+let rafId=0, running=false;
+
+function setReadouts(){
+  const slope = engine ? engine.slope : 1;
+  const sx = engine ? engine.scanX : .5;
+  const W = liveCv.width;
+  const col = Math.round(sx * W);
+  // time offset at the cursor column, mapped through the same curve as render()
+  const maxAge = engine ? Math.max(1, engine.filled-1) : 1;
+  const t = sx;
+  const age = Math.round(maxAge * Math.pow(t, 1/slope));
+  const secs = -(age / 30);                 // ~30fps capture
+  if(scanedge) scanedge.parentElement && stageEl.style.setProperty("--sx", sx.toFixed(3));
+  roCol.textContent  = col;
+  roTime.textContent = secs.toFixed(2)+"s";
+  roSlope.textContent= slope.toFixed(2)+"x";
+  hudSlope.textContent = "SLOPE "+slope.toFixed(2)+"x";
+}
+
+function streamItem(item){
+  activeItem = item;
+  // tear down previous video
+  if(activeVideo){ try{ activeVideo.pause(); }catch(e){} activeVideo.src=""; activeVideo.load(); activeVideo=null; }
+  activeImg=null;
+  hudTitle.textContent = item.title;
+  roTitle.textContent  = item.title;
+  hudMeta.textContent  = "RING "+RING+"f / 30fps";
+
+  // build a fresh engine for this clip's aspect
+  engine = new SlitScan(liveCv, 16/9);
+  engine.slope = engine.slope;
+
+  if(item.kind === "video" && !reduceMotion){
+    // Paint a formed streak from the POSTER immediately, before the heavy clip
+    // decodes, so scroll=0 always shows a fully formed time-smear (the catalog
+    // thumb is a scroll=0 shot). The video overwrites the ring on loadeddata.
+    const seedImg = new Image();
+    seedImg.crossOrigin = "anonymous";
+    seedImg.src = item.poster || item.src;
+    seedImg.onload = ()=>{
+      if(activeItem !== item) return;        // a newer stream won the race
+      seedBuffer(engine, (fc,w,h,phase)=> imgPhaseDraw(seedImg, fc, w, h, phase, true));
+      engine.render();
+      setReadouts();
+    };
+    const v = document.createElement("video");
+    v.muted=true; v.loop=true; v.playsInline=true; v.preload="auto";
+    v.crossOrigin="anonymous"; v.src=item.src;
+    v.addEventListener("loadeddata", ()=>{
+      if(activeItem !== item) return;        // stale loadeddata after a re-stream
+      // seed an instant streak from the poster-equivalent first frames by
+      // sampling the video at staggered currentTimes if possible; fallback: pan seed
+      seedFromVideo(engine, v);
+      v.play().catch(()=>{ /* autoplay may be blocked; seeded streak still shows */ });
+    }, { once:true });
+    activeVideo = v;
+  } else {
+    // image (or reduced-motion video -> use poster image) : synthetic pan streak
+    const img = new Image();
+    img.crossOrigin="anonymous";
+    img.src = (item.kind==="video") ? item.poster : item.src;
+    img.onload = ()=>{
+      activeImg = img;
+      seedBuffer(engine, (fc,w,h,phase)=>{
+        imgPhaseDraw(img, fc, w, h, phase, true);
+      });
+      engine.render();   // paint the seeded streak immediately
+    };
+  }
+}
+
+// draw an image at a given pan phase (used by seeding + live image loop).
+// We deliberately ZOOM IN (1.5x) so there is crop room, then sweep strongly
+// across that room. Each history frame therefore shows the subject at a
+// clearly different X, which is what makes the slit-scan streak read as an
+// iconic time-warp rather than a clean photo.
+function imgPhaseDraw(img, fc, w, h, phase, mono){
+  const iw=img.naturalWidth||w, ih=img.naturalHeight||h;
+  const ia=iw/ih, da=w/h;
+  // base cover-fit source rect
+  let bw,bh; if(ia>da){ bh=ih; bw=ih*da; } else { bw=iw; bh=iw/da; }
+  // zoom in to create pan headroom
+  const Z = 1.5;
+  const sw = bw / Z, sh = bh / Z;
+  const roomX = iw - sw, roomY = ih - sh;
+  // mono = monotonic left->right sweep (for seeding a clean directional streak);
+  // otherwise a triangle wave (for the live loop, so it bounces in-crop forever).
+  const swp = mono ? (phase % 1) : (1 - Math.abs(2*((phase) % 1) - 1));
+  const sx = roomX * (0.06 + 0.88*swp);
+  const sy = roomY * (0.5 + 0.18*Math.sin(phase*Math.PI*2));
+  fc.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+}
+
+// Seed the ring from a video by quickly stepping currentTime across the clip.
+// If seeking is too slow/unsupported we fall back to a single-frame seed and
+// let the live loop fill genuine history. Either way scroll=0 has a streak.
+function seedFromVideo(engine, v){
+  const dur = (isFinite(v.duration) && v.duration>0) ? v.duration : 0;
+  const drawer = videoDrawer(v);
+  if(dur > 0.4){
+    // synchronous-ish seed: draw current frame across the whole ring with a
+    // slight horizontal phase so the seeded streak is visibly time-warped,
+    // then the live loop overwrites with real motion frame by frame.
+    for(let i=0;i<RING;i++){
+      engine.head=(engine.head+1)%RING;
+      const f=engine.frames[engine.head];
+      const fc=f.getContext("2d");
+      // phase-shift the cover crop slightly per seeded frame to fake motion
+      seedVideoPhase(v, fc, engine.srcW, engine.srcH, i/RING);
+    }
+    engine.filled=RING;
+  } else {
+    const drawOnce=(fc,w,h)=>drawer(fc,w,h);
+    for(let i=0;i<RING;i++){ engine.head=(engine.head+1)%RING; drawOnce(engine.frames[engine.head].getContext("2d"), engine.srcW, engine.srcH); }
+    engine.filled=RING;
+  }
+  engine.render();
+}
+// seed a video-history frame from the single available current frame, swept
+// strongly across a zoomed crop so the scroll=0 streak is fully formed and
+// unmistakably time-warped (the live loop then overwrites with real motion).
+function seedVideoPhase(v, fc, w, h, phase){
+  const vw=v.videoWidth||1280, vh=v.videoHeight||720;
+  const da=w/h; let bw,bh; if(vw/vh>da){ bh=vh; bw=vh*da; } else { bw=vw; bh=vw/da; }
+  const Z=1.5, sw=bw/Z, sh=bh/Z, roomX=vw-sw, roomY=vh-sh;
+  const sx = roomX * (0.06 + 0.88*(phase%1));     // monotonic seed sweep
+  const sy = roomY * (0.5 + 0.18*Math.sin(phase*Math.PI*2));
+  try{ fc.drawImage(v, sx, sy, sw, sh, 0, 0, w, h); }
+  catch(e){ fc.fillStyle=PALETTE.void; fc.fillRect(0,0,w,h); }
+}
+
+/* ----- the single rAF loop ----- */
+let lastCap=0;
+function loop(ts){
+  if(!running){ return; }
+  rafId = requestAnimationFrame(loop);
+  if(!engine){ return; }
+  // capture ~30fps regardless of display refresh
+  if(ts - lastCap >= 33){
+    lastCap = ts;
+    if(activeVideo && activeVideo.readyState >= 2){
+      panPhase = (panPhase + 0.0085) % 1;     // horizontal drift keeps the streak iconic
+      engine.capture(videoDrawer(activeVideo, panPhase));
+    } else if(activeImg){
+      panPhase = (panPhase + 0.0085) % 1;
+      engine.capture((fc,w,h)=> imgPhaseDraw(activeImg, fc, w, h, panPhase));
+    }
+  }
+  engine.render();
+  setReadouts();
+}
+function startLoop(){ if(running||reduceMotion) return; running=true; lastCap=0; rafId=requestAnimationFrame(loop); }
+function stopLoop(){ running=false; cancelAnimationFrame(rafId); }
+
+/* ----- interaction: cursor X bends slope, click freezes ----- */
+function pointerMove(e){
+  if(!engine) return;
+  const r = liveCv.getBoundingClientRect();
+  let x = (e.clientX - r.left) / r.width;
+  x = Math.max(0, Math.min(1, x));
+  engine.scanX = x;
+  // map cursor X (0..1) -> slope 0.4 .. 2.6 (left=shallow, right=steep)
+  engine.slope = 0.4 + x * 2.2;
+  stageEl.style.setProperty("--sx", x.toFixed(3));
+  if(reduceMotion){ engine.render(); }   // static re-render on move when frozen
+  setReadouts();
+}
+function toggleFreeze(){
+  if(!engine) return;
+  engine.frozen = !engine.frozen;
+  stageEl.classList.toggle("frozen", engine.frozen);
+  roBuf.textContent = engine.frozen ? "FROZEN" : "LIVE";
+  hudMeta.textContent = engine.frozen ? "BUFFER LOCKED" : ("RING "+RING+"f / 30fps");
+}
+
+stageEl.addEventListener("pointermove", pointerMove);
+stageEl.addEventListener("click", toggleFreeze);
+stageEl.addEventListener("keydown",(e)=>{
+  if(e.key==="Enter"||e.key===" "){ e.preventDefault(); toggleFreeze(); }
+  if(e.key==="ArrowLeft"){ engine.scanX=Math.max(0,engine.scanX-.05); engine.slope=0.4+engine.scanX*2.2; stageEl.style.setProperty("--sx",engine.scanX); if(reduceMotion)engine.render(); setReadouts(); }
+  if(e.key==="ArrowRight"){ engine.scanX=Math.min(1,engine.scanX+.05); engine.slope=0.4+engine.scanX*2.2; stageEl.style.setProperty("--sx",engine.scanX); if(reduceMotion)engine.render(); setReadouts(); }
+});
+
+/* ----- pause on hidden tab, resume when visible ----- */
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden){ stopLoop(); if(activeVideo)try{activeVideo.pause();}catch(e){} }
+  else if(!isMobile){ if(activeVideo&&!engine.frozen)try{activeVideo.play();}catch(e){} startLoop(); }
+});
+
+/* ----- pause when stage scrolled out of view (perf) ----- */
+const io = new IntersectionObserver((ents)=>{
+  ents.forEach(en=>{
+    if(en.isIntersecting){ if(!isMobile&&!reduceMotion){ startLoop(); if(activeVideo&&!engine.frozen)try{activeVideo.play();}catch(e){} } }
+    else { stopLoop(); if(activeVideo)try{activeVideo.pause();}catch(e){} }
+  });
+},{ threshold:0.12 });
+if(!isMobile) io.observe(stageEl);
+
+/* ============================================================================
+   REEL tiles  -  each bakes a static streak from its poster; only the
+   hovered/focused tile may animate a light buffer; selecting streams it up.
+   ========================================================================== */
+const grid = document.getElementById("grid");
+const tileControllers = [];
+
+function makeTile(item, idx){
+  const el = document.createElement(item.href ? "a" : "div");
+  el.className = "tile";
+  el.tabIndex = 0;
+  el.setAttribute("role","button");
+  el.setAttribute("aria-label","Stream "+item.title+" into the live slit-scan stage");
+  el.innerHTML =
+    '<canvas width="640" height="400"></canvas>'+
+    '<span class="badge">'+item.badge+'</span>'+
+    '<span class="live"><i></i>STATIC</span>'+
+    '<div class="tlabel"><span class="nm">'+item.title+'</span><span class="id">'+item.id+'</span></div>';
+  grid.appendChild(el);
+
+  const cv = el.querySelector("canvas");
+  const liveTag = el.querySelector(".live");
+  const ctx = cv.getContext("2d",{alpha:false});
+
+  // bake a static slit-scan streak from the poster image
+  const tileEngine = new SlitScan(cv, 16/10);
+  const img = new Image();
+  img.crossOrigin="anonymous";
+  img.src = item.poster;
+  let baked=false;
+  img.onload = ()=>{
+    seedBuffer(tileEngine, (fc,w,h,phase)=> imgPhaseDraw(img, fc, w, h, phase, true));
+    tileEngine.slope = 1.0;
+    tileEngine.render();
+    baked=true;
+  };
+  img.onerror = ()=>{ ctx.fillStyle=PALETTE.void; ctx.fillRect(0,0,cv.width,cv.height); ctx.fillStyle=PALETTE.bone; ctx.font="14px monospace"; ctx.fillText(item.title,16,28); };
+
+  // light hover animation: animate the slope back and forth (no video decode)
+  let hoverRaf=0, hoverT=0, hovering=false;
+  function hoverLoop(){
+    if(!hovering||reduceMotion){ return; }
+    hoverRaf=requestAnimationFrame(hoverLoop);
+    hoverT += 0.02;
+    tileEngine.slope = 1.3 + 0.9*Math.sin(hoverT);
+    tileEngine.render();
+  }
+  function enter(){ if(!baked)return; hovering=true; liveTag.textContent=""; const i=document.createElement("i"); liveTag.appendChild(i); liveTag.append("SAMPLING"); el.classList.add("active"); hoverRaf=requestAnimationFrame(hoverLoop); }
+  function leave(){ hovering=false; cancelAnimationFrame(hoverRaf); el.classList.remove("active"); liveTag.textContent=""; const i=document.createElement("i"); liveTag.appendChild(i); liveTag.append("STATIC"); tileEngine.slope=1.0; if(baked)tileEngine.render(); }
+  el.addEventListener("pointerenter", enter);
+  el.addEventListener("pointerleave", leave);
+  el.addEventListener("focus", enter);
+  el.addEventListener("blur", leave);
+
+  function select(){
+    if(isMobile) return;            // mobile stage is the pre-baked still
+    streamItem(item);
+    document.querySelectorAll(".tile").forEach(t=>t.removeAttribute("data-sel"));
+    el.setAttribute("data-sel","1");
+    stageEl.scrollIntoView({behavior: reduceMotion?"auto":"smooth", block:"start"});
+    stageEl.focus({preventScroll:true});
+  }
+  el.addEventListener("click", select);
+  el.addEventListener("keydown",(e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); select(); } });
+
+  tileControllers.push({el});
+}
+
+DATA.forEach((item,i)=> makeTile(item,i));
+
+/* ============================================================================
+   BOOTSTRAP
+   ========================================================================== */
+const hero = DATA.find(d=>d.hero) || DATA[0];
+
+if(isMobile){
+  // ----- MOBILE: render a single pre-baked streak still, no live buffer -----
+  const stillCv = document.getElementById("stillCanvas");
+  const stillEngine = new SlitScan(stillCv, 16/9);
+  const img = new Image();
+  img.crossOrigin="anonymous";
+  img.src = hero.poster;
+  img.onload = ()=>{
+    seedBuffer(stillEngine, (fc,w,h,phase)=> imgPhaseDraw(img, fc, w, h, phase, true));
+    stillEngine.slope = 1.15;
+    stillEngine.render();
+  };
+  img.onerror = ()=>{ const c=stillCv.getContext("2d"); c.fillStyle=PALETTE.void; c.fillRect(0,0,stillCv.width,stillCv.height); };
+} else {
+  // ----- DESKTOP: stream hero with a pre-filled buffer for instant streak ----
+  streamItem(hero);
+  stageEl.style.setProperty("--sx","0.5");
+  // mark hero tile selected once tiles exist
+  requestAnimationFrame(()=>{
+    const t = [...document.querySelectorAll(".tile")].find(el=>el.querySelector(".nm")?.textContent===hero.title);
+    if(t) t.setAttribute("data-sel","1");
+  });
+  if(reduceMotion){
+    // reduced motion: freeze on a rich seeded frame, no rAF, no video play
+    hudMeta.textContent = "MOTION OFF / FROZEN";
+    roBuf.textContent = "STATIC";
+    stageEl.classList.add("frozen");
+    // render once after seed completes (handled in streamItem image path or below)
+    setTimeout(()=>{ if(engine) engine.render(); setReadouts(); }, 120);
+  } else {
+    startLoop();
+  }
+}
+</script>
+</body>
+</html>

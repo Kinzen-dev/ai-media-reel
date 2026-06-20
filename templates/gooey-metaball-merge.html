@@ -1,0 +1,772 @@
+<!-- TEMPLATE: Liquid Menu (Gooey Metaball Merge) | ARCHETYPE: liquid-menu | REF: Codrops Creative Gooey Effects, animationpatterns.art gooey-blob 2026 | WHEN TO USE: portfolio/work index where thumbnails should feel like fusing liquid mercury, not a card grid | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Liquid Menu - Gooey Metaball Merge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   DATA-DRIVEN GOOEY METABALL MENU
+   Palette: #0d0d10 void / #f0ece4 bone / #c94a2e vermilion / #3ab8a8 teal
+   All SVG fills/strokes/filter primitives use HEX LITERALS, never var()
+   ============================================================ */
+:root{
+  --void:#0d0d10;
+  --bone:#f0ece4;
+  --vermilion:#c94a2e;
+  --teal:#3ab8a8;
+  --ink:#1a1a1f;
+  --bone-dim:rgba(240,236,228,.55);
+  --bone-faint:rgba(240,236,228,.32);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--void);
+  color:var(--bone);
+  font-family:"Space Grotesk",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+  line-height:1.45;
+  /* subtle film-grain vignette behind the liquid */
+  background-image:
+    radial-gradient(120% 80% at 50% 18%, rgba(201,74,46,.10), transparent 60%),
+    radial-gradient(90% 70% at 80% 90%, rgba(58,184,168,.08), transparent 55%);
+}
+
+/* ---- compact top band (headline overlays / sits above the stage) ---- */
+.band{
+  position:relative;
+  z-index:5;
+  display:flex;
+  flex-wrap:wrap;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:18px;
+  padding:30px 40px 14px;
+  pointer-events:none;
+}
+.band .left{pointer-events:auto;max-width:680px}
+.eyebrow{
+  font-size:11px;letter-spacing:.42em;text-transform:uppercase;
+  color:var(--teal);font-weight:700;margin-bottom:10px;
+  display:flex;align-items:center;gap:10px;
+}
+.eyebrow .dot{width:8px;height:8px;border-radius:50%;background:var(--vermilion);box-shadow:0 0 14px var(--vermilion)}
+h1{
+  font-family:"Fraunces",serif;
+  font-weight:900;
+  font-size:clamp(34px,5.4vw,72px);
+  line-height:.94;
+  letter-spacing:-.02em;
+  color:var(--bone);
+}
+h1 em{font-style:italic;color:var(--vermilion)}
+.sub{
+  margin-top:12px;font-size:14px;color:var(--bone-dim);max-width:46ch;
+}
+.band .right{
+  pointer-events:auto;text-align:right;font-size:11.5px;color:var(--bone-faint);
+  letter-spacing:.04em;line-height:1.7;
+}
+.band .right b{color:var(--bone-dim);font-weight:500}
+
+/* ---- the liquid stage ---- */
+.stage-wrap{
+  position:relative;
+  width:100%;
+  /* fills first viewport below the compact band; mechanic visible at scroll=0 */
+  height:clamp(520px, calc(100vh - 150px), 1000px);
+  overflow:hidden;
+}
+#stage{
+  position:absolute;inset:0;
+  width:100%;height:100%;
+  display:block;
+  cursor:crosshair;
+}
+/* gentle grid sheen so the void is not flat */
+.stage-wrap::before{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:1;
+  background-image:
+    linear-gradient(rgba(240,236,228,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(240,236,228,.025) 1px, transparent 1px);
+  background-size:54px 54px;
+  mask-image:radial-gradient(120% 100% at 50% 45%, #000 35%, transparent 78%);
+}
+
+/* hover/active readout chip that follows interaction */
+.readout{
+  position:absolute;left:0;top:0;z-index:6;
+  transform:translate(-50%,-150%);
+  background:rgba(13,13,16,.82);
+  border:1px solid rgba(58,184,168,.5);
+  backdrop-filter:blur(6px);
+  padding:7px 12px;border-radius:999px;
+  font-size:11.5px;font-weight:600;letter-spacing:.02em;color:var(--bone);
+  white-space:nowrap;opacity:0;transition:opacity .18s ease;pointer-events:none;
+  box-shadow:0 6px 24px rgba(0,0,0,.5);
+}
+.readout .tag{color:var(--teal);margin-right:8px;font-weight:700}
+.readout.show{opacity:1}
+
+/* lock overlay: full-bleed focused work */
+.lock{
+  position:absolute;inset:0;z-index:8;
+  display:none;
+  background:rgba(8,8,10,.62);
+  backdrop-filter:blur(3px);
+  align-items:center;justify-content:center;
+  padding:28px;
+}
+.lock.open{display:flex;animation:lockin .4s cubic-bezier(.2,.9,.2,1)}
+@keyframes lockin{from{opacity:0}to{opacity:1}}
+.lock-card{
+  position:relative;
+  width:min(960px,94vw);
+  max-height:88%;
+  border-radius:22px;
+  overflow:hidden;
+  border:1px solid rgba(240,236,228,.16);
+  box-shadow:0 40px 120px rgba(0,0,0,.7), 0 0 0 1px rgba(201,74,46,.25);
+  background:#000;
+  display:flex;flex-direction:column;
+}
+.lock-media{
+  position:relative;width:100%;
+  /* letterbox so landscape assets are never cover-cropped */
+  aspect-ratio:16/9;background:#0a0a0c;
+  display:flex;align-items:center;justify-content:center;
+}
+.lock-media img,.lock-media video{
+  width:100%;height:100%;object-fit:contain;display:block;background:#0a0a0c;
+}
+.lock-meta{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:16px 20px;background:linear-gradient(180deg,#101013,#0a0a0c);
+  border-top:1px solid rgba(240,236,228,.08);
+}
+.lock-meta h3{font-family:"Fraunces",serif;font-size:22px;font-weight:600;color:var(--bone)}
+.lock-meta p{font-size:12.5px;color:var(--bone-dim);margin-top:2px}
+.lock-meta .kind{
+  font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;
+  color:var(--teal);border:1px solid rgba(58,184,168,.4);padding:5px 10px;border-radius:999px;white-space:nowrap;
+}
+.lock-close{
+  position:absolute;top:14px;right:14px;z-index:2;
+  width:40px;height:40px;border-radius:50%;
+  border:1px solid rgba(240,236,228,.25);
+  background:rgba(13,13,16,.75);color:var(--bone);
+  font-size:20px;line-height:1;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .15s,transform .15s;
+}
+.lock-close:hover{background:var(--vermilion);transform:rotate(90deg)}
+
+/* footer hint strip */
+.hints{
+  display:flex;flex-wrap:wrap;gap:10px 26px;
+  padding:14px 40px 30px;font-size:11.5px;color:var(--bone-faint);
+  letter-spacing:.04em;
+}
+.hints span{display:inline-flex;align-items:center;gap:8px}
+.hints kbd{
+  font-family:"Space Grotesk";font-size:10.5px;color:var(--bone-dim);
+  border:1px solid rgba(240,236,228,.2);border-radius:6px;padding:2px 7px;background:rgba(240,236,228,.04);
+}
+
+/* keyboard focus marker on stage */
+#stage:focus-visible{outline:2px solid var(--teal);outline-offset:-2px}
+.focus-ring{
+  fill:none;stroke:#3ab8a8;stroke-width:3;stroke-dasharray:6 8;
+  opacity:0;transition:opacity .15s;
+}
+
+/* mobile freeze note */
+.mobile-note{display:none}
+
+@media (max-width:640px){
+  .band{padding:22px 18px 8px;gap:10px}
+  .band .right{display:none}
+  h1{font-size:clamp(30px,9vw,44px)}
+  .sub{font-size:13px}
+  .stage-wrap{height:clamp(440px, calc(100vh - 190px), 760px)}
+  #stage{cursor:default}
+  .hints{padding:12px 18px 26px;gap:8px 18px}
+  .mobile-note{display:block;margin-top:8px;font-size:11px;color:var(--teal);letter-spacing:.04em}
+  .lock-media{aspect-ratio:auto}
+  .lock-media img,.lock-media video{max-height:60vh}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .lock.open{animation:none}
+  .lock-close{transition:none}
+}
+</style>
+</head>
+<body>
+
+<header class="band">
+  <div class="left">
+    <div class="eyebrow"><span class="dot"></span> Selected Work / Liquid Index</div>
+    <h1>Things that <em>fuse</em><br/>and split apart.</h1>
+    <p class="sub">Each piece lives inside a drop of liquid. Drift them together and their edges merge through one shared goo filter; pull them apart and they separate again.</p>
+    <div class="mobile-note">Frozen on mobile - tap a drop to open it.</div>
+  </div>
+  <div class="right">
+    <b>08</b> works in suspension<br/>
+    single feGaussianBlur + alpha threshold<br/>
+    <b>hover</b> to attract / <b>click</b> to open
+  </div>
+</header>
+
+<div class="stage-wrap">
+  <svg id="stage" preserveAspectRatio="xMidYMid slice" aria-label="Liquid menu of selected works that merge and separate" role="group" tabindex="0"></svg>
+  <div class="readout" id="readout"><span class="tag" id="ro-tag">01</span><span id="ro-title">title</span></div>
+  <div class="lock" id="lock" aria-modal="true" role="dialog">
+    <div class="lock-card">
+      <button class="lock-close" id="lockClose" aria-label="Close">&times;</button>
+      <div class="lock-media" id="lockMedia"></div>
+      <div class="lock-meta">
+        <div>
+          <h3 id="lockTitle">Title</h3>
+          <p id="lockDesc">Description</p>
+        </div>
+        <span class="kind" id="lockKind">IMAGE</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer class="hints">
+  <span><kbd>hover</kbd> attract + swell a drop</span>
+  <span><kbd>click</kbd> open full-bleed</span>
+  <span><kbd>&larr;&rarr;</kbd> cycle drops (focus the stage first)</span>
+  <span><kbd>Enter</kbd> open / <kbd>Esc</kbd> close</span>
+</footer>
+
+<script>
+/* ============================================================
+   DATA - swap these to repurpose the template.
+   `kind`: image | video  (video plays only when locked/focused)
+   `r`: base radius weight (relative). `seed`: orbit phase offset.
+   ============================================================ */
+const DATA = [
+  { id:"car",     kind:"image", title:"Nightdrive",      desc:"Cinematic matte-black coupe, wet neon street", src:"../assets/flux-car-4k.png",                            r:1.18, seed:0.0 },
+  { id:"clinic",  kind:"image", title:"Mint Clinic",     desc:"Mint + wood dental interior",                 src:"../assets/flux-clinic-4k.png",                         r:1.0,  seed:0.7 },
+  { id:"fox",     kind:"image", title:"Autumn Fox",      desc:"Painterly SDXL study",                        src:"../assets/sdxl.png",                                   r:0.92, seed:1.4 },
+  { id:"apple",   kind:"image", title:"Lo-Fi Apple",     desc:"Abstract TinySD fragment",                    src:"../assets/hf-tinysd.png",                              r:0.8,  seed:2.1 },
+  { id:"kling",   kind:"video", title:"Kling Loop",      desc:"Generated motion loop",                       src:"../assets/kling-video.mp4",   poster:"../assets/gen/poster-kling-video.png", r:1.1,  seed:2.8 },
+  { id:"veo",     kind:"video", title:"Veo Sequence",    desc:"Veo text-to-video",                           src:"../assets/veo-video.mp4",     poster:"../assets/gen/poster-veo-video.png",   r:1.0,  seed:3.5 },
+  { id:"car-i2v", kind:"video", title:"Drive (i2v)",     desc:"Image-to-video, the coupe in motion",         src:"../assets/flux-car-i2v.mp4",  poster:"../assets/gen/poster-flux-car-i2v.png",r:0.96, seed:4.2 },
+  { id:"avatar",  kind:"video", title:"Avatar",          desc:"HeyGen talking avatar",                       src:"../assets/heygen-avatar.mp4", poster:"../assets/gen/poster-heygen.png",      r:0.86, seed:4.9 },
+];
+const MAX_BLOBS = 9;
+const blobs = DATA.slice(0, MAX_BLOBS);
+
+const SVGNS = "http://www.w3.org/2000/svg";
+const XLINK = "http://www.w3.org/1999/xlink";
+const stage = document.getElementById("stage");
+const readout = document.getElementById("readout");
+const roTag = document.getElementById("ro-tag");
+const roTitle = document.getElementById("ro-title");
+
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const isMobile = window.matchMedia("(max-width: 640px)").matches;
+
+/* virtual coordinate space - we author in a 1000 x H box and let the SVG slice */
+let W = 1000, H = 600;
+function viewBoxFit(){
+  const rect = stage.getBoundingClientRect();
+  // keep a fixed virtual width; derive virtual height from real aspect
+  W = 1000;
+  H = Math.max(380, Math.round(1000 * (rect.height / rect.width)));
+  stage.setAttribute("viewBox", `0 0 ${W} ${H}`);
+}
+
+/* ---------- build the SVG scene ----------
+   LAYER A (filtered): solid-color blob bodies -> goo merge happens here.
+   LAYER B (crisp):    media clipped to circles, drawn on top, no blur.
+   Media in via <pattern> (clipPath/pattern, NOT a paint var()).            */
+
+let defs, gooLayer, mediaLayer, glowLayer, focusRing, bridgeSprites;
+
+function buildScene(){
+  stage.innerHTML = "";
+  defs = document.createElementNS(SVGNS, "defs");
+
+  // --- the ONE shared goo filter on a single small filter region ---
+  const filter = document.createElementNS(SVGNS, "filter");
+  filter.setAttribute("id", "goo");
+  // small, bounded filter region (guardrail: not full-page)
+  filter.setAttribute("x", "-12%"); filter.setAttribute("y", "-12%");
+  filter.setAttribute("width", "124%"); filter.setAttribute("height", "124%");
+  filter.setAttribute("color-interpolation-filters", "sRGB");
+
+  const blur = document.createElementNS(SVGNS, "feGaussianBlur");
+  blur.setAttribute("in", "SourceGraphic");
+  blur.setAttribute("stdDeviation", "9");
+  blur.setAttribute("result", "blur");
+
+  // alpha-threshold color matrix: sharp ramp on alpha => metaball edges
+  const cm = document.createElementNS(SVGNS, "feColorMatrix");
+  cm.setAttribute("in", "blur");
+  cm.setAttribute("mode", "matrix");
+  cm.setAttribute("values", "1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -9");
+  cm.setAttribute("result", "goo");
+  // composite the crisp source back so colored cores stay vivid
+  const comp = document.createElementNS(SVGNS, "feComposite");
+  comp.setAttribute("in", "SourceGraphic");
+  comp.setAttribute("in2", "goo");
+  comp.setAttribute("operator", "atop");
+
+  filter.appendChild(blur);
+  filter.appendChild(cm);
+  filter.appendChild(comp);
+  defs.appendChild(filter);
+
+  // ONE shared goo filter only (guardrail: a second full-stage Gaussian blur
+  // per frame tanks FPS). The teal merge-glow is drawn cheaply as an
+  // unfiltered soft radial bridge between fusing pairs, no extra filter pass.
+  // soft teal radial gradient used for the merge-glow bridge sprite
+  const grad = document.createElementNS(SVGNS, "radialGradient");
+  grad.setAttribute("id", "tealGlow");
+  const gs1 = document.createElementNS(SVGNS, "stop");
+  gs1.setAttribute("offset", "0%");  gs1.setAttribute("stop-color", "#3ab8a8"); gs1.setAttribute("stop-opacity", "0.95");
+  const gs2 = document.createElementNS(SVGNS, "stop");
+  gs2.setAttribute("offset", "55%"); gs2.setAttribute("stop-color", "#3ab8a8"); gs2.setAttribute("stop-opacity", "0.35");
+  const gs3 = document.createElementNS(SVGNS, "stop");
+  gs3.setAttribute("offset", "100%");gs3.setAttribute("stop-color", "#3ab8a8"); gs3.setAttribute("stop-opacity", "0");
+  grad.appendChild(gs1); grad.appendChild(gs2); grad.appendChild(gs3);
+  defs.appendChild(grad);
+
+  // --- media patterns (one per blob) + clip circles ---
+  blobs.forEach((b, i) => {
+    const pat = document.createElementNS(SVGNS, "pattern");
+    pat.setAttribute("id", "pat-" + b.id);
+    pat.setAttribute("patternUnits", "objectBoundingBox");
+    pat.setAttribute("width", "1"); pat.setAttribute("height", "1");
+
+    const img = document.createElementNS(SVGNS, "image");
+    // poster for video so we never decode 8 videos at once
+    const href = b.kind === "video" ? (b.poster || b.src) : b.src;
+    img.setAttributeNS(XLINK, "xlink:href", href);
+    img.setAttribute("href", href);
+    img.setAttribute("preserveAspectRatio", "xMidYMid slice"); // fill the circle, center-crop only inside the round mask
+    img.setAttribute("x", "0"); img.setAttribute("y", "0");
+    img.setAttribute("width", "100"); img.setAttribute("height", "100");
+    pat.setAttribute("viewBox", "0 0 100 100");
+    pat.appendChild(img);
+    defs.appendChild(pat);
+  });
+
+  stage.appendChild(defs);
+
+  // LAYER A: goo bodies (color cores that fuse) - the ONLY filtered layer
+  gooLayer = document.createElementNS(SVGNS, "g");
+  gooLayer.setAttribute("filter", "url(#goo)");
+  stage.appendChild(gooLayer);
+
+  // LAYER 0b: teal merge-glow bridges (unfiltered radial sprites, cheap).
+  // sits above the goo bodies so the teal reads on the liquid bridge.
+  glowLayer = document.createElementNS(SVGNS, "g");
+  glowLayer.setAttribute("style", "mix-blend-mode:screen");
+  stage.appendChild(glowLayer);
+
+  // LAYER B: crisp media discs (no filter)
+  mediaLayer = document.createElementNS(SVGNS, "g");
+  stage.appendChild(mediaLayer);
+
+  // pool of bridge glow sprites (one per simultaneously-fusing pair; cap small)
+  bridgeSprites = [];
+  for (let k = 0; k < MAX_BLOBS; k++){
+    const s = document.createElementNS(SVGNS, "circle");
+    s.setAttribute("fill", "url(#tealGlow)");
+    s.setAttribute("pointer-events", "none");
+    s.setAttribute("opacity", "0");
+    glowLayer.appendChild(s);
+    bridgeSprites.push(s);
+  }
+
+  // build per-blob elements
+  blobs.forEach((b, i) => {
+    // goo body (vermilion; fusion teal handled by bridge sprites)
+    const bodyC = document.createElementNS(SVGNS, "circle");
+    bodyC.setAttribute("fill", "#c94a2e");        // HEX literal
+    gooLayer.appendChild(bodyC);
+    b._body = bodyC;
+
+    // crisp media disc
+    const mediaC = document.createElementNS(SVGNS, "circle");
+    mediaC.setAttribute("fill", "url(#pat-" + b.id + ")");
+    mediaC.setAttribute("stroke", "#f0ece4");     // bone rim
+    mediaC.setAttribute("stroke-width", "2");
+    mediaC.setAttribute("stroke-opacity", "0.85");
+    mediaC.style.cursor = "pointer";
+    mediaC.dataset.idx = i;
+    mediaLayer.appendChild(mediaC);
+    b._media = mediaC;
+
+    // play icon for videos
+    if (b.kind === "video") {
+      const tri = document.createElementNS(SVGNS, "path");
+      tri.setAttribute("fill", "#f0ece4");
+      tri.setAttribute("opacity", "0.92");
+      tri.setAttribute("pointer-events", "none");
+      mediaLayer.appendChild(tri);
+      b._play = tri;
+    }
+  });
+
+  // keyboard focus ring (drawn last, on top)
+  focusRing = document.createElementNS(SVGNS, "circle");
+  focusRing.setAttribute("class", "focus-ring");
+  mediaLayer.appendChild(focusRing);
+}
+
+/* ---------- layout / physics ---------- */
+// Base anchor positions in the virtual 1000xH box, expressed as fractions.
+// CRITICAL: at rest at least one PAIR overlaps -> a visible liquid bridge
+// on the no-interaction screenshot. car(0) + clinic(1) are placed to fuse,
+// and kling(4) + veo(5) form a second mid-fuse pair.
+const ANCHORS = [
+  { x:0.30, y:0.44 }, // car      \  fused pair A (centers within sum-of-radii -> fat bridge at rest)
+  { x:0.385, y:0.55 }, // clinic  /
+  { x:0.70, y:0.27 }, // fox
+  { x:0.86, y:0.40 }, // apple
+  { x:0.625, y:0.73 }, // kling   \  fused pair B
+  { x:0.70, y:0.665 }, // veo     /
+  { x:0.15, y:0.71 }, // car-i2v
+  { x:0.88, y:0.80 }, // avatar
+];
+
+let baseR = 78;           // base radius (virtual units), recalced on resize
+let pointer = { x:-9999, y:-9999, active:false };
+let hovered = -1;
+let lockedIdx = -1;
+let kbFocus = -1;
+let t = 0;
+
+function recalc(){
+  viewBoxFit();
+  // scale base radius to fit the box; smaller when many blobs / small box
+  baseR = Math.min(W, H) * 0.097;
+}
+
+function blobState(i, time){
+  const b = blobs[i];
+  const a = ANCHORS[i] || { x:0.5, y:0.5 };
+  let cx = a.x * W;
+  let cy = a.y * H;
+
+  // slow orbital drift, authored as a DELTA from the rest frame so that at
+  // time=0 (the no-interaction screenshot) every blob sits exactly on its
+  // anchor and the fused pairs read as a liquid bridge. amplitude is small
+  // so the fusing pairs stay fused through most of the orbit.
+  if (!isMobile && !reduceMotion) {
+    const sp = 0.00020;                 // slow
+    const amp = Math.min(W, H) * 0.040;
+    const fx = (ph) => Math.cos(time * sp * (1 + i * 0.06) + ph) - Math.cos(ph);
+    const fy = (ph) => Math.sin(time * sp * (1.13 + i * 0.05) + ph) - Math.sin(ph);
+    cx += fx(b.seed) * amp;
+    cy += fy(b.seed * 1.7) * amp * 0.82;
+  }
+
+  let r = baseR * (b.r || 1);
+
+  // hover attraction + swell
+  let attract = 0;
+  if (i === hovered && pointer.active) {
+    const dx = pointer.x - cx, dy = pointer.y - cy;
+    cx += dx * 0.22;                    // pull toward cursor
+    cy += dy * 0.22;
+    r *= 1.32;                          // swell
+    attract = 1;
+  } else if (i === kbFocus) {
+    r *= 1.22;
+    attract = 0.7;
+  }
+  return { cx, cy, r, attract };
+}
+
+/* detect fusing pairs (centers closer than sum of radii) to light teal glow */
+function fuseAmount(s1, s2){
+  const dx = s1.cx - s2.cx, dy = s1.cy - s2.cy;
+  const d = Math.hypot(dx, dy);
+  const touch = (s1.r + s2.r) * 1.02;
+  if (d >= touch) return 0;
+  return Math.min(1, (touch - d) / (s1.r * 0.9 + 0.001));
+}
+
+const states = new Array(blobs.length);
+
+function render(time){
+  t = time;
+  // compute all states
+  for (let i = 0; i < blobs.length; i++) states[i] = blobState(i, time);
+
+  // fusing pairs => place a teal merge-glow bridge sprite at each midpoint.
+  // also accumulate a per-blob glow amount to vivify the hovered/fusing bodies.
+  const glowAmt = new Array(blobs.length).fill(0);
+  let bridgeN = 0;
+  for (let i = 0; i < blobs.length; i++){
+    for (let j = i + 1; j < blobs.length; j++){
+      const f = fuseAmount(states[i], states[j]);
+      if (f <= 0) continue;
+      glowAmt[i] = Math.max(glowAmt[i], f); glowAmt[j] = Math.max(glowAmt[j], f);
+      const s1 = states[i], s2 = states[j];
+      if (bridgeN < bridgeSprites.length){
+        const sp = bridgeSprites[bridgeN++];
+        sp.setAttribute("cx", ((s1.cx + s2.cx) / 2).toFixed(2));
+        sp.setAttribute("cy", ((s1.cy + s2.cy) / 2).toFixed(2));
+        // bridge sprite spans the gap + a bit of each blob
+        sp.setAttribute("r", (Math.min(s1.r, s2.r) * (0.85 + f * 0.5)).toFixed(2));
+        sp.setAttribute("opacity", (0.30 + f * 0.6).toFixed(3));
+      }
+    }
+  }
+  for (let k = bridgeN; k < bridgeSprites.length; k++) bridgeSprites[k].setAttribute("opacity", "0");
+
+  for (let i = 0; i < blobs.length; i++){
+    const b = blobs[i], s = states[i];
+
+    // goo body
+    b._body.setAttribute("cx", s.cx.toFixed(2));
+    b._body.setAttribute("cy", s.cy.toFixed(2));
+    b._body.setAttribute("r", s.r.toFixed(2));
+    // active/hovered body shifts toward vivid vermilion
+    b._body.setAttribute("fill", (i === hovered || i === kbFocus) ? "#e0563a" : "#c94a2e");
+
+    // crisp media disc (inset so the vermilion goo body forms a fat fusing
+    // rim + liquid bridge around the thumbnails)
+    const mr = s.r * 0.78;
+    b._media.setAttribute("cx", s.cx.toFixed(2));
+    b._media.setAttribute("cy", s.cy.toFixed(2));
+    b._media.setAttribute("r", mr.toFixed(2));
+    b._media.setAttribute("stroke-opacity", (i === hovered || i === kbFocus) ? "1" : "0.7");
+
+    if (b._play){
+      const ps = mr * 0.34;
+      const px = s.cx, py = s.cy;
+      b._play.setAttribute("d",
+        `M ${(px - ps*0.45).toFixed(1)} ${(py - ps*0.62).toFixed(1)} ` +
+        `L ${(px + ps*0.78).toFixed(1)} ${py.toFixed(1)} ` +
+        `L ${(px - ps*0.45).toFixed(1)} ${(py + ps*0.62).toFixed(1)} Z`);
+      b._play.setAttribute("opacity", (i === hovered ? 0.4 : 0.85).toFixed(2));
+    }
+  }
+
+  // focus ring
+  if (kbFocus >= 0){
+    const s = states[kbFocus];
+    focusRing.setAttribute("cx", s.cx.toFixed(2));
+    focusRing.setAttribute("cy", s.cy.toFixed(2));
+    focusRing.setAttribute("r", (s.r * 0.78 + 8).toFixed(2));
+    focusRing.style.opacity = "1";
+  } else {
+    focusRing.style.opacity = "0";
+  }
+}
+
+/* ---------- rAF loop (single, pauses on hidden, freezes on reduced-motion) ----------
+   Throttled to ~32fps: the drift is slow and the SVG goo filter re-blurs the
+   whole region each rendered frame, so half-rate keeps it smooth AND cheap.   */
+let rafId = null;
+let running = false;
+const FRAME_MS = 1000 / 32;
+let lastDraw = 0;
+function loop(time){
+  if (time - lastDraw >= FRAME_MS){ lastDraw = time; render(time); }
+  rafId = requestAnimationFrame(loop);
+}
+function start(){
+  if (running) return;
+  if (reduceMotion || isMobile){
+    // freeze: render once into final/static fused state, no rAF
+    render(reduceMotion ? 4200 : 0);
+    running = false;
+    return;
+  }
+  running = true;
+  rafId = requestAnimationFrame(loop);
+}
+function stop(){
+  running = false;
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = null;
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) stop();
+  else if (!reduceMotion && !isMobile) start();
+});
+
+/* ---------- pointer interaction ---------- */
+function toVirtual(clientX, clientY){
+  const rect = stage.getBoundingClientRect();
+  // viewBox uses slice; map proportionally (W is fixed, H tracks aspect)
+  const x = ((clientX - rect.left) / rect.width) * W;
+  const y = ((clientY - rect.top) / rect.height) * H;
+  return { x, y };
+}
+function nearestBlob(vx, vy){
+  let best = -1, bestD = Infinity;
+  for (let i = 0; i < blobs.length; i++){
+    const s = states[i];
+    if (!s) continue;
+    const d = Math.hypot(vx - s.cx, vy - s.cy);
+    if (d < s.r * 1.05 && d < bestD){ bestD = d; best = i; }
+  }
+  return best;
+}
+function showReadout(i, clientX, clientY){
+  const b = blobs[i];
+  roTag.textContent = String(i + 1).padStart(2, "0");
+  roTitle.textContent = b.title + (b.kind === "video" ? "  *" : "");
+  readout.style.left = clientX + "px";
+  readout.style.top = clientY + "px";
+  readout.classList.add("show");
+}
+function hideReadout(){ readout.classList.remove("show"); }
+
+if (!isMobile){
+  stage.addEventListener("pointermove", (e) => {
+    const v = toVirtual(e.clientX, e.clientY);
+    pointer.x = v.x; pointer.y = v.y; pointer.active = true;
+    const idx = nearestBlob(v.x, v.y);
+    hovered = idx;
+    if (idx >= 0){
+      stage.style.cursor = "pointer";
+      showReadout(idx, e.clientX, e.clientY);
+      if (reduceMotion) render(4200); // keep response in frozen mode
+    } else {
+      stage.style.cursor = "crosshair";
+      hideReadout();
+    }
+  });
+  stage.addEventListener("pointerleave", () => {
+    pointer.active = false; hovered = -1; hideReadout();
+    stage.style.cursor = "crosshair";
+  });
+}
+
+// click / tap to lock open
+stage.addEventListener("click", (e) => {
+  const v = toVirtual(e.clientX, e.clientY);
+  const idx = nearestBlob(v.x, v.y);
+  if (idx >= 0) openLock(idx);
+});
+// touch tap on mobile (frozen state still has states[] computed once)
+if (isMobile){
+  stage.addEventListener("touchstart", (e) => {
+    const tch = e.changedTouches[0];
+    const v = toVirtual(tch.clientX, tch.clientY);
+    const idx = nearestBlob(v.x, v.y);
+    if (idx >= 0){ e.preventDefault(); openLock(idx); }
+  }, { passive:false });
+}
+
+/* ---------- lock overlay (full-bleed; video plays only here) ---------- */
+const lock = document.getElementById("lock");
+const lockMedia = document.getElementById("lockMedia");
+const lockTitle = document.getElementById("lockTitle");
+const lockDesc = document.getElementById("lockDesc");
+const lockKind = document.getElementById("lockKind");
+const lockClose = document.getElementById("lockClose");
+let activeVideo = null;
+
+function openLock(i){
+  const b = blobs[i];
+  lockedIdx = i;
+  lockMedia.innerHTML = "";
+  if (b.kind === "video"){
+    const vid = document.createElement("video");
+    vid.src = b.src;
+    if (b.poster) vid.poster = b.poster;
+    vid.muted = true; vid.loop = true; vid.playsInline = true; vid.controls = false;
+    vid.setAttribute("preload", "metadata");
+    lockMedia.appendChild(vid);
+    activeVideo = vid;
+    // play ONLY this one focused video
+    vid.play().catch(() => {});
+  } else {
+    const img = document.createElement("img");
+    img.src = b.src; img.alt = b.title; img.loading = "eager";
+    lockMedia.appendChild(img);
+    activeVideo = null;
+  }
+  lockTitle.textContent = b.title;
+  lockDesc.textContent = b.desc;
+  lockKind.textContent = b.kind.toUpperCase();
+  lock.classList.add("open");
+  lockClose.focus();
+}
+function closeLock(){
+  lock.classList.remove("open");
+  if (activeVideo){ try{ activeVideo.pause(); }catch(e){} activeVideo = null; }
+  lockMedia.innerHTML = "";
+  lockedIdx = -1;
+  stage.focus();
+}
+lockClose.addEventListener("click", closeLock);
+lock.addEventListener("click", (e) => { if (e.target === lock) closeLock(); });
+
+/* ---------- keyboard a11y ---------- */
+stage.addEventListener("keydown", (e) => {
+  // Arrow keys cycle drops. Tab is left untouched so keyboard users are never
+  // trapped on the stage (they can always Tab out to the footer / page chrome).
+  if (e.key === "ArrowRight" || e.key === "ArrowDown"){
+    e.preventDefault();
+    kbFocus = (kbFocus + 1) % blobs.length;
+    if (reduceMotion || isMobile) render(reduceMotion ? 4200 : 0);
+    announce();
+  } else if (e.key === "ArrowLeft" || e.key === "ArrowUp"){
+    e.preventDefault();
+    kbFocus = (kbFocus - 1 + blobs.length) % blobs.length;
+    if (reduceMotion || isMobile) render(reduceMotion ? 4200 : 0);
+    announce();
+  } else if (e.key === "Enter" || e.key === " "){
+    if (kbFocus >= 0){ e.preventDefault(); openLock(kbFocus); }
+  }
+});
+stage.addEventListener("blur", () => { kbFocus = -1; if (reduceMotion||isMobile) render(reduceMotion?4200:0); });
+function announce(){
+  if (kbFocus < 0) return;
+  const b = blobs[kbFocus];
+  const s = states[kbFocus];
+  if (s){
+    const rect = stage.getBoundingClientRect();
+    const cx = rect.left + (s.cx / W) * rect.width;
+    const cy = rect.top + (s.cy / H) * rect.height - s.r * 0.4;
+    showReadout(kbFocus, cx, cy);
+  }
+}
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && lock.classList.contains("open")) closeLock(); });
+
+/* ---------- resize ---------- */
+let resizeTO;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTO);
+  resizeTO = setTimeout(() => {
+    const wasMobile = isMobile;
+    recalc();
+    // re-render once even when frozen
+    if (!running) render(reduceMotion ? 4200 : 0);
+  }, 150);
+});
+
+/* ---------- boot ---------- */
+buildScene();
+recalc();
+// prime states once so click/keyboard works even before first rAF frame
+for (let i = 0; i < blobs.length; i++) states[i] = blobState(i, reduceMotion ? 4200 : 0);
+render(reduceMotion ? 4200 : 0);
+start();
+window.__render = render;                 // verification hook
+window.__state = () => ({ running, reduceMotion, isMobile, W, H }); // verification hook
+</script>
+</body>
+</html>

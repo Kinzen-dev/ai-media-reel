@@ -20,17 +20,18 @@
    All paths are relative to /showcase/templates/  ->  ../assets/
    Tip: 8-14 entries reads best. The loop is seamless regardless.
    ============================================================ */
+/* Only strong, real ../assets/ frames map onto the cylinder. The earlier
+   cartoon-tooth mascot (meshy-refined-thumb.png) read as leftover placeholder
+   art and was removed. Cinematic 4K stills + video posters carry the award read. */
 const DATA = [
-  { src:"../assets/flux-car-4k.png",            kicker:"Still - 4K",      title:"Wet Neon Coupe",   meta:"FLUX - matte black on rain" },
+  { src:"../assets/flux-car-4k.png",            kicker:"Still - 4K",     title:"Wet Neon Coupe",   meta:"FLUX - matte black on rain" },
   { src:"../assets/gen/poster-flux-car-i2v.png",kicker:"Image to Video", title:"Nocturne Drive",   meta:"FLUX i2v - frame still" },
-  { src:"../assets/flux-clinic-4k.png",         kicker:"Still - 4K",      title:"Mint Consult Room",meta:"FLUX - clinic interior" },
-  { src:"../assets/sdxl.png",                   kicker:"Painterly",       title:"Autumn Fox",       meta:"SDXL - warm impasto" },
   { src:"../assets/gen/poster-kling-video.png", kicker:"Generative",     title:"Kling Sequence",   meta:"Kling - motion still" },
+  { src:"../assets/flux-clinic-4k.png",         kicker:"Still - 4K",     title:"Mint Consult Room",meta:"FLUX - clinic interior" },
+  { src:"../assets/gen/poster-heygen.png",      kicker:"Avatar",         title:"Spoken Portrait",  meta:"HeyGen - avatar still" },
+  { src:"../assets/sdxl.png",                   kicker:"Painterly",      title:"Autumn Fox",       meta:"SDXL - warm impasto" },
   { src:"../assets/gen/poster-veo-video.png",   kicker:"Generative",     title:"Veo Plate",        meta:"Veo - cinematic still" },
-  { src:"../assets/hf-tinysd.png",              kicker:"Lo-fi",           title:"Abstract Apple",   meta:"TinySD - low-step study" },
-  { src:"../assets/gen/poster-fal-video.png",   kicker:"Generative",     title:"Fal Render",       meta:"Fal - motion still" },
-  { src:"../assets/gen/poster-heygen.png",      kicker:"Avatar",          title:"Spoken Portrait",  meta:"HeyGen - avatar still" },
-  { src:"../assets/meshy-refined-thumb.png",    kicker:"3D",             title:"Refined Mesh",     meta:"Meshy - textured solid" }
+  { src:"../assets/gen/poster-fal-video.png",   kicker:"Generative",     title:"Fal Render",       meta:"Fal - motion still" }
 ];
 
 /* Brand chrome (interior color comes entirely from the images) */
@@ -323,11 +324,14 @@ function startTube(){
   renderer.setSize(innerWidth, innerHeight, false);
 
   const scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0x050505, 9.5, 18.0);
 
-  const camera = new THREE.PerspectiveCamera(46, innerWidth/innerHeight, 0.1, 100);
-  camera.position.set(0, 0, 9.4);
-  camera.lookAt(0,0,0);
+  // wide FOV + a camera parked close to the front plane = strong perspective,
+  // so the neighbouring planes visibly CURVE away around the tube rather than
+  // reading as a flat filmstrip. Phones get an even wider FOV so the two
+  // adjacent planes flank the front plane in frame at scroll=0.
+  const isPhone = window.matchMedia("(max-width:640px)").matches;
+  const FOV = isPhone ? 70 : 62;
+  const camera = new THREE.PerspectiveCamera(FOV, innerWidth/innerHeight, 0.1, 100);
 
   // a tube group we spin around Y
   const tube = new THREE.Group();
@@ -339,10 +343,22 @@ function startTube(){
   const COPIES = 2;
   const TOTAL = N * COPIES;
   const angStep = (Math.PI * 2) / N;      // angular gap between works in one ring
-  // radius scales with count so planes do not overlap
-  const planeW = 2.55, planeH = 1.78;
-  const circumferenceNeed = planeW * 1.18 * N;
-  const radius = Math.max(3.5, circumferenceNeed / (Math.PI * 2));
+  // 16:9 planes to match the cinematic source frames (no stretch on the stills)
+  const planeW = 2.72, planeH = 1.53;
+  // tighter packing (small gap factor) makes the ring wrap harder -> more curve.
+  // radius still scales with count so planes never overlap.
+  const circumferenceNeed = planeW * 1.06 * N;
+  const radius = Math.max(2.9, circumferenceNeed / (Math.PI * 2));
+
+  // park the camera just outside the front plane so foreshortening is strong;
+  // the gap is larger on phones (narrow portrait frame) so BOTH flanking
+  // planes stay in view either side of the front plane at scroll=0.
+  const camGap = isPhone ? 5.2 : 3.6;
+  camera.position.set(0, 0, radius + camGap);
+  camera.lookAt(0,0,0);
+
+  // fog hugs the back of the tube so far planes sink into the void (depth cue)
+  scene.fog = new THREE.Fog(0x050505, radius + camGap + 1.0, radius + camGap + 7.5);
 
   const texLoader = new THREE.TextureLoader();
   texLoader.crossOrigin = "anonymous";
@@ -379,9 +395,11 @@ function startTube(){
     varying float vFacing;
 
     void main(){
-      // blur amount grows as the plane faces away (vFacing -> 0)
+      // blur amount grows as the plane faces away (vFacing -> 0).
+      // stronger radius makes the curving side planes read as defocused depth,
+      // not a sharp flat strip.
       float away = 1.0 - vFacing;
-      float blur = away * away * 6.0;   // px-ish radius in texel units
+      float blur = away * away * 9.0;   // px-ish radius in texel units
 
       vec2 o = uTexel * blur;
 
@@ -397,9 +415,10 @@ function startTube(){
       c += texture2D(uTex, vUv + vec2(-o.x, -o.y));
       c /= 9.0;
 
-      // lighting: front planes are lit, side planes dim toward the void
-      // (floor kept high enough that the curved tube body stays legible)
-      float lit = mix(0.46, 1.0, smoothstep(0.0, 1.0, vFacing));
+      // lighting: front planes are lit, side planes dim toward the void.
+      // a lower floor lets the side planes sink into the dark so the tube body
+      // reads as a curving 3D form, while the front stays fully lit + sharp.
+      float lit = mix(0.34, 1.0, smoothstep(0.0, 1.0, vFacing));
       vec3 col = c.rgb * lit;
 
       // subtle lime rim on the front-most planes only
@@ -553,6 +572,12 @@ function startTube(){
   function onResize(){
     renderer.setSize(innerWidth, innerHeight, false);
     camera.aspect = innerWidth/innerHeight;
+    // re-evaluate the phone framing on orientation / breakpoint changes so the
+    // flanking planes stay in view and the curve stays strong on either layout
+    const phoneNow = window.matchMedia("(max-width:640px)").matches;
+    camera.fov = phoneNow ? 70 : 62;
+    const gapNow = phoneNow ? 5.2 : 3.6;
+    camera.position.z = radius + gapNow;
     camera.updateProjectionMatrix();
   }
   window.addEventListener("resize", onResize, {passive:true});
@@ -574,8 +599,11 @@ function startTube(){
   boot.classList.add("gone");
   setTimeout(()=>{ boot.remove(); }, 700);
 
-  // give it a gentle initial drift so the tube is alive at scroll=0
-  vel = 0.012;
+  // start with the hero work (index 0) facing the camera, then give a gentle
+  // initial drift so the tube is alive at scroll=0 without spinning the hero
+  // far off-centre before the catalog thumbnail is captured.
+  tube.rotation.y = 0;
+  vel = 0.006;
 
   let raf = 0;
   function tick(){

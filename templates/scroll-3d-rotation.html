@@ -64,11 +64,15 @@
     line-height:1.5;color:var(--matte);opacity:.78;font-weight:300;
   }
 
-  /* ---------- the reel ---------- */
+  /* ---------- the reel ----------
+     NOTE: perspective lives on each .card (via perspective() in its transform),
+     NOT on .reel. A perspective/transform/filter on .reel would make it the
+     containing block for position:fixed children and break the scroll=0 hero
+     overlay (fixed % offsets would resolve against the tall reel, not the
+     viewport). Per-card perspective keeps the tumble identical and frees
+     position:fixed to track the viewport. */
   .reel{
     position:relative;z-index:1;
-    perspective:1200px;          /* the 3D depth viewing distance */
-    perspective-origin:50% 50%;
   }
   .slot{
     height:88vh;                 /* vertical rhythm: one work per ~viewport */
@@ -79,6 +83,30 @@
      center its card in the lower-center band so the tumble is fully visible
      below the title yet sharp and above the fold. */
   .slot:first-of-type{height:96vh;align-items:center;padding-top:14vh}
+
+  /* ---------- HERO STACK (scroll=0 only) ----------
+     At rest the catalog thumbnail must show the REEL, not one lonely card.
+     While parked at the top we overlay the first three slots into the first
+     viewport: a pinned card at center plus one peeking above and one below,
+     each parked at a different point on the tumble path (set via JS), so the
+     reel of tumbling works reads instantly. The class is removed on first
+     scroll and the normal per-slot flow + scroll physics resume untouched. */
+  .reel.hero .slot:nth-of-type(1),
+  .reel.hero .slot:nth-of-type(2),
+  .reel.hero .slot:nth-of-type(3){
+    position:fixed;left:0;right:0;
+    height:auto;padding:0;
+    pointer-events:none;
+  }
+  /* center pinned card */
+  .reel.hero .slot:nth-of-type(1){top:50%;transform:translateY(-50%);z-index:3}
+  /* the work peeking from above, deeper on the path */
+  .reel.hero .slot:nth-of-type(2){top:50%;transform:translateY(-128%);z-index:1}
+  /* the work peeking from below, deeper on the path */
+  .reel.hero .slot:nth-of-type(3){top:50%;transform:translateY(28%);z-index:1}
+  /* a spacer keeps document height stable so the page is still scrollable */
+  .hero-spacer{display:block;height:96vh;width:1px;pointer-events:none}
+  body:not(.is-hero) .hero-spacer{display:none}
   .card{
     position:relative;
     width:var(--card-w);
@@ -86,8 +114,11 @@
     transform-style:preserve-3d;
     will-change:transform,filter,opacity;
     backface-visibility:hidden;
-    /* JS writes --ty,--tz,--rx,--rz,--sc,--bl,--br,--op each frame */
+    /* JS writes --ty,--tz,--rx,--rz,--sc,--bl,--br,--op each frame.
+       perspective() is per-card (see .reel note) so the depth read survives
+       the scroll=0 fixed hero overlay. */
     transform:
+      perspective(1200px)
       translate3d(0, var(--ty,0px), var(--tz,0px))
       rotateX(var(--rx,0deg))
       rotateZ(var(--rz,0deg))
@@ -166,6 +197,11 @@
     /* media letterboxes inside the bone matte instead of cropping */
     .frame img,.frame video{object-fit:contain;background:var(--matte)}
     .meta{background:linear-gradient(0deg,rgba(12,12,12,.72),transparent)}
+    /* hero peeks ride tighter to the pinned card on a narrow column;
+       push the top peek clear of the sub-headline copy */
+    .reel.hero .slot:nth-of-type(1){transform:translateY(-44%)}
+    .reel.hero .slot:nth-of-type(2){transform:translateY(-150%)}
+    .reel.hero .slot:nth-of-type(3){transform:translateY(40%)}
   }
 
   /* ---------- reduced motion: collapse to a calm vertical fade-in, no rAF overrides ---------- */
@@ -301,6 +337,14 @@ WORKS.forEach((w, i) => {
   cards.push({ el:card, slot, work:w });
 });
 
+/* spacer preserves document height while the first 3 slots are pulled out of
+   flow into the fixed hero stack, so the page stays scrollable at scroll=0.
+   A <span> (not a div) so it never shifts the .slot:nth-of-type indexing. */
+const heroSpacer = document.createElement('span');
+heroSpacer.className = 'hero-spacer';
+heroSpacer.setAttribute('aria-hidden','true');
+reel.insertBefore(heroSpacer, reel.firstChild);
+
 /* ---- easing flavours: each returns a shaped 0..1 from a 0..1 input ---- */
 const EASE = {
   soft:    t => t<.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2,                 // inOutQuad
@@ -312,7 +356,7 @@ const EASE = {
 /* ---- the per-frame transform writer ----
    p = signed -1..1 position of the card center relative to viewport center.
    0 = at rest (flat, full scale, sharp). +/-1 = far edges (deep, tumbling). */
-function applyTransform(idx, p) {
+function applyTransform(idx, p, sharp) {
   const c = cards[idx];
   const w = c.work;
   const ease = EASE[w.ease] || EASE.soft;
@@ -336,10 +380,12 @@ function applyTransform(idx, p) {
   // scale settles to 1 at rest, shrinks with depth
   const sc = 1 - shaped * 0.30;
 
-  // optical: defocus + dim away from the sharp rest plane
-  const bl = isMobile ? 0 : shaped * CFG.BLUR;
-  const br = 1 - shaped * (1 - CFG.DIMMIN);
-  const op = 1 - shaped * 0.28;
+  // optical: defocus + dim away from the sharp rest plane.
+  // a "sharp" card (the hero center) keeps near-zero blur + full brightness
+  // so it reads as a tumbling-yet-legible work, not a defocused ghost.
+  const bl = (sharp || isMobile) ? 0 : shaped * CFG.BLUR;
+  const br = sharp ? 1 - shaped * 0.10 : 1 - shaped * (1 - CFG.DIMMIN);
+  const op = sharp ? 1 : 1 - shaped * 0.28;
 
   const s = c.el.style;
   s.setProperty('--ty', ty.toFixed(1) + 'px');
@@ -358,14 +404,50 @@ function applyTransform(idx, p) {
 let ticking = false;
 let vh = window.innerHeight;
 
+/* HERO STACK state: while parked at the very top the first three slots are
+   pulled into a fixed overlay (see .reel.hero CSS) and each is pinned to a
+   distinct point on the tumble path, so the catalog thumbnail shows the REEL
+   of tumbling works, not one lonely card. The mid card is pinned only mildly
+   so it stays sharp + readable; the peeks above/below are pushed deeper so
+   they clearly recede and rotate. Exited on first real scroll. */
+let heroMode = true;
+// per-slot signature tilt at scroll=0 (signed p drives rotateX + Z-depth):
+//  - card 0 (center, pinned, mostly sharp) gets a clear but readable tilt
+//  - card 1 peeks from ABOVE (negative p -> recedes upward)
+//  - card 2 peeks from BELOW (positive p -> recedes downward)
+function heroPins() {
+  return isMobile
+    ? [ 0.30, -0.74, 0.80 ]   // mobile: fuller center tilt so 3D is obvious
+    : [ 0.26, -0.70, 0.78 ];  // desktop: center stays sharp + readable
+}
+
+function exitHero() {
+  if (!heroMode) return;
+  heroMode = false;
+  reel.classList.remove('hero');
+  document.body.classList.remove('is-hero');
+  onScroll();
+}
+
 function frame() {
   ticking = false;
   vh = window.innerHeight;
   const mid = vh / 2;
 
+  // While the hero stack is active, drive the first three cards from fixed
+  // pins (their slots are out of flow, so rect math would be meaningless).
+  if (heroMode) {
+    const pins = heroPins();
+    for (let i = 0; i < pins.length && i < cards.length; i++) {
+      applyTransform(i, pins[i], i === 0);   // center card kept sharp
+    }
+  }
+
   let bestIdx = -1, bestDist = Infinity;
 
   for (let i = 0; i < cards.length; i++) {
+    // hero-pinned cards are handled above; don't let rect math overwrite them
+    if (heroMode && i < 3) continue;
     const c = cards[i];
     const r = c.el.getBoundingClientRect();
     // skip work fully off-screen (cheap cull) but still settle near-edge cards
@@ -375,13 +457,13 @@ function frame() {
     const center = r.top + r.height / 2;
     // signed normalized position: how far the card center is from viewport center
     let p = (center - mid) / (vh * 0.62);
-    // FIRST-VIEWPORT SIGNATURE pin: while parked at the very top, force card #1
-    // to a fixed readable tumble so the scroll=0 thumbnail shows the mechanic.
-    if (i === 0 && window.scrollY <= 4) p = (isMobile ? 0.34 : 0.30);
     const dist = applyTransform(i, p);
 
     if (Math.abs(p) < 0.5 && dist < bestDist) { bestDist = dist; bestIdx = i; }
   }
+
+  // hero center card is the focused work for video playback
+  if (heroMode) bestIdx = 0;
 
   // focus management: play only the single closest-to-rest video
   for (let i = 0; i < cards.length; i++) {
@@ -414,30 +496,36 @@ function onScroll() {
 
 if (reduce) {
   // honor reduced-motion fully: no rAF, no inline transforms - CSS shows final state.
-  // ensure nothing we wrote earlier lingers (we never wrote in this branch).
+  // never enter the hero overlay; let the calm CSS fade-in own the page.
+  heroMode = false;
+  reel.classList.remove('hero');
+  document.body.classList.remove('is-hero');
   document.querySelector('.progress')?.setAttribute('hidden','');
 } else {
-  window.addEventListener('scroll', onScroll, { passive:true });
+  // FIRST-VIEWPORT SIGNATURE: enter the hero stack so the scroll=0 thumbnail
+  // shows three tumbling works (one pinned center + a peek above + a peek
+  // below), each at a distinct point on the tumble path.
+  reel.classList.add('hero');
+  document.body.classList.add('is-hero');
+
+  window.addEventListener('scroll', () => {
+    // any real scroll leaves the hero overlay and resumes normal flow
+    if (heroMode && window.scrollY > 2) exitHero();
+    onScroll();
+  }, { passive:true });
+  // wheel / touch intent also drops the hero overlay even before scrollY moves
+  window.addEventListener('wheel', () => { if (heroMode) exitHero(); }, { passive:true });
+  window.addEventListener('touchmove', () => { if (heroMode) exitHero(); }, { passive:true });
+
   window.addEventListener('resize', () => {
     isMobile = window.matchMedia('(max-width:640px)').matches;
     onScroll();
   }, { passive:true });
 
-  // FIRST-VIEWPORT SIGNATURE: run once so card #1 is mid-tumble at scroll=0.
-  // We pin its rest-position to a fixed, readable tumble (deterministic, layout-
-  // independent) so the catalog thumbnail clearly shows the mechanic: clearly
-  // rotated in 3D yet sharp enough to read the work.
-  function pinFirstTumble() {
-    const first = cards[0];
-    if (!first) return;
-    if (window.scrollY > 4) return;            // only while parked at the top
-    const SIG_P = isMobile ? 0.34 : 0.30;      // tuned tumble magnitude at load
-    applyTransform(0, SIG_P);
-  }
-  requestAnimationFrame(() => { frame(); pinFirstTumble(); });
-  // keep it pinned through the first few frames (after media decode / font swap)
-  setTimeout(pinFirstTumble, 120);
-  setTimeout(pinFirstTumble, 600);
+  // paint the hero stack across the first few frames (after media decode / font swap)
+  requestAnimationFrame(() => { frame(); });
+  setTimeout(() => { if (heroMode) frame(); }, 120);
+  setTimeout(() => { if (heroMode) frame(); }, 600);
 
   // pause all videos when tab hidden (battery/decode hygiene)
   document.addEventListener('visibilitychange', () => {

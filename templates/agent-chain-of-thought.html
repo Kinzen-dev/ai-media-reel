@@ -1,0 +1,701 @@
+<!-- TEMPLATE: Chain of Thought Gallery | ARCHETYPE: CHAIN (agentic reasoning trace as gallery) | REF: Anthropic Claude extended-thinking UI 2026, Vercel v0 tool-call trace, Devin task trace, OpenAI o3 reasoning display | WHEN TO USE: reveal each generated work through a collapsible agentic reasoning trace (plan / search / tool_call) that resolves into the output image | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chain of Thought Gallery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   PALETTE
+   #0f1117 deep navy   |  #f0ece4 bone
+   #00d4ff cyan tool-call accent
+   #e8c547 amber thinking-step
+   #3a3a4a collapsed-step grey
+   ============================================================ */
+:root{
+  --navy:#0f1117;
+  --navy-2:#13161f;
+  --panel:#171a24;
+  --bone:#f0ece4;
+  --cyan:#00d4ff;
+  --amber:#e8c547;
+  --grey:#3a3a4a;
+  --grey-2:#262a36;
+  --muted:#8a8f9e;
+  --line:#23283400;
+  --border:#272c3a;
+  --radius:14px;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  --sans:'Inter',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  background:
+    radial-gradient(1100px 700px at 78% -8%, rgba(0,212,255,.07), transparent 60%),
+    radial-gradient(900px 600px at 6% 4%, rgba(232,197,71,.05), transparent 60%),
+    var(--navy);
+  color:var(--bone);
+  font-family:var(--sans);
+  -webkit-font-smoothing:antialiased;
+  line-height:1.5;
+}
+a{color:inherit}
+
+/* ---------- top band (compact, never a full-viewport hero) ---------- */
+.topband{
+  max-width:1180px;margin:0 auto;padding:30px 26px 6px;
+  display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;
+}
+.brand{display:flex;flex-direction:column;gap:8px}
+.kicker{
+  display:inline-flex;align-items:center;gap:9px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--cyan);
+}
+.kicker .dot{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px var(--cyan);animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.32}}
+h1{
+  margin:0;font-size:clamp(28px,4.4vw,46px);line-height:1.04;font-weight:700;letter-spacing:-.02em;
+}
+h1 .sub{color:var(--muted);font-weight:500}
+.lede{margin:2px 0 0;color:var(--muted);font-size:14.5px;max-width:46ch}
+.legend{
+  display:flex;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--muted);
+  padding-bottom:4px;
+}
+.legend span{display:inline-flex;align-items:center;gap:7px;letter-spacing:.04em}
+.swatch{width:10px;height:10px;border-radius:3px;display:inline-block}
+.sw-grey{background:var(--grey)}
+.sw-cyan{background:var(--cyan)}
+.sw-amber{background:var(--amber)}
+
+/* ---------- gallery stack ---------- */
+.stack{max-width:1180px;margin:0 auto;padding:20px 26px 110px;display:flex;flex-direction:column;gap:26px}
+
+.trace{
+  background:linear-gradient(180deg,var(--navy-2),var(--navy));
+  border:1px solid var(--border);
+  border-radius:18px;
+  overflow:hidden;
+  box-shadow:0 1px 0 rgba(255,255,255,.02) inset, 0 24px 60px -34px rgba(0,0,0,.9);
+}
+.trace__head{
+  display:flex;align-items:center;gap:14px;
+  padding:16px 20px;border-bottom:1px solid var(--border);
+  background:linear-gradient(180deg,rgba(255,255,255,.015),transparent);
+}
+.agent-glyph{
+  width:30px;height:30px;flex:0 0 auto;border-radius:9px;
+  display:grid;place-items:center;
+  background:radial-gradient(circle at 30% 25%, #1c2330, #0c0e15);
+  border:1px solid var(--border);
+}
+.agent-glyph svg{width:17px;height:17px}
+.trace__title{font-size:14.5px;font-weight:600;letter-spacing:-.01em}
+.trace__title .q{color:var(--muted);font-weight:400}
+.trace__meta{margin-left:auto;display:flex;align-items:center;gap:10px}
+.model-tag{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--muted);
+  border:1px solid var(--border);border-radius:999px;padding:4px 10px;
+}
+/* thinking-time badge */
+.think-badge{
+  font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.03em;
+  color:var(--amber);
+  border:1px solid rgba(232,197,71,.42);
+  background:rgba(232,197,71,.08);
+  border-radius:999px;padding:4px 11px 4px 9px;
+  display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
+}
+.think-badge .spark{width:12px;height:12px;display:inline-block}
+
+.trace__body{padding:14px 16px 18px;display:flex;flex-direction:column;gap:10px}
+
+/* ---------- step pill (accordion via checkbox) ---------- */
+.step{
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--panel);
+  overflow:hidden;
+  transition:border-color .35s ease, background .35s ease;
+}
+.step__toggle{position:absolute;opacity:0;pointer-events:none;width:0;height:0}
+.step__summary{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 14px;cursor:pointer;user-select:none;
+  list-style:none;position:relative;
+}
+.step__summary:focus-visible{outline:2px solid var(--cyan);outline-offset:-2px;border-radius:12px}
+.step__kind{
+  font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  padding:3px 9px;border-radius:6px;flex:0 0 auto;
+  color:var(--muted);background:var(--grey-2);border:1px solid var(--grey);
+}
+.step__label{font-size:13.5px;color:#cdd2dd;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.step__dur{font-family:var(--mono);font-size:11px;color:var(--muted);flex:0 0 auto}
+.chev{
+  width:16px;height:16px;flex:0 0 auto;color:var(--muted);
+  transition:transform .35s ease;transform:rotate(-90deg);
+}
+/* collapsed-step grey numbered marker on the rail */
+.step__num{
+  width:18px;height:18px;border-radius:50%;flex:0 0 auto;
+  display:grid;place-items:center;font-family:var(--mono);font-size:10px;color:var(--muted);
+  background:var(--grey-2);border:1px solid var(--grey);
+}
+
+/* expandable region */
+.step__detail{
+  display:grid;grid-template-rows:0fr;
+  transition:grid-template-rows .45s cubic-bezier(.5,.05,.2,1);
+}
+.step__detail-inner{overflow:hidden;min-height:0}
+.step__detail-pad{padding:2px 14px 15px 14px}
+
+/* OPEN state */
+.step__toggle:checked ~ .step__summary .chev{transform:rotate(0deg)}
+.step__toggle:checked ~ .step__detail{grid-template-rows:1fr}
+
+/* kind accents on OPEN */
+.step--plan .step__toggle:checked ~ .step__summary{background:rgba(255,255,255,.02)}
+.step--search .step__toggle:checked ~ .step__summary{background:rgba(255,255,255,.02)}
+.step--tool .step__toggle:checked ~ .step__summary{background:rgba(0,212,255,.05)}
+.step--tool .step__toggle:checked ~ .step__summary .step__kind{color:var(--cyan);background:rgba(0,212,255,.1);border-color:rgba(0,212,255,.4)}
+.step--output .step__toggle:checked ~ .step__summary{background:rgba(232,197,71,.05)}
+.step--output .step__toggle:checked ~ .step__summary .step__kind{color:var(--amber);background:rgba(232,197,71,.1);border-color:rgba(232,197,71,.4)}
+.step--tool:has(.step__toggle:checked){border-color:rgba(0,212,255,.34)}
+.step--output:has(.step__toggle:checked){border-color:rgba(232,197,71,.34)}
+
+/* ---------- plan / search bodies ---------- */
+.think-text{
+  font-size:13.5px;color:#b7bdc9;line-height:1.62;
+  border-left:2px solid rgba(232,197,71,.45);padding-left:13px;margin:6px 0 0;
+}
+.think-text em{color:var(--amber);font-style:normal;font-weight:500}
+.search-list{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:7px}
+.search-list li{
+  display:flex;align-items:center;gap:10px;font-size:13px;color:#b7bdc9;
+  font-family:var(--mono);
+}
+.search-list .hit{margin-left:auto;font-size:10.5px;color:var(--cyan);opacity:.85}
+.search-list .q-icn{width:13px;height:13px;color:var(--muted);flex:0 0 auto}
+
+/* ---------- tool_call box (cyan-typed) ---------- */
+.toolbox{
+  border:1px solid rgba(0,212,255,.28);
+  border-radius:10px;overflow:hidden;
+  background:#0c1118;font-family:var(--mono);font-size:12px;
+  margin-top:8px;
+}
+.toolbox__bar{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 12px;border-bottom:1px solid rgba(0,212,255,.18);
+  background:rgba(0,212,255,.05);
+}
+.toolbox__bar .fn{color:var(--cyan);font-weight:600}
+.toolbox__bar .paren{color:#5a8aa0}
+.toolbox__bar .tag{
+  margin-left:auto;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--cyan);opacity:.7;
+}
+.toolbox__sec{padding:9px 13px}
+.toolbox__sec + .toolbox__sec{border-top:1px dashed rgba(0,212,255,.14)}
+.tsec-label{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#5a8aa0;margin-bottom:6px}
+.args{display:flex;flex-direction:column;gap:3px}
+.arg{color:#9aa3b2;line-height:1.55}
+.arg .k{color:#7fb2c4}
+.arg .s{color:var(--bone)}
+.arg .n{color:var(--amber)}
+.result-line{color:#8fb59a;line-height:1.55}
+.result-line .ok{color:#4ade80}
+
+/* ---------- output media (amber border) ---------- */
+.output-frame{
+  margin-top:8px;
+  border:2px solid var(--amber);
+  border-radius:12px;
+  overflow:hidden;
+  background:#000;
+  position:relative;
+  box-shadow:0 0 0 1px rgba(232,197,71,.14), 0 18px 50px -28px rgba(232,197,71,.4);
+  animation:resolveIn .9s cubic-bezier(.2,.7,.2,1) both;
+}
+@keyframes resolveIn{
+  0%{opacity:0;filter:blur(14px) saturate(.5);transform:scale(.985)}
+  60%{filter:blur(3px) saturate(.85)}
+  100%{opacity:1;filter:blur(0) saturate(1);transform:scale(1)}
+}
+.output-frame__tag{
+  position:absolute;top:10px;left:10px;z-index:3;
+  font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  color:#0f1117;background:var(--amber);font-weight:700;
+  padding:3px 9px;border-radius:6px;
+}
+.media-wrap{
+  position:relative;width:100%;aspect-ratio:16/9;background:#05070b;
+  display:flex;align-items:center;justify-content:center;
+}
+.media-wrap img,.media-wrap video{
+  width:100%;height:100%;object-fit:cover;display:block;
+}
+/* play affordance for video */
+.playbtn{
+  position:absolute;inset:0;display:grid;place-items:center;z-index:2;border:0;cursor:pointer;
+  background:transparent;
+}
+.playbtn .ring{
+  width:62px;height:62px;border-radius:50%;
+  background:rgba(15,17,23,.55);backdrop-filter:blur(3px);
+  border:1px solid rgba(232,197,71,.5);
+  display:grid;place-items:center;transition:transform .25s ease, background .25s ease;
+}
+.playbtn:hover .ring{transform:scale(1.08);background:rgba(15,17,23,.72)}
+.playbtn .ring svg{width:24px;height:24px;color:var(--amber);margin-left:3px}
+.playbtn[hidden]{display:none}
+
+.output-caption{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:11px 14px;font-size:12.5px;color:#c2c8d3;
+  border-top:1px solid rgba(232,197,71,.18);background:rgba(232,197,71,.04);
+}
+.output-caption .ttl{font-weight:600;color:var(--bone)}
+.output-caption .pill{
+  font-family:var(--mono);font-size:10px;letter-spacing:.05em;color:var(--amber);
+  border:1px solid rgba(232,197,71,.32);border-radius:999px;padding:2px 8px;
+}
+.output-caption .res{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+
+/* footer */
+.foot{
+  max-width:1180px;margin:0 auto;padding:0 26px 60px;
+  font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.04em;
+  display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  border-top:1px solid var(--border);padding-top:22px;
+}
+.foot a{color:var(--cyan);text-decoration:none}
+
+/* ---------- responsive: keep collapsed/expanded pattern, narrower, letterbox media ---------- */
+@media (max-width:640px){
+  .topband{padding:22px 16px 4px}
+  .stack{padding:14px 14px 80px;gap:20px}
+  .foot{padding:18px 16px 50px}
+  .trace__head{flex-wrap:wrap;padding:14px 14px}
+  .trace__meta{margin-left:0;width:100%;order:3}
+  .trace__title{order:2;flex:1 1 100%}
+  .model-tag{display:none}
+  .step__summary{gap:9px;padding:11px 12px}
+  .step__label{font-size:12.5px}
+  .step__dur{display:none}
+  /* letterbox landscape media in the portrait phone viewport, never cover-crop */
+  .media-wrap{aspect-ratio:auto;height:auto;min-height:160px}
+  .media-wrap img,.media-wrap video{object-fit:contain;height:auto;max-height:62vh}
+  .legend{font-size:10px;gap:11px}
+  h1{font-size:26px}
+}
+
+/* ---------- reduced motion: settle expanded, no keyframes ---------- */
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *{animation:none !important}
+  .kicker .dot{opacity:1}
+  .step__detail{transition:none}
+  .chev{transition:none}
+  .output-frame{animation:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     DATA  (swap here)
+     one object per generated work = one reasoning trace.
+     kind per step: 'plan' | 'search' | 'tool' | 'output'
+     output.type: 'image' | 'video'
+     ============================================================ -->
+<script>
+const ASSETS = "../assets";
+const DATA = [
+  {
+    query: "a cinematic matte-black Mercedes coupe on a rain-soaked neon street, night",
+    model: "image-gen-4 / reasoning",
+    thinkTime: "3.2s",
+    steps: [
+      { kind:"plan", label:"Decompose the request into visual constraints",
+        think: "User wants <em>cinematic</em> automotive, so I am locking in: low camera angle, wet asphalt with specular neon reflections, shallow depth of field, matte (not glossy) paint to read as premium. Time of day is night, lit by sign light, not sun. Aspect 16:9." },
+      { kind:"search", label:"Reference 4 lighting setups for wet-night car photography",
+        hits:[
+          { q:"rim-light + reflective ground plane", hit:"matched" },
+          { q:"sodium vs neon color temperature", hit:"matched" },
+          { q:"matte paint specular falloff", hit:"4 refs" },
+          { q:"shallow DOF telephoto compression", hit:"matched" },
+        ]},
+      { kind:"tool", label:"render_image(prompt, params)",
+        fn:"render_image",
+        args:[
+          { k:"prompt", v:"matte-black Mercedes coupe, wet neon street, low angle, night", t:"s" },
+          { k:"steps", v:"42", t:"n" },
+          { k:"guidance", v:"7.5", t:"n" },
+          { k:"ratio", v:"16:9", t:"s" },
+          { k:"seed", v:"880412", t:"n" },
+        ],
+        result:"image resolved, 2048x1152, no artifacts on reflections" },
+      { kind:"output", label:"Final output resolved",
+        type:"image", src:ASSETS+"/flux-car-4k.png",
+        title:"Neon Coupe", tag:"flux-4k", res:"2048 x 1152" },
+    ],
+  },
+  {
+    query: "a calm mint-and-wood modern dental clinic interior, soft daylight",
+    model: "image-gen-4 / reasoning",
+    thinkTime: "2.6s",
+    steps: [
+      { kind:"plan", label:"Set the mood: clinical but warm, not sterile",
+        think: "Brief says <em>calm</em>. I will balance clinical mint against natural wood tones to avoid a cold hospital feel. Diffuse daylight from the left, eye-level interior shot, clean negative space for product overlay." },
+      { kind:"search", label:"Reference healthcare interior palettes",
+        hits:[
+          { q:"mint + warm-wood dental palette", hit:"matched" },
+          { q:"diffuse north-light interior", hit:"matched" },
+          { q:"negative space for UI overlay", hit:"2 refs" },
+        ]},
+      { kind:"tool", label:"render_image(prompt, params)",
+        fn:"render_image",
+        args:[
+          { k:"prompt", v:"mint + wood dental clinic, soft daylight, wide", t:"s" },
+          { k:"steps", v:"38", t:"n" },
+          { k:"guidance", v:"6.5", t:"n" },
+          { k:"ratio", v:"16:9", t:"s" },
+        ],
+        result:"image resolved, clean palette, balanced exposure" },
+      { kind:"output", label:"Final output resolved",
+        type:"image", src:ASSETS+"/flux-clinic-4k.png",
+        title:"Clinic Calm", tag:"flux-4k", res:"2048 x 1152" },
+    ],
+  },
+  {
+    query: "drive the parked coupe forward through the rain, image to video",
+    model: "video-gen-2 / reasoning",
+    thinkTime: "5.4s",
+    steps: [
+      { kind:"plan", label:"Plan motion from a still frame",
+        think: "This is image-to-video. The still already has correct lighting, so I preserve composition and add <em>forward dolly</em> plus subtle rain streaks and reflection shimmer. Keep motion under 4s to avoid temporal warping on the wheels." },
+      { kind:"search", label:"Check motion priors for vehicle i2v",
+        hits:[
+          { q:"wheel-rotation temporal coherence", hit:"matched" },
+          { q:"reflection shimmer on wet ground", hit:"matched" },
+          { q:"dolly-in camera prior", hit:"3 refs" },
+        ]},
+      { kind:"tool", label:"animate_image(image, motion)",
+        fn:"animate_image",
+        args:[
+          { k:"image", v:"flux-car-4k.png", t:"s" },
+          { k:"motion", v:"dolly_in + rain", t:"s" },
+          { k:"fps", v:"24", t:"n" },
+          { k:"duration", v:"4.0", t:"n" },
+        ],
+        result:"clip resolved, 24fps, stable wheels, no flicker" },
+      { kind:"output", label:"Final output resolved",
+        type:"video", src:ASSETS+"/flux-car-i2v.mp4", poster:ASSETS+"/gen/poster-flux-car-i2v.png",
+        title:"Coupe in Motion", tag:"i2v / silent", res:"1280 x 720 / 4s" },
+    ],
+  },
+  {
+    query: "a painterly autumn fox curled in fallen leaves, warm storybook light",
+    model: "image-gen-4 / reasoning",
+    thinkTime: "2.9s",
+    steps: [
+      { kind:"plan", label:"Choose a render style that reads as illustration",
+        think: "Brief wants <em>painterly</em>, so I avoid photoreal and push visible brushwork, warm autumn palette, soft storybook rim light. Centered subject, shallow background for a tender mood." },
+      { kind:"search", label:"Reference painterly animal illustration",
+        hits:[
+          { q:"gouache autumn palette", hit:"matched" },
+          { q:"soft storybook rim light", hit:"matched" },
+          { q:"visible brushwork texture", hit:"2 refs" },
+        ]},
+      { kind:"tool", label:"render_image(prompt, params)",
+        fn:"render_image",
+        args:[
+          { k:"prompt", v:"painterly autumn fox in leaves, warm light", t:"s" },
+          { k:"steps", v:"40", t:"n" },
+          { k:"guidance", v:"8.0", t:"n" },
+          { k:"style", v:"illustration", t:"s" },
+        ],
+        result:"image resolved, brushwork preserved, warm balance" },
+      { kind:"output", label:"Final output resolved",
+        type:"image", src:ASSETS+"/sdxl.png",
+        title:"Autumn Fox", tag:"sdxl", res:"1024 x 1024" },
+    ],
+  },
+  {
+    query: "an expressive talking avatar delivering a short greeting to camera",
+    model: "avatar-gen-1 / reasoning",
+    thinkTime: "4.1s",
+    steps: [
+      { kind:"plan", label:"Plan a lip-synced talking-head clip",
+        think: "Goal is a presenter avatar. I prioritise <em>lip-sync accuracy</em> and natural blink cadence over background detail. Frontal framing, neutral backdrop, gentle head motion so it does not read as a frozen photo." },
+      { kind:"search", label:"Reference talking-head coherence priors",
+        hits:[
+          { q:"viseme to phoneme mapping", hit:"matched" },
+          { q:"blink + micro-head-motion cadence", hit:"matched" },
+          { q:"frontal framing presenter", hit:"2 refs" },
+        ]},
+      { kind:"tool", label:"animate_avatar(face, script)",
+        fn:"animate_avatar",
+        args:[
+          { k:"face", v:"presenter_01", t:"s" },
+          { k:"script", v:"\"Hello, welcome to the demo.\"", t:"s" },
+          { k:"voice", v:"warm_female", t:"s" },
+          { k:"fps", v:"25", t:"n" },
+        ],
+        result:"clip resolved, lip-sync locked, natural blinks" },
+      { kind:"output", label:"Final output resolved",
+        type:"video", src:ASSETS+"/heygen-avatar.mp4", poster:ASSETS+"/gen/poster-heygen.png",
+        title:"Presenter Avatar", tag:"avatar / audio", res:"720 x 720" },
+    ],
+  },
+];
+</script>
+
+<!-- ===================== TOP BAND ===================== -->
+<header class="topband">
+  <div class="brand">
+    <span class="kicker"><span class="dot"></span>agent trace gallery</span>
+    <h1>Chain of Thought <span class="sub">/ generated works</span></h1>
+    <p class="lede">Each work is revealed through the agent's reasoning. Step pills expand in sequence: plan, search, tool_call, then the image resolves inside an amber output border.</p>
+  </div>
+  <div class="legend">
+    <span><i class="swatch sw-grey"></i> collapsed step</span>
+    <span><i class="swatch sw-cyan"></i> tool_call</span>
+    <span><i class="swatch sw-amber"></i> thinking / output</span>
+  </div>
+</header>
+
+<!-- ===================== GALLERY STACK ===================== -->
+<main class="stack" id="stack"></main>
+
+<footer class="foot">
+  <span>CHAIN archetype // collapsible reasoning trace as gallery</span>
+  <span>swap the <a href="#stack" id="swaplink">DATA array</a> to retheme</span>
+</footer>
+
+<!-- icons (defined once, referenced via <use>) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="ic-agent" viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 3v3M5 9h14a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1Z"/><circle cx="9" cy="13.5" r="1.1" fill="#00d4ff" stroke="none"/><circle cx="15" cy="13.5" r="1.1" fill="#00d4ff" stroke="none"/><path d="M12 3a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>
+  </symbol>
+  <symbol id="ic-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="ic-spark" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.6 5.4L19 9l-5.4 1.6L12 16l-1.6-5.4L5 9l5.4-1.6L12 2Z"/></symbol>
+  <symbol id="ic-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></symbol>
+  <symbol id="ic-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7L8 5Z"/></symbol>
+</svg>
+
+<script>
+/* ============================================================
+   RENDER
+   ============================================================ */
+const KIND_META = {
+  plan:   { tag:"plan",      cls:"step--plan" },
+  search: { tag:"search",    cls:"step--search" },
+  tool:   { tag:"tool_call", cls:"step--tool" },
+  output: { tag:"output",    cls:"step--output" },
+};
+const esc = s => String(s).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+function argHTML(a){
+  const cls = a.t === "n" ? "n" : "s";
+  const val = a.t === "n" ? esc(a.v) : '"'+esc(a.v)+'"';
+  return `<div class="arg"><span class="k">${esc(a.k)}</span>: <span class="${cls}">${val}</span>,</div>`;
+}
+
+function stepHTML(step, traceIdx, stepIdx, total){
+  const m = KIND_META[step.kind];
+  const id = `s-${traceIdx}-${stepIdx}`;
+  // default-open the LAST trace's terminal flow at scroll=0 happens for trace 0 only (see openDefaults)
+  let detail = "";
+  if(step.kind === "plan"){
+    detail = `<p class="think-text">${step.think}</p>`;
+  } else if(step.kind === "search"){
+    detail = `<ul class="search-list">${step.hits.map(h=>
+      `<li><svg class="q-icn"><use href="#ic-search"/></svg>${esc(h.q)}<span class="hit">${esc(h.hit)}</span></li>`
+    ).join("")}</ul>`;
+  } else if(step.kind === "tool"){
+    detail = `
+      <div class="toolbox">
+        <div class="toolbox__bar"><span class="fn">${esc(step.fn)}</span><span class="paren">( )</span><span class="tag">tool_call</span></div>
+        <div class="toolbox__sec">
+          <div class="tsec-label">arguments</div>
+          <div class="args">${step.args.map(argHTML).join("")}</div>
+        </div>
+        <div class="toolbox__sec">
+          <div class="tsec-label">result</div>
+          <div class="result-line"><span class="ok">&#10003; ok</span> &nbsp;${esc(step.result)}</div>
+        </div>
+      </div>`;
+  } else if(step.kind === "output"){
+    const media = step.type === "video"
+      ? `<div class="media-wrap">
+           <video preload="none" playsinline loop muted poster="${step.poster}" data-src="${step.src}"></video>
+           <button class="playbtn" aria-label="Play ${esc(step.title)} clip"><span class="ring"><svg><use href="#ic-play"/></svg></span></button>
+         </div>`
+      : `<div class="media-wrap"><img loading="lazy" decoding="async" src="${step.src}" alt="${esc(step.title)} generated output"></div>`;
+    detail = `
+      <div class="output-frame">
+        <span class="output-frame__tag">output</span>
+        ${media}
+        <div class="output-caption">
+          <span class="ttl">${esc(step.title)}</span>
+          <span class="pill">${esc(step.tag)}</span>
+          <span class="res">${esc(step.res)}</span>
+        </div>
+      </div>`;
+  }
+
+  const dur = step.kind === "output" ? "" : `<span class="step__dur">${(0.3 + stepIdx*0.4).toFixed(1)}s</span>`;
+  return `
+    <div class="step ${m.cls}">
+      <input type="checkbox" class="step__toggle" id="${id}">
+      <label class="step__summary" for="${id}" tabindex="0" role="button" aria-expanded="false">
+        <span class="step__num">${stepIdx+1}</span>
+        <span class="step__kind">${m.tag}</span>
+        <span class="step__label">${esc(step.label)}</span>
+        ${dur}
+        <svg class="chev"><use href="#ic-chev"/></svg>
+      </label>
+      <div class="step__detail"><div class="step__detail-inner"><div class="step__detail-pad">${detail}</div></div></div>
+    </div>`;
+}
+
+function traceHTML(t, i){
+  return `
+  <article class="trace" data-trace="${i}">
+    <div class="trace__head">
+      <span class="agent-glyph"><svg><use href="#ic-agent"/></svg></span>
+      <span class="trace__title"><span class="q">generate:</span> ${esc(t.query)}</span>
+      <span class="trace__meta">
+        <span class="model-tag">${esc(t.model)}</span>
+        <span class="think-badge"><svg class="spark"><use href="#ic-spark"/></svg>${esc(t.thinkTime)}</span>
+      </span>
+    </div>
+    <div class="trace__body">
+      ${t.steps.map((s,si)=>stepHTML(s,i,si,t.steps.length)).join("")}
+    </div>
+  </article>`;
+}
+
+const stack = document.getElementById("stack");
+stack.innerHTML = DATA.map(traceHTML).join("");
+
+/* keep aria-expanded in sync for labels acting as buttons */
+function syncAria(input){
+  const label = input.parentElement.querySelector(".step__summary");
+  if(label) label.setAttribute("aria-expanded", input.checked ? "true" : "false");
+}
+stack.querySelectorAll(".step__toggle").forEach(inp=>{
+  syncAria(inp);
+  inp.addEventListener("change", ()=>syncAria(inp));
+});
+/* space/enter on the label toggles the hidden checkbox */
+stack.querySelectorAll(".step__summary").forEach(lbl=>{
+  lbl.addEventListener("keydown", e=>{
+    if(e.key === "Enter" || e.key === " "){
+      e.preventDefault();
+      const inp = lbl.parentElement.querySelector(".step__toggle");
+      inp.checked = !inp.checked; syncAria(inp);
+    }
+  });
+});
+
+/* ============================================================
+   FIRST-VIEWPORT SIGNATURE
+   At scroll=0 the FIRST trace shows the full agentic grammar:
+   3 collapsed grey step pills above, one OPEN tool_call box,
+   and the OPEN final output with the amber border + 3.2s badge.
+   The animated reveal sequence runs only for traces scrolled into
+   view, and only when reduced-motion is OFF.
+   ============================================================ */
+function openStep(input){
+  input.checked = true; syncAria(input);
+}
+function openStepsOf(trace, mode){
+  const inputs = [...trace.querySelectorAll(".step__toggle")];
+  if(mode === "signature"){
+    // open the tool_call step and the output step; leave plan/search collapsed (grey pills)
+    inputs.forEach(inp=>{
+      const step = inp.closest(".step");
+      if(step.classList.contains("step--tool") || step.classList.contains("step--output")){
+        openStep(inp);
+      }
+    });
+  } else { // 'sequence' - cascade all open with stagger
+    inputs.forEach((inp,k)=> setTimeout(()=>openStep(inp), 220*k + 120));
+  }
+}
+
+const reduceMotion = window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+const traces = [...document.querySelectorAll(".trace")];
+
+if(reduceMotion){
+  // settled: every trace fully expanded, no animation
+  traces.forEach(t=>{
+    t.querySelectorAll(".step__toggle").forEach(openStep);
+  });
+} else {
+  // first trace: open in SIGNATURE state immediately (visible at scroll=0)
+  openStepsOf(traces[0], "signature");
+
+  // remaining traces: cascade-reveal when scrolled into view
+  const seen = new WeakSet();
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{
+      if(e.isIntersecting && !seen.has(e.target)){
+        seen.add(e.target);
+        if(e.target === traces[0]) return; // already in signature state
+        openStepsOf(e.target, "sequence");
+      }
+    });
+  }, { threshold:0.22, rootMargin:"0px 0px -8% 0px" });
+  traces.forEach(t=>io.observe(t));
+}
+
+/* ============================================================
+   VIDEO: play only the focused clip (no simultaneous decode).
+   Click to load+play; pause others; pause when scrolled away.
+   ============================================================ */
+let activeVideo = null;
+function stopActive(){
+  if(activeVideo){ activeVideo.pause(); activeVideo = null; }
+}
+stack.querySelectorAll(".playbtn").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    const wrap = btn.closest(".media-wrap");
+    const v = wrap.querySelector("video");
+    if(!v) return;
+    if(activeVideo && activeVideo !== v) stopActive();
+    if(!v.src) v.src = v.dataset.src;     // lazy-load source only on demand
+    v.play().then(()=>{ btn.hidden = true; activeVideo = v; }).catch(()=>{ btn.hidden = false; });
+    v.addEventListener("pause", ()=>{ btn.hidden = false; }, { once:true });
+  });
+});
+/* pause any playing video that leaves the viewport */
+if("IntersectionObserver" in window){
+  const vio = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{
+      const v = e.target;
+      if(!e.isIntersecting && v === activeVideo){
+        v.pause();
+        const btn = v.parentElement.querySelector(".playbtn");
+        if(btn) btn.hidden = false;
+        activeVideo = null;
+      }
+    });
+  }, { threshold:0.25 });
+  stack.querySelectorAll("video").forEach(v=>vio.observe(v));
+}
+</script>
+</body>
+</html>

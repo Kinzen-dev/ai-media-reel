@@ -1,0 +1,585 @@
+<!-- TEMPLATE: Configurator Hero | ARCHETYPE: configure | REF: Porsche Taycan configurator (Awwwards SOTM 2025), BMW i7 configurator, Teenage Engineering product builder | WHEN TO USE: a single product with selectable options (color/material/trim) where price + specs must update live as a hero, no gallery | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Configurator Hero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   DATA lives in the <script> at the very top of <body>.
+   Visual system below. Pure CSS-variable driven; JS only
+   writes a handful of root vars + text nodes.
+   ============================================================ */
+
+:root{
+  --paper:#f8f6f2;        /* light matte ground */
+  --ink:#1a1a1a;          /* primary ink */
+  --accent:#e03c2c;       /* live indicator / selected accent */
+  --ring:#c8c8c8;         /* unselected option ring */
+  --ink-60:rgba(26,26,26,.6);
+  --ink-30:rgba(26,26,26,.3);
+  --line:rgba(26,26,26,.12);
+
+  /* live, JS-written configurator state (defaults = first build) */
+  --tint-hue:0deg;
+  --tint-sat:1;
+  --tint-bright:1;
+  --tint-contrast:1;
+  --tint-sepia:0;
+  --swatch:#1a1a1a;       /* current selected colour, drives accents that mirror the car */
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:'Inter',system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+
+/* matte grain + soft vignette so the paper does not read flat */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(120% 80% at 50% 18%, transparent 55%, rgba(26,26,26,.06) 100%),
+    repeating-linear-gradient(0deg, rgba(0,0,0,.012) 0 1px, transparent 1px 3px);
+  mix-blend-mode:multiply;
+}
+
+.stage{position:relative;z-index:1;min-height:100svh;min-height:100vh;display:flex;flex-direction:column}
+
+/* ---------- top band: brand + headline (compact, never full-screen) ---------- */
+.topband{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:24px;
+  padding:24px clamp(20px,4vw,56px) 0;
+}
+.brand{display:flex;align-items:center;gap:10px;font-family:'Space Grotesk';font-weight:700;letter-spacing:-.02em;font-size:15px}
+.brand .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px rgba(224,60,44,.16)}
+.eyebrow{
+  font-family:'Space Grotesk';font-weight:600;font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--ink-60);display:flex;align-items:center;gap:8px;
+}
+.eyebrow::before{content:"";width:26px;height:1px;background:var(--ink-30)}
+
+.head{padding:18px clamp(20px,4vw,56px) 0;max-width:1320px}
+.head h1{
+  font-family:'Space Grotesk';font-weight:700;letter-spacing:-.035em;line-height:.95;
+  font-size:clamp(34px,6.4vw,76px);
+}
+.head h1 em{font-style:normal;color:var(--accent)}
+.head p{margin-top:12px;max-width:46ch;color:var(--ink-60);font-size:clamp(13px,1.4vw,15px);line-height:1.55}
+
+/* ---------- product visual (the configurable thing) ---------- */
+.viewport{
+  position:relative;flex:1;min-height:0;
+  display:flex;align-items:center;justify-content:center;
+  padding:6px clamp(16px,3vw,48px) 0;
+}
+.car-wrap{
+  position:relative;
+  /* height-capped so the option ring + stat strip stay above the fold at 1440x900.
+     width follows the 16:9 ratio off the capped height; never taller than the slot. */
+  height:min(44vh,420px);
+  aspect-ratio:16/9;
+  width:auto;max-width:94vw;
+  border-radius:18px;overflow:hidden;
+  background:#0e0e0e;
+  box-shadow:0 40px 80px -42px rgba(26,26,26,.55), inset 0 0 0 1px rgba(255,255,255,.04);
+}
+/* concentric guide rings echo a configurator turntable */
+.car-wrap::before{
+  content:"";position:absolute;inset:0;z-index:2;pointer-events:none;
+  background:radial-gradient(58% 92% at 50% 118%, rgba(255,255,255,.10), transparent 60%);
+}
+.car-img{
+  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 56%;
+  /* THE re-tint: every colour swatch rewrites these vars, the car visibly changes hue */
+  filter:
+    hue-rotate(var(--tint-hue))
+    saturate(var(--tint-sat))
+    brightness(var(--tint-bright))
+    contrast(var(--tint-contrast))
+    sepia(var(--tint-sepia));
+  transition:filter .55s cubic-bezier(.4,0,.2,1);
+  will-change:filter;
+}
+/* a soft colour wash locked to the selected swatch, so the change reads even on the dark body */
+.car-tint{
+  position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:radial-gradient(70% 70% at 52% 46%, var(--swatch), transparent 72%);
+  opacity:.26;mix-blend-mode:screen;
+  transition:background .55s ease, opacity .55s ease;
+}
+
+/* live spec readout floating on the visual (top-right) */
+.readout{
+  position:absolute;top:16px;right:16px;z-index:3;
+  display:flex;flex-direction:column;align-items:flex-end;gap:2px;
+  padding:12px 16px;border-radius:12px;
+  background:rgba(248,246,242,.86);backdrop-filter:blur(8px);
+  border:1px solid rgba(26,26,26,.10);
+  box-shadow:0 12px 30px -18px rgba(0,0,0,.5);
+}
+.readout .lbl{font-family:'Space Grotesk';font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-60);display:flex;align-items:center;gap:6px}
+.readout .lbl::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 2.4s ease-in-out infinite}
+.readout .price{font-family:'Space Grotesk';font-weight:700;font-size:clamp(24px,3.2vw,34px);letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums}
+.readout .price .cur{font-size:.5em;font-weight:600;color:var(--ink-60);vertical-align:.55em;margin-right:2px}
+.readout .sub{font-size:11px;color:var(--ink-60);font-variant-numeric:tabular-nums}
+
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
+
+/* config name badge bottom-left of visual */
+.config-badge{
+  position:absolute;left:16px;bottom:16px;z-index:3;
+  display:flex;align-items:center;gap:10px;
+  padding:9px 14px;border-radius:999px;
+  background:rgba(14,14,14,.55);backdrop-filter:blur(6px);
+  border:1px solid rgba(255,255,255,.14);color:#fff;
+  font-family:'Space Grotesk';font-weight:600;font-size:12px;letter-spacing:.01em;
+}
+.config-badge .chip{width:13px;height:13px;border-radius:4px;background:var(--swatch);box-shadow:inset 0 0 0 1px rgba(255,255,255,.4);transition:background .5s ease}
+
+/* ---------- control deck: stat strip + option ring ---------- */
+.deck{
+  position:relative;z-index:3;
+  padding:14px clamp(16px,3vw,48px) clamp(18px,3vw,30px);
+  display:flex;flex-direction:column;gap:14px;
+}
+
+/* live stat strip: 3 derived metrics */
+.stats{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:0;
+  border:1px solid var(--line);border-radius:14px;overflow:hidden;background:rgba(255,255,255,.4);
+}
+.stat{padding:12px 18px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:3px}
+.stat:last-child{border-right:0}
+.stat .k{font-family:'Space Grotesk';font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-60)}
+.stat .v{font-family:'Space Grotesk';font-weight:700;font-size:clamp(15px,1.8vw,20px);letter-spacing:-.01em;font-variant-numeric:tabular-nums;display:flex;align-items:baseline;gap:5px}
+.stat .v small{font-size:.62em;font-weight:600;color:var(--ink-60)}
+.stat .v .delta{font-size:.6em;font-weight:600;color:var(--accent);opacity:0;transform:translateY(2px);transition:opacity .35s,transform .35s}
+.stat.bump .v .delta{opacity:1;transform:none}
+
+/* option groups: the ring */
+.groups{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:flex-start}
+.group{display:flex;flex-direction:column;gap:8px;min-width:0}
+.group > .gl{font-family:'Space Grotesk';font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-60)}
+.opts{display:flex;gap:8px;align-items:center}
+
+/* colour swatches */
+.swatch{
+  --c:#000;position:relative;width:40px;height:40px;border-radius:50%;cursor:pointer;
+  background:var(--c);border:none;padding:0;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.18), 0 1px 2px rgba(0,0,0,.18);
+  outline:2px solid transparent;outline-offset:3px;
+  transition:transform .25s,box-shadow .25s,outline-color .25s;
+}
+.swatch::after{
+  content:"";position:absolute;inset:-7px;border-radius:50%;
+  border:2px solid var(--ring);opacity:0;transform:scale(.82);
+  transition:opacity .25s,transform .25s,border-color .25s;
+}
+.swatch:hover{transform:translateY(-2px)}
+.swatch[aria-pressed="true"]::after{opacity:1;transform:none;border-color:var(--accent)}
+.swatch:focus-visible{outline-color:var(--ink)}
+
+/* pill options (material / size / drive) */
+.pill{
+  cursor:pointer;border:1px solid var(--ring);background:transparent;color:var(--ink);
+  font-family:'Space Grotesk';font-weight:600;font-size:13px;letter-spacing:-.01em;
+  padding:9px 15px;border-radius:999px;white-space:nowrap;
+  display:flex;align-items:center;gap:8px;
+  transition:border-color .22s,background .22s,color .22s,box-shadow .22s;
+}
+.pill .pp{font-size:11px;color:var(--ink-60);font-variant-numeric:tabular-nums;transition:color .22s}
+.pill:hover{border-color:var(--ink-30)}
+.pill[aria-pressed="true"]{
+  background:var(--ink);color:var(--paper);border-color:var(--ink);
+  box-shadow:0 8px 20px -10px rgba(26,26,26,.6);
+}
+.pill[aria-pressed="true"] .pp{color:rgba(248,246,242,.7)}
+.pill:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+/* primary CTA */
+.cta-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.cta{
+  font-family:'Space Grotesk';font-weight:700;font-size:14px;letter-spacing:.01em;
+  background:var(--accent);color:#fff;border:none;cursor:pointer;
+  padding:13px 26px;border-radius:999px;display:flex;align-items:center;gap:10px;
+  box-shadow:0 12px 26px -12px rgba(224,60,44,.7);
+  transition:transform .2s,box-shadow .2s;
+}
+.cta:hover{transform:translateY(-2px);box-shadow:0 16px 32px -12px rgba(224,60,44,.75)}
+.cta:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.cta .arr{transition:transform .2s}
+.cta:hover .arr{transform:translateX(3px)}
+.note{font-size:12px;color:var(--ink-60)}
+
+/* ---------- entrance (one IntersectionObserver) ---------- */
+.reveal{opacity:0;transform:translateY(16px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+.reveal.in{opacity:1;transform:none}
+.reveal.d1{transition-delay:.06s}
+.reveal.d2{transition-delay:.12s}
+.reveal.d3{transition-delay:.18s}
+.reveal.d4{transition-delay:.24s}
+
+/* ============================================================
+   MOBILE: letterbox the landscape car (never cover-crop into a
+   portrait phone), collapse the option ring to a horizontal
+   scroll row, stack the deck.
+   ============================================================ */
+@media (max-width:640px){
+  .topband{padding-top:18px}
+  .head{padding-top:12px}
+  .viewport{padding:4px 12px 0}
+  .car-wrap{width:100%;aspect-ratio:auto;height:clamp(190px,40vh,300px)}
+  .car-img{object-fit:contain;object-position:50% 50%;background:#0e0e0e}
+  .car-wrap{background:#0e0e0e}
+  .readout{top:10px;right:10px;padding:9px 12px}
+  .readout .price{font-size:24px}
+  .config-badge{left:10px;bottom:10px;font-size:11px;padding:7px 11px}
+
+  .deck{padding:12px 12px 18px;gap:12px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .stat{border-bottom:1px solid var(--line)}
+  .stat:nth-child(odd){border-right:1px solid var(--line)}
+  .stat:nth-child(even){border-right:0}
+  .stat:nth-last-child(-n+2){border-bottom:0}
+
+  /* ring -> horizontal scroll rows */
+  .groups{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity;padding-bottom:4px;gap:0 18px}
+  .groups::-webkit-scrollbar{height:0}
+  .group{flex:0 0 auto;scroll-snap-align:start}
+  .opts{flex-wrap:nowrap}
+  .swatch{width:36px;height:36px}
+}
+
+@media (max-width:380px){
+  .stats{grid-template-columns:repeat(2,1fr)}
+}
+
+/* ---------- reduced motion: show final state, kill all motion ---------- */
+@media (prefers-reduced-motion:reduce){
+  /* the universal selector does NOT cover pseudo-elements, so the live-dot
+     pulse (.readout .lbl::before) would keep animating; target them explicitly. */
+  *,*::before,*::after{transition:none !important;animation:none !important;scroll-behavior:auto !important}
+  .reveal{opacity:1 !important;transform:none !important}
+  .car-img{will-change:auto}
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     DATA  -  edit this single array to re-skin the configurator.
+     basePrice + each option's price/weight/lead delta drive the
+     entire live readout. colour options also carry a `tint`
+     (CSS filter values) + `wash` (overlay colour) that visibly
+     re-tints the product image.
+     ============================================================ -->
+<script>
+const DATA = {
+  brand:"VESPER MOTORS",
+  eyebrow:"Build / Series 8 Coupe",
+  headline:["Configure the", "<em>Nightline</em> AMG."],
+  blurb:"Six finishes, three compounds, two drivetrains. The render, price and spec sheet redraw the instant you touch an option. No gallery, no waiting.",
+  asset:"../assets/flux-car.png",        // landscape product visual reused from ../assets/
+  currency:"$",
+  basePrice:128400,
+  baseWeight:1885,                       // kg
+  baseLead:6,                            // weeks
+  cta:"Reserve this build",
+
+  groups:[
+    {
+      id:"finish", label:"Finish", type:"swatch", selected:0,
+      options:[
+        // tint = the live re-tint (hue/sat/bright/contrast/sepia); wash = overlay colour
+        {name:"Obsidian Matte", c:"#1a1a1a", tint:{h:"0deg",s:1,b:1,co:1,se:0},   wash:"#2a2a2a", price:0,     weight:0,  lead:0},
+        {name:"Magma Red",      c:"#e03c2c", tint:{h:"-12deg",s:1.7,b:1.05,co:1.06,se:.35}, wash:"#e03c2c", price:3200, weight:0,  lead:1},
+        {name:"Glacier Steel",  c:"#9fb3c2", tint:{h:"185deg",s:1.25,b:1.18,co:.96,se:0},   wash:"#9fb3c2", price:2600, weight:0,  lead:1},
+        {name:"Acid Lime",      c:"#c8e000", tint:{h:"70deg",s:2.1,b:1.16,co:1.04,se:.5},   wash:"#c8e000", price:4100, weight:0,  lead:2},
+        {name:"Violet Haze",    c:"#7b4ce0", tint:{h:"250deg",s:1.6,b:1.06,co:1.02,se:.2},  wash:"#7b4ce0", price:3800, weight:0,  lead:2},
+        {name:"Sand Patina",    c:"#cdab7a", tint:{h:"28deg",s:1.3,b:1.12,co:.98,se:.6},    wash:"#cdab7a", price:2900, weight:0,  lead:1}
+      ]
+    },
+    {
+      id:"wheel", label:"Wheel / Compound", type:"pill", selected:0,
+      options:[
+        {name:'20" Forged',  sub:"Sport", price:0,    weight:0,   lead:0},
+        {name:'21" Carbon',  sub:"Track", price:6800, weight:-22, lead:2},
+        {name:'19" Cast',    sub:"Touring", price:-1800, weight:14, lead:0}
+      ]
+    },
+    {
+      id:"drive", label:"Drivetrain", type:"pill", selected:0,
+      options:[
+        {name:"Dual Motor", sub:"AWD", price:0,     weight:0,   lead:0},
+        {name:"Tri Motor",  sub:"AWD+", price:18500, weight:78,  lead:3}
+      ]
+    },
+    {
+      id:"interior", label:"Cabin", type:"pill", selected:0,
+      options:[
+        {name:"Carbon Suede", sub:"Std", price:0,    weight:0,  lead:0},
+        {name:"Nappa Ash",    sub:"Lux", price:5400, weight:11, lead:1}
+      ]
+    }
+  ]
+};
+</script>
+
+<main class="stage">
+
+  <div class="topband">
+    <div class="brand reveal d1"><span class="dot" aria-hidden="true"></span><span id="brand">VESPER MOTORS</span></div>
+    <div class="eyebrow reveal d1" id="eyebrow">Build</div>
+  </div>
+
+  <div class="head">
+    <h1 class="reveal d1" id="headline">Configure</h1>
+    <p class="reveal d2" id="blurb">.</p>
+  </div>
+
+  <!-- product visual (the configurable thing) -->
+  <section class="viewport reveal d2" aria-label="Live product configurator preview">
+    <div class="car-wrap">
+      <div class="car-tint" aria-hidden="true"></div>
+      <img class="car-img" id="car" src="../assets/flux-car.png" alt="Configured coupe, finish updates live as options change" decoding="async" />
+
+      <div class="readout" role="status" aria-live="polite">
+        <span class="lbl">Live total</span>
+        <span class="price"><span class="cur" id="cur">$</span><span id="price">0</span></span>
+        <span class="sub" id="rsub">as configured</span>
+      </div>
+
+      <div class="config-badge">
+        <span class="chip" aria-hidden="true"></span>
+        <span id="badge">Obsidian Matte</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- control deck -->
+  <div class="deck">
+
+    <!-- live stat strip -->
+    <div class="stats reveal d3" id="stats">
+      <div class="stat" data-k="price">
+        <span class="k">Total build</span>
+        <span class="v"><small id="cur2">$</small><span id="s-price">0</span></span>
+      </div>
+      <div class="stat" data-k="weight">
+        <span class="k">Kerb weight</span>
+        <span class="v"><span id="s-weight">0</span><small>kg</small><span class="delta" id="d-weight"></span></span>
+      </div>
+      <div class="stat" data-k="lead">
+        <span class="k">Lead time</span>
+        <span class="v"><span id="s-lead">0</span><small>wks</small><span class="delta" id="d-lead"></span></span>
+      </div>
+      <div class="stat" data-k="opts">
+        <span class="k">Options</span>
+        <span class="v"><span id="s-opts">4</span><small>/ 4</small></span>
+      </div>
+    </div>
+
+    <!-- option ring -->
+    <div class="groups reveal d4" id="groups"></div>
+
+    <div class="cta-row reveal d4">
+      <button class="cta" id="cta">
+        <span id="cta-label">Reserve this build</span>
+        <span class="arr" aria-hidden="true">&rarr;</span>
+      </button>
+      <span class="note">Fully refundable hold. Spec saved to your account.</span>
+    </div>
+
+  </div>
+
+</main>
+
+<script>
+(() => {
+  "use strict";
+  const reduced = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const $ = (id) => document.getElementById(id);
+
+  // ---- hydrate static copy from DATA ----
+  $('brand').textContent   = DATA.brand;
+  $('eyebrow').textContent = DATA.eyebrow;
+  $('headline').innerHTML  = DATA.headline.join('<br>');
+  $('blurb').textContent   = DATA.blurb;
+  $('cur').textContent     = DATA.currency;
+  $('cur2').textContent    = DATA.currency;
+  $('cta-label').textContent = DATA.cta;
+  const carImg = $('car');
+  carImg.src = DATA.asset;
+
+  // selection state: index per group
+  const state = DATA.groups.map(g => g.selected || 0);
+
+  const fmt = (n) => n.toLocaleString('en-US');
+
+  // ---- build the option ring ----
+  const groupsEl = $('groups');
+  DATA.groups.forEach((g, gi) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'group';
+    const gl = document.createElement('span');
+    gl.className = 'gl';
+    gl.textContent = g.label;
+    wrap.appendChild(gl);
+
+    const opts = document.createElement('div');
+    opts.className = 'opts';
+    opts.setAttribute('role', 'radiogroup');
+    opts.setAttribute('aria-label', g.label);
+
+    g.options.forEach((o, oi) => {
+      let btn;
+      if (g.type === 'swatch') {
+        btn = document.createElement('button');
+        btn.className = 'swatch';
+        btn.style.setProperty('--c', o.c);
+        btn.setAttribute('aria-label', o.name + (o.price ? ' (+' + DATA.currency + fmt(o.price) + ')' : ''));
+        btn.title = o.name;
+      } else {
+        btn = document.createElement('button');
+        btn.className = 'pill';
+        const main = document.createElement('span');
+        main.textContent = o.name;
+        btn.appendChild(main);
+        if (o.sub) {
+          const pp = document.createElement('span');
+          pp.className = 'pp';
+          pp.textContent = o.sub;
+          btn.appendChild(pp);
+        }
+      }
+      btn.type = 'button';
+      btn.setAttribute('role', 'radio');
+      btn.setAttribute('aria-pressed', String(oi === state[gi]));
+      btn.setAttribute('aria-checked', String(oi === state[gi]));
+      btn.dataset.g = gi;
+      btn.dataset.o = oi;
+      btn.addEventListener('click', () => select(gi, oi));
+      opts.appendChild(btn);
+    });
+
+    wrap.appendChild(opts);
+    groupsEl.appendChild(wrap);
+  });
+
+  // ---- derive + paint state ----
+  let prev = null;
+  function compute() {
+    let price = DATA.basePrice, weight = DATA.baseWeight, lead = DATA.baseLead;
+    DATA.groups.forEach((g, gi) => {
+      const o = g.options[state[gi]];
+      price += o.price || 0;
+      weight += o.weight || 0;
+      lead = Math.max(lead, DATA.baseLead + (o.lead || 0));
+    });
+    const colour = DATA.groups[0].options[state[0]];
+    return { price, weight, lead, colour };
+  }
+
+  function bump(statK, deltaEl, txt) {
+    if (!txt) return;
+    const stat = document.querySelector('.stat[data-k="' + statK + '"]');
+    if (!stat) return;
+    deltaEl.textContent = txt;
+    stat.classList.add('bump');
+    if (!reduced) {
+      clearTimeout(stat._t);
+      stat._t = setTimeout(() => stat.classList.remove('bump'), 1600);
+    }
+  }
+
+  function render(animate) {
+    const c = compute();
+
+    // price readouts
+    $('price').textContent   = fmt(c.price);
+    $('s-price').textContent = fmt(c.price);
+    $('s-weight').textContent = fmt(c.weight);
+    $('s-lead').textContent   = c.lead;
+    $('s-opts').textContent   = String(DATA.groups.length);
+
+    // re-tint the product via root vars (CSS filter swap)
+    const t = c.colour.tint;
+    const root = document.documentElement.style;
+    root.setProperty('--tint-hue', t.h);
+    root.setProperty('--tint-sat', t.s);
+    root.setProperty('--tint-bright', t.b);
+    root.setProperty('--tint-contrast', t.co);
+    root.setProperty('--tint-sepia', t.se);
+    root.setProperty('--swatch', c.colour.wash);
+
+    $('badge').textContent = c.colour.name;
+
+    // delta flashes on stat strip (only when something actually changed)
+    if (animate && prev) {
+      if (c.weight !== prev.weight) {
+        const d = c.weight - prev.weight;
+        bump('weight', $('d-weight'), (d > 0 ? '+' : '') + d);
+      }
+      if (c.lead !== prev.lead) {
+        const d = c.lead - prev.lead;
+        bump('lead', $('d-lead'), (d > 0 ? '+' : '') + d + 'w');
+      }
+    }
+    prev = c;
+  }
+
+  function select(gi, oi) {
+    if (state[gi] === oi) return;
+    state[gi] = oi;
+    // update aria within the group
+    document.querySelectorAll('[data-g="' + gi + '"]').forEach(b => {
+      const on = Number(b.dataset.o) === oi;
+      b.setAttribute('aria-pressed', String(on));
+      b.setAttribute('aria-checked', String(on));
+    });
+    render(true);
+  }
+
+  // initial paint (no animation)
+  render(false);
+
+  // ---- one IntersectionObserver entrance ----
+  const reveals = Array.from(document.querySelectorAll('.reveal'));
+  if (reduced || !('IntersectionObserver' in window)) {
+    reveals.forEach(el => el.classList.add('in'));
+  } else {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+      });
+    }, { threshold: 0.12 });
+    reveals.forEach(el => io.observe(el));
+    // safety: anything above the fold reveals immediately on next frame
+    requestAnimationFrame(() => reveals.forEach(el => {
+      const r = el.getBoundingClientRect();
+      if (r.top < window.innerHeight * 0.95) el.classList.add('in');
+    }));
+  }
+
+  // CTA feedback (no nav target in template)
+  $('cta').addEventListener('click', () => {
+    const c = compute();
+    const lbl = $('cta-label');
+    const orig = DATA.cta;
+    lbl.textContent = 'Saved - ' + DATA.currency + fmt(c.price);
+    if (!reduced) setTimeout(() => { lbl.textContent = orig; }, 1900);
+  });
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,963 @@
+<!-- TEMPLATE: Spec Table Hero | ARCHETYPE: COMPARE (the page IS a 3-column spec/pricing table) | REF: Vercel pricing, Linear pricing 2025, Stripe pricing, Levels.fyi (Awwwards SOTD 2025) | WHEN TO USE: a pricing or feature-comparison page where the comparison table is the whole design object - giant tier headers, sticky feature labels, draw-in check/x marks, a highlighted recommended column, monthly/annual toggle morphing the price, FAQ accordion, pinned CTA | SWAP: edit the DATA object at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spec Table Hero - Pricing Comparison</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ---- Animatable custom property: lets price numbers morph between billing modes ---- */
+  @property --price {
+    syntax: '<integer>';
+    inherits: false;
+    initial-value: 0;
+  }
+
+  :root {
+    --paper: #ffffff;
+    --ink: #0f0f0f;
+    --ink-2: #4a4a4a;
+    --ink-3: #8a8a8a;
+    --line: #e9e9e9;
+    --primary: #2c6fad;          /* recommended-column accent */
+    --primary-deep: #1f5687;
+    --tint: #e8f0ff;             /* recommended-column tint */
+    --tint-edge: #d4e3ff;
+    --badge: #E8C547;            /* Popular badge */
+    --cta: #C2F53E;             /* lime CTA */
+    --cta-ink: #14210a;
+    --check: #2c6fad;
+    --cross: #c7c7c7;
+    --r: 18px;
+    --ease: cubic-bezier(.22,1,.36,1);
+    --cta-bar-h: 76px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+    overflow-x: hidden;
+    padding-bottom: calc(var(--cta-bar-h) + env(safe-area-inset-bottom));
+  }
+
+  /* faint dotted backdrop, reads as a data surface */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(circle at 1px 1px, rgba(15,15,15,.05) 1px, transparent 0);
+    background-size: 26px 26px;
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  a { color: inherit; }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 22px;
+  }
+
+  /* ============ TOP BAND (compact, sits above the table) ============ */
+  .topband {
+    padding: 26px 0 18px;
+  }
+  .eyebrow {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--primary);
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .eyebrow::before {
+    content: "";
+    width: 26px; height: 1px;
+    background: var(--primary);
+    display: inline-block;
+  }
+  .headrow {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 28px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  h1 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(30px, 5vw, 52px);
+    line-height: 1.02;
+    letter-spacing: -.02em;
+    font-weight: 700;
+    max-width: 13ch;
+  }
+  h1 .accent { color: var(--primary); }
+  .sub {
+    font-size: 15px;
+    color: var(--ink-2);
+    max-width: 34ch;
+    padding-bottom: 6px;
+  }
+
+  /* ============ BILLING TOGGLE ============ */
+  .toggle-wrap {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 18px 0 14px;
+    flex-wrap: wrap;
+  }
+  .seg {
+    --i: 0;
+    display: inline-grid;
+    grid-template-columns: 1fr 1fr;
+    position: relative;
+    background: #f1f1f1;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 4px;
+    font-weight: 600;
+    font-size: 14px;
+    user-select: none;
+  }
+  .seg::before {
+    content: "";
+    position: absolute;
+    top: 4px; left: 4px;
+    width: calc(50% - 4px);
+    height: calc(100% - 8px);
+    background: var(--ink);
+    border-radius: 999px;
+    transform: translateX(calc(var(--i) * 100%));
+    transition: transform .42s var(--ease);
+    z-index: 0;
+  }
+  .seg button {
+    position: relative;
+    z-index: 1;
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--ink-2);
+    font: inherit;
+    padding: 9px 22px;
+    cursor: pointer;
+    border-radius: 999px;
+    transition: color .3s var(--ease);
+    white-space: nowrap;
+  }
+  .seg button[aria-pressed="true"] { color: #fff; }
+  .save-pill {
+    background: var(--cta);
+    color: var(--cta-ink);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 5px 11px;
+    border-radius: 999px;
+    letter-spacing: .01em;
+  }
+
+  /* ============ THE TABLE ============ */
+  .table {
+    --cols: 4;
+    display: grid;
+    grid-template-columns: minmax(180px, 1.25fr) repeat(3, minmax(0, 1fr));
+    position: relative;
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    background: var(--paper);
+    margin-bottom: 40px;
+    box-shadow: 0 1px 0 rgba(15,15,15,.02);
+  }
+
+  /* The recommended column overlay - a lifted card spanning the Pro column */
+  .reco-card {
+    position: absolute;
+    top: -12px;
+    bottom: -12px;
+    left: calc(180px + (100% - 180px) / 3 * 1);
+    width: calc((100% - 180px) / 3);
+    background: linear-gradient(180deg, #eef4ff 0%, var(--tint) 60%, #e3edff 100%);
+    border: 1.5px solid var(--primary);
+    border-radius: 20px;
+    box-shadow: 0 24px 48px -20px rgba(44,111,173,.45), 0 6px 16px -8px rgba(44,111,173,.3);
+    z-index: 0;
+    pointer-events: none;
+  }
+  @supports not (width: calc((100% - 180px) / 3)) {
+    .reco-card { display: none; }
+  }
+
+  /* every cell */
+  .cell {
+    position: relative;
+    z-index: 1;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    min-height: 56px;
+    font-size: 14.5px;
+  }
+  .cell.val { justify-content: center; text-align: center; }
+  .row-last .cell { border-bottom: 0; }
+
+  /* sticky feature-label column */
+  .cell.label {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--paper);
+    font-weight: 600;
+    color: var(--ink);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    box-shadow: 1px 0 0 var(--line);
+  }
+  .cell.label .hint {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--ink-3);
+    line-height: 1.3;
+  }
+
+  /* recommended column cells get tint so the lift card reads cleanly */
+  .cell.reco { background: transparent; }
+
+  /* ---------- header row (giant tier headers) ---------- */
+  .hrow .cell { border-bottom: 1px solid var(--line); align-items: stretch; }
+  .tier {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 22px 6px 18px;
+    width: 100%;
+    align-items: center;
+    text-align: center;
+    position: relative;
+  }
+  .tier .name {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(20px, 2.6vw, 30px);
+    font-weight: 700;
+    letter-spacing: -.01em;
+  }
+  .tier.is-reco .name { color: var(--primary-deep); }
+  .tier .blurb { font-size: 12.5px; color: var(--ink-3); min-height: 2.6em; max-width: 22ch; }
+
+  .price {
+    font-family: 'Space Grotesk', sans-serif;
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 2px;
+    margin-top: 6px;
+    font-weight: 700;
+  }
+  .price .cur { font-size: 20px; align-self: flex-start; margin-top: 8px; color: var(--ink-2); }
+  /* the morphing number: counter rendered from --price (numeric tiers only) */
+  .price .num {
+    font-size: clamp(34px, 4.4vw, 52px);
+    line-height: 1;
+    letter-spacing: -.03em;
+    transition: --price .55s var(--ease);
+    counter-reset: p var(--price);
+  }
+  .price .num.morph::after { content: counter(p); }   /* only paid tiers morph */
+  .price .num.free { transition: none; }
+  .price .num.custom { font-weight: 700; }
+  .price .per { font-size: 13px; color: var(--ink-3); font-weight: 500; align-self: flex-end; margin-bottom: 7px; }
+
+  .badge {
+    position: absolute;
+    top: -13px; left: 50%;
+    transform: translateX(-50%);
+    background: var(--badge);
+    color: #3a2e00;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: 6px 13px;
+    border-radius: 999px;
+    white-space: nowrap;
+    box-shadow: 0 6px 14px -4px rgba(232,197,71,.7);
+    z-index: 3;
+  }
+  .badge::after {
+    content: "";
+    position: absolute;
+    left: 50%; bottom: -4px;
+    width: 8px; height: 8px;
+    background: var(--badge);
+    transform: translateX(-50%) rotate(45deg);
+  }
+
+  .cta {
+    appearance: none;
+    border: 0;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 700;
+    font-size: 13.5px;
+    padding: 11px 16px;
+    border-radius: 11px;
+    background: #f3f3f3;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    margin-top: 14px;
+    width: 100%;
+    max-width: 200px;
+    transition: transform .18s var(--ease), background .2s, box-shadow .2s;
+  }
+  .cta:hover { transform: translateY(-2px); }
+  .cta.is-primary {
+    background: var(--cta);
+    color: var(--cta-ink);
+    border-color: var(--cta);
+    box-shadow: 0 10px 22px -8px rgba(194,245,62,.8);
+  }
+  .cta.is-primary:hover { box-shadow: 0 14px 26px -8px rgba(194,245,62,.9); }
+
+  /* ---------- value cells: text + animated check / x ---------- */
+  .mark {
+    width: 26px; height: 26px;
+    flex-shrink: 0;
+  }
+  .mark svg { width: 100%; height: 100%; overflow: visible; }
+  .mark path, .mark line {
+    stroke-dasharray: var(--len, 40);
+    stroke-dashoffset: var(--len, 40);
+    transition: stroke-dashoffset .6s var(--ease);
+  }
+  .mark .ring {
+    transform-origin: center;
+    transform: scale(.4);
+    opacity: 0;
+    transition: transform .5s var(--ease), opacity .4s ease;
+  }
+  /* draw-in once the table scrolls into view */
+  .table.drawn .mark path,
+  .table.drawn .mark line { stroke-dashoffset: 0; }
+  .table.drawn .mark .ring { transform: scale(1); opacity: 1; }
+
+  .check-c { stroke: var(--check); }
+  .cross-c { stroke: var(--cross); }
+  .check-ring { fill: rgba(44,111,173,.1); }
+  .cross-ring { fill: rgba(15,15,15,.035); }
+
+  .val .txt {
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .val.reco .txt { color: var(--primary-deep); }
+  .val .sup { display: block; font-size: 11.5px; color: var(--ink-3); font-weight: 400; margin-top: 1px; }
+  .val .muted { color: var(--ink-3); }
+
+  /* stagger the draw-in per row index */
+  .table.drawn .vrow { animation: none; }
+  .vrow { --d: calc(var(--ri, 0) * 70ms); }
+  .table.drawn .mark path,
+  .table.drawn .mark line,
+  .table.drawn .mark .ring { transition-delay: var(--d); }
+
+  /* ============ FAQ ============ */
+  .faq {
+    margin: 8px 0 56px;
+  }
+  .faq h2 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(24px, 3.4vw, 34px);
+    letter-spacing: -.02em;
+    margin-bottom: 6px;
+  }
+  .faq .lead { color: var(--ink-2); margin-bottom: 22px; font-size: 15px; }
+  details.acc {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    margin-bottom: 12px;
+    background: var(--paper);
+    overflow: hidden;
+    transition: border-color .25s, box-shadow .25s;
+  }
+  details.acc[open] {
+    border-color: var(--primary);
+    box-shadow: 0 14px 30px -18px rgba(44,111,173,.4);
+  }
+  details.acc summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 18px 22px;
+    font-weight: 600;
+    font-size: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+  }
+  details.acc summary::-webkit-details-marker { display: none; }
+  .acc .chev {
+    width: 22px; height: 22px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 1.5px solid var(--ink-3);
+    position: relative;
+    transition: transform .35s var(--ease), border-color .25s;
+  }
+  .acc[open] .chev { transform: rotate(45deg); border-color: var(--primary); }
+  .acc .chev::before, .acc .chev::after {
+    content: ""; position: absolute; background: var(--ink-2);
+    top: 50%; left: 50%;
+  }
+  .acc[open] .chev::before, .acc[open] .chev::after { background: var(--primary); }
+  .acc .chev::before { width: 10px; height: 1.6px; transform: translate(-50%,-50%); }
+  .acc .chev::after { width: 1.6px; height: 10px; transform: translate(-50%,-50%); }
+  .acc .body {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows .4s var(--ease);
+  }
+  .acc[open] .body { grid-template-rows: 1fr; }
+  .acc .body > div {
+    overflow: hidden;
+    color: var(--ink-2);
+    font-size: 14.5px;
+    line-height: 1.6;
+  }
+  .acc .body p { padding: 0 22px 20px; }
+
+  /* ============ PINNED CTA BAR ============ */
+  .ctabar {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 40;
+    background: rgba(255,255,255,.86);
+    backdrop-filter: saturate(160%) blur(14px);
+    -webkit-backdrop-filter: saturate(160%) blur(14px);
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -10px 30px -22px rgba(15,15,15,.4);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .ctabar .inner {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 13px 22px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    min-height: var(--cta-bar-h);
+  }
+  .ctabar .copy { display: flex; flex-direction: column; min-width: 0; }
+  .ctabar .copy .t { font-weight: 700; font-size: 15px; font-family: 'Space Grotesk', sans-serif; white-space: nowrap; }
+  .ctabar .copy .d { font-size: 12.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ctabar .spacer { flex: 1; }
+  .ctabar .ghost {
+    appearance: none; background: none; border: 1px solid var(--line);
+    border-radius: 11px; padding: 11px 16px; font: inherit; font-weight: 600;
+    cursor: pointer; color: var(--ink); white-space: nowrap;
+    transition: border-color .2s, transform .15s var(--ease);
+  }
+  .ctabar .ghost:hover { border-color: var(--ink); transform: translateY(-1px); }
+  .ctabar .primary {
+    appearance: none; border: 0; cursor: pointer; font: inherit; font-weight: 800;
+    background: var(--cta); color: var(--cta-ink);
+    padding: 13px 24px; border-radius: 12px; white-space: nowrap;
+    box-shadow: 0 10px 24px -8px rgba(194,245,62,.85);
+    transition: transform .15s var(--ease), box-shadow .2s;
+  }
+  .ctabar .primary:hover { transform: translateY(-2px); box-shadow: 0 16px 30px -8px rgba(194,245,62,.95); }
+
+  :focus-visible {
+    outline: 3px solid var(--primary);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+
+  /* ============ MOBILE: collapse to single-column accordion ============ */
+  .m-stack { display: none; }
+
+  @media (max-width: 760px) {
+    .table, .reco-card { display: none !important; }
+    .m-stack { display: block; margin-bottom: 36px; }
+
+    .m-tier {
+      border: 1.5px solid var(--line);
+      border-radius: 16px;
+      margin-bottom: 16px;
+      overflow: hidden;
+      background: var(--paper);
+    }
+    .m-tier.is-reco {
+      border-color: var(--primary);
+      background: linear-gradient(180deg, #f3f7ff, var(--tint));
+      box-shadow: 0 20px 40px -22px rgba(44,111,173,.5);
+      position: relative;
+    }
+    .m-tier .m-head {
+      padding: 20px 18px 16px;
+      position: relative;
+      border-bottom: 1px solid var(--line);
+    }
+    .m-tier.is-reco .m-head { border-bottom-color: var(--tint-edge); }
+    .m-tier .m-name {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 24px; font-weight: 700;
+    }
+    .m-tier.is-reco .m-name { color: var(--primary-deep); }
+    .m-tier .m-blurb { font-size: 13px; color: var(--ink-3); margin-top: 2px; }
+    .m-tier .m-badge {
+      position: absolute; top: 16px; right: 16px;
+      background: var(--badge); color: #3a2e00;
+      font-size: 10.5px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase;
+      padding: 5px 10px; border-radius: 999px;
+    }
+    .m-tier .m-price { display: flex; align-items: baseline; gap: 3px; margin-top: 12px; font-family: 'Space Grotesk', sans-serif; }
+    .m-tier .m-price .cur { font-size: 18px; color: var(--ink-2); align-self: flex-start; margin-top: 5px; }
+    .m-tier .m-price .num { font-size: 40px; font-weight: 700; line-height: 1; letter-spacing: -.03em; transition: --price .55s var(--ease); counter-reset: p var(--price); }
+    .m-tier .m-price .num.morph::after { content: counter(p); }
+    .m-tier .m-price .num.free { transition: none; }
+    .m-tier .m-price .per { font-size: 12.5px; color: var(--ink-3); }
+    .m-tier .m-cta {
+      appearance: none; border: 0; cursor: pointer; font: inherit; font-weight: 700;
+      width: 100%; margin-top: 14px; padding: 13px; border-radius: 11px;
+      background: #f1f1f1; color: var(--ink); border: 1px solid var(--line);
+    }
+    .m-tier .m-cta.is-primary { background: var(--cta); color: var(--cta-ink); border-color: var(--cta); }
+
+    /* feature reveal: each row taps to show value */
+    .m-feat {
+      border-top: 1px solid var(--line);
+    }
+    .m-tier.is-reco .m-feat { border-top-color: var(--tint-edge); }
+    .m-feat summary {
+      list-style: none; cursor: pointer;
+      padding: 13px 18px; display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; font-weight: 600; font-size: 14px;
+    }
+    .m-feat summary::-webkit-details-marker { display: none; }
+    .m-feat .m-mini { display: flex; align-items: center; gap: 8px; color: var(--ink-3); font-weight: 500; font-size: 13px; }
+    .m-feat .m-mini .mark { width: 20px; height: 20px; }
+    .m-feat[open] .m-mini { display: none; }
+    .m-feat .m-val { padding: 0 18px 14px; font-size: 14px; color: var(--ink-2); display: none; }
+    .m-feat[open] .m-val { display: block; }
+    .m-feat .m-val b { color: var(--ink); }
+
+    .headrow { gap: 12px; }
+    h1 { max-width: none; }
+    .sub { max-width: none; }
+    .ctabar .copy .d { display: none; }
+    .ctabar .ghost { display: none; }
+  }
+
+  @media (max-width: 420px) {
+    .ctabar .copy .t { font-size: 14px; }
+    .ctabar .primary { padding: 12px 18px; }
+  }
+
+  /* ============ REDUCED MOTION: show final state, no draw-in ============ */
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { transition: none !important; animation: none !important; }
+    .mark path, .mark line { stroke-dashoffset: 0 !important; }
+    .mark .ring { transform: scale(1) !important; opacity: 1 !important; }
+    .seg::before { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===================== TOP BAND ===================== -->
+<header class="topband">
+  <div class="wrap">
+    <span class="eyebrow" id="eyebrow">Pricing</span>
+    <div class="headrow">
+      <h1>Ship faster on the <span class="accent">plan that fits</span>.</h1>
+      <p class="sub" id="sub">Every tier compared side by side. No hidden rooms, no surprise invoices.</p>
+    </div>
+
+    <div class="toggle-wrap">
+      <div class="seg" role="group" aria-label="Billing period">
+        <button id="t-monthly" aria-pressed="true">Monthly</button>
+        <button id="t-annual" aria-pressed="false">Annual</button>
+      </div>
+      <span class="save-pill" id="savePill">Save 20% annually</span>
+    </div>
+  </div>
+</header>
+
+<!-- ===================== DESKTOP TABLE ===================== -->
+<main class="wrap">
+  <section class="table" id="table" aria-label="Plan comparison">
+    <div class="reco-card" aria-hidden="true"></div>
+    <!-- header row + feature rows are injected by script -->
+  </section>
+
+  <!-- ===================== MOBILE STACK ===================== -->
+  <section class="m-stack" id="mstack" aria-label="Plan comparison (mobile)"></section>
+
+  <!-- ===================== FAQ ===================== -->
+  <section class="faq" id="faq">
+    <h2>Questions, answered</h2>
+    <p class="lead">The fine print, in plain language.</p>
+    <!-- accordions injected -->
+  </section>
+</main>
+
+<!-- ===================== PINNED CTA BAR ===================== -->
+<div class="ctabar" role="region" aria-label="Get started">
+  <div class="inner">
+    <div class="copy">
+      <span class="t" id="barTitle">Start with Pro</span>
+      <span class="d" id="barDesc">14-day trial, no card. Recommended for growing teams.</span>
+    </div>
+    <div class="spacer"></div>
+    <button class="ghost" id="barGhost">Compare plans</button>
+    <button class="primary" id="barPrimary">Start free trial</button>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   DATA  - swap this object to repurpose the whole page.
+   Prices are MONTHLY. Annual price is derived via annualFactor
+   (per-month when billed yearly). recommended:true highlights a tier.
+   For each feature, `vals` aligns to tiers in order.
+   A value is one of:
+     true                       -> drawn check
+     false                      -> drawn x (not included)
+     "Some text"                -> text value (e.g. "Unlimited")
+     {t:"Main", sup:"detail"}   -> text with a small subline
+   ============================================================ */
+const DATA = {
+  eyebrow: "Pricing",
+  headline: ["Ship faster on the ", "plan that fits", "."],
+  sub: "Every tier compared side by side. No hidden rooms, no surprise invoices.",
+  annualFactor: 0.8,            // 20% off when billed annually
+  savePill: "Save 20% annually",
+
+  tiers: [
+    {
+      key: "free", name: "Free", blurb: "For solo builders kicking the tires.",
+      monthly: 0, cta: "Get started", recommended: false
+    },
+    {
+      key: "pro", name: "Pro", blurb: "For growing teams that ship every week.",
+      monthly: 24, cta: "Start free trial", recommended: true, badge: "Most Popular"
+    },
+    {
+      key: "ent", name: "Enterprise", blurb: "For orgs with scale, security, and SLAs.",
+      monthly: null, customLabel: "Custom", cta: "Talk to sales", recommended: false
+    }
+  ],
+
+  features: [
+    { label: "Projects", hint: "Active workspaces you can deploy.",
+      vals: [ {t:"3", sup:"per account"}, {t:"Unlimited"}, {t:"Unlimited"} ] },
+    { label: "Team seats", hint: "Members who can build and review.",
+      vals: [ {t:"1"}, {t:"Up to 10"}, {t:"Unlimited"} ] },
+    { label: "Bandwidth", hint: "Monthly egress on the CDN.",
+      vals: [ {t:"100 GB"}, {t:"1 TB"}, {t:"Custom"} ] },
+    { label: "Preview deploys", hint: "A live URL per pull request.",
+      vals: [ true, true, true ] },
+    { label: "Analytics", hint: "Real-user metrics and funnels.",
+      vals: [ false, true, true ] },
+    { label: "Advanced roles", hint: "Granular permissions and audit log.",
+      vals: [ false, true, true ] },
+    { label: "SSO and SAML", hint: "Directory sync and enforced sign-on.",
+      vals: [ false, false, true ] },
+    { label: "Support", hint: "How fast we answer.",
+      vals: [ {t:"Community"}, {t:"Priority", sup:"under 8h"}, {t:"Dedicated", sup:"99.9% SLA"} ] }
+  ],
+
+  faq: [
+    { q: "Can I switch plans later?",
+      a: "Yes. Upgrade or downgrade at any time from the billing page. Changes are prorated to the day, so you only pay for what you use." },
+    { q: "What happens when I hit a limit?",
+      a: "Nothing breaks. We notify you in-app and by email, and your projects keep serving traffic. You choose whether to upgrade or stay put." },
+    { q: "Is there a discount for annual billing?",
+      a: "Annual billing saves you 20% versus paying monthly. Flip the toggle above to see the per-month price when billed yearly." },
+    { q: "Do you offer a Free plan forever?",
+      a: "The Free plan is genuinely free, with no time limit and no card required. It is built for solo projects and evaluation." },
+    { q: "How does Enterprise pricing work?",
+      a: "Enterprise is quoted to your needs: seat count, bandwidth, security controls, and an SLA. Talk to sales and we will scope it with you." }
+  ],
+
+  bar: {
+    title: "Start with Pro",
+    desc: "14-day trial, no card. Recommended for growing teams.",
+    ghost: "Compare plans",
+    primary: "Start free trial"
+  }
+};
+
+/* ============================================================
+   ICONS  - inline SVG marks. `--len` drives the draw-in length.
+   ============================================================ */
+function checkSVG() {
+  return `<span class="mark" aria-hidden="true"><svg viewBox="0 0 26 26">
+    <circle class="ring check-ring" cx="13" cy="13" r="12.5"></circle>
+    <path class="check-c" style="--len:18" d="M7.5 13.5 L11.2 17 L18.5 9" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg></span>`;
+}
+function crossSVG() {
+  return `<span class="mark" aria-hidden="true"><svg viewBox="0 0 26 26">
+    <circle class="ring cross-ring" cx="13" cy="13" r="12.5"></circle>
+    <line class="cross-c" style="--len:13" x1="9" y1="9" x2="17" y2="17" stroke-width="2.2" stroke-linecap="round"/>
+    <line class="cross-c" style="--len:13" x1="17" y1="9" x2="9" y2="17" stroke-width="2.2" stroke-linecap="round"/>
+  </svg></span>`;
+}
+
+/* Render a single value cell's inner HTML given a value + included-state */
+function renderVal(v) {
+  if (v === true)  return checkSVG() + `<span class="sr-only">Included</span>`;
+  if (v === false) return crossSVG() + `<span class="sr-only">Not included</span>`;
+  const t   = (typeof v === "object") ? v.t   : v;
+  const sup = (typeof v === "object") ? v.sup : "";
+  return `<span class="txt">${t}${sup ? `<span class="sup">${sup}</span>` : ""}</span>`;
+}
+
+/* Price markup: returns the morphing number node target.
+   recoState used only for styling hook. */
+function priceMarkup(tier, annual) {
+  if (tier.monthly === null) {
+    return `<div class="price"><span class="num custom" style="font-size:clamp(26px,3.4vw,38px)">${tier.customLabel || "Custom"}</span></div>`;
+  }
+  if (tier.monthly === 0) {
+    return `<div class="price"><span class="cur">$</span><span class="num morph free" data-base="0" style="--price:0"></span><span class="per">/mo</span></div>`;
+  }
+  const val = annual ? Math.round(tier.monthly * DATA.annualFactor) : tier.monthly;
+  return `<div class="price"><span class="cur">$</span><span class="num morph" data-base="${tier.monthly}" style="--price:${val}"></span><span class="per">/mo</span></div>`;
+}
+
+/* ============================================================
+   BUILD DESKTOP TABLE
+   ============================================================ */
+const table = document.getElementById("table");
+const reco = table.querySelector(".reco-card");
+
+function buildTable(annual) {
+  // wipe everything except the reco-card overlay
+  [...table.querySelectorAll(".cell")].forEach(n => n.remove());
+
+  const frag = document.createDocumentFragment();
+
+  // ---- header row ----
+  const corner = document.createElement("div");
+  corner.className = "cell label";
+  corner.innerHTML = `<span style="font-family:'Space Grotesk';font-weight:700;font-size:16px">Compare plans</span><span class="hint">Pick the room you need.</span>`;
+  frag.appendChild(corner);
+
+  DATA.tiers.forEach((tier, i) => {
+    const c = document.createElement("div");
+    c.className = "cell val hrow-cell" + (tier.recommended ? " reco" : "");
+    const isReco = tier.recommended;
+    c.innerHTML = `
+      <div class="tier ${isReco ? "is-reco" : ""}">
+        ${tier.badge ? `<span class="badge">${tier.badge}</span>` : ""}
+        <span class="name">${tier.name}</span>
+        <span class="blurb">${tier.blurb}</span>
+        ${priceMarkup(tier, annual)}
+        <button class="cta ${isReco ? "is-primary" : ""}">${tier.cta}</button>
+      </div>`;
+    frag.appendChild(c);
+  });
+
+  // wrap header into a contiguous .hrow visually by tagging
+  // (grid auto-flow handles layout; we just add the row separator via CSS)
+
+  // ---- feature rows ----
+  DATA.features.forEach((f, ri) => {
+    const lbl = document.createElement("div");
+    lbl.className = "cell label vrow";
+    lbl.style.setProperty("--ri", ri);
+    lbl.innerHTML = `<span>${f.label}</span><span class="hint">${f.hint}</span>`;
+    frag.appendChild(lbl);
+
+    f.vals.forEach((v, ti) => {
+      const isReco = DATA.tiers[ti].recommended;
+      const c = document.createElement("div");
+      c.className = "cell val vrow" + (isReco ? " reco" : "");
+      c.style.setProperty("--ri", ri);
+      c.innerHTML = renderVal(v);
+      frag.appendChild(c);
+    });
+  });
+
+  // mark last logical row for border trimming
+  table.appendChild(frag);
+
+  // trim bottom border on final visual row
+  const cells = [...table.querySelectorAll(".cell")];
+  const perRow = DATA.tiers.length + 1;
+  cells.slice(-perRow).forEach(c => c.style.borderBottom = "0");
+
+  // header cells: add a heavier bottom rule
+  cells.slice(0, perRow).forEach(c => c.style.borderBottom = "1px solid var(--line)");
+}
+
+/* ============================================================
+   BUILD MOBILE STACK
+   ============================================================ */
+const mstack = document.getElementById("mstack");
+function buildMobile(annual) {
+  mstack.innerHTML = "";
+  DATA.tiers.forEach((tier, ti) => {
+    const isReco = tier.recommended;
+    const head = `
+      <div class="m-head">
+        ${tier.badge ? `<span class="m-badge">${tier.badge}</span>` : ""}
+        <div class="m-name">${tier.name}</div>
+        <div class="m-blurb">${tier.blurb}</div>
+        ${mobilePrice(tier, annual)}
+        <button class="m-cta ${isReco ? "is-primary" : ""}">${tier.cta}</button>
+      </div>`;
+
+    const feats = DATA.features.map(f => {
+      const v = f.vals[ti];
+      let mini, full;
+      if (v === true)  { mini = checkSVG() + "Included"; full = "<b>Included</b> on this plan."; }
+      else if (v === false) { mini = crossSVG() + "Not included"; full = "Not included on this plan."; }
+      else {
+        const t = (typeof v === "object") ? v.t : v;
+        const sup = (typeof v === "object" && v.sup) ? ` (${v.sup})` : "";
+        mini = `<b style="color:var(--ink);font-weight:700">${t}</b>`;
+        full = `<b>${t}</b>${sup}. ${f.hint}`;
+      }
+      return `
+        <details class="m-feat">
+          <summary>${f.label}<span class="m-mini">${mini}</span></summary>
+          <div class="m-val">${full}</div>
+        </details>`;
+    }).join("");
+
+    const card = document.createElement("div");
+    card.className = "m-tier" + (isReco ? " is-reco" : "");
+    card.innerHTML = head + feats;
+    mstack.appendChild(card);
+  });
+}
+function mobilePrice(tier, annual) {
+  if (tier.monthly === null) return `<div class="m-price"><span class="num custom" style="font-size:32px">${tier.customLabel||"Custom"}</span></div>`;
+  if (tier.monthly === 0)    return `<div class="m-price"><span class="cur">$</span><span class="num morph free" style="--price:0"></span><span class="per">/mo</span></div>`;
+  const val = annual ? Math.round(tier.monthly * DATA.annualFactor) : tier.monthly;
+  return `<div class="m-price"><span class="cur">$</span><span class="num morph" style="--price:${val}"></span><span class="per">/mo</span></div>`;
+}
+
+/* ============================================================
+   FAQ
+   ============================================================ */
+const faq = document.getElementById("faq");
+DATA.faq.forEach((item, i) => {
+  const d = document.createElement("details");
+  d.className = "acc";
+  if (i === 0) d.open = true;
+  d.innerHTML = `
+    <summary>${item.q}<span class="chev" aria-hidden="true"></span></summary>
+    <div class="body"><div><p>${item.a}</p></div></div>`;
+  faq.appendChild(d);
+});
+
+/* ============================================================
+   TEXT BINDINGS
+   ============================================================ */
+document.getElementById("eyebrow").textContent = DATA.eyebrow;
+document.querySelector("h1").innerHTML = `${DATA.headline[0]}<span class="accent">${DATA.headline[1]}</span>${DATA.headline[2]}`;
+document.getElementById("sub").textContent = DATA.sub;
+document.getElementById("savePill").textContent = DATA.savePill;
+document.getElementById("barTitle").textContent = DATA.bar.title;
+document.getElementById("barDesc").textContent = DATA.bar.desc;
+document.getElementById("barGhost").textContent = DATA.bar.ghost;
+document.getElementById("barPrimary").textContent = DATA.bar.primary;
+
+/* ============================================================
+   BILLING TOGGLE
+   ============================================================ */
+let annual = false;
+const segBtns = { m: document.getElementById("t-monthly"), a: document.getElementById("t-annual") };
+const seg = document.querySelector(".seg");
+
+function setBilling(isAnnual) {
+  annual = isAnnual;
+  seg.style.setProperty("--i", isAnnual ? 1 : 0);
+  segBtns.m.setAttribute("aria-pressed", String(!isAnnual));
+  segBtns.a.setAttribute("aria-pressed", String(isAnnual));
+
+  // Morph existing desktop price numbers in place (CSS @property animates --price).
+  document.querySelectorAll(".price .num[data-base]").forEach(n => {
+    const base = +n.dataset.base;
+    if (base === 0) return;
+    const val = isAnnual ? Math.round(base * DATA.annualFactor) : base;
+    n.style.setProperty("--price", val);
+  });
+  // Mobile numbers (rebuilt cheaply)
+  document.querySelectorAll(".m-price .num").forEach(n => {
+    if (n.classList.contains("free")) return;
+  });
+  buildMobile(annual);
+}
+segBtns.m.addEventListener("click", () => setBilling(false));
+segBtns.a.addEventListener("click", () => setBilling(true));
+
+/* ============================================================
+   INIT + DRAW-IN ON FIRST SCROLL INTO VIEW
+   ============================================================ */
+buildTable(false);
+buildMobile(false);
+
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+if (reduceMotion) {
+  table.classList.add("drawn");
+} else {
+  // Set initial --price so the first paint shows the right number,
+  // then a tiny defer lets the draw-in transition run on intersect.
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        table.classList.add("drawn");
+        io.disconnect();
+      }
+    });
+  }, { threshold: 0.12 });
+  io.observe(table);
+
+  // Fallback: if table is already fully in view at load (tall desktop),
+  // trigger draw-in shortly after paint so scroll=0 capture shows marks animating in.
+  requestAnimationFrame(() => {
+    const r = table.getBoundingClientRect();
+    if (r.top < window.innerHeight * 0.9) {
+      setTimeout(() => table.classList.add("drawn"), 140);
+    }
+  });
+}
+
+/* ============================================================
+   PINNED-BAR CTA shortcuts
+   ============================================================ */
+document.getElementById("barGhost").addEventListener("click", () => {
+  document.getElementById("table").scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+});
+
+/* small a11y helper class */
+const style = document.createElement("style");
+style.textContent = ".sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}";
+document.head.appendChild(style);
+</script>
+</body>
+</html>

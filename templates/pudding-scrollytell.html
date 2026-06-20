@@ -1,0 +1,734 @@
+<!-- TEMPLATE: Scroll-Driven Data Story | ARCHETYPE: pudding-scrollytell | REF: The Pudding Film Dialogue, NYT Upshot scrollytelling, Amelia Wattenberger Scrollytelling, Domestic Data Streamers (Awwwards SOTD 2025) | WHEN TO USE: a data-journalism narrative where a single SVG chart in a sticky panel live-rewrites its own geometry (bar height, scatter-dot position, blue saturation, one amber-held bar) as each prose paragraph is scrolled into reading position | SWAP: edit the STORY array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>How a Voice Line Learns to Listen - A Scroll Data Story</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Spline+Sans:wght@400;500;600&family=Spline+Sans+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* =================================================================
+   SCROLL-DRIVEN DATA STORY
+   A two-column data-journalism shell. The LEFT panel is position:sticky
+   and holds ONE live SVG chart. The RIGHT column is a stack of prose
+   "steps". An IntersectionObserver + per-step scroll math reports each
+   step's reading progress (0..1); the chart reads that progress and
+   rewrites its own SVG geometry every frame: bar heights interpolate,
+   a scatter dot walks its path, fill saturation lerps, and exactly one
+   bar is held amber. No canvas, no WebGL, no chart library.
+   Reduced motion: the chart snaps to the active step's SETTLED state,
+   no per-frame interpolation, no rAF.
+   ================================================================= */
+
+:root{
+  --ink:#0f1117;        /* near-black ground */
+  --cream:#f5f2eb;      /* prose / paper */
+  --amber:#e8c547;      /* highlight encoding */
+  --blue:#3a7bd5;       /* chart-blue base encoding */
+  --cream-dim:#a7a39a;  /* secondary prose */
+  --grid:#23262f;       /* axis + gridlines */
+  --panel:#13151d;      /* left panel slightly lifted from ink */
+  --hair:#2a2d37;       /* hairline borders */
+  --maxw:1440px;
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+
+body{
+  margin:0;
+  background:var(--ink);
+  color:var(--cream);
+  font-family:"Spline Sans",system-ui,sans-serif;
+  font-size:17px;
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+
+/* ---- top masthead band: compact, sits ABOVE the split, never hides it ---- */
+.masthead{
+  max-width:var(--maxw);
+  margin:0 auto;
+  padding:26px clamp(18px,4vw,52px) 18px;
+  display:flex;
+  flex-wrap:wrap;
+  align-items:baseline;
+  gap:10px 22px;
+  border-bottom:1px solid var(--hair);
+}
+.masthead .kicker{
+  font-family:"Spline Sans Mono",monospace;
+  font-size:11.5px;
+  letter-spacing:.22em;
+  text-transform:uppercase;
+  color:var(--amber);
+}
+.masthead h1{
+  margin:0;
+  font-family:"Fraunces",serif;
+  font-weight:600;
+  font-size:clamp(20px,2.5vw,30px);
+  line-height:1.08;
+  letter-spacing:-.01em;
+  color:var(--cream);
+  flex:1 1 340px;
+}
+.masthead .byline{
+  font-family:"Spline Sans Mono",monospace;
+  font-size:11.5px;
+  letter-spacing:.04em;
+  color:var(--cream-dim);
+}
+
+/* ---- the split: sticky chart left, scrolling prose right ---- */
+.story{
+  max-width:var(--maxw);
+  margin:0 auto;
+  display:grid;
+  grid-template-columns:minmax(0,1.04fr) minmax(0,.96fr);
+  gap:0;
+  align-items:start;
+}
+
+/* LEFT: sticky data panel */
+.panel{
+  position:sticky;
+  top:0;
+  height:100vh;
+  height:100svh;
+  display:flex;
+  flex-direction:column;
+  padding:clamp(20px,3vw,40px);
+  border-right:1px solid var(--hair);
+  background:
+    radial-gradient(120% 80% at 18% 0%, #161922 0%, var(--panel) 55%, var(--ink) 100%);
+  overflow:hidden;
+}
+.panel-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  gap:14px;
+  margin-bottom:10px;
+}
+.panel-head .chart-title{
+  font-family:"Fraunces",serif;
+  font-weight:600;
+  font-size:clamp(15px,1.5vw,19px);
+  letter-spacing:-.005em;
+  line-height:1.18;
+}
+.panel-head .chart-unit{
+  font-family:"Spline Sans Mono",monospace;
+  font-size:11px;
+  letter-spacing:.05em;
+  color:var(--cream-dim);
+  text-align:right;
+  white-space:nowrap;
+}
+
+/* live readout chip - shows the focused metric, swapped per step */
+.readout{
+  display:inline-flex;
+  align-items:baseline;
+  gap:8px;
+  align-self:flex-start;
+  margin:2px 0 12px;
+  padding:5px 11px;
+  border:1px solid var(--hair);
+  border-radius:999px;
+  background:rgba(232,197,71,.06);
+  font-family:"Spline Sans Mono",monospace;
+}
+.readout .rv{
+  font-size:19px;
+  font-weight:500;
+  color:var(--amber);
+  font-variant-numeric:tabular-nums;
+  letter-spacing:-.01em;
+}
+.readout .rl{
+  font-size:11px;
+  letter-spacing:.04em;
+  color:var(--cream-dim);
+  text-transform:uppercase;
+}
+
+.chart-wrap{flex:1;min-height:0;position:relative;display:flex}
+/* aspect-ratio kept on a uniform scale so SVG <text> never stretches.
+   The svg fills the wrapper width; height follows the 100:74 viewBox. */
+.chart-wrap svg{width:100%;height:auto;max-height:100%;margin:auto;display:block;overflow:visible}
+
+/* SVG text is sized in USER UNITS (font-size attr below in viewBox space)
+   so it scales WITH the chart under preserveAspectRatio=meet and never
+   detaches from bar spacing. CSS here only sets family/fill/weight. */
+.bar-label{
+  font-family:"Spline Sans Mono",monospace;
+  fill:#8c8980;
+}
+.bar-val{
+  font-family:"Spline Sans Mono",monospace;
+  font-weight:500;
+  font-variant-numeric:tabular-nums;
+  fill:#cfcabf;
+}
+.axis-label{
+  font-family:"Spline Sans Mono",monospace;
+  fill:#6b6960;
+}
+.caption{
+  margin-top:10px;
+  font-family:"Spline Sans Mono",monospace;
+  font-size:11px;
+  line-height:1.5;
+  color:var(--cream-dim);
+  min-height:2.6em;
+}
+.caption strong{color:var(--amber);font-weight:500}
+
+/* progress dots: one per step, current = amber */
+.steps-rail{
+  display:flex;
+  gap:7px;
+  margin-top:14px;
+}
+.steps-rail i{
+  width:24px;height:3px;border-radius:2px;
+  background:var(--grid);
+  transition:background .35s ease;
+}
+.steps-rail i.on{background:var(--amber)}
+@media (prefers-reduced-motion:reduce){.steps-rail i{transition:none}}
+
+/* RIGHT: prose steps */
+.prose{
+  padding:0 clamp(18px,4vw,56px);
+}
+.step{
+  min-height:88vh;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  padding:9vh 0;
+  border-bottom:1px solid var(--hair);
+}
+.step:last-child{border-bottom:none}
+.step .step-no{
+  font-family:"Spline Sans Mono",monospace;
+  font-size:11px;
+  letter-spacing:.2em;
+  color:var(--amber);
+  margin-bottom:14px;
+  opacity:.55;
+  transition:opacity .5s ease;
+}
+.step.active .step-no{opacity:1}
+.step h2{
+  margin:0 0 .5em;
+  font-family:"Fraunces",serif;
+  font-weight:600;
+  font-size:clamp(23px,2.7vw,33px);
+  line-height:1.14;
+  letter-spacing:-.015em;
+  color:var(--cream);
+}
+.step p{
+  margin:0 0 1.05em;
+  max-width:46ch;
+  color:#d8d4ca;
+  transition:color .5s ease;
+}
+.step.active p{color:#ece8de}
+.step p:last-child{margin-bottom:0}
+.step p .hl{
+  color:var(--amber);
+  font-weight:500;
+  border-bottom:1px solid rgba(232,197,71,.35);
+}
+.step p .blu{
+  color:#7fb0ee;
+  font-weight:500;
+}
+
+/* intro micro-block sitting in the first prose step, keeps signature in view */
+.lede{
+  font-family:"Fraunces",serif;
+  font-weight:400;
+  font-size:clamp(19px,2.1vw,24px);
+  line-height:1.35;
+  color:#efebe1;
+  max-width:42ch;
+}
+
+.endnote{
+  max-width:var(--maxw);
+  margin:0 auto;
+  padding:46px clamp(18px,4vw,52px) 90px;
+  border-top:1px solid var(--hair);
+  display:flex;
+  flex-wrap:wrap;
+  gap:18px 40px;
+  align-items:baseline;
+  justify-content:space-between;
+}
+.endnote .src{
+  font-family:"Spline Sans Mono",monospace;
+  font-size:11.5px;
+  color:var(--cream-dim);
+  letter-spacing:.03em;
+  line-height:1.7;
+  max-width:54ch;
+}
+.endnote .src b{color:var(--cream);font-weight:500}
+.endnote .mark{
+  font-family:"Fraunces",serif;
+  font-size:13px;
+  letter-spacing:.04em;
+  color:#6b6960;
+}
+
+a:focus-visible,button:focus-visible{outline:2px solid var(--amber);outline-offset:3px;border-radius:3px}
+
+/* ===================== MOBILE: stack chart ABOVE each prose block ===================== */
+@media (max-width:880px){
+  body{font-size:16px}
+  .story{
+    display:block;
+    max-width:620px;
+  }
+  /* The sticky panel becomes a slim sticky chart docked to the top of the
+     viewport; each prose step scrolls beneath it, so the chart sits ABOVE
+     the prose it describes (letterboxed, never cover-cropped). */
+  .panel{
+    position:sticky;
+    top:0;
+    height:auto;
+    min-height:44svh;
+    max-height:52svh;
+    border-right:none;
+    border-bottom:1px solid var(--hair);
+    padding:14px clamp(14px,4vw,22px) 12px;
+    z-index:5;
+    background:
+      linear-gradient(180deg, var(--panel) 0%, var(--panel) 78%, rgba(15,17,23,.92) 100%);
+    box-shadow:0 16px 30px -22px rgba(0,0,0,.9);
+  }
+  .caption{display:none}
+  .prose{padding:0 clamp(16px,5vw,26px)}
+  .step{
+    min-height:0;
+    padding:30px 0 34px;
+  }
+  .step:first-of-type{padding-top:22px}
+  .step h2{font-size:clamp(21px,6vw,27px)}
+  .step p{max-width:60ch}
+  .masthead{padding:20px clamp(16px,5vw,24px) 14px}
+  .endnote{padding:34px clamp(16px,5vw,24px) 70px}
+}
+@media (max-width:420px){
+  .panel{min-height:42svh;max-height:50svh}
+  .readout{margin-bottom:8px}
+  .panel-head .chart-unit{display:none}
+}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <span class="kicker">Data Story / Voice Systems</span>
+  <h1>How a voice line learns to listen</h1>
+  <span class="byline">Scroll to read - the chart rewrites itself</span>
+</header>
+
+<main class="story" id="story">
+
+  <!-- ============ LEFT: sticky live chart panel ============ -->
+  <section class="panel" aria-label="Live data chart, updates as you read">
+    <div class="panel-head">
+      <div class="chart-title" id="chartTitle">Where every spoken second goes</div>
+      <div class="chart-unit" id="chartUnit">milliseconds per turn</div>
+    </div>
+
+    <div class="readout">
+      <span class="rv" id="readVal">312 ms</span>
+      <span class="rl" id="readLbl">median turn latency</span>
+    </div>
+
+    <div class="chart-wrap">
+      <!-- viewBox space = 0..100 x, 0..100 y. JS rewrites bar geometry,
+           the scatter dot, and the saturation/amber encoding each frame.
+           SVG colors are literal hex per the no-var rule for fill/stroke. -->
+      <svg id="chart" viewBox="0 0 100 74" preserveAspectRatio="xMidYMid meet" role="img"
+           aria-label="Bar chart of latency stages, one stage held in amber by the current paragraph">
+        <!-- gridlines (y values match the JS yFor() ceiling/baseline below) -->
+        <g id="grid" stroke="#23262f" stroke-width="0.18">
+          <line x1="11" y1="10.0" x2="100" y2="10.0"/>
+          <line x1="11" y1="23.5" x2="100" y2="23.5"/>
+          <line x1="11" y1="37.0" x2="100" y2="37.0"/>
+          <line x1="11" y1="50.5" x2="100" y2="50.5"/>
+          <line x1="11" y1="64.0" x2="100" y2="64.0"/>
+        </g>
+        <!-- baseline -->
+        <line x1="11" y1="64" x2="100" y2="64" stroke="#3a3d47" stroke-width="0.4"/>
+        <!-- bars + labels injected here -->
+        <g id="bars"></g>
+        <!-- the walking scatter dot (a derived second encoding) -->
+        <g id="scatter">
+          <path id="trail" d="" fill="none" stroke="#3a7bd5" stroke-width="0.5" stroke-opacity="0.35" stroke-dasharray="1.4 1.4"/>
+          <circle id="dot" cx="0" cy="0" r="1.7" fill="#e8c547" stroke="#0f1117" stroke-width="0.5"/>
+        </g>
+        <!-- y axis ticks -->
+        <g id="yaxis"></g>
+      </svg>
+    </div>
+
+    <div class="caption" id="caption">A median turn takes <strong>312 ms</strong> end to end. Scroll to break it down stage by stage.</div>
+
+    <div class="steps-rail" id="rail" aria-hidden="true"></div>
+  </section>
+
+  <!-- ============ RIGHT: scrolling prose steps ============ -->
+  <div class="prose" id="prose"><!-- steps injected from STORY[] --></div>
+
+</main>
+
+<footer class="endnote">
+  <p class="src">
+    <b>Method.</b> Figures are an illustrative latency budget for a Thai-language voice agent on a telephony line, measured per conversational turn across 1,942 calls. Stages: capture, speech to text, model reasoning, text to speech, network return. The amber bar tracks the stage the current paragraph is describing; the blue dot tracks cumulative budget spent. Swap the <b>STORY</b> array at the top of the file to retell any dataset.
+  </p>
+  <span class="mark">Fig. 1 - turn latency budget</span>
+</footer>
+
+<script>
+/* ============================================================
+   STORY  - the single source of truth. Each step is one prose
+   block on the right AND one target state for the chart on the
+   left. To retell a different dataset, edit ONLY this array
+   (and STAGES / the chart titles just below).
+   ------------------------------------------------------------
+   step fields:
+     no       small step index label
+     title    h2
+     html     paragraph HTML (allows <span class="hl/blu">)
+     focus    index into STAGES of the bar to hold amber (-1 = none)
+     values   target bar values (ms) for all STAGES, this step
+     readVal  big readout value text
+     readLbl  readout label
+     caption  desktop caption under the chart
+   ============================================================ */
+const STAGES = ["Capture", "Speech-text", "Reasoning", "Text-speech", "Return"];
+const MAXVAL = 1000; /* y-axis ceiling in ms */
+
+const STORY = [
+  {
+    no: "01 / 05",
+    title: "A spoken turn is a budget you cannot see",
+    html: `A caller finishes a sentence and waits. Everything that happens in that pause is a <span class="hl">latency budget</span>, spent across five stages before a single syllable comes back. The whole turn lives or dies inside this chart.`,
+    focus: 1,
+    values: [40, 690, 480, 360, 90],
+    readVal: "690 ms",
+    readLbl: "speech to text",
+    caption: `The first heavy cost is <strong>speech to text</strong>. It dominates the bar chart because Thai telephony audio is noisy and the model waits for a confident transcript.`
+  },
+  {
+    no: "02 / 05",
+    title: "Cut the wait, and the whole shape collapses",
+    html: `Swap the recognizer for a streaming one and <span class="blu">speech to text</span> stops being the tallest bar. Watch it fall. The budget does not vanish, it <span class="hl">redistributes</span>: now reasoning is the wall everyone hits.`,
+    focus: 2,
+    values: [40, 240, 520, 360, 90],
+    readVal: "520 ms",
+    readLbl: "model reasoning",
+    caption: `Streaming recognition drops capture cost by two thirds. <strong>Model reasoning</strong> inherits the lead and becomes the new bottleneck.`
+  },
+  {
+    no: "03 / 05",
+    title: "Reasoning is the bar you negotiate with",
+    html: `You cannot make the model think for free, but you can make it think <span class="hl">less often</span>. Cache the system prompt, prefetch the likely intent, and the reasoning bar shrinks toward something a caller will tolerate on a live line.`,
+    focus: 2,
+    values: [40, 240, 300, 360, 90],
+    readVal: "300 ms",
+    readLbl: "model reasoning",
+    caption: `Prompt caching and intent prefetch pull <strong>reasoning</strong> under the speech bar. The dot, tracking cumulative spend, slides left for the first time.`
+  },
+  {
+    no: "04 / 05",
+    title: "The reply has to be spoken, not just written",
+    html: `Now <span class="blu">text to speech</span> is the tallest thing left. Streaming the first audio chunk before the full sentence is synthesized is the only honest way to shrink it. The caller hears a voice start while the rest is still being built.`,
+    focus: 3,
+    values: [40, 240, 300, 180, 90],
+    readVal: "180 ms",
+    readLbl: "text to speech",
+    caption: `First-chunk streaming halves <strong>text to speech</strong>. Perceived latency drops further than the chart alone shows, because the caller hears speech before synthesis ends.`
+  },
+  {
+    no: "05 / 05",
+    title: "What is left is the budget you ship",
+    html: `Every bar that could move has moved. The remaining shape is <span class="hl">structural</span>: network return and capture are floors, not choices. A turn that started at nearly two seconds now answers in under nine hundred milliseconds, and the caller stops noticing the wait.`,
+    focus: -1,
+    values: [40, 240, 300, 180, 90],
+    readVal: "850 ms",
+    readLbl: "total turn budget",
+    caption: `The settled budget: <strong>850 ms</strong> end to end, down from 1,660. Below the threshold where a caller perceives a gap.`
+  }
+];
+
+/* the chart starts mid-transition between an off-screen "before"
+   state and STORY[0], so scroll=0 captures a chart in motion with one
+   amber bar, matching the frozen opening paragraph. */
+const PRE = [40, 920, 480, 360, 90];
+
+/* ---------- layout constants in viewBox units (viewBox 0 0 100 74) ---------- */
+const X0 = 14, X1 = 97;          /* bar field horizontal extent */
+const Y_BASE = 64, Y_TOP = 10;   /* baseline and ceiling y */
+const N = STAGES.length;
+const SLOT = (X1 - X0) / N;
+const BARW = SLOT * 0.54;
+
+const yFor = v => Y_BASE - (Math.min(v, MAXVAL) / MAXVAL) * (Y_BASE - Y_TOP);
+const xFor = i => X0 + SLOT * i + (SLOT - BARW) / 2;
+const lerp = (a, b, t) => a + (b - a) * t;
+const clamp01 = t => t < 0 ? 0 : t > 1 ? 1 : t;
+const ease = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+/* ---------- build static prose + bar nodes ---------- */
+const proseEl = document.getElementById("prose");
+const railEl = document.getElementById("rail");
+const barsG = document.getElementById("bars");
+const yaxisG = document.getElementById("yaxis");
+
+STORY.forEach((s, i) => {
+  const sec = document.createElement("section");
+  sec.className = "step";
+  sec.dataset.idx = i;
+  let extra = "";
+  if (i === 0) {
+    extra = `<p class="lede">Five stages stand between a caller and an answer. This is how a voice line spends the silence, and how each stage gets cut.</p>`;
+  }
+  sec.innerHTML =
+    `<div class="step-no">${s.no}</div>` +
+    `<h2>${s.title}</h2>` +
+    extra +
+    `<p>${s.html}</p>`;
+  proseEl.appendChild(sec);
+
+  const dot = document.createElement("i");
+  railEl.appendChild(dot);
+});
+
+/* y-axis tick labels (ms) */
+[0, 250, 500, 750, 1000].forEach(v => {
+  const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  t.setAttribute("x", "12.5");
+  t.setAttribute("y", (yFor(v) + 0.9).toFixed(2));
+  t.setAttribute("text-anchor", "end");
+  t.setAttribute("font-size", "2.3");
+  t.setAttribute("class", "axis-label");
+  t.textContent = v;
+  yaxisG.appendChild(t);
+});
+
+/* build one bar group (rect + value text + name label) per stage */
+const bars = STAGES.map((name, i) => {
+  const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  rect.setAttribute("x", xFor(i).toFixed(2));
+  rect.setAttribute("width", BARW.toFixed(2));
+  rect.setAttribute("rx", "0.8");
+  g.appendChild(rect);
+
+  const val = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  val.setAttribute("x", (xFor(i) + BARW / 2).toFixed(2));
+  val.setAttribute("text-anchor", "middle");
+  val.setAttribute("font-size", "2.9");
+  val.setAttribute("class", "bar-val");
+  g.appendChild(val);
+
+  const lbl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  lbl.setAttribute("x", (xFor(i) + BARW / 2).toFixed(2));
+  lbl.setAttribute("y", "69.2");
+  lbl.setAttribute("text-anchor", "middle");
+  lbl.setAttribute("font-size", "2.5");
+  lbl.setAttribute("class", "bar-label");
+  lbl.textContent = name;
+  g.appendChild(lbl);
+
+  barsG.appendChild(g);
+  return { g, rect, val, lbl };
+});
+
+const dotEl = document.getElementById("dot");
+const trailEl = document.getElementById("trail");
+const readValEl = document.getElementById("readVal");
+const readLblEl = document.getElementById("readLbl");
+const captionEl = document.getElementById("caption");
+const railDots = [...railEl.children];
+
+/* ---------- the render: given a continuous progress p across the
+   whole story (in "step units", e.g. 1.4 = 40% into step 1->2),
+   interpolate every bar and the dot, and apply the amber encoding. */
+function frame(values, focus, blueMix) {
+  for (let i = 0; i < N; i++) {
+    const v = values[i];
+    const y = yFor(v);
+    const b = bars[i];
+    b.rect.setAttribute("y", y.toFixed(2));
+    b.rect.setAttribute("height", Math.max(0, Y_BASE - y).toFixed(2));
+    b.val.setAttribute("y", (y - 1.4).toFixed(2));
+    b.val.textContent = Math.round(v);
+
+    if (i === focus) {
+      /* the focused bar: full amber, slightly opaque outline */
+      b.rect.setAttribute("fill", "#e8c547");
+      b.rect.setAttribute("stroke", "#f2dd8f");
+      b.rect.setAttribute("stroke-width", "0.5");
+      b.val.setAttribute("fill", "#e8c547");
+    } else {
+      /* unfocused bars: blue, saturation lerps with overall progress.
+         lighter (less saturated) early, fuller blue as the story
+         resolves, so the chart visibly "gains color" while read. */
+      const sat = lerp(0.42, 1, clamp01(blueMix));
+      const r = Math.round(lerp(0x6f, 0x3a, sat));
+      const gg = Math.round(lerp(0x8f, 0x7b, sat));
+      const bb = Math.round(lerp(0xc8, 0xd5, sat));
+      const hex = "#" + [r, gg, bb].map(n => n.toString(16).padStart(2, "0")).join("");
+      b.rect.setAttribute("fill", hex);
+      b.rect.setAttribute("stroke", "none");
+      b.val.setAttribute("fill", "#a7a39a");
+    }
+  }
+
+  /* scatter dot walks cumulative budget. x = total spent normalized,
+     y rides the tops of the bars left to right (a derived path). */
+  const total = values.reduce((a, c) => a + c, 0);
+  const cumMax = 1660; /* the PRE total, the worst case */
+  const dx = clamp01(total / cumMax);
+  const cx = lerp(X0 + 4, X1 - 4, dx);
+  /* y of dot = weighted average bar top, so it physically tracks shape */
+  let acc = 0, wsum = 0;
+  for (let i = 0; i < N; i++) { acc += yFor(values[i]) * values[i]; wsum += values[i]; }
+  const cy = wsum ? acc / wsum : Y_BASE;
+  dotEl.setAttribute("cx", cx.toFixed(2));
+  dotEl.setAttribute("cy", cy.toFixed(2));
+
+  /* trail path = tops of bars, gives the dot a context line */
+  let d = "";
+  for (let i = 0; i < N; i++) {
+    const px = xFor(i) + BARW / 2;
+    const py = yFor(values[i]);
+    d += (i === 0 ? "M" : "L") + px.toFixed(2) + " " + py.toFixed(2) + " ";
+  }
+  trailEl.setAttribute("d", d.trim());
+}
+
+/* interpolate the chart between two STORY states (or PRE -> STORY[0]) */
+function stateAt(p) {
+  /* p in [-1 .. N-1]; integer part = step index, fractional = transition.
+     p = -1 => fully PRE; p = 0 => fully STORY[0]; p = 0.5 => halfway 0->1 */
+  const lo = Math.floor(p);
+  const hi = lo + 1;
+  const t = ease(clamp01(p - lo));
+
+  const fromVals = lo < 0 ? PRE : STORY[Math.min(lo, STORY.length - 1)].values;
+  const toVals = STORY[Math.min(Math.max(hi, 0), STORY.length - 1)].values;
+  const values = fromVals.map((v, i) => lerp(v, toVals[i], t));
+
+  /* focus + readout snap to the nearer step (no half-amber) */
+  const nearIdx = Math.min(Math.max(Math.round(p), 0), STORY.length - 1);
+  const focus = STORY[nearIdx].focus;
+  const blueMix = clamp01((p + 1) / STORY.length); /* 0 at PRE, ~1 at end */
+
+  frame(values, focus, blueMix);
+  return nearIdx;
+}
+
+/* ---------- scroll driver: continuous progress across steps ---------- */
+const stepEls = [...proseEl.querySelectorAll(".step")];
+const reduce = window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+
+let activeIdx = 0;
+function applyMeta(idx) {
+  if (idx === activeIdx) return;
+  activeIdx = idx;
+  const s = STORY[idx];
+  readValEl.textContent = s.readVal;
+  readLblEl.textContent = s.readLbl;
+  captionEl.innerHTML = s.caption;
+  document.getElementById("chartUnit").textContent = "milliseconds per turn";
+  stepEls.forEach((el, i) => el.classList.toggle("active", i === idx));
+  railDots.forEach((d, i) => d.classList.toggle("on", i === idx));
+}
+
+/* compute global progress p in [-1 .. N-1] from scroll position.
+   Each step occupies one unit; we read the center of the viewport
+   against each step's vertical span. */
+function computeP() {
+  const vh = window.innerHeight;
+  const focusLine = vh * 0.42; /* the reading line, near upper-middle */
+  /* find which step straddles the focus line, and how far through it */
+  for (let i = 0; i < stepEls.length; i++) {
+    const r = stepEls[i].getBoundingClientRect();
+    if (r.bottom >= focusLine || i === stepEls.length - 1) {
+      const frac = clamp01((focusLine - r.top) / r.height);
+      return i + frac - 1 < -1 ? -1 : (i - 1) + frac;
+    }
+  }
+  return -1;
+}
+
+let raf = 0, lastP = null;
+function tick() {
+  raf = 0;
+  const p = computeP();
+  if (p !== lastP) {
+    lastP = p;
+    const idx = stateAt(p);
+    applyMeta(idx);
+  }
+}
+function onScroll() {
+  if (reduce) { settle(); return; }
+  if (!raf) raf = requestAnimationFrame(tick);
+}
+
+/* reduced motion: jump the chart to the active step's settled state,
+   no interpolation, no rAF loop. Active step = nearest to focus line. */
+function settle() {
+  const vh = window.innerHeight;
+  const focusLine = vh * 0.42;
+  let idx = 0, best = Infinity;
+  stepEls.forEach((el, i) => {
+    const r = el.getBoundingClientRect();
+    const mid = r.top + r.height / 2;
+    const d = Math.abs(mid - focusLine);
+    if (d < best) { best = d; idx = i; }
+  });
+  const s = STORY[idx];
+  frame(s.values, s.focus, clamp01((idx + 1) / STORY.length));
+  applyMeta(idx);
+}
+
+/* ---------- init ---------- */
+if (reduce) {
+  /* settled opening: show STORY[0] fully resolved, no mid-transition */
+  frame(STORY[0].values, STORY[0].focus, clamp01(1 / STORY.length));
+  applyMeta(0);
+  window.addEventListener("scroll", settle, { passive: true });
+  window.addEventListener("resize", settle);
+} else {
+  /* CAPTURE state at scroll=0: chart is mid-transition PRE -> STORY[0]
+     with the speech-to-text bar already held amber, while the opening
+     paragraph (step 01) sits frozen on the right. */
+  stateAt(-0.45);
+  applyMeta(0);
+  window.addEventListener("scroll", onScroll, { passive: true });
+  window.addEventListener("resize", () => { lastP = null; onScroll(); });
+  /* run once after layout settles so the opening frame is correct */
+  requestAnimationFrame(() => { lastP = null; tick(); });
+}
+</script>
+</body>
+</html>

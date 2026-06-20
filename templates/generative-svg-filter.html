@@ -1,0 +1,756 @@
+<!-- TEMPLATE: Filter Forge | ARCHETYPE: generative-svg-filter | REF: Codrops Advanced SVG Filter Effects 2025-2026, CSS Design Awards generative-SVG digital-art 2026 | WHEN TO USE: media-led portfolio/gallery where every work should feel like melting emulsion warped live by scroll, pure declarative SVG no canvas/WebGL | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Filter Forge - emulsion melt, forged in SVG</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,900;1,9..144,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  /* ===================================================================
+     FILTER FORGE
+     The SVG filter chain IS the color + texture system. The page is
+     plain hex-only chrome; every image/loop is routed through a NAMED
+     inline SVG filter (feTurbulence -> feDisplacementMap -> feColorMatrix).
+     SMIL animates baseFrequency for a constant emulsion shimmer at rest;
+     scroll velocity (JS, attribute-only) amplifies displacement + hue.
+     =================================================================== */
+
+  :root {
+    --void: #0a0a0a;
+    --bone: #f5f2ec;
+    --ash: #15110d;
+    --dim: #8a8276;
+    --edge: rgba(245, 242, 236, 0.12);
+    --hot: #d8502a;     /* forge ember accent (decorative only) */
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+
+  body {
+    background: var(--void);
+    color: var(--bone);
+    font-family: "Fraunces", Georgia, serif;
+    line-height: 1.4;
+    overflow-x: hidden;
+    /* film-grain on the void so even the chrome feels like emulsion */
+    background-image:
+      radial-gradient(circle at 20% 0%, rgba(216, 80, 42, 0.07), transparent 45%),
+      radial-gradient(circle at 90% 100%, rgba(120, 130, 200, 0.05), transparent 50%);
+    background-attachment: fixed;
+  }
+
+  ::selection { background: var(--hot); color: var(--void); }
+
+  /* The on-page SVG <defs> host: zero footprint, never paints. */
+  .filter-bank { position: absolute; width: 0; height: 0; overflow: hidden; pointer-events: none; }
+
+  /* ---------- top band: compact, never a full-height hero ---------- */
+  .band {
+    position: relative;
+    z-index: 5;
+    padding: 26px clamp(16px, 4vw, 56px) 14px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px 24px;
+    align-items: end;
+    border-bottom: 1px solid var(--edge);
+  }
+  .mark {
+    font-family: "Space Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.42em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+  .mark b { color: var(--hot); font-weight: 700; }
+  h1 {
+    grid-column: 1 / -1;
+    font-weight: 900;
+    font-optical-sizing: auto;
+    font-size: clamp(2.6rem, 9.5vw, 7.4rem);
+    line-height: 0.86;
+    letter-spacing: -0.025em;
+    margin: 6px 0 0;
+    text-wrap: balance;
+  }
+  h1 i { font-weight: 300; font-style: italic; color: var(--dim); }
+  .sub {
+    grid-column: 1 / -1;
+    max-width: 60ch;
+    font-size: clamp(0.95rem, 1.5vw, 1.12rem);
+    color: var(--dim);
+    margin-top: 4px;
+  }
+  .sub em { color: var(--bone); font-style: italic; }
+  .meta-row {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    margin-top: 14px;
+    font-family: "Space Mono", monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+  .meta-row span { display: inline-flex; gap: 7px; align-items: center; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--hot); display: inline-block; }
+  .dot.on { box-shadow: 0 0 8px 1px var(--hot); }
+
+  /* ---------- the forge: vertical run of work panels ---------- */
+  .forge { position: relative; z-index: 2; }
+
+  .work {
+    position: relative;
+    padding: clamp(34px, 6vw, 82px) clamp(16px, 4vw, 56px);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 34%);
+    gap: clamp(18px, 3vw, 48px);
+    align-items: center;
+    border-bottom: 1px solid var(--edge);
+  }
+  .work:nth-child(even) { grid-template-columns: minmax(220px, 34%) minmax(0, 1fr); }
+  .work:nth-child(even) .stage { order: 2; }
+  .work:nth-child(even) .caption { order: 1; }
+
+  /* The media stage. Landscape assets are letterboxed inside a fixed
+     aspect frame so a portrait phone NEVER cover-crops a landscape. */
+  .stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #050505;
+    border: 1px solid var(--edge);
+    overflow: hidden;
+    border-radius: 2px;
+    box-shadow: 0 30px 70px -40px rgba(0,0,0,0.9), inset 0 0 0 1px rgba(245,242,236,0.03);
+  }
+  .stage.sq { aspect-ratio: 1 / 1; max-width: 520px; }
+
+  /* registration frame: corner ticks, makes the stage read as a darkroom plate */
+  .stage::after {
+    content: "";
+    position: absolute; inset: 9px;
+    border: 1px solid rgba(245, 242, 236, 0.08);
+    pointer-events: none;
+    border-radius: 1px;
+  }
+
+  /* every piece of media letterboxes (contain) and is routed through its
+     SVG filter via the inline style 'filter:url(#id)' set from DATA */
+  .stage img,
+  .stage video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;           /* letterbox: never crop the landscape */
+    object-position: center;
+    display: block;
+    background: #050505;
+    will-change: filter;
+  }
+  .stage video { background: #050505; }
+
+  /* bone-tinted scrim so contained media reads on the void with margin */
+  .stage .scrim {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(120% 90% at 50% 50%, transparent 58%, rgba(10,10,10,0.55) 100%);
+    pointer-events: none;
+    mix-blend-mode: multiply;
+  }
+
+  .index-tag {
+    position: absolute;
+    top: 10px; left: 12px;
+    z-index: 3;
+    font-family: "Space Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--bone);
+    background: rgba(10,10,10,0.6);
+    padding: 3px 8px;
+    border: 1px solid var(--edge);
+    backdrop-filter: blur(2px);
+  }
+
+  /* live filter-state readout, so the mechanic is legible, not magic */
+  .filtermeter {
+    position: absolute;
+    bottom: 10px; left: 12px; right: 12px;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: "Space Mono", monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(245,242,236,0.7);
+    pointer-events: none;
+  }
+  .filtermeter .bar {
+    flex: 1;
+    height: 2px;
+    background: rgba(245,242,236,0.16);
+    position: relative;
+    overflow: hidden;
+  }
+  .filtermeter .bar i {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 12%;
+    background: var(--hot);
+    transition: width 0.18s ease-out;
+  }
+
+  .caption .num {
+    font-family: "Space Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    color: var(--hot);
+  }
+  .caption h2 {
+    font-weight: 600;
+    font-size: clamp(1.5rem, 3.4vw, 2.5rem);
+    line-height: 1.0;
+    letter-spacing: -0.015em;
+    margin: 8px 0 12px;
+  }
+  .caption h2 i { font-weight: 300; font-style: italic; color: var(--dim); }
+  .caption p {
+    color: var(--dim);
+    font-size: clamp(0.92rem, 1.4vw, 1.04rem);
+    max-width: 42ch;
+  }
+  .caption .filterline {
+    margin-top: 16px;
+    font-family: "Space Mono", monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    color: var(--dim);
+    border-left: 2px solid var(--hot);
+    padding: 3px 0 3px 12px;
+    white-space: pre-line;
+  }
+  .caption .filterline b { color: var(--bone); font-weight: 400; }
+
+  /* ---------- foot ---------- */
+  .foot {
+    position: relative; z-index: 2;
+    padding: clamp(40px, 7vw, 90px) clamp(16px, 4vw, 56px);
+    display: grid;
+    gap: 14px;
+    text-align: center;
+  }
+  .foot .big {
+    font-weight: 900;
+    font-size: clamp(2rem, 7vw, 4.6rem);
+    line-height: 0.9;
+    letter-spacing: -0.02em;
+  }
+  .foot .big i { font-weight: 300; font-style: italic; color: var(--dim); }
+  .foot small {
+    font-family: "Space Mono", monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+
+  /* ---------- focus + a11y ---------- */
+  a:focus-visible, button:focus-visible, .stage:focus-visible {
+    outline: 2px solid var(--hot);
+    outline-offset: 3px;
+  }
+  .stage { scroll-margin-top: 80px; }
+
+  /* ---------- MOBILE: stack, letterbox, never crop ---------- */
+  @media (max-width: 640px) {
+    .band { grid-template-columns: 1fr; padding: 18px 16px 12px; }
+    .mark { order: -1; }
+    .work,
+    .work:nth-child(even) {
+      grid-template-columns: 1fr;
+      gap: 16px;
+      padding: 26px 16px;
+    }
+    .work .stage,
+    .work:nth-child(even) .stage { order: -1; }
+    .work .caption,
+    .work:nth-child(even) .caption { order: 1; }
+    .stage.sq { max-width: none; }
+    .caption p { max-width: none; }
+  }
+
+  /* ---------- REDUCED MOTION: flat filter, final state, no rAF drive ----------
+     JS also force-sets baseFrequency to 0 and stops the velocity loop. */
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .filtermeter .bar i { transition: none; }
+    .dot.on { box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- =====================================================================
+     DATA  - swap works here. Each entry gets its OWN named SVG filter
+     with a DISTINCT turbulence octave + seed + base frequency so no two
+     panels melt the same way. 'kind' = img | video. 'shape' = wide | sq.
+     All filter numeric params live here; the <defs> are generated from them.
+     ===================================================================== -->
+<script>
+  const DATA = [
+    {
+      id: "ember",
+      num: "01 / 06",
+      title: ["Wet Asphalt,", "Neon Bleed"],
+      kind: "img",
+      shape: "wide",
+      src: "../assets/flux-car-4k.png",
+      poster: "../assets/flux-car-4k.png",
+      blurb: "A matte-black coupe held on a rain-slick street. The emulsion never fully sets - turbulence keeps the reflections breathing.",
+      // distinct filter recipe
+      seed: 4,
+      octaves: 2,
+      baseFreq: 0.0088,      // rest shimmer frequency
+      freqSwing: 0.006,      // SMIL melts between baseFreq and baseFreq+swing
+      dispRest: 7,           // displacement scale at rest
+      dispMax: 34,           // displacement scale at max scroll velocity
+      hueRest: 0,            // feColorMatrix hue rotation at rest (deg)
+      hueMax: -22            // hue rotation at peak (cooler, toward neon)
+    },
+    {
+      id: "mint",
+      num: "02 / 06",
+      title: ["Clinic Light,", "Held Still"],
+      kind: "img",
+      shape: "wide",
+      src: "../assets/flux-clinic-4k.png",
+      poster: "../assets/flux-clinic-4k.png",
+      blurb: "Mint and warm wood, the calmest plate in the run - a low octave count keeps the melt gentle, almost clinical.",
+      seed: 17,
+      octaves: 1,
+      baseFreq: 0.006,
+      freqSwing: 0.004,
+      dispRest: 5,
+      dispMax: 26,
+      hueRest: 4,
+      hueMax: 26
+    },
+    {
+      id: "kling",
+      num: "03 / 06",
+      title: ["Loop No. 3,", "Forged Motion"],
+      kind: "video",
+      shape: "wide",
+      src: "../assets/kling-video.mp4",
+      poster: "../assets/gen/poster-kling-video.png",
+      blurb: "A generated motion loop. It only decodes when it owns the viewport; off-screen its filter is paused and the frame frozen.",
+      seed: 29,
+      octaves: 3,
+      baseFreq: 0.011,
+      freqSwing: 0.008,
+      dispRest: 9,
+      dispMax: 40,
+      hueRest: -6,
+      hueMax: 18
+    },
+    {
+      id: "fox",
+      num: "04 / 06",
+      title: ["Painted Fox,", "Square Plate"],
+      kind: "img",
+      shape: "sq",
+      src: "../assets/sdxl.png",
+      poster: "../assets/sdxl.png",
+      blurb: "A painterly square. High base frequency turns the brushwork into a slow, granular drift - the most overtly generative octave in the set.",
+      seed: 41,
+      octaves: 4,
+      baseFreq: 0.016,
+      freqSwing: 0.011,
+      dispRest: 8,
+      dispMax: 30,
+      hueRest: 10,
+      hueMax: 40
+    },
+    {
+      id: "veo",
+      num: "05 / 06",
+      title: ["Loop No. 5,", "Cooler Octave"],
+      kind: "video",
+      shape: "wide",
+      src: "../assets/veo-video.mp4",
+      poster: "../assets/gen/poster-veo-video.png",
+      blurb: "A second loop, tuned to a different turbulence seed so it never rhymes with the first. Saturation drifts cool as you accelerate past it.",
+      seed: 7,
+      octaves: 2,
+      baseFreq: 0.0095,
+      freqSwing: 0.0065,
+      dispRest: 6,
+      dispMax: 32,
+      hueRest: -10,
+      hueMax: -36
+    },
+    {
+      id: "apple",
+      num: "06 / 06",
+      title: ["Lo-Fi Apple,", "Last Plate"],
+      kind: "img",
+      shape: "sq",
+      src: "../assets/hf-tinysd.png",
+      poster: "../assets/hf-tinysd.png",
+      blurb: "A deliberately low-fidelity square to close the run. Coarse turbulence + warm hue push - the cheap source becomes the texture.",
+      seed: 53,
+      octaves: 3,
+      baseFreq: 0.013,
+      freqSwing: 0.009,
+      dispRest: 8,
+      dispMax: 28,
+      hueRest: 14,
+      hueMax: 50
+    }
+  ];
+</script>
+
+<!-- The generated SVG filter bank gets injected here -->
+<svg class="filter-bank" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <defs id="filterDefs"></defs>
+</svg>
+
+<!-- ===================== TOP BAND (compact, mechanic visible below it) ===================== -->
+<header class="band">
+  <div class="mark"><b>///</b> FILTER&nbsp;FORGE</div>
+  <div class="mark" id="modeReadout">SMIL&nbsp;LIVE</div>
+
+  <h1>Forged in <i>emulsion</i>, melted by scroll.</h1>
+
+  <p class="sub">
+    Every plate below is routed through its own inline <em>feTurbulence &rarr; feDisplacementMap &rarr; feColorMatrix</em>
+    chain. At rest it shimmers; accelerate the scroll and the displacement scale climbs while saturation drifts toward a
+    new hue. No canvas - no WebGL - pure declarative SVG.
+  </p>
+
+  <div class="meta-row">
+    <span><i class="dot" id="liveDot"></i> <strong id="velText">VELOCITY 0%</strong></span>
+    <span>06 NAMED FILTERS</span>
+    <span>MAX 2 ACTIVE</span>
+    <span id="rmText">SMIL ANIMATING</span>
+  </div>
+</header>
+
+<!-- ===================== THE FORGE (panels injected) ===================== -->
+<main class="forge" id="forge"></main>
+
+<!-- ===================== FOOT ===================== -->
+<footer class="foot">
+  <small>END OF RUN</small>
+  <div class="big">Swap the <i>DATA</i> array.<br />The filters re-forge themselves.</div>
+  <small>FILTER FORGE - GENERATIVE SVG FILTER ARCHETYPE</small>
+</footer>
+
+<script>
+/* =====================================================================
+   1. BUILD  - generate one named SVG <filter> per DATA entry, plus the
+   panel markup. Each filter has a DISTINCT turbulence octave + seed so
+   no two melts look alike. baseFrequency is SMIL-animated for the rest
+   shimmer; JS later nudges displacement scale + hue from scroll velocity.
+   NOTE: all SVG presentation values are HEX LITERALS, never CSS var().
+   ===================================================================== */
+
+const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const MOBILE = window.matchMedia("(max-width: 640px)").matches;
+const DISP_MULT = MOBILE ? 0.5 : 1; // mobile halves displacement for GPU budget
+
+const defs = document.getElementById("filterDefs");
+const forge = document.getElementById("forge");
+
+const SVGNS = "http://www.w3.org/2000/svg";
+
+DATA.forEach((d) => {
+  const fid = "fx-" + d.id;
+
+  // --- build the filter via the SVG namespace (so SMIL <animate> works) ---
+  const filter = document.createElementNS(SVGNS, "filter");
+  filter.setAttribute("id", fid);
+  // generous region so the displacement warp has room to bleed
+  filter.setAttribute("x", "-15%");
+  filter.setAttribute("y", "-15%");
+  filter.setAttribute("width", "130%");
+  filter.setAttribute("height", "130%");
+  filter.setAttribute("color-interpolation-filters", "sRGB");
+
+  // feTurbulence: the generative noise. Distinct seed + octaves per work.
+  const turb = document.createElementNS(SVGNS, "feTurbulence");
+  turb.setAttribute("type", "fractalNoise");
+  turb.setAttribute("baseFrequency", d.baseFreq);
+  turb.setAttribute("numOctaves", d.octaves);
+  turb.setAttribute("seed", d.seed);
+  turb.setAttribute("stitchTiles", "stitch");
+  turb.setAttribute("result", "noise");
+
+  // SMIL: animate baseFrequency to make the emulsion shimmer at rest.
+  // reduced-motion -> we skip this and pin baseFrequency to 0 (flat filter).
+  if (!REDUCED) {
+    const f0 = d.baseFreq;
+    const f1 = (d.baseFreq + d.freqSwing).toFixed(5);
+    const anim = document.createElementNS(SVGNS, "animate");
+    anim.setAttribute("attributeName", "baseFrequency");
+    anim.setAttribute("values", `${f0};${f1};${f0}`);
+    anim.setAttribute("dur", (7 + (d.seed % 5)) + "s"); // varied tempo per work
+    anim.setAttribute("repeatCount", "indefinite");
+    anim.setAttribute("calcMode", "spline");
+    anim.setAttribute("keyTimes", "0;0.5;1");
+    anim.setAttribute("keySplines", "0.4 0 0.2 1;0.4 0 0.2 1");
+    turb.appendChild(anim);
+  } else {
+    turb.setAttribute("baseFrequency", "0"); // flat: filter becomes a no-op warp
+  }
+
+  // feDisplacementMap: warp the source by the noise -> the emulsion melt.
+  const disp = document.createElementNS(SVGNS, "feDisplacementMap");
+  disp.setAttribute("in", "SourceGraphic");
+  disp.setAttribute("in2", "noise");
+  disp.setAttribute("scale", REDUCED ? "0" : (d.dispRest * DISP_MULT).toFixed(2));
+  disp.setAttribute("xChannelSelector", "R");
+  disp.setAttribute("yChannelSelector", "G");
+  disp.setAttribute("result", "warped");
+
+  // feColorMatrix #1: saturate/desaturate toward target as scroll accelerates.
+  const sat = document.createElementNS(SVGNS, "feColorMatrix");
+  sat.setAttribute("in", "warped");
+  sat.setAttribute("type", "saturate");
+  sat.setAttribute("values", "1");
+  sat.setAttribute("result", "sated");
+
+  // feColorMatrix #2: hue rotation tied to scroll position/velocity.
+  const hue = document.createElementNS(SVGNS, "feColorMatrix");
+  hue.setAttribute("in", "sated");
+  hue.setAttribute("type", "hueRotate");
+  hue.setAttribute("values", String(d.hueRest));
+
+  filter.appendChild(turb);
+  filter.appendChild(disp);
+  filter.appendChild(sat);
+  filter.appendChild(hue);
+  defs.appendChild(filter);
+
+  // --- build the panel ---
+  const section = document.createElement("section");
+  section.className = "work";
+  section.dataset.id = d.id;
+
+  const stageWrap = document.createElement("div");
+  stageWrap.className = "stage" + (d.shape === "sq" ? " sq" : "");
+  stageWrap.tabIndex = 0;
+  stageWrap.setAttribute("role", "group");
+  stageWrap.setAttribute("aria-label", d.title.join(" ").replace(/,$/, ""));
+
+  let media;
+  if (d.kind === "video") {
+    media = document.createElement("video");
+    media.muted = true;
+    media.loop = true;
+    media.playsInline = true;
+    media.setAttribute("playsinline", "");
+    media.setAttribute("preload", "none");
+    media.setAttribute("poster", d.poster);
+    media.dataset.src = d.src; // lazy: only set src when in view
+  } else {
+    media = document.createElement("img");
+    media.loading = "lazy";
+    media.decoding = "async";
+    media.src = d.src;
+    media.alt = d.title.join(" ").replace(/,$/, "");
+  }
+  // route the media through ITS named filter (inline, per the archetype)
+  media.style.filter = `url(#${fid})`;
+  media.dataset.fid = fid;
+
+  const scrim = document.createElement("div");
+  scrim.className = "scrim";
+
+  const tag = document.createElement("div");
+  tag.className = "index-tag";
+  tag.textContent = "#" + fid;
+
+  const meter = document.createElement("div");
+  meter.className = "filtermeter";
+  meter.innerHTML =
+    `<span>DISP</span><div class="bar"><i></i></div><span class="mval">${(d.dispRest*DISP_MULT).toFixed(0)}</span>`;
+
+  stageWrap.appendChild(media);
+  stageWrap.appendChild(scrim);
+  stageWrap.appendChild(tag);
+  stageWrap.appendChild(meter);
+
+  const cap = document.createElement("div");
+  cap.className = "caption";
+  cap.innerHTML = `
+    <div class="num">${d.num}</div>
+    <h2>${d.title[0]} <i>${d.title[1]}</i></h2>
+    <p>${d.blurb}</p>
+    <div class="filterline">filter <b>#${fid}</b>
+octaves <b>${d.octaves}</b> · seed <b>${d.seed}</b>
+baseFreq <b>${d.baseFreq}</b> · disp <b>${(d.dispRest*DISP_MULT).toFixed(0)}&rarr;${(d.dispMax*DISP_MULT).toFixed(0)}</b></div>
+  `;
+
+  section.appendChild(stageWrap);
+  section.appendChild(cap);
+  forge.appendChild(section);
+
+  // stash live refs on the section for the velocity loop
+  section._fx = { d, disp, sat, hue, media, meterFill: meter.querySelector(".bar i"), meterVal: meter.querySelector(".mval") };
+});
+
+/* =====================================================================
+   2. VISIBILITY  - IntersectionObserver. Guardrail: at most TWO filters
+   animate at once. Off-screen sections pause their SMIL (so feTurbulence
+   stops spending) and freeze video; the focused one plays.
+   ===================================================================== */
+
+const root = document.documentElement; // SVG SMIL controller (pause/unpause is per-element via beginElement; we throttle via active set)
+const sections = Array.from(document.querySelectorAll(".work"));
+const active = new Set();
+const liveDot = document.getElementById("liveDot");
+const svgRoot = document.querySelector(".filter-bank");
+
+function setActive(section, on) {
+  const fx = section._fx;
+  if (!fx) return;
+  if (on) {
+    active.add(section);
+    // play video lazily, only the in-view ones (max 2)
+    if (fx.media.tagName === "VIDEO") {
+      if (!fx.media.src && fx.media.dataset.src) fx.media.src = fx.media.dataset.src;
+      if (!REDUCED) { const p = fx.media.play(); if (p && p.catch) p.catch(() => {}); }
+    }
+    // resume SMIL turbulence shimmer on this filter
+    if (!REDUCED) {
+      section.querySelectorAll("animate").forEach((a) => { try { a.beginElement(); } catch (e) {} });
+    }
+  } else {
+    active.delete(section);
+    if (fx.media.tagName === "VIDEO") { try { fx.media.pause(); } catch (e) {} }
+  }
+  liveDot.classList.toggle("on", active.size > 0);
+}
+
+const io = new IntersectionObserver((entries) => {
+  // sort so the most-visible win the two active slots
+  entries.forEach((e) => { e.target._ratio = e.intersectionRatio; });
+  const visible = sections
+    .filter((s) => s._ratio > 0.18)
+    .sort((a, b) => (b._ratio || 0) - (a._ratio || 0));
+  const keep = new Set(visible.slice(0, 2)); // GUARDRAIL: only two concurrent
+
+  sections.forEach((s) => {
+    const want = keep.has(s);
+    const has = active.has(s);
+    if (want && !has) setActive(s, true);
+    else if (!want && has) setActive(s, false);
+  });
+}, { threshold: [0, 0.18, 0.4, 0.7, 1] });
+
+sections.forEach((s) => io.observe(s));
+
+/* =====================================================================
+   3. SCROLL VELOCITY  - the amplifier. We measure scroll speed and, for
+   the (max 2) ACTIVE filters, push feDisplacementMap 'scale', saturate
+   'values', and hueRotate 'values' between rest and max. Attribute-only:
+   no canvas, no pixel ops. reduced-motion disables this entirely.
+   ===================================================================== */
+
+const velText = document.getElementById("velText");
+const modeReadout = document.getElementById("modeReadout");
+const rmText = document.getElementById("rmText");
+
+if (REDUCED) {
+  // final, flat state. Pin everything to rest hues, zero displacement.
+  modeReadout.textContent = "STATIC (REDUCED MOTION)";
+  rmText.textContent = "MOTION DISABLED";
+  document.querySelectorAll(".filtermeter .mval").forEach((m) => (m.textContent = "0"));
+  velText.textContent = "VELOCITY OFF";
+} else {
+  let lastY = window.scrollY;
+  let lastT = performance.now();
+  let vel = 0;          // smoothed |px/ms|
+  let energy = 0;       // 0..1 amplitude that decays toward 0
+
+  function onScroll() {
+    const now = performance.now();
+    const dy = Math.abs(window.scrollY - lastY);
+    const dt = Math.max(1, now - lastT);
+    const inst = dy / dt;                 // px per ms
+    vel = vel * 0.6 + inst * 0.4;         // smooth
+    lastY = window.scrollY;
+    lastT = now;
+    // map velocity to 0..1 energy; ~2.2 px/ms reads as "fast"
+    energy = Math.min(1, Math.max(energy, vel / 2.2));
+  }
+  window.addEventListener("scroll", onScroll, { passive: true });
+
+  function frame() {
+    energy *= 0.92; // decay back to rest
+    if (energy < 0.002) energy = 0;
+
+    const pct = Math.round(energy * 100);
+    velText.textContent = "VELOCITY " + pct + "%";
+
+    // drive ONLY the active filters (the IO keeps this to <=2)
+    active.forEach((section) => {
+      const fx = section._fx;
+      const d = fx.d;
+      // displacement scale: rest -> max by energy
+      const scale = (d.dispRest + (d.dispMax - d.dispRest) * energy) * DISP_MULT;
+      fx.disp.setAttribute("scale", scale.toFixed(2));
+      // saturation: 1 at rest, push up to ~1.8 with energy for the emulsion pop
+      const satVal = (1 + 0.85 * energy).toFixed(3);
+      fx.sat.setAttribute("values", satVal);
+      // hue: rest -> max, biased by where the section sits in the viewport
+      const rect = section.querySelector(".stage").getBoundingClientRect();
+      const center = (rect.top + rect.height / 2) / window.innerHeight; // 0..1 down screen
+      const posBias = Math.max(0, Math.min(1, 1 - Math.abs(center - 0.5) * 2));
+      const hueNow = d.hueRest + (d.hueMax - d.hueRest) * (energy * 0.7 + posBias * 0.3);
+      fx.hue.setAttribute("values", hueNow.toFixed(1));
+      // readouts
+      fx.meterFill.style.width = (12 + 88 * energy) + "%";
+      fx.meterVal.textContent = scale.toFixed(0);
+    });
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+/* =====================================================================
+   4. SIGNATURE AT scroll=0  - guarantee the FIRST work is already mildly
+   warped with a visible emulsion melt the instant the page paints, even
+   before any scroll or IO callback. (reduced-motion stays flat.)
+   ===================================================================== */
+if (!REDUCED) {
+  const first = sections[0];
+  if (first && first._fx) {
+    // force the opening plate active + seed a small resting displacement bump
+    setActive(first, true);
+    const fx = first._fx;
+    const seed = (fx.d.dispRest * 1.45 * DISP_MULT).toFixed(2);
+    fx.disp.setAttribute("scale", seed);   // visible melt without scrolling
+    fx.sat.setAttribute("values", "1.18");
+    fx.meterFill.style.width = "26%";
+    fx.meterVal.textContent = seed.split(".")[0];
+    // also wake the second plate so the band reads "MAX 2 ACTIVE" truthfully
+    if (sections[1]) setActive(sections[1], true);
+  }
+}
+</script>
+</body>
+</html>

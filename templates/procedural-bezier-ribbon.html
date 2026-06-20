@@ -1,0 +1,931 @@
+<!-- TEMPLATE: Ribbon River | ARCHETYPE: procedural-bezier-ribbon | REF: Codrops Building an Endless Procedural Snake (2026), Codrops Creative Hub procedural-curve portfolio (2026) | WHEN TO USE: a portfolio that should feel alive and generative - an endless ink ribbon winds up through the page, work cards pinned along its spline, scroll flows the river upward and new bends grow procedurally | SWAP: edit the DATA array at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Ribbon River - a procedural Bezier portfolio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     RIBBON RIVER
+     One endless organic ink ribbon (#1a1614) drawn to Canvas 2D
+     over a linen page (#f0ece4). Work cards pin to a CatmullRom
+     spline; vermilion (#c94a2e) markers tie each card to the
+     river. Scroll flows the river upward; new bends generate
+     procedurally, old ones drop below. Canvas 2D only, no WebGL.
+     ============================================================ */
+
+  :root {
+    --linen: #f0ece4;
+    --linen-deep: #e6e0d4;
+    --ink: #1a1614;
+    --ink-soft: #4a423c;
+    --vermilion: #c94a2e;
+    --vermilion-deep: #a83a22;
+    --paper-line: rgba(26, 22, 20, 0.08);
+    --card-w: 360px;
+    --serif: "Fraunces", Georgia, serif;
+    --sans: "Space Grotesk", system-ui, sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--linen);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+
+  /* faint paper grain + horizon tint, purely decorative */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    background:
+      radial-gradient(120% 80% at 50% -10%, rgba(201, 74, 46, 0.05), transparent 55%),
+      radial-gradient(100% 60% at 50% 110%, rgba(26, 22, 20, 0.06), transparent 60%);
+    mix-blend-mode: multiply;
+  }
+
+  /* the spacer drives scroll length; the river + cards live in fixed layers */
+  #scroll-spacer { height: 720vh; width: 1px; }
+
+  /* ---- canvas river layer (fixed, full viewport) ---- */
+  #river {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 2;
+    display: block;
+  }
+
+  /* ---- pinned cards layer ---- */
+  #cards-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .card {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--card-w);
+    will-change: transform, opacity;
+    pointer-events: auto;
+    transform-origin: 0 50%;
+  }
+
+  /* inner wrapper counter-translates so the card body reads upright-ish
+     while the whole unit is rotated to the spline tangent */
+  .card-body {
+    position: relative;
+    width: var(--card-w);
+    margin-left: 26px;            /* gap from the pin */
+    transform: translateY(-50%);  /* center on the pinned point */
+    background: var(--linen);
+    border: 1px solid var(--ink);
+    box-shadow: 6px 8px 0 rgba(26, 22, 20, 0.16);
+    transition: box-shadow 0.25s ease;
+  }
+  .card[data-side="left"] .card-body {
+    margin-left: 0;
+    margin-right: 26px;
+    transform: translateY(-50%) translateX(calc(-100% + 0px));
+  }
+  .card:hover .card-body,
+  .card:focus-within .card-body { box-shadow: 10px 12px 0 rgba(201, 74, 46, 0.28); }
+
+  .card-media {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: var(--ink);
+    overflow: hidden;
+    border-bottom: 1px solid var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .card-media.is-square { aspect-ratio: 4 / 3; }
+  .card-media img,
+  .card-media video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;       /* desktop cards are landscape; safe */
+    display: block;
+  }
+  /* square source assets get letterboxed, never cover-cropped */
+  .card-media.contain img { object-fit: contain; background: #100d0c; }
+
+  .card-media .poster {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: opacity 0.4s ease;
+    z-index: 1;
+  }
+  .card-media.playing .poster { opacity: 0; }
+  .card-media video { position: absolute; inset: 0; z-index: 0; }
+
+  .play-badge {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    z-index: 2;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: rgba(240, 236, 228, 0.92);
+    border: 1px solid var(--ink);
+    display: grid;
+    place-items: center;
+    color: var(--ink);
+    font-size: 11px;
+    pointer-events: none;
+  }
+  .card-media.playing .play-badge { display: none; }
+
+  .card-meta {
+    padding: 14px 16px 16px;
+    background: var(--linen);
+  }
+  .card-idx {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--vermilion);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-idx::before {
+    content: "";
+    width: 18px; height: 2px;
+    background: var(--vermilion);
+  }
+  .card-title {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 23px;
+    line-height: 1.06;
+    margin: 8px 0 6px;
+    color: var(--ink);
+  }
+  .card-desc {
+    font-family: var(--sans);
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--ink-soft);
+  }
+  .card-tags {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .card-tags span {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 3px 7px;
+    border: 1px solid var(--paper-line);
+    color: var(--ink-soft);
+  }
+
+  /* the vermilion pin SVG marker sits at the spline point */
+  .card .pin {
+    position: absolute;
+    left: -7px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 14px;
+    height: 14px;
+    z-index: 4;
+  }
+
+  /* ---- top band: headline overlaying the live river ---- */
+  #band {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 5;
+    padding: 22px 34px 30px;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(240, 236, 228, 0.96) 0%, rgba(240, 236, 228, 0.72) 62%, rgba(240, 236, 228, 0) 100%);
+  }
+  .band-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .brand {
+    font-family: var(--serif);
+    font-weight: 700;
+    font-size: clamp(26px, 4.4vw, 54px);
+    line-height: 0.95;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    pointer-events: auto;
+  }
+  .brand em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--vermilion);
+  }
+  .band-meta {
+    text-align: right;
+    font-family: var(--sans);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    line-height: 1.6;
+    pointer-events: auto;
+  }
+  .band-sub {
+    margin-top: 10px;
+    max-width: 540px;
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    pointer-events: auto;
+  }
+
+  /* ---- scroll cue + progress ---- */
+  #cue {
+    position: fixed;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--sans);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+  }
+  #cue .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--vermilion); animation: pulse 1.8s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 0.3; } 50% { opacity: 1; } }
+
+  #progress {
+    position: fixed;
+    right: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 5;
+    width: 3px;
+    height: 180px;
+    background: var(--paper-line);
+    border-radius: 3px;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  #progress i {
+    position: absolute;
+    left: 0; top: 0;
+    width: 100%;
+    height: 18%;
+    background: var(--vermilion);
+    border-radius: 3px;
+  }
+
+  /* ---- end note rendered once river ends ---- */
+  #endnote {
+    position: fixed;
+    inset: 0;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    padding: 24px;
+  }
+  #endnote.show { opacity: 1; }
+  #endnote .e-k {
+    font-family: var(--sans);
+    font-size: 11px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--vermilion);
+    margin-bottom: 14px;
+  }
+  #endnote .e-t {
+    font-family: var(--serif);
+    font-weight: 300;
+    font-size: clamp(30px, 6vw, 66px);
+    line-height: 1.02;
+    max-width: 16ch;
+    color: var(--ink);
+  }
+  #endnote .e-t em { font-style: italic; color: var(--vermilion); }
+
+  :focus-visible {
+    outline: 3px solid var(--vermilion);
+    outline-offset: 3px;
+  }
+
+  /* ============================================================
+     MOBILE: <=640px - narrower river, cards center-stack,
+     landscape media letterboxed (never cover-cropped portrait)
+     ============================================================ */
+  @media (max-width: 640px) {
+    :root { --card-w: 86vw; }
+    #band { padding: 16px 18px 24px; }
+    .band-meta { display: none; }
+    .band-sub { font-size: 13px; }
+    #progress { display: none; }
+
+    /* on phones the river is a slim central spine; cards drop straight
+       below their pin, full width, and media letterboxes to avoid any
+       portrait cover-crop of the landscape assets */
+    .card,
+    .card[data-side="left"] {
+      width: var(--card-w);
+    }
+    .card-body,
+    .card[data-side="left"] .card-body {
+      width: var(--card-w);
+      margin-left: 0;
+      margin-right: 0;
+      transform: translate(-50%, 14px);
+    }
+    .card .pin { left: 50%; transform: translate(-50%, -50%); top: 0; }
+    .card-media { aspect-ratio: 16 / 9; background: #100d0c; }
+    .card-media img,
+    .card-media video,
+    .card-media .poster {
+      object-fit: contain;     /* letterbox, no crop, on the narrow viewport */
+    }
+    .card-title { font-size: 21px; }
+  }
+
+  /* ============================================================
+     REDUCED MOTION: freeze the river winding + scroll flow.
+     Ribbon still drawn (one static frame), cards still visible.
+     ============================================================ */
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    #cue .dot { animation: none; opacity: 0.7; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- ============================================================
+       DATA - edit this array to swap the whole portfolio.
+       Each entry pins one card along the procedural river.
+       type: "image" | "video"   (video uses src + poster)
+       fit:  "cover" | "contain" (contain = letterbox square art)
+       ============================================================ -->
+  <script>
+    const DATA = {
+      brand: { line1: "Ribbon", line2: "River", studio: "Vesperwerk Studio", year: "MMXXVI", loc: "Bangkok / Remote",
+        sub: "An endless ink river winds up through the page. Each work is pinned to the spline where the current bends. Scroll, and the river flows - new turns are drawn as you climb." },
+      end: { kicker: "End of the river", title: "Let us draw the <em>next bend</em> together." },
+      works: [
+        {
+          idx: "Work 01", title: "Nightshift Coupe",
+          desc: "Cinematic matte-black Mercedes on a rain-slicked neon street. Flux 4K key frame for an automotive launch film.",
+          tags: ["Flux", "4K Still", "Automotive"],
+          type: "image", fit: "cover", src: "../assets/flux-car-4k.png"
+        },
+        {
+          idx: "Work 02", title: "Mint & Timber Clinic",
+          desc: "Warm dental-clinic interior, mint and wood, generated as a brand environment plate for a healthcare identity.",
+          tags: ["Flux", "Interior", "Brand"],
+          type: "image", fit: "cover", src: "../assets/flux-clinic-4k.png"
+        },
+        {
+          idx: "Work 03", title: "Drift in Motion",
+          desc: "Image-to-video continuation of the coupe key frame. Looping cinematic camera push, plays when it reaches focus.",
+          tags: ["I2V", "Loop", "Motion"],
+          type: "video", fit: "cover", src: "../assets/flux-car-i2v.mp4", poster: "../assets/gen/poster-flux-car-i2v.png"
+        },
+        {
+          idx: "Work 04", title: "Painterly Fox",
+          desc: "SDXL autumn fox, thick painterly brushwork. Square source, letterboxed so nothing is ever cropped away.",
+          tags: ["SDXL", "Illustration", "Square"],
+          type: "image", fit: "contain", src: "../assets/sdxl.png"
+        },
+        {
+          idx: "Work 05", title: "Kling Sequence",
+          desc: "Generative motion study rendered with Kling. Poster shown until the current bends it into focus, then it loops.",
+          tags: ["Kling", "Loop", "Sequence"],
+          type: "video", fit: "cover", src: "../assets/kling-video.mp4", poster: "../assets/gen/poster-kling-video.png"
+        },
+        {
+          idx: "Work 06", title: "Veo Cinematic",
+          desc: "Veo text-to-video establishing shot. Letterboxed cinematic frame, decoded only while pinned in view.",
+          tags: ["Veo", "T2V", "Cinematic"],
+          type: "video", fit: "cover", src: "../assets/veo-video.mp4", poster: "../assets/gen/poster-veo-video.png"
+        },
+        {
+          idx: "Work 07", title: "Fal Render",
+          desc: "Fal diffusion video loop. One more bend in the river before it spills off the top of the page.",
+          tags: ["Fal", "Loop", "Render"],
+          type: "video", fit: "cover", src: "../assets/fal-video.mp4", poster: "../assets/gen/poster-fal-video.png"
+        },
+        {
+          idx: "Work 08", title: "Lo-fi Apple",
+          desc: "TinySD abstract apple study. Small, square, deliberately rough - the last work pinned to the current.",
+          tags: ["TinySD", "Abstract", "Square"],
+          type: "image", fit: "contain", src: "../assets/hf-tinysd.png"
+        }
+      ]
+    };
+  </script>
+
+  <canvas id="river" aria-hidden="true"></canvas>
+
+  <div id="cards-layer" aria-hidden="false"></div>
+
+  <header id="band">
+    <div class="band-row">
+      <h1 class="brand" id="brand"></h1>
+      <div class="band-meta" id="bandMeta"></div>
+    </div>
+    <p class="band-sub" id="bandSub"></p>
+  </header>
+
+  <div id="cue"><span class="dot"></span><span>Scroll to flow the river</span></div>
+  <div id="progress"><i id="progBar"></i></div>
+
+  <div id="endnote" aria-hidden="true">
+    <div class="e-k" id="endKicker"></div>
+    <div class="e-t" id="endTitle"></div>
+  </div>
+
+  <main id="scroll-spacer" aria-label="A procedural ribbon portfolio. Scroll to advance through the works."></main>
+
+  <script>
+  (() => {
+    "use strict";
+
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    /* ---------- populate static text ---------- */
+    document.getElementById("brand").innerHTML =
+      DATA.brand.line1 + " <em>" + DATA.brand.line2 + "</em>";
+    document.getElementById("bandMeta").innerHTML =
+      DATA.brand.studio + "<br>" + DATA.brand.loc + "<br>" + DATA.brand.year;
+    document.getElementById("bandSub").textContent = DATA.brand.sub;
+    document.getElementById("endKicker").textContent = DATA.end.kicker;
+    document.getElementById("endTitle").innerHTML = DATA.end.title;
+
+    /* ====================================================================
+       CANVAS RIVER
+       The river is a chain of control points. Each point breathes (its x
+       wobbles on a slow sine in real time). Scroll moves a virtual offset
+       up the chain; we generate new points above and drop points that fall
+       below the viewport. The visible polyline is densified with a
+       Catmull-Rom spline so we can also read an exact tangent at any
+       parametric position - that tangent is what pins + rotates the cards.
+       ==================================================================== */
+
+    const canvas = document.getElementById("river");
+    const ctx = canvas.getContext("2d", { alpha: true });
+
+    let W = 0, H = 0, DPR = 1;
+    let mobile = false;
+
+    function resize() {
+      DPR = Math.min(window.devicePixelRatio || 1, 2);
+      W = window.innerWidth;
+      H = window.innerHeight;
+      mobile = W <= 640;
+      canvas.width = Math.floor(W * DPR);
+      canvas.height = Math.floor(H * DPR);
+      canvas.style.width = W + "px";
+      canvas.style.height = H + "px";
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    }
+
+    /* --- procedural control-point chain ---
+       Points are stored in "river space": s = arc index (grows upward),
+       each carries a base horizontal phase. World Y is derived from
+       (s - offset) so the whole chain scrolls as offset changes.
+       GUARDRAIL: chain length capped at MAX_POINTS (~200). */
+    const MAX_POINTS = 200;
+    const SEG = 120;             // vertical spacing (px) between control points in river space
+    let nextS = 0;              // next arc index to spawn
+    let points = [];           // { s, phase, amp }
+    let seedRand = 8123;
+
+    // small deterministic PRNG so the river is stable across resizes
+    function rnd() {
+      seedRand = (seedRand * 1664525 + 1013904223) % 4294967296;
+      return seedRand / 4294967296;
+    }
+
+    function makePoint(s) {
+      // alternating-ish meander with jittered amplitude + phase.
+      // phase steps ~0.62 rad per point so the river makes a full S-bend
+      // every ~5 control points - winds up the page, not flat across it.
+      const amp = 0.20 + rnd() * 0.14;           // fraction of width
+      const phase = s * 0.62 + (rnd() - 0.5) * 0.9;
+      return { s, phase, amp };
+    }
+
+    function seedChain() {
+      points = [];
+      nextS = 0;
+      seedRand = 8123;
+      // seed enough to cover ~2 screens tall in river space
+      const needed = Math.ceil((H * 2.2) / SEG) + 6;
+      for (let i = 0; i < needed; i++) points.push(makePoint(nextS++));
+    }
+
+    /* river-space arc index -> world Y.
+       Larger s = higher up the river. The current scroll offset slides the
+       window: a point at s sits at worldY = H - (s - offset)*SEG + flowY */
+    let offset = 0;     // advanced by scroll (in river-space units)
+    let flowY = 0;      // continuous upward drift (breathing flow), real-time
+
+    function pointWorld(p, t) {
+      const worldY = H - (p.s - offset) * SEG + flowY;
+      // breathing: horizontal position oscillates slowly over time + per-point phase
+      const centerX = W * 0.5;
+      const ampPx = (mobile ? W * 0.14 : W * (0.5 - (p.amp))) ; // narrower river on mobile
+      const breathe = reduceMotion ? 0 : Math.sin(t * 0.00035 + p.phase * 0.6) * 0.18;
+      const meander = Math.sin(p.phase) * (mobile ? 0.5 : 1.0);
+      const x = centerX + (meander + breathe) * ampPx * (mobile ? 1 : 1);
+      return { x, y: worldY };
+    }
+
+    /* keep the chain populated: spawn above, drop below.
+       cap enforced both ways. */
+    function recycle() {
+      // drop points that have flowed well below the viewport
+      while (points.length && (H - (points[0].s - offset) * SEG + flowY) > H + SEG * 2) {
+        points.shift();
+      }
+      // spawn points above the top until covered, respecting MAX_POINTS
+      let guard = 0;
+      while (points.length < MAX_POINTS && guard < 8) {
+        const top = points[points.length - 1];
+        const topY = H - (top.s - offset) * SEG + flowY;
+        if (topY > -SEG * 2) {
+          points.push(makePoint(nextS++));
+        } else break;
+        guard++;
+      }
+      // hard cap safety
+      if (points.length > MAX_POINTS) points = points.slice(-MAX_POINTS);
+    }
+
+    /* ---- Catmull-Rom: build a densified polyline + allow tangent reads ----
+       Returns {pts:[{x,y}], segIndexOf(p)} sampled between control points.
+       We sample SUB points per control segment for a smooth ribbon. */
+    const SUB = 16;
+    function catmullRom(p0, p1, p2, p3, tt) {
+      const t2 = tt * tt, t3 = t2 * tt;
+      const x = 0.5 * ((2 * p1.x) + (-p0.x + p2.x) * tt +
+        (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 +
+        (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3);
+      const y = 0.5 * ((2 * p1.y) + (-p0.y + p2.y) * tt +
+        (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 +
+        (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3);
+      return { x, y };
+    }
+
+    function buildPolyline(t) {
+      // world positions of all control points
+      const w = points.map(p => pointWorld(p, t));
+      const out = [];
+      if (w.length < 4) { return { line: w, world: w }; }
+      for (let i = 0; i < w.length - 3; i++) {
+        const a = w[i], b = w[i + 1], c = w[i + 2], d = w[i + 3];
+        const last = (i === w.length - 4);
+        for (let k = 0; k < SUB; k++) {
+          out.push(catmullRom(a, b, c, d, k / SUB));
+        }
+        if (last) out.push({ x: c.x, y: c.y });
+      }
+      return { line: out, world: w };
+    }
+
+    /* find world point + tangent angle for a given river-space arc index s.
+       Used to pin a card exactly on the spline and rotate it to the tangent. */
+    function sampleAt(targetS, t) {
+      // locate the control segment containing targetS
+      // points are consecutive integers in s; find i where points[i].s <= targetS < points[i+1].s
+      const first = points[0] ? points[0].s : 0;
+      const local = targetS - first;            // float index into points
+      const i = Math.floor(local);
+      const frac = local - i;
+      const i0 = Math.max(0, i - 1);
+      const i1 = Math.max(0, i);
+      const i2 = Math.min(points.length - 1, i + 1);
+      const i3 = Math.min(points.length - 1, i + 2);
+      if (!points[i1] || !points[i2]) return null;
+      const p0 = pointWorld(points[i0], t);
+      const p1 = pointWorld(points[i1], t);
+      const p2 = pointWorld(points[i2], t);
+      const p3 = pointWorld(points[i3], t);
+      const here = catmullRom(p0, p1, p2, p3, frac);
+      // tangent via small delta
+      const eps = 0.04;
+      const ahead = catmullRom(p0, p1, p2, p3, Math.min(1, frac + eps));
+      const ang = Math.atan2(ahead.y - here.y, ahead.x - here.x);
+      return { x: here.x, y: here.y, angle: ang };
+    }
+
+    /* ---- draw the ribbon ---- */
+    function drawRiver(t) {
+      ctx.clearRect(0, 0, W, H);
+      const { line } = buildPolyline(t);
+      if (line.length < 2) return;
+
+      // soft under-shadow stroke for depth
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+
+      ctx.beginPath();
+      ctx.moveTo(line[0].x, line[0].y);
+      for (let i = 1; i < line.length; i++) ctx.lineTo(line[i].x, line[i].y);
+
+      // wide soft ink body
+      ctx.strokeStyle = "rgba(26, 22, 20, 0.10)";
+      ctx.lineWidth = mobile ? 34 : 56;
+      ctx.stroke();
+
+      // main ink ribbon
+      ctx.strokeStyle = "#1a1614";
+      ctx.lineWidth = mobile ? 8 : 13;
+      ctx.stroke();
+
+      // bright vermilion centerline (the "current")
+      ctx.strokeStyle = "rgba(201, 74, 46, 0.85)";
+      ctx.lineWidth = mobile ? 2 : 3;
+      ctx.setLineDash([2, 12]);
+      ctx.lineDashOffset = -((flowY + offset * SEG) * 0.5);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    /* ====================================================================
+       CARDS - DOM pinned along the spline
+       Each card is given a river-space s position spaced down the chain.
+       Every frame we read sampleAt(s) for its world point + tangent and
+       transform the card. Cards offscreen are hidden + their media paused.
+       ==================================================================== */
+
+    const layer = document.getElementById("cards-layer");
+    const cards = [];
+    const CARD_SPACING = 3.4;     // river-space units between cards
+    const CARD_START = 2.2;       // first card a bit up the river
+
+    function pinSvg() {
+      // vermilion pin marker. Hex literals only (never CSS var()) in
+      // presentation attributes, per guardrail.
+      return '<svg class="pin" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true">' +
+        '<circle cx="7" cy="7" r="6" fill="#c94a2e" stroke="#1a1614" stroke-width="1.5"/>' +
+        '<circle cx="7" cy="7" r="2" fill="#f0ece4"/></svg>';
+    }
+
+    DATA.works.forEach((wk, i) => {
+      const el = document.createElement("article");
+      el.className = "card";
+      el.setAttribute("data-side", i % 2 === 0 ? "right" : "left");
+      el.setAttribute("tabindex", "0");
+      el.setAttribute("aria-label", wk.idx + ": " + wk.title + ". " + wk.desc);
+
+      const isSquare = wk.fit === "contain";
+      let mediaInner = "";
+      if (wk.type === "image") {
+        mediaInner = '<img src="' + wk.src + '" alt="' + wk.title + '" loading="lazy" decoding="async">';
+      } else {
+        mediaInner =
+          '<img class="poster" src="' + wk.poster + '" alt="' + wk.title + ' poster" loading="lazy" decoding="async">' +
+          '<video muted loop playsinline preload="none" poster="' + wk.poster + '" aria-label="' + wk.title + ' video">' +
+          '<source data-src="' + wk.src + '" type="video/mp4"></video>' +
+          '<span class="play-badge">&#9654;</span>';
+      }
+
+      const tags = wk.tags.map(tg => "<span>" + tg + "</span>").join("");
+
+      el.innerHTML =
+        pinSvg() +
+        '<div class="card-body">' +
+          '<div class="card-media ' + (wk.type === "video" ? "" : "") + (isSquare ? " is-square contain" : "") + '">' +
+            mediaInner +
+          '</div>' +
+          '<div class="card-meta">' +
+            '<div class="card-idx">' + wk.idx + '</div>' +
+            '<h3 class="card-title">' + wk.title + '</h3>' +
+            '<p class="card-desc">' + wk.desc + '</p>' +
+            '<div class="card-tags">' + tags + '</div>' +
+          '</div>' +
+        '</div>';
+
+      layer.appendChild(el);
+
+      const media = el.querySelector(".card-media");
+      const video = el.querySelector("video");
+      cards.push({
+        el, media, video,
+        loaded: false, playing: false,
+        s: CARD_START + i * CARD_SPACING,
+        type: wk.type
+      });
+    });
+
+    // only one focused video plays at a time (avoid simultaneous decode)
+    let activeVideo = null;
+    function setVideoState(card, shouldPlay) {
+      if (card.type !== "video" || !card.video) return;
+      if (shouldPlay) {
+        if (activeVideo && activeVideo !== card) setVideoState(activeVideo, false);
+        if (!card.loaded) {
+          const src = card.video.querySelector("source");
+          if (src && src.dataset.src) { src.src = src.dataset.src; card.video.load(); }
+          card.loaded = true;
+        }
+        const pr = card.video.play();
+        if (pr && pr.catch) pr.catch(() => {});
+        card.media.classList.add("playing");
+        card.playing = true;
+        activeVideo = card;
+      } else {
+        try { card.video.pause(); } catch (e) {}
+        card.media.classList.remove("playing");
+        card.playing = false;
+        if (activeVideo === card) activeVideo = null;
+      }
+    }
+
+    /* position every card to its spline point each frame */
+    function layoutCards(t) {
+      let bestVideo = null, bestDist = Infinity;
+      const cx = W * 0.5, cy = H * 0.5;
+
+      for (const card of cards) {
+        const sample = sampleAt(card.s, t);
+        if (!sample) { card.el.style.opacity = "0"; setVideoState(card, false); continue; }
+
+        const onScreen = sample.y > -H * 0.4 && sample.y < H * 1.4;
+        if (!onScreen) {
+          card.el.style.opacity = "0";
+          card.el.style.pointerEvents = "none";
+          setVideoState(card, false);
+          continue;
+        }
+
+        // rotation: clamp so text stays readable, but follow the tangent feel
+        let deg;
+        if (mobile) {
+          deg = 0; // phone: keep cards flat, river is a slim spine
+        } else {
+          // tangent angle relative to vertical-ish flow; clamp to a gentle tilt
+          let a = sample.angle * 180 / Math.PI;
+          // normalize so a near-horizontal tangent maps to a small tilt
+          if (a > 90) a -= 180;
+          if (a < -90) a += 180;
+          deg = Math.max(-16, Math.min(16, a * 0.5));
+        }
+
+        // fade near top/bottom edges so cards dissolve into the flow
+        let op = 1;
+        const edge = 140;
+        if (sample.y < edge) op = Math.max(0, sample.y / edge);
+        else if (sample.y > H - edge) op = Math.max(0, (H - sample.y) / edge);
+
+        card.el.style.opacity = op.toFixed(3);
+        card.el.style.pointerEvents = op > 0.4 ? "auto" : "none";
+        card.el.style.transform =
+          "translate(" + sample.x.toFixed(1) + "px," + sample.y.toFixed(1) + "px) rotate(" + deg.toFixed(2) + "deg)";
+
+        // pick the most central video to be the one playing
+        if (card.type === "video" && op > 0.5) {
+          const d = Math.hypot(sample.x - cx, sample.y - cy);
+          if (d < bestDist) { bestDist = d; bestVideo = card; }
+        }
+      }
+
+      // drive video playback: only the most central, sufficiently-visible one
+      for (const card of cards) {
+        if (card.type !== "video") continue;
+        setVideoState(card, card === bestVideo && bestDist < H * 0.5);
+      }
+    }
+
+    /* ====================================================================
+       SCROLL -> OFFSET
+       Scroll position maps to a river-space offset. The page is a tall
+       spacer; we read scrollY as a normalized progress and advance offset.
+       ==================================================================== */
+    const spacer = document.getElementById("scroll-spacer");
+    let targetOffset = 0;
+    let scrollProg = 0;
+
+    function onScroll() {
+      const max = spacer.offsetHeight - window.innerHeight;
+      const y = Math.min(Math.max(window.scrollY, 0), Math.max(1, max));
+      scrollProg = y / Math.max(1, max);
+      // total river travel: span all cards plus headroom
+      const totalS = CARD_START + (DATA.works.length - 1) * CARD_SPACING + 4;
+      targetOffset = scrollProg * totalS;
+      updateChrome();
+    }
+
+    function updateChrome() {
+      const bar = document.getElementById("progBar");
+      const h = 100 - 18;
+      bar.style.top = (scrollProg * h).toFixed(1) + "%";
+      const cue = document.getElementById("cue");
+      cue.style.opacity = scrollProg > 0.04 ? "0" : "1";
+      const endnote = document.getElementById("endnote");
+      if (scrollProg > 0.93) endnote.classList.add("show");
+      else endnote.classList.remove("show");
+    }
+
+    /* ====================================================================
+       MAIN LOOP
+       ==================================================================== */
+    let raf = 0;
+    function frame(now) {
+      // ease offset toward scroll target
+      offset += (targetOffset - offset) * 0.12;
+
+      // continuous gentle upward flow drift (breathing river), frozen on reduced-motion
+      if (!reduceMotion) flowY += 0.18;
+      // wrap flowY so it never grows unbounded (keeps numbers small)
+      if (flowY > SEG) { flowY -= SEG; offset += 1; targetOffset += 1; }
+
+      recycle();
+      drawRiver(now);
+      layoutCards(now);
+
+      raf = requestAnimationFrame(frame);
+    }
+
+    /* ---------- init ---------- */
+    function init() {
+      resize();
+      seedChain();
+      onScroll();
+
+      if (reduceMotion) {
+        // No animation loop. The river never breathes and flowY stays put,
+        // so a render is fully deterministic: we paint once, then re-render
+        // only on demand (scroll / resize / focus) via renderStatic(). This
+        // keeps rAF off entirely for reduced-motion users, not just CSS.
+        renderStatic();
+      } else {
+        raf = requestAnimationFrame(frame);
+      }
+    }
+
+    window.addEventListener("resize", () => {
+      resize();
+      seedChain();
+      onScroll();
+    }, { passive: true });
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    // keyboard focus on a card scrolls it toward center (accessible nav)
+    layer.addEventListener("focusin", (e) => {
+      const card = e.target.closest(".card");
+      if (!card) return;
+      const idx = cards.findIndex(c => c.el === card);
+      if (idx < 0) return;
+      const totalS = CARD_START + (DATA.works.length - 1) * CARD_SPACING + 4;
+      const targetS = cards[idx].s - 0.3;
+      const prog = Math.max(0, Math.min(1, targetS / totalS));
+      const max = spacer.offsetHeight - window.innerHeight;
+      window.scrollTo({ top: prog * max, behavior: reduceMotion ? "auto" : "smooth" });
+    });
+
+    init();
+  })();
+  </script>
+</body>
+</html>

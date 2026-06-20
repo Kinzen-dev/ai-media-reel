@@ -1,0 +1,724 @@
+<!-- TEMPLATE: Ink Bleed Index | ARCHETYPE: css-houdini-paint | REF: CSS Houdini Paint API (houdini.how 2025-2026; developer.chrome.com), Awwwards generative card borders 2026 | WHEN TO USE: a clean typographic portfolio whose card borders, dividers and hover fills are live CSS Houdini paint worklets at zero DOM cost | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Ink Bleed Index</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* =========================================================================
+     INK BLEED INDEX  -  CSS Houdini Paint worklets as the decoration system
+     -------------------------------------------------------------------------
+     TWO registered paint worklets, both loaded inline via a Blob URL so this
+     file stays 100% self-contained (no external .js worklet file):
+
+       paint(ink-bleed)  organic procedural ink-bleed border around every
+                         card. Repaints from --seed (per-card identity) and
+                         --progress (0..1, scroll-driven bloom + idle drift).
+                         ACTIVE on all cards at scroll=0.
+
+       paint(voronoi)    animated Voronoi-ish noise fill that floods the card
+                         on hover / focus, driven by --fill (0..1) and --t.
+
+     No <canvas> in the DOM. No WebGL. The worklet output IS the ornament.
+     Guardrail: @supports (background: paint(x)) gates the whole system;
+     without Paint API support every card falls back to a plain 1px border.
+     prefers-reduced-motion freezes --progress / --t and shows final state.
+     ========================================================================= */
+
+  :root {
+    --paper:    #f4f0e8;  /* warm paper        */
+    --paper-2:  #ece6d8;  /* deeper paper      */
+    --ink:      #111111;  /* ink               */
+    --ink-soft: #4a463e;  /* muted ink         */
+    --amber:    #d4a84b;  /* amber accent      */
+    --verm:     #c0392b;  /* vermilion accent  */
+    --hair:     rgba(17,17,17,0.14);
+
+    /* animatable custom properties used by the worklets + CSS. Registered
+       below with @property so they can be transitioned / animated smoothly. */
+  }
+
+  /* --- @property: make worklet inputs real animatable typed values -------- */
+  @property --progress {
+    syntax: '<number>'; inherits: false; initial-value: 0;
+  }
+  /* --fill / --t / --seed inherit so the .flood child reads the card's values
+     without JS having to set them twice. */
+  @property --fill {
+    syntax: '<number>'; inherits: true; initial-value: 0;
+  }
+  @property --t {
+    syntax: '<number>'; inherits: true; initial-value: 0;
+  }
+  @property --seed {
+    syntax: '<number>'; inherits: true; initial-value: 1;
+  }
+  @property --ink-1 {
+    syntax: '<color>'; inherits: true; initial-value: #111111;
+  }
+  @property --ink-2 {
+    syntax: '<color>'; inherits: true; initial-value: #c0392b;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background:
+      radial-gradient(120% 80% at 50% -10%, #fbf8f1 0%, var(--paper) 46%, var(--paper-2) 100%);
+    color: var(--ink);
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+
+  /* faint paper-grain via a third tiny worklet would be overkill; a cheap
+     repeating gradient gives the same dry-paper feel at zero cost. */
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(17,17,17,0.018) 0 1px, transparent 1px 3px),
+      repeating-linear-gradient(90deg, rgba(17,17,17,0.014) 0 1px, transparent 1px 3px);
+    mix-blend-mode: multiply; opacity: 0.6;
+  }
+
+  .wrap { position: relative; z-index: 1; max-width: 1240px; margin: 0 auto; padding: 0 28px 96px; }
+
+  /* ---------------------------------------------------------------- masthead
+     Compact top band. Headline sits ABOVE a populated grid so the signature
+     ink-bleed borders are already visible at scroll=0 (no title-only hero). */
+  header.mast {
+    padding: 30px 0 18px;
+    display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 18px;
+    border-bottom: 1px solid var(--hair);
+  }
+  .mast h1 {
+    margin: 0; font-weight: 900; line-height: 0.9; letter-spacing: -0.02em;
+    font-size: clamp(2.4rem, 6vw, 5.1rem);
+    font-variation-settings: "opsz" 144;
+  }
+  .mast h1 em { font-style: italic; color: var(--verm); font-weight: 400; }
+  .mast .meta { text-align: right; }
+  .mast .kicker {
+    font-family: "IBM Plex Mono", monospace; font-size: 0.66rem; letter-spacing: 0.26em;
+    text-transform: uppercase; color: var(--ink-soft); margin: 0 0 6px;
+  }
+  .mast .sub {
+    font-family: "IBM Plex Mono", monospace; font-size: 0.74rem; color: var(--ink-soft);
+    margin: 0; max-width: 30ch; line-height: 1.5;
+  }
+
+  /* a Houdini-painted hair divider: a thin ink-bleed strip. Decorative, cheap. */
+  .rule {
+    height: 18px; margin: 14px 0 4px;
+    background: paint(ink-bleed);
+    --seed: 7; --progress: 1; --ink-1: var(--amber); --ink-2: var(--ink);
+  }
+
+  /* ------------------------------------------------------------------- index */
+  .index {
+    display: grid; gap: 26px;
+    grid-template-columns: repeat(3, 1fr);
+    padding-top: 30px;
+  }
+
+  /* ------------------------------------------------------------------- card
+     The whole frame ornament is the worklet. The card is a padded box; the
+     ink-bleed frame is painted as the card BACKGROUND and blooms INWARD into
+     the generous gutter so the wet, organic edge is fully visible (nothing to
+     clip it). Real content (media + text) sits inside that gutter. */
+  .card {
+    position: relative; isolation: isolate;
+    padding: 22px 22px 20px; border-radius: 2px;
+    background: paint(ink-bleed);
+    /* default fallback border (replaced by @supports block when paint() works)*/
+    border: 1px solid var(--ink);
+    --seed: 1; --progress: 0; --fill: 0; --t: 0;
+    --ink-1: var(--ink); --ink-2: var(--verm);
+    transition: transform .5s cubic-bezier(.2,.7,.2,1), --fill .55s ease;
+    cursor: pointer; text-decoration: none; color: inherit; display: block;
+  }
+  .card:hover, .card:focus-visible { transform: translateY(-4px); }
+  .card:focus-visible { outline: 2px solid var(--verm); outline-offset: 4px; }
+
+  /* media frame: letterbox, never cover-crop. object-fit contain on paper. */
+  .card .frame {
+    position: relative; aspect-ratio: 4 / 3; border-radius: 1px; overflow: hidden;
+    background: #15130f;
+    display: grid; place-items: center;
+  }
+  .card .frame img,
+  .card .frame video {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+  }
+  /* portrait-ish assets letterbox instead of crop */
+  .card .frame.contain img,
+  .card .frame.contain video { object-fit: contain; background: #15130f; }
+
+  /* VORONOI FLOOD: a painted overlay sitting ON TOP of the media, revealed on
+     hover. mix-blend screen so the procedural ink veins glow over the image
+     without hiding it. --fill drives coverage; --t shimmers the cells. */
+  .card .flood {
+    position: absolute; inset: 0; z-index: 2; pointer-events: none;
+    background: paint(voronoi);
+    mix-blend-mode: screen; opacity: 0;
+    transition: opacity .5s ease;
+  }
+  .card.hot .flood { opacity: 0.92; }
+
+  .card .frame .badge {
+    position: absolute; left: 8px; top: 8px; z-index: 3;
+    font-family: "IBM Plex Mono", monospace; font-size: 0.6rem; letter-spacing: 0.14em;
+    text-transform: uppercase; padding: 3px 7px; border-radius: 1px;
+    background: rgba(244,240,232,0.92); color: var(--ink);
+  }
+  .card .frame .play {
+    position: absolute; z-index: 3; inset: 0; margin: auto; width: 46px; height: 46px;
+    display: grid; place-items: center; border-radius: 50%;
+    background: rgba(17,17,17,0.55); color: var(--paper); pointer-events: none;
+    transition: opacity .3s ease, transform .3s ease;
+  }
+  .card.playing .frame .play { opacity: 0; transform: scale(.6); }
+
+  .card .body { padding: 13px 4px 4px; }
+  .card .no {
+    font-family: "IBM Plex Mono", monospace; font-size: 0.62rem; letter-spacing: 0.2em;
+    color: var(--ink-soft);
+  }
+  .card h3 {
+    margin: 4px 0 5px; font-weight: 600; font-size: 1.32rem; line-height: 1.04;
+    letter-spacing: -0.01em;
+  }
+  .card .tool {
+    margin: 0; font-family: "IBM Plex Mono", monospace; font-size: 0.7rem;
+    color: var(--verm); letter-spacing: 0.04em;
+  }
+  .card .desc {
+    margin: 8px 0 0; font-size: 0.92rem; line-height: 1.45; color: var(--ink-soft);
+    font-weight: 300;
+  }
+
+  /* ------------------------------------------------- @supports paint gate
+     When paint() works: kill the fallback border, let the worklet own the
+     edge, and give the card a faint paper fill so the flood reads on top.   */
+  @supports (background: paint(x)) {
+    .card {
+      border: 0;
+      /* paper base under the two paint() layers so the card has substance */
+      background-color: transparent;
+    }
+    .card .support-note { display: none; }
+  }
+  /* When paint() is NOT supported: hide painted rule, show note */
+  @supports not (background: paint(x)) {
+    .rule { background: linear-gradient(90deg, var(--amber), var(--ink)); }
+    .card { background: #fbf8f1; }
+  }
+  .support-note {
+    display: none; font-family: "IBM Plex Mono", monospace; font-size: 0.68rem;
+    color: var(--ink-soft);
+  }
+  @supports not (background: paint(x)) { .support-note { display: block; margin-top: 22px; } }
+
+  /* ------------------------------------------------------------------ footer */
+  footer {
+    margin-top: 60px; padding-top: 22px; border-top: 1px solid var(--hair);
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+    font-family: "IBM Plex Mono", monospace; font-size: 0.68rem; color: var(--ink-soft);
+    letter-spacing: 0.04em;
+  }
+  footer a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--amber); }
+
+  /* ----------------------------------------------------------- responsive */
+  @media (max-width: 980px) {
+    .index { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 640px) {
+    .wrap { padding: 0 16px 64px; }
+    header.mast { grid-template-columns: 1fr; align-items: start; gap: 10px; }
+    .mast .meta { text-align: left; }
+    .index { grid-template-columns: 1fr; gap: 20px; }
+    .card .frame { aspect-ratio: 16 / 10; } /* still letterbox-safe via cover w/ contain class for portraits */
+  }
+
+  /* ------------------------------------------------ reduced motion: freeze */
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .card { transition: none; }
+    /* --progress / --t are frozen by JS (rAF disabled); final state shown. */
+  }
+</style>
+</head>
+<body>
+
+<!-- ===================================================================== -->
+<!-- DATA: edit this array to swap the whole index. Each entry = one card.   -->
+<!--   type   : "image" | "video"                                           -->
+<!--   src     : media path (relative to this file, in ../assets/)          -->
+<!--   poster  : video poster (videos only)                                 -->
+<!--   contain : true to letterbox (portrait / non-4:3) instead of cover    -->
+<!--   ink1/ink2: the two ink colors this card's worklet bleeds with        -->
+<!-- ===================================================================== -->
+<script>
+const DATA = [
+  {
+    no: "01", title: "Wet Neon Coupe", tool: "FLUX.1 / 4K still",
+    type: "image", src: "../assets/flux-car-4k.png", contain: false,
+    badge: "image", desc: "Cinematic matte-black coupe on a rain-slick neon street. Text-to-image, upscaled to 4K.",
+    ink1: "#111111", ink2: "#c0392b"
+  },
+  {
+    no: "02", title: "Coupe in Motion", tool: "FLUX i2v / loop",
+    type: "video", src: "../assets/flux-car-i2v.mp4", poster: "../assets/gen/poster-flux-car-i2v.png", contain: false,
+    badge: "video", desc: "The still, animated. Image-to-video pass adds a slow dolly and falling rain.",
+    ink1: "#111111", ink2: "#d4a84b"
+  },
+  {
+    no: "03", title: "Mint & Wood Clinic", tool: "FLUX.1 / 4K still",
+    type: "image", src: "../assets/flux-clinic-4k.png", contain: false,
+    badge: "image", desc: "Warm dental interior, mint cabinetry on oak. Generated environment plate.",
+    ink1: "#3a6a4a", ink2: "#d4a84b"
+  },
+  {
+    no: "04", title: "Kling Sequence", tool: "Kling / text-to-video",
+    type: "video", src: "../assets/kling-video.mp4", poster: "../assets/gen/poster-kling-video.png", contain: false,
+    badge: "video", desc: "A fully generated motion clip. Coherent camera, soft physical light.",
+    ink1: "#111111", ink2: "#c0392b"
+  },
+  {
+    no: "05", title: "Autumn Fox", tool: "SDXL / painterly",
+    type: "image", src: "../assets/sdxl.png", contain: false,
+    badge: "image", desc: "Painterly diffusion study. Loose brush energy, warm-cool split.",
+    ink1: "#b5642a", ink2: "#c0392b"
+  },
+  {
+    no: "06", title: "Veo Plate", tool: "Veo / video",
+    type: "video", src: "../assets/veo-video.mp4", poster: "../assets/gen/poster-veo-video.png", contain: false,
+    badge: "video", desc: "High-fidelity generated footage with audio. Hover to focus and play.",
+    ink1: "#111111", ink2: "#d4a84b"
+  },
+  {
+    no: "07", title: "Hyperframes", tool: "frame interp / loop",
+    type: "video", src: "../assets/hyperframes.mp4", poster: "../assets/gen/poster-hyperframes.png", contain: false,
+    badge: "video", desc: "Interpolated frame study, looped. Smooth synthetic in-betweens.",
+    ink1: "#4a5a6a", ink2: "#d4a84b"
+  },
+  {
+    no: "08", title: "Talking Photo", tool: "D-ID / avatar",
+    type: "video", src: "../assets/did-talking-photo.mp4", poster: "../assets/gen/poster-did.png", contain: true,
+    badge: "avatar", desc: "A still portrait driven into speech. Letterboxed to keep the face whole.",
+    ink1: "#111111", ink2: "#c0392b"
+  },
+  {
+    no: "09", title: "Lo-Fi Apple", tool: "TinySD / abstract",
+    type: "image", src: "../assets/hf-tinysd.png", contain: false,
+    badge: "image", desc: "Tiny-model output. Abstract, low-fi, accidental composition kept on purpose.",
+    ink1: "#7a5a2a", ink2: "#c0392b"
+  }
+];
+</script>
+
+<div class="wrap">
+  <header class="mast">
+    <div>
+      <p class="kicker">Generative Studio / Index 2026</p>
+      <h1>Ink <em>Bleed</em><br>Catalogue</h1>
+    </div>
+    <div class="meta">
+      <p class="sub">Every card edge is a live CSS Houdini paint worklet. The border bleeds from a per-card seed; hover floods a Voronoi fill. Zero canvas, zero DOM cost.</p>
+    </div>
+  </header>
+
+  <div class="rule" aria-hidden="true"></div>
+
+  <main class="index" id="index"><!-- cards injected --></main>
+
+  <p class="support-note">Your browser does not support the CSS Painting API. Showing the plain-border fallback. For the live ink-bleed effect, use a Chromium-based browser.</p>
+
+  <footer>
+    <span>09 works / procedural ornament</span>
+    <span>paint(ink-bleed) + paint(voronoi) / <a href="https://houdini.how" target="_blank" rel="noopener">houdini.how</a></span>
+  </footer>
+</div>
+
+<!-- ===================================================================== -->
+<!-- WORKLET SOURCE  -  registered inline via Blob URL (self-contained).    -->
+<!-- ===================================================================== -->
+<script id="worklet-src" type="text/worklet">
+/* ---------------------------------------------------------------- helpers */
+/* deterministic PRNG so each --seed gives a stable, repeatable bleed shape */
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function num(props, name, fb){
+  const v = parseFloat(String(props.get(name)));
+  return Number.isFinite(v) ? v : fb;
+}
+
+/* ============================================================ ink-bleed ===
+   An organic, hand-inked frame. We walk the rectangle perimeter and, at
+   pseudo-random anchor points, push out soft ink blobs whose radius grows
+   with --progress. Low progress = thin dry line; high = wet, blooming edge.
+*/
+registerPaint('ink-bleed', class {
+  static get inputProperties(){ return ['--seed','--progress','--ink-1','--ink-2']; }
+  static get contextOptions(){ return { alpha: true }; }
+
+  paint(ctx, size, props){
+    const W = size.width, H = size.height;
+    const seed = num(props,'--seed',1);
+    const prog = Math.max(0, Math.min(1, num(props,'--progress',0)));
+    const ink1 = String(props.get('--ink-1')).trim() || '#111';
+    const ink2 = String(props.get('--ink-2')).trim() || '#c0392b';
+    const rnd  = mulberry32(Math.floor(seed*7919) + 13);
+
+    // frame sits INSIDE the box; blobs bleed INWARD so nothing clips them.
+    const pad = 10;
+    const x0 = pad, y0 = pad, x1 = W - pad, y1 = H - pad;
+    const w = x1 - x0, h = y1 - y0;
+    const peri = 2*(w+h);
+
+    // helper: point + INWARD normal at perimeter distance d
+    function edgeAt(d){
+      let px, py, nx, ny;
+      if(d < w){ px = x0 + d;             py = y0; nx = 0;  ny = 1; }
+      else if(d < w+h){ px = x1;          py = y0 + (d-w); nx = -1; ny = 0; }
+      else if(d < 2*w+h){ px = x1-(d-w-h);py = y1; nx = 0;  ny = -1; }
+      else { px = x0;                     py = y1 - (d-2*w-h); nx = 1; ny = 0; }
+      return [px,py,nx,ny];
+    }
+
+    // 1) dry hand-inked stroke: a wandering rectangle, thickens with progress
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.strokeStyle = ink1;
+    ctx.globalAlpha = 0.92;
+    ctx.lineWidth = 2.2 + prog*2.6;
+    ctx.beginPath();
+    const SEG = 96;
+    for(let i=0;i<=SEG;i++){
+      const d = (i/SEG)*peri;
+      const [px,py] = edgeAt(d);
+      const j = 2.0 + prog*1.4;                 // wobble grows when wet
+      const ox = px + (rnd()-0.5)*j;
+      const oy = py + (rnd()-0.5)*j;
+      if(i===0) ctx.moveTo(ox,oy); else ctx.lineTo(ox,oy);
+    }
+    ctx.closePath(); ctx.stroke();
+
+    // 2) wet ink blobs blooming INWARD off the perimeter
+    const blobs = 40;
+    for(let i=0;i<blobs;i++){
+      const d = rnd()*peri;
+      const [px,py,nx,ny] = edgeAt(d);
+      const base = 3.0 + rnd()*6.5;
+      const r = base * (0.45 + prog*1.7);        // grows with progress
+      const push = prog * (3 + rnd()*10);         // bleeds inward
+      const cx = px + nx*push, cy = py + ny*push;
+
+      const useAccent = rnd() < 0.36;
+      const col = useAccent ? ink2 : ink1;
+      const g = ctx.createRadialGradient(cx,cy,0,cx,cy,r*2.4);
+      g.addColorStop(0, col);
+      g.addColorStop(0.5, col);
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.globalAlpha = 0.28 + prog*0.55;
+      ctx.beginPath();
+      const lobes = 3 + Math.floor(rnd()*4);     // irregular splat
+      for(let k=0;k<lobes;k++){
+        const a = rnd()*6.283;
+        const rr = r*(0.55 + rnd()*0.8);
+        const ox = cx + Math.cos(a)*r*0.7;
+        const oy = cy + Math.sin(a)*r*0.7;
+        ctx.moveTo(ox+rr, oy);
+        ctx.arc(ox, oy, rr, 0, 6.283);
+      }
+      ctx.fill();
+    }
+
+    // 3) fine spatter flecks scattered just inside the frame (printed feel)
+    const flecks = 60;
+    ctx.fillStyle = ink1;
+    for(let i=0;i<flecks;i++){
+      const d = rnd()*peri;
+      const [px,py,nx,ny] = edgeAt(d);
+      const off = rnd()*16*(0.4+prog);
+      const fx = px + nx*off + (rnd()-0.5)*10;
+      const fy = py + ny*off + (rnd()-0.5)*10;
+      ctx.globalAlpha = (0.1 + prog*0.4) * rnd();
+      const s = 0.5 + rnd()*1.6;
+      ctx.beginPath(); ctx.arc(fx, fy, s, 0, 6.283); ctx.fill();
+    }
+
+    // 4) vermilion corner ticks for a registration-mark, printed look
+    ctx.globalAlpha = 0.7 + prog*0.3;
+    ctx.fillStyle = ink2;
+    const corners = [[x0,y0],[x1,y0],[x1,y1],[x0,y1]];
+    for(const [cxp,cyp] of corners){
+      const s = 3 + prog*3.2;
+      ctx.beginPath(); ctx.arc(cxp,cyp,s,0,6.283); ctx.fill();
+    }
+  }
+});
+
+/* ============================================================== voronoi ===
+   Cheap Voronoi-ish flood for the hover fill. We scatter seed points,
+   then shade a coarse cell grid by distance to the two nearest seeds (the
+   classic F2-F1 edge function) to get organic veined cells. --fill controls
+   coverage + opacity; --t animates the seeds for a living shimmer.
+*/
+registerPaint('voronoi', class {
+  static get inputProperties(){ return ['--seed','--fill','--t','--ink-1','--ink-2']; }
+  static get contextOptions(){ return { alpha: true }; }
+
+  paint(ctx, size, props){
+    const W = size.width, H = size.height;
+    const fill = Math.max(0, Math.min(1, num(props,'--fill',0)));
+    if(fill <= 0.001) return; // nothing to draw when not hovered
+    const seed = num(props,'--seed',1);
+    const t = num(props,'--t',0);
+    const ink2 = String(props.get('--ink-2')).trim() || '#c0392b';
+    const rnd = mulberry32(Math.floor(seed*104729) + 3);
+
+    // scatter N drifting seed points
+    const N = 13;
+    const pts = [];
+    for(let i=0;i<N;i++){
+      const bx = rnd()*W, by = rnd()*H;
+      const sp = 0.5 + rnd()*1.1, ph = rnd()*6.283;
+      pts.push([
+        bx + Math.cos(t*sp + ph) * (W*0.07),
+        by + Math.sin(t*sp*1.3 + ph) * (H*0.07)
+      ]);
+    }
+
+    const cx = W*0.5, cy = H*0.5;
+    const maxR = Math.hypot(cx,cy);
+    // coarse cell raster (kept coarse: this is the only per-frame cost)
+    const STEP = 8;
+    for(let y=0;y<H;y+=STEP){
+      for(let x=0;x<W;x+=STEP){
+        // radial reveal from center so the flood "blooms" in with --fill
+        const rd = Math.hypot(x-cx, y-cy) / maxR;
+        if(rd > fill*1.18) continue;
+        const edgeFade = Math.max(0, 1 - (rd/(fill*1.18))); // soft outer rim
+
+        let d1 = 1e9, d2 = 1e9, id = 0;
+        for(let i=0;i<N;i++){
+          const dx = x - pts[i][0], dy = y - pts[i][1];
+          const d = dx*dx + dy*dy;
+          if(d < d1){ d2 = d1; d1 = d; id = i; }
+          else if(d < d2){ d2 = d; }
+        }
+        const edge = Math.sqrt(d2) - Math.sqrt(d1); // small near cell walls
+        const wall = Math.max(0, 1 - edge/9);        // 1 on the vein, 0 inside
+
+        // cell body: faint warm tint (screen-blends to a glow over dark media)
+        ctx.globalAlpha = 0.10 * fill * edgeFade;
+        ctx.fillStyle = (id % 3 === 0) ? '#3a2a18' : '#241c12';
+        ctx.fillRect(x, y, STEP, STEP);
+        // veins: the bright accent ink, this is what the eye reads
+        if(wall > 0.1){
+          ctx.globalAlpha = wall * 0.85 * fill * edgeFade;
+          ctx.fillStyle = ink2;
+          ctx.fillRect(x, y, STEP, STEP);
+        }
+      }
+    }
+
+    // bright seed nuclei pulsing with --t
+    for(let i=0;i<N;i++){
+      const rd = Math.hypot(pts[i][0]-cx, pts[i][1]-cy)/maxR;
+      if(rd > fill*1.1) continue;
+      const pulse = 0.6 + 0.4*Math.sin(t*2 + i);
+      ctx.globalAlpha = 0.8*fill*pulse;
+      ctx.fillStyle = '#f4f0e8';
+      ctx.beginPath(); ctx.arc(pts[i][0], pts[i][1], 1.8, 0, 6.283); ctx.fill();
+    }
+  }
+});
+</script>
+
+<!-- ===================================================================== -->
+<!-- MAIN  -  build the index, register worklets, drive --progress / --t.   -->
+<!-- ===================================================================== -->
+<script>
+(function(){
+  "use strict";
+  const REDUCE = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const PAINT_OK = (typeof CSS !== 'undefined') && CSS.paintWorklet
+    && (CSS.supports ? CSS.supports('background', 'paint(x)') : true);
+
+  /* ---- 1. render cards from DATA --------------------------------------- */
+  const index = document.getElementById('index');
+  const cards = [];
+  DATA.forEach((d, i) => {
+    const a = document.createElement('a');
+    a.className = 'card';
+    a.href = d.src; a.target = '_blank'; a.rel = 'noopener';
+    a.setAttribute('aria-label', d.title + ' / ' + d.tool);
+    // each card gets a stable, distinct seed
+    const seed = 11 + i * 7;
+    a.style.setProperty('--seed', seed);
+    a.style.setProperty('--ink-1', d.ink1);
+    a.style.setProperty('--ink-2', d.ink2);
+    a.dataset.idx = i;
+
+    const frameClass = 'frame' + (d.contain ? ' contain' : '');
+    let media;
+    if (d.type === 'video') {
+      media = `<video class="vid" playsinline muted loop preload="none"
+                 poster="${d.poster}" data-src="${d.src}"></video>
+               <div class="play" aria-hidden="true">&#9654;</div>`;
+    } else {
+      media = `<img src="${d.src}" alt="${d.title}, ${d.tool}" loading="lazy" decoding="async" />`;
+    }
+
+    a.innerHTML = `
+      <div class="${frameClass}">
+        <span class="badge">${d.badge}</span>
+        ${media}
+        <div class="flood" aria-hidden="true"></div>
+      </div>
+      <div class="body">
+        <div class="no">${d.no} / ${String(DATA.length).padStart(2,'0')}</div>
+        <h3>${d.title}</h3>
+        <p class="tool">${d.tool}</p>
+        <p class="desc">${d.desc}</p>
+      </div>`;
+    index.appendChild(a);
+    cards.push(a);
+  });
+
+  /* ---- 2. register the two worklets inline via a Blob URL -------------- */
+  if (PAINT_OK) {
+    const src = document.getElementById('worklet-src').textContent;
+    const blob = new Blob([src], { type: 'application/javascript' });
+    const url = URL.createObjectURL(blob);
+    CSS.paintWorklet.addModule(url).catch(() => {/* fallback border stays */});
+  }
+
+  /* ---- 3. scroll-driven --progress bloom on the ink-bleed borders ------
+     At scroll=0 cards already carry a partial bleed (so the signature reads
+     in a thumbnail). As each card nears viewport center it blooms to full. */
+  function setProgress(){
+    const vh = window.innerHeight || 800;
+    cards.forEach(c => {
+      const r = c.getBoundingClientRect();
+      const center = r.top + r.height/2;
+      // distance of card center from viewport center, normalised
+      const dist = Math.abs(center - vh/2) / vh;       // 0 = centered
+      let p = 1 - Math.min(1, dist * 1.25);            // 1 near center
+      p = 0.34 + p * 0.66;                             // floor so edges live at scroll=0
+      c.style.setProperty('--progress', p.toFixed(3));
+    });
+  }
+
+  if (REDUCE) {
+    // frozen final state: every border fully bloomed, no rAF, no drift
+    cards.forEach(c => c.style.setProperty('--progress', '1'));
+  } else {
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return; ticking = true;
+      requestAnimationFrame(() => { setProgress(); ticking = false; });
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+    setProgress();
+
+    /* idle drift: a very slow --progress shimmer so the borders feel wet
+       even when the page is still. One shared rAF, throttled to ~20fps.    */
+    let last = 0, base = 0;
+    function tick(now){
+      if (now - last > 50){               // ~20fps is plenty for ink drift
+        last = now;
+        base += 0.012;
+        const breathe = (Math.sin(base) * 0.5 + 0.5) * 0.08; // small
+        cards.forEach(c => {
+          const cur = parseFloat(c.style.getPropertyValue('--progress')) || 0.34;
+          // only nudge cards not currently hovered (those get full flood)
+          if (!c.classList.contains('hot')) {
+            c.style.setProperty('--progress', Math.min(1, cur + breathe).toFixed(3));
+          }
+        });
+      }
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  /* ---- 4. hover / focus = voronoi flood + animate --t ------------------
+     One rAF per active card (only while hot). --fill is CSS-transitioned;
+     --t we drive in JS so the Voronoi cells shimmer while hovered. Reduced
+     motion shows a static flood (no --t animation).                        */
+  const hotTimers = new WeakMap();
+
+  function activate(card){
+    if (card.classList.contains('hot')) return;
+    card.classList.add('hot');
+    card.style.setProperty('--fill', '1');
+    // play the focused video only (poster->src swap, lazy)
+    const vid = card.querySelector('video');
+    if (vid) {
+      if (!vid.src && vid.dataset.src) vid.src = vid.dataset.src;
+      vid.play().then(() => card.classList.add('playing')).catch(()=>{});
+    }
+    if (REDUCE) { card.style.setProperty('--t', '1'); return; }
+    let t0 = performance.now();
+    function loop(now){
+      if (!card.classList.contains('hot')) return;
+      const t = (now - t0) / 1000;
+      card.style.setProperty('--t', t.toFixed(3));
+      hotTimers.set(card, requestAnimationFrame(loop));
+    }
+    hotTimers.set(card, requestAnimationFrame(loop));
+  }
+  function deactivate(card){
+    card.classList.remove('hot');
+    card.style.setProperty('--fill', '0');
+    const raf = hotTimers.get(card);
+    if (raf) cancelAnimationFrame(raf);
+    const vid = card.querySelector('video');
+    if (vid) { vid.pause(); card.classList.remove('playing'); }
+  }
+
+  cards.forEach(c => {
+    c.addEventListener('mouseenter', () => activate(c));
+    c.addEventListener('mouseleave', () => deactivate(c));
+    c.addEventListener('focus', () => activate(c));
+    c.addEventListener('blur', () => deactivate(c));
+    // touch: tap once to flood + play, tap again navigates (native <a>)
+    c.addEventListener('touchstart', () => activate(c), { passive: true });
+  });
+
+  /* ---- 5. pause offscreen videos (safety for any that got played) ------ */
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (!e.isIntersecting) {
+          const v = e.target.querySelector('video');
+          if (v && !e.target.classList.contains('hot')) v.pause();
+        }
+      });
+    }, { threshold: 0.1 });
+    cards.forEach(c => io.observe(c));
+  }
+})();
+</script>
+</body>
+</html>

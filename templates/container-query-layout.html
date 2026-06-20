@@ -1,0 +1,710 @@
+<!-- TEMPLATE: Living Grid | ARCHETYPE: container-query-layout | REF: CSS Container Queries (Baseline 2023, Smashing 2026); Codrops Container Queries in 2026 | WHEN TO USE: portfolio/case-study grid where each card must self-rearrange its own internals as density changes | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Living Grid - Container Query Portfolio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   DATA lives in the <script> at the very bottom.
+   Visual + layout system below. The card self-governs via
+   @container inline-size queries: the grid only sets how many
+   columns exist; each card decides its OWN internal layout.
+   ============================================================ */
+
+:root{
+  --paper:#f8f5f0;
+  --ink:#1a1614;
+  --ink-soft:#5c544d;
+  --ink-faint:#9a9088;
+  --vermilion:#c94a2e;
+  --line:rgba(26,22,20,0.14);
+  --line-soft:rgba(26,22,20,0.07);
+  --shadow:rgba(26,22,20,0.10);
+  --gap:clamp(14px,1.6vw,26px);
+}
+
+*{box-sizing:border-box;margin:0;padding:0;}
+html{-webkit-text-size-adjust:100%;}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"Inter",system-ui,sans-serif;
+  font-size:16px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+}
+img,video{display:block;max-width:100%;}
+
+/* ---- Paper grain background ---- */
+body::before{
+  content:"";
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(120% 90% at 80% -10%, rgba(201,74,46,0.05), transparent 55%),
+    radial-gradient(90% 70% at 0% 110%, rgba(26,22,20,0.04), transparent 60%);
+}
+
+.wrap{position:relative;z-index:1;max-width:1560px;margin:0 auto;padding:0 clamp(16px,3vw,46px) 80px;}
+
+/* ============================================================
+   TOP BAND - compact, sits ABOVE the grid (no full hero)
+   ============================================================ */
+.band{
+  display:flex;align-items:flex-end;justify-content:space-between;gap:24px;
+  flex-wrap:wrap;
+  padding:clamp(22px,3vw,40px) 0 clamp(16px,2vw,26px);
+  border-bottom:1px solid var(--line);
+}
+.band__id{display:flex;align-items:center;gap:12px;}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--vermilion);box-shadow:0 0 0 4px rgba(201,74,46,0.14);}
+.band__id span{font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--ink-soft);font-weight:600;}
+.band h1{
+  font-family:"Fraunces",serif;font-weight:500;
+  font-size:clamp(30px,5.2vw,62px);line-height:.96;letter-spacing:-.02em;
+  margin-top:14px;max-width:13ch;
+}
+.band h1 em{font-style:italic;color:var(--vermilion);}
+.band__lede{
+  max-width:34ch;font-size:14px;line-height:1.55;color:var(--ink-soft);
+}
+.band__lede b{color:var(--ink);font-weight:600;}
+
+/* ============================================================
+   DENSITY CONTROL - the legible mechanic.
+   Drag the handle to set column count 1..5.
+   ============================================================ */
+.ctrl{
+  display:flex;align-items:center;gap:clamp(14px,2vw,30px);
+  flex-wrap:wrap;
+  padding:18px 0 22px;
+  border-bottom:1px solid var(--line);
+}
+.ctrl__label{
+  font-size:11px;letter-spacing:.28em;text-transform:uppercase;
+  color:var(--ink-soft);font-weight:600;white-space:nowrap;
+}
+.rail{
+  position:relative;flex:1 1 260px;min-width:220px;height:40px;
+  display:flex;align-items:center;
+  touch-action:none;
+}
+.rail__track{
+  position:absolute;left:0;right:0;height:2px;background:var(--line);
+}
+.rail__fill{
+  position:absolute;left:0;height:2px;background:var(--vermilion);
+  width:50%;
+}
+.rail__ticks{position:absolute;inset:0;display:flex;justify-content:space-between;align-items:center;pointer-events:none;}
+.rail__tick{
+  width:1px;height:10px;background:var(--line);position:relative;
+}
+.rail__tick.on{background:var(--vermilion);height:14px;}
+.rail__tick span{
+  position:absolute;top:18px;left:50%;transform:translateX(-50%);
+  font-size:10px;font-weight:600;color:var(--ink-faint);letter-spacing:.05em;
+}
+.rail__tick.on span{color:var(--vermilion);}
+.handle{
+  position:absolute;top:50%;left:50%;
+  width:30px;height:30px;border-radius:50%;
+  background:var(--vermilion);
+  transform:translate(-50%,-50%);
+  cursor:grab;
+  display:grid;place-items:center;
+  box-shadow:0 6px 18px rgba(201,74,46,0.40), inset 0 0 0 3px rgba(248,245,240,0.55);
+  z-index:3;
+  transition:box-shadow .18s ease;
+}
+.handle:active{cursor:grabbing;}
+.handle:focus-visible{outline:3px solid var(--ink);outline-offset:4px;}
+.handle::before,.handle::after{
+  content:"";width:2px;height:11px;background:var(--paper);border-radius:2px;
+  position:absolute;
+}
+.handle::before{transform:translateX(-3px);}
+.handle::after{transform:translateX(3px);}
+.handle:hover{box-shadow:0 8px 24px rgba(201,74,46,0.55), inset 0 0 0 3px rgba(248,245,240,0.7);}
+
+.count{
+  display:flex;align-items:baseline;gap:8px;white-space:nowrap;
+  font-family:"Fraunces",serif;
+}
+.count b{font-size:clamp(34px,4vw,46px);font-weight:600;color:var(--vermilion);line-height:1;font-variant-numeric:tabular-nums;}
+.count span{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft);font-family:"Inter",sans-serif;font-weight:600;}
+
+.touchhint{display:none;font-size:11px;color:var(--ink-faint);letter-spacing:.04em;}
+
+/* ============================================================
+   THE GRID. The ONLY thing the column count touches is
+   --cols. Everything else is decided by each card's @container.
+   ============================================================ */
+.grid{
+  --cols:3;
+  display:grid;
+  grid-template-columns:repeat(var(--cols),minmax(0,1fr));
+  gap:var(--gap);
+  margin-top:clamp(20px,2.6vw,34px);
+}
+
+/* ============================================================
+   CARD - a container. Its children read @container, not media.
+   ============================================================ */
+.card{
+  container-type:inline-size;
+  container-name:card;
+  position:relative;
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:14px;
+  overflow:hidden;
+  box-shadow:0 1px 0 rgba(255,255,255,0.6) inset, 0 10px 30px -18px var(--shadow);
+  transition:box-shadow .25s ease, transform .25s ease, border-color .25s ease;
+}
+.card:hover{box-shadow:0 18px 50px -22px var(--shadow);border-color:rgba(201,74,46,0.30);}
+.card:focus-within{border-color:var(--vermilion);}
+
+/* The single content block. Default (no container support / base) layout */
+.cc{
+  display:grid;
+  grid-template-columns:1fr;
+}
+
+/* MEDIA frame: letterboxed, never cover-crops a landscape into portrait at small sizes */
+.media{
+  position:relative;
+  background:#15110f;
+  overflow:hidden;
+}
+.media::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,0.05);
+}
+.media img,.media video{
+  width:100%;height:100%;object-fit:cover;display:block;
+}
+.media .badge{
+  position:absolute;top:10px;left:10px;z-index:2;
+  font-size:9px;letter-spacing:.18em;text-transform:uppercase;font-weight:600;
+  padding:4px 8px;border-radius:99px;
+  background:rgba(248,245,240,0.92);color:var(--ink);
+  backdrop-filter:blur(4px);
+}
+.media .play{
+  position:absolute;right:10px;bottom:10px;z-index:2;
+  width:30px;height:30px;border-radius:50%;
+  background:rgba(201,74,46,0.92);
+  display:grid;place-items:center;
+  box-shadow:0 4px 12px rgba(0,0,0,0.3);
+}
+.media .play::after{content:"";border-style:solid;border-width:5px 0 5px 8px;border-color:transparent transparent transparent #fff;margin-left:2px;}
+.card.playing .media .play::after{border-width:5px 3px;border-color:transparent #fff transparent #fff;margin-left:0;}
+
+/* TEXT block */
+.body{padding:16px 16px 18px;}
+.kicker{
+  font-size:10px;letter-spacing:.24em;text-transform:uppercase;font-weight:600;
+  color:var(--vermilion);margin-bottom:8px;display:flex;gap:8px;align-items:center;
+}
+.kicker .idx{color:var(--ink-faint);font-variant-numeric:tabular-nums;}
+.title{
+  font-family:"Fraunces",serif;font-weight:500;letter-spacing:-.01em;line-height:1.04;
+  color:var(--ink);font-size:clamp(19px,calc(2.3cqi + 14px),40px);
+}
+.dek{margin-top:10px;font-size:13.5px;line-height:1.55;color:var(--ink-soft);max-width:52ch;}
+.meta{
+  margin-top:14px;display:flex;flex-wrap:wrap;gap:8px 18px;
+  font-size:11px;color:var(--ink-soft);
+  border-top:1px solid var(--line-soft);padding-top:12px;
+}
+.meta .m b{display:block;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;margin-bottom:2px;}
+.meta .m span{font-weight:500;color:var(--ink);}
+.tags{margin-top:12px;display:flex;flex-wrap:wrap;gap:6px;}
+.tag{font-size:10px;font-weight:500;letter-spacing:.03em;color:var(--ink-soft);
+  border:1px solid var(--line);border-radius:99px;padding:3px 9px;}
+
+/* caption-only (compact) */
+.cap{display:none;padding:11px 13px;}
+.cap .ct{font-family:"Fraunces",serif;font-size:15px;font-weight:500;line-height:1.1;letter-spacing:-.005em;}
+.cap .cs{font-size:10.5px;color:var(--ink-soft);margin-top:3px;letter-spacing:.02em;}
+
+/* tooltip (sliver) */
+.sliver{
+  position:absolute;inset:0;display:flex;align-items:flex-end;
+  padding:9px;pointer-events:none;
+}
+.sliver .tip{
+  opacity:0;transform:translateY(6px);
+  transition:opacity .2s ease,transform .2s ease;
+  background:rgba(26,22,20,0.88);color:var(--paper);
+  font-size:10.5px;line-height:1.25;font-weight:500;letter-spacing:.01em;
+  padding:7px 9px;border-radius:8px;max-width:100%;
+  box-shadow:0 8px 22px rgba(0,0,0,0.35);
+}
+.sliver .tip b{color:#f0a392;display:block;font-size:9px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:2px;}
+
+/* ============================================================
+   @container RESHAPE RULES.
+   Each breakpoint = roughly the card width at a column count
+   on a desktop grid. The card reshapes its OWN internals.
+   Guarded behind @supports below.
+   ============================================================ */
+@supports (container-type:inline-size){
+
+  /* default visible state at base (caption hidden, sliver hidden) */
+  .cap{display:none;}
+  .sliver{display:none;}
+
+  /* ---- >= 820px  (1 COLUMN)  =>  editorial spread: image + text side-by-side ---- */
+  @container card (min-width:820px){
+    .card{border-radius:18px;}
+    .cc{grid-template-columns:1.05fr 1fr;align-items:stretch;}
+    .media{aspect-ratio:auto;min-height:100%;}
+    .media img,.media video{object-fit:cover;}
+    .body{padding:clamp(26px,4cqi,46px);display:flex;flex-direction:column;}
+    .title{font-size:clamp(34px,7cqi,60px);line-height:.98;}
+    .dek{font-size:15.5px;margin-top:16px;}
+    .meta{margin-top:auto;gap:14px 30px;padding-top:20px;}
+    .meta .m span{font-size:13px;}
+    .tags{margin-top:16px;}
+    .tag{font-size:11px;padding:4px 11px;}
+  }
+
+  /* ---- 520..819px  (2 COLUMNS)  =>  stacked card: image over condensed text ---- */
+  @container card (min-width:520px) and (max-width:819.98px){
+    .cc{grid-template-columns:1fr;}
+    .media{aspect-ratio:16/9;}
+    .body{padding:clamp(16px,2.4cqi,22px) clamp(16px,2.4cqi,22px) clamp(18px,2.6cqi,24px);}
+    .title{font-size:clamp(24px,4.4cqi,30px);}
+    .dek{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:14px;margin-top:11px;}
+    .meta{gap:10px 22px;}
+  }
+
+  /* ---- 370..519px  (3 COLUMNS)  =>  compact: image over a tight title + dek ---- */
+  @container card (min-width:370px) and (max-width:519.98px){
+    .cc{grid-template-columns:1fr;}
+    .media{aspect-ratio:16/10;}
+    .body{padding:14px 15px 16px;}
+    .title{font-size:21px;}
+    .dek{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:13px;margin-top:8px;}
+    .tags{display:none;}
+    .meta{gap:6px 16px;}
+  }
+
+  /* ---- 278..369px  (4 COLUMNS)  =>  thumbnail + caption (title + kicker only) ---- */
+  @container card (min-width:278px) and (max-width:369.98px){
+    .cc{grid-template-columns:1fr;}
+    .media{aspect-ratio:4/3;}
+    .body{display:none;}
+    .cap{display:block;}
+  }
+
+  /* ---- 190..277px  (5 COLUMNS at standard width)  =>  image tile, caption -> overlay strip ---- */
+  @container card (min-width:190px) and (max-width:277.98px){
+    .card{border-radius:11px;}
+    .cc{grid-template-columns:1fr;}
+    .media{aspect-ratio:1/1;}
+    .body{display:none;}
+    .cap{
+      display:block;position:absolute;left:0;right:0;bottom:0;
+      padding:18px 11px 9px;
+      background:linear-gradient(to top,rgba(21,17,15,0.86),transparent);
+      color:var(--paper);z-index:2;
+    }
+    .cap .ct{color:var(--paper);font-size:12.5px;}
+    .cap .cs{color:rgba(248,245,240,0.7);font-size:9.5px;}
+    .media .badge{display:none;}
+  }
+
+  /* ---- < 190px  (narrow viewport / many columns)  =>  dense sliver, hover-only tooltip ---- */
+  @container card (max-width:189.98px){
+    .card{border-radius:8px;}
+    .cc{grid-template-columns:1fr;}
+    .media{aspect-ratio:3/4;}
+    .body,.cap{display:none;}
+    .media .badge,.media .play{display:none;}
+    .sliver{display:flex;}
+    .card:hover .sliver .tip,
+    .card:focus-within .sliver .tip{opacity:1;transform:translateY(0);}
+  }
+}
+
+/* ============================================================
+   FALLBACK (no container query support): standard media-query
+   layout. The grid still shifts column count via --cols, and
+   cards present the editorial body at all sizes.
+   ============================================================ */
+@supports not (container-type:inline-size){
+  .cap,.sliver{display:none;}
+  .media{aspect-ratio:16/10;}
+  .body{display:block;}
+  .grid{--cols:2 !important;}
+  @media (min-width:1100px){.grid{--cols:3 !important;}}
+}
+
+/* footer note */
+.foot{
+  margin-top:46px;padding-top:22px;border-top:1px solid var(--line);
+  display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;
+  font-size:11px;color:var(--ink-faint);letter-spacing:.04em;
+}
+.foot b{color:var(--ink-soft);font-weight:600;}
+
+/* ============================================================
+   MOBILE: handle hidden, column count is fixed responsive CSS.
+   Media letterboxed (object-fit:contain) so a landscape asset
+   is never cover-cropped into a portrait phone frame.
+   ============================================================ */
+@media (hover:none) and (pointer:coarse){
+  .rail{display:none;}
+  .count{display:none;}
+  .touchhint{display:block;}
+}
+@media (max-width:640px){
+  .grid{--cols:1 !important;}
+  /* On a 1-col phone the card hits its widest container -> editorial spread.
+     Force the media to letterbox so wide assets are not cover-cropped. */
+  .media{aspect-ratio:16/9;background:#15110f;}
+  .media img,.media video{object-fit:contain !important;}
+  @supports (container-type:inline-size){
+    @container card (min-width:520px){
+      .cc{grid-template-columns:1fr;}   /* stack on narrow phone, no side-by-side squeeze */
+      .body{padding:18px 16px 20px;}
+      .title{font-size:clamp(26px,9vw,40px);}
+    }
+  }
+}
+@media (min-width:641px) and (max-width:900px){
+  /* tablet / mid phone landscape: lock to 2 cols, handle hidden on touch already */
+  @media (hover:none){.grid{--cols:2 !important;}}
+}
+
+@media (prefers-reduced-motion:reduce){
+  *{transition:none !important;animation:none !important;}
+  .sliver .tip{transition:none !important;}
+}
+</style>
+</head>
+<body>
+<main class="wrap">
+
+  <!-- TOP BAND: headline sits in a compact band ABOVE the populated grid -->
+  <header class="band">
+    <div>
+      <div class="band__id"><span class="dot"></span><span>Living Grid / Container Queries</span></div>
+      <h1>One card, <em>five</em> layouts. You hold the density.</h1>
+    </div>
+    <p class="band__lede">
+      Drag the handle to set the column count from <b>1 to 5</b>. Every card reshapes its
+      <b>own</b> internal layout with CSS <b>@container</b> queries - no script decides what a card looks like.
+      Editorial spread, then side-by-side, compact, image tile, dense sliver.
+    </p>
+  </header>
+
+  <!-- DENSITY CONTROL: the legible mechanic, visible at scroll=0 -->
+  <div class="ctrl">
+    <div class="ctrl__label">Columns</div>
+    <div class="rail" id="rail" role="slider" tabindex="0"
+         aria-label="Grid column count" aria-valuemin="1" aria-valuemax="5" aria-valuenow="3" aria-valuetext="3 columns">
+      <div class="rail__track"></div>
+      <div class="rail__fill" id="fill"></div>
+      <div class="rail__ticks" id="ticks"></div>
+      <div class="handle" id="handle" aria-hidden="true"></div>
+    </div>
+    <div class="count"><b id="countNum">3</b><span>columns</span></div>
+    <div class="touchhint">Pinch / rotate your phone - the grid is responsive here. The drag handle is a desktop control.</div>
+  </div>
+
+  <!-- THE GRID: real media, populated at scroll=0 -->
+  <section class="grid" id="grid" aria-label="Portfolio, container-query layout"></section>
+
+  <footer class="foot">
+    <span><b>Mechanic:</b> column count sets only <code>--cols</code>; each card self-governs via <code>@container card (min-width: ...)</code>.</span>
+    <span><b>Fallback:</b> <code>@supports not (container-type)</code> -> standard media-query grid.</span>
+  </footer>
+</main>
+
+<script>
+/* ============================================================
+   DATA  -  swap these objects to repopulate the whole grid.
+   media.kind: "image" | "video"
+   For video, src + poster. For image, src only.
+   ============================================================ */
+const DATA = [
+  {
+    idx:"01", kicker:"Automotive / Film", title:"Wet Asphalt, Cold Light",
+    dek:"A matte-black coupe parked under sodium and neon, rain still on the panels. Generated as a 4K cinematic matte for a launch microsite hero.",
+    tags:["Cinematic","Matte 4K","Hero"],
+    meta:[["Engine","FLUX"],["Format","2048 x 1152"],["Role","Hero plate"]],
+    media:{kind:"image", src:"../assets/flux-car-4k.png", badge:"Still"}
+  },
+  {
+    idx:"02", kicker:"Motion / Drive-by", title:"The Coupe Moves",
+    dek:"Image-to-video continuation of the same plate: a slow tracking pass with reflective sweep across the hood. Silent loop, plays only when focused.",
+    tags:["i2v","Loop","Silent"],
+    meta:[["Engine","FLUX i2v"],["Length","Loop"],["Audio","None"]],
+    media:{kind:"video", src:"../assets/flux-car-i2v.mp4", poster:"../assets/gen/poster-flux-car-i2v.png", badge:"Video"}
+  },
+  {
+    idx:"03", kicker:"Healthcare / Brand", title:"Mint and Warm Oak",
+    dek:"A calm dental clinic interior - mint cabinetry against warm wood, soft daylight. Built as a brand-mood key visual for a care-first identity.",
+    tags:["Interior","Brand","Calm"],
+    meta:[["Engine","FLUX"],["Format","2048 x 1152"],["Role","Key visual"]],
+    media:{kind:"image", src:"../assets/flux-clinic-4k.png", badge:"Still"}
+  },
+  {
+    idx:"04", kicker:"Generative / Loop", title:"Kling Sequence",
+    dek:"A text-to-video loop from Kling, used as ambient motion behind a section header. Posters everywhere until the card is the active one - then it plays.",
+    tags:["t2v","Ambient","Loop"],
+    meta:[["Engine","Kling"],["Length","Loop"],["Audio","None"]],
+    media:{kind:"video", src:"../assets/kling-video.mp4", poster:"../assets/gen/poster-kling-video.png", badge:"Video"}
+  },
+  {
+    idx:"05", kicker:"Painterly / Still", title:"Autumn Fox",
+    dek:"A painterly fox in turning leaves, rendered at square. Slots into the grid as a texture break between the harder product frames.",
+    tags:["Painterly","Square","Texture"],
+    meta:[["Engine","SDXL"],["Format","512 x 512"],["Role","Texture"]],
+    media:{kind:"image", src:"../assets/sdxl.png", badge:"Still"}
+  },
+  {
+    idx:"06", kicker:"Generative / Loop", title:"Veo Pass",
+    dek:"A cinematic Veo clip kept as ambient fill. Decode budget protected: only the focused or locked card streams, the rest stay as posters.",
+    tags:["t2v","Cinematic","Loop"],
+    meta:[["Engine","Veo"],["Length","Loop"],["Audio","Muted"]],
+    media:{kind:"video", src:"../assets/veo-video.mp4", poster:"../assets/gen/poster-veo-video.png", badge:"Video"}
+  },
+  {
+    idx:"07", kicker:"Lo-fi / Study", title:"Abstract Apple",
+    dek:"A deliberately low-fidelity study from a tiny diffusion model - kept for contrast against the high-res plates and to test the sliver layout.",
+    tags:["Lo-fi","Study","Square"],
+    meta:[["Engine","TinySD"],["Format","512 x 512"],["Role","Contrast"]],
+    media:{kind:"image", src:"../assets/hf-tinysd.png", badge:"Still"}
+  },
+  {
+    idx:"08", kicker:"Generative / Loop", title:"Fal Render",
+    dek:"A second t2v loop from Fal, reserved for the densest layouts where it reads as a single moving tile in the mosaic.",
+    tags:["t2v","Tile","Loop"],
+    meta:[["Engine","Fal"],["Length","Loop"],["Audio","None"]],
+    media:{kind:"video", src:"../assets/fal-video.mp4", poster:"../assets/gen/poster-fal-video.png", badge:"Video"}
+  },
+  {
+    idx:"09", kicker:"Motion / Frames", title:"Hyperframes",
+    dek:"A short frame-interpolated loop. Lightweight enough to keep ready, but still gated to the active card so multiple videos never decode at once.",
+    tags:["Interp","Loop","Light"],
+    meta:[["Engine","Hyperframes"],["Length","Loop"],["Audio","None"]],
+    media:{kind:"video", src:"../assets/hyperframes.mp4", poster:"../assets/gen/poster-hyperframes.png", badge:"Video"}
+  },
+  {
+    idx:"10", kicker:"Automotive / Film", title:"Sodium Reprise",
+    dek:"The launch plate again, recropped for a closing tile. Demonstrates the same asset reshaping cleanly from full spread down to a hover-only sliver.",
+    tags:["Cinematic","Reprise","Hero"],
+    meta:[["Engine","FLUX"],["Format","2048 x 1152"],["Role","Closer"]],
+    media:{kind:"image", src:"../assets/flux-car-4k.png", badge:"Still"}
+  }
+];
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+const grid = document.getElementById("grid");
+
+function mediaInner(d){
+  const m = d.media;
+  if(m.kind === "video"){
+    return `
+      <div class="media">
+        <video muted loop playsinline preload="none" poster="${m.poster}" data-src="${m.src}"></video>
+        <span class="badge">${m.badge}</span>
+        <span class="play" aria-hidden="true"></span>
+      </div>`;
+  }
+  return `
+    <div class="media">
+      <img src="${m.src}" alt="${d.title}" loading="lazy" decoding="async" />
+      <span class="badge">${m.badge}</span>
+    </div>`;
+}
+
+function cardHTML(d){
+  const metaRows = d.meta.map(([k,v])=>`<div class="m"><b>${k}</b><span>${v}</span></div>`).join("");
+  const tags = d.tags.map(t=>`<span class="tag">${t}</span>`).join("");
+  return `
+  <article class="card" tabindex="0" aria-label="${d.title}">
+    <div class="cc">
+      ${mediaInner(d)}
+      <div class="body">
+        <div class="kicker"><span class="idx">${d.idx}</span><span>${d.kicker}</span></div>
+        <h2 class="title">${d.title}</h2>
+        <p class="dek">${d.dek}</p>
+        <div class="meta">${metaRows}</div>
+        <div class="tags">${tags}</div>
+      </div>
+    </div>
+    <!-- compact caption (3-col + 4-col) -->
+    <div class="cap"><div class="ct">${d.title}</div><div class="cs">${d.kicker}</div></div>
+    <!-- sliver tooltip (5-col) -->
+    <div class="sliver"><div class="tip"><b>${d.idx}</b>${d.title}</div></div>
+  </article>`;
+}
+
+grid.insertAdjacentHTML("beforeend", DATA.map(cardHTML).join(""));
+
+/* ============================================================
+   DENSITY HANDLE  (drag column count 1..5). Desktop only.
+   JS sets ONLY --cols. It never touches any card's internals.
+   ============================================================ */
+const COLS_MIN = 1, COLS_MAX = 5;
+let cols = 3;
+const rail   = document.getElementById("rail");
+const handle = document.getElementById("handle");
+const fill   = document.getElementById("fill");
+const ticksEl= document.getElementById("ticks");
+const countNum=document.getElementById("countNum");
+
+// build ticks
+for(let i=COLS_MIN;i<=COLS_MAX;i++){
+  ticksEl.insertAdjacentHTML("beforeend",
+    `<div class="rail__tick" data-n="${i}"><span>${i}</span></div>`);
+}
+const tickEls=[...ticksEl.querySelectorAll(".rail__tick")];
+
+function applyCols(n){
+  n = Math.max(COLS_MIN, Math.min(COLS_MAX, Math.round(n)));
+  cols = n;
+  grid.style.setProperty("--cols", n);
+  // position along rail: col 1 at left (0%), col 5 at right (100%)
+  const pct = (n - COLS_MIN) / (COLS_MAX - COLS_MIN) * 100;
+  handle.style.left = pct + "%";
+  fill.style.width  = pct + "%";
+  countNum.textContent = n;
+  rail.setAttribute("aria-valuenow", n);
+  rail.setAttribute("aria-valuetext", n + (n===1?" column":" columns"));
+  tickEls.forEach(t => t.classList.toggle("on", +t.dataset.n <= n));
+}
+
+function colFromClientX(clientX){
+  const r = rail.getBoundingClientRect();
+  const t = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
+  return COLS_MIN + t * (COLS_MAX - COLS_MIN);
+}
+
+let dragging = false;
+function startDrag(e){
+  dragging = true;
+  document.body.style.userSelect = "none";
+  moveDrag(e);
+}
+function moveDrag(e){
+  if(!dragging) return;
+  const x = e.touches ? e.touches[0].clientX : e.clientX;
+  applyCols(colFromClientX(x));
+}
+function endDrag(){ dragging=false; document.body.style.userSelect=""; }
+
+rail.addEventListener("pointerdown", e=>{ startDrag(e); });
+window.addEventListener("pointermove", moveDrag);
+window.addEventListener("pointerup", endDrag);
+
+// keyboard on the rail (slider semantics)
+rail.addEventListener("keydown", e=>{
+  if(e.key==="ArrowRight"||e.key==="ArrowUp"){ applyCols(cols+1); e.preventDefault(); }
+  else if(e.key==="ArrowLeft"||e.key==="ArrowDown"){ applyCols(cols-1); e.preventDefault(); }
+  else if(e.key==="Home"){ applyCols(COLS_MIN); e.preventDefault(); }
+  else if(e.key==="End"){ applyCols(COLS_MAX); e.preventDefault(); }
+});
+
+// tick click jumps
+tickEls.forEach(t=>t.addEventListener("pointerdown", e=>{
+  e.stopPropagation(); applyCols(+t.dataset.n);
+}));
+
+applyCols(3); // scroll=0 default = 3 columns, handle visible
+
+// keep handle aligned if rail width changes (resize / font load)
+new ResizeObserver(()=>applyCols(cols)).observe(rail);
+
+/* ============================================================
+   VIDEO POLICY: never decode all loops at once.
+   - Only ONE video streams: the focused/hovered/locked card.
+   - Cards out of viewport are paused + unloaded (src removed).
+   - prefers-reduced-motion: never autoplay; posters stay.
+   ============================================================ */
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+let activeVideo = null;
+
+function loadAndPlay(video, card){
+  if(reduceMotion) return;
+  if(activeVideo && activeVideo !== video) stopVideo(activeVideo);
+  if(!video.src) video.src = video.dataset.src;
+  video.play().then(()=>{ card.classList.add("playing"); }).catch(()=>{});
+  activeVideo = video;
+}
+function stopVideo(video){
+  try{ video.pause(); }catch(_){}
+  const card = video.closest(".card");
+  if(card) card.classList.remove("playing");
+  if(video === activeVideo) activeVideo = null;
+}
+function unload(video){
+  stopVideo(video);
+  if(video.src){ video.removeAttribute("src"); video.load(); }
+}
+
+// IntersectionObserver: unload videos fully off-screen (frees decode budget)
+const io = new IntersectionObserver(entries=>{
+  entries.forEach(en=>{
+    const v = en.target.querySelector("video");
+    if(!v) return;
+    if(!en.isIntersecting) unload(v);
+  });
+}, {rootMargin:"120px", threshold:0});
+document.querySelectorAll(".card").forEach(c=>{
+  if(c.querySelector("video")) io.observe(c);
+});
+
+// hover / focus = make this the single active video
+function activateCard(card){
+  const v = card.querySelector("video");
+  if(v) loadAndPlay(v, card);
+}
+function deactivateCard(card){
+  const v = card.querySelector("video");
+  if(v) stopVideo(v);
+}
+document.querySelectorAll(".card").forEach(card=>{
+  if(!card.querySelector("video")) return;
+  card.addEventListener("pointerenter", ()=>activateCard(card));
+  card.addEventListener("pointerleave", ()=>deactivateCard(card));
+  card.addEventListener("focusin", ()=>activateCard(card));
+  card.addEventListener("focusout", ()=>deactivateCard(card));
+  // tap on play button (touch): lock-play this one
+  const play = card.querySelector(".play");
+  if(play) play.addEventListener("click", e=>{
+    e.stopPropagation();
+    const v = card.querySelector("video");
+    if(v.paused) activateCard(card); else stopVideo(v);
+  });
+});
+
+// On touch devices, autoplay the first in-view video (one at a time) when centered
+if(window.matchMedia("(hover:none)").matches && !reduceMotion){
+  const centerIO = new IntersectionObserver(entries=>{
+    // pick the most-visible video card, play only that one
+    let best=null, bestRatio=0;
+    entries.forEach(en=>{
+      if(en.intersectionRatio>bestRatio){bestRatio=en.intersectionRatio; best=en.target;}
+    });
+    if(best && bestRatio>0.6) activateCard(best);
+  }, {threshold:[0,0.6,1]});
+  document.querySelectorAll(".card").forEach(c=>{ if(c.querySelector("video")) centerIO.observe(c); });
+}
+</script>
+</body>
+</html>

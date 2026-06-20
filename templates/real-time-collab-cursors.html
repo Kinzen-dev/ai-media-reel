@@ -1,0 +1,917 @@
+<!-- TEMPLATE: Open Studio | ARCHETYPE: real-time-collab-cursors (simulated multi-user presence gallery with named drifting cursors, trace trails, annotation bubbles) | REF: Figma multiplayer cursors, Liveblocks presence UI 2026, Awwwards collaborative-presence UX | WHEN TO USE: a portfolio that feels alive and watched - a live design-review session where named collaborators drift across the works leaving comments | SWAP: edit the DATA + VISITORS arrays at the very top of the body script -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Open Studio - a live collaborative gallery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   OPEN STUDIO - simulated collaborative-cursor gallery
+   Palette:
+     void          #0f0f12
+     bone (labels) #f0ece4
+     accents (per visitor): cobalt #1a3fc4, coral #e8534a,
+                            lime #8cc63f, violet #7b3fe4, amber #e8a23a
+   The whole collaboration layer is pure JS simulation - no
+   sockets. Cursors follow smooth Bezier paths seeded by a
+   stable visitor id, recomputed every ~2s (NOT rAF per cursor).
+   Canvas 2D (DPR 1) draws fading trace trails. DOM draws the
+   cursor pointers + name labels + annotation bubbles.
+   ============================================================ */
+
+:root{
+  --void:#0f0f12;
+  --void-2:#16161b;
+  --void-3:#1d1d24;
+  --bone:#f0ece4;
+  --bone-dim:rgba(240,236,228,.56);
+  --bone-faint:rgba(240,236,228,.28);
+  --line:rgba(240,236,228,.10);
+  --line-2:rgba(240,236,228,.16);
+  --cobalt:#1a3fc4;
+  --coral:#e8534a;
+  --lime:#8cc63f;
+  --violet:#7b3fe4;
+  --amber:#e8a23a;
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--void);
+  color:var(--bone);
+  font-family:'Space Grotesk',system-ui,sans-serif;
+  font-weight:400;
+  line-height:1.5;
+  overflow-x:hidden;
+  cursor:none;            /* real cursor becomes a presence dot */
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+body.no-customcursor{cursor:auto}     /* touch / reduced-motion */
+img{display:block;max-width:100%}
+a{color:inherit;text-decoration:none}
+
+/* faint grid wash over the void - the studio "table" */
+body::before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(120% 90% at 50% -10%, rgba(123,63,228,.10), transparent 60%),
+    radial-gradient(100% 80% at 100% 110%, rgba(26,63,196,.10), transparent 55%);
+}
+body::after{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(var(--line) 1px,transparent 1px),
+    linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:64px 64px;
+  -webkit-mask-image:radial-gradient(120% 100% at 50% 30%,#000,transparent 80%);
+          mask-image:radial-gradient(120% 100% at 50% 30%,#000,transparent 80%);
+  opacity:.5;
+}
+
+/* ----- trace-trail canvas (#traceC) is inline-styled in the body ----- */
+
+/* ----- presence cursor + label layer: above everything ----- */
+#presence{
+  position:fixed;inset:0;z-index:90;pointer-events:none;
+  overflow:hidden;
+}
+.cur{
+  position:absolute;top:0;left:0;
+  transform:translate(-100px,-100px);
+  will-change:transform;
+  transition:opacity .4s var(--ease);
+}
+.cur__arrow{
+  width:22px;height:22px;display:block;
+  filter:drop-shadow(0 2px 6px rgba(0,0,0,.55));
+}
+.cur__tag{
+  position:absolute;left:18px;top:16px;
+  display:flex;align-items:center;gap:6px;
+  padding:3px 9px 3px 7px;border-radius:999px;
+  font-size:11px;font-weight:600;letter-spacing:.01em;
+  color:#0b0b0e;white-space:nowrap;
+  box-shadow:0 4px 14px rgba(0,0,0,.4);
+}
+.cur__tag.me{padding-left:9px}
+.cur__tag b{font-weight:600}
+.cur__dot{
+  width:6px;height:6px;border-radius:50%;
+  background:rgba(0,0,0,.42);flex:0 0 auto;
+}
+/* the visitor's OWN cursor reads as "You" */
+.cur.is-me .cur__arrow{opacity:.95}
+
+/* annotation bubble floating off a cursor */
+.bubble{
+  position:fixed;z-index:95;pointer-events:none;
+  max-width:248px;
+  padding:9px 12px;border-radius:13px;
+  background:rgba(22,22,27,.94);
+  border:1px solid var(--line-2);
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  box-shadow:0 14px 40px rgba(0,0,0,.55);
+  font-size:12.5px;line-height:1.45;color:var(--bone);
+  opacity:0;transform:translateY(6px) scale(.97);
+  transform-origin:0 100%;
+  transition:opacity .3s var(--ease),transform .3s var(--ease);
+}
+.bubble.show{opacity:1;transform:translateY(0) scale(1)}
+.bubble__who{
+  display:flex;align-items:center;gap:6px;
+  font-size:11px;font-weight:600;margin-bottom:2px;
+}
+.bubble__who i{width:7px;height:7px;border-radius:50%;display:inline-block}
+.bubble__who span{color:var(--bone)}
+.bubble__txt{color:var(--bone-dim);font-size:12.5px}
+.bubble::after{          /* little stem toward the cursor */
+  content:"";position:absolute;left:14px;bottom:-6px;
+  width:11px;height:11px;background:rgba(22,22,27,.94);
+  border-right:1px solid var(--line-2);border-bottom:1px solid var(--line-2);
+  transform:rotate(45deg);
+}
+
+/* ============================ SHELL ============================ */
+.wrap{position:relative;z-index:5;max-width:1320px;margin:0 auto;padding:0 28px}
+
+/* top presence bar */
+.topbar{
+  position:sticky;top:0;z-index:40;
+  margin:0 -28px;padding:14px 28px 13px;
+  display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  background:linear-gradient(var(--void) 62%,rgba(15,15,18,0));
+}
+.brand{
+  display:flex;align-items:baseline;gap:10px;
+  font-family:'Fraunces',serif;
+}
+.brand b{font-weight:600;font-size:19px;letter-spacing:-.01em}
+.brand em{
+  font-style:normal;font-family:'Space Grotesk';
+  font-size:11px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--bone-faint);
+}
+.live{
+  display:inline-flex;align-items:center;gap:7px;
+  font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--bone-dim);padding:5px 11px;border-radius:999px;
+  border:1px solid var(--line-2);background:var(--void-2);
+}
+.live i{
+  width:7px;height:7px;border-radius:50%;background:var(--lime);
+  box-shadow:0 0 0 0 rgba(140,198,63,.6);
+  animation:pulse 2.4s ease-out infinite;
+}
+@keyframes pulse{
+  0%{box-shadow:0 0 0 0 rgba(140,198,63,.55)}
+  70%{box-shadow:0 0 0 8px rgba(140,198,63,0)}
+  100%{box-shadow:0 0 0 0 rgba(140,198,63,0)}
+}
+/* the live roster of present visitors */
+.roster{display:flex;align-items:center;gap:0;margin-left:auto}
+.roster .who{
+  width:30px;height:30px;border-radius:50%;
+  margin-left:-8px;border:2px solid var(--void);
+  display:grid;place-items:center;
+  font-size:11px;font-weight:700;color:#0b0b0e;
+  position:relative;transition:transform .2s var(--ease);
+}
+.roster .who:first-child{margin-left:0}
+.roster .who:hover{transform:translateY(-2px)}
+.roster .who::after{
+  content:attr(data-name);position:absolute;top:calc(100% + 7px);left:50%;
+  transform:translateX(-50%) translateY(3px);
+  font-size:10.5px;font-weight:500;letter-spacing:.02em;color:var(--bone-dim);
+  background:var(--void-2);border:1px solid var(--line-2);
+  padding:2px 7px;border-radius:6px;white-space:nowrap;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;
+}
+.roster .who:hover::after{opacity:1;transform:translateX(-50%) translateY(0)}
+.roster .count{
+  margin-left:11px;font-size:11px;font-weight:600;color:var(--bone-dim);
+  letter-spacing:.02em;
+}
+
+/* ---- compact hero band ABOVE the populated grid (mechanic stays in view) ---- */
+.hero{
+  padding:34px 0 22px;
+  display:grid;grid-template-columns:1.5fr 1fr;gap:30px;align-items:end;
+}
+.hero h1{
+  font-family:'Fraunces',serif;font-weight:300;
+  font-size:clamp(38px,6.2vw,76px);line-height:.96;letter-spacing:-.025em;
+}
+.hero h1 b{font-weight:600;font-style:italic}
+.hero .lede{
+  font-size:14px;color:var(--bone-dim);max-width:40ch;
+  padding-bottom:8px;
+}
+.hero .lede strong{color:var(--bone);font-weight:600}
+
+/* ============================ GRID ============================ */
+.grid{
+  padding:8px 0 110px;
+  display:grid;grid-template-columns:repeat(12,1fr);gap:20px;
+}
+.card{
+  position:relative;border-radius:16px;overflow:hidden;
+  background:var(--void-2);border:1px solid var(--line-2);
+  isolation:isolate;
+  transition:border-color .35s var(--ease),transform .35s var(--ease),box-shadow .35s var(--ease);
+}
+/* span pattern - editorial, not a uniform grid */
+.card.s-7{grid-column:span 7}
+.card.s-5{grid-column:span 5}
+.card.s-6{grid-column:span 6}
+.card.s-4{grid-column:span 4}
+.card.s-8{grid-column:span 8}
+.card:hover{
+  border-color:rgba(240,236,228,.34);
+  transform:translateY(-3px);
+  box-shadow:0 24px 60px rgba(0,0,0,.5);
+}
+/* the live highlight ring when a sim cursor is "looking" */
+.card.attn{
+  border-color:var(--attn,var(--bone));
+  box-shadow:0 0 0 1px var(--attn,var(--bone)),0 24px 60px rgba(0,0,0,.5);
+}
+.card__media{
+  position:relative;width:100%;
+  background:#0b0b0e;
+  aspect-ratio:16/10;overflow:hidden;
+}
+.card.tall .card__media{aspect-ratio:4/5}
+.card__media img,.card__media video{
+  width:100%;height:100%;object-fit:cover;display:block;
+  transition:transform .7s var(--ease),opacity .5s var(--ease);
+}
+.card:hover .card__media img,
+.card:hover .card__media video{transform:scale(1.04)}
+.card__media video{opacity:0;position:absolute;inset:0;z-index:2}
+.card.playing .card__media video{opacity:1}
+.card.playing .card__media .poster{opacity:0}
+.poster{z-index:1}
+
+/* media-type chip */
+.kind{
+  position:absolute;left:12px;top:12px;z-index:4;
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--bone);padding:4px 9px;border-radius:999px;
+  background:rgba(11,11,14,.6);border:1px solid var(--line-2);
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+}
+.kind i{width:5px;height:5px;border-radius:50%}
+
+/* card footer: title + who is looking */
+.card__foot{
+  display:flex;align-items:center;gap:12px;
+  padding:13px 15px 14px;
+}
+.card__foot .t{flex:1;min-width:0}
+.card__foot h3{
+  font-family:'Fraunces',serif;font-weight:400;
+  font-size:17px;letter-spacing:-.01em;line-height:1.1;
+}
+.card__foot p{
+  font-size:11.5px;color:var(--bone-faint);margin-top:3px;
+  letter-spacing:.01em;
+}
+/* avatar stack of who is looking at THIS work */
+.viewers{display:flex;align-items:center;flex:0 0 auto}
+.viewers .av{
+  width:22px;height:22px;border-radius:50%;
+  margin-left:-7px;border:2px solid var(--void-2);
+  font-size:9px;font-weight:700;color:#0b0b0e;
+  display:grid;place-items:center;
+  transition:transform .25s var(--ease),margin .25s var(--ease);
+}
+.viewers .av:first-child{margin-left:0}
+.card:hover .viewers .av{margin-left:-4px}
+.viewers .av:first-child{margin-left:0}
+.viewers .lbl{
+  font-size:10.5px;color:var(--bone-faint);margin-left:9px;white-space:nowrap;
+}
+
+/* a quiet caption band before the grid wraps up */
+.note{
+  grid-column:span 12;
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:18px 2px 2px;color:var(--bone-faint);font-size:12px;
+  border-top:1px solid var(--line);margin-top:6px;
+}
+.note b{color:var(--bone-dim);font-weight:600}
+.note .k{
+  font-family:'Space Grotesk';font-size:10px;color:var(--bone-dim);
+  border:1px solid var(--line-2);border-radius:5px;padding:2px 6px;
+}
+
+/* ============================ RESPONSIVE ============================ */
+@media (max-width:980px){
+  .card.s-7,.card.s-5,.card.s-6,.card.s-4,.card.s-8{grid-column:span 6}
+  .note{grid-column:span 6}
+  .hero{grid-template-columns:1fr;gap:14px;align-items:start}
+  .hero .lede{padding-bottom:0}
+}
+@media (max-width:640px){
+  body{cursor:auto}
+  .wrap{padding:0 16px}
+  .topbar{margin:0 -16px;padding:12px 16px;gap:12px}
+  .brand em{display:none}
+  .hero{padding:24px 0 16px}
+  .grid{grid-template-columns:1fr;gap:16px;padding:6px 0 80px}
+  /* span-1 on EVERYTHING incl. the note: a span-12 item would force
+     12 implicit columns and break the single-column stack */
+  .card.s-7,.card.s-5,.card.s-6,.card.s-4,.card.s-8,.note{grid-column:span 1}
+  /* never cover-crop a landscape asset into a portrait phone slot:
+     letterbox instead of cropping */
+  .card__media{aspect-ratio:16/10}
+  .card.tall .card__media{aspect-ratio:4/5}
+  .card__media img,.card__media video{object-fit:contain;background:#0b0b0e}
+  .card.full-bleed .card__media img,
+  .card.full-bleed .card__media video{object-fit:cover}
+  .roster .count{display:none}
+  /* sim cursors keep animating on mobile, just smaller (set in JS) */
+}
+
+/* ============================ REDUCED MOTION ============================ */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}
+  .live i{animation:none}
+  .card,.card__media img,.card__media video,
+  .cur,.bubble,.roster .who,.roster .who::after,.viewers .av{transition:none!important}
+  /* JS also freezes cursor drift + trails to a static presence state (no rAF, no timers) */
+}
+
+/* :focus-visible for keyboard users */
+a:focus-visible,.card:focus-visible{
+  outline:2px solid var(--lime);outline-offset:3px;border-radius:16px;
+}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+
+<!-- =====================================================================
+     DATA  -  edit these two arrays to reskin the whole template.
+     WORKS  : the gallery pieces (image | video | audio | 3d-poster).
+     VISITORS: the simulated collaborators + their accent + canned lines.
+     The visitor's OWN cursor is appended at runtime as "You".
+   ===================================================================== -->
+<script>
+const ASSET = "../assets/";
+
+const WORKS = [
+  {
+    id:"car",
+    title:"Nocturne / Wet Asphalt",
+    meta:"FLUX 1.1 - still",
+    kind:"image", kdot:"#1a3fc4",
+    img: ASSET+"flux-car-4k.png",
+    span:"s-7", bleed:true
+  },
+  {
+    id:"clinic",
+    title:"Mint Room",
+    meta:"FLUX - interior",
+    kind:"image", kdot:"#8cc63f",
+    img: ASSET+"flux-clinic-4k.png",
+    span:"s-5", bleed:true
+  },
+  {
+    id:"kling",
+    title:"Drift Loop",
+    meta:"Kling - motion",
+    kind:"video", kdot:"#e8534a",
+    video: ASSET+"kling-video.mp4",
+    poster: ASSET+"gen/poster-kling-video.png",
+    span:"s-5", bleed:true
+  },
+  {
+    id:"fox",
+    title:"Autumn Vulpine",
+    meta:"SDXL - painterly",
+    kind:"image", kdot:"#e8a23a",
+    img: ASSET+"sdxl.png",
+    span:"s-4"
+  },
+  {
+    id:"veo",
+    title:"Veo Pass",
+    meta:"Veo - cinematic",
+    kind:"video", kdot:"#7b3fe4",
+    video: ASSET+"veo-video.mp4",
+    poster: ASSET+"gen/poster-veo-video.png",
+    span:"s-3", bleed:true
+  },
+  {
+    id:"fal",
+    title:"Latent Bloom",
+    meta:"Fal - generative",
+    kind:"video", kdot:"#1a3fc4",
+    video: ASSET+"fal-video.mp4",
+    poster: ASSET+"gen/poster-fal-video.png",
+    span:"s-6", bleed:true
+  },
+  {
+    id:"apple",
+    title:"Lo-Fi Still Life",
+    meta:"TinySD - abstract",
+    kind:"image", kdot:"#e8534a",
+    img: ASSET+"hf-tinysd.png",
+    span:"s-3"
+  },
+  {
+    id:"voice",
+    title:"Thai Read / ElevenLabs",
+    meta:"Audio - waveform",
+    kind:"audio", kdot:"#8cc63f",
+    img: ASSET+"gen/wave-elevenlabs.png",
+    audio: ASSET+"elevenlabs-thai.mp3",
+    span:"s-3", tall:false
+  }
+];
+
+const VISITORS = [
+  { id:"aiko",  name:"Aiko",  accent:"#e8534a",
+    lines:["love the lighting here","the rim light sells it","push the contrast a touch?"] },
+  { id:"noor",  name:"Noor",  accent:"#1a3fc4",
+    lines:["this composition is clean","grid feels balanced now","nice negative space"] },
+  { id:"theo",  name:"Theo",  accent:"#8cc63f",
+    lines:["color palette is chef's kiss","that green reads beautifully","warm/cool balance works"] },
+  { id:"mira",  name:"Mira",  accent:"#7b3fe4",
+    lines:["the motion loop is seamless","timing on this is great","wants to loop forever"] },
+  { id:"juno",  name:"Juno",  accent:"#e8a23a",
+    lines:["texture here is gorgeous","love the grain","feels tactile"] }
+];
+
+/* the visitor's own presence identity (their real cursor) */
+const ME = { id:"you", name:"You", accent:"#f0ece4" };
+</script>
+
+<canvas id="traceC" style="position:fixed;inset:0;z-index:1;pointer-events:none"></canvas><!-- canvas trace-trail layer -->
+<div id="presence"></div>       <!-- cursors + labels -->
+
+<div class="wrap">
+
+  <!-- ---------- TOP PRESENCE BAR ---------- -->
+  <header class="topbar">
+    <div class="brand"><b>Open Studio</b><em>live review</em></div>
+    <span class="live"><i></i> session live</span>
+    <div class="roster" id="roster" aria-label="Visitors currently in the session"></div>
+  </header>
+
+  <!-- ---------- COMPACT HERO BAND (mechanic stays in view below) ---------- -->
+  <section class="hero">
+    <h1>Five people are<br><b>looking</b> at your work.</h1>
+    <p class="lede">A gallery that is never empty. Named collaborators drift across the pieces leaving live notes - <strong>your cursor is one of them.</strong> Hover any work to hear what the room thinks.</p>
+  </section>
+
+  <!-- ---------- THE GALLERY GRID (populated at scroll=0) ---------- -->
+  <main class="grid" id="grid"></main>
+
+</div>
+
+<script>
+/* =====================================================================
+   BUILD - render roster, grid cards, viewer avatar-stacks
+   ===================================================================== */
+const reduce = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+const touch  = window.matchMedia('(hover:none),(pointer:coarse)').matches;
+const initials = n => n.slice(0,2).toUpperCase();
+
+/* deterministic seed from a string id - avoids Math.random for stable paths */
+function seed(str){
+  let h = 2166136261 >>> 0;
+  for(let i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h,16777619); }
+  return (h>>>0);
+}
+/* seeded 0..1 generator (mulberry32) - stable per visitor */
+function rng(s){
+  return function(){
+    s |= 0; s = s + 0x6D2B79F5 | 0;
+    let t = Math.imul(s ^ s>>>15, 1 | s);
+    t = t + Math.imul(t ^ t>>>7, 61 | t) ^ t;
+    return ((t ^ t>>>14) >>> 0) / 4294967296;
+  };
+}
+
+/* ---- roster (top-right avatar pills) ---- */
+const roster = document.getElementById('roster');
+VISITORS.forEach(v=>{
+  const d = document.createElement('div');
+  d.className='who'; d.dataset.name=v.name;
+  d.style.background=v.accent; d.textContent=initials(v.name);
+  roster.appendChild(d);
+});
+const me = document.createElement('div');
+me.className='who'; me.dataset.name='You'; me.style.background=ME.accent;
+me.style.color='#0b0b0e'; me.textContent='YOU';
+me.style.fontSize='8px';
+roster.appendChild(me);
+const cnt = document.createElement('span');
+cnt.className='count'; cnt.textContent=(VISITORS.length+1)+' in studio';
+roster.appendChild(cnt);
+
+/* ---- assign 1-3 sim viewers to each card (deterministic, stable) ---- */
+function viewersFor(workId){
+  const r = rng(seed(workId+"v"));
+  const n = 1 + Math.floor(r()*3);            // 1..3 viewers
+  const pool = [...VISITORS];
+  const pick = [];
+  for(let i=0;i<n && pool.length;i++){
+    pick.push(pool.splice(Math.floor(r()*pool.length),1)[0]);
+  }
+  return pick;
+}
+
+/* ---- render cards ---- */
+const grid = document.getElementById('grid');
+WORKS.forEach((w,idx)=>{
+  const card = document.createElement('article');
+  card.className = `card ${w.span||'s-4'}${w.tall?' tall':''}${w.bleed?' full-bleed':''}`;
+  card.tabIndex = 0;
+  card.dataset.id = w.id;
+
+  const media = document.createElement('div');
+  media.className='card__media';
+
+  // kind chip
+  const chip = document.createElement('span');
+  chip.className='kind';
+  chip.innerHTML = `<i style="background:${w.kdot}"></i>${w.kind}`;
+  media.appendChild(chip);
+
+  if(w.kind==='video'){
+    const poster = document.createElement('img');
+    poster.className='poster'; poster.src=w.poster; poster.alt=w.title+' poster';
+    poster.loading = idx>2?'lazy':'eager'; poster.decoding='async';
+    const vid = document.createElement('video');
+    vid.muted=true; vid.loop=true; vid.playsInline=true; vid.preload='none';
+    vid.setAttribute('aria-hidden','true');
+    vid.poster = w.poster;
+    vid.dataset.src = w.video;             // lazy-loaded on focus/hover
+    media.appendChild(poster); media.appendChild(vid);
+    card._vid = vid;
+  } else {
+    const img = document.createElement('img');
+    img.src=w.img; img.alt=w.title;
+    img.loading = idx>2?'lazy':'eager'; img.decoding='async';
+    media.appendChild(img);
+  }
+
+  card.appendChild(media);
+
+  // footer: title + viewer stack
+  const foot = document.createElement('div');
+  foot.className='card__foot';
+  const t = document.createElement('div'); t.className='t';
+  t.innerHTML = `<h3>${w.title}</h3><p>${w.meta}</p>`;
+  foot.appendChild(t);
+
+  const vw = document.createElement('div'); vw.className='viewers';
+  const vs = viewersFor(w.id);
+  card._viewers = vs;
+  vs.forEach(v=>{
+    const a=document.createElement('div'); a.className='av';
+    a.style.background=v.accent; a.textContent=initials(v.name);
+    a.title=v.name+' is looking';
+    vw.appendChild(a);
+  });
+  const lbl=document.createElement('span'); lbl.className='lbl';
+  lbl.textContent = vs.length>1 ? `${vs[0].name} +${vs.length-1} looking` : `${vs[0].name} looking`;
+  vw.appendChild(lbl);
+  foot.appendChild(vw);
+  card.appendChild(foot);
+
+  grid.appendChild(card);
+});
+
+/* closing caption row */
+const note = document.createElement('div');
+note.className='note';
+note.innerHTML = `<b>Open Studio</b> &nbsp; the presence layer is pure simulation - no server, no socket. <span class="k">Hover</span> a work to surface a live note. <span class="k">Tab</span> to focus a piece.`;
+grid.appendChild(note);
+
+/* =====================================================================
+   VIDEO PLAYBACK - only the focused/hovered card plays (one at a time)
+   to avoid simultaneous decode tanking FPS.
+   ===================================================================== */
+let activeVid = null;
+function playCard(card){
+  if(!card || !card._vid) return;
+  const v = card._vid;
+  if(activeVid && activeVid!==v) stopVid(activeVid);
+  if(!v.src && v.dataset.src){ v.src = v.dataset.src; }
+  v.play().then(()=>card.classList.add('playing')).catch(()=>{});
+  activeVid = v;
+}
+function stopVid(v){
+  try{ v.pause(); }catch(e){}
+  const c = v.closest('.card'); if(c) c.classList.remove('playing');
+  if(activeVid===v) activeVid=null;
+}
+document.querySelectorAll('.card').forEach(card=>{
+  if(card._vid){
+    card.addEventListener('mouseenter',()=>playCard(card));
+    card.addEventListener('mouseleave',()=>stopVid(card._vid));
+    card.addEventListener('focus',()=>playCard(card));
+    card.addEventListener('blur',()=>stopVid(card._vid));
+  }
+});
+/* pause any offscreen video defensively */
+const io = new IntersectionObserver(es=>{
+  es.forEach(e=>{ if(!e.isIntersecting){ const c=e.target; if(c._vid) stopVid(c._vid); } });
+},{threshold:.01});
+document.querySelectorAll('.card').forEach(c=>{ if(c._vid) io.observe(c); });
+
+/* =====================================================================
+   PRESENCE SIMULATION
+   - one DOM cursor + label per visitor (+ the user's own).
+   - each sim cursor follows a smooth cubic-Bezier path.
+   - path endpoints recomputed every ~2s on a single shared timer
+     (NOT per-cursor rAF) - this is the perf guardrail.
+   - a single rAF interpolates positions + redraws trace trails.
+   - trace canvas runs at DPR 1.
+   ===================================================================== */
+const presence = document.getElementById('presence');
+const canvas   = document.getElementById('traceC');
+const ctx      = canvas.getContext('2d');
+
+let W=0,H=0;
+function size(){
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = W; canvas.height = H;          // DPR 1 by design (guardrail)
+  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+}
+size();
+window.addEventListener('resize',()=>{ size(); cursors.forEach(reseat); });
+
+/* build a cursor object per visitor */
+const CURSOR_SCALE = touch ? 0.78 : 1;          // smaller on mobile
+function makeCursor(v,isMe){
+  const el = document.createElement('div');
+  el.className='cur'+(isMe?' is-me':'');
+  const c = v.accent;
+  el.innerHTML = `
+    <svg class="cur__arrow" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"
+         style="transform:scale(${CURSOR_SCALE})">
+      <path d="M5 3l14 7-6 1.6L9.6 17 5 3z" fill="${c}" stroke="#0b0b0e" stroke-width="1.1" stroke-linejoin="round"/>
+    </svg>
+    <span class="cur__tag${isMe?' me':''}" style="background:${c}">
+      ${isMe?'':'<span class="cur__dot"></span>'}<b>${v.name}</b>
+    </span>`;
+  presence.appendChild(el);
+
+  const s = seed(v.id);
+  const r = rng(s);
+  const obj = {
+    v, el, isMe,
+    rand:r,
+    // current interpolated point
+    x: r()*W, y: r()*H,
+    // bezier path state
+    p0:{x:0,y:0}, p1:{x:0,y:0}, p2:{x:0,y:0}, p3:{x:0,y:0},
+    t:1, dur:1, t0:0,
+    trail:[],          // recent points for the trace
+    target:null
+  };
+  obj.p3 = {x:obj.x,y:obj.y};
+  reseat(obj);
+  return obj;
+}
+
+/* choose a fresh bezier path toward a (loosely targeted) card */
+const cards = [...document.querySelectorAll('.card')];
+function pickTarget(o){
+  // bias the path to drift toward a real card most of the time
+  if(o.rand()<0.72 && cards.length){
+    const c = cards[Math.floor(o.rand()*cards.length)];
+    const b = c.getBoundingClientRect();
+    if(b.bottom>0 && b.top<H){   // only visible cards
+      o.target = c;
+      return { x: b.left + b.width*(0.2+o.rand()*0.6),
+               y: b.top  + b.height*(0.2+o.rand()*0.6) };
+    }
+  }
+  o.target = null;
+  return { x: 40 + o.rand()*(W-80), y: 60 + o.rand()*(H-120) };
+}
+function reseat(o){
+  const start = { x:o.p3.x, y:o.p3.y };
+  const end   = pickTarget(o);
+  // two control points give an organic curved drift
+  const mid1 = { x: start.x + (end.x-start.x)*0.33 + (o.rand()-0.5)*220,
+                 y: start.y + (end.y-start.y)*0.33 + (o.rand()-0.5)*220 };
+  const mid2 = { x: start.x + (end.x-start.x)*0.66 + (o.rand()-0.5)*220,
+                 y: start.y + (end.y-start.y)*0.66 + (o.rand()-0.5)*220 };
+  o.p0=start; o.p1=mid1; o.p2=mid2; o.p3=end;
+  o.dur = 1700 + o.rand()*1300;          // ~1.7-3.0s per leg
+  o.t0 = performance.now();
+}
+function bez(p0,p1,p2,p3,t){
+  const u=1-t, uu=u*u, uuu=uu*u, tt=t*t, ttt=tt*t;
+  return {
+    x: uuu*p0.x + 3*uu*t*p1.x + 3*u*tt*p2.x + ttt*p3.x,
+    y: uuu*p0.y + 3*uu*t*p1.y + 3*u*tt*p2.y + ttt*p3.y
+  };
+}
+
+let cursors = [];
+let myCursor = null;
+VISITORS.forEach(v=>cursors.push(makeCursor(v,false)));
+myCursor = makeCursor(ME,true);
+cursors.push(myCursor);
+
+/* ---- the user's real pointer drives THEIR presence cursor ---- */
+let realX = W*0.5, realY = H*0.4, hasReal = false;
+if(!touch){
+  window.addEventListener('pointermove',e=>{
+    realX=e.clientX; realY=e.clientY; hasReal=true;
+  },{passive:true});
+  window.addEventListener('pointerleave',()=>{ hasReal=false; });
+}
+
+/* =====================================================================
+   ANNOTATION BUBBLES - a visitor pops a canned line near a card on an
+   interval. Distinct from particle-constellation: this is *presence*.
+   ===================================================================== */
+const bubbles = [];
+function spawnBubble(o, forceCard){
+  if(o.isMe) return;
+  const card = forceCard || o.target ||
+    cards.find(c=>{const b=c.getBoundingClientRect();
+      return Math.abs(b.left+b.width/2 - o.x)<b.width && b.top<H && b.bottom>0;});
+  if(!card) return;
+  const line = o.v.lines[Math.floor(o.rand()*o.v.lines.length)];
+  const b = document.createElement('div');
+  b.className='bubble';
+  b.innerHTML = `<div class="bubble__who"><i style="background:${o.v.accent}"></i><span>${o.v.name}</span></div><div class="bubble__txt">${line}</div>`;
+  document.body.appendChild(b);
+
+  // position above the cursor, clamped to viewport
+  let bx = Math.min(Math.max(o.x+14, 10), W-258);
+  let by = Math.min(Math.max(o.y-16, 60), H-90);
+  b.style.left = bx+'px';
+  b.style.top  = (by-58)+'px';
+  requestAnimationFrame(()=>b.classList.add('show'));
+
+  // highlight the card the comment is about
+  card.classList.add('attn');
+  card.style.setProperty('--attn', o.v.accent);
+
+  const entry = {el:b, card, until: performance.now()+3400};
+  bubbles.push(entry);
+}
+function reapBubbles(now){
+  for(let i=bubbles.length-1;i>=0;i--){
+    const e=bubbles[i];
+    if(now>e.until){
+      e.el.classList.remove('show');
+      e.card && e.card.classList.remove('attn');
+      const el=e.el; setTimeout(()=>el.remove(),350);
+      bubbles.splice(i,1);
+    }
+  }
+}
+
+/* show ONE bubble immediately so scroll=0 has an annotation visible */
+function seedFirstBubble(){
+  // pick the first visitor and park their cursor on the first big card
+  const o = cursors[0];
+  const c = cards[0];
+  if(!c) return;
+  const b=c.getBoundingClientRect();
+  o.p3={x:b.left+b.width*0.42,y:b.top+b.height*0.5};
+  o.p0={...o.p3}; o.p1={...o.p3}; o.p2={...o.p3};
+  o.x=o.p3.x; o.y=o.p3.y; o.t0=performance.now(); o.dur=2200;
+  o.target=c;
+  spawnBubble(o,c);
+}
+
+/* =====================================================================
+   MAIN LOOP - single rAF interpolates all cursors + draws trails.
+   A separate ~2s timer reseats bezier legs and fires annotations.
+   ===================================================================== */
+function drawTrails(){
+  // fade the whole canvas slightly each frame -> trailing comet effect
+  ctx.globalCompositeOperation='destination-out';
+  ctx.fillStyle='rgba(0,0,0,0.085)';
+  ctx.fillRect(0,0,W,H);
+  ctx.globalCompositeOperation='lighter';
+  cursors.forEach(o=>{
+    if(o.trail.length<2) return;
+    const c = o.v.accent;
+    for(let i=1;i<o.trail.length;i++){
+      const a=o.trail[i-1], b=o.trail[i];
+      const alpha = (i/o.trail.length)*0.5*(o.isMe?0.7:1);
+      ctx.strokeStyle = hexA(c,alpha);
+      ctx.lineWidth = (i/o.trail.length)*2.4*(o.isMe?0.8:1);
+      ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+    }
+  });
+  ctx.globalCompositeOperation='source-over';
+}
+function hexA(hex,a){
+  const n=parseInt(hex.slice(1),16);
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+}
+
+let last=0;
+function frame(now){
+  // sim cursors interpolate along their bezier legs
+  cursors.forEach(o=>{
+    if(o.isMe && hasReal){
+      // ease the user's presence cursor toward their real pointer
+      o.x += (realX-o.x)*0.35;
+      o.y += (realY-o.y)*0.35;
+    } else {
+      let t = (now-o.t0)/o.dur;
+      if(t>=1) t=1;
+      const e = t<0.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2;  // easeInOutQuad
+      const p = bez(o.p0,o.p1,o.p2,o.p3,e);
+      o.x=p.x; o.y=p.y;
+    }
+    o.el.style.transform=`translate(${o.x}px,${o.y}px)`;
+    // record trail point (throttled by distance)
+    const tr=o.trail, lp=tr[tr.length-1];
+    if(!lp || Math.hypot(o.x-lp.x,o.y-lp.y)>4){
+      tr.push({x:o.x,y:o.y});
+      if(tr.length>26) tr.shift();
+    }
+  });
+  drawTrails();
+  reapBubbles(now);
+  rafId=requestAnimationFrame(frame);
+}
+
+/* the ~2s shared path/annotation timer (perf guardrail) */
+let annTick=0;
+function tick(){
+  const now=performance.now();
+  cursors.forEach(o=>{
+    if(o.isMe) return;
+    if(now-o.t0 > o.dur) reseat(o);
+  });
+  // every other tick, one random visitor drops a note
+  annTick++;
+  if(annTick%2===0){
+    const live = cursors.filter(o=>!o.isMe);
+    const o = live[Math.floor(Math.random()*live.length)];
+    if(o && bubbles.length<2) spawnBubble(o);
+  }
+}
+
+/* =====================================================================
+   REDUCED MOTION  -  no drift, no rAF, no trails. Static presence dots
+   parked over the works, plus one visible annotation. Honors the rule:
+   disable heavy motion AND inline-transform overrides, show final state.
+   ===================================================================== */
+let rafId=null, tickId=null;
+function startLive(){
+  // seed initial drifting state so scroll=0 already shows motion+bubble
+  cursors.forEach((o,i)=>{ if(!o.isMe){ reseat(o);
+    // stagger so they don't all move in lockstep
+    o.t0 = performance.now() - o.rand()*o.dur;
+  }});
+  seedFirstBubble();
+  rafId=requestAnimationFrame(frame);
+  tickId=setInterval(tick,2000);     // <-- guardrail: 2s, not per-frame
+}
+function startStatic(){
+  document.body.classList.add('no-customcursor');
+  // park each visitor cursor statically over a card (no animation)
+  cursors.forEach((o,i)=>{
+    if(o.isMe){ o.el.style.display='none'; return; }
+    const c = cards[i % cards.length];
+    if(c){ const b=c.getBoundingClientRect();
+      o.x=b.left+b.width*(0.3+0.1*i); o.y=b.top+b.height*0.4; }
+    else { o.x=W*0.3+i*120; o.y=H*0.3; }
+    o.el.style.transform=`translate(${o.x}px,${o.y}px)`;
+  });
+  // one static annotation, no timers
+  const o=cursors[0], c=cards[0];
+  if(c){ o.target=c; spawnBubble(o,c);
+    const e=bubbles[bubbles.length-1]; if(e) e.until=Infinity; }
+}
+
+if(reduce){
+  startStatic();
+} else {
+  // first frame after layout so card rects are valid
+  requestAnimationFrame(()=>requestAnimationFrame(startLive));
+}
+
+/* keep cursors sensible after scroll (rects move; targets refreshed by timer) */
+window.addEventListener('scroll',()=>{ /* bezier targets re-pick on next tick */ },{passive:true});
+</script>
+</body>
+</html>

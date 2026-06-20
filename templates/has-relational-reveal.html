@@ -260,7 +260,7 @@ a{color:inherit}
   .grid .card:hover .ring,
   .grid .card:focus-within .ring{
     opacity:1;
-    box-shadow:inset 0 0 0 2px var(--violet), 0 0 22px -4px var(--violet-glow);
+    box-shadow:inset 0 0 0 3.5px var(--violet), 0 0 0 1px var(--violet), 0 0 30px 0 var(--violet-glow);
   }
   .grid .card:hover .key,
   .grid .card:focus-within .key{
@@ -295,7 +295,7 @@ a{color:inherit}
   .grid:has(.card[data-tag="motion"]:hover) .card[data-tag="motion"] .ring,
   .grid:has(.card[data-tag="motion"]:focus-within) .card[data-tag="motion"] .ring{
     opacity:1;
-    box-shadow:inset 0 0 0 1.5px var(--violet-soft), 0 0 14px -6px var(--violet-glow);
+    box-shadow:inset 0 0 0 2.5px var(--violet), 0 0 18px -2px var(--violet-glow);
   }
   /* tag-mate key pill picks up the violet too */
   .grid:has(.card[data-tag="cinema"]:hover) .card[data-tag="cinema"] .key,
@@ -326,12 +326,17 @@ a{color:inherit}
      the user actually hovers or focuses anything (the :not() guards). */
   .grid:not(:hover):not(:focus-within) .card.seed{
     opacity:1; transform:scale(1.015); filter:none;
-    box-shadow:0 18px 46px -18px rgba(0,0,0,.7), 0 0 0 1px var(--violet-soft); z-index:5;
+    /* bold OUTER violet ring on the dark ground (an inset ring over busy media washes
+       out at thumbnail scale), so the seed reads as the engaged node from across the room */
+    box-shadow:0 18px 46px -18px rgba(0,0,0,.7), 0 0 0 3.5px var(--violet), 0 0 34px 0 var(--violet-glow); z-index:5;
   }
   .grid:not(:hover):not(:focus-within) .card.seed .media{ filter:grayscale(0) contrast(1.05); transform:scale(1.04) }
   .grid:not(:hover):not(:focus-within) .card.seed::after{ opacity:.55 }
   .grid:not(:hover):not(:focus-within) .card.seed .ring{
-    opacity:1; box-shadow:inset 0 0 0 2px var(--violet), 0 0 22px -4px var(--violet-glow);
+    opacity:1;
+    /* bold source ring: a thick violet inset + a bright outer halo so the
+       seed reads unmistakably as the engaged node of the chain */
+    box-shadow:inset 0 0 0 3.5px var(--violet), 0 0 0 1px var(--violet), 0 0 30px 0 var(--violet-glow);
   }
   .grid:not(:hover):not(:focus-within) .card.seed .key{
     color:var(--bone);border-color:var(--violet-soft);background:rgba(123,104,238,.18);
@@ -339,9 +344,15 @@ a{color:inherit}
   /* seed propagates to its tag-mates (seed is data-tag="motion") */
   .grid[data-seedtag="motion"]:not(:hover):not(:focus-within) .card[data-tag="motion"]{
     opacity:.92; transform:scale(1); filter:saturate(.85);
+    /* tag-mates also get a bold OUTER violet ring (slightly lighter than the seed) so the
+       cross-card chain is unmistakable at scroll=0, not just a faint inset over the media */
+    box-shadow:0 10px 30px -16px rgba(0,0,0,.6), 0 0 0 2.5px var(--violet), 0 0 24px -2px var(--violet-glow);
   }
   .grid[data-seedtag="motion"]:not(:hover):not(:focus-within) .card[data-tag="motion"]:not(.seed) .ring{
-    opacity:1; box-shadow:inset 0 0 0 1.5px var(--violet-soft), 0 0 14px -6px var(--violet-glow);
+    opacity:1;
+    /* propagation ring on tag-mates: clearly violet (thicker + a soft halo)
+       so the cross-card chain is obvious, just a touch lighter than the seed */
+    box-shadow:inset 0 0 0 2.5px var(--violet), 0 0 18px -2px var(--violet-glow);
   }
   .grid[data-seedtag="motion"]:not(:hover):not(:focus-within) .card[data-tag="motion"]:not(.seed){
     opacity:.9;
@@ -354,6 +365,21 @@ a{color:inherit}
     opacity:var(--dim); transform:scale(.985); filter:saturate(.55);
   }
 }
+
+/* ===========================================================
+   FIRST-VIEWPORT SIGNATURE (all breakpoints, desktop included).
+   The seed mechanic is item #4 in DOM order and its motion tag-mates are
+   items #8 and #12 - on a desktop 4-col grid those tag-mates fall into rows
+   2 and 3, so the scroll=0 catalog thumbnail would show the lit seed but NOT
+   a second/third ringed card, reading as a generic "one bright, rest dimmed"
+   gallery. So we float the pre-activated seed and its motion tag-mates to the
+   front of the grid by PRESENTATION ONLY (CSS order). order does NOT change
+   DOM source order, so the :has() chain (matched by class/attribute, not
+   position) and keyboard tab order are both untouched. Static (not gated on
+   :hover) so cards never reflow when the user engages the live chain.
+   =========================================================== */
+.grid .card.seed{ order:-2 }                        /* lit seed first */
+.grid .card[data-tag="motion"]:not(.seed){ order:-1 } /* ringed tag-mates next */
 
 /* ===========================================================
    FALLBACK (no :has() support): hover-only opacity, no chain.
@@ -410,21 +436,15 @@ a{color:inherit}
   /* touch: tap = :focus-within drives the chain; make focus obvious */
   .card:focus-within{ box-shadow:0 0 0 2px var(--violet) }
 
-  /* FIRST-VIEWPORT SIGNATURE on phones:
-     the seed mechanic is item #4 in DOM order, which on a 1-col phone grid
-     would sit below the fold and hide the relational chain from the scroll=0
-     catalog thumb. So on phones we (a) compact the band, and (b) reorder by
-     PRESENTATION ONLY (CSS order) so the pre-activated seed card and one of
-     its motion tag-mates float to the top of the grid. order does NOT change
-     DOM source order, so the :has() chain (matched by class/attribute, not
-     position) is untouched; keyboard tab order is unchanged too. */
+  /* FIRST-VIEWPORT SIGNATURE on phones: compact the band so the lit seed +
+     its motion tag-mates (already floated to the front of the grid by the
+     global CSS order rule above) sit fully inside the scroll=0 catalog thumb
+     on a 1-col phone grid. */
   .shell{ padding-top:14px }
   .band{ margin-bottom:12px; padding-bottom:12px; gap:8px 18px }
   .band h1{ font-size:24px; max-width:none }
   .band .meta{ font-size:10px; line-height:1.55 }
   .legend{ margin-bottom:12px }
-  .card.seed{ order:-2 }                       /* lit seed first */
-  .card[data-tag="motion"]:not(.seed){ order:-1 } /* a ringed tag-mate next */
 }
 
 /* ===========================================================

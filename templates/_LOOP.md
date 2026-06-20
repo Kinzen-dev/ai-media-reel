@@ -35,6 +35,11 @@ for his future-project library. He will review them all when he wakes.
    `_knowledge/Resources/award-web-templates/README.md`. Commit + deploy to the live Pages site.
 6. LAUNCH THE NEXT BATCH. Do not end the turn without the next Workflow launched.
 
+## STANDING TASK (King, 2026-06-20): bank skill-ideas as the loop runs
+After each batch, append any NEW design insight or loop-methodology insight to `_SKILL-IDEAS.md`
+(two skill candidates: the loop itself + award-level frontend design). King will promote these to
+real skills later via /promote-to-skill. Concrete + actionable bullets only; do not let it go stale.
+
 ## STATE (update each batch; _manifest.json is the source of truth)
 - 78 templates LIVE + cataloged (originals v2/v3/v4 + batches 1-15). Deploy = rsync showcase/templates/ -> /tmp/reel-deploy/templates/ then commit+push (Kinzen-dev).
 - Batch 16 IN FLIGHT (wf, build+verify): risograph-print-emulation, has-relational-reveal, diagonal-marquee-scroll, scroll-snap-choreography, playable-terminal-game (all CSS/Canvas2D).

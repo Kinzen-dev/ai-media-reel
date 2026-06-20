@@ -242,7 +242,7 @@ const DATA = [
   { src:"../assets/flux-car-4k.png",
     kind:"image", run:"01", title:"NIGHT RUN / wet street",
     note:"Matte-black coupe under neon. Shadows carry the pink plate, reflections drift to teal.",
-    size:"wide" },
+    size:"full" },   /* full-bleed hero plate: the dense pink+teal dot screen fills the first desktop screen at scroll=0 */
 
   { src:"../assets/gen/poster-kling-video.png", video:"../assets/kling-video.mp4",
     kind:"video", run:"02", title:"MOTION PLATE",
@@ -269,9 +269,9 @@ const DATA = [
     note:"Even a coarse source prints clean: dot size scales up, ink-bleed softens the grid edges.",
     size:"" },
 
-  { src:"../assets/meshy-refined-thumb.png",
-    kind:"image", run:"07", title:"MESH / 3D capture",
-    note:"A rendered object pressed flat into two inks. Dot grid follows form, not geometry.",
+  { src:"../assets/flux-car.png",
+    kind:"image", run:"07", title:"COUPE / second pass",
+    note:"A second night frame, run on a finer screen. Specular highlights pull teal, the body floods pink.",
     size:"" },
 
   { src:"../assets/gen/poster-flux-car-i2v.png", video:"../assets/flux-car-i2v.mp4",
@@ -462,10 +462,13 @@ function processPanel(P){
       // keep the source aspect ratio; this is the print, not a crop
       const OUTW = Math.round(frameW * dpr);
       const OUTH = Math.round(OUTW / (sw/sh));
-      // dot cell: bigger on small screens for readability; large enough on
-      // desktop that the dots stay legible across wide panels.
+      // dot cell: bigger on small screens for readability; on desktop we keep
+      // the cell generous too so the pink+teal halftone dots stay clearly
+      // legible (and visibly misregistered) in the full-bleed hero plate that
+      // fills the first screen - the signature must read in the catalog thumb,
+      // not just on phones.
       const small = window.innerWidth <= 640;
-      const cell = (small ? 7 : 5.6) * dpr;
+      const cell = (small ? 7 : 6.6) * dpr;
 
       // ---- 3. build each ink's halftone layer ----
       const pink = halftoneInk(srcData, sw, sh, OUTW, OUTH, 45, PINK, cell, pinkWeight);
@@ -473,11 +476,13 @@ function processPanel(P){
 
       P.layers = {pink, teal, OUTW, OUTH};
       // ---- 4. per-load misregistration offset (px in output space) ----
-      const j = (small?2.2:3.2)*dpr;
-      P.off = {
-        px:(Math.random()*2-1)*j, py:(Math.random()*2-1)*j,
-        tx:(Math.random()*2-1)*j, ty:(Math.random()*2-1)*j
-      };
+      // Bigger baseline + a guaranteed minimum magnitude so the two plates are
+      // ALWAYS visibly off-register at scroll=0 (never landing near 0,0 by a
+      // random draw). This is the part the catalog thumbnail must show.
+      const j = (small?3.2:5.0)*dpr;
+      const minMag = (small?1.6:2.6)*dpr;          // floor so the print never reads as registered
+      const jit = ()=>{ const s = Math.random()<0.5?-1:1; return s*(minMag + Math.random()*(j-minMag)); };
+      P.off = { px:jit(), py:jit(), tx:jit(), ty:jit() };
       P.cell = cell; P.dpr = dpr;
       compositePanel(P, 0);
       P.frame.classList.remove('pending');

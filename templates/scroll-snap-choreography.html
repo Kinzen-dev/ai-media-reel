@@ -204,12 +204,28 @@
   [data-anim]{
     animation-duration:1100ms;
     animation-fill-mode:both;
-    animation-play-state:paused;       /* held at frame 0 -> hero is "mid-play" composition */
+    animation-play-state:paused;       /* held at frame 0 until the scene goes live */
     animation-timing-function:var(--ease-rise);
   }
   .scene.is-live [data-anim]{ animation-play-state:running; }
   /* stagger via inline --d (delay index) */
   [data-anim]{ animation-delay:calc(var(--d, 0) * 90ms); }
+
+  /* HERO IS BORN SETTLED.
+     Sections 2..7 still animate on scroll-in, but section 1 must read as a
+     fully-composed headline at scroll=0 - the catalog thumbnail is captured
+     the instant the page loads, so an in-flight entrance would photograph as
+     faint ghost text over an empty void. We neutralize every entrance on the
+     hero's atoms: no transform, no clip curtain (kills the stray underline
+     edge), full opacity, frame 0 == frame 1. Nothing here depends on JS or
+     IntersectionObserver timing, so the hero is correct on the very first
+     paint regardless of when the screenshot fires. */
+  .s-hero [data-anim]{
+    animation:none !important;
+    opacity:1 !important;
+    transform:none !important;
+    clip-path:none !important;
+  }
 
   /* -- S1 RISE: words clip up from below, staggered -- */
   .a-rise{ animation-name:rise; }
@@ -289,8 +305,9 @@
      PER-SECTION LAYOUTS
      =================================================================== */
 
-  /* S1 hero: compact eyebrow band on top, the rising headline + a live
-     strip of the upcoming section accents visible at scroll=0 */
+  /* S1 hero: compact eyebrow band on top, the settled headline + a live
+     strip of the upcoming section accents visible at scroll=0 (this room is
+     born resolved; the rise entrance is reserved for rooms 2..7) */
   .s-hero .inner{ display:grid; gap:clamp(20px,3vw,40px); }
   .s-hero .head-row{ display:flex; justify-content:space-between; align-items:flex-start; gap:20px; flex-wrap:wrap; }
   .s-hero .scorestrip{ display:flex; gap:8px; align-items:center; }
@@ -485,7 +502,7 @@ const SECTIONS = [
     eyebrow:"Choreographed scroll-snap", tag:"Move 01",
     // words rise + clip individually, staggered
     words:["A","scored","descent", "through","seven","rooms."],
-    lede:"Native CSS scroll-snap moves the camera. Each room authors its own entrance - a different motion primitive fires once as you arrive. This first line is held mid-rise at the top of the page.",
+    lede:"Native CSS scroll-snap moves the camera. Each room authors its own entrance - a different motion primitive fires once as you arrive. This opening room is already settled; rooms two through seven animate the moment you reach them.",
     stats:[["07","rooms"],["0","scroll listeners"],["1x","play toggle / room"]]
   },
   {
@@ -804,8 +821,11 @@ document.addEventListener("keydown",(e)=>{
   if(["ArrowUp","PageUp"].includes(e.key)){ e.preventDefault(); scenes[Math.max(liveIdx-1,0)].scrollIntoView({behavior:sb}); }
 });
 
-/* hero is live immediately so its rise is "mid-play" at scroll=0 */
-requestAnimationFrame(()=>{ scenes[0].classList.add("is-live"); railBtns[0].setAttribute("aria-current","true"); });
+/* hero is born settled (CSS neutralizes its entrance), so at scroll=0 it is a
+   fully-composed headline on the very first paint - no mid-play ghost frame.
+   We still mark it live (so its accent/rail state matches) and flag the rail. */
+scenes[0].classList.add("is-live");
+railBtns[0].setAttribute("aria-current","true");
 </script>
 </body>
 </html>

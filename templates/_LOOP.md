@@ -35,9 +35,13 @@ for his future-project library. He will review them all when he wakes.
    `_knowledge/Resources/award-web-templates/README.md`. Commit + deploy to the live Pages site.
 6. LAUNCH THE NEXT BATCH. Do not end the turn without the next Workflow launched.
 
-## ALREADY DONE / IN FLIGHT (also catalog these)
-- v2 BENTO (showcase/index-v2.html), v3 ORBIT webgl-hero (index-v3.html), v4 GENERATING reel (index-v4.html)
-- Batch 1 (building now, wf): playhead, query, press, provenance, space, stdout, morph, arc
+## STATE (update each batch; _manifest.json is the source of truth)
+- 41 templates LIVE + cataloged (originals v2/v3/v4 + batches 1-7). Deploy = rsync showcase/templates/ -> /tmp/reel-deploy/templates/ then commit+push (Kinzen-dev).
+- Batch 8 IN FLIGHT (wf, build+verify): surveillance-cctv, axis-shift-scroll, scrollytelling-chapter, tech-organic-mesh, generative-stamp-collection.
+- Batch 9+ fuel in `_backlog-refresh.json` (8 usable; SKIP the 2 dupes liquid-glass-depth + variable-font-pressure already built) + soundscape-reactive.
+- Recurring defect to watch: build agents make a title-only hero and hide the signature below the fold. Workflow now has a "FIRST-VIEWPORT SIGNATURE at scroll=0" rule (build + verify). Judge every thumbnail for it.
+- WebGL gotcha (cost me a long debug on dithered-lo-fi): GLSL ES 1.0 local float[] with dynamic index returns 0 on ANGLE -> all-paper; use a LUT texture + preserveDrawingBuffer:true for screenshot-stable thumbs. _batch-workflow verify prompt now warns about this.
+- Verify-only (no rebuild) workflow = `_verify-workflow.js` (for files that built but missed their verify pass, e.g. a rate-limited batch).
 
 ## QUALITY NOTES
 - Reuse real assets in ../assets/ so templates render + look wow.

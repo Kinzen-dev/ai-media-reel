@@ -1,0 +1,531 @@
+<!-- TEMPLATE: Lightning Crop | ARCHETYPE: PATH MORPH | REF: CSS clip-path:path() Baseline 2025 (MDN), Codrops Animating clip-path:path() 2025, Smashing scroll-driven path-morph 2026 | WHEN TO USE: a portfolio/gallery where each work should dramatically resolve from a jagged crop into a clean frame as it scrolls into view | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lightning Crop - clip-path:path() scroll morph</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   PATH MORPH - clip-path:path() morphs jagged -> rectangle on scroll
+   Palette: #f5f1eb warm bone | #111 ink | #2c6fad cobalt seam
+   ------------------------------------------------------------
+   THE MECHANIC
+   Every work panel carries a clip-path that interpolates between
+   two authored path() strings that share the SAME node count (16):
+     - entering shape  = jagged lightning-bolt polygon
+     - resting shape   = clean rectangle (16 collinear points)
+   The morph is pure CSS: animation-timeline:view() scrubs a
+   @keyframes from the jagged path to the rectangle path as the
+   panel travels through the viewport. No GSAP, no canvas, no WebGL.
+   ============================================================ */
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bone:#f5f1eb;
+  --ink:#111;
+  --cobalt:#2c6fad;
+  --paper:#efe9df;
+  --hair:rgba(17,17,17,.14);
+  --panelH: 86vh;
+}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bone);
+  color:var(--ink);
+  font-family:"Space Grotesk",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+  line-height:1.5;
+}
+
+/* grain + faint vertical guides so the bone never reads flat */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:60;mix-blend-mode:multiply;opacity:.05;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+a{color:inherit}
+::selection{background:var(--cobalt);color:var(--bone)}
+
+/* ---------- TOP BAND (compact, sits ABOVE the first panel) ---------- */
+.band{
+  position:relative;z-index:5;
+  display:flex;align-items:flex-end;justify-content:space-between;gap:24px;
+  padding:26px clamp(18px,4vw,56px) 18px;
+  flex-wrap:wrap;
+}
+.brand{display:flex;align-items:center;gap:14px}
+.brand .bolt{flex:0 0 auto}
+.brand h1{
+  font-family:"Fraunces",serif;font-weight:900;font-size:clamp(28px,4.4vw,52px);
+  line-height:.92;letter-spacing:-.02em;
+}
+.brand h1 em{font-style:italic;color:var(--cobalt)}
+.kicker{
+  font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--cobalt);font-weight:700;
+  margin-bottom:6px;
+}
+.lede{
+  max-width:40ch;font-size:14px;color:rgba(17,17,17,.66);text-align:right;
+}
+.lede b{color:var(--ink);font-weight:500}
+
+/* hairline under band */
+.rule{height:1px;background:var(--hair);margin:0 clamp(18px,4vw,56px)}
+
+/* ---------- WORK STACK ---------- */
+.stack{
+  padding:clamp(20px,5vh,64px) clamp(18px,4vw,56px) 12vh;
+  display:flex;flex-direction:column;gap:clamp(40px,8vh,120px);
+}
+
+.panel{
+  display:grid;
+  grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);
+  gap:clamp(20px,3.4vw,52px);
+  align-items:center;
+}
+.panel:nth-child(even){grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr)}
+.panel:nth-child(even) .meta{order:-1}
+
+/* ---- the clipped media frame ---- */
+.frame{
+  position:relative;
+  width:100%;
+  aspect-ratio:16/9;
+  background:#0c0c0c;
+  border-radius:2px;
+  overflow:hidden;             /* fallback safety */
+  isolation:isolate;
+}
+.frame .seam{                  /* cobalt morph-seam revealed by the jagged clip bite */
+  position:absolute;inset:0;z-index:0;
+  /* must read as a DESIGNED shape against any image tone (incl. dark night plates),
+     so the seam is a bright cobalt field over warm bone, with a bold hatch. */
+  background:
+    repeating-linear-gradient(135deg, rgba(245,241,235,.55) 0 1.5px, transparent 1.5px 8px),
+    repeating-linear-gradient(135deg, rgba(17,17,17,.20) 0 1px, transparent 1px 8px),
+    linear-gradient(155deg, var(--cobalt) 0%, #1f5688 60%, #16456e 100%);
+}
+.frame .clip{
+  position:absolute;inset:0;z-index:1;
+  /* default frozen mid-morph state (overridden where supported) */
+}
+.frame img,
+.frame video{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;display:block;
+}
+/* video posters: video stacks over its own poster, only the focused one plays */
+.frame .play{
+  position:absolute;left:14px;bottom:14px;z-index:4;
+  width:46px;height:46px;border-radius:50%;
+  display:grid;place-items:center;
+  background:rgba(245,241,235,.92);color:var(--ink);
+  border:1px solid rgba(17,17,17,.18);cursor:pointer;
+  box-shadow:0 6px 18px rgba(0,0,0,.28);
+  transition:transform .25s ease, background .2s;
+}
+.frame .play:hover,.frame .play:focus-visible{transform:scale(1.08);background:#fff}
+.frame .play[hidden]{display:none}
+
+/* index tab riding the top-left of each frame */
+.frame .tab{
+  position:absolute;top:0;left:0;z-index:3;
+  background:var(--ink);color:var(--bone);
+  font-family:"Fraunces",serif;font-weight:900;font-size:13px;
+  padding:6px 12px 7px;letter-spacing:.04em;
+}
+.frame .tab b{color:var(--cobalt)}
+
+/* ---- meta column ---- */
+.meta{padding:6px 2px}
+.meta .no{
+  font-family:"Fraunces",serif;font-style:italic;font-weight:600;
+  color:var(--cobalt);font-size:15px;margin-bottom:10px;
+}
+.meta h2{
+  font-family:"Fraunces",serif;font-weight:900;
+  font-size:clamp(26px,3.6vw,46px);line-height:.96;letter-spacing:-.018em;
+  margin-bottom:14px;
+}
+.meta p{font-size:15px;color:rgba(17,17,17,.7);max-width:42ch;margin-bottom:18px}
+.tags{display:flex;flex-wrap:wrap;gap:8px}
+.tags span{
+  font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+  border:1px solid var(--hair);border-radius:999px;padding:5px 12px;
+  color:rgba(17,17,17,.66);
+}
+.swatch{
+  display:inline-block;width:10px;height:10px;border-radius:2px;
+  margin-right:7px;vertical-align:1px;border:1px solid rgba(0,0,0,.15);
+}
+
+/* ---- footer ---- */
+.foot{
+  border-top:1px solid var(--hair);
+  padding:34px clamp(18px,4vw,56px) 60px;
+  display:flex;justify-content:space-between;align-items:baseline;gap:20px;flex-wrap:wrap;
+  font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:rgba(17,17,17,.55);
+}
+.foot b{color:var(--cobalt)}
+
+/* ============================================================
+   THE PATH MORPH (the whole point of the template)
+   path() interpolation requires identical command structure +
+   node count. Both keyframes below use 16 points: M then 15 L
+   then Z. The jagged frame is hand-authored; the rect is the
+   same 16 points collapsed onto the frame edges.
+   Coordinates are in px against a 1000x562 reference box
+   (16:9). The frame stretches the clip with the box.
+   ============================================================ */
+@supports (clip-path: path('M0 0L1 1Z')){
+  .frame{overflow:visible}            /* let the jagged clip breathe */
+  .clip{
+    /* frozen mid-morph fallback if no scroll timeline */
+    clip-path: path('M0,0 L210,0 L150,120 L360,150 L300,300 L520,250 L470,420 L1000,360 L1000,562 L760,500 L690,540 L500,460 L470,520 L300,440 L120,500 L0,420 Z');
+    animation: lightning both linear;
+    animation-timeline: view();
+    animation-range: entry 4% cover 46%;
+  }
+  /* the very first panel is FROZEN mid-morph at scroll=0 so the
+     jagged lightning clip is the signature in the catalog thumbnail.
+     No scroll animation here: it holds a static jagged-but-resolving
+     16-node path (between bolt and rect) regardless of scroll pos. */
+  .panel:first-child .clip{
+    animation: none;
+    animation-timeline: auto;
+    clip-path: path('M0,0 L235,0 L300,90 L500,110 L520,250 L720,210 L760,380 L1000,330 L1000,562 L800,520 L740,540 L560,470 L540,510 L360,450 L200,500 L0,440 Z');
+  }
+}
+
+@keyframes lightning{
+  /* 0%  : authored 16-point LIGHTNING BOLT  */
+  from{
+    clip-path: path('M0,0 L210,0 L150,120 L360,150 L300,300 L520,250 L470,420 L1000,360 L1000,562 L760,500 L690,540 L500,460 L470,520 L300,440 L120,500 L0,420 Z');
+  }
+  /* 100%: SAME 16 nodes flattened onto a clean RECTANGLE */
+  to{
+    clip-path: path('M0,0 L250,0 L500,0 L750,0 L1000,0 L1000,140 L1000,280 L1000,420 L1000,562 L750,562 L500,562 L250,562 L0,562 L0,420 L0,280 L0,140 Z');
+  }
+}
+
+/* JS scroll fallback (browsers without view()) writes --p 0..1
+   and we manually swap toward the rect via the inline style the
+   script sets; this rule just smooths it */
+.clip.js-morph{transition:clip-path .12s linear;animation:none !important}
+
+/* ---------- RESPONSIVE: never cover-crop a 16:9 asset into a phone ---------- */
+@media (max-width:860px){
+  .panel,.panel:nth-child(even){grid-template-columns:1fr;gap:22px}
+  .panel:nth-child(even) .meta{order:0}
+  .lede{text-align:left}
+}
+@media (max-width:640px){
+  :root{--panelH:auto}
+  .stack{padding-top:14px;gap:46px}
+  .frame{
+    aspect-ratio:16/9;            /* keep the real asset ratio */
+    background:#0c0c0c;
+  }
+  /* letterbox the square assets so they are never stretched */
+  .frame.square img,.frame.square video{object-fit:contain;background:#0c0c0c}
+  .band{padding-top:18px}
+  .meta p{max-width:none}
+}
+
+/* ---------- REDUCED MOTION: morph collapses to an opacity fade ---------- */
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto}
+  @supports (clip-path: path('M0 0L1 1Z')){
+    .clip,.panel:first-child .clip{
+      animation:none !important;
+      /* show the FINAL resting rectangle, no jagged motion */
+      clip-path: path('M0,0 L250,0 L500,0 L750,0 L1000,0 L1000,140 L1000,280 L1000,420 L1000,562 L750,562 L500,562 L250,562 L0,562 L0,420 L0,280 L0,140 Z');
+    }
+  }
+  .frame{overflow:hidden}
+  .clip{opacity:0;animation:fadein both linear;animation-timeline:view();animation-range:entry 0% cover 30%}
+  .panel:first-child .clip{opacity:1;animation:none}
+}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+
+/* ---------- NO clip-path:path() support: inset() fallback ---------- */
+@supports not (clip-path: path('M0 0L1 1Z')){
+  .clip{
+    clip-path: inset(8% 6% 8% 6% round 2px);
+    animation: insetmorph both linear;
+    animation-timeline: view();
+    animation-range: entry 4% cover 46%;
+  }
+  .panel:first-child .clip{animation-range:cover 0% cover 40%}
+  @keyframes insetmorph{
+    from{clip-path: inset(14% 22% 14% 22% round 2px)}
+    to  {clip-path: inset(0% 0% 0% 0% round 2px)}
+  }
+  /* if neither path() nor scroll timeline: static partial inset still reads */
+}
+:focus-visible{outline:2.5px solid var(--cobalt);outline-offset:3px;border-radius:2px}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     DATA - swap works here. Each item:
+       no     : index label
+       title  : work title
+       desc   : one-line caption
+       tags   : up to 3 chips
+       color  : per-work accent swatch (from the image)
+       type   : 'image' | 'video'
+       src    : media path (relative to /showcase/templates/)
+       poster : poster for video
+       square : true for non-16:9 assets (letterboxed)
+     ============================================================ -->
+<script>
+const DATA = [
+  {
+    no:"Work 01 / Motion",
+    title:"Nightfall, in Cobalt",
+    desc:"A matte-black coupe pinned to a wet neon street. The bolt eats the frame, then sets it straight.",
+    tags:["FLUX 4K","Automotive","Still"],
+    color:"#2c6fad",
+    type:"image",
+    src:"../assets/flux-car-4k.png",
+    square:false
+  },
+  {
+    no:"Work 02 / Interior",
+    title:"Clinic, Soft Mint",
+    desc:"Mint and warm wood, generated whole. Resolves from a jagged crop into a clean architectural plate.",
+    tags:["FLUX 4K","Spatial","Still"],
+    color:"#7fb09a",
+    type:"image",
+    src:"../assets/flux-clinic-4k.png",
+    square:false
+  },
+  {
+    no:"Work 03 / Loop",
+    title:"Drive Cycle",
+    desc:"An image-to-video pass on the coupe. Poster holds until you press play, so only the focused loop ever decodes.",
+    tags:["I2V","Video","Loop"],
+    color:"#c2683a",
+    type:"video",
+    src:"../assets/flux-car-i2v.mp4",
+    poster:"../assets/gen/poster-flux-car-i2v.png",
+    square:false
+  },
+  {
+    no:"Work 04 / Painted",
+    title:"Autumn Fox",
+    desc:"A painterly square. Letterboxed on phones so it is never stretched into the panel ratio.",
+    tags:["SDXL","Painterly","Square"],
+    color:"#b8552b",
+    type:"image",
+    src:"../assets/sdxl.png",
+    square:true
+  },
+  {
+    no:"Work 05 / Generative",
+    title:"Kling Motion Study",
+    desc:"A silent generative loop. Same morph, same 16 nodes, scrubbed by the same view() timeline.",
+    tags:["Kling","Video","Loop"],
+    color:"#3d6ea5",
+    type:"video",
+    src:"../assets/kling-video.mp4",
+    poster:"../assets/gen/poster-kling-video.png",
+    square:false
+  },
+  {
+    no:"Work 06 / Low-fi",
+    title:"Apple, Abstracted",
+    desc:"A tiny diffusion experiment. The jagged entrance reads even on the smallest, lowest-fi plate.",
+    tags:["TinySD","Abstract","Square"],
+    color:"#9c8b3f",
+    type:"image",
+    src:"../assets/hf-tinysd.png",
+    square:true
+  }
+];
+</script>
+
+<!-- ---------- COMPACT TOP BAND ---------- -->
+<header class="band">
+  <div class="brand">
+    <svg class="bolt" width="30" height="46" viewBox="0 0 30 46" aria-hidden="true">
+      <path d="M18 0 L2 26 L13 26 L9 46 L28 16 L16 16 Z" fill="#2c6fad" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/>
+    </svg>
+    <div>
+      <div class="kicker">clip-path : path( ) scroll morph</div>
+      <h1>Lightning <em>Crop</em></h1>
+    </div>
+  </div>
+  <p class="lede">
+    Every plate is clipped by a <b>16-node path</b> that morphs from a jagged
+    lightning bolt into a clean rectangle as it scrolls. Pure CSS,
+    <b>animation-timeline: view()</b>. No canvas, no libraries.
+  </p>
+</header>
+<div class="rule"></div>
+
+<!-- ---------- WORK STACK (rendered from DATA) ---------- -->
+<main class="stack" id="stack"></main>
+
+<footer class="foot">
+  <span>Lightning <b>Crop</b> &nbsp;/&nbsp; PATH MORPH template</span>
+  <span>clip-path: path() &nbsp;<b>Baseline 2025</b>&nbsp; / fallback inset()</span>
+  <span>Swap the <b>DATA</b> array to reuse</span>
+</footer>
+
+<script>
+/* ============================================================
+   RENDER from DATA. Each frame gets:
+     - a cobalt seam ghost behind the clip
+     - a .clip layer carrying the CSS path-morph
+     - posters for videos; only the focused/clicked one plays
+   ============================================================ */
+const stack = document.getElementById('stack');
+
+DATA.forEach((w, i) => {
+  const panel = document.createElement('section');
+  panel.className = 'panel';
+
+  // media frame
+  const frame = document.createElement('div');
+  frame.className = 'frame' + (w.square ? ' square' : '');
+  frame.innerHTML = `<div class="seam"></div>`;
+
+  const clip = document.createElement('div');
+  clip.className = 'clip';
+
+  if (w.type === 'image') {
+    clip.innerHTML = `<img src="${w.src}" alt="${w.title}" loading="${i < 2 ? 'eager' : 'lazy'}" decoding="async">`;
+  } else {
+    // video: poster image sits in the clip; <video> stacks on top, paused, preload=none
+    clip.innerHTML = `
+      <img src="${w.poster}" alt="${w.title} poster" loading="lazy" decoding="async">
+      <video muted loop playsinline preload="none" poster="${w.poster}"
+             aria-label="${w.title} loop" style="opacity:0;transition:opacity .35s">
+        <source src="${w.src}" type="video/mp4">
+      </video>`;
+  }
+  frame.appendChild(clip);
+
+  // index tab
+  const tab = document.createElement('div');
+  tab.className = 'tab';
+  tab.innerHTML = `<b>/</b> ${String(i + 1).padStart(2, '0')}`;
+  frame.appendChild(tab);
+
+  // play button for videos
+  if (w.type === 'video') {
+    const btn = document.createElement('button');
+    btn.className = 'play';
+    btn.setAttribute('aria-label', `Play ${w.title}`);
+    btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5 L14 8 L3 14.5 Z" fill="currentColor"/></svg>`;
+    frame.appendChild(btn);
+  }
+
+  // meta column
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  meta.innerHTML = `
+    <div class="no">${w.no}</div>
+    <h2>${w.title}</h2>
+    <p>${w.desc}</p>
+    <div class="tags">
+      <span><i class="swatch" style="background:${w.color}"></i>${w.color}</span>
+      ${w.tags.map(t => `<span>${t}</span>`).join('')}
+    </div>`;
+
+  panel.appendChild(frame);
+  panel.appendChild(meta);
+  stack.appendChild(panel);
+});
+
+/* ---------- VIDEO: play ONLY the focused/clicked loop ----------
+   Avoids simultaneous decode of several mp4s on one page. */
+let activeVideo = null;
+function stopActive(){
+  if (activeVideo){
+    activeVideo.pause();
+    activeVideo.style.opacity = '0';
+    const b = activeVideo.closest('.frame')?.querySelector('.play');
+    if (b) b.hidden = false;
+    activeVideo = null;
+  }
+}
+document.querySelectorAll('.frame .play').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const frame = btn.closest('.frame');
+    const vid = frame.querySelector('video');
+    if (!vid) return;
+    stopActive();
+    vid.style.opacity = '1';
+    vid.play().then(() => { btn.hidden = true; activeVideo = vid; })
+              .catch(() => { btn.hidden = false; });
+  });
+});
+/* pause whichever loop scrolls fully out of view (frees the decoder) */
+if ('IntersectionObserver' in window){
+  const io = new IntersectionObserver(es => {
+    es.forEach(e => {
+      if (!e.isIntersecting && activeVideo && e.target.contains(activeVideo)) stopActive();
+    });
+  }, { threshold: 0.05 });
+  document.querySelectorAll('.frame').forEach(f => io.observe(f));
+}
+
+/* ============================================================
+   SCROLL-TIMELINE FALLBACK
+   If the browser lacks CSS animation-timeline:view(), drive the
+   path morph from JS by linearly interpolating the SAME 16 nodes.
+   Honors prefers-reduced-motion (skips entirely -> CSS fade).
+   ============================================================ */
+const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const supportsViewTL =
+  CSS && CSS.supports && CSS.supports('animation-timeline: view()');
+const supportsPath =
+  CSS && CSS.supports && CSS.supports("clip-path", "path('M0 0L1 1Z')");
+
+if (!supportsViewTL && supportsPath && !REDUCED){
+  // 16 authored points for each shape (x,y in the 1000x562 ref box)
+  const JAG = [[0,0],[210,0],[150,120],[360,150],[300,300],[520,250],[470,420],[1000,360],[1000,562],[760,500],[690,540],[500,460],[470,520],[300,440],[120,500],[0,420]];
+  const RECT= [[0,0],[250,0],[500,0],[750,0],[1000,0],[1000,140],[1000,280],[1000,420],[1000,562],[750,562],[500,562],[250,562],[0,562],[0,420],[0,280],[0,140]];
+  const toPath = pts => 'path("M' + pts.map(p => p[0].toFixed(1)+','+p[1].toFixed(1)).join(' L') + ' Z")';
+  const lerp = (a,b,t) => a + (b - a) * t;
+  const ease = t => t<.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2;
+
+  const allClips = [...document.querySelectorAll('.clip')];
+  // panel 0 stays FROZEN jagged (the scroll=0 signature) - never JS-driven
+  const FROZEN = [[0,0],[235,0],[300,90],[500,110],[520,250],[720,210],[760,380],[1000,330],[1000,562],[800,520],[740,540],[560,470],[540,510],[360,450],[200,500],[0,440]];
+  if (allClips[0]) allClips[0].style.clipPath = toPath(FROZEN);
+  const clips = allClips.slice(1);          // panels 2..N morph on scroll
+  clips.forEach(c => c.classList.add('js-morph'));
+
+  let ticking = false;
+  function frameUpdate(){
+    ticking = false;
+    const vh = window.innerHeight;
+    clips.forEach((clip) => {
+      const r = clip.getBoundingClientRect();
+      // progress 0 (just entered bottom) -> 1 (centered/past)
+      let p = 1 - (r.top - vh * 0.10) / (vh * 0.80);
+      p = Math.min(1, Math.max(0, p));
+      const t = ease(p);
+      const pts = JAG.map((j, k) => [lerp(j[0], RECT[k][0], t), lerp(j[1], RECT[k][1], t)]);
+      clip.style.clipPath = toPath(pts);
+    });
+  }
+  function onScroll(){ if (!ticking){ ticking = true; requestAnimationFrame(frameUpdate); } }
+  window.addEventListener('scroll', onScroll, { passive:true });
+  window.addEventListener('resize', onScroll, { passive:true });
+  frameUpdate();
+}
+</script>
+</body>
+</html>

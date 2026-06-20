@@ -1,0 +1,672 @@
+<!-- TEMPLATE: Composite Room | ARCHETYPE: blend-mode-stack-gallery | REF: Codrops Blend Modes & Compositing 2025-2026, CSS Design Awards blend-mode portfolio 2026 | WHEN TO USE: a portfolio/gallery where 4 works are stacked in exact registration and scroll-slides them apart, the blended composite IS the hero | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Composite Room - Blend-Mode Stack Gallery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,400&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DATA-DRIVEN STYLE TOKENS
+   Palette: compositing IS the color system.
+   #f0ece4 bone base + 4 work layers each a distinct blend mode.
+   ============================================================ */
+:root{
+  --bone:#f0ece4;
+  --ink:#1a1714;
+  --w1:#c94a2e;  /* work1 multiply  */
+  --w2:#2c6fad;  /* work2 screen    */
+  --w3:#e8c547;  /* work3 overlay   */
+  --w4:#3ab8a8;  /* work4 difference*/
+  --frame-w:min(86vw,1180px);
+  --frame-ar:16/9;       /* shared layer aspect, nothing cover-crops */
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:auto}
+body{
+  background:var(--bone);
+  color:var(--ink);
+  font-family:"Space Grotesk",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+
+/* ---------- top band: headline sits in a compact band ABOVE the live stack ---------- */
+.topband{
+  position:relative;
+  z-index:40;
+  padding:clamp(16px,3vw,30px) clamp(18px,5vw,56px) clamp(8px,1.6vw,14px);
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:18px;
+  flex-wrap:wrap;
+  pointer-events:none;
+}
+.topband .pointerable{pointer-events:auto}
+.kicker{
+  font-size:clamp(10px,1.1vw,12px);
+  letter-spacing:.34em;
+  text-transform:uppercase;
+  font-weight:600;
+  color:var(--w1);
+  display:flex;align-items:center;gap:.7em;
+}
+.kicker::before{content:"";width:34px;height:2px;background:var(--w1);display:inline-block}
+h1{
+  font-family:"Fraunces",serif;
+  font-weight:300;
+  font-size:clamp(34px,7vw,84px);
+  line-height:.92;
+  letter-spacing:-.015em;
+  margin-top:.18em;
+  max-width:14ch;
+}
+h1 em{font-style:italic;font-weight:400;color:var(--w1)}
+.lede{
+  max-width:34ch;
+  font-size:clamp(12.5px,1.35vw,15px);
+  line-height:1.5;
+  color:#5a534a;
+}
+.scrollcue{
+  font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+  color:#8a8076;display:flex;flex-direction:column;align-items:flex-start;gap:6px;
+}
+.scrollcue .bar{position:relative;width:1px;height:46px;background:#cfc7bb;overflow:hidden}
+.scrollcue .bar::after{content:"";position:absolute;left:0;top:0;width:100%;height:40%;background:var(--w1);animation:drip 2.1s var(--ease) infinite}
+@keyframes drip{0%{transform:translateY(-110%)}60%,100%{transform:translateY(260%)}}
+
+/* ============================================================
+   THE STACK
+   Sticky stage; tall scroll track drives layer separation.
+   isolation:isolate confines compositing to this group (guardrail).
+   ============================================================ */
+.track{position:relative;height:420vh}              /* scroll distance for the slide */
+.stage{
+  position:sticky;top:0;height:100vh;
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+}
+.composite{
+  position:relative;
+  width:var(--frame-w);
+  aspect-ratio:var(--frame-ar);
+  isolation:isolate;          /* GUARDRAIL: blend stays inside the group */
+  max-height:74vh;
+}
+/* the bone field the layers composite against */
+.composite::before{
+  content:"";position:absolute;inset:-6vmax;background:var(--bone);z-index:0;
+}
+
+.layer{
+  position:absolute;
+  inset:0;
+  width:100%;height:100%;
+  display:flex;align-items:center;justify-content:center;
+  will-change:transform;
+  border-radius:4px;
+  overflow:hidden;
+  background:var(--bone);
+}
+.layer figure{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+/* media never cover-crops: contain + letterbox on the layer's bone bg */
+.layer img,.layer video{
+  width:100%;height:100%;
+  object-fit:cover;            /* same-aspect frames so 16:9 fills cleanly */
+  display:block;
+}
+/* squares (fox/apple) get contain + a tint wash so they read as full layers */
+.layer.is-square img{object-fit:contain;padding:0}
+.layer.is-square{background:var(--bone)}
+
+/* ---- the four blend assignments. compositing IS the color. ---- */
+.layer.l1{mix-blend-mode:multiply}
+.layer.l2{mix-blend-mode:screen}
+.layer.l3{mix-blend-mode:overlay}
+.layer.l4{mix-blend-mode:difference}
+
+/* per-layer color cast so each work owns its hue inside the composite */
+.layer.l1 .cast{background:var(--w1)}
+.layer.l2 .cast{background:var(--w2)}
+.layer.l3 .cast{background:var(--w3)}
+.layer.l4 .cast{background:var(--w4)}
+.cast{position:absolute;inset:0;mix-blend-mode:multiply;opacity:.5;pointer-events:none;z-index:2}
+.layer.l2 .cast{mix-blend-mode:lighten;opacity:.42}
+.layer.l4 .cast{mix-blend-mode:screen;opacity:.55}
+
+/* hairline + caption that fade IN as layers separate */
+.layer .meta{
+  position:absolute;left:0;bottom:0;z-index:5;
+  padding:10px 13px;
+  display:flex;flex-direction:column;gap:2px;
+  opacity:0;transform:translateY(8px);
+  transition:opacity .4s var(--ease),transform .4s var(--ease);
+  background:linear-gradient(to top,rgba(20,18,16,.78),transparent);
+  width:100%;
+  pointer-events:none;
+}
+.layer.separated .meta{opacity:1;transform:none}
+.layer .meta .idx{font-size:10px;letter-spacing:.28em;text-transform:uppercase}
+.layer.l1 .meta .idx{color:#ffb9a6}
+.layer.l2 .meta .idx{color:#a9d2f3}
+.layer.l3 .meta .idx{color:#f4e39a}
+.layer.l4 .meta .idx{color:#9ff0e4}
+.layer .meta .ttl{font-family:"Fraunces",serif;font-size:clamp(15px,2vw,21px);color:#fff;font-weight:400;line-height:1}
+.layer .meta .mode{font-size:10.5px;color:#cfc7bb;letter-spacing:.06em}
+.layer .badge{
+  position:absolute;top:10px;left:10px;z-index:5;
+  font-size:10px;letter-spacing:.18em;text-transform:uppercase;font-weight:600;
+  padding:4px 9px;border-radius:99px;color:#fff;
+  opacity:0;transition:opacity .4s var(--ease) .05s;
+}
+.layer.separated .badge{opacity:.92}
+.layer.l1 .badge{background:var(--w1)}
+.layer.l2 .badge{background:var(--w2)}
+.layer.l3 .badge{background:var(--w3);color:#1a1714}
+.layer.l4 .badge{background:var(--w4);color:#0a1816}
+
+/* poster/play indicator for video layer */
+.playmark{
+  position:absolute;z-index:6;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:54px;height:54px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(240,236,228,.16);backdrop-filter:blur(3px);
+  border:1px solid rgba(255,255,255,.4);
+  opacity:0;transition:opacity .4s var(--ease);pointer-events:none;
+}
+.layer.separated .playmark{opacity:.9}
+
+/* live readout of the current blend formula, bottom of stage */
+.formula{
+  position:absolute;z-index:30;left:50%;bottom:clamp(14px,3vh,30px);
+  transform:translateX(-50%);
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;
+  font-family:"Space Grotesk";font-size:11px;letter-spacing:.04em;
+  color:#6a6258;background:rgba(240,236,228,.72);
+  border:1px solid #ddd5c8;border-radius:99px;
+  padding:7px 14px;backdrop-filter:blur(6px);
+  max-width:92vw;text-align:center;
+}
+.formula b{font-weight:600}
+.chip{display:inline-flex;align-items:center;gap:5px}
+.dot{width:9px;height:9px;border-radius:2px;display:inline-block}
+.dot.d1{background:var(--w1)}.dot.d2{background:var(--w2)}
+.dot.d3{background:var(--w3)}.dot.d4{background:var(--w4)}
+.op{color:#bdb4a6;font-weight:600}
+.phase{font-weight:600;color:var(--w1);min-width:8ch;text-align:left}
+
+/* progress rail on the right */
+.rail{position:fixed;right:clamp(10px,2vw,26px);top:50%;transform:translateY(-50%);z-index:50;display:flex;flex-direction:column;gap:10px;align-items:center}
+.rail .seg{width:2px;height:34px;background:#d8d0c4;border-radius:2px;overflow:hidden;position:relative}
+.rail .seg i{position:absolute;left:0;bottom:0;width:100%;height:0;background:var(--w1);transition:height .12s linear}
+
+/* ---------- closing reflow band ---------- */
+.outro{
+  position:relative;z-index:20;background:var(--bone);
+  padding:clamp(50px,9vw,120px) clamp(20px,6vw,80px) clamp(60px,10vw,140px);
+  border-top:1px solid #e2dacd;
+}
+.outro h2{font-family:"Fraunces",serif;font-weight:300;font-size:clamp(26px,4.6vw,52px);line-height:1;letter-spacing:-.01em;max-width:18ch}
+.outro h2 em{font-style:italic;color:var(--w2)}
+.outro p{margin-top:18px;max-width:48ch;color:#5a534a;font-size:clamp(13px,1.5vw,16px);line-height:1.6}
+.legend{margin-top:clamp(28px,5vw,52px);display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
+.legend .card{border:1px solid #e2dacd;border-radius:10px;padding:16px 16px 18px;background:#faf7f1}
+.legend .card .sw{width:100%;height:54px;border-radius:6px;margin-bottom:12px}
+.legend .card h3{font-family:"Fraunces",serif;font-weight:400;font-size:18px;margin-bottom:3px}
+.legend .card .m{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#8a8076;font-weight:600}
+.legend .card p{margin-top:8px;font-size:12.5px;color:#6a6258;line-height:1.5;max-width:none}
+.foot{margin-top:clamp(34px,5vw,56px);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#a89f92}
+
+/* ============================================================
+   MOBILE (<=640px): vertical separation, media letterboxed.
+   No cover-crop of a 16:9 asset into a portrait viewport.
+   ============================================================ */
+@media (max-width:640px){
+  :root{--frame-w:94vw}
+  h1{font-size:clamp(30px,11vw,46px)}
+  .topband{flex-direction:column;align-items:flex-start;gap:10px}
+  .scrollcue{flex-direction:row;align-items:center;gap:9px}
+  .scrollcue .bar{width:36px;height:1px}
+  .scrollcue .bar::after{width:36%;height:100%;animation:dripH 2.1s var(--ease) infinite}
+  @keyframes dripH{0%{transform:translateX(-110%)}60%,100%{transform:translateX(280%)}}
+
+  /* track no longer needs scroll distance on mobile (no slide) */
+  .track{height:auto}
+  .stage{
+    position:relative;top:auto;height:auto;
+    flex-direction:column;justify-content:flex-start;
+    padding:4px 0 8px;gap:0;
+  }
+  .composite{
+    width:var(--frame-w);
+    aspect-ratio:auto;
+    height:auto;max-height:none;
+    display:flex;flex-direction:column;gap:12px;
+    isolation:auto;             /* no compositing across the vertical stack */
+  }
+  .composite::before{display:none}
+  /* on mobile each layer becomes its own letterboxed band; vertical offset not horizontal */
+  .layer{
+    position:relative;
+    inset:auto;
+    width:100%;
+    height:auto;
+    aspect-ratio:var(--frame-ar);
+    margin:0;
+  }
+  /* vertical bands show each work TRUE: no cross-blend, light cast wash only */
+  .layer{mix-blend-mode:normal!important}
+  .layer .cast{opacity:.16!important;mix-blend-mode:multiply!important}
+  .layer.l2 .cast,.layer.l4 .cast{mix-blend-mode:screen!important;opacity:.14!important}
+  .layer img,.layer video{object-fit:cover}
+  .layer.is-square img{object-fit:contain}
+  /* meta always visible on mobile (no hover) */
+  .layer .meta{opacity:1;transform:none}
+  .layer .badge{opacity:.92}
+  .formula{font-size:10px;padding:7px 12px;bottom:auto;position:relative;transform:none;left:auto;margin:16px auto 4px;display:flex;flex-wrap:wrap}
+  .rail{display:none}
+}
+
+/* ============================================================
+   REDUCED MOTION: disable the slide. Show the final static quad.
+   No rAF, no inline transform overrides.
+   ============================================================ */
+@media (prefers-reduced-motion:reduce){
+  .scrollcue .bar::after,.scrollcue .bar{animation:none!important}
+  .layer .meta{opacity:1!important;transform:none!important}
+  .layer .badge{opacity:.92!important}
+  .layer .playmark{opacity:.9!important}
+}
+@media (prefers-reduced-motion:reduce) and (min-width:641px){
+  .track{height:auto}
+  .stage{position:relative;height:auto;padding:6vh 0 9vh}
+  .composite{
+    display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;
+    gap:14px;width:min(92vw,1180px);aspect-ratio:auto;max-height:none;isolation:auto;
+  }
+  .composite::before{display:none}
+  .layer{position:relative!important;inset:auto!important;transform:none!important;
+    mix-blend-mode:normal!important;aspect-ratio:var(--frame-ar);height:auto}
+  .layer .cast{opacity:.18!important;mix-blend-mode:multiply!important}
+  .formula{position:relative;left:auto;bottom:auto;transform:none;margin:24px auto 0}
+}
+
+/* accessible focus */
+a:focus-visible,button:focus-visible,.layer:focus-visible{
+  outline:2.5px solid var(--w1);outline-offset:3px;border-radius:6px;
+}
+.layer{outline:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     DATA  -  swap these four entries to retheme the whole template.
+     Each layer: media (img|video), blend mode, cast color, title.
+     ============================================================ -->
+<script>
+const DATA = {
+  brand: "COMPOSITE ROOM",
+  headline: ["Four works,", "one <em>composite.</em>"],
+  lede: "At rest the four pieces stack in perfect registration and their blend modes fuse into a single image. Scroll, and they slide apart into the works that made it.",
+  // order matters: render bottom -> top. multiply first reads as the ink base.
+  layers: [
+    {
+      id:"l1", cls:"l1", mode:"multiply", op:"×", castVar:"--w1",
+      title:"Nightfall Coupe", idx:"Work 01", badge:"Multiply",
+      kind:"img", src:"../assets/flux-car-4k.png",
+      alt:"Cinematic matte-black Mercedes coupe on a wet neon street",
+      square:false
+    },
+    {
+      id:"l2", cls:"l2", mode:"screen", op:"+", castVar:"--w2",
+      title:"Mint Theatre", idx:"Work 02", badge:"Screen",
+      kind:"img", src:"../assets/flux-clinic-4k.png",
+      alt:"Mint and warm-wood dental clinic interior, soft daylight",
+      square:false
+    },
+    {
+      id:"l3", cls:"l3", mode:"overlay", op:"◐", castVar:"--w3",
+      title:"Amber Fox", idx:"Work 03", badge:"Overlay",
+      kind:"img", src:"../assets/sdxl.png",
+      alt:"Painterly autumn fox in warm amber tones",
+      square:true
+    },
+    {
+      id:"l4", cls:"l4", mode:"difference", op:"Δ", castVar:"--w4",
+      title:"Motion Study", idx:"Work 04", badge:"Difference",
+      kind:"video", src:"../assets/kling-video.mp4",
+      poster:"../assets/gen/poster-kling-video.png",
+      alt:"Looping generative motion study, teal-cast",
+      square:false
+    }
+  ]
+};
+</script>
+
+<!-- compact top band: headline ABOVE the live stack so the mechanic is in-viewport at scroll=0 -->
+<header class="topband">
+  <div>
+    <div class="kicker pointerable" id="brand"></div>
+    <h1 id="headline"></h1>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:16px;max-width:38ch">
+    <p class="lede" id="lede"></p>
+    <div class="scrollcue" aria-hidden="true"><span>Scroll to separate</span><span class="bar"></span></div>
+  </div>
+</header>
+
+<!-- progress rail -->
+<div class="rail" aria-hidden="true">
+  <div class="seg"><i id="seg1"></i></div>
+  <div class="seg"><i id="seg2"></i></div>
+  <div class="seg"><i id="seg3"></i></div>
+  <div class="seg"><i id="seg4"></i></div>
+</div>
+
+<!-- scroll track drives the slide -->
+<main class="track" id="track">
+  <section class="stage" aria-label="Composite of four works that separate on scroll">
+    <div class="composite" id="composite"><!-- layers injected here --></div>
+    <div class="formula" id="formula" aria-live="off">
+      <span class="phase" id="phase">composite</span>
+      <span class="chip"><span class="dot d1"></span>multiply</span>
+      <span class="op">×</span>
+      <span class="chip"><span class="dot d2"></span>screen</span>
+      <span class="op">+</span>
+      <span class="chip"><span class="dot d3"></span>overlay</span>
+      <span class="op">◐</span>
+      <span class="chip"><span class="dot d4"></span>difference</span>
+    </div>
+  </section>
+</main>
+
+<!-- closing reflow -->
+<section class="outro">
+  <h2>The composite is the <em>color system.</em></h2>
+  <p id="outroP">No filter, no tint pass: every hue in the hero is the literal product of multiply, screen, overlay and difference stacked in exact 2D registration. Slide the layers apart and you get the four works back, untouched.</p>
+  <div class="legend" id="legend"></div>
+  <p class="foot">Composite Room · blend-mode-stack-gallery · swap the DATA array to retheme</p>
+</section>
+
+<script>
+/* ============================================================
+   RENDER from DATA
+   ============================================================ */
+(function(){
+  const $ = s=>document.querySelector(s);
+  document.getElementById("brand").textContent = DATA.brand;
+  document.getElementById("headline").innerHTML = DATA.headline.join("<br>");
+  document.getElementById("lede").textContent = DATA.lede;
+  $("#outroP") && ($("#outroP").textContent = $("#outroP").textContent);
+
+  const comp = document.getElementById("composite");
+  DATA.layers.forEach((L,i)=>{
+    const el = document.createElement("div");
+    el.className = "layer "+L.cls+(L.square?" is-square":"");
+    el.setAttribute("tabindex","0");
+    el.setAttribute("role","group");
+    el.setAttribute("aria-label", L.idx+": "+L.title+", blend mode "+L.mode);
+    el.dataset.idx = i;
+
+    let media;
+    if(L.kind==="video"){
+      media =
+        '<video muted loop playsinline preload="none" poster="'+L.poster+'">'+
+          '<source src="'+L.src+'" type="video/mp4">'+
+        '</video>'+
+        '<div class="playmark" aria-hidden="true">'+
+          '<svg width="16" height="18" viewBox="0 0 16 18"><path d="M1 1.6 14.5 9 1 16.4Z" fill="none" stroke="#ffffff" stroke-width="1.4" stroke-linejoin="round"/></svg>'+
+        '</div>';
+    }else{
+      media = '<img src="'+L.src+'" alt="'+L.alt+'" loading="'+(i<2?"eager":"lazy")+'" decoding="async">';
+    }
+
+    el.innerHTML =
+      '<figure>'+media+'<div class="cast"></div></figure>'+
+      '<span class="badge">'+L.badge+' '+L.op+'</span>'+
+      '<div class="meta">'+
+        '<span class="idx">'+L.idx+'</span>'+
+        '<span class="ttl">'+L.title+'</span>'+
+        '<span class="mode">mix-blend-mode: '+L.mode+'</span>'+
+      '</div>';
+    comp.appendChild(el);
+  });
+
+  // legend cards in outro
+  const legend = document.getElementById("legend");
+  DATA.layers.forEach(L=>{
+    const c = document.createElement("div");
+    c.className="card";
+    const color = getComputedStyle(document.documentElement).getPropertyValue(L.castVar).trim();
+    c.innerHTML =
+      '<div class="sw" style="background:'+color+'"></div>'+
+      '<div class="m">'+L.mode+'</div>'+
+      '<h3>'+L.title+'</h3>'+
+      '<p>'+L.alt+'</p>';
+    legend.appendChild(c);
+  });
+})();
+
+/* ============================================================
+   MOTION ENGINE
+   Scroll progress (0..1) drives translateX on each layer at
+   different rates -> lateral separation into a non-overlapping quad.
+   Fully guarded by prefers-reduced-motion.
+   ============================================================ */
+(function(){
+  const reduce = window.matchMedia("(prefers-reduced-motion:reduce)");
+  const isMobile = ()=>window.matchMedia("(max-width:640px)").matches;
+
+  const layers = Array.from(document.querySelectorAll(".layer"));
+  const track  = document.getElementById("track");
+  const phaseEl= document.getElementById("phase");
+  const segs   = [document.getElementById("seg1"),document.getElementById("seg2"),
+                  document.getElementById("seg3"),document.getElementById("seg4")];
+
+  // Final-quad targets as a fraction of the frame box.
+  // Each layer ends in one corner: TL, TR, BL, BR. Translation is in vmin-ish %.
+  // x rate differs per layer (different speeds = the staggered slide).
+  const TARGET = [
+    {x:-1.02, y:-0.54, r:-2.2}, // l1 -> top-left
+    {x: 1.02, y:-0.54, r: 2.0}, // l2 -> top-right
+    {x:-1.02, y: 0.54, r: 1.8}, // l3 -> bottom-left
+    {x: 1.02, y: 0.54, r:-1.6}  // l4 -> bottom-right
+  ];
+  // per-layer easing offset so they don't all move in lockstep (rate variation)
+  const STAGGER = [0.00, 0.10, 0.20, 0.30];
+  // the blend each layer carries while overlapping (matches the CSS l1..l4 order)
+  const MODES   = layers.map(l=> l.classList.contains("l1")?"multiply"
+                              : l.classList.contains("l2")?"screen"
+                              : l.classList.contains("l3")?"overlay":"difference");
+  // base cast opacity per layer (matches the CSS .cast rules)
+  const CAST_OP = layers.map(l=> l.classList.contains("l2")?0.42
+                              : l.classList.contains("l4")?0.55:0.50);
+  // cache cast nodes so the rAF loop does zero querySelector work
+  const CASTS = layers.map(l=> l.querySelector(".cast"));
+
+  function easeInOut(t){return t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2;}
+
+  let composeW=0, composeH=0;
+  function measure(){
+    const box = document.getElementById("composite").getBoundingClientRect();
+    composeW=box.width; composeH=box.height;
+  }
+
+  function staticQuad(){
+    // place each layer in its corner with NO blend, full separation (the catalog-safe fallback)
+    measure();
+    layers.forEach((el,i)=>{
+      const T=TARGET[i];
+      el.style.transform =
+        "translate("+(T.x*composeW*0.5)+"px,"+(T.y*composeH*0.5)+"px) scale(.5) rotate("+T.r+"deg)";
+      el.classList.add("separated");
+    });
+    phaseEl.textContent="separated";
+    segs.forEach(s=>s.style.height="100%");
+  }
+
+  let raf=null, targetP=0, curP=0;
+  function frame(){
+    curP += (targetP-curP)*0.16;            // smoothing
+    if(Math.abs(targetP-curP)<0.0006) curP=targetP;
+    apply(curP);
+    if(Math.abs(targetP-curP)>0.0006){raf=requestAnimationFrame(frame);}
+    else raf=null;
+  }
+
+  function apply(p){
+    // p in 0..1 across the track. 0 = full composite, 1 = full quad.
+    // NOTE: dimensions are cached (measured on init/resize) so the rAF loop
+    // never forces layout -> keeps the blend-heavy stage smooth.
+    const sep = easeInOut(Math.min(1,Math.max(0,p)));
+    layers.forEach((el,i)=>{
+      const T=TARGET[i];
+      // stagger: each layer's local progress ramps within its own window
+      const s=STAGGER[i];
+      let lp=(sep-s)/(1-s*0.6);
+      lp=Math.min(1,Math.max(0,lp));
+      lp=easeInOut(lp);
+      const tx=T.x*composeW*0.5*lp;
+      const ty=T.y*composeH*0.5*lp;
+      const sc=1-0.5*lp;                    // shrink as they fan out
+      const rot=T.r*lp;
+      el.style.transform="translate("+tx+"px,"+ty+"px) scale("+sc+") rotate("+rot+"deg)";
+      // BLEND FADE: once a layer is mostly separated, drop its blend toward normal
+      // so the final quad shows each work true (composite is the MIDDLE moment).
+      const blendOff = lp>0.62;             // past this point it no longer overlaps
+      el.style.mixBlendMode = blendOff ? "normal" : MODES[i];
+      const cast = CASTS[i];
+      if(cast){
+        const baseOp = CAST_OP[i];
+        // ramp cast opacity down as it separates so true color returns
+        cast.style.opacity = (baseOp*(1-Math.min(1,lp*1.15))).toFixed(3);
+      }
+      if(lp>0.42) el.classList.add("separated"); else el.classList.remove("separated");
+    });
+    // phase readout
+    let label = sep<0.06?"composite": sep<0.55?"separating": sep<0.94?"revealing":"separated";
+    phaseEl.textContent=label;
+    // progress rail
+    const per=1/segs.length;
+    segs.forEach((s,i)=>{
+      const lo=i*per, h=Math.min(1,Math.max(0,(sep-lo)/per));
+      s.style.height=(h*100)+"%";
+    });
+    // focused-video play control (only the separated difference layer)
+    manageVideo(sep);
+  }
+
+  /* ---- in-view / focused video playback: never autoplay all media on the stage ---- */
+  let vidPlaying=false;
+  const VID_LAYER = layers.find(l=>l.querySelector("video"));
+  const VID = VID_LAYER ? VID_LAYER.querySelector("video") : null;
+  function manageVideo(sep){
+    if(!VID) return;
+    const v=VID;
+    const wantPlay = sep>0.5 && stageInView;   // play only once it has slid into view
+    if(wantPlay && !vidPlaying){
+      if(v.preload==="none"){v.preload="auto";v.load();}
+      v.play().then(()=>vidPlaying=true).catch(()=>{});
+    }else if(!wantPlay && vidPlaying){
+      v.pause();vidPlaying=false;
+    }
+  }
+
+  /* stage visibility gate */
+  let stageInView=true;
+  const stage=document.querySelector(".stage");
+  if("IntersectionObserver" in window){
+    new IntersectionObserver(es=>{stageInView=es[0].isIntersecting;if(!stageInView&&VID){VID.pause();vidPlaying=false;}},{threshold:0.05}).observe(stage);
+  }
+
+  function onScroll(){
+    if(reduce.matches || isMobile()) return;
+    const rect=track.getBoundingClientRect();
+    const total=track.offsetHeight - window.innerHeight;
+    const scrolled=Math.min(total,Math.max(0,-rect.top));
+    targetP= total>0 ? scrolled/total : 0;
+    if(!raf) raf=requestAnimationFrame(frame);
+  }
+
+  /* ---------- MOBILE: vertical separation, no horizontal slide, no rAF ----------
+     On mobile the layers are already in normal flow (CSS), stacked as
+     letterboxed bands. We just reveal meta (CSS handles it) and lazy-play
+     the in-view video. */
+  function setupMobile(){
+    const vidLayer=layers.find(l=>l.querySelector("video"));
+    if(vidLayer && "IntersectionObserver" in window){
+      const v=vidLayer.querySelector("video");
+      new IntersectionObserver(es=>{
+        es.forEach(e=>{
+          if(e.isIntersecting){
+            if(v.preload==="none"){v.preload="auto";v.load();}
+            v.play().catch(()=>{});
+          }else{v.pause();}
+        });
+      },{threshold:0.4}).observe(vidLayer);
+    }
+    layers.forEach(l=>l.classList.add("separated"));
+  }
+
+  function init(){
+    if(reduce.matches){
+      // static final quad, no motion engine at all (desktop) / natural flow (mobile)
+      if(!isMobile()) staticQuad();
+      else layers.forEach(l=>l.classList.add("separated"));
+      return;
+    }
+    if(isMobile()){ setupMobile(); return; }
+    // desktop interactive
+    measure();
+    apply(0);
+    window.addEventListener("scroll",onScroll,{passive:true});
+    onScroll();
+  }
+
+  // re-init on resize across the mobile/desktop boundary
+  let lastMobile=isMobile();
+  window.addEventListener("resize",()=>{
+    const nowMobile=isMobile();
+    if(nowMobile!==lastMobile){
+      lastMobile=nowMobile;
+      // reset inline transforms when leaving desktop
+      if(nowMobile) layers.forEach(l=>l.style.transform="");
+      init();
+    }else{
+      measure();
+      if(!reduce.matches && !nowMobile) apply(curP);
+    }
+  },{passive:true});
+
+  // react to reduced-motion toggle live
+  reduce.addEventListener && reduce.addEventListener("change",()=>{
+    layers.forEach(l=>{l.style.transform="";l.classList.remove("separated");});
+    if(raf){cancelAnimationFrame(raf);raf=null;}
+    init();
+  });
+
+  // keyboard: focusing a layer nudges the scroll so it separates into view
+  layers.forEach((el)=>{
+    el.addEventListener("focus",()=>{
+      if(reduce.matches||isMobile()) return;
+      const total=track.offsetHeight-window.innerHeight;
+      window.scrollTo({top:track.offsetTop+total*0.72,behavior:"smooth"});
+    });
+  });
+
+  window.addEventListener("load",init);
+  // run early too in case load already fired
+  if(document.readyState==="complete") init();
+})();
+</script>
+</body>
+</html>

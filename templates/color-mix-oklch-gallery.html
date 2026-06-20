@@ -1,0 +1,787 @@
+<!-- TEMPLATE: OKLCH Hue-Mix Gallery | ARCHETYPE: OKLCH MIX (one base hue drives every accent via color-mix in oklch) | REF: CSS color-mix() in oklch (Baseline 2023; Smashing Wide-Gamut 2025; Argyle oklch 2026), @property + color-mix live theming (CSS-Tricks 2026) | WHEN TO USE: a media/portfolio gallery whose ENTIRE palette (bg, accents, type tint, border glow) is computed live from ONE --hue knob a visitor can spin | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>OKLCH Hue-Mix Gallery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<script>
+/* ============================================================
+   DATA  -  swap these objects to re-skin the whole gallery.
+   Each card carries its own oklch lightness/chroma OFFSETS so
+   the single --hue knob produces a perceptually-even spread.
+   kind: "image" | "video".  hueShift = degrees added to --hue
+   so cards fan out across the wheel while staying in lockstep.
+   ============================================================ */
+const DATA = [
+  { kind:"image", src:"../assets/flux-car-4k.png",                                  title:"Nightfall Coupe",   meta:"FLUX . 4K still",        hueShift:0,   L:72, C:0.19 },
+  { kind:"video", src:"../assets/kling-video.mp4",  poster:"../assets/gen/poster-kling-video.png",  title:"Kinetic Drift",     meta:"Kling . motion loop",   hueShift:34,  L:70, C:0.20, muted:true },
+  { kind:"image", src:"../assets/flux-clinic-4k.png",                               title:"Mint Atelier",      meta:"FLUX . 4K interior",    hueShift:68,  L:78, C:0.15 },
+  { kind:"video", src:"../assets/fal-video.mp4",    poster:"../assets/gen/poster-fal-video.png",    title:"Liquid Index",      meta:"fal . motion loop",     hueShift:104, L:68, C:0.21, muted:true },
+  { kind:"image", src:"../assets/sdxl.png",                                         title:"Autumn Fox",        meta:"SDXL . painterly",      hueShift:142, L:74, C:0.18 },
+  { kind:"video", src:"../assets/flux-car-i2v.mp4", poster:"../assets/gen/poster-flux-car-i2v.png", title:"Coupe In Motion",   meta:"FLUX i2v . loop",       hueShift:180, L:71, C:0.19, muted:true },
+  { kind:"image", src:"../assets/hf-tinysd.png",                                    title:"Low-Fi Apple",      meta:"TinySD . abstract",     hueShift:222, L:76, C:0.16 },
+  { kind:"video", src:"../assets/veo-video.mp4",    poster:"../assets/gen/poster-veo-video.png",    title:"Veo Sequence",      meta:"Veo . cinematic loop",  hueShift:266, L:69, C:0.20, muted:true },
+  { kind:"video", src:"../assets/hyperframes.mp4",  poster:"../assets/gen/poster-hyperframes.png",  title:"Hyperframes",       meta:"motion . loop",         hueShift:308, L:73, C:0.18, muted:true }
+];
+
+/* Headline + intro copy (no em / en dashes anywhere) */
+const COPY = {
+  kicker: "ONE HUE . COLOR-MIX() . OKLCH",
+  title:  "The whole gallery breathes from a single hue.",
+  lede:   "Every accent, the page ground, the type tint and the border glow are color-mix() expressions in oklch reading one --hue custom property. Spin the wheel - the palette shifts in perceptually-even steps because oklch holds lightness still."
+};
+</script>
+<style>
+/* ----- @property: register --hue as a real animatable number ----- */
+@property --hue {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 268;
+}
+
+:root {
+  /* the single source of truth */
+  --hue: 268;
+
+  /* ---- palette derived ENTIRELY from --hue via color-mix in oklch ----
+     Fallbacks are static oklch() values (guardrail) so a browser without
+     color-mix support still gets a coherent dark theme. */
+  --bg:        oklch(13% 0.03 268);
+  --bg:        color-mix(in oklch, oklch(15% 0.04 var(--hue)), black 78%);
+  --bg-2:      oklch(17% 0.04 268);
+  --bg-2:      color-mix(in oklch, oklch(20% 0.05 var(--hue)), black 70%);
+  --panel:     oklch(22% 0.05 268);
+  --panel:     color-mix(in oklch, oklch(26% 0.06 var(--hue)), black 62%);
+
+  --accent:    oklch(72% 0.19 268);
+  --accent:    color-mix(in oklch, oklch(72% 0.2 var(--hue)), white 6%);
+  --accent-soft: oklch(80% 0.12 268);
+  --accent-soft: color-mix(in oklch, oklch(72% 0.2 var(--hue)), white 30%);
+
+  --ink:       oklch(95% 0.02 268);
+  --ink:       color-mix(in oklch, oklch(96% 0.03 var(--hue)), white 10%);
+  --ink-dim:   oklch(72% 0.04 268);
+  --ink-dim:   color-mix(in oklch, oklch(75% 0.05 var(--hue)), var(--bg) 18%);
+
+  --line:      oklch(40% 0.06 268);
+  --line:      color-mix(in oklch, oklch(60% 0.12 var(--hue)), black 50%);
+  --glow:      oklch(70% 0.2 268);
+  --glow:      color-mix(in oklch, oklch(72% 0.22 var(--hue)), white 4%);
+
+  --r: 18px;
+  --maxw: 1320px;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+body {
+  margin: 0;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  /* ground itself is a hue-mix, plus a soft radial bloom of the accent */
+  background:
+    radial-gradient(120% 80% at 82% -10%, color-mix(in oklch, var(--accent) 22%, transparent), transparent 60%),
+    radial-gradient(90% 70% at -10% 100%, color-mix(in oklch, var(--accent-soft) 14%, transparent), transparent 55%),
+    var(--bg);
+  background-attachment: fixed;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* faint hue-tinted grain/grid so the ground never reads as flat black */
+body::before {
+  content: "";
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    linear-gradient(color-mix(in oklch, var(--line) 22%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklch, var(--line) 22%, transparent) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(120% 90% at 50% 8%, black, transparent 78%);
+  opacity: .5;
+}
+
+.wrap { position: relative; z-index: 1; max-width: var(--maxw); margin: 0 auto; padding: 0 clamp(16px, 4vw, 44px); }
+
+/* ============ TOP BAND (compact header above the grid) ============ */
+header.band {
+  position: relative;
+  padding: clamp(22px, 4vw, 40px) 0 18px;
+}
+.kicker {
+  font-family: "JetBrains Mono", monospace;
+  font-size: clamp(11px, 1.1vw, 13px);
+  letter-spacing: .22em;
+  color: var(--accent-soft);
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 7px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--panel) 60%, transparent);
+  backdrop-filter: blur(6px);
+}
+.kicker .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 12px 2px var(--glow);
+}
+h1.title {
+  font-size: clamp(30px, 5.6vw, 62px);
+  line-height: 1.02;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 16px 0 0;
+  max-width: 16ch;
+  /* the type itself is tinted off the hue */
+  color: var(--ink);
+  text-wrap: balance;
+}
+h1.title b {
+  font-weight: 700;
+  color: var(--accent-soft);
+  /* a soft gradient tint pulled from the hue */
+  background: linear-gradient(100deg, var(--accent-soft), color-mix(in oklch, var(--accent) 60%, var(--ink)));
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.lede {
+  margin: 16px 0 0;
+  max-width: 62ch;
+  color: var(--ink-dim);
+  font-size: clamp(14px, 1.5vw, 17px);
+  line-height: 1.6;
+}
+
+/* readout of the live hue value */
+.readout {
+  margin-top: 18px;
+  display: inline-flex; gap: 18px; flex-wrap: wrap;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px; color: var(--ink-dim);
+}
+.readout b { color: var(--accent-soft); font-weight: 700; }
+
+/* ============ STICKY HUE-WHEEL CONTROL ============ */
+.huebar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  margin: 22px 0 4px;
+  padding: 14px clamp(14px, 2.4vw, 22px);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: color-mix(in oklch, var(--panel) 78%, transparent);
+  backdrop-filter: blur(14px) saturate(1.1);
+  box-shadow: 0 12px 40px -18px color-mix(in oklch, var(--glow) 60%, transparent);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: clamp(12px, 2vw, 22px);
+}
+
+/* the actual wheel: a conic oklch ring with a rotating knob */
+.wheel {
+  position: relative;
+  width: 64px; height: 64px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  /* labeled hue wheel: full oklch spectrum so it reads as a color picker */
+  background:
+    conic-gradient(
+      oklch(70% 0.2 0), oklch(70% 0.2 40), oklch(70% 0.2 80), oklch(70% 0.2 120),
+      oklch(70% 0.2 160), oklch(70% 0.2 200), oklch(70% 0.2 240), oklch(70% 0.2 280),
+      oklch(70% 0.2 320), oklch(70% 0.2 360)
+    );
+  -webkit-mask: radial-gradient(circle, transparent 38%, black 40%, black 100%);
+          mask: radial-gradient(circle, transparent 38%, black 40%, black 100%);
+  cursor: grab;
+  touch-action: none;
+}
+.wheel:active { cursor: grabbing; }
+/* knob marks the current hue; rotated by JS via --hue */
+.wheel .knob {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 64px; height: 64px;
+  transform: translate(-50%, -50%) rotate(calc(var(--hue) * 1deg));
+  pointer-events: none;
+}
+.wheel .knob::after {
+  content: "";
+  position: absolute;
+  top: -3px; left: 50%;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  transform: translateX(-50%);
+  background: var(--accent);
+  border: 2px solid var(--ink);
+  box-shadow: 0 0 12px 3px var(--glow);
+}
+.wheel .hub {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  pointer-events: none;
+}
+.wheel .hub span {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px; font-weight: 700;
+  color: var(--ink);
+}
+
+.huebar .slider-zone { display: grid; gap: 6px; }
+.huebar label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px; letter-spacing: .12em;
+  color: var(--ink-dim);
+  display: flex; justify-content: space-between;
+}
+.huebar label b { color: var(--accent-soft); }
+input[type="range"].hue-slider {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 10px; border-radius: 999px;
+  outline: none;
+  background: linear-gradient(90deg,
+      oklch(70% 0.2 0), oklch(70% 0.2 60), oklch(70% 0.2 120), oklch(70% 0.2 180),
+      oklch(70% 0.2 240), oklch(70% 0.2 300), oklch(70% 0.2 360));
+  border: 1px solid var(--line);
+}
+input[type="range"].hue-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent);
+  border: 3px solid var(--ink);
+  box-shadow: 0 0 14px 3px var(--glow);
+  cursor: grab;
+}
+input[type="range"].hue-slider::-moz-range-thumb {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent);
+  border: 3px solid var(--ink);
+  box-shadow: 0 0 14px 3px var(--glow);
+  cursor: grab; border: 3px solid var(--ink);
+}
+
+.huebar .actions { display: flex; gap: 8px; align-items: center; }
+.btn {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px; letter-spacing: .06em;
+  color: var(--ink);
+  background: color-mix(in oklch, var(--accent) 16%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 9px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .2s, transform .1s;
+}
+.btn:hover { background: color-mix(in oklch, var(--accent) 30%, transparent); }
+.btn:active { transform: translateY(1px); }
+.btn[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 700;
+}
+.btn:focus-visible, input:focus-visible, .wheel:focus-visible, a:focus-visible {
+  outline: 3px solid var(--accent-soft);
+  outline-offset: 3px;
+}
+
+/* ============ THE GALLERY GRID (signature, visible at scroll=0) ============ */
+.grid {
+  margin: 26px 0 80px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(16px, 2vw, 26px);
+}
+
+.card {
+  position: relative;
+  border-radius: var(--r);
+  overflow: hidden;
+  background: var(--bg-2);
+  /* each card's accent is the shared hue PLUS its own per-card offset,
+     mixed in oklch -> a fan of related-but-distinct accents */
+  --card-accent: color-mix(in oklch, oklch(var(--cL) var(--cC) calc(var(--hue) + var(--cShift))), white 8%);
+  --card-soft:   color-mix(in oklch, oklch(var(--cL) var(--cC) calc(var(--hue) + var(--cShift))), white 34%);
+  border: 1px solid color-mix(in oklch, var(--card-accent) 45%, var(--line));
+  /* the border GLOW is a hue-mix too */
+  box-shadow:
+    0 1px 0 color-mix(in oklch, var(--card-soft) 30%, transparent) inset,
+    0 18px 50px -28px color-mix(in oklch, var(--card-accent) 80%, transparent);
+  transition: box-shadow .35s ease, transform .35s ease, border-color .35s ease;
+  /* scroll-enter state */
+  opacity: 0;
+  transform: translateY(26px) scale(.985);
+}
+.card.in {
+  opacity: 1;
+  transform: none;
+}
+.card:hover, .card:focus-within {
+  transform: translateY(-4px);
+  box-shadow:
+    0 1px 0 color-mix(in oklch, var(--card-soft) 50%, transparent) inset,
+    0 28px 70px -26px color-mix(in oklch, var(--card-accent) 95%, transparent);
+  border-color: var(--card-accent);
+}
+
+/* the ::before sweep: color-mix against the card's OWN accent, runs on enter */
+.card::before {
+  content: "";
+  position: absolute; inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(115deg,
+      transparent 35%,
+      color-mix(in oklch, var(--card-soft) 65%, transparent) 50%,
+      transparent 65%);
+  transform: translateX(-120%);
+}
+.card.in::before {
+  animation: sweep .9s cubic-bezier(.4,0,.2,1) both;
+}
+@keyframes sweep {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(120%); }
+}
+
+.media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  background: var(--bg);
+  overflow: hidden;
+}
+.media img, .media video {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;     /* desktop: fill the cell (these are landscape assets) */
+  display: block;
+}
+/* gentle hue veil over the media so the palette reads through the photo */
+.media::after {
+  content: "";
+  position: absolute; inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, transparent 40%, color-mix(in oklch, var(--bg-2) 88%, transparent) 100%),
+    color-mix(in oklch, var(--card-accent) 12%, transparent);
+  mix-blend-mode: normal;
+}
+
+/* video play badge / poster handling */
+.media .badge {
+  position: absolute; z-index: 4;
+  top: 12px; left: 12px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px; letter-spacing: .1em;
+  padding: 5px 9px; border-radius: 999px;
+  color: var(--bg);
+  background: color-mix(in oklch, var(--card-accent) 92%, white 0%);
+  display: inline-flex; align-items: center; gap: 6px;
+  box-shadow: 0 4px 16px -6px color-mix(in oklch, var(--card-accent) 90%, transparent);
+}
+.media .badge::before {
+  content: ""; width: 0; height: 0;
+  border-left: 7px solid var(--bg);
+  border-top: 4.5px solid transparent;
+  border-bottom: 4.5px solid transparent;
+}
+
+.card .meta {
+  position: relative; z-index: 4;
+  padding: 16px 18px 18px;
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 12px;
+}
+.card .meta .t {
+  font-size: clamp(16px, 1.6vw, 19px);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.card .meta .s {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: var(--ink-dim);
+  margin-top: 4px;
+}
+/* the per-card swatch shows its computed accent, proving the live mix */
+.card .swatch {
+  flex: 0 0 auto;
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  background: var(--card-accent);
+  border: 2px solid color-mix(in oklch, var(--card-soft) 60%, transparent);
+  box-shadow: 0 0 16px -2px var(--card-accent);
+}
+
+/* a thin top stripe in the card accent so each cell is clearly hue-keyed */
+.card .stripe {
+  position: absolute; z-index: 5;
+  top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, transparent, var(--card-accent), var(--card-soft), transparent);
+}
+
+/* ============ FOOTER NOTE ============ */
+footer {
+  position: relative; z-index: 1;
+  border-top: 1px solid var(--line);
+  padding: 28px 0 60px;
+  color: var(--ink-dim);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  line-height: 1.7;
+}
+footer b { color: var(--accent-soft); }
+
+/* ============ RESPONSIVE ============ */
+@media (max-width: 1040px) {
+  .grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 640px) {
+  /* mobile: hue control becomes a BOTTOM-FIXED bar */
+  .huebar {
+    position: fixed;
+    top: auto; bottom: 0; left: 0; right: 0;
+    margin: 0;
+    border-radius: 16px 16px 0 0;
+    border-bottom: none;
+    grid-template-columns: auto 1fr;
+    grid-template-areas: "wheel slider" "actions actions";
+    gap: 10px 14px;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    z-index: 60;
+  }
+  .wheel { width: 52px; height: 52px; grid-area: wheel; }
+  .wheel .knob { width: 52px; height: 52px; }
+  .huebar .slider-zone { grid-area: slider; }
+  .huebar .actions { grid-area: actions; justify-content: stretch; }
+  .huebar .actions .btn { flex: 1; text-align: center; }
+
+  .grid {
+    grid-template-columns: 1fr;
+    /* leave room for the fixed bottom bar */
+    margin-bottom: 150px;
+  }
+  /* landscape assets: never cover-crop into a phone column. letterbox. */
+  .media {
+    aspect-ratio: 16 / 9;
+  }
+  .media img, .media video {
+    object-fit: contain;
+    background: var(--bg);
+  }
+  h1.title { max-width: 100%; }
+}
+
+/* ============ REDUCED MOTION: show final state, kill heavy motion ============ */
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none;
+  }
+  .card::before, .card.in::before { animation: none !important; display: none; }
+  .card:hover, .card:focus-within { transform: none; }
+}
+
+/* no-color-mix safety: nothing breaks because every var has a static oklch fallback above */
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- COMPACT TOP BAND: headline sits above a populated grid (mechanic visible at scroll=0) -->
+  <header class="band">
+    <span class="kicker"><span class="dot"></span><span id="kickerText"></span></span>
+    <h1 class="title" id="titleEl"></h1>
+    <p class="lede" id="ledeEl"></p>
+    <div class="readout" aria-live="polite">
+      <span>--hue <b id="hueVal">268</b></span>
+      <span>oklch <b id="oklchVal">L 72% . C 0.20</b></span>
+      <span>color-mix() <b>9 cards . one knob</b></span>
+    </div>
+  </header>
+
+  <!-- STICKY HUE-WHEEL CONTROL (becomes bottom bar on mobile) -->
+  <div class="huebar" role="group" aria-label="Hue control for the whole gallery palette">
+    <div class="wheel" id="wheel" role="slider" tabindex="0"
+         aria-label="Gallery hue wheel" aria-valuemin="0" aria-valuemax="360" aria-valuenow="268" aria-valuetext="268 degrees">
+      <div class="knob"></div>
+      <div class="hub"><span id="wheelNum">268</span></div>
+    </div>
+    <div class="slider-zone">
+      <label for="hueRange">PALETTE HUE <b><span id="rangeNum">268</span>&deg;</b></label>
+      <input type="range" class="hue-slider" id="hueRange" min="0" max="360" value="268"
+             aria-label="Palette hue in degrees" />
+    </div>
+    <div class="actions">
+      <button class="btn" id="spinBtn" aria-pressed="false" aria-label="Auto-spin the hue">AUTO-SPIN</button>
+      <button class="btn" id="resetBtn" aria-label="Reset hue to default">RESET</button>
+    </div>
+  </div>
+
+  <!-- THE GALLERY GRID -->
+  <main class="grid" id="grid" aria-label="Hue-keyed media gallery"></main>
+
+  <footer>
+    <b>OKLCH Hue-Mix Gallery.</b> One <code>@property --hue</code> (registered <code>&lt;number&gt;, inherits:true</code>) drives every color via <code>color-mix() in oklch</code>: background, accents, type tint, per-card borders and glow. Spin the wheel or drag the slider to shift the whole page in perceptually-even steps. Fallback to static <code>oklch()</code> where <code>color-mix</code> is unsupported; reduced-motion shows final state with no sweeps.
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  const root = document.documentElement;
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // ---- inject copy ----
+  document.getElementById("kickerText").textContent = COPY.kicker;
+  const titleEl = document.getElementById("titleEl");
+  // bold the last clause for the gradient tint
+  titleEl.innerHTML = "The whole gallery breathes from <b>a single hue.</b>";
+  document.getElementById("ledeEl").textContent = COPY.lede;
+
+  // ---- build cards from DATA ----
+  const grid = document.getElementById("grid");
+  const videos = [];
+
+  DATA.forEach((d, i) => {
+    const card = document.createElement("article");
+    card.className = "card";
+    // unitless: --hue is registered <number>, so the hue channel offset must be a
+    // bare number too. calc(<number> + <angle>) is INVALID and silently voids the
+    // whole oklch() -> every per-card accent/border/glow/swatch goes transparent.
+    card.style.setProperty("--cShift", String(d.hueShift));
+    card.style.setProperty("--cL", d.L + "%");
+    card.style.setProperty("--cC", d.C);
+    card.tabIndex = 0;
+    card.setAttribute("aria-label", d.title + " . " + d.meta);
+
+    const stripe = document.createElement("div");
+    stripe.className = "stripe";
+    card.appendChild(stripe);
+
+    const media = document.createElement("div");
+    media.className = "media";
+
+    if (d.kind === "video") {
+      const badge = document.createElement("span");
+      badge.className = "badge";
+      badge.textContent = "LOOP";
+      media.appendChild(badge);
+
+      const v = document.createElement("video");
+      v.muted = true;            // required for in-view autoplay
+      v.loop = true;
+      v.playsInline = true;
+      v.preload = "none";
+      if (d.poster) v.poster = d.poster;
+      // lazy source: only attach src so the browser doesn't fetch until in view
+      v.dataset.src = d.src;
+      media.appendChild(v);
+      videos.push(v);
+    } else {
+      const img = document.createElement("img");
+      img.loading = "lazy";
+      img.decoding = "async";
+      img.src = d.src;
+      img.alt = d.title;
+      media.appendChild(img);
+    }
+
+    card.appendChild(media);
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    const txt = document.createElement("div");
+    txt.innerHTML = '<div class="t">' + d.title + '</div><div class="s">' + d.meta + '</div>';
+    const sw = document.createElement("div");
+    sw.className = "swatch";
+    sw.setAttribute("aria-hidden", "true");
+    meta.appendChild(txt);
+    meta.appendChild(sw);
+    card.appendChild(meta);
+
+    grid.appendChild(card);
+  });
+
+  const cards = Array.from(document.querySelectorAll(".card"));
+
+  // ---- scroll-enter (sweep) via IntersectionObserver ----
+  if (reduceMotion) {
+    cards.forEach(c => c.classList.add("in"));
+  } else if ("IntersectionObserver" in window) {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add("in");
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.18, rootMargin: "0px 0px -8% 0px" });
+    cards.forEach(c => io.observe(c));
+  } else {
+    cards.forEach(c => c.classList.add("in"));
+  }
+
+  // ---- video: play ONLY the in-view / focused one, posters otherwise ----
+  // (several media on one stage -> never autoplay all; decode+mix tanks FPS)
+  let activeVideo = null;
+  function attachAndPlay(v) {
+    if (!v.src && v.dataset.src) v.src = v.dataset.src;
+    const p = v.play();
+    if (p && p.catch) p.catch(() => {});
+  }
+  function stop(v) { try { v.pause(); } catch (e) {} }
+
+  if (!reduceMotion && "IntersectionObserver" in window) {
+    const vio = new IntersectionObserver((entries) => {
+      // pick the most-visible video; only one plays at a time
+      let best = null, bestRatio = 0;
+      entries.forEach(e => {
+        const v = e.target;
+        if (e.isIntersecting && e.intersectionRatio > bestRatio) {
+          bestRatio = e.intersectionRatio; best = v;
+        }
+      });
+      if (best && bestRatio >= 0.55 && best !== activeVideo) {
+        if (activeVideo) stop(activeVideo);
+        activeVideo = best;
+        attachAndPlay(best);
+      } else {
+        // pause any that scrolled mostly out
+        entries.forEach(e => {
+          if (!e.isIntersecting || e.intersectionRatio < 0.35) {
+            if (e.target === activeVideo) { stop(e.target); activeVideo = null; }
+          }
+        });
+      }
+    }, { threshold: [0, 0.35, 0.55, 0.8] });
+    videos.forEach(v => vio.observe(v));
+  }
+  // hover/focus locks a video too (desktop)
+  videos.forEach(v => {
+    const card = v.closest(".card");
+    card.addEventListener("pointerenter", () => {
+      if (reduceMotion) return;
+      if (activeVideo && activeVideo !== v) stop(activeVideo);
+      activeVideo = v; attachAndPlay(v);
+    });
+  });
+
+  // =================================================================
+  //  THE KNOB: set --hue on :root. Everything re-mixes automatically.
+  // =================================================================
+  const range   = document.getElementById("hueRange");
+  const wheel   = document.getElementById("wheel");
+  const hueVal  = document.getElementById("hueVal");
+  const oklchVal= document.getElementById("oklchVal");
+  const rangeNum= document.getElementById("rangeNum");
+  const wheelNum= document.getElementById("wheelNum");
+
+  let hue = 268;
+
+  function applyHue(h, fromRange) {
+    hue = ((h % 360) + 360) % 360;
+    const rounded = Math.round(hue);
+    root.style.setProperty("--hue", hue);
+    hueVal.textContent = rounded;
+    rangeNum.textContent = rounded;
+    wheelNum.textContent = rounded;
+    oklchVal.textContent = "L 72% . C 0.20 . H " + rounded;
+    wheel.setAttribute("aria-valuenow", rounded);
+    wheel.setAttribute("aria-valuetext", rounded + " degrees");
+    if (!fromRange) range.value = rounded;
+  }
+  applyHue(268, false);
+
+  range.addEventListener("input", () => applyHue(parseFloat(range.value), true));
+
+  // ---- wheel drag: pointer angle -> hue ----
+  function angleFromEvent(ev) {
+    const r = wheel.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    const x = ev.clientX - cx;
+    const y = ev.clientY - cy;
+    // 0deg at top, clockwise, matching the knob rotate()
+    let deg = Math.atan2(x, -y) * 180 / Math.PI;
+    return ((deg % 360) + 360) % 360;
+  }
+  let dragging = false;
+  wheel.addEventListener("pointerdown", (e) => {
+    dragging = true;
+    wheel.setPointerCapture(e.pointerId);
+    applyHue(angleFromEvent(e), false);
+  });
+  wheel.addEventListener("pointermove", (e) => {
+    if (dragging) applyHue(angleFromEvent(e), false);
+  });
+  const endDrag = (e) => {
+    if (dragging) { dragging = false; try { wheel.releasePointerCapture(e.pointerId); } catch(_){} }
+  };
+  wheel.addEventListener("pointerup", endDrag);
+  wheel.addEventListener("pointercancel", endDrag);
+
+  // keyboard on the wheel
+  wheel.addEventListener("keydown", (e) => {
+    let step = 0;
+    if (e.key === "ArrowRight" || e.key === "ArrowUp") step = 4;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowDown") step = -4;
+    else if (e.key === "PageUp") step = 20;
+    else if (e.key === "PageDown") step = -20;
+    else if (e.key === "Home") { applyHue(0, false); e.preventDefault(); return; }
+    else if (e.key === "End") { applyHue(359, false); e.preventDefault(); return; }
+    if (step) { applyHue(hue + step, false); e.preventDefault(); }
+  });
+
+  // ---- AUTO-SPIN (rAF, fully gated by reduced-motion) ----
+  const spinBtn = document.getElementById("spinBtn");
+  const resetBtn = document.getElementById("resetBtn");
+  let spinning = false, rafId = null, last = 0;
+
+  function spinLoop(ts) {
+    if (!spinning) return;
+    if (!last) last = ts;
+    const dt = ts - last; last = ts;
+    applyHue(hue + dt * 0.018, false);   // ~6.5 deg/sec, smooth
+    rafId = requestAnimationFrame(spinLoop);
+  }
+  function setSpin(on) {
+    if (reduceMotion) on = false;          // never auto-spin under reduced motion
+    spinning = on;
+    spinBtn.setAttribute("aria-pressed", on ? "true" : "false");
+    spinBtn.textContent = on ? "STOP SPIN" : "AUTO-SPIN";
+    if (on) { last = 0; rafId = requestAnimationFrame(spinLoop); }
+    else if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+  }
+  spinBtn.addEventListener("click", () => setSpin(!spinning));
+  resetBtn.addEventListener("click", () => { setSpin(false); applyHue(268, false); });
+
+  // pause spin when tab hidden (perf)
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden && spinning) { spinning = false; if (rafId) cancelAnimationFrame(rafId); rafId = null; spinBtn.setAttribute("aria-pressed","false"); spinBtn.textContent="AUTO-SPIN"; }
+  });
+
+  // hide auto-spin button under reduced motion (it would do nothing)
+  if (reduceMotion) { spinBtn.style.display = "none"; }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,937 @@
+<!-- TEMPLATE: Voronoi Field | ARCHETYPE: voronoi-cell-gallery | REF: Godly 2026 generative gallery, CSS Design Awards generative-geometry 2026, d3-delaunay Observable 2026 | WHEN TO USE: a spatial portfolio where works tessellate a single canvas and one click expands a cell to full media | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Voronoi Field - Generative Work Tessellation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500&family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     PALETTE
+     #0c0c10  void background
+     #f0ece4  bone (cell borders + labels)
+     #c94a2e  vermilion (active seed ring)
+     #e8c547  amber (expanded cell accent)
+     ============================================================ */
+  :root{
+    --void:#0c0c10;
+    --bone:#f0ece4;
+    --vermilion:#c94a2e;
+    --amber:#e8c547;
+    --bone-dim:rgba(240,236,228,.42);
+    --bone-faint:rgba(240,236,228,.13);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--void);
+    color:var(--bone);
+    font-family:"Space Grotesk",system-ui,sans-serif;
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+  /* full-bleed stage holding the canvas */
+  #stage{
+    position:fixed;
+    inset:0;
+    width:100%;
+    height:100%;
+  }
+  #field{
+    display:block;
+    width:100%;
+    height:100%;
+    cursor:crosshair;
+    touch-action:manipulation;
+  }
+
+  /* ---- compact top band, overlays the mosaic, never pushes it down ---- */
+  header{
+    position:fixed;
+    top:0;left:0;right:0;
+    z-index:5;
+    padding:22px clamp(18px,3.4vw,46px) 30px;
+    pointer-events:none;
+    background:linear-gradient(180deg,rgba(12,12,16,.82) 0%,rgba(12,12,16,.5) 55%,rgba(12,12,16,0) 100%);
+  }
+  .brandrow{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:18px;
+    flex-wrap:wrap;
+  }
+  .mark{
+    font-family:"JetBrains Mono",monospace;
+    font-size:11px;
+    letter-spacing:.34em;
+    text-transform:uppercase;
+    color:var(--vermilion);
+    display:flex;
+    align-items:center;
+    gap:9px;
+  }
+  .mark .dot{
+    width:7px;height:7px;border-radius:50%;
+    background:var(--vermilion);
+    box-shadow:0 0 0 4px rgba(201,74,46,.2);
+  }
+  .count{
+    font-family:"JetBrains Mono",monospace;
+    font-size:11px;
+    letter-spacing:.2em;
+    color:var(--bone-dim);
+    text-transform:uppercase;
+  }
+  h1{
+    margin-top:14px;
+    font-family:"Fraunces",serif;
+    font-weight:300;
+    font-size:clamp(30px,5.6vw,68px);
+    line-height:.96;
+    letter-spacing:-.018em;
+    max-width:14ch;
+  }
+  h1 em{
+    font-style:italic;
+    color:var(--amber);
+  }
+  .sub{
+    margin-top:14px;
+    max-width:46ch;
+    font-size:clamp(12.5px,1.25vw,15px);
+    line-height:1.5;
+    color:var(--bone-dim);
+  }
+
+  /* ---- bottom hint / status readout ---- */
+  footer{
+    position:fixed;
+    left:0;right:0;bottom:0;
+    z-index:5;
+    padding:24px clamp(18px,3.4vw,46px) 20px;
+    pointer-events:none;
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:18px;
+    background:linear-gradient(0deg,rgba(12,12,16,.82) 0%,rgba(12,12,16,.4) 60%,rgba(12,12,16,0) 100%);
+    font-family:"JetBrains Mono",monospace;
+    font-size:11px;
+    letter-spacing:.14em;
+    color:var(--bone-dim);
+    text-transform:uppercase;
+  }
+  #readout{
+    color:var(--bone);
+    transition:color .2s;
+  }
+  #readout b{color:var(--amber);font-weight:500}
+  .hint{
+    text-align:right;
+    line-height:1.7;
+  }
+  .hint span{color:var(--vermilion)}
+
+  /* focusable proxy buttons over the canvas for keyboard a11y */
+  #a11ylayer{
+    position:fixed;inset:0;z-index:4;
+    pointer-events:none;
+  }
+  .cellbtn{
+    position:absolute;
+    pointer-events:auto;
+    background:transparent;
+    border:0;
+    padding:0;margin:0;
+    cursor:pointer;
+    border-radius:6px;
+    color:transparent;
+    overflow:hidden;
+    white-space:nowrap;
+  }
+  .cellbtn:focus-visible{
+    outline:2px solid var(--amber);
+    outline-offset:-3px;
+    background:rgba(232,197,71,.08);
+  }
+
+  @media (max-width:640px){
+    header{padding:16px 16px 26px}
+    h1{font-size:clamp(26px,8.5vw,40px);max-width:18ch}
+    .sub{display:none}
+    footer{padding:18px 16px 16px;font-size:9.5px;letter-spacing:.1em}
+    .hint{line-height:1.6}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .mark .dot{box-shadow:none}
+    *{transition:none !important;animation:none !important}
+  }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <canvas id="field" aria-label="Voronoi tessellation of works. Use Tab to focus a cell, Enter to expand or collapse it."></canvas>
+  </div>
+
+  <header>
+    <div class="brandrow">
+      <div class="mark"><span class="dot"></span>Voronoi Field</div>
+      <div class="count" id="hcount">012 works tessellated</div>
+    </div>
+    <h1>Every work owns<br />a cell of the <em>field</em>.</h1>
+    <p class="sub">Seeds scattered by Fortune's sweep, each region clipped to its own media. Hover to claim a cell; click to push the neighbours outward and read it whole.</p>
+  </header>
+
+  <div id="a11ylayer"></div>
+
+  <footer>
+    <div id="readout">Move across the field to inspect a cell.</div>
+    <div class="hint">
+      <span>hover</span> highlight &nbsp;/&nbsp; <span>click</span> expand &amp; lock<br />
+      <span>esc</span> collapse &nbsp;/&nbsp; <span>tab</span> focus a cell
+    </div>
+  </footer>
+
+<script>
+/* ============================================================================
+   DATA  -  swap freely. Each entry becomes one Voronoi seed/cell.
+   type: "image" | "video"
+   src : poster/still shown in the mosaic and when collapsed
+   video: mp4 played only when this cell is the focused/locked one
+   w,h : natural media aspect, used to letterbox (never cover-crop) inside cell
+   sx,sy: seed home position in normalized [0..1] field space (the mosaic layout)
+   ========================================================================== */
+const DATA = [
+  { tag:"01", title:"Night Coupe",        kind:"Image / FLUX 4K",     type:"image", src:"../assets/flux-car-4k.png",            w:2048, h:1152, sx:0.135, sy:0.205 },
+  { tag:"02", title:"Mint Practice",      kind:"Image / FLUX 4K",     type:"image", src:"../assets/flux-clinic-4k.png",         w:2048, h:1152, sx:0.385, sy:0.150 },
+  { tag:"03", title:"Coupe In Motion",    kind:"Video / FLUX i2v",    type:"video", src:"../assets/gen/poster-flux-car-i2v.png", video:"../assets/flux-car-i2v.mp4", w:1920, h:1080, sx:0.660, sy:0.185 },
+  { tag:"04", title:"Drift Loop",         kind:"Video / Kling",       type:"video", src:"../assets/gen/poster-kling-video.png",  video:"../assets/kling-video.mp4",  w:1920, h:1080, sx:0.875, sy:0.300 },
+  { tag:"05", title:"Autumn Fox",         kind:"Image / SDXL",        type:"image", src:"../assets/sdxl.png",                    w:512,  h:512,  sx:0.230, sy:0.470 },
+  { tag:"06", title:"Field Render",       kind:"Video / Fal",         type:"video", src:"../assets/gen/poster-fal-video.png",    video:"../assets/fal-video.mp4",    w:1280, h:720,  sx:0.500, sy:0.430 },
+  { tag:"07", title:"Hyperframe Sweep",   kind:"Video / Hyperframes", type:"video", src:"../assets/gen/poster-hyperframes.png",  video:"../assets/hyperframes.mp4",  w:1920, h:1080, sx:0.745, sy:0.520 },
+  { tag:"08", title:"Veo Sequence",       kind:"Video / Veo",         type:"video", src:"../assets/gen/poster-veo-video.png",    video:"../assets/veo-video.mp4",    w:1280, h:720,  sx:0.935, sy:0.610 },
+  { tag:"09", title:"Low-Fi Apple",       kind:"Image / TinySD",      type:"image", src:"../assets/hf-tinysd.png",               w:512,  h:512,  sx:0.110, sy:0.720 },
+  { tag:"10", title:"Avatar Take",        kind:"Video / HeyGen",      type:"video", src:"../assets/gen/poster-heygen.png",       video:"../assets/heygen-avatar.mp4",w:1280, h:720,  sx:0.360, sy:0.760 },
+  { tag:"11", title:"Talking Photo",      kind:"Video / D-ID",        type:"video", src:"../assets/gen/poster-did.png",          video:"../assets/did-talking-photo.mp4", w:512, h:512, sx:0.605, sy:0.800 },
+  { tag:"12", title:"MusicGen Bed",       kind:"Audio / MusicGen",    type:"image", src:"../assets/gen/wave-musicgen.png",      w:900,  h:150,  sx:0.855, sy:0.840 },
+];
+
+/* ============================================================================
+   FORTUNE'S SWEEP-LINE VORONOI  -  implemented from scratch, no libraries.
+   Produces, for each site, a clipped convex cell polygon (CCW) bounded by the
+   viewport box. Robust enough for the < 12 seeds here; recomputed every frame.
+   ========================================================================== */
+
+/* ---- a tiny binary-heap event queue ---- */
+class Heap{
+  constructor(cmp){ this.a=[]; this.cmp=cmp; }
+  get size(){ return this.a.length; }
+  push(v){ const a=this.a; a.push(v); let i=a.length-1;
+    while(i>0){ const p=(i-1)>>1; if(this.cmp(a[i],a[p])<0){ [a[i],a[p]]=[a[p],a[i]]; i=p; } else break; } }
+  pop(){ const a=this.a, top=a[0], last=a.pop();
+    if(a.length){ a[0]=last; let i=0; const n=a.length;
+      for(;;){ let l=2*i+1,r=2*i+2,s=i;
+        if(l<n&&this.cmp(a[l],a[s])<0)s=l;
+        if(r<n&&this.cmp(a[r],a[s])<0)s=r;
+        if(s===i)break; [a[i],a[s]]=[a[s],a[i]]; i=s; } }
+    return top; }
+}
+
+/* Fortune's algorithm. sites = [{x,y,id}], bbox = {x0,y0,x1,y1}.
+   Returns Map id -> array of polygon vertices [{x,y},...] in CCW order. */
+function fortune(sites, bbox){
+  const EPS = 1e-9;
+  // beachline as a doubly-linked list of arcs
+  let beach = null; // head arc
+  const edges = []; // {a:{x,y}, b:{x,y}|null, leftSite, rightSite}
+  const events = new Heap((a,b)=> (a.y-b.y) || (a.x-b.x));
+
+  // site events
+  const S = sites.map(s=>({x:s.x,y:s.y,id:s.id}));
+  S.sort((a,b)=> (a.y-b.y)||(a.x-b.x));
+  for(const s of S) events.push({type:'site', x:s.x, y:s.y, site:s});
+
+  function makeArc(site){ return {site, prev:null, next:null, edgeL:null, edgeR:null, circle:null}; }
+
+  // x of the parabola intersection (breakpoint) between arcs of focus l and r at sweepline y=ly
+  function breakpoint(l, r, ly){
+    const pl=l.site, pr=r.site;
+    const dl = 2*(pl.y - ly), dr = 2*(pr.y - ly);
+    if(Math.abs(dl)<EPS && Math.abs(dr)<EPS) return (pl.x+pr.x)/2;
+    if(Math.abs(dl)<EPS) return pl.x;
+    if(Math.abs(dr)<EPS) return pr.x;
+    const al=1/dl, bl=-2*pl.x/dl, cl=ly + dl/4 + pl.x*pl.x/dl;
+    const ar=1/dr, br=-2*pr.x/dr, cr=ly + dr/4 + pr.x*pr.x/dr;
+    const a=al-ar, b=bl-br, c=cl-cr;
+    if(Math.abs(a)<EPS) return -c/b;
+    const disc=b*b-4*a*c;
+    const sq=Math.sqrt(Math.max(0,disc));
+    const x1=(-b+sq)/(2*a), x2=(-b-sq)/(2*a);
+    // choose the breakpoint where the left arc is on the left
+    return pl.y < pr.y ? Math.max(x1,x2) : Math.min(x1,x2);
+  }
+
+  // find arc directly above x at sweepline y
+  function arcAbove(x, ly){
+    let a = beach;
+    while(a){
+      const left = a.prev ? breakpoint(a.prev, a, ly) : -Infinity;
+      const right = a.next ? breakpoint(a, a.next, ly) : Infinity;
+      if(x >= left-EPS && x <= right+EPS) return a;
+      a = a.next;
+    }
+    return beach;
+  }
+
+  function circleCenter(a,b,c){
+    const ax=a.x,ay=a.y,bx=b.x,by=b.y,cx=c.x,cy=c.y;
+    const d=2*(ax*(by-cy)+bx*(cy-ay)+cx*(ay-by));
+    if(Math.abs(d)<EPS) return null;
+    const ux=((ax*ax+ay*ay)*(by-cy)+(bx*bx+by*by)*(cy-ay)+(cx*cx+cy*cy)*(ay-by))/d;
+    const uy=((ax*ax+ay*ay)*(cx-bx)+(bx*bx+by*by)*(ax-cx)+(cx*cx+cy*cy)*(bx-ax))/d;
+    return {x:ux,y:uy};
+  }
+
+  function checkCircle(arc){
+    arc.circle = null;
+    const l=arc.prev, r=arc.next;
+    if(!l||!r) return;
+    if(l.site===r.site) return;
+    // convergence test: turn must be clockwise (right turn) for a circle event
+    const a=l.site,b=arc.site,c=r.site;
+    const cross=(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);
+    if(cross >= -EPS) return; // not converging
+    const cc=circleCenter(a,b,c);
+    if(!cc) return;
+    const rad=Math.hypot(cc.x-b.x, cc.y-b.y);
+    const ey=cc.y+rad;
+    const ev={type:'circle', x:cc.x, y:ey, arc, cx:cc.x, cy:cc.y, valid:true};
+    arc.circle=ev;
+    events.push(ev);
+  }
+
+  while(events.size){
+    const e=events.pop();
+    if(e.type==='circle' && !e.valid) continue;
+
+    if(e.type==='site'){
+      const site=e.site;
+      if(!beach){ beach=makeArc(site); continue; }
+      const above=arcAbove(site.x, e.y);
+      if(above.circle){ above.circle.valid=false; above.circle=null; }
+
+      // split 'above' into left | new | right
+      const left=makeArc(above.site);
+      const mid=makeArc(site);
+      const right=makeArc(above.site);
+      // create new edge pair starting at the split point
+      const startX=site.x;
+      const startY=( (site.x-above.site.x)*(site.x-above.site.x) ) /
+                   (2*(above.site.y-e.y)) + (above.site.y+e.y)/2;
+      const start={x:startX,y:isFinite(startY)?startY:e.y};
+      const edge={a:start,b:null,L:above.site,R:site};
+      edges.push(edge);
+      left.edgeR=edge; mid.edgeL=edge;
+      const edge2={a:{x:start.x,y:start.y},b:null,L:site,R:above.site};
+      edges.push(edge2);
+      mid.edgeR=edge2; right.edgeL=edge2;
+      left.edgeL=above.edgeL; right.edgeR=above.edgeR;
+
+      // splice into linked list, replacing 'above'
+      left.prev=above.prev; if(above.prev) above.prev.next=left; else beach=left;
+      left.next=mid; mid.prev=left;
+      mid.next=right; right.prev=mid;
+      right.next=above.next; if(above.next) above.next.prev=right;
+
+      checkCircle(left);
+      checkCircle(right);
+    } else {
+      // circle event: arc disappears
+      const arc=e.arc;
+      const l=arc.prev, r=arc.next;
+      if(l&&l.circle){ l.circle.valid=false; l.circle=null; }
+      if(r&&r.circle){ r.circle.valid=false; r.circle=null; }
+      const vertex={x:e.cx, y:e.cy};
+      if(arc.edgeL) arc.edgeL.b=vertex;
+      if(arc.edgeR) arc.edgeR.b=vertex;
+      // new edge between l and r starting at vertex
+      const edge={a:vertex,b:null,L:l.site,R:r.site};
+      edges.push(edge);
+      l.edgeR=edge; r.edgeL=edge;
+      // remove arc
+      if(l) l.next=r; if(r) r.prev=l;
+      if(arc===beach) beach=l||r;
+      checkCircle(l);
+      checkCircle(r);
+    }
+  }
+
+  // ---- Convert finished bisector edges into per-site half-planes, then clip
+  //      the bounding box by all the half-planes belonging to a site. This is
+  //      O(sites * edges) but sites < 12, trivially fast, and avoids tracking
+  //      unbounded ray endpoints exactly. Each site's cell = box ∩ {x : x is
+  //      on the same side of every bisector as the site itself}. ----
+  const result = new Map();
+  const box=[ {x:bbox.x0,y:bbox.y0},{x:bbox.x1,y:bbox.y0},{x:bbox.x1,y:bbox.y1},{x:bbox.x0,y:bbox.y1} ];
+
+  // collect unique site pairs that share an edge (Delaunay neighbours)
+  const pairs=[];
+  for(const ed of edges){ if(ed.L && ed.R && ed.L!==ed.R) pairs.push([ed.L,ed.R]); }
+
+  for(const site of S){
+    let poly = box.map(p=>({x:p.x,y:p.y}));
+    for(const [A,B] of pairs){
+      let other=null;
+      if(A.id===site.id) other=B; else if(B.id===site.id) other=A; else continue;
+      // bisector half-plane: keep points closer to 'site' than to 'other'
+      const mx=(site.x+other.x)/2, my=(site.y+other.y)/2;
+      const nx=other.x-site.x, ny=other.y-site.y; // normal pointing away from site
+      // keep where (p-m).n <= 0
+      poly = clipHalfPlane(poly, mx,my,nx,ny);
+      if(poly.length<3) break;
+    }
+    result.set(site.id, poly);
+  }
+  return result;
+
+  function clipHalfPlane(poly, mx,my,nx,ny){
+    const out=[];
+    const n=poly.length;
+    for(let i=0;i<n;i++){
+      const cur=poly[i], nxt=poly[(i+1)%n];
+      const dc=(cur.x-mx)*nx+(cur.y-my)*ny;
+      const dn=(nxt.x-mx)*nx+(nxt.y-my)*ny;
+      const curIn=dc<=1e-7, nxtIn=dn<=1e-7;
+      if(curIn) out.push(cur);
+      if(curIn!==nxtIn){
+        const t=dc/(dc-dn);
+        out.push({x:cur.x+t*(nxt.x-cur.x), y:cur.y+t*(nxt.y-cur.y)});
+      }
+    }
+    return out;
+  }
+}
+
+/* ============================================================================
+   RENDER / INTERACTION ENGINE
+   ========================================================================== */
+const canvas = document.getElementById('field');
+const ctx = canvas.getContext('2d', { alpha:false });
+const a11ylayer = document.getElementById('a11ylayer');
+const readout = document.getElementById('readout');
+document.getElementById('hcount').textContent = String(DATA.length).padStart(3,'0') + ' works tessellated';
+
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const isCoarse = window.matchMedia('(pointer: coarse)').matches;
+
+let W=0, H=0, DPR=1;
+let mouse = { x:-1, y:-1, active:false };
+let hoverId = -1;
+let lockedId = -1;       // expanded + locked cell
+let cells = new Map();   // id -> polygon (in pixel space)
+let polyArea = new Map();// id -> approx area for label sizing
+let raf = 0;
+
+/* media bank: each seed gets a loaded Image (poster) + lazy <video> */
+const media = DATA.map((d)=>{
+  const img = new Image();
+  img.decoding='async';
+  img.src = d.src;
+  let vid=null;
+  return { d, img, vid, ready:false, vidReady:false };
+});
+media.forEach(m=>{ m.img.onload=()=>{ m.ready=true; }; });
+
+/* spring state on each seed: position pushed outward when a neighbour expands */
+const seeds = DATA.map(d=>({
+  hx:d.sx, hy:d.sy,   // home (normalized)
+  x:d.sx, y:d.sy,     // current (normalized)
+  vx:0, vy:0
+}));
+
+/* perf state (declared early - resize() runs before the draw block below) */
+let fieldTex=null;       // pre-rendered dotted-field texture, blitted each frame
+let lastSeedHash='';     // skip Fortune recompute when seeds have not moved
+
+/* hidden host so the browser reliably decodes the focused video; offscreen,
+   1x1, never visible, only ever ONE video plays at a time (the locked cell). */
+const videoHost = document.createElement('div');
+videoHost.setAttribute('aria-hidden','true');
+videoHost.style.cssText='position:fixed;left:-10px;top:-10px;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;';
+document.body.appendChild(videoHost);
+
+function lazyVideo(i){
+  const m = media[i];
+  if(m.vid || !m.d.video) return;
+  const v = document.createElement('video');
+  v.src = m.d.video;
+  v.loop = true; v.muted = true; v.playsInline = true;
+  v.setAttribute('muted',''); v.setAttribute('playsinline','');
+  v.preload = 'auto';
+  v.addEventListener('loadeddata', ()=>{ m.vidReady=true; wake(); });
+  videoHost.appendChild(v);
+  m.vid = v;
+}
+
+/* ---------- sizing ---------- */
+function resize(){
+  DPR = Math.min(window.devicePixelRatio||1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = Math.round(W*DPR);
+  canvas.height = Math.round(H*DPR);
+  canvas.style.width = W+'px';
+  canvas.style.height = H+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  buildFieldTexture();
+  lastSeedHash=''; // force a Voronoi recompute at the new size
+}
+window.addEventListener('resize', resize);
+const ro = new ResizeObserver(()=>{ resize(); });
+ro.observe(document.getElementById('stage'));
+resize();
+
+/* ---------- geometry helpers ---------- */
+function polyCentroid(poly){
+  let a=0,cx=0,cy=0;
+  for(let i=0;i<poly.length;i++){
+    const p=poly[i], q=poly[(i+1)%poly.length];
+    const cr=p.x*q.y - q.x*p.y;
+    a+=cr; cx+=(p.x+q.x)*cr; cy+=(p.y+q.y)*cr;
+  }
+  if(Math.abs(a)<1e-6){ // degenerate, average
+    let sx=0,sy=0; poly.forEach(p=>{sx+=p.x;sy+=p.y;});
+    return {x:sx/poly.length,y:sy/poly.length,area:0};
+  }
+  a*=0.5;
+  return { x:cx/(6*a), y:cy/(6*a), area:Math.abs(a) };
+}
+function polyBounds(poly){
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  for(const p of poly){ if(p.x<x0)x0=p.x; if(p.y<y0)y0=p.y; if(p.x>x1)x1=p.x; if(p.y>y1)y1=p.y; }
+  return {x0,y0,x1,y1,w:x1-x0,h:y1-y0};
+}
+function pointInPoly(px,py,poly){
+  let inside=false;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const xi=poly[i].x, yi=poly[i].y, xj=poly[j].x, yj=poly[j].y;
+    if(((yi>py)!==(yj>py)) && (px < (xj-xi)*(py-yi)/(yj-yi)+xi)) inside=!inside;
+  }
+  return inside;
+}
+
+/* ---------- spring update: when a cell is locked, neighbours pushed outward
+   so the locked cell grows. Reduced-motion -> instant snap. ---------- */
+function updateSeeds(dt){
+  // target offsets
+  for(let i=0;i<seeds.length;i++){
+    const s=seeds[i];
+    let tx=s.hx, ty=s.hy;
+    if(lockedId>=0){
+      if(i===lockedId){
+        tx=0.5; ty=0.5;                  // expanded cell drifts toward centre
+      }else{
+        // push this seed radially away from the locked seed's home
+        const L=seeds[lockedId];
+        let dx=s.hx-L.hx, dy=s.hy-L.hy;
+        const d=Math.hypot(dx,dy)||1e-4;
+        dx/=d; dy/=d;
+        const push=0.16;                 // how far neighbours retreat
+        tx=s.hx+dx*push; ty=s.hy+dy*push;
+      }
+    }
+    if(reduceMotion){
+      s.x=tx; s.y=ty; s.vx=0; s.vy=0;
+    }else{
+      const k=140, c=2*Math.sqrt(k)*0.9;  // spring + damping
+      const ax=(tx-s.x)*k - s.vx*c;
+      const ay=(ty-s.y)*k - s.vy*c;
+      s.vx+=ax*dt; s.vy+=ay*dt;
+      s.x+=s.vx*dt; s.y+=s.vy*dt;
+    }
+  }
+}
+
+let springSettled=false;
+function springActive(){
+  if(reduceMotion) return false; // no spring, no pulse, no video -> nothing to animate
+  if(lockedId<0){
+    for(const s of seeds){ if(Math.hypot(s.x-s.hx,s.y-s.hy)>1e-4 || Math.hypot(s.vx,s.vy)>1e-4) return true; }
+    return false;
+  }
+  return lockedId>=0; // keep animating while locked (video + pulse)
+}
+
+/* ---------- compute Voronoi from current seed positions ---------- */
+function recompute(){
+  const sites = seeds.map((s,i)=>({ x:s.x*W, y:s.y*H, id:i }));
+  // jitter identical coords to avoid degenerate sweep
+  const seen=new Set();
+  for(const s of sites){
+    let key=Math.round(s.x)+'_'+Math.round(s.y);
+    while(seen.has(key)){ s.x+=0.01; s.y+=0.013; key=Math.round(s.x)+'_'+Math.round(s.y); }
+    seen.add(key);
+  }
+  cells = fortune(sites, {x0:0,y0:0,x1:W,y1:H});
+  // areas for label scaling
+  polyArea.clear();
+  cells.forEach((poly,id)=>{ polyArea.set(id, poly.length>=3?polyCentroid(poly).area:0); });
+  syncA11y();
+}
+
+/* ---------- letterbox media into a polygon bbox (never cover-crop) ----------
+   We draw the media "contain"-style inside the cell's bounding box, then the
+   clip() keeps only the cell shape. This guarantees no landscape asset is
+   cropped to a portrait sliver: it is letterboxed within the cell. ---------- */
+function drawMediaInPoly(source, sw, sh, poly, focused){
+  const b=polyBounds(poly);
+  if(b.w<=0||b.h<=0) return;
+  // contain fit
+  const scale=Math.min(b.w/sw, b.h/sh);
+  // when focused/locked, allow a gentle fill so the cell reads as "the work",
+  // but still bounded so we never crop more than ~12%
+  const fitScale = focused ? Math.min(b.w/sw, b.h/sh) * 1.0 : scale;
+  const dw=sw*fitScale, dh=sh*fitScale;
+  const dx=b.x0+(b.w-dw)/2, dy=b.y0+(b.h-dh)/2;
+  // void letterbox behind
+  ctx.fillStyle='#08080b';
+  ctx.fillRect(b.x0,b.y0,b.w,b.h);
+  try{ ctx.drawImage(source,0,0,sw,sh,dx,dy,dw,dh); }catch(e){}
+}
+
+function roundedPolyPath(poly){
+  ctx.beginPath();
+  ctx.moveTo(poly[0].x,poly[0].y);
+  for(let i=1;i<poly.length;i++) ctx.lineTo(poly[i].x,poly[i].y);
+  ctx.closePath();
+}
+
+/* ---------- main draw ---------- */
+let t0=performance.now();
+function seedHash(){
+  // cheap fingerprint of seed positions; recompute Voronoi only when it changes
+  let h='';
+  for(const s of seeds) h+=((s.x*2048)|0)+','+((s.y*2048)|0)+';';
+  return h+W+'x'+H;
+}
+function frame(now){
+  const dt=Math.min(0.032,(now-t0)/1000); t0=now;
+  updateSeeds(dt);
+  // Fortune is the per-frame cost: skip it when nothing moved (settled / locked-idle)
+  const hsh=seedHash();
+  if(hsh!==lastSeedHash || cells.size===0){ recompute(); lastSeedHash=hsh; }
+
+  const time=now/1000;
+
+  // background
+  ctx.fillStyle='#0c0c10';
+  ctx.fillRect(0,0,W,H);
+
+  // subtle vignette grid dots for "field" texture (pre-rendered, blitted)
+  if(fieldTex) ctx.drawImage(fieldTex,0,0,W,H);
+
+  // draw cells back-to-front: locked cell last (on top)
+  const order=[...cells.keys()].filter(id=>id!==lockedId);
+  if(lockedId>=0) order.push(lockedId);
+
+  for(const id of order){
+    const poly=cells.get(id);
+    if(!poly || poly.length<3) continue;
+    const m=media[id];
+    const focused = (id===hoverId)||(id===lockedId);
+    const locked = id===lockedId;
+
+    ctx.save();
+    roundedPolyPath(poly);
+    ctx.clip();
+
+    // media (poster image always; video only when this is the active cell).
+    // Under prefers-reduced-motion we never auto-play the looping video: the
+    // cell still expands (instantly) and shows its poster still instead.
+    let src=m.img, sw=m.d.w, sh=m.d.h, drawn=false;
+    if(locked && !reduceMotion && m.vidReady && m.vid){
+      try{ if(m.vid.paused) m.vid.play().catch(()=>{}); }catch(e){}
+      src=m.vid; sw=m.vid.videoWidth||m.d.w; sh=m.vid.videoHeight||m.d.h;
+    }
+    if(m.ready || (src===m.vid && m.vidReady)){
+      drawMediaInPoly(src, sw, sh, poly, focused);
+      drawn=true;
+    }
+    if(!drawn){
+      const b=polyBounds(poly);
+      ctx.fillStyle='#15151b';
+      ctx.fillRect(b.x0,b.y0,b.w,b.h);
+    }
+
+    // dim non-focused cells so the mosaic reads as one field
+    if(!focused){
+      ctx.fillStyle='rgba(12,12,16,0.46)';
+      const b=polyBounds(poly); ctx.fillRect(b.x0,b.y0,b.w,b.h);
+    } else if(locked){
+      // amber inner wash for the expanded work
+      ctx.fillStyle='rgba(232,197,71,0.06)';
+      const b=polyBounds(poly); ctx.fillRect(b.x0,b.y0,b.w,b.h);
+    }
+    ctx.restore();
+
+    // cell border
+    roundedPolyPath(poly);
+    if(locked){
+      ctx.strokeStyle='rgba(232,197,71,0.92)';
+      ctx.lineWidth=2.4;
+    }else if(id===hoverId){
+      ctx.strokeStyle='rgba(240,236,228,0.95)';
+      ctx.lineWidth=1.8;
+    }else{
+      ctx.strokeStyle='rgba(240,236,228,0.16)';
+      ctx.lineWidth=1;
+    }
+    ctx.stroke();
+
+    // label + seed marker
+    drawCellLabel(id, poly, focused, locked, time);
+  }
+
+  // hovered/locked seed ring (vermilion, pulsing)
+  drawSeedRing(time);
+
+  // This frame already drew the current state. Keep looping only when there is
+  // real motion to render: spring settling, pulse ring on hover/lock, or a
+  // playing video. Under reduced motion none of those exist, so we quiesce after
+  // this single draw; wake() restarts the loop on the next interaction.
+  const keepAnimating = reduceMotion ? false : (springActive() || hoverId>=0 || lockedId>=0);
+  if(keepAnimating){
+    raf=requestAnimationFrame(frame);
+  }else{
+    springSettled=true;
+    raf=0;
+  }
+}
+
+function wake(){
+  springSettled=false;
+  if(!raf) raf=requestAnimationFrame(frame);
+}
+
+/* faint dotted field behind cells - rendered ONCE to an offscreen canvas on
+   resize, then blitted each frame (was the second-biggest per-frame cost). */
+function buildFieldTexture(){
+  const cw=Math.max(2,Math.round(W)), ch=Math.max(2,Math.round(H));
+  const off=document.createElement('canvas');
+  off.width=cw; off.height=ch;
+  const o=off.getContext('2d');
+  o.fillStyle='rgba(240,236,228,0.045)';
+  const step=46;
+  for(let y=step/2;y<ch;y+=step){
+    for(let x=step/2;x<cw;x+=step){
+      o.beginPath(); o.arc(x,y,1,0,Math.PI*2); o.fill();
+    }
+  }
+  fieldTex=off;
+}
+
+function drawCellLabel(id, poly, focused, locked, time){
+  const c=polyCentroid(poly);
+  const area=polyArea.get(id)||0;
+  if(area<2600 && !focused) return; // skip labels on tiny slivers
+  const d=DATA[id];
+  const b=polyBounds(poly);
+  ctx.save();
+  // clip label to cell so text never bleeds across borders
+  roundedPolyPath(poly); ctx.clip();
+
+  const pad=12;
+  const lx=b.x0+pad, ly=b.y1-pad;
+  // readable scrim under text
+  ctx.fillStyle = locked ? 'rgba(12,12,16,0.55)' : 'rgba(12,12,16,0.4)';
+  ctx.fillRect(b.x0, b.y1-46, b.w, 46);
+
+  ctx.textBaseline='alphabetic';
+  // tag number
+  ctx.font='500 11px "JetBrains Mono", monospace';
+  ctx.fillStyle = locked ? '#e8c547' : 'rgba(201,74,46,0.95)';
+  ctx.fillText(d.tag, lx, ly-19);
+
+  // title
+  ctx.font = (focused?'500 ':'500 ') + (focused?16:13) + 'px "Fraunces", serif';
+  ctx.fillStyle = focused ? '#f0ece4' : 'rgba(240,236,228,0.86)';
+  ctx.fillText(d.title, lx, ly-2);
+
+  if(focused){
+    ctx.font='400 10px "JetBrains Mono", monospace';
+    ctx.fillStyle='rgba(240,236,228,0.6)';
+    ctx.fillText(d.kind.toUpperCase(), lx+ctx.measureText(d.title).width+0, ly-2);
+  }
+  ctx.restore();
+}
+
+function drawSeedRing(time){
+  const targetId = lockedId>=0 ? lockedId : hoverId;
+  if(targetId<0) return;
+  const poly=cells.get(targetId);
+  if(!poly||poly.length<3) return;
+  // ring sits at the SEED, not centroid, so the mechanic is legible
+  const s=seeds[targetId];
+  const sx=s.x*W, sy=s.y*H;
+  const pulse = reduceMotion ? 0.5 : (0.5+0.5*Math.sin(time*3.2));
+  const baseR = 7;
+  const ringR = baseR + pulse*7;
+
+  ctx.save();
+  // outer pulse halo
+  ctx.beginPath(); ctx.arc(sx,sy,ringR,0,Math.PI*2);
+  ctx.strokeStyle='rgba(201,74,46,'+(0.85-pulse*0.45)+')';
+  ctx.lineWidth=2;
+  ctx.stroke();
+  // solid seed dot
+  ctx.beginPath(); ctx.arc(sx,sy,baseR-2.5,0,Math.PI*2);
+  ctx.fillStyle='#c94a2e';
+  ctx.fill();
+  ctx.beginPath(); ctx.arc(sx,sy,baseR-2.5,0,Math.PI*2);
+  ctx.strokeStyle='rgba(240,236,228,0.85)';
+  ctx.lineWidth=1.2; ctx.stroke();
+  ctx.restore();
+}
+
+/* ---------- hit testing ---------- */
+function nearestSeed(px,py){
+  // primary: polygon hit-test (exact). fallback: nearest seed by distance.
+  for(const [id,poly] of cells){
+    if(poly.length>=3 && pointInPoly(px,py,poly)) return id;
+  }
+  let best=-1, bd=Infinity;
+  for(let i=0;i<seeds.length;i++){
+    const dx=seeds[i].x*W-px, dy=seeds[i].y*H-py;
+    const d=dx*dx+dy*dy;
+    if(d<bd){ bd=d; best=i; }
+  }
+  return best;
+}
+
+function setReadout(id){
+  if(id<0){ readout.textContent = lockedId>=0 ? '' : 'Move across the field to inspect a cell.'; return; }
+  const d=DATA[id];
+  if(id===lockedId){
+    readout.innerHTML = 'Locked <b>'+d.tag+' '+d.title+'</b> &nbsp;'+d.kind+' &nbsp;-&nbsp; click again or Esc to release';
+  }else{
+    readout.innerHTML = 'Cell <b>'+d.tag+'</b> '+d.title+' &nbsp;-&nbsp; '+d.kind+' &nbsp;-&nbsp; click to expand';
+  }
+}
+
+function onMove(px,py){
+  mouse.x=px; mouse.y=py; mouse.active=true;
+  if(lockedId>=0){ return; } // hover frozen while locked
+  const id=nearestSeed(px,py);
+  if(id!==hoverId){ hoverId=id; setReadout(id); }
+  wake();
+}
+
+function expand(id){
+  if(id<0) return;
+  if(lockedId===id){ collapse(); return; }
+  lockedId=id; hoverId=id;
+  if(!reduceMotion) lazyVideo(id); // skip the looping-video fetch under reduced motion
+  setReadout(id);
+  syncA11y();
+  wake();
+}
+function collapse(){
+  if(lockedId<0) return;
+  const m=media[lockedId];
+  if(m.vid){ try{ m.vid.pause(); }catch(e){} }
+  lockedId=-1;
+  setReadout(hoverId);
+  syncA11y();
+  wake();
+}
+
+/* pointer / touch */
+canvas.addEventListener('mousemove', e=>{
+  const r=canvas.getBoundingClientRect();
+  onMove(e.clientX-r.left, e.clientY-r.top);
+});
+canvas.addEventListener('mouseleave', ()=>{
+  mouse.active=false;
+  if(lockedId<0){ hoverId=-1; setReadout(-1); wake(); }
+});
+canvas.addEventListener('click', e=>{
+  const r=canvas.getBoundingClientRect();
+  const id=nearestSeed(e.clientX-r.left, e.clientY-r.top);
+  expand(id);
+});
+// touch: tap to expand/collapse
+canvas.addEventListener('touchstart', e=>{
+  const t=e.changedTouches[0];
+  const r=canvas.getBoundingClientRect();
+  const id=nearestSeed(t.clientX-r.left, t.clientY-r.top);
+  hoverId=id; setReadout(id);
+  expand(id);
+},{passive:true});
+
+window.addEventListener('keydown', e=>{
+  if(e.key==='Escape') collapse();
+});
+
+/* ---------- accessibility: focusable invisible buttons over each cell ---------- */
+let btns=[];
+function syncA11y(){
+  if(btns.length!==DATA.length){
+    a11ylayer.innerHTML='';
+    btns=DATA.map((d,i)=>{
+      const b=document.createElement('button');
+      b.className='cellbtn';
+      b.textContent = d.tag+' '+d.title+', '+d.kind+'. Press Enter to '+(i===lockedId?'collapse':'expand')+'.';
+      b.addEventListener('focus', ()=>{ if(lockedId<0){ hoverId=i; setReadout(i); wake(); } });
+      b.addEventListener('click', ()=>{ expand(i); });
+      a11ylayer.appendChild(b);
+      return b;
+    });
+  }
+  // position over each cell centroid bbox
+  for(let i=0;i<btns.length;i++){
+    const poly=cells.get(i);
+    const b=btns[i];
+    if(!poly||poly.length<3){ b.style.display='none'; continue; }
+    b.style.display='block';
+    const bb=polyBounds(poly);
+    const w=Math.max(28,Math.min(bb.w*0.5,160));
+    const h=Math.max(20,Math.min(bb.h*0.4,60));
+    const c=polyCentroid(poly);
+    b.style.left=(c.x-w/2)+'px';
+    b.style.top=(c.y-h/2)+'px';
+    b.style.width=w+'px';
+    b.style.height=h+'px';
+    b.textContent = DATA[i].tag+' '+DATA[i].title+', '+DATA[i].kind+'. Press Enter to '+(i===lockedId?'collapse':'expand')+'.';
+  }
+}
+
+/* ---------- in-view pause: stop everything when tab hidden ---------- */
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden){
+    media.forEach(m=>{ if(m.vid) try{m.vid.pause();}catch(e){} });
+  }else{
+    if(lockedId>=0 && media[lockedId].vid){ try{ media[lockedId].vid.play().catch(()=>{}); }catch(e){} }
+    wake();
+  }
+});
+
+/* ---------- boot ---------- */
+recompute();
+wake();
+
+// once posters decode, repaint so the mosaic fills in even if idle
+let pending=media.length;
+media.forEach(m=>{
+  if(m.img.complete && m.img.naturalWidth){ m.ready=true; pending--; }
+  m.img.addEventListener('load', ()=>{ m.ready=true; wake(); }, {once:true});
+});
+// gentle kick a few times during initial decode so it doesn't look empty
+let kicks=0;
+const kicker=setInterval(()=>{ wake(); if(++kicks>20) clearInterval(kicker); }, 180);
+</script>
+</body>
+</html>

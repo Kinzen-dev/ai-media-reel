@@ -41,10 +41,11 @@ After each batch, append any NEW design insight or loop-methodology insight to `
 real skills later via /promote-to-skill. Concrete + actionable bullets only; do not let it go stale.
 
 ## STATE (update each batch; _manifest.json is the source of truth)
-- 92 templates LIVE + cataloged (originals v2/v3/v4 + batches 1-18, minus the parked one below). Deploy = rsync showcase/templates/ -> /tmp/reel-deploy/templates/ then commit+push (Kinzen-dev).
+- 97 templates LIVE + cataloged (originals v2/v3/v4 + batches 1-19, minus the parked one below). Deploy = rsync showcase/templates/ -> /tmp/reel-deploy/templates/ then commit+push (Kinzen-dev).
 - PARKED (do NOT re-attempt blindly): `css-houdini-paint.html` exists but is NOT cataloged. Houdini paint-worklet output renders as a thin hairline in headless/thumbnail capture even though the live page + worklet are correct (3 fix rounds, probe-confirmed registered). Capture-fragile API; thumbnail can't sell it. See _SKILL-IDEAS.md "Know when to PARK".
-- Batch 19 IN FLIGHT (wf, build+verify): nested-marquee-matrix, skeuomorphic-mixer, weather-reactive-scene, generative-data-letterforms, data-physics-particle-sort (all CSS/Canvas2D/SVG).
-- Batch 20 fuel (in `_backlog-refresh.json`, NOT built): page-morph-barba (WebGL), webgpu-text-dissolve (WebGPU - capture-risky, treat as high-risk per _SKILL-IDEAS). Only 2 left, so run a backlog-refresh agent when batch 19 finishes.
+- Batch 20 IN FLIGHT (wf, build+verify): starting-style-burst, voronoi-cell-gallery, clip-path-morph-scroll, color-mix-oklch-gallery, blend-mode-stack-gallery (all CSS/Canvas2D).
+- Batch 21 fuel (in `_backlog-refresh.json`, NOT built): page-morph-barba (WebGL), webgpu-text-dissolve (WebGPU - capture-risky, high-risk), reaction-diffusion-canvas, device-orientation-spatial, svg-paint-order-poster, custom-highlight-scroll. SKIP houdini-paint-worklet (Houdini parked, capture-fragile). Refresh when low.
+- Novelty is getting harder at ~97 templates: refresh agents now honestly return fewer genuinely-distinct ideas. That's fine; lean on newer CSS primitives (@scope, @starting-style, anchor positioning, view-timeline, color-mix oklch, Custom Highlight API, container queries) and distinct input/data/craft mechanics.
 - Session-limit note: King's own quota can hit ("resets <time> Bangkok") at the build stage; same recovery as a rate-limit (files on disk -> verify-only). Distinct from the transient Anthropic "Server is temporarily limiting" overload.
 - Rate-limit recovery drill (happened twice): builds land on disk even when the verify stage is rate-limited -> check disk + re-run `_verify-workflow.js` on the existing slugs, then qa-harness + judge + catalog as normal.
 - SVG gotcha (cost 3 failed fixes on blind-mask-wipe, found by DOM probe): fill/stroke = var(--x) as an SVG presentation attribute does NOT resolve -> shape invisible; use hex or element.style. Lesson now in _batch-workflow verify prompt.

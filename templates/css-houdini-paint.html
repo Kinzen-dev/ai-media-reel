@@ -46,16 +46,17 @@
   @property --progress {
     syntax: '<number>'; inherits: false; initial-value: 0;
   }
-  /* --fill / --t / --seed inherit so the .flood child reads the card's values
-     without JS having to set them twice. */
+  /* NOTE: these are set DIRECTLY on each painted element (card + .flood), not
+     inherited. Inherited registered-property changes do not reliably invalidate
+     a descendant paint worklet, so JS writes --fill/--t straight to .flood. */
   @property --fill {
-    syntax: '<number>'; inherits: true; initial-value: 0;
+    syntax: '<number>'; inherits: false; initial-value: 0;
   }
   @property --t {
-    syntax: '<number>'; inherits: true; initial-value: 0;
+    syntax: '<number>'; inherits: false; initial-value: 0;
   }
   @property --seed {
-    syntax: '<number>'; inherits: true; initial-value: 1;
+    syntax: '<number>'; inherits: false; initial-value: 1;
   }
   @property --ink-1 {
     syntax: '<color>'; inherits: true; initial-value: #111111;
@@ -170,10 +171,11 @@
   .card .flood {
     position: absolute; inset: 0; z-index: 2; pointer-events: none;
     background: paint(voronoi);
-    mix-blend-mode: screen; opacity: 0;
-    transition: opacity .5s ease;
+    opacity: 0;
+    /* --fill animates the radial bloom inside the worklet; opacity fades it in */
+    transition: opacity .45s ease, --fill .5s ease;
   }
-  .card.hot .flood { opacity: 0.92; }
+  .card.hot .flood { opacity: 1; }
 
   .card .frame .badge {
     position: absolute; left: 8px; top: 8px; z-index: 3;
@@ -247,14 +249,21 @@
     header.mast { grid-template-columns: 1fr; align-items: start; gap: 10px; }
     .mast .meta { text-align: left; }
     .index { grid-template-columns: 1fr; gap: 20px; }
-    .card .frame { aspect-ratio: 16 / 10; } /* still letterbox-safe via cover w/ contain class for portraits */
+    /* PHONE: never cover-crop. Letterbox every source (landscape, square,
+       portrait) inside a 16/9 frame so no media is cut off. The dark frame
+       background becomes the letterbox bars. */
+    .card .frame { aspect-ratio: 16 / 9; }
+    .card .frame img,
+    .card .frame video { object-fit: contain; }
   }
 
   /* ------------------------------------------------ reduced motion: freeze */
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
-    .card { transition: none; }
-    /* --progress / --t are frozen by JS (rAF disabled); final state shown. */
+    /* kill ALL transitions/animatable-prop tweens: card lift, --fill bloom,
+       flood opacity fade. --progress / --t are frozen by JS (rAF disabled)
+       and --fill is set instantly, so the final state shows with no motion. */
+    .card, .card .flood, .card .frame .play { transition: none; }
   }
 </style>
 </head>
@@ -525,29 +534,36 @@ registerPaint('voronoi', class {
           else if(d < d2){ d2 = d; }
         }
         const edge = Math.sqrt(d2) - Math.sqrt(d1); // small near cell walls
-        const wall = Math.max(0, 1 - edge/9);        // 1 on the vein, 0 inside
+        const wall = Math.max(0, 1 - edge/10);       // 1 on the vein, 0 inside
 
-        // cell body: faint warm tint (screen-blends to a glow over dark media)
-        ctx.globalAlpha = 0.10 * fill * edgeFade;
-        ctx.fillStyle = (id % 3 === 0) ? '#3a2a18' : '#241c12';
+        // cell body: a deep ink wash so the media reads as submerged in ink.
+        // alternating cells lean warm-ink vs cool-ink for an organic mottle.
+        ctx.globalAlpha = (0.62 + 0.18*Math.sin(t + id)) * fill * edgeFade;
+        ctx.fillStyle = (id % 3 === 0) ? '#2a1410' : (id % 3 === 1 ? '#141414' : '#1c1208');
         ctx.fillRect(x, y, STEP, STEP);
-        // veins: the bright accent ink, this is what the eye reads
-        if(wall > 0.1){
-          ctx.globalAlpha = wall * 0.85 * fill * edgeFade;
-          ctx.fillStyle = ink2;
+
+        // veins: glowing accent ink along the cell walls (the read element)
+        if(wall > 0.08){
+          ctx.globalAlpha = Math.min(1, wall * 1.15) * fill * edgeFade;
+          // alternate vein color amber<->vermilion by cell for richness
+          ctx.fillStyle = (id % 2 === 0) ? ink2 : '#d4a84b';
           ctx.fillRect(x, y, STEP, STEP);
         }
       }
     }
 
-    // bright seed nuclei pulsing with --t
+    // bright seed nuclei pulsing with --t (the "cells" of the Voronoi)
     for(let i=0;i<N;i++){
       const rd = Math.hypot(pts[i][0]-cx, pts[i][1]-cy)/maxR;
-      if(rd > fill*1.1) continue;
-      const pulse = 0.6 + 0.4*Math.sin(t*2 + i);
-      ctx.globalAlpha = 0.8*fill*pulse;
+      if(rd > fill*1.12) continue;
+      const pulse = 0.55 + 0.45*Math.sin(t*2.2 + i*1.3);
+      ctx.globalAlpha = 0.9*fill*pulse;
       ctx.fillStyle = '#f4f0e8';
-      ctx.beginPath(); ctx.arc(pts[i][0], pts[i][1], 1.8, 0, 6.283); ctx.fill();
+      ctx.beginPath(); ctx.arc(pts[i][0], pts[i][1], 2.2, 0, 6.283); ctx.fill();
+      // amber halo
+      ctx.globalAlpha = 0.5*fill*pulse;
+      ctx.fillStyle = '#d4a84b';
+      ctx.beginPath(); ctx.arc(pts[i][0], pts[i][1], 5.5, 0, 6.283); ctx.fill();
     }
   }
 });
@@ -600,6 +616,15 @@ registerPaint('voronoi', class {
         <p class="tool">${d.tool}</p>
         <p class="desc">${d.desc}</p>
       </div>`;
+    // the voronoi flood paints on its OWN element; give it the seed + inks
+    // directly (inherited registered-prop changes don't invalidate its paint).
+    const flood = a.querySelector('.flood');
+    flood.style.setProperty('--seed', seed);
+    flood.style.setProperty('--ink-1', d.ink1);
+    flood.style.setProperty('--ink-2', d.ink2);
+    flood.style.setProperty('--fill', '0');
+    flood.style.setProperty('--t', '0');
+
     index.appendChild(a);
     cards.push(a);
   });
@@ -671,26 +696,28 @@ registerPaint('voronoi', class {
   function activate(card){
     if (card.classList.contains('hot')) return;
     card.classList.add('hot');
-    card.style.setProperty('--fill', '1');
+    // drive the voronoi flood on its OWN element so its paint invalidates
+    const flood = card.querySelector('.flood');
+    flood.style.setProperty('--fill', '1');
     // play the focused video only (poster->src swap, lazy)
     const vid = card.querySelector('video');
     if (vid) {
       if (!vid.src && vid.dataset.src) vid.src = vid.dataset.src;
       vid.play().then(() => card.classList.add('playing')).catch(()=>{});
     }
-    if (REDUCE) { card.style.setProperty('--t', '1'); return; }
+    if (REDUCE) { flood.style.setProperty('--t', '1'); return; }
     let t0 = performance.now();
     function loop(now){
       if (!card.classList.contains('hot')) return;
       const t = (now - t0) / 1000;
-      card.style.setProperty('--t', t.toFixed(3));
+      flood.style.setProperty('--t', t.toFixed(3)); // shimmer the cells
       hotTimers.set(card, requestAnimationFrame(loop));
     }
     hotTimers.set(card, requestAnimationFrame(loop));
   }
   function deactivate(card){
     card.classList.remove('hot');
-    card.style.setProperty('--fill', '0');
+    card.querySelector('.flood').style.setProperty('--fill', '0');
     const raf = hotTimers.get(card);
     if (raf) cancelAnimationFrame(raf);
     const vid = card.querySelector('video');

@@ -41,9 +41,9 @@ After each batch, append any NEW design insight or loop-methodology insight to `
 real skills later via /promote-to-skill. Concrete + actionable bullets only; do not let it go stale.
 
 ## STATE (update each batch; _manifest.json is the source of truth)
-- 78 templates LIVE + cataloged (originals v2/v3/v4 + batches 1-15). Deploy = rsync showcase/templates/ -> /tmp/reel-deploy/templates/ then commit+push (Kinzen-dev).
-- Batch 16 IN FLIGHT (wf, build+verify): risograph-print-emulation, has-relational-reveal, diagonal-marquee-scroll, scroll-snap-choreography, playable-terminal-game (all CSS/Canvas2D).
-- Batch 17 fuel (in `_backlog-refresh.json`, NOT built): procedural-bezier-ribbon, page-morph-barba (WebGL), css-houdini-paint, container-query-layout, generative-svg-filter, real-time-collab-cursors, data-physics-particle-sort. Refresh when low.
+- 83 templates LIVE + cataloged (originals v2/v3/v4 + batches 1-16). Deploy = rsync showcase/templates/ -> /tmp/reel-deploy/templates/ then commit+push (Kinzen-dev).
+- Batch 17 IN FLIGHT (wf, build+verify): procedural-bezier-ribbon, css-houdini-paint, container-query-layout, generative-svg-filter, real-time-collab-cursors (all CSS/Canvas2D/SVG).
+- Batch 18 fuel (in `_backlog-refresh.json`, NOT built): page-morph-barba (WebGL), data-physics-particle-sort. Only 2 left, so run a backlog-refresh agent when batch 17 finishes.
 - Session-limit note: King's own quota can hit ("resets <time> Bangkok") at the build stage; same recovery as a rate-limit (files on disk -> verify-only). Distinct from the transient Anthropic "Server is temporarily limiting" overload.
 - Rate-limit recovery drill (happened twice): builds land on disk even when the verify stage is rate-limited -> check disk + re-run `_verify-workflow.js` on the existing slugs, then qa-harness + judge + catalog as normal.
 - SVG gotcha (cost 3 failed fixes on blind-mask-wipe, found by DOM probe): fill/stroke = var(--x) as an SVG presentation attribute does NOT resolve -> shape invisible; use hex or element.style. Lesson now in _batch-workflow verify prompt.

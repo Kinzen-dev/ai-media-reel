@@ -112,6 +112,13 @@ Driven by Workflow-completion notifications, so it keeps going across turns unti
 - Perceptual loop: build -> capture the REAL artifact -> critique as a demanding reviewer (composition,
   the mechanic-at-scroll=0, mobile, FPS) -> fix -> re-capture. 1-3 rounds is normal; one-shot is the
   exception. Code-correct is NOT perceptually right.
+- "Logic-correct but perceptually-invisible" is a real failure class. has-relational-reveal: the violet
+  rings WERE all applied (a computed-style DOM probe proved seed + 2 mates ringed, in view, 9 dimmed),
+  but they were thin INSET rings over busy media and washed out at thumbnail scale. Fix = a bold OUTER
+  ring on the dark ground (not clipped by the card, reads at any scale). Lesson: when a judge says "not
+  visible" but you believe the code is right, probe the computed style FIRST (confirm/deny it's applied),
+  then it's a contrast problem, not a logic problem. Inset rings over media < outer rings on a plain
+  ground for legibility. Thumbnail downscale averages fine detail away - make signal coarse enough.
 - Instrument before hypothesizing on opaque render bugs: after ~2 failed surface fixes, STOP guessing
   and probe the live DOM/computed-style/pixels. Root cause then shows in one cycle (blind-mask var(),
   dithered Bayer-LUT, scroll-3d perspective-on-scroll-container).

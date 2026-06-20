@@ -684,6 +684,13 @@ if (REDUCED) {
   let lastT = performance.now();
   let vel = 0;          // smoothed |px/ms|
   let energy = 0;       // 0..1 amplitude that decays toward 0
+  // SIGNATURE floor: until the user first scrolls, the rAF loop clamps energy
+  // to OPEN_FLOOR so the opening plate is reliably mid-melt at scroll=0 for the
+  // catalog thumbnail (captured at an arbitrary instant, not a fixed frame).
+  // A one-off setAttribute can't do this: the loop owns 'scale' every frame and
+  // would flatten it. The floor releases the moment a real scroll happens.
+  const OPEN_FLOOR = 0.22;
+  let openFloor = true;
 
   function onScroll() {
     const now = performance.now();
@@ -693,6 +700,7 @@ if (REDUCED) {
     vel = vel * 0.6 + inst * 0.4;         // smooth
     lastY = window.scrollY;
     lastT = now;
+    if (dy > 0) openFloor = false;        // first real scroll releases the floor
     // map velocity to 0..1 energy; ~2.2 px/ms reads as "fast"
     energy = Math.min(1, Math.max(energy, vel / 2.2));
   }
@@ -701,6 +709,7 @@ if (REDUCED) {
   function frame() {
     energy *= 0.92; // decay back to rest
     if (energy < 0.002) energy = 0;
+    if (openFloor) energy = Math.max(energy, OPEN_FLOOR); // hold the opening melt
 
     const pct = Math.round(energy * 100);
     velText.textContent = "VELOCITY " + pct + "%";
@@ -739,15 +748,13 @@ if (REDUCED) {
 if (!REDUCED) {
   const first = sections[0];
   if (first && first._fx) {
-    // force the opening plate active + seed a small resting displacement bump
+    // Force the opening plate (and the second, so "MAX 2 ACTIVE" reads true)
+    // active NOW, before the first rAF paint. The OPEN_FLOOR energy clamp above
+    // holds these in a visible melt at scroll=0 until the first real scroll, so
+    // the catalog thumbnail (an arbitrary-instant scroll=0 shot) is reliably
+    // mid-melt. We do NOT setAttribute scale here: the rAF loop owns that
+    // attribute every frame and would overwrite a one-off write immediately.
     setActive(first, true);
-    const fx = first._fx;
-    const seed = (fx.d.dispRest * 1.45 * DISP_MULT).toFixed(2);
-    fx.disp.setAttribute("scale", seed);   // visible melt without scrolling
-    fx.sat.setAttribute("values", "1.18");
-    fx.meterFill.style.width = "26%";
-    fx.meterVal.textContent = seed.split(".")[0];
-    // also wake the second plate so the band reads "MAX 2 ACTIVE" truthfully
     if (sections[1]) setActive(sections[1], true);
   }
 }

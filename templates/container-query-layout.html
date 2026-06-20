@@ -251,9 +251,15 @@ body::before{
 .sliver .tip b{color:#f0a392;display:block;font-size:9px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:2px;}
 
 /* ============================================================
-   @container RESHAPE RULES.
-   Each breakpoint = roughly the card width at a column count
-   on a desktop grid. The card reshapes its OWN internals.
+   @container RESHAPE RULES. Five bands, tuned so that on a
+   standard desktop grid columns 1..5 each land in their own
+   band -> five distinct self-reshaped layouts:
+     1 col (>=820)    editorial spread (image + text side-by-side)
+     2 col (520-819)  stacked card (16:9 media over body)
+     3 col (370-519)  compact thumbnail card
+     4 col (278-369)  image tile, caption -> overlay strip
+     5 col (<278)     dense sliver, hover-only tooltip
+   The card reshapes its OWN internals; --cols is all JS sets.
    Guarded behind @supports below.
    ============================================================ */
 @supports (container-type:inline-size){
@@ -287,7 +293,7 @@ body::before{
     .meta{gap:10px 22px;}
   }
 
-  /* ---- 370..519px  (3 COLUMNS)  =>  compact: image over a tight title + dek ---- */
+  /* ---- 370..519px  (3 COLUMNS)  =>  compact thumbnail card: image over a tight title + dek ---- */
   @container card (min-width:370px) and (max-width:519.98px){
     .cc{grid-template-columns:1fr;}
     .media{aspect-ratio:16/10;}
@@ -298,33 +304,25 @@ body::before{
     .meta{gap:6px 16px;}
   }
 
-  /* ---- 278..369px  (4 COLUMNS)  =>  thumbnail + caption (title + kicker only) ---- */
+  /* ---- 278..369px  (4 COLUMNS)  =>  image tile: media fills, caption -> overlay strip ---- */
   @container card (min-width:278px) and (max-width:369.98px){
-    .cc{grid-template-columns:1fr;}
-    .media{aspect-ratio:4/3;}
-    .body{display:none;}
-    .cap{display:block;}
-  }
-
-  /* ---- 190..277px  (5 COLUMNS at standard width)  =>  image tile, caption -> overlay strip ---- */
-  @container card (min-width:190px) and (max-width:277.98px){
     .card{border-radius:11px;}
     .cc{grid-template-columns:1fr;}
     .media{aspect-ratio:1/1;}
     .body{display:none;}
     .cap{
       display:block;position:absolute;left:0;right:0;bottom:0;
-      padding:18px 11px 9px;
+      padding:20px 12px 10px;
       background:linear-gradient(to top,rgba(21,17,15,0.86),transparent);
       color:var(--paper);z-index:2;
     }
-    .cap .ct{color:var(--paper);font-size:12.5px;}
+    .cap .ct{color:var(--paper);font-size:13px;}
     .cap .cs{color:rgba(248,245,240,0.7);font-size:9.5px;}
     .media .badge{display:none;}
   }
 
-  /* ---- < 190px  (narrow viewport / many columns)  =>  dense sliver, hover-only tooltip ---- */
-  @container card (max-width:189.98px){
+  /* ---- < 278px  (5 COLUMNS)  =>  dense sliver, hover-only tooltip ---- */
+  @container card (max-width:277.98px){
     .card{border-radius:8px;}
     .cc{grid-template-columns:1fr;}
     .media{aspect-ratio:3/4;}
@@ -369,17 +367,19 @@ body::before{
 }
 @media (max-width:640px){
   .grid{--cols:1 !important;}
-  /* On a 1-col phone the card hits its widest container -> editorial spread.
-     Force the media to letterbox so wide assets are not cover-cropped. */
-  .media{aspect-ratio:16/9;background:#15110f;}
+  /* On a 1-col phone the card width (~340-360px) would otherwise fall into the
+     dense image-tile container band. Force a clean readable stacked card feed
+     instead, and override any container band that hid the body / showed overlays. */
+  .cc{grid-template-columns:1fr !important;}
+  .body{display:flex !important;flex-direction:column;padding:16px 16px 18px;}
+  .cap,.sliver{display:none !important;}
+  .tags{display:flex !important;}
+  .title{font-size:clamp(24px,8vw,34px) !important;line-height:1.04;}
+  .dek{display:block !important;-webkit-line-clamp:initial;font-size:14px;margin-top:10px;}
+  .media .badge{display:block !important;}
+  /* Letterbox so a wide landscape asset is never cover-cropped into the phone frame. */
+  .media{aspect-ratio:16/9 !important;min-height:0 !important;background:#15110f;}
   .media img,.media video{object-fit:contain !important;}
-  @supports (container-type:inline-size){
-    @container card (min-width:520px){
-      .cc{grid-template-columns:1fr;}   /* stack on narrow phone, no side-by-side squeeze */
-      .body{padding:18px 16px 20px;}
-      .title{font-size:clamp(26px,9vw,40px);}
-    }
-  }
 }
 @media (min-width:641px) and (max-width:900px){
   /* tablet / mid phone landscape: lock to 2 cols, handle hidden on touch already */
@@ -404,7 +404,7 @@ body::before{
     <p class="band__lede">
       Drag the handle to set the column count from <b>1 to 5</b>. Every card reshapes its
       <b>own</b> internal layout with CSS <b>@container</b> queries - no script decides what a card looks like.
-      Editorial spread, then side-by-side, compact, image tile, dense sliver.
+      Editorial spread, then stacked card, compact thumbnail, image tile, dense sliver.
     </p>
   </header>
 

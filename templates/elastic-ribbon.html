@@ -1,0 +1,646 @@
+<!-- TEMPLATE: Elastic Ribbon | ARCHETYPE: ribbon | REF: Codrops easeReverse 2025, Jeton scroll-morph (Awwwards) | WHEN TO USE: a small curated body of work (4-9 pieces) where you want the navigation itself to feel physical - one tensioned thread you drag and snap, no buttons | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Elastic Ribbon - works on a string</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=Space+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   ELASTIC RIBBON
+   Two-color near-black on warm cream. The ribbon is one accent
+   thread (--accent). Everything else is ink on paper.
+   ============================================================ */
+
+/* ---------- SWAP NOTHING HERE: tune the look ---------- */
+:root{
+  --paper:#f5efe0;            /* warm cream */
+  --ink:#16130d;             /* near-black */
+  --ink-soft:rgba(22,19,13,.55);
+  --ink-faint:rgba(22,19,13,.16);
+  --accent:#d8482a;          /* the one ribbon thread */
+  --accent-deep:#a8331c;
+  --card-w:min(78vw, 560px);
+  --card-h:min(58vh, 480px);
+  --pin: #16130d;
+  --ease-spring:cubic-bezier(.16,1,.3,1);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:'Space Grotesk',system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+  /* faint paper grain */
+  background-image:
+    radial-gradient(circle at 18% 12%, rgba(216,72,42,.05), transparent 36%),
+    radial-gradient(circle at 84% 88%, rgba(22,19,13,.05), transparent 40%);
+}
+.stage[data-fallback="true"] body{overflow:auto}
+
+a{color:inherit}
+
+/* ---------- chrome / header ---------- */
+.masthead{
+  position:fixed; inset:0 0 auto 0; z-index:40;
+  display:flex; justify-content:space-between; align-items:flex-start;
+  padding:clamp(18px,3.5vw,40px); pointer-events:none;
+  mix-blend-mode:multiply;
+}
+.brand{
+  font-family:'Fraunces',serif; font-weight:600; letter-spacing:-.02em;
+  font-size:clamp(18px,2.6vw,26px); line-height:1; pointer-events:auto;
+}
+.brand small{display:block;font-family:'Space Grotesk';font-weight:400;
+  font-size:.5em;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-soft);margin-top:.5em}
+.howto{
+  text-align:right; font-size:clamp(10px,1.4vw,12px); letter-spacing:.14em;
+  text-transform:uppercase; color:var(--ink-soft); line-height:1.7; max-width:34ch;
+}
+.howto b{color:var(--accent-deep)}
+
+/* ---------- the rail (drag surface) ---------- */
+.stage{
+  position:fixed; inset:0; z-index:1;
+  display:grid; place-items:center;
+  touch-action:none;            /* we own the gesture */
+  cursor:grab;
+  user-select:none; -webkit-user-select:none;
+}
+.stage.dragging{cursor:grabbing}
+
+/* the colored thread - a thin tensioned line down the spine */
+.thread{
+  position:fixed; left:50%; top:0; height:100%; width:120px;
+  transform:translateX(-50%); z-index:2; pointer-events:none; overflow:visible;
+}
+.thread path{
+  fill:none; stroke:var(--accent); stroke-width:2.5;
+  stroke-linecap:round;
+  filter:drop-shadow(0 1px 0 rgba(168,51,28,.35));
+}
+.thread .ghost{stroke:var(--ink-faint); stroke-width:1.5; stroke-dasharray:2 7}
+
+/* the moving belt of works */
+.belt{
+  position:absolute; left:50%; top:50%; z-index:3;
+  transform:translate(-50%,-50%);
+  will-change:transform;
+}
+.slot{
+  position:absolute; left:50%; top:0;
+  transform:translateX(-50%);
+  width:var(--card-w);
+  display:flex; flex-direction:column; align-items:center;
+}
+
+/* the pin that fastens each polaroid to the thread */
+.pin{
+  width:14px; height:14px; border-radius:50%;
+  background:var(--accent); position:relative; z-index:4;
+  box-shadow:0 0 0 4px var(--paper), 0 2px 5px rgba(22,19,13,.4);
+  margin-bottom:-7px;
+}
+.pin::after{ /* the tiny string from pin to card */
+  content:""; position:absolute; left:50%; top:100%;
+  width:2px; height:18px; background:var(--accent);
+  transform:translateX(-50%);
+}
+
+/* the polaroid */
+.card{
+  position:relative;
+  width:100%;
+  background:#fbf7ec;
+  padding:14px 14px 0;
+  border-radius:4px;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.7) inset,
+    0 22px 50px -20px rgba(22,19,13,.5),
+    0 4px 12px -6px rgba(22,19,13,.4);
+  transform-origin:top center;
+  transition:box-shadow .4s var(--ease-spring);
+}
+.card .frame{
+  position:relative; width:100%; aspect-ratio:4/3;
+  background:#0e0c08; border-radius:2px; overflow:hidden;
+  display:grid; place-items:center;
+}
+/* media: COVER for portrait-safe assets; we letterbox landscape on small screens */
+.frame img,.frame video{
+  position:absolute; inset:0; width:100%; height:100%;
+  object-fit:cover; display:block;
+  opacity:0; transition:opacity .6s ease;
+}
+.frame img.poster{opacity:1; z-index:1}
+.frame video{z-index:2}
+.frame video.playing{opacity:1}
+.frame .badge{
+  position:absolute; left:10px; top:10px; z-index:5;
+  font-size:10px; letter-spacing:.16em; text-transform:uppercase;
+  background:rgba(11,10,8,.62); color:#f5efe0; padding:5px 9px; border-radius:99px;
+  backdrop-filter:blur(4px);
+}
+.frame .badge.audio::before{content:"\1F50A  "}
+/* the handwritten caption strip of a polaroid */
+.card .caption{
+  padding:16px 6px 18px; text-align:center;
+}
+.card .caption h3{
+  font-family:'Fraunces',serif; font-weight:500; letter-spacing:-.01em;
+  font-size:clamp(20px,3vw,30px); line-height:1.05;
+}
+.card .caption p{
+  font-size:13px; color:var(--ink-soft); margin-top:7px; line-height:1.5;
+  max-width:42ch; margin-inline:auto;
+}
+.card .caption .tool{
+  display:inline-block; margin-top:11px; font-size:10px; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--accent-deep);
+  border:1px solid var(--ink-faint); padding:4px 11px; border-radius:99px;
+}
+
+/* index / counter ribbon at the bottom */
+.dock{
+  position:fixed; left:0; right:0; bottom:0; z-index:40;
+  display:flex; justify-content:center; align-items:center; gap:18px;
+  padding:clamp(16px,3vw,30px); pointer-events:none;
+}
+.ticks{display:flex; gap:9px; pointer-events:auto}
+.tick{
+  width:9px; height:9px; border-radius:50%; background:var(--ink-faint);
+  border:none; cursor:pointer; padding:0;
+  transition:transform .35s var(--ease-spring), background .35s;
+}
+.tick.on{background:var(--accent); transform:scale(1.55)}
+.tick:focus-visible{outline:2px solid var(--accent-deep); outline-offset:3px}
+.counter{
+  font-family:'Fraunces',serif; font-variant-numeric:tabular-nums;
+  font-size:14px; color:var(--ink-soft); letter-spacing:.04em; pointer-events:auto;
+  min-width:5ch; text-align:center;
+}
+.counter b{color:var(--ink); font-weight:600}
+
+/* tension read-out - shows the spring is alive */
+.tension{
+  position:fixed; right:clamp(18px,3.5vw,40px); bottom:50%; z-index:40;
+  transform:translateY(50%) rotate(180deg); writing-mode:vertical-rl;
+  font-size:10px; letter-spacing:.3em; text-transform:uppercase; color:var(--ink-soft);
+  pointer-events:none; display:flex; align-items:center; gap:10px;
+}
+.tension .bar{
+  width:3px; height:90px; background:var(--ink-faint); border-radius:2px; position:relative; overflow:hidden;
+}
+.tension .bar i{
+  position:absolute; left:0; bottom:0; width:100%; height:0%;
+  background:linear-gradient(var(--accent),var(--accent-deep)); display:block;
+}
+
+/* ---------- reduced-motion / no-JS scroll fallback ---------- */
+.stage[data-fallback="true"]{
+  position:static; display:block; height:auto; overflow:visible; cursor:auto;
+}
+.stage[data-fallback="true"] .thread{display:none}
+body.is-fallback .tension,
+body.is-fallback .dock{display:none}
+.stage[data-fallback="true"] .belt{
+  position:static; transform:none; display:flex; flex-direction:column;
+  align-items:center; gap:64px; padding:140px 16px 100px;
+  background:linear-gradient(var(--paper),var(--paper)) padding-box;
+}
+.stage[data-fallback="true"] .belt::before{ /* a static spine */
+  content:""; position:absolute; left:50%; top:120px; bottom:80px; width:2px;
+  background:var(--accent); transform:translateX(-50%); z-index:0;
+}
+.stage[data-fallback="true"] .slot{position:relative; left:auto; top:auto; transform:none; z-index:1}
+.stage[data-fallback="true"] .frame img.poster{opacity:1}
+.stage[data-fallback="true"] .frame video{opacity:0}
+
+/* ---------- MOBILE: never cover-crop a landscape asset ---------- */
+@media (max-width:640px){
+  :root{ --card-w:min(90vw, 440px); }
+  .howto{display:none}
+  .frame img,.frame video{ object-fit:contain; background:#0e0c08; } /* letterbox */
+  .tension{display:none}
+  .masthead{padding:16px 18px}
+}
+@media (max-height:560px){
+  :root{ --card-h:min(70vh,360px); }
+}
+@media (prefers-reduced-motion:reduce){
+  *{scroll-behavior:auto !important}
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     DATA - edit this array to swap the whole gallery.
+     type: "image" | "video"
+     For video, give src + poster. audio:true shows a speaker badge
+     and is the only one that may carry sound.
+     ============================================================ -->
+<script>
+const DATA = [
+  {
+    type:"image",
+    src:"../assets/flux-car-4k.png",
+    title:"Nightfall, Wet Asphalt",
+    blurb:"A matte-black coupe idling on a neon street. Generated 4K still, color-graded for cinema.",
+    tool:"FLUX 1.1 - text to image",
+    badge:"Still"
+  },
+  {
+    type:"video",
+    src:"../assets/flux-car-i2v.mp4",
+    poster:"../assets/gen/poster-flux-car-i2v.png",
+    title:"Same Car, Now Moving",
+    blurb:"The still above, animated. Reflections crawl across the bodywork as the camera drifts.",
+    tool:"FLUX image to video",
+    badge:"Loop"
+  },
+  {
+    type:"video",
+    src:"../assets/veo-video.mp4",
+    poster:"../assets/gen/poster-veo-video.png",
+    title:"Veo Sequence",
+    blurb:"A continuous generated shot with native sound design. Flick to it and it speaks.",
+    tool:"Veo - text to video",
+    badge:"Sound",
+    audio:true
+  },
+  {
+    type:"image",
+    src:"../assets/flux-clinic-4k.png",
+    title:"Mint & Wood Clinic",
+    blurb:"An interior render: dental suite in warm timber and soft mint. Product-shoot lighting.",
+    tool:"FLUX 1.1 - text to image",
+    badge:"Still"
+  },
+  {
+    type:"video",
+    src:"../assets/kling-video.mp4",
+    poster:"../assets/gen/poster-kling-video.png",
+    title:"Kling Motion Study",
+    blurb:"High-fidelity generated motion. Heavy file, so it only decodes when it is the focused card.",
+    tool:"Kling - video",
+    badge:"Loop"
+  },
+  {
+    type:"video",
+    src:"../assets/heygen-avatar.mp4",
+    poster:"../assets/gen/poster-heygen.png",
+    title:"Synthetic Presenter",
+    blurb:"A talking avatar with lip-synced narration. Carries audio - released to it, it greets you.",
+    tool:"HeyGen - avatar",
+    badge:"Sound",
+    audio:true
+  },
+  {
+    type:"image",
+    src:"../assets/sdxl.png",
+    title:"Autumn Fox",
+    blurb:"A painterly study in ochre and rust. The warm palette this whole ribbon was tuned against.",
+    tool:"SDXL - text to image",
+    badge:"Still"
+  },
+  {
+    type:"image",
+    src:"../assets/hf-tinysd.png",
+    title:"Low-Fi Apple",
+    blurb:"Tiny diffusion model, abstract output. Kept here as the deliberately rough edge of the set.",
+    tool:"TinySD - text to image",
+    badge:"Still"
+  }
+];
+</script>
+
+<header class="masthead">
+  <div class="brand">Atelier of Generated Things
+    <small>Works on a string</small>
+  </div>
+  <div class="howto">
+    Drag the ribbon - it <b>stretches</b><br>
+    let go and it <b>snaps</b> to the next work<br>
+    on a phone, just flick
+  </div>
+</header>
+
+<div class="stage" id="stage" aria-roledescription="elastic ribbon gallery" tabindex="0">
+  <!-- the tensioned thread -->
+  <svg class="thread" id="thread" preserveAspectRatio="none" aria-hidden="true">
+    <path class="ghost" id="ghost"></path>
+    <path id="cord"></path>
+  </svg>
+  <!-- the moving belt of polaroids (built by JS) -->
+  <div class="belt" id="belt"></div>
+</div>
+
+<div class="tension" aria-hidden="true">
+  Tension
+  <span class="bar"><i id="tensionFill"></i></span>
+</div>
+
+<nav class="dock" aria-label="gallery index">
+  <span class="counter"><b id="curNum">01</b> / <span id="total">08</span></span>
+  <div class="ticks" id="ticks" role="tablist" aria-label="jump to work"></div>
+</nav>
+
+<script>
+(() => {
+  "use strict";
+  const stage   = document.getElementById('stage');
+  const belt    = document.getElementById('belt');
+  const cord    = document.getElementById('cord');
+  const ghost   = document.getElementById('ghost');
+  const thread  = document.getElementById('thread');
+  const ticks   = document.getElementById('ticks');
+  const curNum  = document.getElementById('curNum');
+  const totalEl = document.getElementById('total');
+  const tensionFill = document.getElementById('tensionFill');
+
+  const reduced = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const pad2 = n => String(n+1).padStart(2,'0');
+  totalEl.textContent = String(DATA.length).padStart(2,'0');
+
+  // ---- spacing between works along the ribbon ----
+  const GAP = () => Math.min(window.innerHeight * 0.82, 560);
+
+  // ---------- build the belt ----------
+  const slots = [];
+  DATA.forEach((d, i) => {
+    const slot = document.createElement('article');
+    slot.className = 'slot';
+    slot.style.top = (i * GAP()) + 'px';
+
+    const isVid = d.type === 'video';
+    const mediaPoster = isVid ? d.poster : d.src;
+
+    slot.innerHTML = `
+      <span class="pin" aria-hidden="true"></span>
+      <div class="card">
+        <div class="frame">
+          <img class="poster" alt="${escapeHtml(d.title)}" loading="lazy"
+               src="${mediaPoster}">
+          ${isVid ? `<video muted loop playsinline preload="none"
+               poster="${d.poster}" ${d.audio? '' : ''} data-src="${d.src}"></video>` : ``}
+          <span class="badge ${d.audio?'audio':''}">${escapeHtml(d.badge||'')}</span>
+        </div>
+        <div class="caption">
+          <h3>${escapeHtml(d.title)}</h3>
+          <p>${escapeHtml(d.blurb)}</p>
+          <span class="tool">${escapeHtml(d.tool)}</span>
+        </div>
+      </div>`;
+    belt.appendChild(slot);
+    slots.push(slot);
+
+    // index tick
+    const t = document.createElement('button');
+    t.className = 'tick';
+    t.setAttribute('role','tab');
+    t.setAttribute('aria-label', `${d.title} (${i+1} of ${DATA.length})`);
+    t.addEventListener('click', () => snapTo(i));
+    ticks.appendChild(t);
+  });
+
+  function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+  // ============================================================
+  //  REDUCED MOTION / FALLBACK: static scroll spine, final state
+  // ============================================================
+  if (reduced) {
+    stage.setAttribute('data-fallback','true');
+    document.body.classList.add('is-fallback');
+    document.documentElement.style.overflow='auto';
+    document.body.style.overflow='auto';
+    // strip absolute positioning so the flex column takes over
+    slots.forEach(s => { s.style.top=''; });
+    // posters only, no autoplay, no rAF
+    return;
+  }
+
+  // ============================================================
+  //  PHYSICS: the ribbon as a damped spring
+  //  position = belt offset in px (negative = scrolled down)
+  // ============================================================
+  let index   = 0;                 // current snapped work
+  let pos     = 0;                  // animated belt position (px)
+  let target  = 0;                  // resting target (px)
+  let vel     = 0;                  // velocity (px/frame)
+  let stretch = 0;                  // smoothed |overshoot| for the bow
+  let dragging = false;
+  let dragStartY = 0, dragStartPos = 0, lastY = 0, lastT = 0, pointerVel = 0;
+
+  const restFor = i => -i * GAP();
+  const minPos = () => restFor(DATA.length - 1);
+  const maxPos = () => restFor(0);
+
+  function layout(){
+    slots.forEach((s,i)=> s.style.top = (i*GAP())+'px');
+    target = restFor(index); if(!dragging){ pos = target; }
+    measureShift();
+    render(0);
+  }
+
+  // ---- pointer drag ----
+  stage.addEventListener('pointerdown', e=>{
+    if (e.button !== undefined && e.button !== 0) return;
+    dragging = true; stage.classList.add('dragging');
+    stage.setPointerCapture && stage.setPointerCapture(e.pointerId);
+    dragStartY = e.clientY; dragStartPos = pos; vel = 0;
+    lastY = e.clientY; lastT = performance.now(); pointerVel = 0;
+  });
+  stage.addEventListener('pointermove', e=>{
+    if(!dragging) return;
+    const now = performance.now();
+    let next = dragStartPos + (e.clientY - dragStartY);
+    // rubber-band resistance past the ends
+    const lo = minPos(), hi = maxPos();
+    if (next > hi) next = hi + (next-hi)*0.32;
+    if (next < lo) next = lo + (next-lo)*0.32;
+    pos = next;
+    // track pointer velocity for flick-to-snap
+    const dt = Math.max(1, now - lastT);
+    pointerVel = (e.clientY - lastY) / dt * 16; // px per frame
+    lastY = e.clientY; lastT = now;
+    // live bow from how far we've pulled off the nearest rest
+    const nearest = restFor(nearestIndex());
+    stretch = Math.min(160, Math.abs(pos - nearest));
+    render(0);
+  });
+  function endDrag(e){
+    if(!dragging) return;
+    dragging = false; stage.classList.remove('dragging');
+    // flick: if pointer was moving fast, advance in that direction
+    let ni = nearestIndex();
+    if (Math.abs(pointerVel) > 9){
+      ni = pointerVel < 0 ? index+1 : index-1; // drag up -> next
+    } else if (Math.abs(pos - restFor(index)) > GAP()*0.28){
+      ni = pos < restFor(index) ? index+1 : index-1;
+    }
+    snapTo(ni, pointerVel);
+  }
+  stage.addEventListener('pointerup', endDrag);
+  stage.addEventListener('pointercancel', endDrag);
+  stage.addEventListener('lostpointercapture', endDrag);
+
+  // wheel = nudge along the ribbon, debounced into snaps
+  let wheelLock = false;
+  stage.addEventListener('wheel', e=>{
+    e.preventDefault();
+    if (wheelLock) return;
+    wheelLock = true;
+    snapTo(index + (e.deltaY > 0 ? 1 : -1));
+    setTimeout(()=> wheelLock=false, 360);
+  }, {passive:false});
+
+  // keyboard
+  stage.addEventListener('keydown', e=>{
+    if (['ArrowDown','ArrowRight','PageDown',' '].includes(e.key)){ e.preventDefault(); snapTo(index+1); }
+    if (['ArrowUp','ArrowLeft','PageUp'].includes(e.key)){ e.preventDefault(); snapTo(index-1); }
+    if (e.key==='Home'){ e.preventDefault(); snapTo(0); }
+    if (e.key==='End'){ e.preventDefault(); snapTo(DATA.length-1); }
+  });
+
+  function nearestIndex(){
+    let i = Math.round(-pos / GAP());
+    return Math.max(0, Math.min(DATA.length-1, i));
+  }
+
+  function snapTo(i, launchVel){
+    i = Math.max(0, Math.min(DATA.length-1, i));
+    index = i;
+    target = restFor(i);
+    if (typeof launchVel === 'number') vel = launchVel * 0.5;
+    measureShift();
+    updateChrome();
+    focusMedia();
+  }
+
+  // ---- the render: draw the bowed cord + place belt ----
+  let raf;
+  function loop(){
+    if (!dragging){
+      // critically-ish damped spring toward target
+      const k = 0.085, damp = 0.78;
+      const force = (target - pos) * k;
+      vel = (vel + force) * damp;
+      pos += vel;
+      // ease stretch back to 0 when settling
+      const nearest = restFor(nearestIndex());
+      const live = Math.min(160, Math.abs(pos - nearest)) ;
+      stretch += (live - stretch) * 0.25;
+    }
+    render(vel);
+    raf = requestAnimationFrame(loop);
+  }
+
+  // measure the focused card so its CENTER lands on the viewport middle,
+  // not its pinned top edge (prevents tall cards hanging below the fold)
+  let centerShift = 0;
+  function measureShift(){
+    const card = slots[index] && slots[index].querySelector('.card');
+    const pin  = slots[index] && slots[index].querySelector('.pin');
+    if(!card) return;
+    const cardH = card.offsetHeight;
+    const pinH  = pin ? pin.offsetHeight + 18 : 14; // pin + string
+    centerShift = -(pinH + cardH/2);
+  }
+
+  function render(v){
+    belt.style.transform =
+      `translate(-50%, calc(-50% + ${(pos+centerShift).toFixed(2)}px))`;
+
+    // bow direction follows motion: moving down bows one way, up the other
+    const dir = (v||0) >= 0 ? 1 : -1;
+    const amp = Math.min(46, stretch * 0.42); // how far the cord bows sideways
+    drawCord(amp * dir);
+
+    // tension read-out
+    const pct = Math.min(100, (stretch/160)*100);
+    tensionFill.style.height = pct.toFixed(0)+'%';
+
+    // scale the focused card up a touch, fade the rest
+    const focus = nearestIndex();
+    slots.forEach((s,i)=>{
+      const d = Math.abs(i - (-pos/GAP()));
+      const card = s.querySelector('.card');
+      const sc = 1 - Math.min(.16, d*0.12);
+      const op = 1 - Math.min(.62, d*0.42);
+      card.style.transform = `scale(${sc.toFixed(3)})`;
+      card.style.opacity = op.toFixed(3);
+      s.style.zIndex = (100 - Math.round(d*10));
+    });
+  }
+
+  // draw the SVG cord as a quadratic bow whose belly bulges by `amp`
+  function sizeThread(){
+    thread.setAttribute('width', thread.clientWidth);
+    thread.setAttribute('height', thread.clientHeight);
+    thread.setAttribute('viewBox', `0 0 ${thread.clientWidth} ${thread.clientHeight}`);
+  }
+  function drawCord(amp){
+    const w = thread.clientWidth || 120;
+    const h = thread.clientHeight || window.innerHeight;
+    const cx = w/2;
+    // straight ghost reference
+    ghost.setAttribute('d', `M ${cx} 0 L ${cx} ${h}`);
+    // bowed live cord: control point pushed sideways at mid-height
+    const belly = cx + amp;
+    cord.setAttribute('d',
+      `M ${cx} 0 Q ${belly} ${h*0.5} ${cx} ${h}`);
+  }
+
+  // ============================================================
+  //  MEDIA DISCIPLINE: only the focused video decodes + plays
+  // ============================================================
+  function focusMedia(){
+    slots.forEach((s,i)=>{
+      const v = s.querySelector('video');
+      if(!v) return;
+      if(i === index){
+        if(!v.src && v.dataset.src){ v.src = v.dataset.src; }
+        v.muted = !DATA[i].audio;      // only audio works carry sound
+        const p = v.play();
+        if(p && p.catch) p.catch(()=>{ /* gesture not yet granted; poster stays */ });
+        v.classList.add('playing');
+      } else {
+        v.pause();
+        v.classList.remove('playing');
+      }
+    });
+  }
+
+  function updateChrome(){
+    curNum.textContent = pad2(index);
+    [...ticks.children].forEach((t,i)=> t.classList.toggle('on', i===index));
+  }
+
+  // ---- resize ----
+  let rt;
+  window.addEventListener('resize', ()=>{
+    clearTimeout(rt);
+    rt = setTimeout(()=>{ sizeThread(); layout(); drawCord(0); }, 120);
+  });
+
+  // ---- boot ----
+  sizeThread();
+  layout();
+  updateChrome();
+  drawCord(0);
+  focusMedia();
+  loop();
+
+  // first card poster -> if it's an image it's already shown; for video the
+  // poster image stays until a user gesture lets the focused video play.
+})();
+</script>
+</body>
+</html>

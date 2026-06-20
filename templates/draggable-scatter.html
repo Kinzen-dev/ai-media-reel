@@ -1,0 +1,761 @@
+<!-- TEMPLATE: Scatter Table | ARCHETYPE: draggable-scatter (physics pile of works) | REF: Palmer Studio draggable grid (2025), tldraw tactile canvas | WHEN TO USE: a portfolio where the tactile drag-and-toss IS the gallery - loose cards on a surface, no scroll, click to pin full-screen | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>Scatter Table - a pile of works you can throw around</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f2ede4'/%3E%3Crect x='7' y='9' width='13' height='10' rx='2' transform='rotate(-8 13 14)' fill='%231a1814'/%3E%3Crect x='13' y='13' width='13' height='10' rx='2' transform='rotate(6 19 18)' fill='%23c85a3c'/%3E%3C/svg%3E" />
+<meta name="theme-color" content="#f2ede4" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   SWAP CONTENT IN THE JS `DATA` ARRAY NEAR THE TOP OF <script>.
+   Each card = {id,title,meta,kind,media,poster,ratio,...}.
+   Everything below is the engine + styling.
+   ============================================================ */
+:root{
+  --bone:#f2ede4;          /* the off-white surface */
+  --bone-2:#ece5d8;
+  --ink:#1a1814;           /* near-black ink */
+  --ink-dim:#5c564c;
+  --ink-faint:#8c8478;
+  --hair:#d8d0c0;
+  --card-bg:#fbf8f1;       /* card stock */
+  --accent:#c85a3c;        /* terracotta seam, used sparingly */
+  --r:10px;
+  /* layered paper shadow: tight contact + soft cast */
+  --sh-rest:0 1px 1px rgba(40,32,20,.10), 0 6px 16px -8px rgba(40,32,20,.30);
+  --sh-lift:0 2px 4px rgba(40,32,20,.14), 0 26px 50px -18px rgba(40,32,20,.55);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--bone);
+  color:var(--ink);
+  font-family:"Inter",system-ui,sans-serif;
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  touch-action:none;
+  overscroll-behavior:none;
+}
+.serif{font-family:"Fraunces",Georgia,serif}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+
+/* ---- the surface: bone paper with a faint tooth + vignette ---- */
+#table{
+  position:fixed; inset:0; overflow:hidden;
+  cursor:grab;
+  background-color:var(--bone);
+  background-image:
+    radial-gradient(120% 120% at 50% 18%, rgba(255,255,255,.55), transparent 55%),
+    radial-gradient(140% 130% at 50% 120%, rgba(120,100,70,.10), transparent 60%),
+    repeating-linear-gradient(0deg, rgba(120,100,70,.018) 0 2px, transparent 2px 4px);
+  background-size:auto, auto, 4px 4px;
+}
+#table.grabbing{cursor:grabbing}
+#table:focus-visible{outline:none}
+
+/* ---- header furniture (does not block drags; pointer-events off) ---- */
+.chrome{position:fixed; z-index:30; pointer-events:none; color:var(--ink)}
+.chrome a,.chrome button{pointer-events:auto}
+.brand{top:clamp(16px,3vw,30px); left:clamp(16px,3vw,34px)}
+.brand h1{font-family:"Fraunces",serif; font-weight:600; font-size:clamp(20px,3.4vw,30px); letter-spacing:-.02em; line-height:1}
+.brand p{margin-top:6px; font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-faint)}
+.hint{
+  top:clamp(16px,3vw,30px); right:clamp(16px,3vw,34px); text-align:right;
+  font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-faint);
+  line-height:1.7;
+}
+.hint b{color:var(--ink-dim); font-weight:600}
+.toolbar{
+  bottom:clamp(16px,3vw,28px); left:50%; transform:translateX(-50%);
+  display:flex; gap:8px; align-items:center;
+}
+.tool{
+  pointer-events:auto;
+  font:500 12px/1 "Inter",sans-serif; letter-spacing:.04em;
+  color:var(--ink-dim); background:rgba(251,248,241,.78);
+  border:1px solid var(--hair); border-radius:999px;
+  padding:9px 15px; cursor:pointer;
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  transition:transform .15s, background .15s, color .15s, border-color .15s;
+  display:inline-flex; align-items:center; gap:7px;
+}
+.tool:hover{transform:translateY(-2px); color:var(--ink); border-color:var(--ink-faint)}
+.tool:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.tool svg{width:14px; height:14px; display:block}
+.count{
+  font:500 11px/1 "JetBrains Mono",monospace; color:var(--ink-faint);
+  letter-spacing:.06em; padding:0 4px;
+}
+
+/* ---- a card on the table ---- */
+.card{
+  position:absolute; top:0; left:0;
+  width:var(--w); will-change:transform;
+  /* transform set entirely by JS: translate + rotate + scale */
+  cursor:grab; touch-action:none;
+  border-radius:var(--r);
+  -webkit-user-select:none; user-select:none;
+  outline:none;
+}
+.card.dragging{cursor:grabbing}
+.card .stock{
+  position:relative; border-radius:var(--r); overflow:hidden;
+  background:var(--card-bg);
+  box-shadow:var(--sh-rest);
+  border:1px solid rgba(255,255,255,.6);
+  transition:box-shadow .25s ease;
+  /* the white paper mat around the media */
+  padding:9px 9px 0;
+}
+.card.lift .stock{box-shadow:var(--sh-lift)}
+.card:focus-visible .stock{box-shadow:var(--sh-lift), 0 0 0 2.5px var(--accent)}
+.card .frame{
+  position:relative; border-radius:6px; overflow:hidden;
+  background:#000;            /* letterbox bars for any odd-ratio media */
+  /* aspect ratio set inline per card so nothing is cover-cropped wrong */
+}
+.card .frame img,.card .frame video{
+  position:absolute; inset:0; width:100%; height:100%;
+  object-fit:cover; display:block;
+  pointer-events:none; -webkit-user-drag:none;
+}
+.card .frame.contain img,.card .frame.contain video{object-fit:contain}
+.card .poster{z-index:1}
+.card .vid{z-index:2; opacity:0; transition:opacity .35s ease}
+.card.playing .vid{opacity:1}
+.card .glass{
+  position:absolute; inset:0; z-index:3; pointer-events:none;
+  background:linear-gradient(120deg, rgba(255,255,255,.16), transparent 38%);
+  mix-blend-mode:screen; opacity:.7;
+}
+.card .caption{
+  display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+  padding:9px 3px 11px;
+}
+.card .caption .t{font-family:"Fraunces",serif; font-weight:500; font-size:14.5px; letter-spacing:-.01em; color:var(--ink)}
+.card .caption .m{font:500 9.5px/1 "JetBrains Mono",monospace; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-faint); white-space:nowrap}
+/* per-card kind chip */
+.kindtag{
+  position:absolute; top:16px; left:16px; z-index:4;
+  font:600 9px/1 "JetBrains Mono",monospace; letter-spacing:.1em; text-transform:uppercase;
+  color:#fff; background:rgba(20,18,14,.62); backdrop-filter:blur(3px);
+  padding:5px 8px; border-radius:5px;
+}
+.kindtag.has-audio::after{content:" \266A"}
+/* play affordance for video/audio cards */
+.playmark{
+  position:absolute; right:16px; bottom:46px; z-index:4;
+  width:32px; height:32px; border-radius:50%;
+  background:rgba(20,18,14,.55); backdrop-filter:blur(4px);
+  display:grid; place-items:center; opacity:.9;
+  transition:opacity .2s, transform .2s;
+}
+.playmark svg{width:13px; height:13px; fill:#fff; transform:translateX(1px)}
+.card.playing .playmark{opacity:0; transform:scale(.6)}
+
+/* ---- the pinned / full-screen overlay ---- */
+#lock{
+  position:fixed; inset:0; z-index:50;
+  display:none; place-items:center;
+  padding:clamp(18px,5vw,60px);
+  background:rgba(28,24,18,0); backdrop-filter:blur(0px);
+  transition:background .4s ease, backdrop-filter .4s ease;
+}
+#lock.on{display:grid; background:rgba(28,24,18,.42); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px)}
+#lock .sheet{
+  position:relative; max-width:min(1100px,94vw); max-height:88vh;
+  width:auto; border-radius:14px; overflow:hidden;
+  background:var(--card-bg); padding:14px;
+  box-shadow:0 40px 120px -30px rgba(0,0,0,.7);
+  transform:translateY(18px) scale(.97); opacity:0;
+  transition:transform .45s cubic-bezier(.2,.9,.25,1), opacity .35s ease;
+}
+#lock.on .sheet{transform:none; opacity:1}
+#lock .lframe{
+  position:relative; border-radius:8px; overflow:hidden; background:#000;
+  /* aspect ratio matched to media; capped so portrait phones letterbox not crop */
+  max-height:74vh;
+}
+#lock .lframe img,#lock .lframe video{
+  display:block; max-width:100%; max-height:74vh; width:auto; height:auto; margin:0 auto;
+}
+#lock .lmeta{display:flex; align-items:baseline; justify-content:space-between; gap:14px; padding:13px 6px 5px; flex-wrap:wrap}
+#lock .lmeta .lt{font-family:"Fraunces",serif; font-weight:600; font-size:clamp(18px,2.6vw,24px); letter-spacing:-.015em}
+#lock .lmeta .ld{font-size:13px; color:var(--ink-dim); max-width:62ch}
+#lock .lmeta .lk{font:500 10px/1 "JetBrains Mono",monospace; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-faint)}
+#lock .close{
+  position:absolute; top:22px; right:22px; z-index:6;
+  width:40px; height:40px; border-radius:50%;
+  background:rgba(251,248,241,.92); border:1px solid var(--hair); cursor:pointer;
+  display:grid; place-items:center; color:var(--ink);
+  transition:transform .18s, background .18s;
+}
+#lock .close:hover{transform:rotate(90deg) scale(1.05)}
+#lock .close:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+#lock .close svg{width:16px; height:16px}
+#lock .audiowrap{padding:18px 8px 6px; display:grid; gap:14px}
+#lock .audiowrap .wave{width:100%; border-radius:8px; background:var(--bone-2); padding:18px}
+#lock .audiowrap audio{width:100%}
+
+/* a soft "shake to reshuffle" pulse */
+@keyframes nudge{0%,100%{transform:translate(0,0)}25%{transform:translate(-2px,1px)}75%{transform:translate(2px,-1px)}}
+
+/* ---- reduced-motion fallback: a calm tidy stack, no physics, no rAF ---- */
+.reduced #table{cursor:default}
+.reduced .toolbar .tool[data-act="shuffle"],
+.reduced .toolbar .tool[data-act="tidy"]{display:none}
+.reduced .card{transition:none !important}
+
+/* ---- small screens: bigger targets, drag still works, lock letterboxes ---- */
+@media (max-width:640px){
+  .brand p{display:none}
+  .hint{font-size:10px}
+  .card .caption .t{font-size:13px}
+  .tool{padding:10px 13px}
+  #lock .lmeta .ld{font-size:12px}
+}
+@media (max-width:380px){
+  .hint{display:none}
+}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+
+<div id="table" tabindex="0" aria-label="A scattered pile of work cards. Drag to rearrange, click a card to pin it full screen.">
+  <div id="cards"></div>
+</div>
+
+<header class="chrome brand">
+  <h1 class="serif">Scatter Table</h1>
+  <p>Selected works &middot; loose leaf</p>
+</header>
+<div class="chrome hint" aria-hidden="true">
+  <b>Drag</b> to toss &middot; <b>Click</b> to pin<br>
+  Shake or shuffle to re-deal
+</div>
+
+<div class="chrome toolbar" role="toolbar" aria-label="Table controls">
+  <button class="tool" data-act="shuffle" type="button" title="Re-deal the pile">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="m15 15 6 6"/><path d="M4 4l5 5"/></svg>
+    Re-deal
+  </button>
+  <button class="tool" data-act="tidy" type="button" title="Tidy into a loose row">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="6" height="12" rx="1"/><rect x="10" y="6" width="6" height="12" rx="1"/><rect x="17" y="6" width="4" height="12" rx="1"/></svg>
+    Tidy
+  </button>
+  <span class="count mono" id="count">00 / 00</span>
+</div>
+
+<!-- ===== pinned overlay ===== -->
+<div id="lock" role="dialog" aria-modal="true" aria-label="Pinned work">
+  <div class="sheet" id="sheet">
+    <button class="close" id="lockClose" type="button" aria-label="Close pinned view">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
+    <div id="lockBody"></div>
+    <div class="lmeta">
+      <div>
+        <div class="lt serif" id="lockTitle"></div>
+        <div class="ld" id="lockDesc"></div>
+      </div>
+      <div class="lk mono" id="lockKind"></div>
+    </div>
+  </div>
+</div>
+
+<p class="sr" aria-live="polite" id="live"></p>
+
+<script>
+/* =====================================================================
+   DATA  -  swap freely. Order is the deal order (last = on top).
+   ratio = native media width/height (controls the frame so nothing is
+   cover-cropped into the wrong shape). w = base card width in px (auto
+   scaled down on small screens). kind drives the chip + whether a poster
+   is shown with deferred video. fit:'contain' letterboxes odd media.
+   ===================================================================== */
+const A = '../assets/';
+const DATA = [
+  { id:'car',     title:'Night Drive',      meta:'FLUX - 4K',     desc:'Cinematic matte-black coupe on a rain-slick neon street. Text-to-image, upscaled to 4K.', kind:'image', ratio:2048/1152, w:360, media:A+'flux-car-4k.png' },
+  { id:'clinic',  title:'Mint Practice',    meta:'FLUX - 4K',     desc:'Mint and warm-wood dental clinic interior. Calm, brand-led environment render.',          kind:'image', ratio:2048/1152, w:330, media:A+'flux-clinic-4k.png' },
+  { id:'fox',     title:'Autumn Fox',       meta:'SDXL',          desc:'Painterly fox in turning leaves. Square SDXL generation.',                                  kind:'image', ratio:1,         w:250, media:A+'sdxl.png' },
+  { id:'apple',   title:'Lo-fi Apple',      meta:'Tiny-SD',       desc:'Abstract low-fidelity still life. A small, fast diffusion model.',                          kind:'image', ratio:1,         w:230, media:A+'hf-tinysd.png' },
+  { id:'kling',   title:'Kling Loop',       meta:'KLING - video', desc:'Seamless generated motion loop. Plays when focused; poster otherwise.',                    kind:'video', ratio:1920/1080, w:340, media:A+'kling-video.mp4',  poster:A+'gen/poster-kling-video.png' },
+  { id:'fal',     title:'Fal Motion',       meta:'FAL - video',   desc:'Short generative video clip from a fal pipeline.',                                          kind:'video', ratio:1280/720,  w:320, media:A+'fal-video.mp4',    poster:A+'gen/poster-fal-video.png' },
+  { id:'cari2v',  title:'Car, in Motion',   meta:'FLUX i2v',      desc:'Image-to-video bringing the night-drive still to life.',                                    kind:'video', ratio:1920/1080, w:330, media:A+'flux-car-i2v.mp4', poster:A+'gen/poster-flux-car-i2v.png' },
+  { id:'veo',     title:'Veo Take',         meta:'VEO - video',   desc:'Generated video with audio. Tap the pinned view to hear it.',                               kind:'video', ratio:1280/720,  w:320, audio:true, media:A+'veo-video.mp4',    poster:A+'gen/poster-veo-video.png' },
+  { id:'heygen',  title:'Avatar Read',      meta:'HeyGen',        desc:'Talking-avatar delivery, generated lip-sync with audio.',                                   kind:'video', ratio:1280/720,  w:300, audio:true, media:A+'heygen-avatar.mp4', poster:A+'gen/poster-heygen.png' },
+  { id:'hyper',   title:'Hyperframes',      meta:'frame interp',  desc:'Interpolated motion study, silent loop.',                                                   kind:'video', ratio:1920/1080, w:300, media:A+'hyperframes.mp4',  poster:A+'gen/poster-hyperframes.png' },
+  { id:'did',     title:'Talking Photo',    meta:'D-ID',          desc:'Single-portrait talking photo with generated voice.',                                       kind:'video', ratio:1,         w:240, audio:true, media:A+'did-talking-photo.mp4', poster:A+'gen/poster-did.png' },
+  { id:'eleven',  title:'Thai Voice',       meta:'ElevenLabs',    desc:'Thai text-to-speech sample. Waveform shown; press play to listen.',                         kind:'audio', ratio:900/150,   w:300, src:A+'elevenlabs-thai.mp3', wave:A+'gen/wave-elevenlabs.png' },
+  { id:'music',   title:'MusicGen Cue',     meta:'MusicGen',      desc:'Generated instrumental cue.',                                                              kind:'audio', ratio:900/150,   w:300, src:A+'musicgen.wav',        wave:A+'gen/wave-musicgen.png' },
+  { id:'piper',   title:'Piper TTS',        meta:'Piper',         desc:'Local neural TTS line, fast and offline-friendly.',                                         kind:'audio', ratio:900/150,   w:280, src:A+'piper.wav',           wave:A+'gen/wave-piper.png' },
+  { id:'mesh',    title:'Refined Mesh',     meta:'Meshy - 3D',    desc:'AI-generated 3D asset, refined topology. Thumbnail preview of the GLB.',                    kind:'image', ratio:1,         w:240, media:A+'meshy-refined-thumb.png' },
+];
+
+/* =====================================================================
+   ENGINE
+   ===================================================================== */
+const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+if(REDUCED) document.documentElement.classList.add('reduced');
+document.body.classList.toggle('reduced', REDUCED);
+
+const tableEl  = document.getElementById('table');
+const cardsEl  = document.getElementById('cards');
+const countEl  = document.getElementById('count');
+const liveEl   = document.getElementById('live');
+
+const isSmall = () => window.innerWidth <= 640;
+const rand = (a,b)=> a + Math.random()*(b-a);
+const clamp = (v,a,b)=> Math.min(b,Math.max(a,v));
+
+/* per-card runtime state */
+const cards = [];   // {data, el, frame, vid, x,y,vx,vy, rot,rot0, scale, z, w,h, pinned}
+let topZ = 10;
+
+function cardWidth(d){
+  // scale base widths down on small screens so two-up still fits a phone
+  if(isSmall()){
+    const vw = window.innerWidth;
+    return clamp(d.w * (vw < 460 ? 0.74 : 0.84), 150, vw - 44);
+  }
+  return d.w;
+}
+
+/* build DOM for every card once */
+function buildCards(){
+  cardsEl.innerHTML = '';
+  cards.length = 0;
+  DATA.forEach((d, i) => {
+    const w = cardWidth(d);
+    const mediaH = w / d.ratio;            // visual media height
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.tabIndex = 0;
+    el.setAttribute('role','button');
+    el.setAttribute('aria-label', d.title + ', ' + d.meta + '. Click to pin full screen.');
+    el.style.setProperty('--w', w + 'px');
+
+    const audioGlyph = d.audio ? ' has-audio' : '';
+    let frameInner = '';
+    if(d.kind === 'audio'){
+      // audio card = a paper card with the waveform image as the "media"
+      frameInner = `<img class="poster" src="${d.wave}" alt="${d.title} waveform" loading="lazy" decoding="async">`;
+    } else if(d.kind === 'video'){
+      frameInner =
+        `<img class="poster" src="${d.poster}" alt="${d.title}" loading="lazy" decoding="async">`+
+        `<video class="vid" muted loop playsinline preload="none" ${d.audio?'':'muted'} poster="${d.poster}">
+           <source data-src="${d.media}" type="video/mp4"></video>`+
+        `<span class="playmark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>`;
+    } else {
+      frameInner = `<img class="poster" src="${d.media}" alt="${d.title}" loading="lazy" decoding="async">`;
+    }
+
+    const containCls = (d.kind === 'audio') ? '' : '';
+    el.innerHTML =
+      `<div class="stock">
+         <span class="kindtag mono${audioGlyph}">${d.meta.split(' ')[0]}</span>
+         <div class="frame ${containCls}" style="aspect-ratio:${d.kind==='audio' ? '900/220' : d.ratio}">
+           ${frameInner}
+           <span class="glass"></span>
+         </div>
+         <div class="caption">
+           <span class="t serif">${d.title}</span>
+           <span class="m mono">${d.meta}</span>
+         </div>
+       </div>`;
+
+    cardsEl.appendChild(el);
+    const frame = el.querySelector('.frame');
+    const vid   = el.querySelector('video');
+
+    const st = {
+      data:d, el, frame, vid,
+      x:0, y:0, vx:0, vy:0,
+      rot:0, rot0:0, scale:1, z:i+10,
+      w, h: 0, pinned:false, hovering:false,
+    };
+    // measure full card height (media + mat + caption) after layout
+    cards.push(st);
+  });
+  // measure heights now that DOM exists
+  cards.forEach(st => { st.h = st.el.offsetHeight || (st.w/st.data.ratio + 60); });
+  wireCards();
+  topZ = 10 + cards.length;
+}
+
+/* place cards either scattered (random) or tidy (fit-to-viewport loose grid) */
+function deal(mode){
+  const W = window.innerWidth, H = window.innerHeight;
+  const small = isSmall();
+  if(mode === 'tidy'){
+    // a loose grid that ALWAYS fits the viewport: pick columns, scale every
+    // card to a uniform display width, lay out in rows with a little jitter.
+    // (reduced-motion uses this so the whole pile is visible with no scroll.)
+    const n = cards.length;
+    const top = small ? 96 : 130, pad = small ? 14 : 36, gx = small ? 14 : 24, gy = small ? 20 : 30;
+    const cols = small ? 2 : Math.min(5, Math.max(3, Math.round(Math.sqrt(n*1.7))));
+    const rows = Math.ceil(n / cols);
+    // width that fits horizontally
+    let cw = (W - pad*2 - gx*(cols-1)) / cols;
+    // tallest card per its ratio + chrome; cap so all rows fit vertically
+    const chrome = 60; // mat + caption (approx, before scaling)
+    const avail = H - top - pad;
+    // estimate row height at width cw using the *shortest-ratio* (tallest) card
+    const minRatio = Math.min(...cards.map(c => c.data.kind==='audio' ? 900/220 : c.data.ratio));
+    let rowH = cw / minRatio + chrome;
+    if(rowH*rows + gy*(rows-1) > avail){
+      const k = (avail - gy*(rows-1)) / (rowH*rows);
+      cw *= Math.max(0.4, k);
+    }
+    cw = clamp(cw, 120, small ? W-pad*2 : 360);
+    rowH = cw / minRatio + chrome;             // uniform row pitch at final width
+    cards.forEach((st, i)=>{
+      const col = i % cols, row = Math.floor(i / cols);
+      st.el.style.setProperty('--w', cw + 'px');
+      st.w = cw;
+      st.x = pad + col*(cw + gx) + rand(-4,4);
+      st.y = top + row*(rowH + gy) + rand(-3,3);
+      st.rot0 = rand(-2.5, 2.5);
+      st.z = 10 + i;
+    });
+    // re-measure real heights post-resize for accurate stacking + wall clamps
+    requestAnimationFrame(()=>{ cards.forEach(st => { st.h = st.el.offsetHeight || st.h; }); });
+  } else {
+    // scatter: overlapping pile, biased toward center, gentle rotations
+    cards.forEach((st, i)=>{
+      const cx = W*0.5, cy = H*0.52;
+      const spreadX = small ? W*0.30 : W*0.34;
+      const spreadY = small ? H*0.30 : H*0.32;
+      st.x = clamp(cx + rand(-spreadX, spreadX) - st.w/2, 8, W - st.w - 8);
+      st.y = clamp(cy + rand(-spreadY, spreadY) - st.h/2, small?92:96, H - st.h - 8);
+      st.rot0 = rand(-9, 9);
+      st.z = 10 + i;
+    });
+  }
+  cards.forEach(st => { st.vx = st.vy = 0; st.rot = st.rot0; st.scale = 1; });
+  if(REDUCED) renderStatic(); else { renderAll(); }
+  announce('Cards re-dealt.');
+}
+
+/* write transform for one card */
+function place(st){
+  st.el.style.transform =
+    `translate3d(${st.x.toFixed(2)}px, ${st.y.toFixed(2)}px, 0) `+
+    `rotate(${st.rot.toFixed(2)}deg) scale(${st.scale.toFixed(3)})`;
+  st.el.style.zIndex = st.z|0;
+}
+function renderAll(){ cards.forEach(place); }
+function renderStatic(){ // reduced motion: snap, no transitions, no rAF
+  cards.forEach(st => { st.scale = 1; st.rot = st.rot0; place(st); });
+}
+
+/* ---------- pointer drag with throw ---------- */
+let drag = null; // {st, id, ox, oy, lastX, lastY, lastT, moved}
+let panning = false, panStart=null;
+
+function onPointerDown(e){
+  const cardEl = e.target.closest('.card');
+  if(cardEl){
+    const st = cards.find(c => c.el === cardEl);
+    if(!st) return;
+    bringToFront(st);
+    drag = {
+      st, id:e.pointerId,
+      ox: e.clientX - st.x, oy: e.clientY - st.y,
+      lastX:e.clientX, lastY:e.clientY, lastT:performance.now(),
+      startX:e.clientX, startY:e.clientY, moved:false,
+    };
+    st.vx = st.vy = 0;
+    st.el.classList.add('dragging','lift');
+    if(!REDUCED) st.scale = 1.04;
+    st.el.setPointerCapture?.(e.pointerId);
+    place(st);
+    e.preventDefault();
+  } else if(e.target === tableEl || e.target === cardsEl){
+    // pan the whole pile (translate every card together)
+    panning = true; panStart = {x:e.clientX, y:e.clientY};
+    tableEl.classList.add('grabbing');
+  }
+}
+function onPointerMove(e){
+  if(drag && e.pointerId === drag.id){
+    const st = drag.st;
+    const nx = e.clientX - drag.ox, ny = e.clientY - drag.oy;
+    const now = performance.now();
+    const dt = Math.max(8, now - drag.lastT);
+    st.vx = (e.clientX - drag.lastX) / dt * 16; // px per frame-ish
+    st.vy = (e.clientY - drag.lastY) / dt * 16;
+    st.x = nx; st.y = ny;
+    if(Math.abs(e.clientX-drag.startX) + Math.abs(e.clientY-drag.startY) > 6) drag.moved = true;
+    // subtle tilt toward motion direction (feels weighted)
+    if(!REDUCED){ st.rot = st.rot0 + clamp(st.vx*0.45, -10, 10); }
+    drag.lastX = e.clientX; drag.lastY = e.clientY; drag.lastT = now;
+    place(st);
+  } else if(panning){
+    const dx = e.clientX - panStart.x, dy = e.clientY - panStart.y;
+    panStart = {x:e.clientX, y:e.clientY};
+    cards.forEach(st => { st.x += dx; st.y += dy; place(st); });
+  }
+}
+function onPointerUp(e){
+  if(drag && e.pointerId === drag.id){
+    const st = drag.st;
+    st.el.classList.remove('dragging');
+    st.el.releasePointerCapture?.(e.pointerId);
+    if(!drag.moved){
+      // it was a click/tap, not a throw -> pin it
+      st.el.classList.remove('lift');
+      if(!REDUCED) st.scale = 1;
+      place(st);
+      pin(st);
+    } else if(REDUCED){
+      st.el.classList.remove('lift');
+      st.scale = 1; place(st);
+    }
+    // else: physics loop takes the velocity and decays it
+    drag = null;
+  }
+  panning = false; tableEl.classList.remove('grabbing');
+}
+
+function bringToFront(st){ st.z = ++topZ; st.el.style.zIndex = topZ; }
+
+/* ---------- the physics loop (skipped entirely under reduced motion) ---------- */
+let raf = null;
+const FRICTION = 0.90, REST = 0.04, WALL_BOUNCE = -0.42;
+function tick(){
+  const W = window.innerWidth, H = window.innerHeight;
+  let active = false;
+  for(const st of cards){
+    if(drag && drag.st === st) continue;          // hand-held, no physics
+    if(Math.abs(st.vx) < REST && Math.abs(st.vy) < REST){
+      // settle rotation back toward its resting angle gently
+      if(Math.abs(st.rot - st.rot0) > 0.05){
+        st.rot += (st.rot0 - st.rot) * 0.12; active = true; place(st);
+      }
+      if(Math.abs(st.scale - 1) > 0.002){ st.scale += (1 - st.scale)*0.2; active = true; place(st); }
+      else if(st.el.classList.contains('lift') && !st.hovering){ st.el.classList.remove('lift'); }
+      continue;
+    }
+    active = true;
+    st.x += st.vx; st.y += st.vy;
+    st.vx *= FRICTION; st.vy *= FRICTION;
+    // soft walls so cards never leave the table
+    const minX = 4, maxX = W - st.w - 4;
+    const minY = (isSmall()?86:90), maxY = H - 30; // allow caption to overhang slightly
+    if(st.x < minX){ st.x = minX; st.vx *= WALL_BOUNCE; }
+    if(st.x > maxX){ st.x = maxX; st.vx *= WALL_BOUNCE; }
+    if(st.y < minY){ st.y = minY; st.vy *= WALL_BOUNCE; }
+    if(st.y > maxY){ st.y = maxY; st.vy *= WALL_BOUNCE; }
+    // tilt eases back to rest as it slows
+    st.rot += (st.rot0 - st.rot) * 0.06;
+    st.scale += (1 - st.scale) * 0.15;
+    place(st);
+  }
+  if(active){ raf = requestAnimationFrame(tick); }
+  else { raf = null; }
+}
+function kick(){ if(!REDUCED && !raf) raf = requestAnimationFrame(tick); }
+
+/* keep the loop alive whenever we throw something */
+if(!REDUCED){
+  setInterval(()=>{ // lightweight watchdog: restart loop if velocities exist
+    if(!raf){
+      for(const st of cards){ if(Math.abs(st.vx)>REST||Math.abs(st.vy)>REST){ kick(); break; } }
+    }
+  }, 400);
+}
+
+/* ---------- hover/focus -> play the single focused video ---------- */
+let playingCard = null;
+function playOnly(st){
+  if(playingCard === st) return;
+  stopPlaying();
+  if(!st || st.data.kind !== 'video') return;
+  ensureVideoSrc(st);
+  st.el.classList.add('playing');
+  // muted for hover unless it's the only thing; in-pile we always mute to avoid mixing
+  st.vid.muted = true;
+  const p = st.vid.play(); if(p&&p.catch) p.catch(()=>{});
+  playingCard = st;
+}
+function stopPlaying(){
+  if(playingCard){
+    playingCard.el.classList.remove('playing');
+    try{ playingCard.vid.pause(); }catch(e){}
+    playingCard = null;
+  }
+}
+function ensureVideoSrc(st){
+  if(st._srcSet) return;
+  const src = st.vid.querySelector('source[data-src]');
+  if(src){ src.src = src.dataset.src; st.vid.load(); st._srcSet = true; }
+}
+
+function wireCards(){
+  cards.forEach(st => {
+    const el = st.el;
+    // desktop hover: lift + play the one video
+    if(matchMedia('(hover:hover)').matches){
+      el.addEventListener('pointerenter', ()=>{
+        st.hovering = true;
+        if(!drag){ el.classList.add('lift'); if(!REDUCED){ st.scale = Math.max(st.scale,1.03);} place(st); kick(); }
+        playOnly(st);
+      });
+      el.addEventListener('pointerleave', ()=>{
+        st.hovering = false;
+        if(!drag && st !== (drag&&drag.st)){ el.classList.remove('lift'); }
+        if(playingCard === st) stopPlaying();
+        kick();
+      });
+    }
+    // keyboard: Enter/Space pins; arrows nudge
+    el.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); pin(st); }
+      else if(e.key.startsWith('Arrow')){
+        e.preventDefault();
+        const step = e.shiftKey ? 40 : 14;
+        if(e.key==='ArrowLeft') st.x -= step;
+        if(e.key==='ArrowRight') st.x += step;
+        if(e.key==='ArrowUp') st.y -= step;
+        if(e.key==='ArrowDown') st.y += step;
+        bringToFront(st); place(st);
+      }
+    });
+    el.addEventListener('focus', ()=>{ bringToFront(st); if(!REDUCED){ st.el.classList.add('lift'); } });
+    el.addEventListener('blur',  ()=>{ if(!st.hovering) st.el.classList.remove('lift'); });
+  });
+}
+
+/* ---------- pin / full-screen ---------- */
+const lock = document.getElementById('lock');
+const sheet = document.getElementById('sheet');
+const lockBody = document.getElementById('lockBody');
+const lockTitle = document.getElementById('lockTitle');
+const lockDesc  = document.getElementById('lockDesc');
+const lockKind  = document.getElementById('lockKind');
+let lastFocused = null;
+
+function pin(st){
+  const d = st.data;
+  stopPlaying();                 // never two videos decoding at once
+  lastFocused = document.activeElement;
+  lockTitle.textContent = d.title;
+  lockDesc.textContent  = d.desc || '';
+  lockKind.textContent  = d.meta;
+
+  if(d.kind === 'video'){
+    lockBody.innerHTML =
+      `<div class="lframe" style="aspect-ratio:${d.ratio}">
+         <video id="lockVid" controls playsinline preload="auto" ${d.audio?'':'muted'} loop poster="${d.poster}" style="width:100%;height:100%;object-fit:contain;background:#000">
+           <source src="${d.media}" type="video/mp4"></video>
+       </div>`;
+    requestAnimationFrame(()=>{
+      const v = document.getElementById('lockVid');
+      if(v){ v.muted = d.audio ? false : true; const p=v.play(); if(p&&p.catch)p.catch(()=>{}); }
+    });
+  } else if(d.kind === 'audio'){
+    lockBody.innerHTML =
+      `<div class="audiowrap">
+         <img class="wave" src="${d.wave}" alt="${d.title} waveform">
+         <audio controls preload="metadata" src="${d.src}"></audio>
+       </div>`;
+  } else {
+    lockBody.innerHTML =
+      `<div class="lframe" style="aspect-ratio:${d.ratio}">
+         <img src="${d.media}" alt="${d.title}" style="width:100%;height:100%;object-fit:contain;background:#000">
+       </div>`;
+  }
+  lock.classList.add('on');
+  document.getElementById('lockClose').focus();
+  announce('Pinned ' + d.title + '. Press Escape to close.');
+}
+function unpin(){
+  lock.classList.remove('on');
+  // stop any media in the overlay
+  lockBody.querySelectorAll('video,audio').forEach(m=>{ try{ m.pause(); }catch(e){} });
+  setTimeout(()=>{ if(!lock.classList.contains('on')) lockBody.innerHTML=''; }, 420);
+  if(lastFocused && lastFocused.focus) lastFocused.focus();
+}
+document.getElementById('lockClose').addEventListener('click', unpin);
+lock.addEventListener('click', (e)=>{ if(e.target === lock) unpin(); });
+window.addEventListener('keydown', (e)=>{ if(e.key === 'Escape' && lock.classList.contains('on')) unpin(); });
+
+/* ---------- toolbar ---------- */
+document.querySelectorAll('.tool').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    const act = b.dataset.act;
+    if(act === 'shuffle') deal('scatter');
+    if(act === 'tidy') deal('tidy');
+  });
+});
+
+/* ---------- shake-to-reshuffle (mobile) ---------- */
+let lastShake = 0, sx=0,sy=0,sz=0;
+function onMotion(e){
+  if(REDUCED) return;
+  const a = e.accelerationIncludingGravity || e.acceleration;
+  if(!a) return;
+  const dx = Math.abs((a.x||0)-sx), dy=Math.abs((a.y||0)-sy), dz=Math.abs((a.z||0)-sz);
+  sx=a.x||0; sy=a.y||0; sz=a.z||0;
+  if(dx+dy+dz > 38){
+    const now = Date.now();
+    if(now - lastShake > 1100){ lastShake = now; deal('scatter'); kickPile(); }
+  }
+}
+// give every card a little kinetic burst (used on shake / re-deal)
+function kickPile(){
+  if(REDUCED) return;
+  cards.forEach(st=>{ st.vx += rand(-6,6); st.vy += rand(-6,6); });
+  kick();
+}
+// iOS needs a permission gesture before devicemotion fires
+function armMotion(){
+  if(typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function'){
+    // request on first tap (must be user gesture)
+    const ask = ()=>{ DeviceMotionEvent.requestPermission().then(s=>{ if(s==='granted') window.addEventListener('devicemotion', onMotion); }).catch(()=>{}); window.removeEventListener('pointerdown', ask); };
+    window.addEventListener('pointerdown', ask, {once:true});
+  } else if(typeof DeviceMotionEvent !== 'undefined'){
+    window.addEventListener('devicemotion', onMotion);
+  }
+}
+
+/* ---------- wiring + boot ---------- */
+tableEl.addEventListener('pointerdown', onPointerDown);
+window.addEventListener('pointermove', onPointerMove, {passive:false});
+window.addEventListener('pointerup', onPointerUp);
+window.addEventListener('pointercancel', onPointerUp);
+
+let resizeT;
+window.addEventListener('resize', ()=>{
+  clearTimeout(resizeT);
+  resizeT = setTimeout(()=>{ rebuildOnResize(); }, 180);
+});
+function rebuildOnResize(){
+  // re-measure widths/heights and re-deal so nothing falls off a resized screen
+  buildCards();
+  deal(REDUCED ? 'tidy' : 'scatter');
+}
+
+function announce(msg){ liveEl.textContent = msg; }
+
+function boot(){
+  countEl.textContent = String(DATA.length).padStart(2,'0') + ' / ' + String(DATA.length).padStart(2,'0');
+  buildCards();
+  deal(REDUCED ? 'tidy' : 'scatter');
+  if(!REDUCED){ kickPile(); }   // a gentle opening settle
+  armMotion();
+}
+// fonts may shift caption height; build after first paint
+if(document.readyState === 'complete') boot();
+else window.addEventListener('load', boot);
+</script>
+</body>
+</html>

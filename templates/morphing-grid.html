@@ -1,0 +1,757 @@
+<!-- TEMPLATE: Morphgrid - Elastic Reflowing Grid | ARCHETYPE: morphing-grid | REF: Dropbox Brand (CSSDA 2025), Codrops staggered grid formations | WHEN TO USE: a portfolio/showreel where one continuous set of works morphs between mosaic, editorial, strip and radial layouts as you scroll | SWAP: edit the DATA array at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>MORPHGRID - Elastic Reflowing Grid</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<!-- Editorial serif for the display word, grotesque + mono for micro-type -->
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..600&family=Inter+Tight:wght@400..700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  /* ============================== TOKENS ============================== */
+  :root{
+    --bone:#f3efe8;          /* warm paper */
+    --bone-2:#ece6dc;
+    --ink:#111;              /* near-black */
+    --ink-soft:rgba(17,17,17,.55);
+    --ink-faint:rgba(17,17,17,.28);
+    --line:rgba(17,17,17,.14);
+    --accent:#b8402a;        /* terracotta, used sparingly */
+    --stage-h: 78vh;         /* height of the morphing surface */
+    --ease: cubic-bezier(.7,0,.18,1);
+  }
+
+  *{box-sizing:border-box}
+  html{ -webkit-text-size-adjust:100%; scroll-behavior:smooth; }
+  body{
+    margin:0;
+    background:var(--bone);
+    color:var(--ink);
+    font-family:"Inter Tight",system-ui,sans-serif;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+  ::selection{ background:var(--ink); color:var(--bone); }
+  a{color:inherit;text-decoration:none}
+  img,video{display:block;max-width:100%}
+
+  :focus-visible{
+    outline:2px solid var(--accent);
+    outline-offset:4px;
+    border-radius:3px;
+  }
+
+  /* fine paper grain */
+  body::after{
+    content:"";
+    position:fixed; inset:0; z-index:80; pointer-events:none;
+    opacity:.045; mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ============================== TOP CHROME ============================== */
+  header.bar{
+    position:fixed; top:0; left:0; right:0; z-index:70;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px clamp(16px,4vw,46px);
+    font-family:"Space Mono",monospace;
+    font-size:11px; letter-spacing:.18em; text-transform:uppercase;
+    mix-blend-mode:multiply;
+  }
+  header.bar .brand{ font-weight:700; }
+  header.bar .brand b{ color:var(--accent); }
+  header.bar nav{ display:flex; gap:22px; }
+  header.bar nav a{ color:var(--ink-soft); transition:color .25s; }
+  header.bar nav a:hover{ color:var(--ink); }
+  @media (max-width:640px){ header.bar nav{ display:none; } }
+
+  /* ============================== INTRO ============================== */
+  .intro{
+    min-height:96vh; display:flex; flex-direction:column; justify-content:center;
+    padding:0 clamp(16px,5vw,80px);
+    max-width:1500px; margin:0 auto;
+  }
+  .intro .kicker{
+    font-family:"Space Mono",monospace; font-size:11px;
+    letter-spacing:.28em; text-transform:uppercase; color:var(--accent);
+    margin-bottom:26px;
+  }
+  .intro h1{
+    font-family:"Fraunces",serif; font-weight:340;
+    font-size:clamp(2.7rem,9vw,8.6rem); line-height:.94;
+    letter-spacing:-.02em; margin:0; max-width:14ch;
+  }
+  .intro h1 em{ font-style:italic; color:var(--accent); }
+  .intro p{
+    margin:34px 0 0; max-width:46ch;
+    font-size:clamp(.98rem,1.5vw,1.18rem); line-height:1.5; color:var(--ink-soft);
+  }
+  .intro .scrollcue{
+    margin-top:48px; font-family:"Space Mono",monospace;
+    font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--ink-faint);
+    display:flex; align-items:center; gap:12px;
+  }
+  .intro .scrollcue i{
+    width:42px; height:1px; background:var(--ink-faint); display:inline-block;
+    transform-origin:left; animation:cue 2.4s var(--ease) infinite;
+  }
+  @keyframes cue{ 0%,100%{transform:scaleX(.3)} 50%{transform:scaleX(1)} }
+
+  /* ============================== MORPH SECTION ============================== */
+  /* tall scroll track; the stage sticks while we scrub through layouts */
+  .track{ position:relative; }
+  .stage-sticky{
+    position:sticky; top:0; height:100vh;
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+  }
+  .stage{
+    position:relative;
+    width:min(92vw,1320px);
+    height:var(--stage-h);
+  }
+
+  .cell{
+    position:absolute; top:0; left:0;
+    will-change:transform;
+    /* size carried by width/height; movement by translate; both set inline by JS */
+    overflow:hidden; border-radius:4px;
+    background:var(--bone-2);
+    box-shadow:0 1px 0 rgba(17,17,17,.05);
+    transform-origin:center center;
+  }
+  .cell .frame{
+    position:absolute; inset:0; overflow:hidden; border-radius:4px;
+    background:#cfc7b8;
+  }
+  .cell .frame::after{ /* hairline edge that reads on paper */
+    content:""; position:absolute; inset:0; border-radius:4px;
+    box-shadow:inset 0 0 0 1px rgba(17,17,17,.10); pointer-events:none; z-index:3;
+  }
+  .cell img, .cell video{
+    position:absolute; inset:0; width:100%; height:100%;
+    object-fit:cover; object-position:center;
+  }
+  .cell video{ opacity:0; transition:opacity .5s ease; }
+  .cell.playing video{ opacity:1; }
+  .cell .poster{ transition:opacity .5s ease; }
+  .cell.playing .poster{ opacity:0; }
+
+  /* per-cell caption, fades in only when layout gives the cell room */
+  .cell .cap{
+    position:absolute; left:0; bottom:0; right:0; z-index:4;
+    padding:14px 16px;
+    background:linear-gradient(to top, rgba(17,17,17,.62), rgba(17,17,17,0));
+    color:var(--bone);
+    opacity:0; transform:translateY(6px); transition:opacity .4s, transform .4s;
+    pointer-events:none;
+  }
+  .cell.cap-on .cap{ opacity:1; transform:none; }
+  .cell .cap .t{
+    font-family:"Fraunces",serif; font-weight:380; font-size:clamp(.95rem,1.5vw,1.3rem);
+    line-height:1.05; letter-spacing:-.01em;
+  }
+  .cell .cap .m{
+    font-family:"Space Mono",monospace; font-size:10px; letter-spacing:.16em;
+    text-transform:uppercase; opacity:.78; margin-top:6px;
+  }
+  .cell .badge{ /* media-type tag, always visible, top-left */
+    position:absolute; top:10px; left:10px; z-index:4;
+    font-family:"Space Mono",monospace; font-size:9px; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--bone);
+    background:rgba(17,17,17,.5); padding:3px 7px; border-radius:99px;
+    backdrop-filter:blur(2px);
+  }
+
+  /* the layout-name micro-type, fixed in the corner of the stage */
+  .layoutlabel{
+    position:absolute; z-index:20; left:0; bottom:-2px;
+    font-family:"Space Mono",monospace; pointer-events:none;
+    user-select:none;
+  }
+  .layoutlabel .num{
+    font-size:11px; letter-spacing:.2em; color:var(--ink-faint); display:block;
+  }
+  .layoutlabel .name{
+    font-size:clamp(13px,1.6vw,17px); letter-spacing:.26em; text-transform:uppercase;
+    color:var(--ink); font-weight:700; margin-top:4px; display:flex; gap:10px; align-items:baseline;
+  }
+  .layoutlabel .name s{ text-decoration:none; color:var(--accent); }
+  /* progress rail along the right edge of the stage */
+  .rail{
+    position:absolute; z-index:20; right:-2px; top:0; bottom:0; width:2px;
+    background:var(--line); pointer-events:none;
+  }
+  .rail .dot{
+    position:absolute; right:-3px; width:8px; height:8px; border-radius:50%;
+    background:var(--bone); border:1px solid var(--ink); transform:translateY(-50%);
+    transition:background .3s, transform .3s;
+  }
+  .rail .dot.on{ background:var(--accent); border-color:var(--accent); transform:translateY(-50%) scale(1.25); }
+
+  /* ============================== OUTRO ============================== */
+  .outro{
+    max-width:1500px; margin:0 auto; padding:14vh clamp(16px,5vw,80px) 16vh;
+    display:grid; grid-template-columns:1fr; gap:48px;
+  }
+  .outro .lead{
+    font-family:"Fraunces",serif; font-weight:340; font-style:italic;
+    font-size:clamp(1.6rem,4.4vw,3.4rem); line-height:1.08; letter-spacing:-.015em;
+    max-width:22ch;
+  }
+  .colophon{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:28px 36px;
+    border-top:1px solid var(--line); padding-top:34px;
+  }
+  .colophon h4{
+    font-family:"Space Mono",monospace; font-size:10px; letter-spacing:.22em;
+    text-transform:uppercase; color:var(--ink-faint); margin:0 0 10px; font-weight:400;
+  }
+  .colophon p{ margin:0; font-size:.95rem; line-height:1.55; color:var(--ink-soft); }
+  .colophon a{ border-bottom:1px solid var(--line); }
+  .colophon a:hover{ border-color:var(--ink); }
+  footer.foot{
+    border-top:1px solid var(--line);
+    padding:22px clamp(16px,5vw,80px);
+    display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;
+    font-family:"Space Mono",monospace; font-size:11px; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--ink-faint);
+    max-width:1500px; margin:0 auto;
+  }
+
+  /* ============================== MOBILE ============================== */
+  @media (max-width:640px){
+    :root{ --stage-h:64vh; }
+    .stage{ width:94vw; }
+    .layoutlabel{ bottom:8px; }
+    .cell .cap{ padding:10px 12px; }
+    .cell .badge{ font-size:8px; padding:2px 6px; }
+    /* phones: landscape source media in short/narrow cells would cover-crop.
+       letterbox instead (contain over a tonal fill) so nothing gets cut off. */
+    .cell .frame{ background:#cfc7b8; }
+    .cell img, .cell video{ object-fit:contain; background:#cfc7b8; }
+  }
+
+  /* reduced-motion: freeze everything, present the mosaic statically */
+  @media (prefers-reduced-motion:reduce){
+    html{ scroll-behavior:auto; }
+    *{ animation:none !important; }
+    .intro .scrollcue i{ animation:none; }
+    .cell, .cell *, .cell .cap, .cell video, .cell .poster{ transition:none !important; }
+  }
+
+  /* tiny no-JS / fallback note */
+  .nojs{ display:none; }
+  html.no-js .nojs{ display:block; padding:40px; font-family:"Space Mono",monospace; }
+</style>
+</head>
+<body>
+<script>document.documentElement.classList.remove('no-js');</script>
+
+<header class="bar">
+  <div class="brand">MORPH<b>/</b>GRID</div>
+  <nav>
+    <a href="#work">Work</a>
+    <a href="#about">About</a>
+    <a href="#contact">Contact</a>
+  </nav>
+</header>
+
+<section class="intro">
+  <div class="kicker">Generative Studio / Index 01-08</div>
+  <h1>One surface, <em>four</em> ways to read the work.</h1>
+  <p>A single grid of pieces that reflows as you scroll: packed mosaic, editorial column, a single strip, then a radial fan. Same cells, recomposed. Scroll to watch it morph.</p>
+  <div class="scrollcue"><i></i> Scroll to begin</div>
+</section>
+
+<section id="work" class="track">
+  <div class="stage-sticky">
+    <div class="stage" id="stage" aria-label="Morphing grid of works">
+      <div class="rail" id="rail" aria-hidden="true"></div>
+      <div class="layoutlabel" aria-hidden="true">
+        <span class="num" id="labelNum">01 / 04</span>
+        <span class="name"><s>&#9679;</s><span id="labelName">MOSAIC</span></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="about" class="outro">
+  <p class="lead">Layout is not decoration. It is an argument about what matters, made over and over, in real time.</p>
+  <div class="colophon">
+    <div>
+      <h4>Paradigm</h4>
+      <p>Morphing grid. One continuous set of cells animates between four formations driven entirely by scroll position, no animation library.</p>
+    </div>
+    <div>
+      <h4>Engine</h4>
+      <p>Layout solvers return per-cell geometry. Adjacent layouts are interpolated with eased transforms written each frame inside one rAF loop.</p>
+    </div>
+    <div>
+      <h4>Media</h4>
+      <p>Posters by default. Only the focused cell decodes and plays its loop, so simultaneous video never tanks frame rate.</p>
+    </div>
+    <div>
+      <h4>Contact</h4>
+      <p id="contact"><a href="#">studio@morphgrid.example</a><br>Available Q3</p>
+    </div>
+  </div>
+</section>
+
+<footer class="foot">
+  <span>(c) 2026 MORPHGRID STUDIO</span>
+  <span>BONE / INK / TERRACOTTA</span>
+</footer>
+
+<div class="nojs">JavaScript is required for the morphing grid. The work index cannot render without it.</div>
+
+<script>
+/* ============================================================================
+   DATA  -  swap these entries to retheme the whole template.
+   media: "image" | "video".  For video, give src + poster.
+   weight: visual emphasis (1 small .. 3 hero); drives sizing in every layout.
+   ============================================================================ */
+const ASSET = "../assets/";
+const GEN   = "../assets/gen/";
+
+const DATA = [
+  { id:"car",    media:"video", src:ASSET+"flux-car-i2v.mp4", poster:GEN+"poster-flux-car-i2v.png",
+    title:"Nocturne", meta:"Image-to-Video / FLUX", tag:"video", weight:3 },
+  { id:"clinic", media:"image", src:ASSET+"flux-clinic-4k.png",
+    title:"Mint Ward", meta:"Still / FLUX 4K", tag:"image", weight:2 },
+  { id:"kling",  media:"video", src:ASSET+"kling-video.mp4", poster:GEN+"poster-kling-video.png",
+    title:"Drift", meta:"Loop / Kling", tag:"video", weight:2 },
+  { id:"fox",    media:"image", src:ASSET+"sdxl.png",
+    title:"Vulpes", meta:"Painterly / SDXL", tag:"image", weight:2 },
+  { id:"veo",    media:"video", src:ASSET+"veo-video.mp4", poster:GEN+"poster-veo-video.png",
+    title:"Continuum", meta:"Loop / Veo", tag:"video", weight:3 },
+  { id:"fal",    media:"video", src:ASSET+"fal-video.mp4", poster:GEN+"poster-fal-video.png",
+    title:"Cascade", meta:"Loop / Fal", tag:"video", weight:1 },
+  { id:"apple",  media:"image", src:ASSET+"hf-tinysd.png",
+    title:"Low-Fi Fruit", meta:"Abstract / Tiny-SD", tag:"image", weight:1 },
+  { id:"hyper",  media:"video", src:ASSET+"hyperframes.mp4", poster:GEN+"poster-hyperframes.png",
+    title:"Hyperframe", meta:"Loop / Hyperframes", tag:"video", weight:1 },
+];
+
+/* layout names in scroll order; current one shows in the corner */
+const LAYOUTS = ["MOSAIC","EDITORIAL","STRIP","RADIAL"];
+
+/* ============================================================================
+   BUILD CELLS
+   ============================================================================ */
+const stage = document.getElementById('stage');
+const reduce = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+let isMobile = window.matchMedia('(max-width:640px)').matches;
+
+const cells = DATA.map((d, i) => {
+  const el = document.createElement('article');
+  el.className = 'cell';
+  el.tabIndex = 0;
+  el.setAttribute('role','group');
+  el.setAttribute('aria-label', `${d.title}. ${d.meta}.`);
+
+  const frame = document.createElement('div');
+  frame.className = 'frame';
+
+  const poster = document.createElement('img');
+  poster.className = 'poster';
+  poster.alt = d.title;
+  poster.loading = 'lazy';
+  poster.decoding = 'async';
+  poster.src = (d.media === 'video') ? d.poster : d.src;
+  frame.appendChild(poster);
+
+  let video = null;
+  if (d.media === 'video') {
+    video = document.createElement('video');
+    video.muted = true; video.loop = true; video.playsInline = true;
+    video.setAttribute('playsinline',''); video.preload = 'none';
+    video.poster = d.poster;
+    frame.appendChild(video);
+  }
+
+  const badge = document.createElement('span');
+  badge.className = 'badge';
+  badge.textContent = d.tag;
+  frame.appendChild(badge);
+
+  const cap = document.createElement('div');
+  cap.className = 'cap';
+  cap.innerHTML = `<div class="t">${d.title}</div><div class="m">${String(i+1).padStart(2,'0')} / ${d.meta}</div>`;
+  frame.appendChild(cap);
+
+  el.appendChild(frame);
+  stage.appendChild(el);
+
+  return { el, video, src: (d.media==='video'? d.src : null), data:d, playing:false };
+});
+
+/* ============================================================================
+   LAYOUT SOLVERS
+   Each returns an array of {x,y,w,h,rot} in NORMALISED units (0..1 of stage),
+   plus a flag "cap" (show caption) and "z". JS scales to px each frame.
+   ============================================================================ */
+const N = cells.length;
+const W = DATA.map(d => d.weight);
+
+// helper: even radial
+function radial(n, i, R, cx, cy){
+  const a = (-Math.PI/2) + (i / n) * Math.PI*2;
+  return { x: cx + Math.cos(a)*R, y: cy + Math.sin(a)*R, a };
+}
+
+/* --- 1. MOSAIC : tightly packed, weight-driven, slight playful offsets --- */
+function layoutMosaic(){
+  // a hand-tuned packed grid for 8 cells on a 6-col / 4-row field
+  // [col, row, colSpan, rowSpan] per index order of DATA
+  const cols = 6, rows = 4, gap = 0.012;
+  const slots = [
+    [0,0,3,2], // car hero
+    [3,0,2,2], // clinic
+    [5,0,1,2], // kling
+    [0,2,2,2], // fox
+    [2,2,2,2], // veo
+    [4,2,1,1], // fal
+    [5,2,1,1], // apple
+    [4,3,2,1], // hyper
+  ];
+  return slots.map((s,i) => {
+    const [c,r,cs,rs] = s;
+    return {
+      x: c/cols + gap/2,
+      y: r/rows + gap/2,
+      w: cs/cols - gap,
+      h: rs/rows - gap,
+      rot: 0, z: 1 + (W[i]>=3?2:0),
+      cap: cs>=2 && rs>=2, r:8
+    };
+  });
+}
+
+/* --- 2. EDITORIAL : single breathing column, generous margins --- */
+function layoutEditorial(){
+  const colW = 0.62, colX = (1-colW)/2;
+  const gap = 0.028;
+  // each cell takes a band; heavier weight = taller band
+  let tot = W.reduce((a,b)=>a+b,0) + W.length*0.0; // base heights
+  // give every cell a min so even weight-1 reads
+  const bands = W.map(w => 0.6 + w*0.8);
+  const sum = bands.reduce((a,b)=>a+b,0);
+  const totalGap = gap*(N-1);
+  let y = 0;
+  return bands.map((b,i) => {
+    const h = (b/sum)*(1-totalGap);
+    // alternate a gentle horizontal stagger for editorial rhythm
+    const shift = (i%2===0? -0.05 : 0.05);
+    const o = { x: colX+shift, y, w: colW, h, rot:0, z:1, cap:true, r:6 };
+    y += h + gap;
+    return o;
+  });
+}
+
+/* --- 3. STRIP : one horizontal band of equal tall slivers --- */
+function layoutStrip(){
+  const h = 0.5, y = (1-h)/2;
+  const gap = 0.01;
+  const w = (1 - gap*(N-1))/N;
+  return Array.from({length:N}, (_,i) => ({
+    x: i*(w+gap), y, w, h, rot:0, z:1, cap:false, r:4
+  }));
+}
+
+/* --- 4. RADIAL : fan of cards on spokes around a hub --- */
+function layoutRadial(){
+  const cx=0.5, cy=0.5;
+  const R = 0.30;             // spoke radius (centre of each card)
+  const cw = 0.20, ch = 0.26; // card size in normalised units
+  return Array.from({length:N}, (_,i) => {
+    const p = radial(N, i, R, cx, cy);
+    // tangential rotation so cards face outward
+    const rot = (p.a*180/Math.PI) + 90;
+    return {
+      x: p.x - cw/2, y: p.y - ch/2, w: cw, h: ch,
+      rot, z: 1, cap:false, r:6
+    };
+  });
+}
+
+/* MOBILE variants: only two simple layouts, linear morph between them. */
+function layoutMobileStack(){
+  const w = 0.86, x=(1-w)/2, gap=0.02;
+  const h = (1 - gap*(N-1))/N;
+  return Array.from({length:N},(_,i)=>({ x, y:i*(h+gap), w, h, rot:0, z:1, cap:true, r:6 }));
+}
+function layoutMobilePairs(){
+  // 2-column packed mosaic-lite
+  const cols=2, gap=0.016;
+  const w=(1-gap*(cols+1))/cols;
+  const rows=Math.ceil(N/cols);
+  const h=(1-gap*(rows+1))/rows;
+  return Array.from({length:N},(_,i)=>{
+    const c=i%cols, r=Math.floor(i/cols);
+    return { x:gap+c*(w+gap), y:gap+r*(h+gap), w, h, rot:0, z:1, cap:false, r:6 };
+  });
+}
+
+let LAYOUT_FNS = isMobile
+  ? [layoutMobilePairs, layoutMobileStack]
+  : [layoutMosaic, layoutEditorial, layoutStrip, layoutRadial];
+
+let solved = LAYOUT_FNS.map(fn => fn());
+const labelNames = isMobile ? ["GRID","COLUMN"] : LAYOUTS;
+
+/* ============================================================================
+   INTERPOLATION + RENDER
+   ============================================================================ */
+const lerp = (a,b,t)=>a+(b-a)*t;
+// smootherstep for buttery cross-layout easing
+const ease = t => t*t*t*(t*(t*6-15)+10);
+
+let stageW=0, stageH=0;
+function measure(){
+  const r = stage.getBoundingClientRect();
+  stageW = r.width; stageH = r.height;
+}
+
+const labelNum = document.getElementById('labelNum');
+const labelName = document.getElementById('labelName');
+const rail = document.getElementById('rail');
+
+// build rail dots
+const dots = LAYOUT_FNS.map((_,i)=>{
+  const d=document.createElement('span'); d.className='dot';
+  d.style.top = (LAYOUT_FNS.length===1?0:(i/(LAYOUT_FNS.length-1))*100)+'%';
+  rail.appendChild(d); return d;
+});
+
+let lastSeg = -1;
+function setLabel(seg, frac){
+  if(seg!==lastSeg){
+    labelNum.textContent = String(seg+1).padStart(2,'0')+' / '+String(LAYOUT_FNS.length).padStart(2,'0');
+    labelName.textContent = labelNames[seg];
+    dots.forEach((d,i)=>d.classList.toggle('on', i===seg));
+    lastSeg=seg;
+  }
+}
+
+function render(progress){
+  // progress 0..1 over the whole track
+  const segs = LAYOUT_FNS.length - 1;          // number of transitions
+  const scaled = progress * segs;
+  let seg = Math.min(Math.floor(scaled), segs-1);
+  if (segs===0) seg=0;
+  const localRaw = segs===0 ? 0 : (scaled - seg);
+  const t = ease(Math.max(0,Math.min(1,localRaw)));
+
+  // which layout label to show: snap to nearest at the dwell points
+  const showSeg = localRaw < 0.5 ? seg : Math.min(seg+1, LAYOUT_FNS.length-1);
+  setLabel(showSeg, localRaw);
+
+  const A = solved[seg];
+  const B = solved[Math.min(seg+1, solved.length-1)];
+
+  for(let i=0;i<N;i++){
+    const a=A[i], b=B[i];
+    const x = lerp(a.x,b.x,t) * stageW;
+    const y = lerp(a.y,b.y,t) * stageH;
+    const w = lerp(a.w,b.w,t) * stageW;
+    const h = lerp(a.h,b.h,t) * stageH;
+    const rot = lerp(a.rot||0, b.rot||0, t);
+    const z = Math.round(lerp(a.z||1,b.z||1,t));
+    const el = cells[i].el;
+    el.style.width = w+'px';
+    el.style.height = h+'px';
+    el.style.transform = `translate3d(${x}px,${y}px,0) rotate(${rot}deg)`;
+    el.style.zIndex = z;
+    // caption only when the BLEND favors a layout that wants it AND cell is roomy
+    const wantCap = (t<0.5? a.cap : b.cap) && (w>140 && h>120);
+    el.classList.toggle('cap-on', !!wantCap);
+  }
+
+  // focus = the cell currently nearest the stage centre, for video play
+  updateFocus();
+}
+
+/* ----- which cell is "focused" -> the only one allowed to play video ----- */
+let focusedIdx = -1;
+let hoverLock = -1;   // hovered cell overrides centre-focus
+function updateFocus(){
+  if(reduce){ return; } // no video play under reduced motion
+  let target = hoverLock;
+  if(target<0){
+    // centre of stage in page coords
+    const r = stage.getBoundingClientRect();
+    const ccx = r.left + r.width/2, ccy = r.top + r.height/2;
+    let best=Infinity, bi=-1;
+    for(let i=0;i<N;i++){
+      if(!cells[i].video) continue;
+      const cr = cells[i].el.getBoundingClientRect();
+      const dx = (cr.left+cr.width/2)-ccx, dy=(cr.top+cr.height/2)-ccy;
+      const dist = dx*dx+dy*dy;
+      // prefer larger, more central cells
+      const area = cr.width*cr.height;
+      const score = dist / Math.max(area,1);
+      if(score<best){ best=score; bi=i; }
+    }
+    target=bi;
+  }
+  if(target===focusedIdx) return;
+  focusedIdx=target;
+  cells.forEach((c,i)=>{
+    if(!c.video) return;
+    if(i===target) playCell(c); else pauseCell(c);
+  });
+}
+
+function playCell(c){
+  if(c.playing) return;
+  if(!c.video.src){ c.video.src = c.src; } // lazy attach
+  const p = c.video.play();
+  if(p && p.catch) p.catch(()=>{});
+  c.el.classList.add('playing'); c.playing=true;
+}
+function pauseCell(c){
+  if(!c.playing) return;
+  try{ c.video.pause(); }catch(e){}
+  c.el.classList.remove('playing'); c.playing=false;
+}
+
+/* hover / focus lock: let a hovered cell take the stage */
+cells.forEach((c,i)=>{
+  const lock = ()=>{ if(c.video){ hoverLock=i; updateFocus(); } };
+  const unlock = ()=>{ if(hoverLock===i){ hoverLock=-1; updateFocus(); } };
+  c.el.addEventListener('mouseenter', lock);
+  c.el.addEventListener('mouseleave', unlock);
+  c.el.addEventListener('focus', lock);
+  c.el.addEventListener('blur', unlock);
+});
+
+/* ============================================================================
+   SCROLL DRIVER  (one rAF, reads scroll, writes transforms)
+   ============================================================================ */
+const track = document.querySelector('.track');
+let trackTop=0, trackH=0, vh=0;
+function metrics(){
+  vh = window.innerHeight;
+  const r = track.getBoundingClientRect();
+  trackTop = r.top + window.scrollY;
+  trackH = track.offsetHeight;
+  measure();
+}
+
+function progressNow(){
+  // sticky stage is pinned for (trackH - vh) of scrolling
+  const scrolled = window.scrollY - trackTop;
+  const span = Math.max(trackH - vh, 1);
+  return Math.max(0, Math.min(1, scrolled/span));
+}
+
+let queued=false, lastP=-1;
+function onScroll(){
+  if(queued) return; queued=true;
+  requestAnimationFrame(()=>{
+    queued=false;
+    const p = progressNow();
+    render(p);
+    lastP=p;
+  });
+}
+
+/* set the track height so each transition gets ~1 viewport of scroll dwell */
+function sizeTrack(){
+  const transitions = Math.max(LAYOUT_FNS.length-1,1);
+  // 1 vh pin per transition + a little dwell on the ends
+  track.style.height = (100*(transitions+1)) + 'vh';
+}
+
+/* ============================================================================
+   RESPONSIVE RE-SOLVE
+   ============================================================================ */
+function rebuild(){
+  const nowMobile = window.matchMedia('(max-width:640px)').matches;
+  if(nowMobile!==isMobile){
+    isMobile=nowMobile;
+    LAYOUT_FNS = isMobile
+      ? [layoutMobilePairs, layoutMobileStack]
+      : [layoutMosaic, layoutEditorial, layoutStrip, layoutRadial];
+    // rebuild rail dots
+    rail.querySelectorAll('.dot').forEach(d=>d.remove());
+    dots.length=0;
+    LAYOUT_FNS.forEach((_,i)=>{
+      const d=document.createElement('span'); d.className='dot';
+      d.style.top=(LAYOUT_FNS.length===1?0:(i/(LAYOUT_FNS.length-1))*100)+'%';
+      rail.appendChild(d); dots.push(d);
+    });
+    labelNames.length=0;
+    (isMobile?["GRID","COLUMN"]:LAYOUTS).forEach(n=>labelNames.push(n));
+    lastSeg=-1;
+  }
+  solved = LAYOUT_FNS.map(fn=>fn());
+  sizeTrack();
+  metrics();
+  render(progressNow());
+}
+
+/* ============================================================================
+   REDUCED MOTION  -  freeze on the first (mosaic / grid) layout, no rAF, no video
+   ============================================================================ */
+function staticRender(){
+  measure();
+  const A = solved[0];
+  for(let i=0;i<N;i++){
+    const a=A[i];
+    const el=cells[i].el;
+    el.style.width=(a.w*stageW)+'px';
+    el.style.height=(a.h*stageH)+'px';
+    el.style.transform=`translate3d(${a.x*stageW}px,${a.y*stageH}px,0) rotate(${a.rot||0}deg)`;
+    el.style.zIndex=a.z||1;
+    if(a.cap) el.classList.add('cap-on');
+  }
+  setLabel(0,0);
+  // collapse the tall track so the page is just intro + static grid + outro
+  track.style.height = '100vh';
+}
+
+/* ============================================================================
+   PAUSE OFFSCREEN  -  if the whole stage scrolls out of view, kill video
+   ============================================================================ */
+const io = new IntersectionObserver((ents)=>{
+  ents.forEach(e=>{
+    if(!e.isIntersecting){
+      cells.forEach(c=>{ if(c.video) pauseCell(c); });
+      focusedIdx=-1;
+    } else {
+      updateFocus();
+    }
+  });
+}, {threshold:0.01});
+
+/* ============================================================================
+   INIT
+   ============================================================================ */
+function init(){
+  sizeTrack();
+  metrics();
+  if(reduce){
+    staticRender();
+    return;
+  }
+  render(progressNow());
+  io.observe(document.querySelector('.stage-sticky'));
+  window.addEventListener('scroll', onScroll, {passive:true});
+  let rt;
+  window.addEventListener('resize', ()=>{
+    clearTimeout(rt);
+    rt=setTimeout(rebuild,150);
+  });
+}
+
+// fonts can shift metrics; render after load too
+window.addEventListener('load', ()=>{ metrics(); if(!reduce) render(progressNow()); else staticRender(); });
+init();
+</script>
+</body>
+</html>

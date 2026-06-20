@@ -165,7 +165,16 @@ footer{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;
   .frame .inner{padding:16px}
   .hint{display:none}
   .legend{gap:14px;font-size:10px}
-  .stage{max-height:44vh}
+  /* phone: full-width stacked card; landscape media letterboxes, never cover-crops */
+  .viewer{padding:0}
+  .viewer-card{width:100%;height:100%;max-height:100%;border-radius:0;border:0;grid-template-rows:auto 1fr}
+  .stage{max-height:46vh;width:100%;background:#04060e}
+  .stage img,.stage video{
+    width:100%;height:100%;max-width:100%;max-height:100%;
+    object-fit:contain;object-position:center; /* letterbox a 16:9 clip inside a narrow stage */
+  }
+  .stage .glb{min-height:0}
+  .meta{max-height:none}
 }
 @media (max-width:380px){
   .legend span:nth-child(3){display:none}
@@ -254,7 +263,7 @@ const DATA = [
     tags:["d-id","portrait","sound"], mag:0.85, audio:true },
 
   { title:"Refined Mesh", constellation:"Forge", type:"glb",
-    src:ASSET+"meshy-refined.glb", poster:ASSET+"gen/meshy-refined-thumb.png",
+    src:ASSET+"meshy-refined.glb", poster:ASSET+"meshy-refined-thumb.png",
     blurb:"A textured 3D asset, generated and refined. Drag to orbit the model in real time.",
     tags:["meshy","3d","glb"], mag:1.0 },
 ];
@@ -330,6 +339,7 @@ function resize(){
   cv.style.width = W+"px"; cv.style.height = H+"px";
   ctx.setTransform(DPR,0,0,DPR,0,0);
   layout();
+  requestFrame(); // repaint after relayout (matters on reduced-motion, where the loop is on-demand)
 }
 window.addEventListener("resize", resize);
 
@@ -430,6 +440,7 @@ cv.addEventListener("pointermove", e=>{
   } else {
     hitTest(p.x,p.y);
   }
+  requestFrame();
 });
 function endDrag(){ dragging=false; cv.classList.remove("dragging"); }
 cv.addEventListener("pointerup", e=>{
@@ -441,7 +452,7 @@ cv.addEventListener("pointerup", e=>{
   }
 });
 cv.addEventListener("pointercancel", endDrag);
-cv.addEventListener("pointerleave", ()=>{ mouse.active=false; if(!touch){ hovered=null; hideTip(); } });
+cv.addEventListener("pointerleave", ()=>{ mouse.active=false; if(!touch){ hovered=null; hideTip(); requestFrame(); } });
 
 /* parallax target follows mouse (not on touch) */
 window.addEventListener("mousemove", e=>{
@@ -499,26 +510,41 @@ function focusStar(){
   // re-center pan so the focused star drifts toward center
   const p=screenPos(n);
   target.x += (W/2 - p.x); target.y += (H/2 - p.y);
+  requestFrame();
 }
 
 /* ---------- recenter ---------- */
 document.getElementById("recenter").addEventListener("click", ()=>{
   target.x=0; target.y=0; hovered=null; hideTip();
+  requestFrame();
 });
 
 /* ============================================================
    RENDER LOOP
    ============================================================ */
 let t0=performance.now();
+let rafPending=false;
+/* On reduced-motion the loop is NOT perpetual: we render on demand and snap
+   pan instantly, so there is no idle animation and no continuous rAF churn. */
+function requestFrame(){
+  if(reduce && !rafPending){ rafPending=true; requestAnimationFrame(frame); }
+}
 function frame(now){
+  rafPending=false;
   const dt=Math.min(2,(now-t0)/16.67); t0=now;
-  // ease pan + parallax
+  if(reduce){
+    // snap directly to target: drag / recenter / keyboard land with no drift
+    pan.x=target.x; pan.y=target.y;
+    parallax.x=0; parallax.y=0;
+    draw(now);
+    if(hovered) showTip(hovered);
+    return; // do not self-schedule; interaction handlers re-request a frame
+  }
+  // ease pan + parallax (motion allowed)
   pan.x += (target.x-pan.x)*0.08*dt;
   pan.y += (target.y-pan.y)*0.08*dt;
-  if(!reduce){
-    parallax.x += (pmTarget.x-parallax.x)*0.05*dt;
-    parallax.y += (pmTarget.y-parallax.y)*0.05*dt;
-  }
+  parallax.x += (pmTarget.x-parallax.x)*0.05*dt;
+  parallax.y += (pmTarget.y-parallax.y)*0.05*dt;
   draw(now);
   if(hovered) showTip(hovered);
   requestAnimationFrame(frame);
@@ -664,14 +690,19 @@ function openWork(i){
     } else { vAudio.style.display="none"; }
   } else if(d.type==="glb"){
     vAudio.style.display="none";
-    // lazy-load model-viewer only when a glb is actually opened
+    // mobile / no-WebGL fallback: skip the heavy ESM and show the poster still
+    if(!hasWebGL()){
+      const img=document.createElement("img"); img.src=d.poster||d.src; img.alt=d.title; img.decoding="async";
+      vStage.appendChild(img);
+    } else
+    // lazy-load model-viewer only when a glb is actually opened AND WebGL exists
     loadModelViewer().then(()=>{
       const mv=document.createElement("model-viewer");
       mv.className="glb";
       mv.setAttribute("src",d.src);
       mv.setAttribute("poster",d.poster||"");
       mv.setAttribute("camera-controls","");
-      mv.setAttribute("auto-rotate","");
+      if(!reduce) mv.setAttribute("auto-rotate",""); // honor reduced-motion: no idle spin
       mv.setAttribute("interaction-prompt","none");
       mv.setAttribute("shadow-intensity","1");
       mv.setAttribute("exposure","1.1");
@@ -709,6 +740,18 @@ window.addEventListener("keydown", e=>{
   else if(e.key==="ArrowLeft") openWork((curIdx-1+nodes.length)%nodes.length);
 });
 
+/* WebGL capability probe (cached): gates the 3D path so incapable phones
+   fall back to the poster image without fetching model-viewer at all */
+let _webgl;
+function hasWebGL(){
+  if(_webgl!==undefined) return _webgl;
+  try{
+    const c=document.createElement("canvas");
+    _webgl = !!(window.WebGLRenderingContext && (c.getContext("webgl")||c.getContext("experimental-webgl")));
+  }catch(e){ _webgl=false; }
+  return _webgl;
+}
+
 /* lazy model-viewer loader (ESM, only on first glb open) */
 let mvPromise=null;
 function loadModelViewer(){
@@ -732,7 +775,9 @@ resize();
 // preload posters used as star glow source for the brightest few (cheap)
 nodes.sort((a,b)=>b.mag-a.mag).slice(0,4).forEach(ensurePoster);
 nodes.sort((a,b)=>a.i-b.i); // restore order
-requestAnimationFrame(frame);
+// motion path: start the perpetual loop (twinkle + parallax need every frame).
+// reduced-motion path: draw once on demand; resize() already requested the first paint.
+if(!reduce) requestAnimationFrame(frame); else requestFrame();
 
 // pause the open video if its tab is hidden (battery / decode)
 document.addEventListener("visibilitychange", ()=>{

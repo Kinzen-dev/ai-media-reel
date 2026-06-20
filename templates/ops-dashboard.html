@@ -1,0 +1,771 @@
+<!-- TEMPLATE: GenOps Console | ARCHETYPE: DASHBOARD (live generation ops console) | REF: Vercel / Observable / Linear dark data-viz | WHEN TO USE: present a media-gen reel as a real-time ops dashboard - status panels, live tickers, sparkline metrics, an expandable jobs table where each row previews its asset | SWAP: edit the JOBS array at the top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GenOps Console - media generation ops</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#080a09;
+    --bg-1:#0c0f0d;
+    --bg-2:#10140f;
+    --line:rgba(126,143,108,.16);
+    --line-2:rgba(126,143,108,.30);
+    --ink:#e9efe3;
+    --ink-dim:#8b988a;
+    --ink-faint:#5b6659;
+    --lime:#c2f53e;
+    --lime-dim:#92bd2a;
+    --amber:#ffc24b;
+    --cyan:#54d6ff;
+    --rose:#ff6b7a;
+    --r:6px;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --sans:"Inter",system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:14px;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+    background-image:
+      linear-gradient(var(--line) 1px,transparent 1px),
+      linear-gradient(90deg,var(--line) 1px,transparent 1px);
+    background-size:46px 46px;
+    background-position:-1px -1px;
+  }
+  ::selection{background:var(--lime);color:#0a0c08}
+  a{color:inherit;text-decoration:none}
+  .mono{font-family:var(--mono)}
+  .dim{color:var(--ink-dim)}
+  .faint{color:var(--ink-faint)}
+
+  .wrap{max-width:1320px;margin:0 auto;padding:0 18px 96px}
+
+  /* ---------- top bar ---------- */
+  .topbar{
+    position:sticky;top:0;z-index:40;
+    display:flex;align-items:center;gap:16px;
+    padding:13px 18px;
+    background:rgba(8,10,9,.82);
+    backdrop-filter:blur(12px) saturate(120%);
+    border-bottom:1px solid var(--line-2);
+  }
+  .topbar .inner{max-width:1320px;margin:0 auto;width:100%;display:flex;align-items:center;gap:16px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:-.02em;font-size:15px}
+  .brand .dot{
+    width:11px;height:11px;border-radius:50%;background:var(--lime);
+    box-shadow:0 0 0 3px rgba(194,245,62,.16);
+    animation:pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 3px rgba(194,245,62,.16)}50%{box-shadow:0 0 0 6px rgba(194,245,62,.04)}}
+  .brand b{color:var(--lime)}
+  .crumbs{font-family:var(--mono);font-size:12px;color:var(--ink-faint);letter-spacing:.02em}
+  .crumbs .sep{opacity:.5;margin:0 7px}
+  .crumbs .live{color:var(--lime)}
+  .topbar .spacer{flex:1}
+  .clock{font-family:var(--mono);font-size:12px;color:var(--ink-dim);letter-spacing:.04em;white-space:nowrap}
+  .clock b{color:var(--ink)}
+  .reg{
+    display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;
+    color:var(--ink-dim);border:1px solid var(--line-2);border-radius:999px;padding:5px 11px;
+  }
+  .reg .gdot{width:6px;height:6px;border-radius:50%;background:var(--lime);box-shadow:0 0 8px var(--lime)}
+
+  /* ---------- hero / headline panel ---------- */
+  .hero{padding:34px 0 22px;border-bottom:1px solid var(--line)}
+  .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--lime-dim)}
+  h1{font-size:clamp(30px,5.4vw,54px);line-height:1.02;letter-spacing:-.035em;font-weight:800;margin:14px 0 0;max-width:18ch}
+  h1 .hl{color:var(--lime)}
+  .sub{margin-top:14px;max-width:62ch;color:var(--ink-dim);font-size:15px}
+
+  /* ---------- stat strip ---------- */
+  .stats{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:26px;
+  }
+  .stat{
+    border:1px solid var(--line-2);border-radius:var(--r);background:linear-gradient(180deg,var(--bg-1),var(--bg));
+    padding:14px 15px 12px;position:relative;overflow:hidden;
+  }
+  .stat .label{font-family:var(--mono);font-size:11px;letter-spacing:.04em;color:var(--ink-faint);text-transform:uppercase;display:flex;justify-content:space-between;align-items:center}
+  .stat .val{font-family:var(--mono);font-size:27px;font-weight:700;letter-spacing:-.02em;margin-top:9px;display:flex;align-items:baseline;gap:7px}
+  .stat .val small{font-size:13px;font-weight:500;color:var(--ink-dim)}
+  .stat .delta{font-family:var(--mono);font-size:11px;font-weight:600}
+  .delta.up{color:var(--lime)}.delta.down{color:var(--rose)}.delta.flat{color:var(--ink-faint)}
+  .stat .spark{position:absolute;right:0;bottom:0;left:0;height:30px;opacity:.85}
+  .stat .barpill{position:absolute;top:0;left:0;width:3px;height:100%;background:var(--lime);opacity:.7}
+
+  /* ---------- section heads ---------- */
+  .sechead{display:flex;align-items:center;gap:12px;margin:40px 0 14px}
+  .sechead h2{font-family:var(--mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-dim);font-weight:600;white-space:nowrap}
+  .sechead .rule{flex:1;height:1px;background:var(--line-2)}
+  .sechead .tag{font-family:var(--mono);font-size:11px;color:var(--lime-dim);border:1px solid var(--line-2);border-radius:4px;padding:2px 8px}
+
+  /* ---------- console grid: ticker + gauges ---------- */
+  .console{display:grid;grid-template-columns:1.55fr 1fr;gap:14px}
+  .panel{border:1px solid var(--line-2);border-radius:var(--r);background:var(--bg-1);overflow:hidden}
+  .panel .phead{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:10px 13px;border-bottom:1px solid var(--line);
+    font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-dim);
+  }
+  .panel .phead .lhs{display:flex;align-items:center;gap:8px}
+  .panel .phead .gdot{width:7px;height:7px;border-radius:50%;background:var(--lime);box-shadow:0 0 8px var(--lime)}
+
+  /* event ticker */
+  .ticker{height:268px;overflow:hidden;position:relative;font-family:var(--mono);font-size:12.5px}
+  .ticker .feed{padding:6px 0}
+  .trow{display:grid;grid-template-columns:64px 56px 1fr auto;gap:10px;align-items:center;padding:5px 13px;border-bottom:1px solid rgba(126,143,108,.07)}
+  .trow .t{color:var(--ink-faint)}
+  .trow .lvl{font-weight:700;font-size:10px;letter-spacing:.05em;text-align:center;border-radius:3px;padding:2px 0}
+  .lvl.ok{color:var(--lime);background:rgba(194,245,62,.10)}
+  .lvl.warn{color:var(--amber);background:rgba(255,194,75,.10)}
+  .lvl.info{color:var(--cyan);background:rgba(84,214,255,.10)}
+  .lvl.err{color:var(--rose);background:rgba(255,107,122,.10)}
+  .trow .msg{color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .trow .msg b{color:var(--lime-dim);font-weight:600}
+  .trow .d{color:var(--ink-faint);text-align:right}
+  .ticker:after{content:"";position:absolute;left:0;right:0;bottom:0;height:46px;background:linear-gradient(transparent,var(--bg-1));pointer-events:none}
+
+  /* gauges */
+  .gauges{padding:14px 13px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .gauge{display:flex;flex-direction:column;align-items:center;gap:8px}
+  .gauge svg{display:block}
+  .gauge .gv{font-family:var(--mono);font-size:20px;font-weight:700;letter-spacing:-.02em}
+  .gauge .gl{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);text-align:center}
+  .gtrack{stroke:rgba(126,143,108,.18)}
+  .gfill{stroke:var(--lime);stroke-linecap:round;transition:stroke-dashoffset 1.1s cubic-bezier(.2,.8,.2,1)}
+
+  /* ---------- jobs table ---------- */
+  .jobs-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+  .seg{display:inline-flex;border:1px solid var(--line-2);border-radius:6px;overflow:hidden;background:var(--bg-1)}
+  .seg button{
+    font-family:var(--mono);font-size:11px;letter-spacing:.04em;color:var(--ink-dim);
+    background:transparent;border:0;padding:7px 12px;cursor:pointer;border-right:1px solid var(--line);transition:.15s;
+  }
+  .seg button:last-child{border-right:0}
+  .seg button:hover{color:var(--ink)}
+  .seg button[aria-pressed="true"]{background:var(--lime);color:#0a0c08;font-weight:700}
+  .jobs-tools .count{font-family:var(--mono);font-size:11px;color:var(--ink-faint);margin-left:auto}
+
+  .table{border:1px solid var(--line-2);border-radius:var(--r);overflow:hidden;background:var(--bg-1)}
+  .thead,.jrow{
+    display:grid;
+    grid-template-columns:34px 1.9fr 1fr .82fr .8fr .92fr 96px;
+    align-items:center;gap:10px;
+  }
+  .thead{
+    padding:10px 14px;border-bottom:1px solid var(--line-2);
+    font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint);
+    position:sticky;top:54px;background:var(--bg-2);z-index:20;
+  }
+  .thead .num,.jrow .num{text-align:right}
+  .jrow{
+    padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer;
+    transition:background .14s;font-family:var(--mono);font-size:12.5px;
+  }
+  .jrow:last-of-type{border-bottom:0}
+  .jrow:hover{background:var(--bg-2)}
+  .jrow.open{background:var(--bg-2)}
+  .jrow .car{color:var(--ink-faint);transition:transform .2s;font-size:11px;display:inline-block}
+  .jrow.open .car{transform:rotate(90deg);color:var(--lime)}
+  .jrow .asset{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .jrow .asset .nm{color:var(--ink);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--sans);font-size:13px;letter-spacing:-.01em}
+  .jrow .asset .id{font-size:10.5px;color:var(--ink-faint)}
+  .jrow .model{color:var(--ink-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .jrow .lat{color:var(--ink);text-align:right}
+  .jrow .cost{color:var(--ink);text-align:right}
+  .jrow .kind{font-size:10px;letter-spacing:.04em;color:var(--ink-faint);text-transform:uppercase}
+  .badge{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;letter-spacing:.03em;border-radius:4px;padding:3px 9px;justify-self:start;text-transform:uppercase}
+  .badge .b-dot{width:6px;height:6px;border-radius:50%}
+  .b-ok{color:var(--lime);background:rgba(194,245,62,.10)} .b-ok .b-dot{background:var(--lime)}
+  .b-run{color:var(--cyan);background:rgba(84,214,255,.10)} .b-run .b-dot{background:var(--cyan);animation:blink 1s steps(2) infinite}
+  .b-queue{color:var(--amber);background:rgba(255,194,75,.10)} .b-queue .b-dot{background:var(--amber)}
+  .b-fail{color:var(--rose);background:rgba(255,107,122,.10)} .b-fail .b-dot{background:var(--rose)}
+  @keyframes blink{50%{opacity:.25}}
+
+  /* mini latency sparkline cell */
+  .jrow .latcell{display:flex;align-items:center;justify-content:flex-end;gap:7px}
+  .jrow .latcell svg{opacity:.7}
+
+  /* expanded drawer */
+  .drawer{grid-column:1/-1;display:none;border-top:1px dashed var(--line-2);padding:0}
+  .jrow.open + .drawer{display:block}
+  .draw-in{display:grid;grid-template-columns:minmax(0,460px) 1fr;gap:20px;padding:18px 14px 22px;background:var(--bg-2)}
+  .preview{
+    border:1px solid var(--line-2);border-radius:var(--r);overflow:hidden;background:#000;
+    position:relative;aspect-ratio:16/10;
+  }
+  .preview img,.preview video{width:100%;height:100%;object-fit:cover;display:block}
+  .preview.audio{aspect-ratio:16/6;background:linear-gradient(180deg,var(--bg-1),#000);display:flex;align-items:center;justify-content:center;padding:14px}
+  .preview.audio img{object-fit:contain;filter:brightness(0) saturate(100%) invert(82%) sepia(54%) saturate(560%) hue-rotate(35deg) brightness(101%) contrast(94%)}
+  .preview .pbadge{position:absolute;top:9px;left:9px;font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--lime);background:rgba(8,10,9,.7);border:1px solid var(--line-2);border-radius:4px;padding:3px 8px;backdrop-filter:blur(4px)}
+  .preview .playbtn{position:absolute;inset:0;margin:auto;width:54px;height:54px;border-radius:50%;border:1.5px solid rgba(233,239,227,.5);background:rgba(8,10,9,.45);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(3px);transition:.2s}
+  .preview .playbtn:hover{border-color:var(--lime);color:var(--lime);transform:scale(1.06)}
+  .preview.playing .playbtn{display:none}
+
+  .meta{display:flex;flex-direction:column;gap:14px;min-width:0}
+  .meta .mtitle{font-family:var(--sans);font-size:16px;font-weight:700;letter-spacing:-.01em}
+  .meta .prompt{font-family:var(--mono);font-size:12px;color:var(--ink-dim);line-height:1.6;border-left:2px solid var(--line-2);padding-left:11px}
+  .mgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+  .mcell{background:var(--bg-1);padding:9px 11px}
+  .mcell .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint)}
+  .mcell .v{font-family:var(--mono);font-size:13px;color:var(--ink);margin-top:3px}
+  .mcell .v.lime{color:var(--lime)}
+  .pipe{display:flex;flex-wrap:wrap;gap:6px}
+  .pipe .step{font-family:var(--mono);font-size:10.5px;color:var(--ink-dim);border:1px solid var(--line-2);border-radius:4px;padding:3px 8px;position:relative}
+  .pipe .step.done{color:var(--lime-dim);border-color:rgba(194,245,62,.3)}
+  .pipe .step:after{content:"->";color:var(--ink-faint);margin-left:6px;margin-right:-2px}
+  .pipe .step:last-child:after{content:""}
+
+  /* footer */
+  footer{margin-top:54px;padding-top:20px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between}
+  footer .mono{font-size:11px;color:var(--ink-faint);letter-spacing:.04em}
+  footer .lime{color:var(--lime-dim)}
+
+  .scanline{position:fixed;left:0;right:0;top:0;height:100vh;pointer-events:none;z-index:1;background:repeating-linear-gradient(transparent 0 3px,rgba(0,0,0,.16) 3px 4px);mix-blend-mode:multiply;opacity:.5}
+
+  /* ---------- responsive ---------- */
+  @media (max-width:980px){
+    .stats{grid-template-columns:repeat(2,1fr)}
+    .console{grid-template-columns:1fr}
+    .draw-in{grid-template-columns:1fr}
+    .preview{aspect-ratio:16/9}
+  }
+  @media (max-width:640px){
+    body{background-size:34px 34px;font-size:13px}
+    .wrap{padding:0 13px 70px}
+    .topbar{padding:11px 13px}
+    .crumbs,.reg{display:none}
+    .stats{grid-template-columns:1fr 1fr;gap:10px}
+    .stat .val{font-size:22px}
+    /* collapse the table to a stacked card list - never crush 7 cols on a phone */
+    .thead{display:none}
+    .table{background:transparent;border:0}
+    .jrow{
+      grid-template-columns:1fr auto;grid-auto-rows:auto;gap:6px 10px;
+      border:1px solid var(--line-2);border-radius:var(--r);background:var(--bg-1);
+      margin-bottom:10px;padding:13px 14px;
+    }
+    .jrow .car{grid-row:1;grid-column:2;justify-self:end}
+    .jrow .asset{grid-row:1;grid-column:1}
+    .jrow .model{grid-row:2;grid-column:1/-1;font-size:11px}
+    .jrow .badge{grid-row:3;grid-column:1}
+    .jrow .kind{display:none}
+    .jrow .latcell{grid-row:3;grid-column:2;justify-content:flex-end}
+    .jrow .cost{grid-row:4;grid-column:2;justify-self:end;font-size:11px}
+    .jrow .cost:before{content:"$ cost  ";color:var(--ink-faint)}
+    .jrow.open + .drawer{margin-top:-6px;margin-bottom:10px;border:1px solid var(--line-2);border-radius:var(--r)}
+    .draw-in{padding:14px}
+    .mgrid{grid-template-columns:1fr 1fr}
+    .scanline{display:none}
+  }
+
+  /* ---------- reduced motion ---------- */
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+    .scanline{display:none}
+    .gfill{transition:none}
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="inner">
+    <div class="brand"><span class="dot"></span>GenOps<b>.</b>Console</div>
+    <div class="crumbs mono">cluster<span class="sep">/</span>media-gen<span class="sep">/</span><span class="live">live</span></div>
+    <div class="spacer"></div>
+    <div class="reg"><span class="gdot"></span>region ap-southeast-1</div>
+    <div class="clock mono" id="clock">--:--:-- UTC</div>
+  </div>
+</header>
+
+<div class="scanline" aria-hidden="true"></div>
+
+<main class="wrap">
+
+  <section class="hero">
+    <div class="kicker mono">generation pipeline / observability</div>
+    <h1>Every asset is a <span class="hl">job</span>. Every job leaves a trace.</h1>
+    <p class="sub">A real-time control surface for a multi-model media-generation fleet. Watch latency, cost, and throughput across image, video, audio, and 3D backends - then expand any row to inspect the artifact it produced.</p>
+
+    <div class="stats" id="stats"></div>
+  </section>
+
+  <div class="sechead">
+    <h2>Live Pipeline</h2><span class="tag mono">streaming</span><div class="rule"></div>
+  </div>
+
+  <div class="console">
+    <div class="panel">
+      <div class="phead"><span class="lhs"><span class="gdot"></span>event stream</span><span id="evtps">0 evt/s</span></div>
+      <div class="ticker"><div class="feed mono" id="feed"></div></div>
+    </div>
+    <div class="panel">
+      <div class="phead"><span class="lhs"><span class="gdot"></span>fleet health</span><span>last 60s</span></div>
+      <div class="gauges" id="gauges"></div>
+    </div>
+  </div>
+
+  <div class="sechead">
+    <h2>Jobs</h2><span class="tag mono" id="jcount">0 rows</span><div class="rule"></div>
+  </div>
+
+  <div class="jobs-tools">
+    <div class="seg" role="group" aria-label="filter jobs" id="filters">
+      <button data-f="all" aria-pressed="true">all</button>
+      <button data-f="image" aria-pressed="false">image</button>
+      <button data-f="video" aria-pressed="false">video</button>
+      <button data-f="audio" aria-pressed="false">audio</button>
+      <button data-f="3d" aria-pressed="false">3d</button>
+    </div>
+    <span class="count mono" id="visiblecount"></span>
+  </div>
+
+  <div class="table" id="table">
+    <div class="thead">
+      <span></span>
+      <span>asset</span>
+      <span>model</span>
+      <span class="num">latency</span>
+      <span class="num">cost</span>
+      <span>status</span>
+      <span>kind</span>
+    </div>
+    <div id="rows"></div>
+  </div>
+
+  <footer>
+    <span class="mono">GenOps Console <span class="lime">v1.4.0</span> - synthetic telemetry over a fixed asset reel</span>
+    <span class="mono">7 backends - <span class="lime">99.2% uptime</span> - 0 incidents (24h)</span>
+  </footer>
+
+</main>
+
+<script>
+/* ============================================================
+   DATA - swap these rows to reskin the dashboard.
+   poster/src paths are relative to /showcase/templates/<this file>.
+   kind drives preview type: image | video | audio | 3d
+   ============================================================ */
+const JOBS = [
+  {
+    id:"job_8f2a1c", name:"Nocturne CLS on wet asphalt", kind:"image",
+    model:"flux-1.1-pro", backend:"replicate", status:"ok",
+    latency:4.2, cost:0.0412, res:"3840x2160", steps:28, seed:"771204",
+    prompt:"cinematic matte-black Mercedes CLS on a rain-slicked neon street, shallow depth of field, volumetric haze, 35mm",
+    pipeline:["prompt","t5-encode","28 steps","upscale 4k"],
+    src:"../assets/flux-car-4k.png", spark:[3,5,4,6,5,7,6,4,5,6,5,4]
+  },
+  {
+    id:"job_b71e09", name:"Car drive-by, image-to-video", kind:"video",
+    model:"flux i2v / kling-motion", backend:"fal.ai", status:"ok",
+    latency:38.6, cost:0.214, res:"1280x720", steps:0, seed:"i2v:8f2a1c",
+    prompt:"animate the matte-black CLS rolling forward through neon reflections, subtle camera push-in, 6s loop",
+    pipeline:["still 4k","i2v condition","render 6s","encode h264"],
+    src:"../assets/flux-car-i2v.mp4", poster:"../assets/gen/poster-flux-car-i2v.png", spark:[20,28,33,30,41,38,44,39,36,40,38,39]
+  },
+  {
+    id:"job_3dd44a", name:"Mint and oak dental suite", kind:"image",
+    model:"flux-1.1-pro", backend:"replicate", status:"ok",
+    latency:3.9, cost:0.0398, res:"3840x2160", steps:28, seed:"402119",
+    prompt:"warm minimalist dental clinic interior, mint walls, oak cabinetry, soft daylight, architectural photography",
+    pipeline:["prompt","t5-encode","28 steps","upscale 4k"],
+    src:"../assets/flux-clinic-4k.png", spark:[4,3,5,4,5,4,3,4,5,4,4,3]
+  },
+  {
+    id:"job_kl9920", name:"Kling cinematic motion test", kind:"video",
+    model:"kling-v1.6", backend:"kling", status:"ok",
+    latency:52.1, cost:0.382, res:"1280x720", steps:0, seed:"902-kl",
+    prompt:"establishing dolly shot, photoreal motion, atmospheric particles, cinematic grade, 10s",
+    pipeline:["prompt","keyframe","diffusion 10s","temporal upscale"],
+    src:"../assets/kling-video.mp4", poster:"../assets/gen/poster-kling-video.png", spark:[30,42,48,55,51,49,58,52,50,53,51,52]
+  },
+  {
+    id:"job_veo771", name:"Veo establishing sequence", kind:"video",
+    model:"veo-2", backend:"google", status:"run",
+    latency:61.4, cost:0.510, res:"1280x720", steps:0, seed:"veo-c44",
+    prompt:"sweeping aerial of a coastal city at dusk, golden hour, realistic camera dynamics, 8s with audio",
+    pipeline:["prompt","plan","render 8s","audio mux"],
+    src:"../assets/veo-video.mp4", poster:"../assets/gen/poster-veo-video.png", spark:[40,55,58,62,60,63,59,61,64,60,62,61]
+  },
+  {
+    id:"job_av5521", name:"HeyGen presenter avatar", kind:"video",
+    model:"heygen-avatar-2", backend:"heygen", status:"ok",
+    latency:24.0, cost:0.180, res:"1080x1080", steps:0, seed:"av-5521",
+    prompt:"talking-head brand presenter, lip-synced script, neutral studio background, broadcast quality",
+    pipeline:["script","tts","lip-sync","render"],
+    src:"../assets/heygen-avatar.mp4", poster:"../assets/gen/poster-heygen.png", spark:[18,22,25,24,23,26,24,22,25,24,23,24]
+  },
+  {
+    id:"job_did308", name:"D-ID talking photo", kind:"video",
+    model:"d-id-express", backend:"d-id", status:"ok",
+    latency:14.7, cost:0.092, res:"512x512", steps:0, seed:"did-308",
+    prompt:"animate a single portrait into a talking photo with synced narration, subtle head motion",
+    pipeline:["photo","audio","drive","render"],
+    src:"../assets/did-talking-photo.mp4", poster:"../assets/gen/poster-did.png", spark:[10,14,16,15,14,15,13,14,16,15,14,15]
+  },
+  {
+    id:"job_fal044", name:"Fal turbo motion loop", kind:"video",
+    model:"fal-fast-svd", backend:"fal.ai", status:"ok",
+    latency:9.3, cost:0.061, res:"1024x576", steps:0, seed:"fal-044",
+    prompt:"short seamless motion loop from a single frame, turbo pipeline, low-latency preview",
+    pipeline:["frame","svd","loop","encode"],
+    src:"../assets/fal-video.mp4", poster:"../assets/gen/poster-fal-video.png", spark:[6,9,11,10,9,8,10,9,11,9,8,9]
+  },
+  {
+    id:"job_hyp712", name:"Hyperframes interpolation", kind:"video",
+    model:"hyperframes-rife", backend:"local", status:"ok",
+    latency:6.8, cost:0.018, res:"1280x720", steps:0, seed:"hyp-712",
+    prompt:"frame-interpolate a sparse render to 60fps, motion-aware blending, no ghosting",
+    pipeline:["frames","optical-flow","interpolate","mux"],
+    src:"../assets/hyperframes.mp4", poster:"../assets/gen/poster-hyperframes.png", spark:[5,7,6,8,7,6,7,8,6,7,6,7]
+  },
+  {
+    id:"job_sx2207", name:"Autumn fox, painterly", kind:"image",
+    model:"sdxl-1.0", backend:"local-gpu", status:"ok",
+    latency:7.1, cost:0.011, res:"1024x1024", steps:40, seed:"sx-2207",
+    prompt:"a fox curled in golden autumn leaves, painterly brushwork, warm rim light, storybook illustration",
+    pipeline:["prompt","clip","40 steps","vae decode"],
+    src:"../assets/sdxl.png", spark:[6,8,7,9,7,6,8,7,6,7,8,7]
+  },
+  {
+    id:"job_ts0099", name:"Tiny-SD lo-fi apple", kind:"image",
+    model:"tiny-sd", backend:"edge", status:"queue",
+    latency:1.4, cost:0.0009, res:"512x512", steps:20, seed:"ts-0099",
+    prompt:"abstract low-fidelity red apple, flat shapes, edge-device draft pass for thumbnail preview",
+    pipeline:["prompt","20 steps","decode"],
+    src:"../assets/hf-tinysd.png", spark:[1,2,1,2,1,1,2,1,2,1,1,2]
+  },
+  {
+    id:"job_el5512", name:"ElevenLabs Thai voiceover", kind:"audio",
+    model:"eleven-multilingual-v2", backend:"elevenlabs", status:"ok",
+    latency:2.3, cost:0.030, res:"44.1kHz", steps:0, seed:"tts-th",
+    prompt:"natural Thai female voiceover for a 20s product spot, warm and confident delivery",
+    pipeline:["text","g2p","synth","normalize"],
+    src:"../assets/elevenlabs-thai.mp3", wave:"../assets/gen/wave-elevenlabs.png", spark:[2,3,2,3,2,2,3,2,3,2,2,3]
+  },
+  {
+    id:"job_mg7741", name:"MusicGen ambient bed", kind:"audio",
+    model:"musicgen-large", backend:"meta", status:"ok",
+    latency:11.2, cost:0.040, res:"32kHz", steps:0, seed:"mg-7741",
+    prompt:"warm ambient background track, soft pads, slow evolving texture, 30s loopable bed",
+    pipeline:["prompt","encodec","generate","decode"],
+    src:"../assets/musicgen.wav", wave:"../assets/gen/wave-musicgen.png", spark:[8,11,10,12,11,9,12,11,10,11,12,11]
+  },
+  {
+    id:"job_pi3340", name:"Piper local TTS draft", kind:"audio",
+    model:"piper-th", backend:"edge", status:"fail",
+    latency:0.9, cost:0.0002, res:"22kHz", steps:0, seed:"pi-3340",
+    prompt:"fast on-device draft narration for preview, expected to be replaced by cloud TTS in final",
+    pipeline:["text","phonemize","synth"],
+    src:"../assets/piper.wav", wave:"../assets/gen/wave-piper.png", spark:[1,1,2,1,1,1,2,1,1,1,1,1], err:"backend 503 - edge node evicted, retry scheduled"
+  },
+  {
+    id:"job_3d8821", name:"Meshy refined 3D mesh", kind:"3d",
+    model:"meshy-4-refine", backend:"meshy", status:"ok",
+    latency:46.5, cost:0.260, res:"glb / 24k tris", steps:0, seed:"3d-8821",
+    prompt:"text-to-3D asset, refined topology and PBR textures, game-ready glb export",
+    pipeline:["prompt","coarse mesh","refine","pbr bake"],
+    src:"../assets/meshy-refined.glb", poster:"../assets/meshy-refined-thumb.png", spark:[30,40,44,48,46,45,47,46,44,46,45,46]
+  }
+];
+
+const STATS = [
+  {label:"jobs / hour", val:"1,284", unit:"", delta:"+12.4%", dir:"up", spark:[40,52,48,61,58,70,66,74,72,80,84,91]},
+  {label:"p50 latency", val:"7.1", unit:"s", delta:"-0.8s", dir:"up", spark:[12,11,10,9,9,8,8,7,7,7,7,6]},
+  {label:"spend / 24h", val:"$214", unit:".07", delta:"+4.1%", dir:"down", spark:[20,24,22,28,30,27,33,31,35,34,38,40]},
+  {label:"success rate", val:"99.2", unit:"%", delta:"stable", dir:"flat", spark:[97,98,99,99,99,98,99,99,99,99,99,99]}
+];
+
+/* ---------- helpers ---------- */
+const $ = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>[...r.querySelectorAll(s)];
+const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const STATUS = {
+  ok:{cls:"b-ok",txt:"done"}, run:{cls:"b-run",txt:"running"},
+  queue:{cls:"b-queue",txt:"queued"}, fail:{cls:"b-fail",txt:"failed"}
+};
+const KIND_LABEL = {image:"image",video:"video",audio:"audio","3d":"mesh"};
+
+function sparkPath(vals,w,h,pad=1){
+  const mn=Math.min(...vals),mx=Math.max(...vals),sp=(mx-mn)||1;
+  const step=(w-pad*2)/(vals.length-1);
+  return vals.map((v,i)=>{
+    const x=pad+i*step, y=h-pad-((v-mn)/sp)*(h-pad*2);
+    return (i?'L':'M')+x.toFixed(1)+' '+y.toFixed(1);
+  }).join(' ');
+}
+function spark(vals,w,h,color,fill){
+  const d=sparkPath(vals,w,h);
+  const last=vals[vals.length-1],mn=Math.min(...vals),mx=Math.max(...vals),sp=(mx-mn)||1;
+  const lx=w-1,ly=h-1-((last-mn)/sp)*(h-2);
+  const area=fill? `<path d="${d} L ${w-1} ${h} L 1 ${h} Z" fill="${color}" opacity=".10"/>`:'';
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+    ${area}<path d="${d}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linejoin="round"/>
+    <circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="2" fill="${color}"/></svg>`;
+}
+
+/* ---------- stat strip ---------- */
+function renderStats(){
+  $('#stats').innerHTML = STATS.map(s=>`
+    <div class="stat">
+      <span class="barpill"></span>
+      <div class="label">${s.label}<span class="delta ${s.dir}">${s.delta}</span></div>
+      <div class="val">${s.val}<small>${s.unit}</small></div>
+      <div class="spark">${spark(s.spark,200,30,'#c2f53e',true)}</div>
+    </div>`).join('');
+}
+
+/* ---------- gauges (fleet health) ---------- */
+const GAUGES=[
+  {l:"gpu util",v:73},{l:"queue depth",v:41},{l:"cache hit",v:88},{l:"err budget",v:96}
+];
+function renderGauges(){
+  const R=30,C=2*Math.PI*R;
+  $('#gauges').innerHTML = GAUGES.map(g=>{
+    const off=C*(1-g.v/100);
+    return `<div class="gauge">
+      <svg width="78" height="78" viewBox="0 0 78 78">
+        <circle class="gtrack" cx="39" cy="39" r="${R}" fill="none" stroke-width="6"/>
+        <circle class="gfill" cx="39" cy="39" r="${R}" fill="none" stroke-width="6"
+          stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${reduced?off.toFixed(1):C.toFixed(1)}"
+          transform="rotate(-90 39 39)" data-off="${off.toFixed(1)}"/>
+        <text x="39" y="43" text-anchor="middle" fill="#e9efe3" font-family="JetBrains Mono" font-size="15" font-weight="700">${g.v}</text>
+      </svg>
+      <div class="gl">${g.l}</div>
+    </div>`;
+  }).join('');
+  if(!reduced){
+    requestAnimationFrame(()=>setTimeout(()=>{
+      $$('.gfill').forEach(c=>c.style.strokeDashoffset=c.dataset.off);
+    },120));
+  }
+}
+
+/* ---------- jobs table ---------- */
+function row(j,i){
+  const st=STATUS[j.status];
+  const lat = j.latency<10? j.latency.toFixed(1)+'s' : Math.round(j.latency)+'s';
+  const cost = '$'+j.cost.toFixed(j.cost<0.01?4:3);
+  const mediaTag = (j.kind==='video'?'mp4':j.kind==='3d'?'glb':j.kind==='audio'?j.src.split('.').pop():'4k png');
+  return `
+  <div class="jrow" data-i="${i}" data-kind="${j.kind}" tabindex="0" role="button" aria-expanded="false" aria-controls="dr-${i}">
+    <span class="num"><span class="car">&#9656;</span></span>
+    <span class="asset"><span class="nm">${j.name}</span><span class="id">${j.id} - ${j.res} - ${mediaTag}</span></span>
+    <span class="model">${j.model}<span class="dim"> @ ${j.backend}</span></span>
+    <span class="latcell">${spark(j.spark,40,16,'#54d6ff',false)}<span class="lat">${lat}</span></span>
+    <span class="cost num">${cost}</span>
+    <span class="badge ${st.cls}"><span class="b-dot"></span>${st.txt}</span>
+    <span class="kind">${KIND_LABEL[j.kind]}</span>
+  </div>
+  <div class="drawer" id="dr-${i}">${drawer(j,i)}</div>`;
+}
+
+function previewBlock(j,i){
+  if(j.kind==='video'){
+    return `<div class="preview" data-vid="${i}">
+        <span class="pbadge">${j.model}</span>
+        <img class="poster" src="${j.poster}" alt="${j.name} preview" loading="lazy" decoding="async">
+        <button class="playbtn" aria-label="play preview">&#9654;</button>
+      </div>`;
+  }
+  if(j.kind==='audio'){
+    return `<div class="preview audio">
+        <span class="pbadge">${j.model}</span>
+        <img src="${j.wave}" alt="${j.name} waveform" loading="lazy" decoding="async">
+      </div>
+      <audio controls preload="none" src="${j.src}" style="width:100%;margin-top:-6px"></audio>`;
+  }
+  if(j.kind==='3d'){
+    return `<div class="preview">
+        <span class="pbadge">${j.model} - glb</span>
+        <img src="${j.poster}" alt="${j.name} render" loading="lazy" decoding="async">
+      </div>`;
+  }
+  // image
+  return `<div class="preview">
+      <span class="pbadge">${j.model}</span>
+      <img src="${j.src}" alt="${j.name}" loading="lazy" decoding="async">
+    </div>`;
+}
+
+function drawer(j,i){
+  const st=STATUS[j.status];
+  const lat=(j.latency<10?j.latency.toFixed(1):j.latency.toFixed(0))+' s';
+  const cost='$'+j.cost.toFixed(4);
+  const pipe=j.pipeline.map(p=>`<span class="step done">${p}</span>`).join('');
+  const errRow = j.err? `<div class="mcell" style="grid-column:1/-1"><div class="k" style="color:var(--rose)">error</div><div class="v" style="color:var(--rose)">${j.err}</div></div>`:'';
+  return `<div class="draw-in" id="ind-${i}">
+    <div>${previewBlock(j,i)}</div>
+    <div class="meta">
+      <div class="mtitle">${j.name}</div>
+      <div class="prompt">"${j.prompt}"</div>
+      <div class="mgrid">
+        <div class="mcell"><div class="k">job id</div><div class="v">${j.id}</div></div>
+        <div class="mcell"><div class="k">status</div><div class="v lime">${st.txt}</div></div>
+        <div class="mcell"><div class="k">model</div><div class="v">${j.model}</div></div>
+        <div class="mcell"><div class="k">backend</div><div class="v">${j.backend}</div></div>
+        <div class="mcell"><div class="k">latency</div><div class="v">${lat}</div></div>
+        <div class="mcell"><div class="k">cost</div><div class="v">${cost}</div></div>
+        <div class="mcell"><div class="k">output</div><div class="v">${j.res}</div></div>
+        <div class="mcell"><div class="k">seed</div><div class="v">${j.seed}</div></div>
+        ${errRow}
+      </div>
+      <div>
+        <div class="k mono" style="font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:7px">pipeline</div>
+        <div class="pipe">${pipe}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+let CURRENT_FILTER='all';
+function renderRows(){
+  const list = JOBS.map((j,i)=>({j,i})).filter(o=>CURRENT_FILTER==='all'||o.j.kind===CURRENT_FILTER);
+  $('#rows').innerHTML = list.map(o=>row(o.j,o.i)).join('');
+  $('#jcount').textContent = JOBS.length+' rows';
+  $('#visiblecount').textContent = list.length+' / '+JOBS.length+' shown';
+  wireRows();
+}
+
+/* ---------- in-view video playback (only the focused/locked one plays) ---------- */
+let activeVideo=null;
+function ensureVideo(box,i){
+  if(box.querySelector('video')) return box.querySelector('video');
+  const j=JOBS[i];
+  const v=document.createElement('video');
+  v.src=j.src; v.poster=j.poster; v.loop=true; v.playsInline=true; v.preload='none';
+  v.muted = !['heygen','google','d-id'].includes(j.backend); // some have audio; default-mute unless user-driven
+  v.setAttribute('controls','');
+  v.style.cssText='width:100%;height:100%;object-fit:cover;display:block';
+  box.appendChild(v);
+  return v;
+}
+
+function wireRows(){
+  $$('.jrow').forEach(r=>{
+    const toggle=()=>{
+      const open=r.classList.toggle('open');
+      r.setAttribute('aria-expanded', open?'true':'false');
+      if(!open){ stopRowVideo(r); }
+    };
+    r.addEventListener('click',toggle);
+    r.addEventListener('keydown',e=>{
+      if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggle(); }
+    });
+  });
+  // play buttons inside drawers (lazy-create the <video>, pause any other playing one)
+  $$('.preview[data-vid]').forEach(box=>{
+    const btn=box.querySelector('.playbtn');
+    if(!btn) return;
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      const i=+box.dataset.vid;
+      if(activeVideo){ activeVideo.pause(); activeVideo.closest('.preview')?.classList.remove('playing'); }
+      const v=ensureVideo(box,i);
+      box.classList.add('playing');
+      v.play().catch(()=>{});
+      activeVideo=v;
+      v.onpause=()=>{ if(activeVideo===v){ box.classList.remove('playing'); } };
+    });
+  });
+}
+function stopRowVideo(r){
+  const v=r.nextElementSibling?.querySelector('video');
+  if(v){ v.pause(); v.closest('.preview')?.classList.remove('playing'); if(activeVideo===v) activeVideo=null; }
+}
+
+// pause any playing video when it scrolls fully out of view (perf)
+const io = ('IntersectionObserver' in window) ? new IntersectionObserver(es=>{
+  es.forEach(en=>{ if(!en.isIntersecting && !en.target.paused){ en.target.pause(); en.target.closest('.preview')?.classList.remove('playing'); } });
+},{threshold:0}) : null;
+const origEnsure = ensureVideo;
+// wrap to observe newly created videos
+function observeVideo(v){ if(io) io.observe(v); }
+// patch ensureVideo to observe
+(function(){
+  const f=ensureVideo;
+  ensureVideo=function(box,i){ const existed=box.querySelector('video'); const v=f(box,i); if(!existed) observeVideo(v); return v; };
+})();
+
+/* ---------- filters ---------- */
+$('#filters').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  $$('#filters button').forEach(x=>x.setAttribute('aria-pressed', x===b?'true':'false'));
+  CURRENT_FILTER=b.dataset.f;
+  renderRows();
+});
+
+/* ---------- clock ---------- */
+function tick(){
+  const d=new Date();
+  const p=n=>String(n).padStart(2,'0');
+  $('#clock').innerHTML = `<b>${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}</b> UTC`;
+}
+tick();
+if(!reduced) setInterval(tick,1000);
+
+/* ---------- synthetic event ticker ---------- */
+const VERBS=[
+  ['ok','accepted','submitted to'],['ok','completed','rendered on'],
+  ['info','scheduled','queued for'],['ok','cached hit on'],
+  ['warn','retry 1/3','backend slow on'],['info','autoscaled','+2 workers on'],
+  ['ok','uploaded artifact','to cdn from'],['err','dropped frame','recovered on']
+];
+const FEED=$('#feed');
+const MAXFEED=14;
+function pushEvent(){
+  const j=JOBS[Math.floor(Math.random()*JOBS.length)];
+  const v=VERBS[Math.floor(Math.random()*VERBS.length)];
+  const d=new Date();
+  const t=String(d.getUTCMinutes()).padStart(2,'0')+':'+String(d.getUTCSeconds()).padStart(2,'0');
+  const ms=(j.latency*1000*(0.6+Math.random()*0.8))|0;
+  const el=document.createElement('div');
+  el.className='trow';
+  el.innerHTML=`<span class="t">${t}</span><span class="lvl ${v[0]}">${v[0].toUpperCase()}</span>
+    <span class="msg"><b>${j.backend}</b> ${v[1]} ${v[2]?v[2]+' '+j.model:''} <span class="dim">${j.id}</span></span>
+    <span class="d">${ms}ms</span>`;
+  FEED.prepend(el);
+  while(FEED.children.length>MAXFEED) FEED.lastChild.remove();
+}
+function seedFeed(){ for(let i=0;i<MAXFEED;i++) pushEvent(); }
+
+/* ---------- boot ---------- */
+renderStats();
+renderGauges();
+renderRows();
+seedFeed();
+
+if(!reduced){
+  let evt=0,win=[];
+  setInterval(()=>{
+    const burst=1+Math.floor(Math.random()*2);
+    for(let k=0;k<burst;k++) pushEvent();
+    evt+=burst;
+  },1400);
+  setInterval(()=>{
+    const eps=(2.1+Math.random()*1.6).toFixed(1);
+    $('#evtps').textContent=eps+' evt/s';
+    // gentle gauge wander
+    $$('.gfill').forEach((c,idx)=>{
+      const base=GAUGES[idx].v, jit=Math.max(2,Math.min(99,base+(Math.random()*8-4)));
+      const C=2*Math.PI*30, off=C*(1-jit/100);
+      c.style.strokeDashoffset=off.toFixed(1);
+      const txt=c.parentNode.querySelector('text'); if(txt) txt.textContent=Math.round(jit);
+    });
+  },2200);
+}
+</script>
+</body>
+</html>

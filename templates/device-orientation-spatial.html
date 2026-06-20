@@ -1,0 +1,695 @@
+<!-- TEMPLATE: Gyro Gallery | ARCHETYPE: device-orientation-spatial | REF: DeviceOrientationEvent API (MDN), immersive tilt-to-pan spatial portfolio (Godly mobile-first 2026) | WHEN TO USE: mobile-first spatial portfolio where tilting the phone (cursor on desktop) pans a virtual camera across a hemisphere of works and a center reticle auto-locks the held card | SWAP: edit the WORKS array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Gyro Gallery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   GYRO GALLERY  -  device-orientation-spatial
+   Up to 9 works at fixed angular positions on a virtual
+   hemisphere. The phone gyroscope (cursor on desktop) pans a
+   virtual camera; an orthographic projection maps each work's
+   spherical coordinate to a 2D screen offset. A center vermilion
+   reticle auto-locks whatever work is held under it for ~1s.
+   Native CSS/JS. No libs. No WebGL.
+   ============================================================ */
+:root{
+  --abyss:#08080c;       /* background void                 */
+  --bone:#f2ede4;        /* card face / text                */
+  --vermilion:#c94a2e;   /* active reticle / lock accent    */
+  --amber:#e8c547;       /* horizon ring                    */
+  --bone-dim:rgba(242,237,228,.55);
+  --bone-faint:rgba(242,237,228,.16);
+  --card-w:clamp(150px,40vw,300px);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--abyss);
+  color:var(--bone);
+  font-family:"Space Grotesk",system-ui,sans-serif;
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+  position:fixed;inset:0;
+  touch-action:none;
+}
+
+/* radial void glow gives the hemisphere a sense of depth */
+.void-glow{
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(120% 90% at 50% 64%, rgba(201,74,46,.10), transparent 52%),
+    radial-gradient(80% 60% at 50% 30%, rgba(232,197,71,.06), transparent 60%),
+    radial-gradient(140% 120% at 50% 110%, #0c0c12, #050507 70%);
+}
+
+/* ---------- TOP BAND : compact, never a full-screen hero ---------- */
+.topband{
+  position:fixed;top:0;left:0;right:0;z-index:30;
+  padding:18px clamp(18px,4vw,46px) 14px;
+  display:flex;justify-content:space-between;align-items:flex-start;
+  gap:18px;pointer-events:none;
+  background:linear-gradient(180deg,rgba(8,8,12,.82) 0%,rgba(8,8,12,0) 100%);
+}
+.brand{pointer-events:auto}
+.brand .kicker{
+  font-size:11px;letter-spacing:.32em;text-transform:uppercase;
+  color:var(--amber);margin-bottom:6px;
+}
+.brand h1{
+  font-family:"Fraunces",serif;font-weight:600;
+  font-size:clamp(26px,5.4vw,46px);line-height:.94;letter-spacing:-.01em;
+}
+.brand h1 em{font-style:italic;color:var(--vermilion)}
+.brand p{
+  margin-top:7px;font-size:12.5px;max-width:30ch;color:var(--bone-dim);line-height:1.45;
+}
+.meta{
+  text-align:right;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--bone-dim);line-height:1.7;pointer-events:auto;
+}
+.meta b{color:var(--bone);font-weight:500}
+
+/* ---------- HEMISPHERE STAGE ---------- */
+.stage{
+  position:fixed;inset:0;z-index:10;
+  perspective:1100px;
+  overflow:hidden;
+}
+.dome{
+  position:absolute;inset:0;
+  transform-style:preserve-3d;
+}
+
+/* amber horizon ring : an elliptical band marking the hemisphere base */
+.horizon{
+  position:absolute;left:50%;top:50%;z-index:9;
+  width:148vmin;height:148vmin;margin:-74vmin 0 0 -74vmin;
+  border-radius:50%;pointer-events:none;
+  transition:transform .12s linear;
+  background:
+    radial-gradient(closest-side, transparent 67%,
+      rgba(232,197,71,.14) 70%, rgba(232,197,71,.42) 72.4%,
+      rgba(232,197,71,.10) 74%, transparent 78%);
+  transform:translateZ(-1px) rotateX(74deg) scale(1,.56);
+  filter:drop-shadow(0 0 18px rgba(232,197,71,.10));
+}
+.horizon::after{
+  content:"";position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(closest-side,transparent 68%,
+    rgba(232,197,71,.5) 71%,transparent 72.6%);
+  opacity:.5;mix-blend-mode:screen;
+}
+
+/* a work card : positioned by JS transform each frame */
+.work{
+  position:absolute;left:50%;top:50%;z-index:11;
+  width:var(--card-w);
+  margin-left:calc(var(--card-w) / -2);
+  will-change:transform,opacity;
+  cursor:pointer;
+  background:none;border:0;padding:0;color:inherit;text-align:left;
+  font-family:inherit;
+}
+.work .frame{
+  position:relative;
+  border-radius:12px;
+  overflow:hidden;
+  background:var(--bone);
+  border:1px solid rgba(242,237,228,.14);
+  box-shadow:0 18px 50px -22px rgba(0,0,0,.85), 0 2px 0 rgba(255,255,255,.04) inset;
+  transition:border-color .3s ease, box-shadow .3s ease;
+}
+/* letterbox : media never cover-crops; it sits inside a fixed-ratio bone face */
+.work .media{
+  position:relative;width:100%;aspect-ratio:16/10;
+  display:flex;align-items:center;justify-content:center;
+  background:#0c0c10;overflow:hidden;
+}
+.work .media img,
+.work .media video{
+  width:100%;height:100%;object-fit:contain;display:block;
+  background:#0c0c10;
+}
+.work .media .badge{
+  position:absolute;top:8px;left:8px;
+  font-size:9px;letter-spacing:.18em;text-transform:uppercase;
+  padding:3px 7px;border-radius:20px;
+  background:rgba(8,8,12,.62);color:var(--bone);
+  border:1px solid rgba(242,237,228,.18);backdrop-filter:blur(3px);
+}
+.work .cap{
+  padding:9px 11px 10px;background:var(--bone);color:#13110e;
+  display:flex;justify-content:space-between;align-items:baseline;gap:8px;
+}
+.work .cap .t{font-family:"Fraunces",serif;font-weight:600;font-size:14px;line-height:1.05}
+.work .cap .n{font-size:10px;letter-spacing:.16em;color:#9a7a3a;font-weight:600}
+.work .cap .d{
+  width:100%;font-size:10.5px;color:#5b554c;margin-top:3px;line-height:1.35;
+  display:none;
+}
+
+/* state: under the reticle (candidate to lock) */
+.work.aimed .frame{
+  border-color:var(--vermilion);
+  box-shadow:0 0 0 1px var(--vermilion),0 22px 60px -20px rgba(201,74,46,.55),
+             0 18px 50px -22px rgba(0,0,0,.85);
+}
+/* state: locked + expanded */
+.work.locked{z-index:25!important}
+.work.locked .frame{
+  border-color:var(--vermilion);
+  box-shadow:0 0 0 2px var(--vermilion),0 30px 90px -24px rgba(0,0,0,.92);
+}
+.work.locked .cap .d{display:block}
+.work.locked .badge{background:var(--vermilion);border-color:var(--vermilion)}
+
+.work:focus-visible{outline:none}
+.work:focus-visible .frame{
+  border-color:var(--amber);
+  box-shadow:0 0 0 2px var(--amber),0 18px 50px -22px rgba(0,0,0,.85);
+}
+
+/* ---------- CENTER RETICLE ---------- */
+.reticle{
+  position:fixed;left:50%;top:50%;z-index:40;
+  width:120px;height:120px;margin:-60px 0 0 -60px;
+  pointer-events:none;
+  color:var(--vermilion);
+}
+.reticle svg{width:100%;height:100%;overflow:visible}
+.reticle .ring{
+  fill:none;stroke:currentColor;stroke-width:1.4;opacity:.85;
+  transition:stroke-dasharray .15s linear, opacity .25s;
+}
+.reticle .tick{stroke:currentColor;stroke-width:1.4;opacity:.9}
+.reticle .core{fill:currentColor;opacity:0;transition:opacity .2s}
+/* dwell progress ring (set via stroke-dashoffset in JS) */
+.reticle .progress{
+  fill:none;stroke:var(--amber);stroke-width:2.6;opacity:0;
+  stroke-linecap:round;transform:rotate(-90deg);transform-origin:60px 60px;
+  transition:opacity .2s;
+}
+.reticle.charging .progress{opacity:1}
+.reticle.charging .core{opacity:.9}
+
+/* ---------- HUD : bottom status + permission button ---------- */
+.hud{
+  position:fixed;left:0;right:0;bottom:0;z-index:35;
+  padding:14px clamp(18px,4vw,46px) calc(16px + env(safe-area-inset-bottom));
+  display:flex;justify-content:space-between;align-items:flex-end;gap:14px;
+  background:linear-gradient(0deg,rgba(8,8,12,.86) 0%,rgba(8,8,12,0) 100%);
+  pointer-events:none;
+}
+.hud .read{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--bone-dim);line-height:1.7}
+.hud .read b{color:var(--bone);font-weight:500;font-variant-numeric:tabular-nums}
+.hud .read .mode{color:var(--amber)}
+.hint{
+  pointer-events:none;font-size:11px;color:var(--bone-dim);
+  display:flex;align-items:center;gap:8px;text-align:right;max-width:24ch;line-height:1.4;
+}
+.hint .dot{
+  width:7px;height:7px;border-radius:50%;background:var(--vermilion);
+  box-shadow:0 0 0 0 rgba(201,74,46,.6);animation:pulse 1.9s infinite;flex:none;
+}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(201,74,46,.55)}70%{box-shadow:0 0 0 9px rgba(201,74,46,0)}100%{box-shadow:0 0 0 0 rgba(201,74,46,0)}}
+
+/* permission gate button (iOS motion) */
+.perm{
+  pointer-events:auto;
+  font-family:"Space Grotesk",sans-serif;font-size:12px;font-weight:600;
+  letter-spacing:.12em;text-transform:uppercase;
+  color:var(--abyss);background:var(--amber);
+  border:0;border-radius:30px;padding:11px 20px;cursor:pointer;
+  box-shadow:0 8px 26px -8px rgba(232,197,71,.6);
+  transition:transform .15s, filter .15s;
+}
+.perm:hover{transform:translateY(-1px);filter:brightness(1.06)}
+.perm:focus-visible{outline:3px solid var(--bone);outline-offset:2px}
+.perm[hidden]{display:none}
+
+/* locked detail strip (appears when a card is locked) */
+.detail{
+  position:fixed;left:50%;bottom:84px;transform:translateX(-50%) translateY(14px);
+  z-index:38;width:min(540px,90vw);
+  background:rgba(12,12,18,.82);backdrop-filter:blur(8px);
+  border:1px solid rgba(232,197,71,.25);border-radius:14px;
+  padding:14px 18px;opacity:0;pointer-events:none;
+  transition:opacity .35s, transform .35s;
+}
+.detail.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.detail .dt{font-family:"Fraunces",serif;font-weight:600;font-size:17px}
+.detail .dt em{color:var(--vermilion);font-style:italic}
+.detail .dd{font-size:12.5px;color:var(--bone-dim);margin-top:5px;line-height:1.5}
+.detail .dtag{
+  display:inline-block;margin-top:9px;font-size:9.5px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--amber);
+}
+
+/* ---------- MOBILE <=640px : stack the top band, shrink cards ---------- */
+@media (max-width:640px){
+  :root{--card-w:clamp(132px,52vw,210px)}
+  .topband{flex-direction:column;gap:8px;padding-top:16px}
+  .meta{text-align:left}
+  .brand p{max-width:34ch}
+  .hud{flex-direction:column-reverse;align-items:flex-start;gap:8px}
+  .hint{text-align:left;max-width:30ch}
+  .reticle{width:96px;height:96px;margin:-48px 0 0 -48px}
+  .detail{bottom:118px}
+}
+
+/* very small height (landscape phones): trim chrome */
+@media (max-height:520px){
+  .brand p{display:none}
+  .topband{padding-top:10px}
+}
+
+/* ---------- REDUCED MOTION : static front-facing arrangement ---------- */
+@media (prefers-reduced-motion:reduce){
+  .horizon{transition:none}
+  .hint .dot{animation:none}
+}
+.rm .work{transition:none!important}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     DATA  -  edit this array to swap the gallery. Up to 9 works.
+     az  : azimuth on the hemisphere, degrees (0..315 in 45 steps)
+     el  : elevation, degrees (0 ground row, +20 raised row)
+     type: 'image' | 'video'
+     poster used as the still; videos only play when locked/aimed.
+     ============================================================ -->
+<script>
+const WORKS = [
+  { id:"car",    az:  0, el:  0, type:"image", num:"01",
+    src:"../assets/flux-car-4k.png", poster:"../assets/flux-car-4k.png",
+    title:"Nocturne Drive", tag:"FLUX 4K",
+    desc:"Matte-black coupe on a rain-slick neon boulevard. Cinematic key art generated at 2048px." },
+
+  { id:"clinic", az: 45, el: 20, type:"image", num:"02",
+    src:"../assets/flux-clinic-4k.png", poster:"../assets/flux-clinic-4k.png",
+    title:"Mint & Oak Suite", tag:"FLUX 4K",
+    desc:"Calm mint-and-wood dental interior. Warm, trustworthy brand environment render." },
+
+  { id:"kling",  az: 90, el:  0, type:"video", num:"03",
+    src:"../assets/kling-video.mp4", poster:"../assets/gen/poster-kling-video.png",
+    title:"Liquid Motion", tag:"KLING / VIDEO",
+    desc:"Looping motion study. Plays only when this card is held under the reticle." },
+
+  { id:"fox",    az:135, el: 20, type:"image", num:"04",
+    src:"../assets/sdxl.png", poster:"../assets/sdxl.png",
+    title:"Autumn Fox", tag:"SDXL",
+    desc:"Painterly illustration of a fox in autumn light. Square asset, letterboxed in-frame." },
+
+  { id:"veo",    az:180, el:  0, type:"video", num:"05",
+    src:"../assets/veo-video.mp4", poster:"../assets/gen/poster-veo-video.png",
+    title:"Field Sequence", tag:"VEO / VIDEO",
+    desc:"Generative b-roll loop. Decode is deferred until focus to keep the stage smooth." },
+
+  { id:"fal",    az:225, el: 20, type:"video", num:"06",
+    src:"../assets/fal-video.mp4", poster:"../assets/gen/poster-fal-video.png",
+    title:"Drift Study", tag:"FAL / VIDEO",
+    desc:"Short ambient loop. Posters render on the dome; only the focused clip animates." },
+
+  { id:"apple",  az:270, el:  0, type:"image", num:"07",
+    src:"../assets/hf-tinysd.png", poster:"../assets/hf-tinysd.png",
+    title:"Low-Fi Apple", tag:"TINY-SD",
+    desc:"Abstract low-fidelity still life. A texture experiment from a compact diffusion model." },
+
+  { id:"hyper",  az:315, el: 20, type:"video", num:"08",
+    src:"../assets/hyperframes.mp4", poster:"../assets/gen/poster-hyperframes.png",
+    title:"Hyperframes", tag:"HYPERFRAMES",
+    desc:"Frame-interpolated loop. Lightweight clip, ideal for the held-card preview." },
+
+  { id:"cari2v", az: 22, el:  0, type:"video", num:"09",
+    src:"../assets/flux-car-i2v.mp4", poster:"../assets/gen/poster-flux-car-i2v.png",
+    title:"Drive, In Motion", tag:"FLUX I2V",
+    desc:"The Nocturne still, animated. Largest clip - intentionally lazy and focus-gated." }
+];
+</script>
+
+<div class="void-glow"></div>
+
+<header class="topband">
+  <div class="brand">
+    <div class="kicker">Tilt to Pan / Spatial Index</div>
+    <h1>Gyro <em>Gallery</em></h1>
+    <p>Tilt your phone to pan the camera across a hemisphere of works. Hold one in the reticle to lock it. Desktop uses the cursor.</p>
+  </div>
+  <div class="meta">
+    <div><b>09</b> works</div>
+    <div>hemisphere index</div>
+    <div>orthographic projection</div>
+  </div>
+</header>
+
+<main class="stage" id="stage" aria-label="Spatial gallery. Tilt or move the cursor to pan across the works.">
+  <div class="dome" id="dome">
+    <div class="horizon" id="horizon" aria-hidden="true"></div>
+    <!-- .work cards injected here by JS -->
+  </div>
+</main>
+
+<!-- center reticle -->
+<div class="reticle" id="reticle" aria-hidden="true">
+  <svg viewBox="0 0 120 120">
+    <circle class="ring" cx="60" cy="60" r="38" stroke-dasharray="6 8"></circle>
+    <circle class="progress" cx="60" cy="60" r="46"></circle>
+    <line class="tick" x1="60" y1="6"  x2="60" y2="18"></line>
+    <line class="tick" x1="60" y1="102" x2="60" y2="114"></line>
+    <line class="tick" x1="6"  y1="60" x2="18" y2="60"></line>
+    <line class="tick" x1="102" y1="60" x2="114" y2="60"></line>
+    <circle class="core" cx="60" cy="60" r="4.5"></circle>
+  </svg>
+</div>
+
+<!-- locked detail strip -->
+<div class="detail" id="detail" role="status" aria-live="polite">
+  <div class="dt" id="detail-title"></div>
+  <div class="dd" id="detail-desc"></div>
+  <div class="dtag" id="detail-tag"></div>
+</div>
+
+<footer class="hud">
+  <div class="read">
+    <div>mode <span class="mode" id="mode">cursor</span></div>
+    <div>bearing <b id="bearing">0&deg;</b> / pitch <b id="pitch">0&deg;</b></div>
+    <div id="locktxt">reticle: <b>scanning</b></div>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:10px;pointer-events:none">
+    <button class="perm" id="perm" hidden>Enable motion</button>
+    <div class="hint"><span class="dot"></span><span id="hinttxt">Move the cursor to pan the hemisphere</span></div>
+  </div>
+</footer>
+
+<script>
+"use strict";
+(function(){
+  /* -------- config -------- */
+  const SMOOTH      = 0.15;   // exponential filter factor for raw sensor input
+  const PAN_RANGE   = 120;    // degrees of azimuth the camera sweeps end to end
+  const PITCH_RANGE = 34;     // degrees of elevation sweep
+  const SPREAD      = 0.92;   // screen radius scale (vmin fraction) for projection
+  const LOCK_MS     = 1000;   // dwell time under reticle to auto-lock
+  const AIM_PX      = 84;     // pixel radius from center that counts as "under reticle"
+
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+
+  const dome    = document.getElementById("dome");
+  const horizon = document.getElementById("horizon");
+  const reticle = document.getElementById("reticle");
+  const detail  = document.getElementById("detail");
+  const dTitle  = document.getElementById("detail-title");
+  const dDesc   = document.getElementById("detail-desc");
+  const dTag    = document.getElementById("detail-tag");
+  const elMode  = document.getElementById("mode");
+  const elBear  = document.getElementById("bearing");
+  const elPitch = document.getElementById("pitch");
+  const elLock  = document.getElementById("locktxt");
+  const permBtn = document.getElementById("perm");
+  const hintTxt = document.getElementById("hinttxt");
+  const progress= reticle.querySelector(".progress");
+
+  if(reduceMotion) document.body.classList.add("rm");
+
+  // progress ring circumference for dwell animation
+  const PROG_R = 46, PROG_C = 2 * Math.PI * PROG_R;
+  progress.style.strokeDasharray = PROG_C;
+  progress.style.strokeDashoffset = PROG_C;
+
+  /* -------- build cards -------- */
+  const cards = WORKS.slice(0, 9).map(w => {
+    const btn = document.createElement("button");
+    btn.className = "work";
+    btn.type = "button";
+    btn.dataset.id = w.id;
+    btn.setAttribute("aria-label", `Work ${w.num}: ${w.title}. ${w.desc}`);
+
+    const media = w.type === "video"
+      ? `<video muted loop playsinline preload="none" poster="${w.poster}">
+           <source data-src="${w.src}" type="video/mp4" />
+         </video>`
+      : `<img src="${w.src}" alt="${w.title}" loading="lazy" decoding="async" />`;
+
+    btn.innerHTML = `
+      <div class="frame">
+        <div class="media">
+          <span class="badge">${w.tag}</span>
+          ${media}
+        </div>
+        <div class="cap">
+          <span class="t">${w.title}</span>
+          <span class="n">${w.num}</span>
+          <span class="d">${w.desc}</span>
+        </div>
+      </div>`;
+
+    btn.addEventListener("click", () => lockCard(btn, true));
+    btn.addEventListener("focus", () => { focusedCard = btn; });
+    dome.appendChild(btn);
+    return { w, el: btn, x: 0, y: 0, depth: 1, vis: 1 };
+  });
+
+  /* -------- projection state --------
+     camAz / camEl = where the virtual camera is currently looking.
+     We map a work's (az,el) relative to the camera onto the screen
+     using a simple orthographic projection of the unit hemisphere. */
+  let camAz = 0, camEl = 8;          // current (smoothed) camera bearing/pitch
+  let targetAz = 0, targetEl = 8;    // raw target from input, pre-smoothing
+  let usingGyro = false;
+  let focusedCard = null;
+
+  // reduced motion: pin the camera to the default front bearing, never move it
+  if(reduceMotion){ targetAz = 0; targetEl = 8; }
+
+  function deg(r){ return r * Math.PI / 180; }
+
+  // project a work to screen offsets (px) relative to viewport center
+  function project(work){
+    const dAz = deg(work.az - camAz);
+    const elR = deg(work.el);
+    const camR = deg(camEl);
+    // orthographic mapping of point on unit sphere relative to camera look-dir
+    const x = Math.sin(dAz) * Math.cos(elR);
+    const y = Math.sin(elR - camR) - (1 - Math.cos(dAz)) * 0.18; // slight dome droop
+    // depth (toward camera) for scale + opacity culling of the back hemisphere
+    const z = Math.cos(dAz) * Math.cos(elR);
+    const radius = Math.min(window.innerWidth, window.innerHeight) * 0.5 * SPREAD;
+    return {
+      px: x * radius,
+      py: -y * radius,
+      depth: z                       // 1 = dead ahead, negative = behind camera
+    };
+  }
+
+  /* -------- per-frame render -------- */
+  let dwellTarget = null, dwellStart = 0, lockedCard = null;
+
+  function frame(){
+    // exponential smoothing toward target (the guardrail filter)
+    camAz += (targetAz - camAz) * (reduceMotion ? 1 : SMOOTH);
+    camEl += (targetEl - camEl) * (reduceMotion ? 1 : SMOOTH);
+
+    // horizon ring drifts opposite the camera for parallax
+    horizon.style.transform =
+      `translateZ(-1px) rotateX(74deg) scale(1,.56) translateX(${-camAz*1.4}px) translateY(${camEl*2}px)`;
+
+    let aimed = null, aimedDist = Infinity;
+
+    for(const c of cards){
+      const p = project(c.w);
+      // map depth (-1..1) to scale + opacity. Behind-camera works fade + shrink.
+      const front = (p.depth + 1) / 2;            // 0 back .. 1 front
+      const scale = 0.62 + front * 0.5;           // 0.62 .. 1.12
+      const opacity = p.depth < -0.15 ? 0 : Math.max(0.12, Math.min(1, (p.depth + 0.35) * 1.5));
+      const zi = Math.round(100 + p.depth * 100);
+
+      c.el.style.transform = `translate(${p.px}px, ${p.py}px) scale(${scale.toFixed(3)})`;
+      c.el.style.opacity = opacity.toFixed(3);
+      c.el.style.zIndex = zi;
+      c.el.style.pointerEvents = opacity < 0.25 ? "none" : "auto";
+
+      // distance of this card's projected center from the screen center
+      const dist = Math.hypot(p.px, p.py);
+      const onFront = p.depth > 0.2;
+      c.el.classList.toggle("aimed", false);
+      if(onFront && dist < AIM_PX && dist < aimedDist){
+        aimedDist = dist; aimed = c;
+      }
+    }
+
+    // reticle aim + dwell-to-lock logic
+    if(aimed){
+      aimed.el.classList.add("aimed");
+      if(dwellTarget !== aimed){
+        dwellTarget = aimed; dwellStart = performance.now();
+      }
+      const held = performance.now() - dwellStart;
+      const t = Math.min(1, held / LOCK_MS);
+      reticle.classList.add("charging");
+      progress.style.strokeDashoffset = (PROG_C * (1 - t)).toFixed(1);
+      elLock.innerHTML = `reticle: <b style="color:var(--amber)">aiming ${aimed.w.num}</b>`;
+      if(t >= 1 && lockedCard !== aimed){
+        lockCard(aimed.el, false);
+      }
+    } else {
+      dwellTarget = null;
+      reticle.classList.remove("charging");
+      progress.style.strokeDashoffset = PROG_C;
+      if(!lockedCard) elLock.innerHTML = `reticle: <b>scanning</b>`;
+    }
+
+    // HUD readout
+    elBear.innerHTML = `${Math.round(camAz)}&deg;`;
+    elPitch.innerHTML = `${Math.round(camEl)}&deg;`;
+
+    requestAnimationFrame(frame);
+  }
+
+  /* -------- lock / unlock a card -------- */
+  function findCard(elBtn){ return cards.find(c => c.el === elBtn); }
+
+  function lockCard(elBtn, manual){
+    const c = findCard(elBtn);
+    if(!c) return;
+    if(lockedCard && lockedCard !== c) unlock(lockedCard, true);
+    lockedCard = c;
+    c.el.classList.add("locked");
+    playVideo(c, true);
+    // detail strip
+    dTitle.innerHTML = c.w.title.replace(/(\w+)$/, "<em>$1</em>");
+    dDesc.textContent = c.w.desc;
+    dTag.textContent = c.w.tag + "  /  az " + c.w.az + "°  el " + c.w.el + "°";
+    detail.classList.add("show");
+    elLock.innerHTML = `reticle: <b style="color:var(--vermilion)">locked ${c.w.num}</b>`;
+    progress.style.strokeDashoffset = 0;
+    // when manually clicked, recenter the camera on this work
+    if(manual){ targetAz = c.w.az; targetEl = c.w.el + 8; }
+  }
+  function unlock(c, keepOther){
+    c.el.classList.remove("locked");
+    playVideo(c, false);
+    if(!keepOther){
+      lockedCard = null;
+      detail.classList.remove("show");
+    }
+  }
+
+  /* -------- video focus-gating : only the locked clip decodes -------- */
+  function playVideo(c, on){
+    if(c.w.type !== "video") return;
+    const v = c.el.querySelector("video");
+    if(!v) return;
+    if(on){
+      const src = v.querySelector("source");
+      if(src && !src.src){ src.src = src.dataset.src; v.load(); }
+      const p = v.play(); if(p && p.catch) p.catch(()=>{});
+    } else {
+      v.pause();
+    }
+  }
+
+  /* -------- INPUT: cursor (desktop fallback) -------- */
+  function bindCursor(){
+    elMode.textContent = "cursor";
+    hintTxt.textContent = "Move the cursor to pan the hemisphere";
+    window.addEventListener("pointermove", (e) => {
+      if(usingGyro || reduceMotion) return;
+      const nx = (e.clientX / window.innerWidth) * 2 - 1;   // -1..1
+      const ny = (e.clientY / window.innerHeight) * 2 - 1;
+      targetAz = nx * (PAN_RANGE / 2);
+      targetEl = 8 - ny * (PITCH_RANGE / 2);
+    }, {passive:true});
+  }
+
+  /* -------- INPUT: gyroscope (mobile) -------- */
+  function onOrient(e){
+    if(reduceMotion) return;
+    // gamma: left/right tilt (-90..90) -> azimuth ; beta: front/back (-180..180) -> pitch
+    const g = e.gamma || 0;
+    const b = e.beta  || 0;
+    if(!usingGyro){
+      usingGyro = true;
+      elMode.textContent = "gyroscope";
+      hintTxt.textContent = "Tilt to pan / hold a work in the reticle to lock";
+    }
+    // map a comfortable tilt window onto the pan ranges, clamp the rest
+    const az = Math.max(-1, Math.min(1, g / 45)) * (PAN_RANGE / 2);
+    const pitchTilt = Math.max(-1, Math.min(1, (b - 50) / 35)); // ~50deg = phone held up
+    const el = 8 - pitchTilt * (PITCH_RANGE / 2);
+    targetAz = az;
+    targetEl = el;
+  }
+
+  function startGyro(){
+    window.addEventListener("deviceorientation", onOrient, true);
+  }
+
+  // iOS 13+ requires an explicit permission request from a user gesture
+  const needsPerm = typeof DeviceOrientationEvent !== "undefined"
+    && typeof DeviceOrientationEvent.requestPermission === "function";
+
+  if(needsPerm && !reduceMotion){
+    permBtn.hidden = false;
+    hintTxt.textContent = "Tap Enable motion, then tilt to pan";
+    permBtn.addEventListener("click", () => {
+      DeviceOrientationEvent.requestPermission().then(state => {
+        permBtn.hidden = true;
+        if(state === "granted"){ startGyro(); }
+        else { hintTxt.textContent = "Motion denied. Drag on screen to pan."; bindTouchDrag(); }
+      }).catch(() => {
+        permBtn.hidden = true; bindTouchDrag();
+        hintTxt.textContent = "Motion unavailable. Drag on screen to pan.";
+      });
+    });
+  } else if(typeof DeviceOrientationEvent !== "undefined" && !reduceMotion){
+    // android / non-gated: listen immediately, but only flips to gyro mode on first event
+    startGyro();
+  }
+
+  /* -------- touch drag : works when there is no gyro / permission denied -------- */
+  function bindTouchDrag(){
+    let active = false, lastX = 0, lastY = 0;
+    window.addEventListener("touchstart", (e)=>{
+      active = true; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+    }, {passive:true});
+    window.addEventListener("touchmove", (e)=>{
+      if(!active || usingGyro || reduceMotion) return;
+      const t = e.touches[0];
+      targetAz = Math.max(-PAN_RANGE/2, Math.min(PAN_RANGE/2, targetAz - (t.clientX-lastX)*0.35));
+      targetEl = Math.max(8-PITCH_RANGE/2, Math.min(8+PITCH_RANGE/2, targetEl + (t.clientY-lastY)*0.25));
+      lastX = t.clientX; lastY = t.clientY;
+    }, {passive:true});
+    window.addEventListener("touchend", ()=>{ active = false; }, {passive:true});
+  }
+
+  // keyboard: arrow keys nudge the camera (accessibility)
+  window.addEventListener("keydown", (e)=>{
+    if(reduceMotion) return;
+    const step = 12;
+    if(e.key === "ArrowLeft")  targetAz = Math.max(-PAN_RANGE/2, targetAz - step);
+    else if(e.key === "ArrowRight") targetAz = Math.min(PAN_RANGE/2, targetAz + step);
+    else if(e.key === "ArrowUp")    targetEl = Math.min(8+PITCH_RANGE/2, targetEl + step*0.6);
+    else if(e.key === "ArrowDown")  targetEl = Math.max(8-PITCH_RANGE/2, targetEl - step*0.6);
+    else if(e.key === "Escape" && lockedCard){ unlock(lockedCard, false); }
+  });
+
+  bindCursor();
+  if(!needsPerm) bindTouchDrag(); // android keeps drag as a no-gyro safety net
+
+  // recompute projection radius on resize (orthographic depends on viewport)
+  window.addEventListener("resize", ()=>{}, {passive:true});
+
+  // GO
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

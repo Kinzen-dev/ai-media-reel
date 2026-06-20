@@ -1,0 +1,927 @@
+<!-- TEMPLATE: Reaction Diffusion Canvas | ARCHETYPE: gray-scott | REF: Codrops reaction-diffusion creative-coding archive, Karl Sims Gray-Scott model, Creative Applications generative portfolios 2025-2026 | WHEN TO USE: a portfolio/lab where works are seeded into a living two-chemical Gray-Scott PDE that grows organic spots and stripes around each piece; the simulation IS the color system and the whole identity | SWAP: edit the DATA array at the top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>REACTION DIFFUSION - Living Gray-Scott Portfolio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* ============ PALETTE: the PDE pattern IS the color system ============ */
+  :root {
+    --abyss: #030508;          /* deep background, chemical B fully reacted    */
+    --ice-green: #e8f5ec;       /* chemical A (feed)                            */
+    --teal: #1a6b4a;            /* chemical B (deep reactant)                   */
+    --amber: #e8c547;           /* work-card accent                            */
+    --line: rgba(232,245,236,0.14);
+    --glass: rgba(3,12,9,0.42);
+    --ink: #cfe6d8;
+    --ink-dim: #6f8a7e;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--abyss);
+    color: var(--ink);
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+
+  /* ============ The living PDE canvas: fixed full-viewport substrate ============ */
+  #rd-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    display: block;
+    z-index: 0;
+    /* image-rendering left default: the bilinear upscale wants smoothing */
+  }
+  /* a deepening vignette so chrome text stays legible over the bright pattern */
+  #vignette {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background:
+      radial-gradient(120% 90% at 50% 0%, transparent 40%, rgba(3,5,8,0.55) 100%),
+      linear-gradient(180deg, rgba(3,5,8,0.30) 0%, transparent 22%, transparent 60%, rgba(3,5,8,0.65) 100%);
+  }
+
+  .stage { position: relative; z-index: 2; }
+
+  /* ============ Top band: compact header OVER the live pattern (mechanic stays visible) ============ */
+  header.band {
+    position: relative;
+    padding: 26px clamp(20px, 5vw, 64px) 12px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .brand { display: flex; flex-direction: column; gap: 10px; max-width: 640px; }
+  .eyebrow {
+    font-family: 'Spline Sans Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.34em;
+    text-transform: uppercase;
+    color: var(--amber);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .eyebrow .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--amber);
+    box-shadow: 0 0 12px var(--amber);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+  h1.title {
+    font-size: clamp(34px, 6.4vw, 78px);
+    line-height: 0.92;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: var(--ice-green);
+    text-shadow: 0 2px 40px rgba(3,5,8,0.9), 0 0 1px rgba(3,5,8,1);
+    mix-blend-mode: normal;
+  }
+  h1.title em {
+    font-style: normal;
+    color: var(--teal);
+    -webkit-text-stroke: 1px rgba(232,245,236,0.5);
+    text-shadow: 0 0 30px rgba(26,107,74,0.7);
+  }
+  .lede {
+    font-size: clamp(13px, 1.5vw, 16px);
+    color: var(--ink);
+    max-width: 52ch;
+    line-height: 1.5;
+    text-shadow: 0 1px 14px rgba(3,5,8,0.95);
+  }
+  .meta {
+    text-align: right;
+    font-family: 'Spline Sans Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-dim);
+    line-height: 1.8;
+    letter-spacing: 0.04em;
+    min-width: 160px;
+  }
+  .meta b { color: var(--ice-green); font-weight: 500; }
+  .meta .sim-state { color: var(--amber); }
+
+  /* ============ Controls ============ */
+  .controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+  }
+  .ctl {
+    font-family: 'Spline Sans Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: var(--glass);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 7px 14px;
+    cursor: pointer;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    transition: border-color 0.2s, color 0.2s, background 0.2s;
+  }
+  .ctl:hover { border-color: var(--amber); color: var(--amber); }
+  .ctl[aria-pressed="true"] { border-color: var(--amber); color: var(--abyss); background: var(--amber); }
+  .ctl:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+  /* ============ Work grid: cards float over the pattern; each is a PDE seed ============ */
+  .grid-label {
+    font-family: 'Spline Sans Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    padding: 8px clamp(20px, 5vw, 64px);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .grid-label::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+  }
+
+  .works {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(16px, 2.2vw, 30px);
+    padding: 10px clamp(20px, 5vw, 64px) clamp(60px, 10vh, 120px);
+    max-width: 1500px;
+    margin: 0 auto;
+  }
+
+  .work {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    cursor: pointer;
+    aspect-ratio: 4 / 5;
+    background: rgba(3,12,9,0.30);
+    border: 1px solid var(--line);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    transform: translateZ(0);
+    transition: border-color 0.35s ease, box-shadow 0.35s ease, transform 0.35s ease;
+    will-change: transform;
+    outline: none;
+  }
+  .work:hover, .work:focus-visible {
+    border-color: rgba(232,197,71,0.7);
+    box-shadow: 0 16px 50px -18px rgba(0,0,0,0.85), 0 0 0 1px rgba(232,197,71,0.25) inset;
+    transform: translateY(-4px);
+  }
+  .work:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
+  .work.locked {
+    border-color: var(--amber);
+    box-shadow: 0 0 0 1px var(--amber) inset, 0 22px 60px -20px rgba(0,0,0,0.9), 0 0 60px -30px rgba(232,197,71,0.5);
+  }
+
+  /* media fill: contain on phones (letterbox), cover on desktop where the frame is portrait-friendly */
+  .work .media {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .work .media img,
+  .work .media video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+  }
+  /* The card itself dims while the chemistry "covers" it; uncovers on hover/lock */
+  .work .media::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(140% 120% at 50% 18%, rgba(26,107,74,0.05), rgba(3,5,8,0.55) 78%),
+      linear-gradient(180deg, rgba(3,5,8,0.10) 0%, rgba(3,5,8,0.78) 100%);
+    transition: opacity 0.5s ease;
+    opacity: 1;
+  }
+  .work:hover .media::after,
+  .work:focus-visible .media::after,
+  .work.locked .media::after { opacity: 0.32; }
+
+  /* video element only mounted/played for focused or locked card; poster shown otherwise */
+  .work .poster {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover; object-position: center;
+  }
+
+  .work .label {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    padding: 14px 16px 15px;
+    z-index: 3;
+    background: linear-gradient(0deg, rgba(3,5,8,0.92), rgba(3,5,8,0.35) 70%, transparent);
+  }
+  .work .idx {
+    font-family: 'Spline Sans Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    color: var(--amber);
+    display: block;
+    margin-bottom: 4px;
+  }
+  .work .name {
+    font-size: clamp(15px, 1.5vw, 19px);
+    font-weight: 600;
+    color: var(--ice-green);
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+  }
+  .work .kind {
+    font-family: 'Spline Sans Mono', monospace;
+    font-size: 10.5px;
+    color: var(--ink-dim);
+    margin-top: 5px;
+    letter-spacing: 0.05em;
+  }
+  .work .badge {
+    position: absolute;
+    top: 12px; left: 12px;
+    z-index: 3;
+    font-family: 'Spline Sans Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--abyss);
+    background: rgba(232,245,236,0.9);
+    padding: 4px 8px;
+    border-radius: 6px;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.3s, transform 0.3s;
+  }
+  .work.locked .badge { opacity: 1; transform: none; background: var(--amber); }
+
+  /* media-type chip top right */
+  .work .typchip {
+    position: absolute;
+    top: 12px; right: 12px;
+    z-index: 3;
+    font-family: 'Spline Sans Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    color: var(--ice-green);
+    background: rgba(3,5,8,0.6);
+    border: 1px solid var(--line);
+    padding: 4px 8px;
+    border-radius: 6px;
+    text-transform: uppercase;
+  }
+
+  /* ============ Footer strip ============ */
+  footer.foot {
+    position: relative;
+    z-index: 2;
+    padding: 26px clamp(20px, 5vw, 64px) 40px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+    font-family: 'Spline Sans Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-dim);
+    letter-spacing: 0.05em;
+    background: linear-gradient(0deg, rgba(3,5,8,0.85), transparent);
+  }
+  footer.foot b { color: var(--ice-green); font-weight: 500; }
+
+  /* small legend explaining the chemistry colors */
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; }
+  .legend .sw { display: inline-flex; align-items: center; gap: 7px; }
+  .legend .chip { width: 12px; height: 12px; border-radius: 3px; box-shadow: 0 0 0 1px rgba(255,255,255,0.1) inset; }
+
+  /* ============ Mobile: half grid, letterbox media, single column ============ */
+  @media (max-width: 880px) {
+    .works { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 640px) {
+    header.band { flex-direction: column; gap: 14px; padding-top: 20px; }
+    .meta { text-align: left; }
+    .works {
+      grid-template-columns: 1fr;
+      gap: 14px;
+      padding-bottom: 70px;
+    }
+    .work { aspect-ratio: 16 / 11; }
+    /* letterbox: never cover-crop a landscape asset into a portrait cell on phones */
+    .work .media img,
+    .work .media video,
+    .work .poster { object-fit: contain; background: #05100b; }
+    h1.title { font-size: clamp(30px, 11vw, 46px); }
+  }
+
+  /* ============ Reduced motion: pattern freezes on a rich frame; no rAF overrides ============ */
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .eyebrow .dot { animation: none; }
+    .work, .work .media::after { transition: none; }
+  }
+
+  /* accessibility helper */
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
+</style>
+</head>
+<body>
+  <canvas id="rd-canvas" aria-hidden="true"></canvas>
+  <div id="vignette" aria-hidden="true"></div>
+
+  <div class="stage">
+    <header class="band">
+      <div class="brand">
+        <span class="eyebrow"><span class="dot"></span>Gray-Scott Reaction-Diffusion / Live PDE</span>
+        <h1 class="title">REACTION <em>DIFFUSION</em></h1>
+        <p class="lede">A two-chemical reaction-diffusion system grows across the whole canvas in real time. Every work is seeded into the chemistry; the pattern wraps around it. Hover to suppress the reaction nearby, click to lock and pause diffusion there.</p>
+        <div class="controls" role="group" aria-label="Simulation controls">
+          <button class="ctl" id="btn-pause" aria-pressed="false" type="button">Pause sim</button>
+          <button class="ctl" id="btn-reseed" type="button">Re-seed</button>
+          <button class="ctl" id="btn-pattern" type="button">Pattern: coral</button>
+        </div>
+      </div>
+      <div class="meta" aria-live="off">
+        <div><b>SUBSTRATE</b> <span id="gridsize">400 x 400</span></div>
+        <div>STEPS/FRAME <b>8</b></div>
+        <div>FPS <b id="fps">--</b></div>
+        <div>STATE <span class="sim-state" id="state">running</span></div>
+      </div>
+    </header>
+
+    <div class="grid-label">Seeded works / the chemistry blooms around each</div>
+
+    <main class="works" id="works"></main>
+
+    <footer class="foot">
+      <div class="legend" aria-hidden="true">
+        <span class="sw"><span class="chip" style="background:#030508"></span>abyss B</span>
+        <span class="sw"><span class="chip" style="background:#1a6b4a"></span>deep teal</span>
+        <span class="sw"><span class="chip" style="background:#e8f5ec"></span>ice-green A</span>
+        <span class="sw"><span class="chip" style="background:#e8c547"></span>work amber</span>
+      </div>
+      <div>Canvas 2D / main thread / no WebGL / <b>discretized two-chemical PDE</b>, bilinear upscaled</div>
+    </footer>
+  </div>
+
+<script>
+/* =====================================================================
+   DATA  -  swap works here. Each entry seeds a low-B circle into the PDE.
+   type: "image" | "video".  For video, poster shows until focused/locked
+   (we never autoplay several videos at once - simultaneous decode tanks FPS).
+   ===================================================================== */
+const DATA = [
+  { name: "Midnight CLS, Neon Rain",  kind: "FLUX i2v / 4K cinematic",   type: "image", src: "../assets/flux-car-4k.png" },
+  { name: "Talking Avatar",            kind: "Veo / live render",         type: "video", src: "../assets/veo-video.mp4",   poster: "../assets/gen/poster-veo-video.png" },
+  { name: "Clinic, Mint & Wood",       kind: "FLUX / interior plate",     type: "image", src: "../assets/flux-clinic-4k.png" },
+  { name: "Kling Motion Study",        kind: "Kling / video loop",        type: "video", src: "../assets/kling-video.mp4", poster: "../assets/gen/poster-kling-video.png" },
+  { name: "Autumn Fox",                kind: "SDXL / painterly",          type: "image", src: "../assets/sdxl.png" },
+  { name: "Hyperframes Drift",         kind: "Hyperframes / short loop",  type: "video", src: "../assets/hyperframes.mp4", poster: "../assets/gen/poster-hyperframes.png" },
+  { name: "Low-Fi Apple",              kind: "TinySD / abstract",         type: "image", src: "../assets/hf-tinysd.png" },
+  { name: "Car, In Motion",            kind: "FLUX i2v / drive loop",     type: "video", src: "../assets/flux-car-i2v.mp4", poster: "../assets/gen/poster-flux-car-i2v.png" },
+  { name: "FAL Render Pass",           kind: "FAL / video loop",          type: "video", src: "../assets/fal-video.mp4",  poster: "../assets/gen/poster-fal-video.png" },
+];
+
+/* Two named Gray-Scott parameter presets (feed / kill rates).
+   "coral" = branching spots, "mitosis" = self-replicating cells. */
+const PRESETS = {
+  coral:   { f: 0.0545, k: 0.062,  label: "coral"   },
+  mitosis: { f: 0.0367, k: 0.0649, label: "mitosis" },
+};
+
+/* ===================================================================== */
+
+(function () {
+  "use strict";
+
+  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isMobile = window.matchMedia('(max-width: 640px)').matches;
+
+  /* --------------------------- build cards --------------------------- */
+  const worksEl = document.getElementById('works');
+  const cards = [];
+  DATA.forEach((d, i) => {
+    const card = document.createElement('article');
+    card.className = 'work';
+    card.tabIndex = 0;
+    card.setAttribute('role', 'button');
+    card.setAttribute('aria-label', `${d.name}. ${d.kind}. ${d.type === 'video' ? 'Video, click to play and lock the chemistry.' : 'Image, click to lock the chemistry.'}`);
+
+    const media = document.createElement('div');
+    media.className = 'media';
+
+    if (d.type === 'image') {
+      const img = document.createElement('img');
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      img.alt = d.name;
+      img.src = d.src;
+      media.appendChild(img);
+    } else {
+      // poster only; the <video> is mounted on demand (focus/lock)
+      const poster = document.createElement('img');
+      poster.className = 'poster';
+      poster.loading = 'lazy';
+      poster.decoding = 'async';
+      poster.alt = d.name + ' (poster)';
+      poster.src = d.poster || d.src;
+      media.appendChild(poster);
+    }
+
+    const badge = document.createElement('span');
+    badge.className = 'badge';
+    badge.textContent = 'LOCKED / paused';
+
+    const typ = document.createElement('span');
+    typ.className = 'typchip';
+    typ.textContent = d.type === 'video' ? 'VIDEO' : 'IMAGE';
+
+    const label = document.createElement('div');
+    label.className = 'label';
+    label.innerHTML =
+      `<span class="idx">SEED ${String(i + 1).padStart(2, '0')}</span>` +
+      `<span class="name"></span>` +
+      `<span class="kind"></span>`;
+    label.querySelector('.name').textContent = d.name;
+    label.querySelector('.kind').textContent = d.kind;
+
+    card.appendChild(media);
+    card.appendChild(badge);
+    card.appendChild(typ);
+    card.appendChild(label);
+    worksEl.appendChild(card);
+
+    cards.push({ el: card, media, data: d, video: null, locked: false, hover: false });
+  });
+
+  /* -------- video mount/unmount: only the focused/locked card plays ---- */
+  function mountVideo(c) {
+    if (c.data.type !== 'video' || c.video) return;
+    const v = document.createElement('video');
+    v.muted = true;
+    v.loop = true;
+    v.playsInline = true;
+    v.setAttribute('playsinline', '');
+    v.preload = 'metadata';
+    v.poster = c.data.poster || '';
+    v.src = c.data.src;
+    // append into media so the video sits on top of its poster (label/badges are siblings outside .media)
+    c.media.appendChild(v);
+    c.video = v;
+    const p = v.play();
+    if (p && p.catch) p.catch(() => {});
+  }
+  function unmountVideo(c) {
+    if (!c.video) return;
+    try { c.video.pause(); } catch (e) {}
+    c.video.removeAttribute('src');
+    try { c.video.load(); } catch (e) {}
+    c.video.remove();
+    c.video = null;
+  }
+
+  cards.forEach((c) => {
+    const { el } = c;
+    el.addEventListener('pointerenter', () => {
+      c.hover = true;
+      if (!c.locked) mountVideo(c);
+    });
+    el.addEventListener('pointerleave', () => {
+      c.hover = false;
+      if (!c.locked) unmountVideo(c);
+    });
+    el.addEventListener('focus', () => { c.hover = true; if (!c.locked) mountVideo(c); });
+    el.addEventListener('blur', () => { c.hover = false; if (!c.locked) unmountVideo(c); });
+
+    function toggleLock() {
+      c.locked = !c.locked;
+      el.classList.toggle('locked', c.locked);
+      el.setAttribute('aria-pressed', c.locked ? 'true' : 'false');
+      if (c.locked) mountVideo(c);
+      else if (!c.hover) unmountVideo(c);
+    }
+    el.addEventListener('click', toggleLock);
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleLock(); }
+    });
+  });
+
+  /* ============================================================
+     GRAY-SCOTT REACTION-DIFFUSION  (Canvas 2D, main thread)
+     Two chemicals A and B on a grid. Per cell:
+       A' = A + (Da*lapA - A*B*B + f*(1-A)) * dt
+       B' = B + (Db*lapB + A*B*B - (k+f)*B) * dt
+     Rendered through a precomputed LUT mapping B-concentration
+     to the palette, then bilinear-upscaled onto the canvas.
+     ============================================================ */
+  const canvas = document.getElementById('rd-canvas');
+  const ctx = canvas.getContext('2d', { alpha: false });
+
+  const GRID = isMobile ? 200 : 400;   // mobile halves the grid
+  const W = GRID, H = GRID;
+  const N = W * H;
+  document.getElementById('gridsize').textContent = `${W} x ${H}`;
+
+  const Da = 1.0, Db = 0.5, dt = 1.0;
+  let preset = PRESETS.coral;
+
+  // chemical fields (Float32 for speed)
+  let A = new Float32Array(N);
+  let B = new Float32Array(N);
+  let A2 = new Float32Array(N);
+  let B2 = new Float32Array(N);
+
+  // per-cell suppression mask (0..1). 1 = normal reaction, 0 = frozen/suppressed.
+  // Drives "hover suppresses reaction" and "lock pauses diffusion".
+  const mask = new Float32Array(N).fill(1);
+
+  function idx(x, y) { return y * W + x; }
+
+  function seedFull() {
+    A.fill(1.0);
+    B.fill(0.0);
+    // scatter organic seeds so the field is ALREADY mid-simulation looking
+    const seeds = isMobile ? 26 : 60;
+    for (let s = 0; s < seeds; s++) {
+      const cx = (Math.random() * W) | 0;
+      const cy = (Math.random() * H) | 0;
+      const r = 2 + (Math.random() * (isMobile ? 5 : 8)) | 0;
+      stampSeed(cx, cy, r, 0.95);
+    }
+  }
+  // drop a low-A / high-B blob: that is what kicks the reaction off
+  function stampSeed(cx, cy, r, strength) {
+    const r2 = r * r;
+    for (let dy = -r; dy <= r; dy++) {
+      const y = cy + dy;
+      if (y < 0 || y >= H) continue;
+      for (let dx = -r; dx <= r; dx++) {
+        const x = cx + dx;
+        if (x < 0 || x >= W) continue;
+        if (dx * dx + dy * dy > r2) continue;
+        const i = idx(x, y);
+        B[i] = Math.max(B[i], strength);
+        A[i] = Math.min(A[i], 1 - strength * 0.6);
+      }
+    }
+  }
+
+  // "Work seeds": ring of low-B around each card position so the chemistry
+  // visibly grows OUTWARD and wraps each work. Recomputed when cards move.
+  let workSeeds = []; // {gx, gy, gr, cardIndex}
+
+  function recomputeWorkSeeds() {
+    workSeeds = [];
+    const vw = window.innerWidth, vh = window.innerHeight;
+    cards.forEach((c, ci) => {
+      const r = c.el.getBoundingClientRect();
+      // only seed cards near/in the first viewport-ish band so the bloom is visible
+      const centerX = r.left + r.width / 2;
+      const centerY = r.top + r.height / 2;
+      // map viewport coords to grid coords
+      const gx = Math.round((centerX / vw) * W);
+      const gy = Math.round((centerY / vh) * H);
+      if (gx < -20 || gx > W + 20 || gy < -40 || gy > H + 40) return;
+      const gr = Math.max(4, Math.round((Math.min(r.width, r.height) / Math.min(vw, vh)) * Math.min(W, H) * 0.42));
+      workSeeds.push({ gx, gy, gr, ci });
+    });
+  }
+
+  // refresh the suppression mask from hover/lock state of work seeds
+  function refreshMask() {
+    // base: everything reacts
+    mask.fill(1);
+    workSeeds.forEach((ws) => {
+      const c = cards[ws.ci];
+      const hovering = c.hover && !c.locked;
+      const locked = c.locked;
+      if (!hovering && !locked) return;
+      // suppress (hover) or freeze (lock) reaction inside an extended radius
+      const rad = ws.gr + (locked ? 6 : 10);
+      const rad2 = rad * rad;
+      const val = locked ? 0.0 : 0.18; // lock = full pause, hover = strong suppression
+      for (let dy = -rad; dy <= rad; dy++) {
+        const y = ws.gy + dy;
+        if (y < 0 || y >= H) continue;
+        for (let dx = -rad; dx <= rad; dx++) {
+          const x = ws.gx + dx;
+          if (x < 0 || x >= W) continue;
+          const d2 = dx * dx + dy * dy;
+          if (d2 > rad2) continue;
+          // soft falloff at the edge of the suppression disc
+          const t = Math.sqrt(d2) / rad;
+          const m = val + (1 - val) * t * t;
+          const i = idx(x, y);
+          if (m < mask[i]) mask[i] = m;
+        }
+      }
+    });
+  }
+
+  // stamp the outward-growing ring seeds around each work once at init/reseed
+  function stampWorkSeeds() {
+    recomputeWorkSeeds();
+    workSeeds.forEach((ws) => {
+      // a thin ring of B just outside the card => growth wraps the work
+      const inner = ws.gr;
+      const outer = ws.gr + 3;
+      for (let dy = -outer; dy <= outer; dy++) {
+        const y = ws.gy + dy;
+        if (y < 0 || y >= H) continue;
+        for (let dx = -outer; dx <= outer; dx++) {
+          const x = ws.gx + dx;
+          if (x < 0 || x >= W) continue;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          if (d >= inner && d <= outer) {
+            const i = idx(x, y);
+            B[i] = Math.max(B[i], 0.85);
+            A[i] = Math.min(A[i], 0.25);
+          }
+        }
+      }
+    });
+  }
+
+  /* ---- color LUT: map B concentration -> palette (abyss->teal->ice-green, amber edge) ---- */
+  const LUT_SIZE = 256;
+  const lut = new Uint8Array(LUT_SIZE * 3);
+  function buildLUT() {
+    // stops along the concentration axis
+    // 0.00 abyss(3,5,8) -> 0.30 teal(26,107,74) -> 0.55 brighter green -> 0.78 ice-green -> 0.92 amber rim -> 1.0 ice
+    const stops = [
+      [0.00, [3, 5, 8]],
+      [0.18, [8, 28, 22]],
+      [0.34, [26, 107, 74]],
+      [0.55, [70, 150, 110]],
+      [0.76, [200, 235, 214]],
+      [0.86, [232, 245, 236]],
+      [0.93, [232, 197, 71]],   // amber chemical rim
+      [1.00, [240, 250, 244]],
+    ];
+    for (let i = 0; i < LUT_SIZE; i++) {
+      const t = i / (LUT_SIZE - 1);
+      // find bracket
+      let a = stops[0], b = stops[stops.length - 1];
+      for (let s = 0; s < stops.length - 1; s++) {
+        if (t >= stops[s][0] && t <= stops[s + 1][0]) { a = stops[s]; b = stops[s + 1]; break; }
+      }
+      const span = (b[0] - a[0]) || 1;
+      const lt = (t - a[0]) / span;
+      const r = (a[1][0] + (b[1][0] - a[1][0]) * lt) | 0;
+      const g = (a[1][1] + (b[1][1] - a[1][1]) * lt) | 0;
+      const bl = (a[1][2] + (b[1][2] - a[1][2]) * lt) | 0;
+      lut[i * 3] = r; lut[i * 3 + 1] = g; lut[i * 3 + 2] = bl;
+    }
+  }
+  buildLUT();
+
+  /* ---- the simulation step (one diffusion+reaction pass over the whole grid) ---- */
+  function step() {
+    const f = preset.f, k = preset.k;
+    // interior cells; borders handled with clamped/edge neighbors via wrap-safe index
+    for (let y = 0; y < H; y++) {
+      const ym = (y - 1 + H) % H, yp = (y + 1) % H;
+      const rowy = y * W, rowm = ym * W, rowp = yp * W;
+      for (let x = 0; x < W; x++) {
+        const xm = (x - 1 + W) % W, xp = (x + 1) % W;
+        const i = rowy + x;
+        const a = A[i], b = B[i];
+        // 9-point-ish laplacian (von Neumann + diagonals, classic Gray-Scott weights)
+        const lapA =
+          A[rowy + xm] + A[rowy + xp] + A[rowm + x] + A[rowp + x] - 4 * a +
+          0.5 * (A[rowm + xm] + A[rowm + xp] + A[rowp + xm] + A[rowp + xp] - 4 * a);
+        const lapB =
+          B[rowy + xm] + B[rowy + xp] + B[rowm + x] + B[rowp + x] - 4 * b +
+          0.5 * (B[rowm + xm] + B[rowm + xp] + B[rowp + xm] + B[rowp + xp] - 4 * b);
+        const abb = a * b * b;
+        const m = mask[i]; // suppression/freeze
+        let na = a + (Da * lapA - abb + f * (1 - a)) * dt * (0.4 + 0.6 * m);
+        let nb = b + (Db * lapB + abb - (k + f) * b) * dt * (0.4 + 0.6 * m);
+        // where mask near 0 (locked), heavily damp toward current values => "paused"
+        if (m < 0.25) { na = a + (na - a) * 0.04; nb = b + (nb - b) * 0.04; }
+        A2[i] = na < 0 ? 0 : (na > 1 ? 1 : na);
+        B2[i] = nb < 0 ? 0 : (nb > 1 ? 1 : nb);
+      }
+    }
+    // swap
+    let t = A; A = A2; A2 = t;
+    t = B; B = B2; B2 = t;
+  }
+
+  /* ---- render the grid into an ImageData buffer, then upscale to canvas ---- */
+  let gridImage = ctx.createImageData(W, H);
+  let gridData = gridImage.data;
+  // offscreen canvas at grid resolution that we then draw scaled (bilinear)
+  const off = document.createElement('canvas');
+  off.width = W; off.height = H;
+  const offCtx = off.getContext('2d');
+
+  function render() {
+    for (let i = 0; i < N; i++) {
+      // concentration signal: A - B gives crisp pattern boundaries
+      let v = A[i] - B[i];
+      // normalize roughly to 0..1
+      v = (v + 0.2) / 1.2;
+      if (v < 0) v = 0; else if (v > 1) v = 1;
+      // invert so high-B (reacted) reads as the bright chemical structure
+      const li = ((1 - v) * (LUT_SIZE - 1)) | 0;
+      const p = i * 4;
+      const c = li * 3;
+      gridData[p] = lut[c];
+      gridData[p + 1] = lut[c + 1];
+      gridData[p + 2] = lut[c + 2];
+      gridData[p + 3] = 255;
+    }
+    offCtx.putImageData(gridImage, 0, 0);
+    // bilinear upscale onto the full-viewport canvas
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(off, 0, 0, W, H, 0, 0, canvas.width, canvas.height);
+  }
+
+  /* ---- canvas sizing (cap DPR effect: the GRID is fixed, we just stretch) ---- */
+  function resizeCanvas() {
+    // draw buffer at CSS pixel size (no DPR multiply: it's an upscaled low-res field, crisp DPR is wasted)
+    const w = Math.max(1, Math.floor(window.innerWidth));
+    const h = Math.max(1, Math.floor(window.innerHeight));
+    canvas.width = w;
+    canvas.height = h;
+  }
+
+  /* ---- warm up so scroll=0 shows a MATURE pattern (spots/stripes already grown) ---- */
+  function warmUp(passes) {
+    for (let p = 0; p < passes; p++) step();
+  }
+
+  /* ================= main loop ================= */
+  let running = true;
+  let userPaused = false;
+  let tabHidden = false;
+  let reducedFreezeFrames = 0;
+  let frozenForReduced = false;
+
+  let lastFpsT = performance.now();
+  let fpsCount = 0;
+  const fpsEl = document.getElementById('fps');
+  const stateEl = document.getElementById('state');
+
+  function setState(txt) { stateEl.textContent = txt; }
+
+  let maskTick = 0;
+
+  function frame() {
+    if (!running) return;
+
+    if (frozenForReduced) {
+      // reduced motion: we froze on a rich frame; do nothing but keep state visible
+      requestAnimationFrame(frame);
+      return;
+    }
+
+    if (!userPaused && !tabHidden) {
+      // refresh suppression mask from hover/lock a few times per second
+      if ((maskTick++ % 4) === 0) refreshMask();
+      // 8 PDE steps per displayed frame
+      const STEPS = isMobile ? 6 : 8;
+      for (let s = 0; s < STEPS; s++) step();
+      render();
+
+      // reduced-motion: run ~120 frames then freeze on a rich frame
+      if (prefersReduced) {
+        reducedFreezeFrames++;
+        if (reducedFreezeFrames >= 120) {
+          frozenForReduced = true;
+          render();
+          setState('frozen (reduced motion)');
+        }
+      }
+    }
+
+    // fps meter
+    fpsCount++;
+    const now = performance.now();
+    if (now - lastFpsT >= 1000) {
+      fpsEl.textContent = String(fpsCount);
+      fpsCount = 0;
+      lastFpsT = now;
+    }
+
+    requestAnimationFrame(frame);
+  }
+
+  /* ================= init ================= */
+  function init() {
+    resizeCanvas();
+    seedFull();
+    stampWorkSeeds();
+    // big warm-up so the very first painted frame is mature biology, not a blank field
+    warmUp(isMobile ? 360 : 600);
+    render();
+    if (prefersReduced) {
+      // honor reduced motion: show a rich static frame; let it breathe only ~120 frames
+      setState('settling (reduced motion)');
+    } else {
+      setState('running');
+    }
+    running = true;
+    requestAnimationFrame(frame);
+  }
+
+  /* ---- resize: rebuild buffers if grid axis would change is avoided (grid fixed);
+         just restretch canvas + recompute work seed positions ---- */
+  let resizeRAF = 0;
+  window.addEventListener('resize', () => {
+    cancelAnimationFrame(resizeRAF);
+    resizeRAF = requestAnimationFrame(() => {
+      resizeCanvas();
+      recomputeWorkSeeds();
+      render();
+    });
+  }, { passive: true });
+
+  // recompute seed positions on scroll so suppression tracks the cards under cursor
+  let scrollRAF = 0;
+  window.addEventListener('scroll', () => {
+    if (scrollRAF) return;
+    scrollRAF = requestAnimationFrame(() => {
+      recomputeWorkSeeds();
+      scrollRAF = 0;
+    });
+  }, { passive: true });
+
+  /* ---- visibility: pause rAF work when tab hidden ---- */
+  document.addEventListener('visibilitychange', () => {
+    tabHidden = document.hidden;
+    if (!userPaused) setState(tabHidden ? 'paused (tab hidden)' : (frozenForReduced ? 'frozen (reduced motion)' : 'running'));
+  });
+
+  /* ---- controls ---- */
+  const btnPause = document.getElementById('btn-pause');
+  btnPause.addEventListener('click', () => {
+    userPaused = !userPaused;
+    btnPause.setAttribute('aria-pressed', userPaused ? 'true' : 'false');
+    btnPause.textContent = userPaused ? 'Resume sim' : 'Pause sim';
+    setState(userPaused ? 'paused (manual)' : 'running');
+  });
+
+  const btnReseed = document.getElementById('btn-reseed');
+  btnReseed.addEventListener('click', () => {
+    seedFull();
+    stampWorkSeeds();
+    warmUp(isMobile ? 180 : 280);
+    frozenForReduced = false;
+    reducedFreezeFrames = 0;
+    render();
+    setState(userPaused ? 'paused (manual)' : 'running');
+  });
+
+  const btnPattern = document.getElementById('btn-pattern');
+  btnPattern.addEventListener('click', () => {
+    preset = (preset === PRESETS.coral) ? PRESETS.mitosis : PRESETS.coral;
+    btnPattern.textContent = 'Pattern: ' + preset.label;
+  });
+
+  // kick off after layout so card rects are real
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    requestAnimationFrame(init);
+  } else {
+    window.addEventListener('DOMContentLoaded', () => requestAnimationFrame(init));
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,557 @@
+<!-- TEMPLATE: Stroke First | ARCHETYPE: STROKE FIRST - SVG paint-order:stroke fill + non-scaling-stroke giant hairline-outlined art-director type | REF: MDN SVG paint-order:stroke fill (CSS Design Awards typographic poster 2026), Codrops vector-effect:non-scaling-stroke art-director type (2025) | WHEN TO USE: an art-direction / studio reel where each scroll panel is a full-bleed SVG poster whose giant display headline is outlined in a crisp hairline that scroll zooms into without ever thickening | SWAP: edit the POSTERS array at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Stroke First - Hairline-Outlined SVG Poster Reel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<!-- Archivo Black = the giant art-director display word (heavy counters survive paint-order:stroke outline); Archivo = credits/UI -->
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ===== Stroke First =====================================================
+     Each panel is a full-viewport inline <svg> poster. The display word is an
+     SVG <text> with:
+        paint-order: stroke fill   -> stroke is painted BEHIND the fill, so the
+                                      outline grows OUTWARD only and never eats
+                                      the letter counters.
+        vector-effect: non-scaling-stroke -> the 1.5px hairline stays 1.5px on
+                                      screen no matter how far the viewBox is
+                                      scaled / zoomed.
+     Scroll drives a scale() zoom on each poster's group toward the focal word;
+     because the stroke is non-scaling it stays a hairline through the whole zoom.
+     ALL fill/stroke are HEX LITERALS in presentation attributes, never var().
+  ======================================================================== */
+
+  :root{
+    --bone:#f4f0e6;          /* bone stock ground (CSS chrome only) */
+    --ink:#111111;           /* ink fill (CSS chrome only) */
+    --vermilion:#c94a2e;     /* hairline vermilion (CSS chrome only) */
+    --bone-2:#ece6d6;
+    --ink-soft:rgba(17,17,17,.55);
+    --hair-css:rgba(17,17,17,.12);
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html{ -webkit-text-size-adjust:100%; scroll-behavior:smooth; }
+  body{
+    background:var(--bone);
+    color:var(--ink);
+    font-family:'Archivo',system-ui,-apple-system,sans-serif;
+    line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+
+  /* faint bone-paper grain so the stock reads as printed, not flat #fff */
+  body::before{
+    content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
+    background-image:
+      radial-gradient(rgba(17,17,17,.025) 1px, transparent 1.4px);
+    background-size:4px 4px;
+    mix-blend-mode:multiply; opacity:.55;
+  }
+
+  a{ color:inherit; text-decoration:none; }
+
+  /* ---- top studio bar (compact, sits above first poster, never a hero) --- */
+  .topbar{
+    position:fixed; top:0; left:0; right:0; z-index:40;
+    display:flex; align-items:center; justify-content:space-between;
+    gap:1rem; padding:.7rem clamp(.9rem,3vw,2rem);
+    background:linear-gradient(180deg, rgba(244,240,230,.96), rgba(244,240,230,.0));
+    backdrop-filter:saturate(1.05);
+  }
+  .brand{ display:flex; align-items:baseline; gap:.55rem; }
+  .brand b{
+    font-family:'Archivo Black',sans-serif; font-weight:400;
+    font-size:clamp(.95rem,1.6vw,1.15rem); letter-spacing:-.01em;
+  }
+  .brand .vm{ color:var(--vermilion); }
+  .brand small{ color:var(--ink-soft); font-size:.62rem; letter-spacing:.32em; text-transform:uppercase; }
+  .topnav{ display:flex; gap:1.1rem; font-size:.7rem; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-soft); }
+  .topnav a{ position:relative; padding:.15rem 0; }
+  .topnav a::after{ content:""; position:absolute; left:0; right:100%; bottom:-2px; height:1.5px; background:var(--vermilion); transition:right .3s ease; }
+  .topnav a:hover::after, .topnav a:focus-visible::after{ right:0; }
+  @media (max-width:640px){ .topnav{ display:none; } }
+
+  /* progress hairline (the running stroke) */
+  .progress{ position:fixed; top:0; left:0; height:2px; width:0%; background:var(--vermilion); z-index:50; }
+
+  /* ---- poster stack -------------------------------------------------- */
+  main{ position:relative; z-index:1; }
+
+  .poster{
+    position:relative;
+    min-height:100svh;
+    display:flex; flex-direction:column;
+    border-bottom:1px solid var(--hair-css);
+    overflow:hidden;
+  }
+  /* first poster leaves room for the fixed top bar but stays full-bleed */
+  .poster:first-child{ padding-top:0; }
+
+  /* the SVG fills the panel; it is sticky so the scroll-zoom reads in place */
+  .stage{
+    position:sticky; top:0;
+    width:100%; height:100svh;
+    display:block;
+  }
+  .poster-svg{ width:100%; height:100%; display:block; }
+
+  /* media sits BEHIND the type layer, inside the SVG via <foreignObject> wrapper
+     image is plain <image>; video is a <foreignObject> so it can <video> play */
+  .media-frame{ width:100%; height:100%; overflow:hidden; background:var(--bone-2); }
+  .media-frame img, .media-frame video{
+    width:100%; height:100%; object-fit:cover; display:block;
+    filter:grayscale(.18) contrast(1.02);
+  }
+
+  /* index rail bottom-left of each poster */
+  .poster-meta{
+    position:absolute; left:clamp(.9rem,3vw,2rem); bottom:clamp(1rem,4vh,2.2rem);
+    z-index:6; max-width:min(46ch,72vw);
+    mix-blend-mode:normal;
+  }
+  .poster-meta .num{
+    font-family:'Archivo Black',sans-serif; font-size:.8rem; letter-spacing:.05em;
+    color:var(--vermilion);
+  }
+  .poster-meta h2{
+    font-family:'Archivo',sans-serif; font-weight:700;
+    font-size:clamp(1rem,2.2vw,1.4rem); letter-spacing:-.01em; margin:.15rem 0 .35rem;
+  }
+  .poster-meta p{ font-size:clamp(.78rem,1.4vw,.9rem); color:var(--ink-soft); max-width:42ch; }
+  .poster-meta .credits{
+    margin-top:.55rem; display:flex; flex-wrap:wrap; gap:.35rem .9rem;
+    font-size:.64rem; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-soft);
+  }
+  .poster-meta .credits b{ color:var(--ink); font-weight:700; }
+
+  /* right-side vertical caption (the print colophon) */
+  .poster-side{
+    position:absolute; right:clamp(.6rem,2vw,1.4rem); top:50%;
+    transform:translateY(-50%) rotate(180deg);
+    writing-mode:vertical-rl; z-index:6;
+    font-size:.62rem; letter-spacing:.34em; text-transform:uppercase; color:var(--ink-soft);
+  }
+  @media (max-width:640px){ .poster-side{ display:none; } }
+
+  /* play affordance for video posters */
+  .play-tag{
+    position:absolute; right:clamp(.9rem,3vw,2rem); bottom:clamp(1rem,4vh,2.2rem);
+    z-index:6; display:flex; align-items:center; gap:.5rem;
+    font-size:.64rem; letter-spacing:.2em; text-transform:uppercase; color:var(--ink-soft);
+  }
+  .play-tag .dot{ width:8px; height:8px; border-radius:50%; background:var(--vermilion); box-shadow:0 0 0 4px rgba(201,74,46,.18); }
+
+  /* focus visibility */
+  a:focus-visible, button:focus-visible, .poster:focus-visible{
+    outline:2.5px solid var(--vermilion); outline-offset:3px; border-radius:2px;
+  }
+
+  /* ---- closing colophon ---------------------------------------------- */
+  .colophon{
+    position:relative; z-index:1;
+    min-height:80svh; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; gap:1.1rem; padding:4rem 1.2rem;
+    border-top:1px solid var(--hair-css);
+  }
+  .colophon svg{ width:min(94vw,1100px); height:auto; display:block; }
+  .colophon .lede{ max-width:46ch; color:var(--ink-soft); font-size:clamp(.85rem,1.6vw,1rem); }
+  .colophon .cta{
+    display:inline-flex; align-items:center; gap:.6rem;
+    border:1.5px solid var(--ink); padding:.7rem 1.3rem; border-radius:999px;
+    font-size:.74rem; letter-spacing:.2em; text-transform:uppercase; font-weight:700;
+    transition:background .25s ease,color .25s ease;
+  }
+  .colophon .cta:hover, .colophon .cta:focus-visible{ background:var(--ink); color:var(--bone); }
+
+  /* ---- scroll hint --------------------------------------------------- */
+  .scrollhint{
+    position:fixed; left:50%; bottom:1.1rem; transform:translateX(-50%);
+    z-index:45; display:flex; flex-direction:column; align-items:center; gap:.3rem;
+    font-size:.6rem; letter-spacing:.3em; text-transform:uppercase; color:var(--ink-soft);
+    transition:opacity .4s ease;
+  }
+  .scrollhint .arrow{ width:1.5px; height:22px; background:var(--vermilion); position:relative; }
+  .scrollhint .arrow::after{ content:""; position:absolute; left:50%; bottom:0; width:7px; height:7px; border-right:1.5px solid var(--vermilion); border-bottom:1.5px solid var(--vermilion); transform:translateX(-50%) rotate(45deg); }
+  @keyframes bob{ 0%,100%{ transform:translateY(0); opacity:.9 } 50%{ transform:translateY(5px); opacity:.4 } }
+  .scrollhint .arrow{ animation:bob 1.8s ease-in-out infinite; }
+
+  /* ===== reduced motion: kill the zoom, freeze the stack ============== */
+  @media (prefers-reduced-motion: reduce){
+    html{ scroll-behavior:auto; }
+    .scrollhint .arrow{ animation:none; }
+    /* posters become a plain stacked gallery; JS also bails on the rAF loop */
+    .stage{ position:relative; height:auto; min-height:100svh; }
+  }
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <b>STROKE<span class="vm">/</span>FIRST</b>
+    <small>art direction reel</small>
+  </div>
+  <nav class="topnav" aria-label="sections">
+    <a href="#p0">Index</a>
+    <a href="#p1">Work</a>
+    <a href="#p3">Motion</a>
+    <a href="#end">Studio</a>
+  </nav>
+</header>
+
+<main id="reel"></main>
+
+<section class="colophon" id="end">
+  <svg viewBox="0 0 1100 240" role="img" aria-label="Stroke First studio sign-off">
+    <text x="550" y="150" text-anchor="middle"
+      font-family="'Archivo Black', sans-serif" font-size="150"
+      fill="#111111" stroke="#c94a2e" stroke-width="1.5"
+      paint-order="stroke" vector-effect="non-scaling-stroke"
+      style="letter-spacing:-4px">STUDIO</text>
+    <text x="550" y="210" text-anchor="middle"
+      font-family="'Archivo', sans-serif" font-weight="600" font-size="22"
+      fill="#111111" letter-spacing="14" opacity="0.6">STROKE FIRST  /  EST. MMXXVI</text>
+  </svg>
+  <p class="lede">Every panel above is one inline SVG. The headline is real, selectable SVG text outlined with <b>paint-order:stroke fill</b> and a <b>non-scaling-stroke</b> hairline that stays 1.5px crisp through the entire scroll zoom. The work sits behind the type.</p>
+  <a class="cta" href="#p0">Back to the top &nbsp;&uarr;</a>
+</section>
+
+<div class="scrollhint" id="scrollhint" aria-hidden="true">
+  <span>Scroll to zoom</span>
+  <span class="arrow"></span>
+</div>
+
+<script>
+/* =====================================================================
+   DATA - swap these to repurpose the reel. Each entry is one full-bleed
+   SVG poster. `word` is the giant hairline-outlined art-director headline
+   (kept short so the counters read at 24vw+). `media` is the work that
+   sits BEHIND the type. `kind` = "image" | "video". focal{x,y} is the
+   normalized point (0..1) the scroll zoom drives toward.
+   ===================================================================== */
+const POSTERS = [
+  {
+    id:"p0",
+    num:"01",
+    word:"DRIVE",
+    sub:"Nocturne",
+    title:"Nocturne / Wet Neon",
+    blurb:"Matte-black coupe held on a rain-slick boulevard. The headline is set first as a hairline, the work read through its counters.",
+    media:"../assets/flux-car-4k.png",
+    poster:"../assets/flux-car-4k.png",
+    kind:"image",
+    focal:{x:0.52,y:0.46},
+    side:"Plate 01 / Bone stock / Vermilion 1.5px",
+    credits:[["Art dir.","Stroke First"],["Frame","FLUX 4K"]]
+  },
+  {
+    id:"p1",
+    num:"02",
+    word:"CARE",
+    sub:"Interiors",
+    title:"Interiors / Mint & Wood",
+    blurb:"A calm clinic study, warm wood against mint. The outline expands outward only, never eating into the C or the A.",
+    media:"../assets/flux-clinic-4k.png",
+    poster:"../assets/flux-clinic-4k.png",
+    kind:"image",
+    focal:{x:0.48,y:0.5},
+    side:"Plate 02 / paint-order: stroke fill",
+    credits:[["Subject","Clinic"],["Frame","FLUX 4K"]]
+  },
+  {
+    id:"p2",
+    num:"03",
+    word:"WILD",
+    sub:"Painterly",
+    title:"Painterly / Autumn Fox",
+    blurb:"A painted fox in autumn light. The viewBox scales toward the eye while the hairline refuses to thicken.",
+    media:"../assets/sdxl.png",
+    poster:"../assets/sdxl.png",
+    kind:"image",
+    focal:{x:0.58,y:0.42},
+    side:"Plate 03 / non-scaling-stroke",
+    credits:[["Render","SDXL"],["Mode","Painterly"]]
+  },
+  {
+    id:"p3",
+    num:"04",
+    word:"MOTION",
+    sub:"Reel",
+    title:"Motion / Drive in Frame",
+    blurb:"A moving plate behind a static outline. Video plays only while this poster is the focused one, never all at once.",
+    media:"../assets/flux-car-i2v.mp4",
+    poster:"../assets/gen/poster-flux-car-i2v.png",
+    kind:"video",
+    focal:{x:0.5,y:0.46},
+    side:"Plate 04 / in-view playback only",
+    credits:[["Loop","FLUX i2v"],["Audio","silent"]]
+  },
+  {
+    id:"p4",
+    num:"05",
+    word:"FLOW",
+    sub:"Generative",
+    title:"Flow / Liquid Frames",
+    blurb:"Generative liquid motion. Zoom drives toward the centre of turbulence; the stroke stays a single pixel-and-a-half.",
+    media:"../assets/fal-video.mp4",
+    poster:"../assets/gen/poster-fal-video.png",
+    kind:"video",
+    focal:{x:0.5,y:0.5},
+    side:"Plate 05 / scroll = viewBox zoom",
+    credits:[["Loop","FAL"],["Audio","silent"]]
+  },
+  {
+    id:"p5",
+    num:"06",
+    word:"LIGHT",
+    sub:"Cinematic",
+    title:"Light / Veo Cinematic",
+    blurb:"A cinematic loop closing the reel. Reduced-motion users get this as a static poster stack with no zoom at all.",
+    media:"../assets/veo-video.mp4",
+    poster:"../assets/gen/poster-veo-video.png",
+    kind:"video",
+    focal:{x:0.5,y:0.44},
+    side:"Plate 06 / reduced-motion safe",
+    credits:[["Loop","VEO"],["Audio","muted"]]
+  }
+];
+
+/* viewBox geometry for every poster (square-ish art-director frame). */
+const VB = { w:1600, h:1000 };
+
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const reel = document.getElementById('reel');
+
+/* ---------- build the SVG markup for one poster --------------------- */
+function buildMedia(p){
+  if(p.kind === "video"){
+    // foreignObject lets a real <video> live inside the SVG, behind the type
+    return `
+      <foreignObject x="0" y="0" width="${VB.w}" height="${VB.h}">
+        <div xmlns="http://www.w3.org/1999/xhtml" class="media-frame">
+          <video class="bg-video" data-src="${p.media}" poster="${p.poster}"
+                 muted loop playsinline preload="none"
+                 aria-label="${p.title} loop"></video>
+        </div>
+      </foreignObject>`;
+  }
+  // plain raster image, behind the type
+  return `<image href="${p.media}" x="0" y="0" width="${VB.w}" height="${VB.h}"
+             preserveAspectRatio="xMidYMid slice" />`;
+}
+
+/* the giant hairline-outlined headline. Font-size driven so the word is
+   >= 24vw at rest. We compute size from the viewBox so it always dominates.
+   text stays selectable: it is real <text>, never a <path>. */
+function buildPoster(p, i){
+  const cx = VB.w/2, cy = VB.h/2 + 70;
+  // scrim so the bone type reads over busy media (vermilion hairline + ink fill
+  // both rely on local contrast); a soft bone gradient lifts the lower band.
+  const sec = document.createElement('section');
+  sec.className = 'poster';
+  sec.id = p.id;
+  sec.tabIndex = -1;
+  sec.setAttribute('data-index', i);
+  sec.setAttribute('aria-label', `Poster ${p.num}: ${p.title}`);
+
+  sec.innerHTML = `
+    <div class="stage">
+      <svg class="poster-svg" viewBox="0 0 ${VB.w} ${VB.h}" preserveAspectRatio="xMidYMid slice" aria-hidden="false" role="img" aria-label="${p.title} - ${p.word}">
+        <defs>
+          <clipPath id="clip-${p.id}"><rect x="0" y="0" width="${VB.w}" height="${VB.h}"/></clipPath>
+          <linearGradient id="scrim-${p.id}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#f4f0e6" stop-opacity="0.30"/>
+            <stop offset="0.45" stop-color="#f4f0e6" stop-opacity="0.06"/>
+            <stop offset="1" stop-color="#f4f0e6" stop-opacity="0.46"/>
+          </linearGradient>
+        </defs>
+
+        <!-- ZOOM GROUP: scroll scales this toward focal{x,y}. The headline is
+             inside, so the WORD zooms; non-scaling-stroke keeps the outline
+             pinned at 1.5px on screen the whole way. -->
+        <g class="zoomg" data-focal-x="${p.focal.x}" data-focal-y="${p.focal.y}" clip-path="url(#clip-${p.id})">
+          <!-- media behind everything -->
+          <g class="media-layer">${buildMedia(p)}</g>
+          <!-- bone scrim to seat the type -->
+          <rect x="0" y="0" width="${VB.w}" height="${VB.h}" fill="url(#scrim-${p.id})"/>
+
+          <!-- tiny registration ticks (print-mark flavour, hairline) -->
+          <g stroke="#c94a2e" stroke-width="1.5" vector-effect="non-scaling-stroke" opacity="0.8">
+            <path d="M40 40 L80 40 M40 40 L40 80" fill="none"/>
+            <path d="M${VB.w-40} ${VB.h-40} L${VB.w-80} ${VB.h-40} M${VB.w-40} ${VB.h-40} L${VB.w-40} ${VB.h-80}" fill="none"/>
+          </g>
+
+          <!-- kicker above the giant word -->
+          <text x="${cx}" y="${cy - 250}" text-anchor="middle"
+                font-family="'Archivo', sans-serif" font-weight="700"
+                font-size="34" letter-spacing="20"
+                fill="#111111" opacity="0.72">${p.sub.toUpperCase()}</text>
+
+          <!-- THE HEADLINE: paint-order stroke fill + non-scaling-stroke.
+               font-size ~ 0.5 * viewBox height keeps it >= 24vw at rest. -->
+          <text class="hed" x="${cx}" y="${cy}" text-anchor="middle"
+                font-family="'Archivo Black', sans-serif"
+                font-size="${Math.round(VB.h*0.5)}"
+                fill="#111111" stroke="#c94a2e" stroke-width="1.5"
+                paint-order="stroke" vector-effect="non-scaling-stroke"
+                style="letter-spacing:-8px">${p.word}</text>
+
+          <!-- plate number under the word, hairline outline echo -->
+          <text x="${cx}" y="${cy + 120}" text-anchor="middle"
+                font-family="'Archivo', sans-serif" font-weight="700"
+                font-size="26" letter-spacing="10"
+                fill="#c94a2e">PLATE ${p.num}</text>
+        </g>
+      </svg>
+
+      <div class="poster-meta">
+        <div class="num">${p.num} / ${String(POSTERS.length).padStart(2,'0')}</div>
+        <h2>${p.title}</h2>
+        <p>${p.blurb}</p>
+        <div class="credits">
+          ${p.credits.map(c=>`<span>${c[0]} <b>${c[1]}</b></span>`).join('')}
+        </div>
+      </div>
+
+      <div class="poster-side">${p.side}</div>
+
+      ${p.kind==="video" ? `<div class="play-tag"><span class="dot"></span>plays in view</div>` : ``}
+    </div>`;
+  return sec;
+}
+
+POSTERS.forEach((p,i)=> reel.appendChild(buildPoster(p, i)));
+
+/* =====================================================================
+   SCROLL ZOOM  (skipped entirely under reduced-motion)
+   For each poster we map the panel's scroll position to a scale on the
+   .zoomg group, transform-origin at the focal point (in viewBox units).
+   Because the headline's stroke is non-scaling, the outline never thickens.
+   ===================================================================== */
+const zoomGroups = [...document.querySelectorAll('.poster')].map(sec=>{
+  const g = sec.querySelector('.zoomg');
+  const fx = parseFloat(g.dataset.focalX) * VB.w;
+  const fy = parseFloat(g.dataset.focalY) * VB.h;
+  return { sec, g, fx, fy };
+});
+
+const MAX_SCALE = 1.55; // gentle zoom; the point is the crisp hairline, not vertigo
+
+function applyZoom(){
+  const vh = window.innerHeight;
+  for(const z of zoomGroups){
+    const r = z.sec.getBoundingClientRect();
+    // progress 0..1 as the panel travels through the viewport
+    // 0 when its top hits the top, 1 when its bottom leaves the bottom
+    const total = r.height + vh;
+    const p = Math.min(1, Math.max(0, (vh - r.top) / total));
+    // ease toward focal: scale ramps then holds slightly past centre
+    const eased = p < 0.5 ? (p*2) : 1; // grow through first half, hold
+    const scale = 1 + (MAX_SCALE - 1) * eased;
+    // SVG-space transform: translate focal to origin, scale, translate back
+    const tx = z.fx - z.fx*scale;
+    const ty = z.fy - z.fy*scale;
+    z.g.setAttribute('transform', `translate(${tx.toFixed(2)} ${ty.toFixed(2)}) scale(${scale.toFixed(4)})`);
+  }
+}
+
+/* progress bar */
+const progress = document.getElementById('progress');
+function updateProgress(){
+  const h = document.documentElement;
+  const max = h.scrollHeight - h.clientHeight;
+  const pct = max>0 ? (h.scrollTop / max) * 100 : 0;
+  progress.style.width = pct.toFixed(2) + '%';
+}
+
+/* rAF-throttled scroll handler (disabled for reduced motion) */
+let ticking = false;
+function onScroll(){
+  if(ticking) return;
+  ticking = true;
+  requestAnimationFrame(()=>{
+    if(!reduceMotion) applyZoom();
+    updateProgress();
+    ticking = false;
+  });
+}
+
+if(reduceMotion){
+  // static poster stack: clear any transform, freeze final readable state
+  zoomGroups.forEach(z=> z.g.removeAttribute('transform'));
+  updateProgress();
+} else {
+  applyZoom();
+  updateProgress();
+  window.addEventListener('scroll', onScroll, {passive:true});
+  window.addEventListener('resize', ()=>{ applyZoom(); updateProgress(); }, {passive:true});
+}
+
+/* =====================================================================
+   VIDEO: play ONLY the most-in-view video poster. Never decode several
+   loops simultaneously (kills FPS). One active <video> at a time.
+   Lazy-attach src on first approach.
+   ===================================================================== */
+const videoEls = [...document.querySelectorAll('.bg-video')];
+let activeVideo = null;
+
+function ensureSrc(v){
+  if(!v.dataset.src) return;
+  if(v.getAttribute('src')) return;
+  v.setAttribute('src', v.dataset.src);
+  v.load();
+}
+
+const visMap = new Map(); // video -> intersectionRatio
+
+const vObserver = new IntersectionObserver((entries)=>{
+  for(const e of entries){
+    visMap.set(e.target, e.isIntersecting ? e.intersectionRatio : 0);
+    if(e.isIntersecting) ensureSrc(e.target);
+  }
+  // pick the single most-visible video
+  let best=null, bestR=0.35; // require a real foothold before playing
+  for(const [v,r] of visMap){ if(r>bestR){ bestR=r; best=v; } }
+  if(best !== activeVideo){
+    if(activeVideo){ try{ activeVideo.pause(); }catch(_){} }
+    activeVideo = best;
+    if(activeVideo){
+      ensureSrc(activeVideo);
+      const pr = activeVideo.play();
+      if(pr && pr.catch) pr.catch(()=>{}); // autoplay guard
+    }
+  }
+},{ threshold:[0,0.2,0.35,0.6,0.85,1] });
+
+videoEls.forEach(v=> vObserver.observe(v));
+
+// pause everything when the tab is hidden
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden && activeVideo){ try{ activeVideo.pause(); }catch(_){} }
+  else if(!document.hidden && activeVideo){ const pr=activeVideo.play(); if(pr&&pr.catch) pr.catch(()=>{}); }
+});
+
+/* =====================================================================
+   Hide the scroll hint after the first real scroll.
+   ===================================================================== */
+const hint = document.getElementById('scrollhint');
+let hinted=false;
+window.addEventListener('scroll', ()=>{
+  if(!hinted && window.scrollY > 80){ hint.style.opacity='0'; hinted=true; }
+},{passive:true, once:false});
+
+/* font-load nudge: when Archivo Black resolves, the headline metrics shift,
+   so re-apply the zoom to keep the focal centred. */
+if(document.fonts && document.fonts.ready){
+  document.fonts.ready.then(()=>{ if(!reduceMotion) applyZoom(); });
+}
+</script>
+</body>
+</html>

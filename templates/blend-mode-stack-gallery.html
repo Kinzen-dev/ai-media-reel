@@ -225,8 +225,11 @@ h1 em{font-style:italic;font-weight:400;color:var(--w1)}
 .foot{margin-top:clamp(34px,5vw,56px);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#a89f92}
 
 /* ============================================================
-   MOBILE (<=640px): vertical separation, media letterboxed.
-   No cover-crop of a 16:9 asset into a portrait viewport.
+   MOBILE (<=640px): SAME fused composite hero at scroll=0 as desktop.
+   The four layers stay in EXACT registration (absolute, blend modes
+   active, isolation on) so the scroll=0 viewport shows the blended
+   composite - NOT a pre-separated band list. Scroll then slides them
+   apart (the JS engine runs on mobile too, with vertical targets).
    ============================================================ */
 @media (max-width:640px){
   :root{--frame-w:94vw}
@@ -237,40 +240,35 @@ h1 em{font-style:italic;font-weight:400;color:var(--w1)}
   .scrollcue .bar::after{width:36%;height:100%;animation:dripH 2.1s var(--ease) infinite}
   @keyframes dripH{0%{transform:translateX(-110%)}60%,100%{transform:translateX(280%)}}
 
-  /* track no longer needs scroll distance on mobile (no slide) */
-  .track{height:auto}
+  /* keep the sticky-track slide mechanic on mobile (shorter throw) */
+  .track{height:300vh}
   .stage{
-    position:relative;top:auto;height:auto;
-    flex-direction:column;justify-content:flex-start;
-    padding:4px 0 8px;gap:0;
+    position:sticky;top:0;height:100vh;
+    flex-direction:column;justify-content:center;
+    overflow:hidden;padding:0;gap:0;
   }
+  /* composite stays a single registered frame - the fused hero at scroll=0 */
   .composite{
     width:var(--frame-w);
-    aspect-ratio:auto;
-    height:auto;max-height:none;
-    display:flex;flex-direction:column;gap:12px;
-    isolation:auto;             /* no compositing across the vertical stack */
+    aspect-ratio:var(--frame-ar);
+    height:auto;max-height:74vh;
+    display:block;
+    isolation:isolate;          /* compositing stays inside the group */
   }
-  .composite::before{display:none}
-  /* on mobile each layer becomes its own letterboxed band; vertical offset not horizontal */
+  .composite::before{content:"";display:block}
+  /* layers stay stacked in registration; JS drives the separation */
   .layer{
-    position:relative;
-    inset:auto;
+    position:absolute;
+    inset:0;
     width:100%;
     height:auto;
     aspect-ratio:var(--frame-ar);
     margin:0;
   }
-  /* vertical bands show each work TRUE: no cross-blend, light cast wash only */
-  .layer{mix-blend-mode:normal!important}
-  .layer .cast{opacity:.16!important;mix-blend-mode:multiply!important}
-  .layer.l2 .cast,.layer.l4 .cast{mix-blend-mode:screen!important;opacity:.14!important}
   .layer img,.layer video{object-fit:cover}
   .layer.is-square img{object-fit:contain}
-  /* meta always visible on mobile (no hover) */
-  .layer .meta{opacity:1;transform:none}
-  .layer .badge{opacity:.92}
-  .formula{font-size:10px;padding:7px 12px;bottom:auto;position:relative;transform:none;left:auto;margin:16px auto 4px;display:flex;flex-wrap:wrap}
+  /* meta/badge revealed by the .separated class the JS toggles (as desktop) */
+  .formula{font-size:10px;padding:7px 12px;display:flex;flex-wrap:wrap}
   .rail{display:none}
 }
 
@@ -296,6 +294,22 @@ h1 em{font-style:italic;font-weight:400;color:var(--w1)}
     mix-blend-mode:normal!important;aspect-ratio:var(--frame-ar);height:auto}
   .layer .cast{opacity:.18!important;mix-blend-mode:multiply!important}
   .formula{position:relative;left:auto;bottom:auto;transform:none;margin:24px auto 0}
+}
+/* reduced-motion + mobile: no slide engine, so show a static letterboxed
+   band list (each work true) instead of a frozen un-separable composite. */
+@media (prefers-reduced-motion:reduce) and (max-width:640px){
+  .track{height:auto}
+  .stage{position:relative!important;top:auto;height:auto;flex-direction:column;justify-content:flex-start;padding:4px 0 8px;overflow:visible}
+  .composite{display:flex;flex-direction:column;gap:12px;aspect-ratio:auto;height:auto;max-height:none;isolation:auto}
+  .composite::before{display:none}
+  .layer{position:relative!important;inset:auto!important;transform:none!important;
+    mix-blend-mode:normal!important;width:100%;height:auto;aspect-ratio:var(--frame-ar);margin:0}
+  .layer .cast{opacity:.16!important;mix-blend-mode:multiply!important}
+  .layer.l2 .cast,.layer.l4 .cast{mix-blend-mode:screen!important;opacity:.14!important}
+  .layer .meta{opacity:1!important;transform:none!important}
+  .layer .badge{opacity:.92!important}
+  .formula{position:relative;left:auto;bottom:auto;transform:none;margin:16px auto 4px;display:flex;flex-wrap:wrap}
+  .rail{display:none}
 }
 
 /* accessible focus */
@@ -589,32 +603,14 @@ const DATA = {
   }
 
   function onScroll(){
-    if(reduce.matches || isMobile()) return;
+    // mobile runs the SAME slide engine now (fused composite at scroll=0 ->
+    // works separate on scroll). Only reduced-motion opts out entirely.
+    if(reduce.matches) return;
     const rect=track.getBoundingClientRect();
     const total=track.offsetHeight - window.innerHeight;
     const scrolled=Math.min(total,Math.max(0,-rect.top));
     targetP= total>0 ? scrolled/total : 0;
     if(!raf) raf=requestAnimationFrame(frame);
-  }
-
-  /* ---------- MOBILE: vertical separation, no horizontal slide, no rAF ----------
-     On mobile the layers are already in normal flow (CSS), stacked as
-     letterboxed bands. We just reveal meta (CSS handles it) and lazy-play
-     the in-view video. */
-  function setupMobile(){
-    const vidLayer=layers.find(l=>l.querySelector("video"));
-    if(vidLayer && "IntersectionObserver" in window){
-      const v=vidLayer.querySelector("video");
-      new IntersectionObserver(es=>{
-        es.forEach(e=>{
-          if(e.isIntersecting){
-            if(v.preload==="none"){v.preload="auto";v.load();}
-            v.play().catch(()=>{});
-          }else{v.pause();}
-        });
-      },{threshold:0.4}).observe(vidLayer);
-    }
-    layers.forEach(l=>l.classList.add("separated"));
   }
 
   function init(){
@@ -624,8 +620,8 @@ const DATA = {
       else layers.forEach(l=>l.classList.add("separated"));
       return;
     }
-    if(isMobile()){ setupMobile(); return; }
-    // desktop interactive
+    // desktop AND mobile run the same interactive engine now: layers start in
+    // full registration (fused composite hero at scroll=0), scroll separates them.
     measure();
     apply(0);
     window.addEventListener("scroll",onScroll,{passive:true});
@@ -638,12 +634,13 @@ const DATA = {
     const nowMobile=isMobile();
     if(nowMobile!==lastMobile){
       lastMobile=nowMobile;
-      // reset inline transforms when leaving desktop
-      if(nowMobile) layers.forEach(l=>l.style.transform="");
+      // clear inline transforms before re-init so the new layout starts clean
+      layers.forEach(l=>l.style.transform="");
       init();
     }else{
       measure();
-      if(!reduce.matches && !nowMobile) apply(curP);
+      // both desktop and mobile are interactive now; re-apply current progress
+      if(!reduce.matches) apply(curP);
     }
   },{passive:true});
 

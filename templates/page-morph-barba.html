@@ -1,0 +1,899 @@
+<!-- TEMPLATE: Liquid Page | ARCHETYPE: liquid-page (shader-dissolve multi-page transitions) | REF: Codrops Scroll-Revealed WebGL Gallery (2026), Codrops multi-page WebGL transition portfolio (2026) | WHEN TO USE: portfolio / case-study SPA where navigating between work routes should feel like crossing into a new visual world via a noise-masked diagonal dissolve | SWAP: edit the PAGES array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Liquid Page - Shader-Dissolve Portfolio</title>
+
+<!-- ===================================================================== -->
+<!-- DATA: edit this PAGES array to reskin the whole template.              -->
+<!-- index = the type list; each detail route = a full-bleed scene.        -->
+<!-- accent is the per-page color the dissolve reveals.                    -->
+<!-- ===================================================================== -->
+<script>
+const VOID = "#070708";
+const PAGES = [
+  {
+    route: "/",
+    kind: "index",
+    accent: "#e8b84b",
+    eyebrow: "Vesperwerk / Selected Work 2026",
+    title: "Liquid\nPage",
+    blurb: "Three worlds, one canvas. Each route dissolves into the next through a noise-masked diagonal sweep that reveals its color. The transition is the work.",
+    // bg media for the index hero panel (a quiet, scene-setting frame)
+    media: { type: "image", src: "../assets/flux-car-4k.png", poster: "../assets/flux-car-4k.png" }
+  },
+  {
+    route: "/work/nocturne",
+    kind: "detail",
+    accent: "#e8b84b",
+    index: "01",
+    eyebrow: "Automotive / Film",
+    title: "Nocturne",
+    sub: "A matte-black coupe on a rain-glazed neon street. Long exposure, slow burn.",
+    media: { type: "image", src: "../assets/flux-car-4k.png", poster: "../assets/flux-car-4k.png" },
+    facts: [["Client", "Atelier Mirage"], ["Discipline", "Film + Color"], ["Year", "2026"]],
+    body: "Shot wet so the city paints itself across the bodywork. The grade leans amber against the cyan of the signage, holding the car in a pocket of warm light while the street stays cold."
+  },
+  {
+    route: "/work/clinic",
+    kind: "detail",
+    accent: "#00d4ff",
+    index: "02",
+    eyebrow: "Healthcare / Spatial",
+    title: "Clarity",
+    sub: "A mint and wood clinic rebuilt as calm. Soft, clinical, human.",
+    media: { type: "image", src: "../assets/flux-clinic-4k.png", poster: "../assets/flux-clinic-4k.png" },
+    facts: [["Client", "Yimwhan Dental"], ["Discipline", "Spatial + Brand"], ["Year", "2026"]],
+    body: "Cyan is the accent of trust here. We let the daylight do the heavy lifting and reserved color for the smallest touches, so the room reads as a place you would not mind waiting in."
+  },
+  {
+    route: "/work/ember",
+    kind: "detail",
+    accent: "#ff6b6b",
+    index: "03",
+    eyebrow: "Motion / Generative",
+    title: "Ember",
+    sub: "A painterly fox at the turn of autumn. Coral, smoke, and heat.",
+    media: { type: "image", src: "../assets/sdxl.png", poster: "../assets/sdxl.png" },
+    facts: [["Client", "Self-initiated"], ["Discipline", "Generative + Motion"], ["Year", "2026"]],
+    body: "The warmest of the three. Coral pushes the foreground forward off the void while the brushwork keeps everything just shy of photographic. Built to feel hand-made, rendered by machine."
+  }
+];
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+<!-- three.js via importmap only (no GSAP, no other libs) -->
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.165.0/build/three.module.js" } }
+</script>
+
+<style>
+  :root {
+    --void: #070708;
+    --ink: #f4f1ea;
+    --dim: #8a8780;
+    --line: rgba(244,241,234,0.12);
+    --accent: #e8b84b;
+    --t-fast: 360ms;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: var(--void);
+    color: var(--ink);
+    font-family: "Space Grotesk", system-ui, sans-serif;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  a { color: inherit; text-decoration: none; }
+  ::selection { background: var(--accent); color: var(--void); }
+
+  /* ---- persistent WebGL stage: lives above DOM only mid-transition ---- */
+  #stage {
+    position: fixed; inset: 0;
+    width: 100vw; height: 100vh;
+    z-index: 50;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 120ms linear;
+  }
+  #stage.active { opacity: 1; }
+  #stage canvas { width: 100% !important; height: 100% !important; display: block; }
+
+  /* mobile CSS clip-path wipe overlay (used when WebGL is off/mobile) */
+  #wipe {
+    position: fixed; inset: 0; z-index: 60;
+    pointer-events: none; opacity: 0;
+    background: var(--accent);
+    clip-path: polygon(-40% 0, -40% 0, -20% 0, -60% 0);
+  }
+  #wipe.run {
+    opacity: 1;
+    animation: wipeDiag 620ms cubic-bezier(.76,0,.24,1) forwards;
+  }
+  @keyframes wipeDiag {
+    0%   { clip-path: polygon(-50% 0%, -50% 0%, -30% 100%, -30% 100%); }
+    45%  { clip-path: polygon(-50% 0%, 130% 0%, 150% 100%, -30% 100%); }
+    55%  { clip-path: polygon(-50% 0%, 130% 0%, 150% 100%, -30% 100%); }
+    100% { clip-path: polygon(120% 0%, 160% 0%, 180% 100%, 140% 100%); }
+  }
+
+  /* ---- app shell ---- */
+  #app { position: relative; z-index: 10; min-height: 100vh; }
+
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 40;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 22px clamp(20px, 4vw, 56px);
+    mix-blend-mode: difference;
+  }
+  .brand {
+    font-family: "Fraunces", serif; font-weight: 600; font-size: 19px;
+    letter-spacing: .01em; color: #fff;
+  }
+  .brand i { font-style: normal; color: var(--accent); }
+  .topnav { display: flex; gap: clamp(14px, 2.4vw, 30px); font-size: 12.5px;
+    letter-spacing: .14em; text-transform: uppercase; color: #fff; }
+  .topnav a { position: relative; opacity: .85; }
+  .topnav a[aria-current="page"] { opacity: 1; }
+  .topnav a[aria-current="page"]::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: -6px;
+    height: 1px; background: currentColor;
+  }
+  .topnav a:hover { opacity: 1; }
+
+  /* views container */
+  .view { display: none; }
+  .view.show { display: block; }
+
+  /* ============ INDEX VIEW ============ */
+  .idx {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 1.05fr 1fr;
+    align-items: stretch;
+  }
+  .idx-left {
+    padding: clamp(96px, 12vh, 150px) clamp(20px, 4vw, 56px) 48px;
+    display: flex; flex-direction: column;
+    border-right: 1px solid var(--line);
+  }
+  .idx-eyebrow {
+    font-family: "JetBrains Mono", monospace; font-size: 12px;
+    letter-spacing: .22em; text-transform: uppercase; color: var(--dim);
+    margin-bottom: 26px;
+  }
+  .idx-title {
+    font-family: "Fraunces", serif; font-weight: 300;
+    font-size: clamp(56px, 9vw, 132px); line-height: .9;
+    letter-spacing: -.02em; white-space: pre-line;
+    margin-bottom: 30px;
+  }
+  .idx-title b { font-weight: 600; font-style: italic; color: var(--accent);
+    transition: color var(--t-fast) ease; }
+  .idx-blurb {
+    max-width: 46ch; color: var(--dim); font-size: clamp(14px, 1.4vw, 16px);
+    line-height: 1.7; margin-bottom: auto;
+  }
+  /* the type list - this is the signature index "world" */
+  .worklist { margin-top: 44px; border-top: 1px solid var(--line); }
+  .work-row {
+    display: grid; grid-template-columns: 60px 1fr auto;
+    align-items: center; gap: 18px;
+    padding: 22px 6px; border-bottom: 1px solid var(--line);
+    position: relative; cursor: pointer; overflow: hidden;
+    transition: padding-left var(--t-fast) cubic-bezier(.76,0,.24,1);
+  }
+  .work-row::before {
+    content: ""; position: absolute; left: -100%; top: 0; bottom: 0;
+    width: 100%; background: var(--row-accent, #e8b84b);
+    opacity: .1; transition: left var(--t-fast) cubic-bezier(.76,0,.24,1);
+  }
+  .work-row .wr-num {
+    font-family: "JetBrains Mono", monospace; font-size: 13px; color: var(--dim);
+    transition: color var(--t-fast) ease;
+  }
+  .work-row .wr-name {
+    font-family: "Fraunces", serif; font-size: clamp(26px, 3.4vw, 44px);
+    font-weight: 500; line-height: 1; letter-spacing: -.01em;
+    transition: color var(--t-fast) ease, transform var(--t-fast) cubic-bezier(.76,0,.24,1);
+  }
+  .work-row .wr-tag {
+    font-family: "JetBrains Mono", monospace; font-size: 11.5px;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--dim);
+    text-align: right; transition: color var(--t-fast) ease;
+  }
+  .work-row .wr-dot {
+    position: absolute; right: 8px; top: 50%; width: 9px; height: 9px;
+    border-radius: 50%; background: var(--row-accent, #e8b84b);
+    transform: translateY(-50%) scale(0); opacity: 0;
+    transition: transform var(--t-fast) cubic-bezier(.34,1.56,.64,1), opacity var(--t-fast);
+  }
+  .work-row.hot::before { left: 0; }
+  .work-row.hot { padding-left: 22px; }
+  .work-row.hot .wr-name { color: var(--row-accent); }
+  .work-row.hot .wr-num { color: var(--row-accent); }
+  .work-row:focus-visible { outline: none; }
+  .work-row:focus-visible::before { left: 0; }
+  .work-row:focus-visible .wr-name { color: var(--row-accent); }
+
+  .idx-right {
+    position: relative; overflow: hidden;
+    background: #050506;
+  }
+  .idx-figure {
+    position: absolute; inset: 0;
+  }
+  .idx-figure img {
+    width: 100%; height: 100%; object-fit: cover; object-position: center;
+    filter: saturate(.9) contrast(1.04) brightness(.82);
+    transform: scale(1.04);
+    transition: filter var(--t-fast) ease;
+  }
+  .idx-figure::after {
+    content: ""; position: absolute; inset: 0;
+    background:
+      radial-gradient(120% 80% at 75% 30%, transparent 30%, rgba(7,7,8,.55) 100%),
+      linear-gradient(180deg, rgba(7,7,8,.35), rgba(7,7,8,.1) 40%, rgba(7,7,8,.7));
+    mix-blend-mode: normal;
+  }
+  .idx-fig-overlay {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    padding: clamp(20px, 4vw, 46px);
+    z-index: 2; display: flex; flex-direction: column; gap: 8px;
+  }
+  .idx-fig-accentbar {
+    width: 56px; height: 4px; border-radius: 2px;
+    background: var(--accent); transition: background var(--t-fast) ease, width var(--t-fast) ease;
+  }
+  .idx-fig-label {
+    font-family: "Fraunces", serif; font-size: clamp(28px, 3.6vw, 52px);
+    font-weight: 500; line-height: 1; letter-spacing: -.01em;
+  }
+  .idx-fig-meta {
+    font-family: "JetBrains Mono", monospace; font-size: 12px;
+    letter-spacing: .16em; text-transform: uppercase; color: rgba(255,255,255,.7);
+  }
+  .idx-hint {
+    position: absolute; top: clamp(86px, 12vh, 130px); right: clamp(20px, 4vw, 46px);
+    z-index: 2; font-family: "JetBrains Mono", monospace; font-size: 11px;
+    letter-spacing: .2em; text-transform: uppercase; color: rgba(255,255,255,.55);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .idx-hint .pulse { width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent); animation: pulse 1.8s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{ opacity:.4; transform:scale(.8);} 50%{ opacity:1; transform:scale(1.25);} }
+
+  /* ============ DETAIL VIEW ============ */
+  .detail { min-height: 100vh; position: relative; }
+  .detail-hero {
+    position: relative; height: 100vh; width: 100%; overflow: hidden;
+  }
+  .detail-media { position: absolute; inset: 0; }
+  .detail-media img, .detail-media video {
+    width: 100%; height: 100%; object-fit: cover; object-position: center;
+    filter: saturate(.96) contrast(1.05);
+  }
+  .detail-grade {
+    position: absolute; inset: 0; z-index: 1;
+    background:
+      linear-gradient(180deg, rgba(7,7,8,.55), rgba(7,7,8,.05) 30%, rgba(7,7,8,.15) 55%, rgba(7,7,8,.92)),
+      radial-gradient(90% 70% at 18% 80%, color-mix(in oklab, var(--accent) 22%, transparent), transparent 60%);
+    mix-blend-mode: normal;
+  }
+  .detail-frame {
+    position: absolute; inset: clamp(14px, 2.4vw, 28px); z-index: 2;
+    border: 1px solid rgba(244,241,234,.18); pointer-events: none;
+  }
+  .detail-content {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 3;
+    padding: clamp(28px, 6vw, 80px) clamp(20px, 4vw, 64px);
+    display: grid; grid-template-columns: 1.3fr .9fr; gap: clamp(20px, 4vw, 60px);
+    align-items: end;
+  }
+  .d-index {
+    font-family: "JetBrains Mono", monospace; font-size: 13px;
+    letter-spacing: .2em; color: var(--accent); margin-bottom: 16px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .d-index .bar { width: 44px; height: 2px; background: var(--accent); }
+  .d-eyebrow {
+    font-family: "JetBrains Mono", monospace; font-size: 12px;
+    letter-spacing: .2em; text-transform: uppercase; color: var(--dim);
+    margin-bottom: 14px;
+  }
+  .d-title {
+    font-family: "Fraunces", serif; font-weight: 300;
+    font-size: clamp(54px, 10vw, 150px); line-height: .86;
+    letter-spacing: -.02em; margin-bottom: 18px;
+  }
+  .d-sub { max-width: 34ch; color: var(--ink); font-size: clamp(15px, 1.7vw, 20px);
+    line-height: 1.5; opacity: .92; }
+  .d-side { display: flex; flex-direction: column; gap: 24px; }
+  .d-body { color: var(--dim); font-size: 14.5px; line-height: 1.7; max-width: 44ch; }
+  .d-facts { display: flex; flex-direction: column; gap: 0; border-top: 1px solid var(--line); }
+  .d-fact {
+    display: flex; justify-content: space-between; gap: 16px;
+    padding: 13px 2px; border-bottom: 1px solid var(--line);
+    font-family: "JetBrains Mono", monospace; font-size: 12.5px;
+  }
+  .d-fact .k { color: var(--dim); letter-spacing: .1em; text-transform: uppercase; }
+  .d-fact .v { color: var(--ink); }
+
+  .detail-nav {
+    display: flex; justify-content: space-between; align-items: center; gap: 16px;
+    padding: clamp(28px, 5vw, 56px) clamp(20px, 4vw, 64px) clamp(40px, 7vw, 90px);
+    border-top: 1px solid var(--line);
+  }
+  .navbtn {
+    display: inline-flex; align-items: baseline; gap: 14px;
+    font-family: "Fraunces", serif; font-size: clamp(22px, 3vw, 38px);
+    font-weight: 500; transition: color var(--t-fast) ease, gap var(--t-fast) ease;
+  }
+  .navbtn small {
+    font-family: "JetBrains Mono", monospace; font-size: 11px;
+    letter-spacing: .18em; text-transform: uppercase; color: var(--dim);
+  }
+  .navbtn:hover { color: var(--accent); gap: 22px; }
+  .navbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 6px; border-radius: 4px; }
+  .navbtn.back { color: var(--dim); }
+  .navbtn.back:hover { color: var(--ink); }
+
+  /* play indicator for video detail (if used) */
+  .vid-poster { position: absolute; inset: 0; z-index: 1; }
+  .vid-poster img { width:100%; height:100%; object-fit:cover; }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width: 980px) {
+    .idx { grid-template-columns: 1fr; }
+    .idx-left { border-right: none; }
+    .idx-right { min-height: 56vh; order: -1; }
+    .detail-content { grid-template-columns: 1fr; gap: 24px; }
+    .d-side { gap: 18px; }
+  }
+  @media (max-width: 640px) {
+    .topnav { gap: 14px; font-size: 11px; }
+    .idx-left { padding-top: 84px; }
+    .idx-title { font-size: clamp(48px, 16vw, 80px); }
+    /* never cover-crop landscape into portrait: letterbox the index figure */
+    .idx-right { min-height: 48vh; }
+    .idx-figure img { object-fit: contain; background: #050506; transform: none; filter: saturate(.9) contrast(1.02) brightness(.92); }
+    .idx-figure::after { background: linear-gradient(180deg, rgba(7,7,8,.2), rgba(7,7,8,.6)); }
+    .worklist { margin-top: 30px; }
+    .work-row { grid-template-columns: 44px 1fr; }
+    .work-row .wr-tag { display: none; }
+    .idx-hint { display: none; }
+
+    /* detail: letterbox the media, do not crop landscape into a tall phone */
+    .detail-hero { height: auto; min-height: 100vh; display: flex; flex-direction: column; }
+    .detail-media { position: relative; inset: auto; width: 100%; aspect-ratio: 16/10; }
+    .detail-media img, .detail-media video { object-fit: contain; background: #050506; }
+    .detail-grade { position: absolute; inset: 0; height: auto;
+      background: linear-gradient(180deg, rgba(7,7,8,.25), rgba(7,7,8,.05) 40%, rgba(7,7,8,.4)); }
+    .detail-frame { display: none; }
+    .detail-content { position: relative; inset: auto; padding: 28px 20px 36px; }
+    .d-title { font-size: clamp(46px, 16vw, 76px); }
+  }
+
+  /* ============ REDUCED MOTION: show final states, kill heavy motion ==== */
+  @media (prefers-reduced-motion: reduce) {
+    #stage, #wipe { display: none !important; }
+    .work-row, .work-row::before, .wr-name, .navbtn, .idx-figure img { transition: none !important; }
+    .idx-hint .pulse { animation: none !important; opacity: 1; }
+  }
+
+  /* loading guard */
+  .noscript-note { padding: 40px; font-family: monospace; color: var(--dim); }
+</style>
+</head>
+<body>
+
+<!-- persistent shader stage (one canvas across routes) -->
+<div id="stage" aria-hidden="true"></div>
+<!-- mobile / reduced fallback wipe -->
+<div id="wipe" aria-hidden="true"></div>
+
+<header class="topbar">
+  <a class="brand" href="/" data-link>Vesper<i>werk</i></a>
+  <nav class="topnav" id="topnav" aria-label="Work"></nav>
+</header>
+
+<main id="app">
+  <noscript><p class="noscript-note">This template needs JavaScript for routing and transitions.</p></noscript>
+</main>
+
+<script type="module">
+import * as THREE from "three";
+
+/* ---------------------------------------------------------------------- *
+ *  Liquid Page engine
+ *  - one Three.js canvas persists across routes (only uniforms/textures swap)
+ *  - native History API pushState routing (no framework, no barba dep)
+ *  - noise-masked diagonal dissolve reveals the next page's accent
+ *  - GLSL ES 1.0 robustness: NO dynamic-indexed local arrays; LUT uniform
+ *  - DPR capped at 1 for the transition stage (cheap, full-viewport)
+ *  - mobile / reduced-motion: CSS clip-path wipe instead of WebGL
+ * ---------------------------------------------------------------------- */
+
+const app    = document.getElementById("app");
+const stage  = document.getElementById("stage");
+const wipeEl = document.getElementById("wipe");
+const topnav = document.getElementById("topnav");
+
+const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const MOBILE  = window.matchMedia("(max-width: 640px)").matches;
+
+/* ------------------------- helpers ------------------------- */
+const byRoute = (r) => PAGES.find(p => p.route === r) || PAGES[0];
+const details = PAGES.filter(p => p.kind === "detail");
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
+function hexToVec3(hex){
+  const h = hex.replace("#","");
+  return [parseInt(h.slice(0,2),16)/255, parseInt(h.slice(2,4),16)/255, parseInt(h.slice(4,6),16)/255];
+}
+function setAccent(hex){ document.documentElement.style.setProperty("--accent", hex); }
+
+/* ------------------------- top nav ------------------------- */
+function buildNav(activeRoute){
+  topnav.innerHTML = details.map(p =>
+    `<a href="${p.route}" data-link aria-current="${p.route===activeRoute?"page":"false"}">${escapeHtml(p.title)}</a>`
+  ).join("");
+}
+
+/* ======================= VIEW RENDERERS ======================= */
+function renderIndex(p){
+  const titleHtml = p.title.split("\n").map((l,i)=> i===1?`<b>${escapeHtml(l)}</b>`:escapeHtml(l)).join("\n");
+  const rows = details.map(d => `
+    <a class="work-row" href="${d.route}" data-link data-accent="${d.accent}"
+       style="--row-accent:${d.accent}" tabindex="0">
+      <span class="wr-num">${escapeHtml(d.index)}</span>
+      <span class="wr-name">${escapeHtml(d.title)}</span>
+      <span class="wr-tag">${escapeHtml(d.eyebrow)}</span>
+      <span class="wr-dot"></span>
+    </a>`).join("");
+
+  // pre-hovered = first detail; its accent already painted at scroll=0
+  const hero = details[0];
+
+  return `
+  <section class="view idx" aria-label="Index">
+    <div class="idx-left">
+      <p class="idx-eyebrow">${escapeHtml(p.eyebrow)}</p>
+      <h1 class="idx-title">${titleHtml}</h1>
+      <p class="idx-blurb">${escapeHtml(p.blurb)}</p>
+      <nav class="worklist" aria-label="Selected work">${rows}</nav>
+    </div>
+    <div class="idx-right">
+      <div class="idx-hint"><span class="pulse"></span> Hover a work to load its world</div>
+      <figure class="idx-figure" id="idxFigure">
+        <img src="${hero.media.src}" alt="${escapeHtml(hero.sub||hero.title)}" decoding="async" />
+      </figure>
+      <div class="idx-fig-overlay">
+        <div class="idx-fig-accentbar" id="idxBar"></div>
+        <div class="idx-fig-label" id="idxLabel">${escapeHtml(hero.title)}</div>
+        <div class="idx-fig-meta" id="idxMeta">${escapeHtml(hero.index)} / ${escapeHtml(hero.eyebrow)}</div>
+      </div>
+    </div>
+  </section>`;
+}
+
+function renderDetail(p){
+  const idx = details.findIndex(d => d.route === p.route);
+  const next = details[(idx+1) % details.length];
+  const facts = (p.facts||[]).map(([k,v]) =>
+    `<div class="d-fact"><span class="k">${escapeHtml(k)}</span><span class="v">${escapeHtml(v)}</span></div>`).join("");
+
+  let mediaHtml;
+  if (p.media.type === "video"){
+    mediaHtml = `<video src="${p.media.src}" poster="${p.media.poster}" muted loop playsinline preload="metadata"></video>`;
+  } else {
+    mediaHtml = `<img src="${p.media.src}" alt="${escapeHtml(p.sub||p.title)}" decoding="async" />`;
+  }
+
+  return `
+  <section class="view detail" aria-label="${escapeHtml(p.title)}">
+    <div class="detail-hero">
+      <div class="detail-media">${mediaHtml}</div>
+      <div class="detail-grade"></div>
+      <div class="detail-frame"></div>
+      <div class="detail-content">
+        <div>
+          <div class="d-index"><span class="bar"></span>${escapeHtml(p.index)}</div>
+          <p class="d-eyebrow">${escapeHtml(p.eyebrow)}</p>
+          <h1 class="d-title">${escapeHtml(p.title)}</h1>
+          <p class="d-sub">${escapeHtml(p.sub)}</p>
+        </div>
+        <div class="d-side">
+          <p class="d-body">${escapeHtml(p.body)}</p>
+          <div class="d-facts">${facts}</div>
+        </div>
+      </div>
+    </div>
+    <nav class="detail-nav" aria-label="Pagination">
+      <a class="navbtn back" href="/" data-link><small>Index</small> All work</a>
+      <a class="navbtn" href="${next.route}" data-link data-accent="${next.accent}">
+        <small>Next ${escapeHtml(next.index)}</small> ${escapeHtml(next.title)}
+      </a>
+    </nav>
+  </section>`;
+}
+
+/* ======================= INDEX INTERACTIONS ======================= */
+let idxHotIndex = 0;
+function wireIndex(activeRoute){
+  const rows  = [...app.querySelectorAll(".work-row")];
+  const fig   = document.getElementById("idxFigure");
+  const label = document.getElementById("idxLabel");
+  const meta  = document.getElementById("idxMeta");
+  const bar   = document.getElementById("idxBar");
+  if (!rows.length) return;
+
+  function hot(i){
+    idxHotIndex = i;
+    const d = details[i];
+    rows.forEach((r,j)=> r.classList.toggle("hot", j===i));
+    setAccent(d.accent);
+    if (fig){
+      const im = fig.querySelector("img");
+      if (im && !im.src.endsWith(d.media.src.replace("../",""))) {
+        // swap the hero image to the hovered world
+        im.src = d.media.src;
+        im.alt = d.sub || d.title;
+      }
+    }
+    if (label) label.textContent = d.title;
+    if (meta)  meta.textContent = d.index + " / " + d.eyebrow;
+    if (bar)   bar.style.background = d.accent;
+  }
+
+  rows.forEach((row,i)=>{
+    row.addEventListener("mouseenter", ()=> hot(i));
+    row.addEventListener("focus", ()=> hot(i));
+  });
+
+  // scroll=0 pre-hover: first work's world is already composed + colored
+  hot(0);
+}
+
+/* ======================= VIDEO IN-VIEW PLAY ======================= */
+let mediaObserver = null;
+function wireMedia(){
+  if (mediaObserver){ mediaObserver.disconnect(); mediaObserver = null; }
+  const vids = [...app.querySelectorAll("video")];
+  if (!vids.length) return;
+  mediaObserver = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{
+      const v = e.target;
+      if (e.isIntersecting && !REDUCED){ v.play().catch(()=>{}); }
+      else { v.pause(); }
+    });
+  }, { threshold: 0.35 });
+  vids.forEach(v=> mediaObserver.observe(v));
+}
+
+/* =========================================================================
+ *  WEBGL DISSOLVE STAGE  (one persistent canvas)
+ * ========================================================================= */
+let GL = null;            // { renderer, scene, camera, mesh, mat, ok }
+let webglEnabled = !MOBILE && !REDUCED;
+
+/* noise-threshold LUT: precomputed 16-step ramp passed as a uniform array.
+   Avoids GLSL ES 1.0 dynamic local-array indexing (ANGLE returns 0). */
+const LUT_N = 16;
+function buildLUT(){
+  const lut = [];
+  for (let i=0;i<LUT_N;i++){ lut.push(0.04 + 0.92 * (i/(LUT_N-1))); }
+  return lut;
+}
+
+const VERT = `
+  varying vec2 vUv;
+  void main(){ vUv = uv; gl_Position = vec4(position, 1.0); }
+`;
+
+/* Fragment shader:
+   - simplex-ish value noise (no texture dependency, no dynamic arrays)
+   - progress sweeps a diagonal band; noise perturbs the edge -> dissolve
+   - reveals uColorTo accent over uColorFrom accent
+   - LUT only read via constant-foldable / loop-constant index (safe) */
+const FRAG = `
+  precision highp float;
+  varying vec2 vUv;
+  uniform vec2  uRes;
+  uniform float uProg;       // 0..1 transition progress
+  uniform vec3  uFrom;       // outgoing accent
+  uniform vec3  uTo;         // incoming accent
+  uniform float uLut[${LUT_N}];
+  uniform float uTime;
+
+  // hash + value noise (cheap, deterministic)
+  float hash(vec2 p){
+    p = fract(p * vec2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+  }
+  float vnoise(vec2 p){
+    vec2 i = floor(p), f = fract(p);
+    float a = hash(i);
+    float b = hash(i + vec2(1.0,0.0));
+    float c = hash(i + vec2(0.0,1.0));
+    float d = hash(i + vec2(1.0,1.0));
+    vec2 u = f*f*(3.0-2.0*f);
+    return mix(mix(a,b,u.x), mix(c,d,u.x), u.y);
+  }
+  float fbm(vec2 p){
+    float v = 0.0, amp = 0.5;
+    // fixed unrolled-by-compiler loop; constant trip count = safe
+    for(int k=0;k<5;k++){
+      v += amp * vnoise(p);
+      p *= 2.02; amp *= 0.5;
+    }
+    return v;
+  }
+
+  void main(){
+    vec2 uv = vUv;
+    float aspect = uRes.x / max(uRes.y, 1.0);
+
+    // diagonal coordinate (top-left -> bottom-right sweep)
+    float diag = (uv.x * 0.62 + (1.0 - uv.y) * 0.38);
+
+    // noisy edge field
+    vec2 np = vec2(uv.x * aspect, uv.y) * 3.4;
+    float n = fbm(np + uTime * 0.04);
+
+    // LUT-quantized noise threshold band (LUT read by loop-const index)
+    float lutMix = 0.0;
+    for(int i=0;i<${LUT_N};i++){
+      // step contributions: builds a smoothed ramp from the LUT uniform
+      float w = (n > float(i)/float(${LUT_N}-1)) ? 1.0 : 0.0;
+      lutMix += w * (uLut[i] / float(${LUT_N}));
+    }
+    float thresh = lutMix; // ~0..0.95 dissolve threshold per fragment
+
+    // sweep: progress expands a band; mask = where new color has dissolved in
+    float edge = uProg * 1.55 - 0.28;
+    float reveal = smoothstep(edge - 0.16, edge + 0.16, diag + (thresh - 0.5) * 0.55);
+    // invert so 0 progress = all-from, 1 progress = all-to
+    float m = 1.0 - reveal;
+
+    // bright dissolve crest at the moving boundary
+    float crest = smoothstep(0.0, 0.5, 1.0 - abs(diag + (thresh-0.5)*0.55 - edge) * 6.0);
+
+    vec3 col = mix(uFrom, uTo, m);
+    // grain + crest glow
+    float grain = (hash(uv * uRes.xy * 0.5 + uTime) - 0.5) * 0.05;
+    col += crest * 0.6 * uTo;
+    col += grain;
+
+    // darken toward void at the extremes so it reads against #070708
+    col *= 0.92 + 0.08 * m;
+
+    gl_FragColor = vec4(col, 1.0);
+  }
+`;
+
+function initGL(){
+  if (GL || !webglEnabled) return;
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({
+      antialias: false,
+      alpha: false,
+      preserveDrawingBuffer: true,   // so a painted frame can be captured
+      powerPreference: "high-performance"
+    });
+  } catch(e){ webglEnabled = false; return; }
+
+  const gl = renderer.getContext();
+  if (!gl){ webglEnabled = false; return; }
+
+  renderer.setPixelRatio(1);          // DPR capped at 1 for the stage
+  renderer.setSize(window.innerWidth, window.innerHeight, false);
+  stage.appendChild(renderer.domElement);
+
+  const scene  = new THREE.Scene();
+  const camera = new THREE.Camera();  // fullscreen tri, no projection needed
+
+  const from = hexToVec3(PAGES[1] ? PAGES[1].accent : "#e8b84b");
+  const mat = new THREE.ShaderMaterial({
+    vertexShader: VERT,
+    fragmentShader: FRAG,
+    uniforms: {
+      uRes:  { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+      uProg: { value: 0.0 },
+      uFrom: { value: new THREE.Vector3(...from) },
+      uTo:   { value: new THREE.Vector3(...from) },
+      uLut:  { value: buildLUT() },
+      uTime: { value: 0.0 }
+    }
+  });
+
+  const geo  = new THREE.PlaneGeometry(2, 2);
+  const mesh = new THREE.Mesh(geo, mat);
+  scene.add(mesh);
+
+  // PAINT-CONFIRM: render one frame and read a pixel; if blank, disable WebGL.
+  mat.uniforms.uProg.value = 0.5;
+  renderer.render(scene, camera);
+  let painted = true;
+  try {
+    const px = new Uint8Array(4);
+    gl.readPixels(Math.floor(window.innerWidth/2), Math.floor(window.innerHeight/2), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    painted = (px[0] + px[1] + px[2]) > 6; // non-blank
+  } catch(e){ painted = true; } // readPixels can throw on some contexts; trust render
+  mat.uniforms.uProg.value = 0.0;
+
+  if (!painted){
+    renderer.dispose();
+    stage.removeChild(renderer.domElement);
+    webglEnabled = false;
+    GL = null;
+    return;
+  }
+
+  GL = { renderer, scene, camera, mesh, mat, ok: true, raf: 0 };
+
+  window.addEventListener("resize", ()=>{
+    if (!GL) return;
+    GL.renderer.setSize(window.innerWidth, window.innerHeight, false);
+    GL.mat.uniforms.uRes.value.set(window.innerWidth, window.innerHeight);
+  });
+}
+
+/* run the WebGL dissolve; resolves when fully covered (swap point) and
+   when fully cleared (done). We do it in two callbacks. */
+function runDissolveWebGL(fromHex, toHex, onCovered){
+  return new Promise((resolve)=>{
+    if (!GL){ onCovered && onCovered(); resolve(); return; }
+    stage.classList.add("active");
+    const m = GL.mat.uniforms;
+    m.uFrom.value.set(...hexToVec3(fromHex));
+    m.uTo.value.set(...hexToVec3(toHex));
+    const t0 = performance.now();
+    const DUR_IN  = 520;  // cover
+    const DUR_OUT = 520;  // clear (to-color fills then fades to reveal page)
+    let covered = false;
+
+    cancelAnimationFrame(GL.raf);
+    const tick = (now)=>{
+      const t = now - t0;
+      m.uTime.value = now * 0.001;
+      if (t <= DUR_IN){
+        // 0 -> ~0.5 : new color dissolving in across the diagonal
+        m.uProg.value = (t / DUR_IN) * 0.52;
+      } else if (!covered) {
+        covered = true;
+        m.uProg.value = 0.52;
+        GL.renderer.render(GL.scene, GL.camera);
+        onCovered && onCovered();   // swap DOM under the cover
+        // continue to clear phase
+      }
+      if (t > DUR_IN){
+        const t2 = Math.min((t - DUR_IN) / DUR_OUT, 1.0);
+        // 0.52 -> 1.0 : the to-color sweeps off, revealing the new page
+        m.uProg.value = 0.52 + t2 * 0.48;
+        if (t2 >= 1.0){
+          GL.renderer.render(GL.scene, GL.camera);
+          stage.classList.remove("active");
+          resolve();
+          return;
+        }
+      }
+      GL.renderer.render(GL.scene, GL.camera);
+      GL.raf = requestAnimationFrame(tick);
+    };
+    GL.raf = requestAnimationFrame(tick);
+  });
+}
+
+/* CSS clip-path diagonal wipe (mobile / reduced-motion / WebGL-failed) */
+function runWipeCSS(toHex, onCovered){
+  return new Promise((resolve)=>{
+    if (REDUCED){ onCovered && onCovered(); resolve(); return; }
+    wipeEl.style.background = toHex;
+    wipeEl.classList.remove("run");
+    void wipeEl.offsetWidth; // reflow to restart
+    let swapped = false;
+    const swapAt = setTimeout(()=>{ swapped = true; onCovered && onCovered(); }, 300);
+    const done = ()=>{
+      wipeEl.classList.remove("run");
+      wipeEl.style.opacity = "0";
+      clearTimeout(swapAt);
+      if (!swapped){ onCovered && onCovered(); }
+      resolve();
+    };
+    wipeEl.addEventListener("animationend", done, { once: true });
+    wipeEl.classList.add("run");
+    // safety timeout
+    setTimeout(done, 760);
+  });
+}
+
+/* ======================= ROUTING ======================= */
+let currentRoute = null;
+let transitioning = false;
+
+function paintRoute(route){
+  const p = byRoute(route);
+  setAccent(p.accent);
+  buildNav(p.route);
+  app.innerHTML = (p.kind === "index") ? renderIndex(p) : renderDetail(p);
+  // mark current view shown
+  const v = app.querySelector(".view"); if (v) v.classList.add("show");
+  if (p.kind === "index") wireIndex(p.route);
+  wireMedia();
+  window.scrollTo(0,0);
+  currentRoute = route;
+  document.title = (p.kind==="index" ? "Liquid Page" : p.title + " - Liquid Page");
+}
+
+async function navigate(route, push=true){
+  if (transitioning || route === currentRoute){ return; }
+  const fromPage = byRoute(currentRoute || "/");
+  const toPage   = byRoute(route);
+  transitioning = true;
+
+  const swap = ()=>{
+    paintRoute(route);
+    if (push){ history.pushState({ route }, "", route); }
+  };
+
+  if (webglEnabled && GL){
+    await runDissolveWebGL(fromPage.accent, toPage.accent, swap);
+  } else {
+    await runWipeCSS(toPage.accent, swap);
+  }
+  transitioning = false;
+}
+
+/* intercept internal links */
+document.addEventListener("click", (e)=>{
+  const a = e.target.closest("a[data-link]");
+  if (!a) return;
+  const href = a.getAttribute("href");
+  if (!href || href.startsWith("http")) return;
+  e.preventDefault();
+  navigate(href, true);
+});
+
+window.addEventListener("popstate", (e)=>{
+  const route = (e.state && e.state.route) || location.pathname || "/";
+  // popstate: animate but do not push again
+  if (route === currentRoute){ return; }
+  const fromPage = byRoute(currentRoute || "/");
+  const toPage   = byRoute(route);
+  transitioning = true;
+  const swap = ()=> paintRoute(route);
+  const runner = (webglEnabled && GL)
+    ? runDissolveWebGL(fromPage.accent, toPage.accent, swap)
+    : runWipeCSS(toPage.accent, swap);
+  runner.then(()=>{ transitioning = false; });
+});
+
+/* ======================= BOOT ======================= */
+function boot(){
+  // normalize unknown deep links to a known route (file:// or server)
+  let start = location.pathname;
+  if (!PAGES.some(p => p.route === start)) start = "/";
+
+  // init WebGL stage first so the paint-confirm runs before any transition
+  if (webglEnabled){ initGL(); }
+
+  // first paint = composed page at scroll=0 (index shows pre-hovered world)
+  paintRoute(start);
+  history.replaceState({ route: start }, "", start);
+}
+
+if (document.readyState === "loading"){
+  document.addEventListener("DOMContentLoaded", boot);
+} else { boot(); }
+</script>
+</body>
+</html>

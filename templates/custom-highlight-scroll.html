@@ -1,0 +1,874 @@
+<!-- TEMPLATE: Wavefront Index | ARCHETYPE: HIGHLIGHT WAVE - CSS Custom Highlight API marks matching keywords across all prose as a scroll wavefront rolls down | REF: CSS Custom Highlight API (Baseline 2024, MDN); Codrops Highlighting Text Ranges 2025; web.dev ::highlight() registry 2025 | WHEN TO USE: a typographic work index where reading down the page lights up thematic keywords amber in a temporal ripple, and clicking a keyword propagates its highlight across every paragraph at once | SWAP: edit the DATA array at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Wavefront Index - A Highlighted Work Catalogue</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23faf7f2'/%3E%3Crect x='5' y='13' width='22' height='7' rx='1' fill='%23e8c547'/%3E%3Ctext x='16' y='22' font-family='Georgia,serif' font-size='15' text-anchor='middle' fill='%23111'%3EW%3C/text%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<!-- Newsreader: a screen-tuned literary serif for the prose body. Space Mono: the engraved metadata + keyword chips. -->
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     PALETTE - warm paper + ink + amber highlight + vermilion ring
+     ============================================================ */
+  :root{
+    --paper:#faf7f2;
+    --paper-2:#f3eee4;
+    --ink:#111111;
+    --ink-soft:#3a352c;
+    --ink-faint:#8a8273;
+    --rule:#ddd5c6;
+    --amber:#e8c547;
+    --amber-fill:#e8c5474d;   /* 30% amber - the passed-wave highlight */
+    --amber-strong:#e8c547cc;
+    --vermilion:#c94a2e;
+    --shadow:rgba(40,33,18,.14);
+    --wave-glow:#e8c54766;
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Newsreader",Georgia,serif;
+    font-size:clamp(17px,1.05vw + 13px,21px);
+    line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    overflow-x:hidden;
+  }
+
+  /* subtle paper grain so the warm field is not flat */
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    z-index:0;
+    opacity:.5;
+    mix-blend-mode:multiply;
+    background:
+      radial-gradient(circle at 18% 22%, #00000008 0 1px, transparent 1px) 0 0/4px 4px,
+      radial-gradient(circle at 70% 64%, #00000006 0 1px, transparent 1px) 2px 2px/5px 5px;
+  }
+
+  /* ============================================================
+     THE WAVEFRONT - a thin amber band fixed to the viewport,
+     positioned by the rAF scroll loop via --wave (0..100 vh)
+     ============================================================ */
+  .wavefront{
+    position:fixed;
+    left:0; right:0;
+    top:0;
+    height:2px;
+    z-index:6;
+    pointer-events:none;
+    transform:translateY(var(--wave,42vh));
+    background:linear-gradient(90deg,transparent, var(--amber) 12%, var(--vermilion) 50%, var(--amber) 88%, transparent);
+    box-shadow:0 0 18px 2px var(--wave-glow);
+    opacity:.9;
+  }
+  .wavefront::after{
+    content:"";
+    position:absolute;
+    left:0; right:0; top:-22px;
+    height:22px;
+    background:linear-gradient(to top, var(--wave-glow), transparent);
+  }
+  /* a tiny readout riding the wave on the right margin */
+  .wave-tag{
+    position:fixed;
+    right:max(14px,env(safe-area-inset-right));
+    z-index:7;
+    transform:translateY(calc(var(--wave,42vh) - 9px));
+    font-family:"Space Mono",monospace;
+    font-size:11px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--vermilion);
+    pointer-events:none;
+    transition:opacity .3s;
+  }
+
+  /* ============================================================
+     PROGRESS RAIL - left edge, fills as the wave descends
+     ============================================================ */
+  .rail{
+    position:fixed;
+    left:0; top:0; bottom:0;
+    width:3px;
+    z-index:5;
+    background:var(--rule);
+  }
+  .rail i{
+    position:absolute;
+    left:0; top:0;
+    width:100%;
+    height:var(--progress,0%);
+    background:linear-gradient(to bottom, var(--amber), var(--vermilion));
+  }
+
+  /* ============================================================
+     LAYOUT
+     ============================================================ */
+  .wrap{
+    position:relative;
+    z-index:1;
+    max-width:78ch;
+    margin:0 auto;
+    padding:0 clamp(22px,5vw,64px);
+  }
+
+  /* MASTHEAD - compact top band, sits ABOVE the populated index
+     so the highlight mechanic is already visible at scroll=0 */
+  header.mast{
+    padding:clamp(34px,7vh,72px) 0 22px;
+    border-bottom:1px solid var(--rule);
+    margin-bottom:clamp(22px,4vh,40px);
+  }
+  .kicker{
+    font-family:"Space Mono",monospace;
+    font-size:12px;
+    letter-spacing:.34em;
+    text-transform:uppercase;
+    color:var(--vermilion);
+    margin:0 0 14px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .kicker .dot{width:7px;height:7px;border-radius:50%;background:var(--vermilion);box-shadow:0 0 0 4px #c94a2e22;}
+  h1.title{
+    font-weight:500;
+    font-size:clamp(2.5rem,7.2vw,5.4rem);
+    line-height:.98;
+    letter-spacing:-.02em;
+    margin:0 0 .35em;
+    color:var(--ink);
+  }
+  h1.title em{font-style:italic;color:var(--vermilion);}
+  .standfirst{
+    font-size:clamp(1.02rem,.6vw + .9rem,1.28rem);
+    color:var(--ink-soft);
+    max-width:60ch;
+    margin:0 0 4px;
+  }
+  .standfirst b{
+    background:var(--amber-fill);
+    color:var(--ink);
+    padding:0 .15em;
+    border-radius:2px;
+    font-weight:inherit;
+  }
+
+  /* KEYWORD LEGEND - clickable chips that propagate a named highlight */
+  .legend{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px 8px;
+    align-items:center;
+    margin:22px 0 4px;
+  }
+  .legend .lbl{
+    font-family:"Space Mono",monospace;
+    font-size:11px;
+    letter-spacing:.16em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    margin-right:4px;
+  }
+  .chip{
+    font-family:"Space Mono",monospace;
+    font-size:12.5px;
+    letter-spacing:.02em;
+    padding:5px 11px 5px 9px;
+    border:1px solid var(--rule);
+    border-radius:999px;
+    background:var(--paper-2);
+    color:var(--ink-soft);
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    transition:border-color .18s, background .18s, color .18s, transform .12s;
+    user-select:none;
+  }
+  .chip .swatch{width:10px;height:10px;border-radius:2px;background:var(--amber);flex:none;}
+  .chip .ct{font-size:10.5px;color:var(--ink-faint);}
+  .chip:hover{border-color:var(--amber);transform:translateY(-1px);}
+  .chip:focus-visible{outline:2px solid var(--vermilion);outline-offset:2px;}
+  .chip[aria-pressed="true"]{
+    border-color:var(--vermilion);
+    background:#fff;
+    color:var(--ink);
+    box-shadow:0 0 0 3px #c94a2e1f;
+  }
+  .chip[aria-pressed="true"] .swatch{background:var(--vermilion);box-shadow:0 0 0 2px #c94a2e44;}
+
+  /* INDEX ENTRIES - each work is a numbered prose paragraph */
+  .index{
+    counter-reset:work;
+    padding-bottom:18vh;
+  }
+  .entry{
+    counter-increment:work;
+    position:relative;
+    padding:clamp(26px,5vh,52px) 0;
+    border-bottom:1px solid var(--rule);
+  }
+  .entry .meta{
+    display:flex;
+    align-items:baseline;
+    gap:14px;
+    flex-wrap:wrap;
+    margin-bottom:.55em;
+    font-family:"Space Mono",monospace;
+  }
+  .entry .num{
+    font-size:13px;
+    color:var(--vermilion);
+    letter-spacing:.06em;
+  }
+  .entry .num::before{content:counter(work,decimal-leading-zero) " / ";}
+  .entry .tool{
+    font-size:11.5px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+  }
+  .entry h2{
+    font-family:"Newsreader",serif;
+    font-weight:500;
+    font-size:clamp(1.5rem,3vw,2.15rem);
+    line-height:1.08;
+    letter-spacing:-.01em;
+    margin:.05em 0 .5em;
+    color:var(--ink);
+  }
+  .entry .prose{
+    font-size:clamp(1.06rem,.45vw + .95rem,1.3rem);
+    color:var(--ink-soft);
+    margin:0;
+    max-width:66ch;
+  }
+
+  /* the thumbnail rides the right margin on desktop, stacks on mobile */
+  .entry{display:grid;grid-template-columns:1fr;gap:0;}
+  @media(min-width:860px){
+    .entry{grid-template-columns:1fr 220px;column-gap:36px;align-items:start;}
+    .entry .body{grid-column:1;}
+    .entry figure.thumb{grid-column:2;grid-row:1;margin-top:6px;}
+  }
+  figure.thumb{
+    margin:18px 0 0;
+    position:relative;
+  }
+  figure.thumb .frame{
+    position:relative;
+    width:100%;
+    aspect-ratio:4/3;
+    overflow:hidden;
+    border:1px solid var(--rule);
+    border-radius:4px;
+    background:var(--paper-2);
+    box-shadow:0 8px 22px -16px var(--shadow);
+  }
+  figure.thumb img,
+  figure.thumb video{
+    position:absolute; inset:0;
+    width:100%; height:100%;
+    object-fit:cover;
+    display:block;
+  }
+  figure.thumb video{opacity:0;transition:opacity .4s;}
+  figure.thumb.playing video{opacity:1;}
+  figure.thumb figcaption{
+    font-family:"Space Mono",monospace;
+    font-size:10.5px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    margin-top:7px;
+    display:flex;
+    justify-content:space-between;
+    gap:8px;
+  }
+  figure.thumb .badge{
+    position:absolute; left:8px; top:8px;
+    font-family:"Space Mono",monospace;
+    font-size:9.5px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    background:#111111cc;
+    color:var(--paper);
+    padding:2px 7px;
+    border-radius:3px;
+    backdrop-filter:blur(2px);
+  }
+
+  footer.foot{
+    border-top:1px solid var(--rule);
+    padding:34px 0 80px;
+    font-family:"Space Mono",monospace;
+    font-size:12px;
+    letter-spacing:.04em;
+    color:var(--ink-faint);
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+  footer.foot b{color:var(--ink-soft);font-weight:400;}
+
+  /* ============================================================
+     THE HIGHLIGHTS - CSS Custom Highlight API ::highlight()
+     "wave-amber" = passed by the wavefront (ambient amber)
+     "pinned"     = a clicked keyword, propagated across all paras
+     Fallback (no CSS.highlights) styles <mark> spans instead.
+     ============================================================ */
+  @supports (background-color: AccentColor) {}
+
+  ::highlight(wave-amber){
+    background-color:var(--amber-fill);
+    color:var(--ink);
+  }
+  ::highlight(pinned){
+    background-color:var(--amber-strong);
+    color:var(--ink);
+    text-decoration:underline 2px var(--vermilion);
+    text-underline-offset:3px;
+  }
+  /* crest: the keyword group the wavefront is presently crossing */
+  ::highlight(crest){
+    background-color:var(--amber);
+    color:var(--ink);
+  }
+
+  /* FALLBACK path: when CSS.highlights is unavailable we wrap matches
+     in <mark data-kw> and style them the same way. */
+  mark[data-kw]{
+    background:transparent;
+    color:inherit;
+    border-radius:2px;
+  }
+  body.fallback mark[data-kw].on{background:var(--amber-fill);color:var(--ink);}
+  body.fallback mark[data-kw].crest{background:var(--amber);color:var(--ink);}
+  body.fallback mark[data-kw].pinned{
+    background:var(--amber-strong);color:var(--ink);
+    text-decoration:underline 2px var(--vermilion);text-underline-offset:3px;
+  }
+
+  /* ============================================================
+     REDUCED MOTION - no wavefront, all highlights on from load
+     ============================================================ */
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto;}
+    .wavefront,.wave-tag{display:none;}
+    figure.thumb video{transition:none;}
+  }
+
+  @media(max-width:640px){
+    body{font-size:18px;}
+    .wrap{padding:0 20px;}
+    .wave-tag{display:none;}
+    h1.title{font-size:clamp(2.3rem,12vw,3.2rem);}
+    .legend{gap:7px;}
+    .chip{font-size:12px;padding:5px 10px;}
+    figure.thumb{margin-top:14px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     DATA - swap these entries to retheme the catalogue.
+     Each entry: id, title, tool, media {type,src,poster}, prose.
+     KEYWORDS at top define the thematic vocabulary that the
+     extractor highlights. Edit freely; the registry rebuilds.
+     ============================================================ -->
+<script>
+const KEYWORDS = [
+  // thematic vocabulary the wavefront lights up, in reading priority
+  "material","motion","color","colour","type","typography",
+  "light","grid","texture","grain","metal","chrome","liquid",
+  "depth","glass","wood","amber","vermilion","noise","scan",
+  "frame","loop","portrait","landscape","matte","neon","mint",
+  "paint","brush","form","mesh","voice","waveform","rhythm","pixel"
+];
+
+const DATA = [
+  {
+    id:"car",
+    title:"Wet Asphalt, No.1",
+    tool:"Flux - still",
+    media:{type:"img", src:"../assets/flux-car-4k.png", poster:"../assets/flux-car-4k.png"},
+    prose:"A matte black coupe holds the frame on a rain-slick street where neon bleeds across the metal in long vermilion streaks. The material reads first: chrome edges, a wet paint film, the grain of asphalt caught under a low light. Motion is implied, not shown - the grid of the city recedes while the color pools amber in every reflected sign."
+  },
+  {
+    id:"clinic",
+    title:"Mint & Wood Interior",
+    tool:"Flux - still",
+    media:{type:"img", src:"../assets/flux-clinic-4k.png", poster:"../assets/flux-clinic-4k.png"},
+    prose:"A dental clinic rendered in calm mint and warm wood, where the light is soft and even and the texture of every surface is sanded smooth. The color palette does the persuading: clinical mint cooled against the wood grain, a grid of cabinetry holding the room square. No motion, only the material honesty of a space built to feel safe."
+  },
+  {
+    id:"fox",
+    title:"Autumn Fox, Painterly",
+    tool:"SDXL - still",
+    media:{type:"img", src:"../assets/sdxl.png", poster:"../assets/sdxl.png"},
+    prose:"A fox sits in autumn light, painted in loose brush and warm color - amber fur against a blurred grid of trees. The type of mark here is gestural: thick paint, visible texture, a grain that belongs to canvas rather than sensor. Light rakes across the form, and the material is pigment first, photograph never."
+  },
+  {
+    id:"car-i2v",
+    title:"Drive Loop, No.2",
+    tool:"Flux i2v - motion",
+    media:{type:"vid", src:"../assets/flux-car-i2v.mp4", poster:"../assets/gen/poster-flux-car-i2v.png"},
+    prose:"The still becomes motion: the coupe rolls forward and the neon smears into a moving color field, light dragging across chrome in a continuous loop. Now the material is kinetic - reflections slide, the grid of the street pans, and the texture of wet metal animates frame to frame. A landscape clip, letterboxed on a phone, never cropped."
+  },
+  {
+    id:"kling",
+    title:"Generative Sequence",
+    tool:"Kling - motion",
+    media:{type:"vid", src:"../assets/kling-video.mp4", poster:"../assets/gen/poster-kling-video.png"},
+    prose:"A motion study where form dissolves into a liquid color flow, each frame a fresh arrangement of light and grain. The loop never settles: texture builds, the grid breaks, and the material reorganises into something between paint and photograph. Watch the rhythm of the cut - motion is the only subject."
+  },
+  {
+    id:"veo",
+    title:"Cinematic Field",
+    tool:"Veo - motion",
+    media:{type:"vid", src:"../assets/veo-video.mp4", poster:"../assets/gen/poster-veo-video.png"},
+    prose:"A cinematic landscape where light moves through depth and the color grade leans amber at the edges. The frame breathes: a slow push, a grid of distant detail resolving, the texture of the air made visible. Motion here is patient, and the material is atmosphere - grain, light, and the slow loop of a scene that knows it is being watched."
+  },
+  {
+    id:"fal",
+    title:"Abstract Drift",
+    tool:"Fal - motion",
+    media:{type:"vid", src:"../assets/fal-video.mp4", poster:"../assets/gen/poster-fal-video.png"},
+    prose:"Pure motion with no anchor: a drift of color and noise where the grid is a suggestion and the form refuses to hold. Texture is the whole point - grain, scan lines, a liquid blur that loops without seam. The light has no source; the material is the medium itself, abstract and unrepeatable."
+  },
+  {
+    id:"voice",
+    title:"Synthesised Voice, Thai",
+    tool:"ElevenLabs - audio",
+    media:{type:"wave", src:"../assets/gen/wave-elevenlabs.png", audio:"../assets/elevenlabs-thai.mp3"},
+    prose:"A voice rendered as a waveform - the only work here without color, where the material is rhythm and the texture is amplitude. Read the grid of peaks left to right and you read the motion of speech: a form drawn in time, light as a line of ink, the type of a sentence spoken rather than set."
+  },
+  {
+    id:"mesh",
+    title:"Refined Mesh, Form",
+    tool:"Meshy - 3D",
+    media:{type:"img", src:"../assets/gen/meshy-refined-thumb.png", poster:"../assets/gen/meshy-refined-thumb.png"},
+    prose:"A three dimensional form, its mesh refined until the surface holds light cleanly across every face. The material question is literal here - how a grid of polygons becomes a continuous texture, how color wraps a volume, how depth survives a flat frame. Motion is latent in the form, waiting for a turn it has not yet been given."
+  }
+];
+</script>
+
+<div class="rail"><i id="railFill"></i></div>
+<div class="wavefront" id="wavefront" aria-hidden="true"></div>
+<div class="wave-tag" id="waveTag" aria-hidden="true">wavefront</div>
+
+<div class="wrap">
+
+  <header class="mast">
+    <p class="kicker"><span class="dot"></span> Wavefront Index <span aria-hidden="true">/</span> CSS Custom Highlight API</p>
+    <h1 class="title">A catalogue that <em>reads</em> itself.</h1>
+    <p class="standfirst">
+      Every work is a paragraph of prose. As you scroll, a wavefront rolls down the page and
+      lights up <b>thematic keywords</b> in amber the moment it passes them - a temporal ripple
+      of annotation across the text. Click any keyword to pin it and watch that thread light up in
+      <b>every paragraph</b> at once.
+    </p>
+    <div class="legend" id="legend" role="group" aria-label="Pin a keyword across all entries">
+      <span class="lbl">Threads:</span>
+      <!-- chips injected by script from the live keyword frequency -->
+    </div>
+  </header>
+
+  <main class="index" id="index">
+    <!-- entries injected by script from DATA -->
+  </main>
+
+  <footer class="foot">
+    <span><b>Wavefront Index</b> - native CSS Custom Highlight API, no libraries</span>
+    <span id="supportNote">::highlight() registry</span>
+  </footer>
+
+</div>
+
+<script>
+/* ================================================================
+   WAVEFRONT INDEX - engine
+   1. render entries from DATA
+   2. build a CSS Highlight Registry from keyword text ranges
+   3. one rAF loop reads scrollY -> moves wave -> recolors keyword
+      groups whose centroid the wave has passed (wave-amber + crest)
+   4. clicking a chip pins that keyword across all paragraphs (pinned)
+   5. @supports gate; <mark> fallback when CSS.highlights is absent
+   6. reduced-motion: all highlights on at load, no wavefront loop
+   ================================================================ */
+(function(){
+  "use strict";
+
+  const SUPPORTS = (typeof CSS !== "undefined") && !!CSS.highlights && (typeof Highlight !== "undefined");
+  const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const indexEl   = document.getElementById("index");
+  const legendEl  = document.getElementById("legend");
+  const waveEl     = document.getElementById("wavefront");
+  const waveTag    = document.getElementById("waveTag");
+  const railFill   = document.getElementById("railFill");
+  const supportNote= document.getElementById("supportNote");
+
+  if(!SUPPORTS){
+    document.body.classList.add("fallback");
+    supportNote.textContent = "<mark> fallback mode";
+  }
+
+  // normalise keyword list, keep display label + a matcher regex
+  // (word-boundary, case-insensitive). colour/color, type/typography
+  // are distinct vocabulary entries by design.
+  const KW = KEYWORDS.map(w=>({
+    word:w,
+    re:new RegExp("\\b"+w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b","gi")
+  }));
+
+  /* ---------- 1. render entries ---------- */
+  const proseNodes = []; // {entryEl, proseEl}
+  DATA.forEach(d=>{
+    const art = document.createElement("article");
+    art.className = "entry";
+    art.id = "work-"+d.id;
+
+    const body = document.createElement("div");
+    body.className = "body";
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    const num = document.createElement("span"); num.className="num";
+    const tool = document.createElement("span"); tool.className="tool"; tool.textContent = d.tool;
+    meta.append(num, tool);
+
+    const h2 = document.createElement("h2"); h2.textContent = d.title;
+
+    const p = document.createElement("p");
+    p.className = "prose";
+    p.textContent = d.prose; // plain text node - highlight ranges live on this
+
+    body.append(meta, h2, p);
+    art.append(body);
+
+    // figure / thumbnail
+    if(d.media){
+      const fig = document.createElement("figure");
+      fig.className = "thumb";
+      const frame = document.createElement("div"); frame.className="frame";
+
+      if(d.media.type === "vid"){
+        const badge = document.createElement("span"); badge.className="badge"; badge.textContent="motion";
+        const img = document.createElement("img");
+        img.src = d.media.poster; img.alt = d.title+" poster"; img.loading="lazy"; img.decoding="async";
+        const v = document.createElement("video");
+        v.muted = true; v.loop = true; v.playsInline = true; v.preload="none";
+        v.setAttribute("playsinline","");
+        v.poster = d.media.poster;
+        v.dataset.src = d.media.src;
+        frame.append(badge, img, v);
+        fig.dataset.kind = "vid";
+        fig._video = v;
+      } else if(d.media.type === "wave"){
+        const badge = document.createElement("span"); badge.className="badge"; badge.textContent="audio";
+        const img = document.createElement("img");
+        img.src = d.media.src; img.alt = d.title+" waveform"; img.loading="lazy"; img.decoding="async";
+        img.style.objectFit = "contain";
+        img.style.background = "#fff";
+        img.style.padding = "10%";
+        frame.append(badge, img);
+      } else {
+        const img = document.createElement("img");
+        img.src = d.media.src; img.alt = d.title; img.loading="lazy"; img.decoding="async";
+        frame.append(img);
+      }
+
+      const cap = document.createElement("figcaption");
+      const ls = document.createElement("span"); ls.textContent = d.id.toUpperCase();
+      const rs = document.createElement("span"); rs.textContent = d.media.type === "img" ? "still" : d.media.type === "wave" ? "wave" : "loop";
+      cap.append(ls, rs);
+
+      fig.append(frame, cap);
+      art.append(fig);
+    }
+
+    indexEl.append(art);
+    proseNodes.push({entryEl:art, proseEl:p, num});
+  });
+
+  // fill numbers (counter handles display, but keep accessible text)
+  proseNodes.forEach((n,i)=>{ n.num.setAttribute("data-n", String(i+1).padStart(2,"0")); });
+
+  /* ---------- 2. build highlight ranges per keyword ----------
+     For each prose text node, scan with each keyword regex and
+     create Range objects. We also record each range's document Y
+     centroid so the wavefront can decide which have been passed.
+     In fallback mode we instead wrap matches in <mark> spans.   */
+
+  // ranges grouped by keyword word -> [{range, paraIndex}]
+  const rangesByKW = new Map();   // word -> [Range]
+  const allRanges = [];           // {range, word, mark?, yMid (recomputed)}
+  KW.forEach(k=>rangesByKW.set(k.word, []));
+
+  if(SUPPORTS){
+    proseNodes.forEach((pn, pi)=>{
+      const textNode = pn.proseEl.firstChild; // single text node
+      if(!textNode || textNode.nodeType !== 3) return;
+      const text = textNode.textContent;
+      KW.forEach(k=>{
+        k.re.lastIndex = 0;
+        let m;
+        while((m = k.re.exec(text)) !== null){
+          const r = new Range();
+          r.setStart(textNode, m.index);
+          r.setEnd(textNode, m.index + m[0].length);
+          rangesByKW.get(k.word).push(r);
+          allRanges.push({range:r, word:k.word, paraIndex:pi, yMid:0});
+        }
+      });
+    });
+  } else {
+    // FALLBACK: tokenise each prose paragraph into text + <mark> spans
+    proseNodes.forEach((pn, pi)=>{
+      const original = pn.proseEl.textContent;
+      // build a single combined regex capturing any keyword
+      const combined = new RegExp("\\b("+KEYWORDS.map(w=>w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")).join("|")+")\\b","gi");
+      pn.proseEl.textContent = "";
+      let last = 0, m;
+      while((m = combined.exec(original)) !== null){
+        if(m.index > last) pn.proseEl.append(document.createTextNode(original.slice(last, m.index)));
+        const word = m[0].toLowerCase();
+        const mk = document.createElement("mark");
+        mk.setAttribute("data-kw", word);
+        mk.textContent = m[0];
+        pn.proseEl.append(mk);
+        if(!rangesByKW.has(word)) rangesByKW.set(word, []);
+        const rec = {mark:mk, word, paraIndex:pi, yMid:0};
+        rangesByKW.get(word).push(rec);
+        allRanges.push(rec);
+        last = m.index + m[0].length;
+      }
+      if(last < original.length) pn.proseEl.append(document.createTextNode(original.slice(last)));
+    });
+  }
+
+  /* ---------- 3. register the Highlight objects ----------
+     We keep three live Highlights:
+       waveAmber : everything the wave has passed (ambient)
+       crest     : the group the wave is presently crossing
+       pinned    : clicked keywords, propagated everywhere      */
+  let hlWave, hlCrest, hlPinned;
+  if(SUPPORTS){
+    hlWave   = new Highlight();
+    hlCrest  = new Highlight();
+    hlPinned = new Highlight();
+    CSS.highlights.set("wave-amber", hlWave);
+    CSS.highlights.set("crest", hlCrest);
+    CSS.highlights.set("pinned", hlPinned);
+  }
+
+  /* ---------- keyword frequency -> legend chips ---------- */
+  // only chips for keywords that actually occur, sorted by count desc
+  const present = [...rangesByKW.entries()]
+    .filter(([,arr])=>arr.length>0)
+    .sort((a,b)=>b[1].length - a[1].length);
+
+  // collapse synonym display (colour->color, typography->type) is left
+  // intentional: each is its own thread so the mechanic stays literal.
+  const pinned = new Set();
+
+  present.slice(0, 12).forEach(([word, arr])=>{
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "chip";
+    chip.setAttribute("aria-pressed","false");
+    chip.dataset.kw = word;
+    chip.innerHTML = '<span class="swatch" aria-hidden="true"></span>'+word+' <span class="ct">'+arr.length+'</span>';
+    chip.addEventListener("click", ()=>togglePin(word, chip));
+    legendEl.append(chip);
+  });
+
+  function rebuildPinned(){
+    if(SUPPORTS){
+      hlPinned.clear();
+      pinned.forEach(word=>{
+        (rangesByKW.get(word)||[]).forEach(rec=>hlPinned.add(rec.range || rec));
+      });
+    } else {
+      allRanges.forEach(rec=>{
+        rec.mark.classList.toggle("pinned", pinned.has(rec.word));
+      });
+    }
+  }
+
+  function togglePin(word, chip){
+    if(pinned.has(word)){ pinned.delete(word); chip.setAttribute("aria-pressed","false"); }
+    else { pinned.add(word); chip.setAttribute("aria-pressed","true"); }
+    rebuildPinned();
+  }
+
+  /* ---------- 4. geometry: compute each range's viewport-relative
+     Y centroid; recomputed on resize and lazily during scroll ---- */
+  function measure(){
+    allRanges.forEach(rec=>{
+      let rect;
+      if(SUPPORTS){
+        rect = rec.range.getBoundingClientRect();
+      } else {
+        rect = rec.mark.getBoundingClientRect();
+      }
+      // store document Y so wave compare is scroll-independent
+      rec.yDoc = rect.top + window.scrollY + rect.height/2;
+    });
+  }
+
+  /* ---------- 5. the wavefront rAF loop ----------
+     The wave sits at WAVE_FRAC of the viewport height. A keyword
+     group is "passed" once its document centroid is above the wave's
+     document Y. The single group straddling the wave gets the crest. */
+  const WAVE_FRAC = 0.46;
+  let ticking = false, lastScroll = -1;
+
+  function applyAll(){
+    // reduced-motion / fallback-static: everything lit, no crest
+    if(SUPPORTS){
+      hlWave.clear(); hlCrest.clear();
+      allRanges.forEach(rec=>hlWave.add(rec.range));
+    } else {
+      allRanges.forEach(rec=>{ rec.mark.classList.add("on"); rec.mark.classList.remove("crest"); });
+    }
+  }
+
+  function frame(){
+    ticking = false;
+    const sy = window.scrollY;
+    const vh = window.innerHeight;
+    const waveDocY = sy + vh * WAVE_FRAC;
+
+    // wave element + rail (visual)
+    waveEl.style.setProperty("--wave", (vh*WAVE_FRAC)+"px");
+    waveTag.style.setProperty("--wave", (vh*WAVE_FRAC)+"px");
+    const docH = document.documentElement.scrollHeight - vh;
+    const prog = docH>0 ? Math.min(1, sy/docH) : 1;
+    railFill.style.setProperty("--progress", (prog*100)+"%");
+
+    // recolor: passed -> wave-amber; straddling group -> crest
+    // "crest band" = within ~ one line-height of the wave
+    const band = 30;
+    let crestWord = null;
+    // find the lowest passed keyword group near the wave to crest it
+    let nearest = Infinity;
+    allRanges.forEach(rec=>{
+      const d = waveDocY - rec.yDoc; // >0 means passed
+      const dist = Math.abs(d);
+      if(d >= -band && dist < nearest && !pinned.has(rec.word)){
+        nearest = dist; crestWord = rec.word;
+      }
+    });
+
+    if(SUPPORTS){
+      hlWave.clear(); hlCrest.clear();
+      allRanges.forEach(rec=>{
+        if(pinned.has(rec.word)) return; // pinned highlight owns it
+        if(waveDocY >= rec.yDoc){
+          if(crestWord && rec.word === crestWord && Math.abs(waveDocY - rec.yDoc) <= band){
+            hlCrest.add(rec.range);
+          } else {
+            hlWave.add(rec.range);
+          }
+        }
+      });
+    } else {
+      allRanges.forEach(rec=>{
+        if(pinned.has(rec.word)){ rec.mark.classList.remove("on","crest"); return; }
+        const passed = waveDocY >= rec.yDoc;
+        rec.mark.classList.toggle("on", passed);
+        const isCrest = passed && crestWord && rec.word===crestWord && Math.abs(waveDocY-rec.yDoc)<=band;
+        rec.mark.classList.toggle("crest", isCrest);
+      });
+    }
+    lastScroll = sy;
+  }
+
+  function onScroll(){
+    if(REDUCED) return;
+    if(!ticking){ ticking = true; requestAnimationFrame(frame); }
+  }
+
+  /* ---------- 6. in-view video playback (one at a time) ---------- */
+  const figs = [...document.querySelectorAll("figure.thumb[data-kind='vid']")];
+  let activeVid = null;
+  if(figs.length && "IntersectionObserver" in window && !REDUCED){
+    const io = new IntersectionObserver(entries=>{
+      // pick the most-visible video figure, play only that one
+      let best = null, bestRatio = 0;
+      entries.forEach(e=>{
+        const f = e.target;
+        f._ratio = e.intersectionRatio;
+      });
+      figs.forEach(f=>{
+        if((f._ratio||0) > bestRatio && (f._ratio||0) > 0.55){ bestRatio = f._ratio; best = f; }
+      });
+      if(best && best !== activeVid){
+        if(activeVid){ activeVid.classList.remove("playing"); const av=activeVid._video; if(av){av.pause();} }
+        const v = best._video;
+        if(v && !v.src) v.src = v.dataset.src;
+        if(v){ v.play().then(()=>best.classList.add("playing")).catch(()=>{}); }
+        activeVid = best;
+      } else if(!best && activeVid){
+        activeVid.classList.remove("playing");
+        const av = activeVid._video; if(av) av.pause();
+        activeVid = null;
+      }
+    }, {threshold:[0,0.25,0.55,0.8,1]});
+    figs.forEach(f=>io.observe(f));
+  }
+
+  /* ---------- init ---------- */
+  function init(){
+    measure();
+    if(REDUCED){
+      applyAll();            // all highlights on, no wave
+      waveEl.style.display = "none";
+      waveTag.style.display = "none";
+      railFill.style.setProperty("--progress","100%");
+    } else {
+      frame();               // paint scroll=0 state (first para already lit)
+    }
+  }
+
+  // resize: registry geometry must be rebuilt (guardrail)
+  let rt;
+  window.addEventListener("resize", ()=>{
+    clearTimeout(rt);
+    rt = setTimeout(()=>{
+      measure();
+      if(REDUCED) applyAll(); else frame();
+    }, 120);
+  }, {passive:true});
+
+  window.addEventListener("scroll", onScroll, {passive:true});
+
+  // fonts can shift geometry after load -> re-measure once ready
+  if(document.fonts && document.fonts.ready){
+    document.fonts.ready.then(()=>{ measure(); if(!REDUCED) frame(); else applyAll(); });
+  }
+  window.addEventListener("load", ()=>{ measure(); if(!REDUCED) frame(); else applyAll(); });
+
+  init();
+})();
+</script>
+</body>
+</html>

@@ -140,7 +140,9 @@
   .card {
     position: relative; isolation: isolate;
     padding: 30px 30px 28px; border-radius: 2px;
-    background: paint(ink-bleed);
+    /* faint paper base only; the VISIBLE ink frame is the .ink-frame overlay
+       below (drawn ON TOP of content so the bold edge is never covered). */
+    background-color: var(--paper);
     /* default fallback border (replaced by @supports block when paint() works)*/
     border: 1px solid var(--ink);
     --seed: 1; --progress: 0; --fill: 0; --t: 0;
@@ -150,6 +152,23 @@
   }
   .card:hover, .card:focus-visible { transform: translateY(-4px); }
   .card:focus-visible { outline: 2px solid var(--verm); outline-offset: 4px; }
+
+  /* INK FRAME OVERLAY: the signature ornament. paint(ink-bleed) draws a
+     PERIMETER frame with a transparent center, so on an inset:0 overlay above
+     the card content the bold wet ink band reads around all four edges while
+     the media stays visible in the middle. This is the fix for the
+     "hairline" bug: as a background-image the frame rendered BEHIND the opaque
+     media + body and was covered; as a top overlay it is never covered.
+     pointer-events:none keeps the card link + hover flood fully interactive. */
+  .card .ink-frame {
+    position: absolute; inset: 0; z-index: 4; pointer-events: none;
+    border-radius: 2px;
+    background: paint(ink-bleed);
+    /* seed + progress + inks are written straight onto THIS element by JS so
+       the worklet's paint reliably invalidates (same reason as .flood). */
+    --seed: 1; --progress: 0;
+    --ink-1: var(--ink); --ink-2: var(--verm);
+  }
 
   /* media frame: letterbox, never cover-crop. object-fit contain on paper. */
   .card .frame {
@@ -210,20 +229,19 @@
   }
 
   /* ------------------------------------------------- @supports paint gate
-     When paint() works: kill the fallback border, let the worklet own the
-     edge, and give the card a faint paper fill so the flood reads on top.   */
+     When paint() works: kill the fallback 1px border and let the .ink-frame
+     overlay worklet own the visible edge. The card keeps its faint paper
+     fill (set above) so the body has substance under the overlay.          */
   @supports (background: paint(x)) {
-    .card {
-      border: 0;
-      /* paper base under the two paint() layers so the card has substance */
-      background-color: transparent;
-    }
+    .card { border: 0; }
     .card .support-note { display: none; }
   }
-  /* When paint() is NOT supported: hide painted rule, show note */
+  /* When paint() is NOT supported: no overlay frame, hide painted rule, keep
+     the plain 1px card border (set on .card) as the fallback edge, show note */
   @supports not (background: paint(x)) {
     .rule { background: linear-gradient(90deg, var(--amber), var(--ink)); }
-    .card { background: #fbf8f1; }
+    .card .ink-frame { display: none; }
+    .card { background-color: #fbf8f1; }
   }
   .support-note {
     display: none; font-family: "IBM Plex Mono", monospace; font-size: 0.68rem;
@@ -652,7 +670,8 @@ registerPaint('voronoi', class {
         <h3>${d.title}</h3>
         <p class="tool">${d.tool}</p>
         <p class="desc">${d.desc}</p>
-      </div>`;
+      </div>
+      <div class="ink-frame" aria-hidden="true"></div>`;
     // the voronoi flood paints on its OWN element; give it the seed + inks
     // directly (inherited registered-prop changes don't invalidate its paint).
     const flood = a.querySelector('.flood');
@@ -661,6 +680,13 @@ registerPaint('voronoi', class {
     flood.style.setProperty('--ink-2', d.ink2);
     flood.style.setProperty('--fill', '0');
     flood.style.setProperty('--t', '0');
+    // the ink-bleed frame paints on the OVERLAY element (above content) so the
+    // bold edge is never covered. drive its seed/progress/inks directly here.
+    const inkFrame = a.querySelector('.ink-frame');
+    inkFrame.style.setProperty('--seed', seed);
+    inkFrame.style.setProperty('--ink-1', d.ink1);
+    inkFrame.style.setProperty('--ink-2', d.ink2);
+    inkFrame.style.setProperty('--progress', '0');
 
     index.appendChild(a);
     cards.push(a);
@@ -677,6 +703,11 @@ registerPaint('voronoi', class {
   /* ---- 3. scroll-driven --progress bloom on the ink-bleed borders ------
      At scroll=0 cards already carry a partial bleed (so the signature reads
      in a thumbnail). As each card nears viewport center it blooms to full. */
+  // the ink-bleed worklet now lives on each card's .ink-frame OVERLAY (drawn
+  // above content). --progress must be written there, not on the card, or the
+  // overlay's paint will not invalidate.
+  function inkFrameOf(c){ return c.querySelector('.ink-frame'); }
+
   function setProgress(){
     const vh = window.innerHeight || 800;
     cards.forEach(c => {
@@ -686,13 +717,13 @@ registerPaint('voronoi', class {
       const dist = Math.abs(center - vh/2) / vh;       // 0 = centered
       let p = 1 - Math.min(1, dist * 1.25);            // 1 near center
       p = 0.62 + p * 0.38;                             // high floor: bold wet edge already at scroll=0
-      c.style.setProperty('--progress', p.toFixed(3));
+      inkFrameOf(c).style.setProperty('--progress', p.toFixed(3));
     });
   }
 
   if (REDUCE) {
     // frozen final state: every border fully bloomed, no rAF, no drift
-    cards.forEach(c => c.style.setProperty('--progress', '1'));
+    cards.forEach(c => inkFrameOf(c).style.setProperty('--progress', '1'));
   } else {
     let ticking = false;
     const onScroll = () => {
@@ -712,10 +743,11 @@ registerPaint('voronoi', class {
         base += 0.012;
         const breathe = (Math.sin(base) * 0.5 + 0.5) * 0.08; // small
         cards.forEach(c => {
-          const cur = parseFloat(c.style.getPropertyValue('--progress')) || 0.62;
+          const ink = inkFrameOf(c);
+          const cur = parseFloat(ink.style.getPropertyValue('--progress')) || 0.62;
           // only nudge cards not currently hovered (those get full flood)
           if (!c.classList.contains('hot')) {
-            c.style.setProperty('--progress', Math.min(1, cur + breathe).toFixed(3));
+            ink.style.setProperty('--progress', Math.min(1, cur + breathe).toFixed(3));
           }
         });
       }

@@ -1,0 +1,1125 @@
+<!-- TEMPLATE: Isometric Pixel Studio | ARCHETYPE: pixel-studio (isometric pixel-art room you navigate to reveal works pinned to objects) | REF: Awwwards 1-bit/pixel-art dev portfolios 2026, Godly isometric pixel room portfolios 2026 | WHEN TO USE: portfolio/agency index where navigation IS object exploration not scrolling, playful retro-craft brand | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />
+<meta name="color-scheme" content="dark" />
+<title>Isometric Pixel Studio - explore the room</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
+<style>
+/* =========================================================================
+   ISOMETRIC PIXEL STUDIO
+   A pixel-art room drawn on Canvas 2D from a tile-data JSON. No sprite sheets.
+   Navigation is object exploration: hover / tap an object to reveal its work.
+   16-color constrained palette, night-purple void, neon pink + cyan + amber.
+   ========================================================================= */
+
+:root{
+  /* ----- 16-color constrained palette ----- */
+  --void:      #0f0f1a;   /* night-purple void              */
+  --void-2:    #15131f;   /* slightly lifted void           */
+  --ink:       #0a0a12;   /* deepest shadow                 */
+  --pink:      #ff79a8;   /* neon pink (signal / highlight) */
+  --pink-dk:   #b14a73;   /* pink shadow face               */
+  --cyan:      #7fefff;   /* cyan (rim / accent)            */
+  --cyan-dk:   #3f8fa0;   /* cyan shadow face               */
+  --amber:     #ffcf6e;   /* amber lamp                     */
+  --amber-dk:  #b8923f;   /* amber shadow                   */
+  --floor:     #2a2440;   /* floor top                      */
+  --floor-2:   #211c33;   /* floor side / grout             */
+  --wall:      #1c1830;   /* wall                           */
+  --wall-2:    #16122a;   /* wall shadow                    */
+  --wood:      #6e4a36;   /* wood top                       */
+  --wood-dk:   #4a2f22;   /* wood shadow                    */
+  --paper:     #e9e4d2;   /* paper / screen base            */
+  --leaf:      #5fd6a0;   /* plant                          */
+  --leaf-dk:   #2f8a63;
+  --text:      #efeaff;
+  --muted:     #8d86b8;
+}
+
+*{ box-sizing:border-box; margin:0; padding:0; }
+html,body{ height:100%; }
+body{
+  background:
+    radial-gradient(120% 90% at 70% 8%, #1c1733 0%, var(--void) 55%, var(--ink) 100%);
+  color:var(--text);
+  font-family:"VT323", ui-monospace, monospace;
+  overflow:hidden;
+  -webkit-font-smoothing:none;
+  image-rendering:pixelated;
+}
+
+/* ----- Scanline + vignette overlay (CSS only, pointer-through) ----- */
+.crt{
+  position:fixed; inset:0; pointer-events:none; z-index:6;
+  background:
+    repeating-linear-gradient(0deg, rgba(0,0,0,.16) 0 1px, transparent 1px 3px);
+  mix-blend-mode:multiply;
+}
+.crt::after{
+  content:""; position:absolute; inset:0;
+  background:radial-gradient(130% 120% at 50% 42%, transparent 55%, rgba(8,6,18,.72) 100%);
+}
+
+/* ----- Stage ----- */
+#stage{
+  position:fixed; inset:0; z-index:1;
+  touch-action:none;            /* we handle pinch / pan ourselves */
+}
+#room{
+  display:block; width:100%; height:100%;
+  image-rendering:pixelated;
+  cursor:default;
+}
+#room.hot{ cursor:pointer; }
+
+/* ----- Top band: headline overlay (does NOT push the room below fold) ----- */
+.band{
+  position:fixed; left:0; right:0; top:0; z-index:4;
+  display:flex; align-items:flex-start; justify-content:space-between;
+  gap:14px; padding:18px 22px 26px;
+  pointer-events:none;
+  background:linear-gradient(180deg, rgba(15,15,26,.82) 0%, rgba(15,15,26,.45) 60%, transparent 100%);
+}
+.band h1{
+  font-family:"Press Start 2P", monospace;
+  font-size:clamp(13px, 2.1vw, 22px);
+  line-height:1.5;
+  letter-spacing:.5px;
+  color:var(--text);
+  text-shadow:2px 2px 0 var(--ink), 0 0 14px rgba(255,121,168,.30);
+  pointer-events:auto;
+}
+.band h1 .px{ color:var(--pink); }
+.band h1 .cy{ color:var(--cyan); }
+.band .sub{
+  margin-top:9px; font-family:"VT323", monospace;
+  font-size:clamp(14px, 1.5vw, 19px); color:var(--muted);
+  max-width:46ch; line-height:1.15;
+}
+.legend{
+  pointer-events:auto;
+  font-family:"VT323", monospace; font-size:15px; color:var(--muted);
+  text-align:right; line-height:1.45; white-space:nowrap;
+}
+.legend b{ color:var(--cyan); font-weight:normal; }
+.legend .k{
+  display:inline-block; border:1px solid var(--cyan-dk); color:var(--cyan);
+  padding:0 5px; border-radius:3px; margin-left:4px; font-size:13px;
+}
+
+/* ----- Object label tooltip (follows highlighted object) ----- */
+#tag{
+  position:fixed; z-index:5; pointer-events:none;
+  transform:translate(-50%, -100%);
+  background:var(--ink);
+  border:2px solid var(--pink);
+  box-shadow:0 0 0 2px var(--void), 4px 4px 0 rgba(0,0,0,.5);
+  padding:5px 9px 6px; border-radius:2px;
+  font-family:"Press Start 2P", monospace; font-size:9px;
+  color:var(--pink); letter-spacing:.5px; white-space:nowrap;
+  opacity:0; transition:opacity .12s linear;
+}
+#tag.show{ opacity:1; }
+#tag small{ display:block; margin-top:5px; font-family:"VT323"; font-size:13px; color:var(--cyan); letter-spacing:0; }
+@media (prefers-reduced-motion:reduce){ #tag{ transition:none; } }
+
+/* ----- Minimap / object dock (bottom, doubles as keyboard nav) ----- */
+.dock{
+  position:fixed; left:50%; bottom:14px; z-index:4;
+  transform:translateX(-50%);
+  display:flex; gap:8px; padding:8px 10px;
+  background:rgba(10,10,18,.78);
+  border:2px solid var(--wall);
+  border-radius:6px;
+  backdrop-filter:blur(2px);
+}
+.dock button{
+  appearance:none; cursor:pointer;
+  font-family:"VT323", monospace; font-size:15px;
+  color:var(--muted); background:transparent;
+  border:1px solid transparent; border-radius:4px;
+  padding:4px 9px 5px; line-height:1;
+  transition:color .1s, border-color .1s, background .1s;
+}
+.dock button:hover,
+.dock button[aria-current="true"]{
+  color:var(--pink); border-color:var(--pink-dk); background:rgba(255,121,168,.10);
+}
+.dock button:focus-visible{
+  outline:none; color:var(--cyan); border-color:var(--cyan);
+  box-shadow:0 0 0 2px rgba(127,239,255,.4);
+}
+@media (prefers-reduced-motion:reduce){ .dock button{ transition:none; } }
+
+/* ----- Zoom hint (mobile) ----- */
+.hint{
+  position:fixed; right:12px; bottom:64px; z-index:4;
+  font-family:"VT323", monospace; font-size:13px; color:var(--muted);
+  background:rgba(10,10,18,.7); border:1px solid var(--wall);
+  border-radius:4px; padding:4px 8px; display:none;
+}
+
+/* =========================================================================
+   REVEAL PANEL  (letterbox, object-fit:contain, never cover-crop)
+   ========================================================================= */
+#reveal{
+  position:fixed; inset:0; z-index:10;
+  display:none;
+  background:rgba(7,6,16,.86);
+  backdrop-filter:blur(3px);
+  padding:clamp(14px, 4vw, 56px);
+}
+#reveal.open{ display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:clamp(14px,2.4vw,30px); align-items:center; }
+
+.frame{
+  position:relative; min-width:0; height:min(78vh, 720px);
+  background:
+    repeating-linear-gradient(0deg, #08070f 0 2px, #0c0b16 2px 4px);
+  border:3px solid var(--pink);
+  box-shadow:0 0 0 3px var(--void), 0 0 36px rgba(255,121,168,.28), 10px 10px 0 rgba(0,0,0,.5);
+  border-radius:3px;
+  display:flex; align-items:center; justify-content:center;
+  overflow:hidden;
+}
+/* letterbox: every media is contained, bars are part of the frame look */
+.frame img,
+.frame video{
+  max-width:100%; max-height:100%;
+  width:auto; height:auto;
+  object-fit:contain;
+  image-rendering:auto;
+  display:block;
+}
+.frame .pixshot{ image-rendering:pixelated; } /* the lo-fi works look better crunchy */
+.frame .corner{
+  position:absolute; width:14px; height:14px; pointer-events:none;
+  border:2px solid var(--cyan);
+}
+.frame .c-tl{ top:6px; left:6px; border-right:0; border-bottom:0; }
+.frame .c-tr{ top:6px; right:6px; border-left:0; border-bottom:0; }
+.frame .c-bl{ bottom:6px; left:6px; border-right:0; border-top:0; }
+.frame .c-br{ bottom:6px; right:6px; border-left:0; border-top:0; }
+
+/* audio piece */
+.audio-piece{ width:100%; max-width:560px; padding:0 18px; }
+.audio-piece .wave{
+  width:100%; height:auto; image-rendering:pixelated;
+  border:2px solid var(--cyan-dk); border-radius:3px;
+  background:#0a0a14; padding:8px;
+  filter:drop-shadow(0 0 10px rgba(127,239,255,.25));
+}
+.audio-piece audio{ width:100%; margin-top:14px; filter:hue-rotate(290deg) saturate(1.2); }
+
+/* manifesto (bookshelf) */
+.manifesto{
+  width:100%; max-width:640px; height:min(78vh,720px); overflow:auto;
+  padding:clamp(18px,3vw,40px);
+  background:linear-gradient(180deg, #161227 0%, #100d20 100%);
+  border:3px solid var(--cyan); border-radius:3px;
+  box-shadow:0 0 0 3px var(--void), 0 0 30px rgba(127,239,255,.22), 10px 10px 0 rgba(0,0,0,.5);
+  font-family:"VT323", monospace; color:var(--text);
+}
+.manifesto h2{ font-family:"Press Start 2P"; font-size:13px; color:var(--cyan); margin-bottom:16px; line-height:1.6; }
+.manifesto p{ font-size:19px; line-height:1.35; margin-bottom:14px; color:#d8d2f2; }
+.manifesto p:first-of-type::first-letter{ font-family:"Press Start 2P"; font-size:26px; color:var(--pink); margin-right:6px; float:left; line-height:.9; }
+
+/* 3D-as-poster (record player alt) handled inline */
+
+/* right rail: title + meta + thumbnails of every work */
+.meta{ min-width:0; align-self:center; }
+.meta .kicker{ font-family:"Press Start 2P"; font-size:9px; color:var(--cyan); letter-spacing:1px; margin-bottom:10px; }
+.meta h2{
+  font-family:"Press Start 2P"; font-size:clamp(13px,1.7vw,20px); line-height:1.5;
+  color:var(--pink); text-shadow:2px 2px 0 var(--ink); margin-bottom:14px;
+}
+.meta p{ font-family:"VT323"; font-size:18px; line-height:1.25; color:var(--muted); margin-bottom:18px; max-width:40ch; }
+.meta .tags{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:22px; }
+.meta .tags span{ font-family:"VT323"; font-size:14px; color:var(--cyan); border:1px solid var(--cyan-dk); border-radius:3px; padding:1px 7px 2px; }
+
+.thumbs{ display:flex; gap:8px; flex-wrap:wrap; }
+.thumbs button{
+  appearance:none; cursor:pointer; padding:0; line-height:0;
+  width:52px; height:52px; border-radius:4px; overflow:hidden;
+  border:2px solid var(--wall); background:#0a0a14;
+  transition:border-color .1s, transform .1s;
+}
+.thumbs button img{ width:100%; height:100%; object-fit:cover; image-rendering:auto; }
+.thumbs button:hover{ border-color:var(--pink); transform:translateY(-2px); }
+.thumbs button[aria-current="true"]{ border-color:var(--cyan); }
+.thumbs button:focus-visible{ outline:none; border-color:var(--cyan); box-shadow:0 0 0 2px rgba(127,239,255,.4); }
+@media (prefers-reduced-motion:reduce){ .thumbs button{ transition:none; } }
+
+#close{
+  position:fixed; top:16px; right:18px; z-index:12;
+  font-family:"Press Start 2P", monospace; font-size:10px;
+  color:var(--pink); background:var(--ink);
+  border:2px solid var(--pink); border-radius:3px;
+  padding:8px 11px 9px; cursor:pointer;
+  box-shadow:3px 3px 0 rgba(0,0,0,.5);
+}
+#close:hover{ background:var(--pink); color:var(--ink); }
+#close:focus-visible{ outline:none; box-shadow:0 0 0 3px rgba(127,239,255,.5); }
+
+/* =========================================================================
+   RESPONSIVE  - stack the reveal panel at <=640px, never cover-crop
+   ========================================================================= */
+@media (max-width:900px){
+  #reveal.open{ grid-template-columns:1fr; align-content:center; gap:16px; overflow:auto; }
+  .frame{ height:min(52vh, 420px); }
+  .manifesto{ height:auto; max-height:60vh; }
+  .meta{ align-self:auto; }
+}
+@media (max-width:640px){
+  .band{ padding:12px 14px 22px; flex-direction:column; gap:6px; }
+  .legend{ text-align:left; white-space:normal; }
+  .hint{ display:block; }
+  #reveal{ padding:12px; }
+  #reveal.open{ display:block; }
+  #reveal.open > *{ margin-bottom:14px; }
+  .frame{ height:min(46vh, 360px); }
+  .dock{ gap:5px; padding:6px 7px; max-width:94vw; overflow-x:auto; }
+  .dock button{ font-size:14px; padding:4px 7px; }
+  .thumbs button{ width:46px; height:46px; }
+}
+</style>
+</head>
+<body>
+
+<!-- =========================================================================
+     DATA  - swap works here. Each object lives at an isometric tile (tx,ty),
+     has a footprint (w,d in tiles) + a height. `work` is what gets revealed.
+     kind: "image" | "video" | "audio" | "manifesto" | "model"
+     ========================================================================= -->
+<script>
+const A = "../assets/";          // assets root  (relative to this file)
+const G = "../assets/gen/";      // generated posters / waveforms
+
+const STUDIO = {
+  title: "PIXEL // STUDIO",
+  // Objects placed on the iso grid. id is used for the dock + keyboard nav.
+  // tile coords: tx grows to lower-right, ty grows to lower-left (standard iso).
+  objects: [
+    {
+      id:"monitor", icon:"[#]", label:"THE MONITOR", note:"a rendered piece",
+      tx:1.0, ty:0.6, w:2, d:1, h:1.7, accent:"pink",
+      work:{
+        kind:"image", title:"NIGHT DRIVE / matte black",
+        src:A+"flux-car-4k.png", pixel:false,
+        blurb:"Cinematic matte-black coupe on a rain-slick neon street. The wallpaper pinned to the studio monitor.",
+        tags:["FLUX","4K","i2v-ready","cinematic"]
+      }
+    },
+    {
+      id:"recordplayer", icon:"(o)", label:"RECORD PLAYER", note:"an audio piece",
+      tx:4.2, ty:1.0, w:1, d:1, h:0.7, accent:"amber",
+      work:{
+        kind:"audio", title:"GENERATED SCORE / musicgen",
+        src:A+"musicgen.wav", wave:G+"wave-musicgen.png",
+        blurb:"A looping instrumental bed spun up by MusicGen. Drop the needle.",
+        tags:["MusicGen","WAV","loop","score"]
+      }
+    },
+    {
+      id:"bookshelf", icon:"III", label:"THE BOOKSHELF", note:"a manifesto",
+      tx:0.4, ty:2.4, w:1, d:2, h:2.3, accent:"cyan",
+      work:{
+        kind:"manifesto", title:"STUDIO MANIFESTO",
+        blurb:"The spine on the shelf. How we think about craft, constraint and the phone - read it off the wood.",
+        heading:"WE BUILD ROOMS, NOT PAGES.",
+        body:[
+          "Every project is a place you can walk into. We sweat the corner of every tile because the corner is where craft lives.",
+          "Sixteen colors. One grid. No stock components, no dark card grid, no infinite scroll to nowhere. Constraint is the brief.",
+          "If it cannot survive at 390 pixels wide it does not ship. The phone is not the fallback, it is the proof.",
+          "Pixels are honest. They show their work. So do we: open the desk drawer, drop the needle, read the spine. The portfolio is the room."
+        ],
+        tags:["voice","principles","craft"]
+      }
+    },
+    {
+      id:"plant", icon:"§Y", label:"THE PLANT", note:"a still life",
+      tx:5.0, ty:2.8, w:1, d:1, h:1.6, accent:"leaf",
+      work:{
+        kind:"image", title:"AUTUMN FOX / painterly",
+        src:A+"sdxl.png", pixel:false,
+        blurb:"A painterly autumn fox tucked beside the desk plant. Warm counterpoint to all the neon.",
+        tags:["SDXL","painterly","warm"]
+      }
+    },
+    {
+      id:"clipboard", icon:"[=]", label:"PINNED PRINT", note:"a clinic study",
+      tx:2.6, ty:3.4, w:1, d:1, h:1.4, accent:"cyan",
+      work:{
+        kind:"image", title:"MINT CLINIC / interior",
+        src:A+"flux-clinic-4k.png", pixel:false,
+        blurb:"Mint-and-wood dental clinic interior, taped to the wall as a reference print.",
+        tags:["FLUX","4K","interior","brand"]
+      }
+    },
+    {
+      id:"crt", icon:"[>]", label:"THE LOOP-CRT", note:"a video loop",
+      tx:3.4, ty:0.2, w:1, d:1, h:1.4, accent:"pink",
+      work:{
+        kind:"video", title:"KLING LOOP / motion test",
+        src:A+"kling-video.mp4", poster:G+"poster-kling-video.png",
+        blurb:"A silent generated motion loop. Plays only while the CRT is the focused object - one decode, never all at once.",
+        tags:["Kling","mp4","silent","loop"]
+      }
+    },
+    {
+      id:"crate", icon:"[3]", label:"THE 3D CRATE", note:"a 3D asset",
+      tx:4.4, ty:3.6, w:1, d:1, h:0.9, accent:"amber",
+      work:{
+        kind:"model", title:"REFINED MESH / meshy",
+        poster:G.replace("gen/","")+"meshy-refined-thumb.png", src:A+"meshy-refined.glb",
+        blurb:"A refined 3D mesh, posterized here. The crate by the door holds the heavy asset - link out to the full .glb.",
+        tags:["Meshy","glb","3D","refined"]
+      }
+    },
+    {
+      id:"trinket", icon:"<>", label:"DESK TRINKET", note:"a lo-fi study",
+      tx:2.0, ty:1.6, w:1, d:1, h:0.6, accent:"leaf",
+      work:{
+        kind:"image", title:"LOW-FI APPLE / study",
+        src:A+"hf-tinysd.png", pixel:true,
+        blurb:"An abstract low-fidelity apple study from TinySD. A tiny thing on the desk, crunchy on purpose.",
+        tags:["TinySD","lo-fi","study"]
+      }
+    }
+  ]
+};
+</script>
+
+<!-- ===== Markup ===== -->
+<main id="stage" aria-label="Isometric pixel studio room. Use the object dock or Tab to explore works.">
+  <canvas id="room" role="img" aria-label="A pixel-art studio room with a monitor, record player, bookshelf, plant and other objects. Each object holds a piece of work."></canvas>
+</main>
+
+<header class="band">
+  <div>
+    <h1><span class="px">PIXEL</span> // <span class="cy">STUDIO</span></h1>
+    <p class="sub">Navigation is the room. Hover or tap an object - the monitor, the record player, the shelf - to pull up the work pinned to it. No scrolling.</p>
+  </div>
+  <div class="legend" aria-hidden="true">
+    <b>explore</b> the objects<br/>
+    <span>hover / tap to reveal</span><br/>
+    <span>keys <span class="k">&larr;</span><span class="k">&rarr;</span> cycle &middot; <span class="k">Enter</span> open</span>
+  </div>
+</header>
+
+<div id="tag" role="status" aria-live="polite"></div>
+
+<nav class="dock" id="dock" aria-label="Studio objects"></nav>
+<div class="hint" aria-hidden="true">pinch to zoom &middot; tap an object</div>
+
+<!-- ===== Reveal overlay ===== -->
+<section id="reveal" aria-modal="true" role="dialog" aria-label="Revealed work">
+  <button id="close" aria-label="Close and return to the room">X CLOSE</button>
+  <div id="stagework"></div>
+  <div class="meta" id="metawork"></div>
+</section>
+
+<div class="crt" aria-hidden="true"></div>
+
+<script>
+"use strict";
+(function(){
+  /* --------------------------------------------------------------------- */
+  /*  Setup                                                                */
+  /* --------------------------------------------------------------------- */
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const cv   = document.getElementById("room");
+  const ctx  = cv.getContext("2d");
+  const tag  = document.getElementById("tag");
+  const dock = document.getElementById("dock");
+  const reveal = document.getElementById("reveal");
+  const closeBtn = document.getElementById("close");
+  const stageWork = document.getElementById("stagework");
+  const metaWork  = document.getElementById("metawork");
+  const objects = STUDIO.objects;
+
+  // colour resolver from palette
+  const css = getComputedStyle(document.documentElement);
+  const C = (n)=>css.getPropertyValue(n).trim();
+  const PAL = {
+    void:C("--void"), void2:C("--void-2"), ink:C("--ink"),
+    pink:C("--pink"), pinkdk:C("--pink-dk"),
+    cyan:C("--cyan"), cyandk:C("--cyan-dk"),
+    amber:C("--amber"), amberdk:C("--amber-dk"),
+    floor:C("--floor"), floor2:C("--floor-2"),
+    wall:C("--wall"), wall2:C("--wall-2"),
+    wood:C("--wood"), wooddk:C("--wood-dk"),
+    paper:C("--paper"), leaf:C("--leaf"), leafdk:C("--leaf-dk"),
+    text:C("--text"), muted:C("--muted")
+  };
+  const accentOf = (a)=>({pink:[PAL.pink,PAL.pinkdk],cyan:[PAL.cyan,PAL.cyandk],amber:[PAL.amber,PAL.amberdk],leaf:[PAL.leaf,PAL.leafdk]}[a]||[PAL.pink,PAL.pinkdk]);
+
+  /* --------------------------------------------------------------------- */
+  /*  Iso projection + camera                                              */
+  /*  Tile is a diamond. tw = full width, th = full height (th = tw/2).    */
+  /* --------------------------------------------------------------------- */
+  const GRID = { cols:6, rows:6 };      // floor extent in tiles
+  let TILE = 64;                        // base tile width in px (recomputed)
+  let cam = { x:0, y:0, scale:1, minScale:0.55, maxScale:3 };
+  let dpr = 1;
+
+  // iso transform: grid (gx,gy) + elevation z (in tile-height units) -> screen
+  function iso(gx, gy, z){
+    const tw = TILE, th = TILE/2;
+    const sx = (gx - gy) * (tw/2);
+    const sy = (gx + gy) * (th/2) - (z||0) * th;
+    return { x: cam.x + sx*cam.scale, y: cam.y + sy*cam.scale };
+  }
+
+  // size the canvas + center the camera on the room
+  function resize(){
+    dpr = Math.min(window.devicePixelRatio||1, 2);   // cap DPR at 2
+    const w = window.innerWidth, h = window.innerHeight;
+    cv.width  = Math.floor(w*dpr);
+    cv.height = Math.floor(h*dpr);
+    cv.style.width = w+"px"; cv.style.height = h+"px";
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.imageSmoothingEnabled = false;
+
+    // choose a tile size that fits the room in viewport with headroom for the band
+    const roomDiagW = (GRID.cols+GRID.rows) * 0.5;        // in tile-widths
+    const roomDiagH = (GRID.cols+GRID.rows) * 0.5 * 0.5 + 2.6; // in tile-heights incl wall
+    const fitW = (w*0.96) / roomDiagW;
+    const fitH = (h*0.92) / (roomDiagH);
+    TILE = Math.max(40, Math.min(96, Math.min(fitW, fitH*2)));
+    if (w < 640) TILE = Math.max(30, Math.min(TILE, 54));
+
+    // center: middle floor tile -> just below the headline band
+    cam.scale = 1;
+    const mid = isoRaw(GRID.cols/2, GRID.rows/2, 0);
+    cam.x = w/2 - mid.x*cam.scale;
+    cam.y = (w<640? h*0.42 : h*0.50) - mid.y*cam.scale;
+
+    draw();
+  }
+  // un-cameraed iso (for centering math)
+  function isoRaw(gx,gy,z){
+    const tw=TILE, th=TILE/2;
+    return { x:(gx-gy)*(tw/2), y:(gx+gy)*(th/2)-(z||0)*th };
+  }
+
+  /* --------------------------------------------------------------------- */
+  /*  Pixel primitives                                                     */
+  /* --------------------------------------------------------------------- */
+  function diamond(gx,gy,fill,stroke){
+    const a=iso(gx,gy,0), b=iso(gx+1,gy,0), c=iso(gx+1,gy+1,0), d=iso(gx,gy+1,0);
+    ctx.beginPath();
+    ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.lineTo(c.x,c.y); ctx.lineTo(d.x,d.y); ctx.closePath();
+    if(fill){ ctx.fillStyle=fill; ctx.fill(); }
+    if(stroke){ ctx.strokeStyle=stroke; ctx.lineWidth=1; ctx.stroke(); }
+  }
+
+  // an isometric box (top + left face + right face) spanning w x d tiles, height h
+  function box(gx,gy,w,d,h, top, left, right, outline){
+    // 8 corners of the box in screen space
+    const z=h;
+    const T = [ iso(gx,gy,z), iso(gx+w,gy,z), iso(gx+w,gy+d,z), iso(gx,gy+d,z) ];        // top
+    const B = [ iso(gx,gy,0), iso(gx+w,gy,0), iso(gx+w,gy+d,0), iso(gx,gy+d,0) ];        // base
+    // left face (gy+d edge) : T3-T2 ... B2-B3   -> facing lower-left
+    ctx.beginPath();
+    ctx.moveTo(T[3].x,T[3].y); ctx.lineTo(T[2].x,T[2].y); ctx.lineTo(B[2].x,B[2].y); ctx.lineTo(B[3].x,B[3].y); ctx.closePath();
+    ctx.fillStyle=left; ctx.fill();
+    if(outline){ ctx.strokeStyle=outline; ctx.lineWidth=1; ctx.stroke(); }
+    // right face (gx+w edge) : T1-T2 ... B2-B1  -> facing lower-right
+    ctx.beginPath();
+    ctx.moveTo(T[1].x,T[1].y); ctx.lineTo(T[2].x,T[2].y); ctx.lineTo(B[2].x,B[2].y); ctx.lineTo(B[1].x,B[1].y); ctx.closePath();
+    ctx.fillStyle=right; ctx.fill();
+    if(outline){ ctx.strokeStyle=outline; ctx.lineWidth=1; ctx.stroke(); }
+    // top
+    ctx.beginPath();
+    ctx.moveTo(T[0].x,T[0].y); ctx.lineTo(T[1].x,T[1].y); ctx.lineTo(T[2].x,T[2].y); ctx.lineTo(T[3].x,T[3].y); ctx.closePath();
+    ctx.fillStyle=top; ctx.fill();
+    if(outline){ ctx.strokeStyle=outline; ctx.lineWidth=1; ctx.stroke(); }
+    return {T,B};
+  }
+
+  // a flat upright quad standing on the floor (for screens / posters / canvas faces)
+  // along the "right" facing plane at gx+w edge, from z0..z1
+  function panelRight(gx,gy,w,d,z0,z1,fill,stroke){
+    const p0=iso(gx+w,gy,z0), p1=iso(gx+w,gy+d,z0), p2=iso(gx+w,gy+d,z1), p3=iso(gx+w,gy,z1);
+    ctx.beginPath();
+    ctx.moveTo(p0.x,p0.y); ctx.lineTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.lineTo(p3.x,p3.y); ctx.closePath();
+    ctx.fillStyle=fill; ctx.fill();
+    if(stroke){ ctx.strokeStyle=stroke; ctx.lineWidth=1; ctx.stroke(); }
+  }
+
+  /* --------------------------------------------------------------------- */
+  /*  Object screen anchor (for tooltip + light) - top-center of its box   */
+  /* --------------------------------------------------------------------- */
+  function anchorOf(o){ return iso(o.tx + o.w/2, o.ty + o.d/2, o.h + 0.2); }
+
+  /* --------------------------------------------------------------------- */
+  /*  Hit testing : pointer -> nearest object footprint                    */
+  /*  We test the projected top polygon of each object (point in polygon). */
+  /* --------------------------------------------------------------------- */
+  function topPoly(o){
+    const z=o.h;
+    return [ iso(o.tx,o.ty,z), iso(o.tx+o.w,o.ty,z), iso(o.tx+o.w,o.ty+o.d,z), iso(o.tx,o.ty+o.d,z),
+             iso(o.tx,o.ty+o.d,0), iso(o.tx+o.w,o.ty+o.d,0), iso(o.tx+o.w,o.ty,0) ];
+  }
+  function fullSilhouette(o){
+    // top quad + the two visible faces, as one convex-ish silhouette for easy hit
+    const z=o.h;
+    const T=[iso(o.tx,o.ty,z),iso(o.tx+o.w,o.ty,z),iso(o.tx+o.w,o.ty+o.d,z),iso(o.tx,o.ty+o.d,z)];
+    const B=[iso(o.tx,o.ty,0),iso(o.tx+o.w,o.ty,0),iso(o.tx+o.w,o.ty+o.d,0),iso(o.tx,o.ty+o.d,0)];
+    return [ T[0],T[1],B[1],B[2],B[3],T[3] ];
+  }
+  function pointInPoly(px,py,poly){
+    let inside=false;
+    for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+      const xi=poly[i].x, yi=poly[i].y, xj=poly[j].x, yj=poly[j].y;
+      const hit = ((yi>py)!==(yj>py)) && (px < (xj-xi)*(py-yi)/((yj-yi)||1e-9)+xi);
+      if(hit) inside=!inside;
+    }
+    return inside;
+  }
+  function pick(px,py){
+    // iterate front-to-back (objects with larger tx+ty are nearer the camera bottom)
+    const order = objects.map((o,i)=>({o,i,depth:o.tx+o.ty+o.h})).sort((a,b)=>b.depth-a.depth);
+    for(const e of order){
+      if(pointInPoly(px,py, fullSilhouette(e.o))) return e.i;
+    }
+    return -1;
+  }
+
+  /* --------------------------------------------------------------------- */
+  /*  Draw the whole room  (called only on state change / pointer move)    */
+  /* --------------------------------------------------------------------- */
+  let active = 0;          // currently highlighted object index
+  let lampPhase = 1;       // lamp brightness multiplier (idle flicker)
+
+  function draw(){
+    const w=cv.width/dpr, h=cv.height/dpr;
+    ctx.clearRect(0,0,w,h);
+
+    // ---- back walls (two faces meeting at the far corner 0,0) ----
+    drawWalls();
+
+    // ---- floor diamonds (checker grout) ----
+    for(let gy=0; gy<GRID.rows; gy++){
+      for(let gx=0; gx<GRID.cols; gx++){
+        const tone = ((gx+gy)&1) ? PAL.floor : PAL.floor2;
+        diamond(gx,gy, tone, "rgba(0,0,0,0.18)");
+      }
+    }
+
+    // ---- warm light cone from the lamp on the desk, onto the floor ----
+    drawLightCone();
+
+    // ---- objects, painted back-to-front (painter's algorithm) ----
+    const order = objects.map((o,i)=>({o,i,depth:o.tx+o.ty})).sort((a,b)=>a.depth-b.depth);
+    for(const e of order){ drawObject(e.o, e.i===active); }
+
+    // ---- highlight ring + floating tooltip for the active object ----
+    updateTag();
+  }
+
+  function drawWalls(){
+    // left wall along gy=0 edge (the back-left), right wall along gx=0 edge (back-right)
+    const WH = 2.6; // wall height in tile-heights
+    // back-right wall (the gx=0 plane), facing lower-right
+    let p0=iso(0,0,0), p1=iso(0,GRID.rows,0), p2=iso(0,GRID.rows,WH), p3=iso(0,0,WH);
+    ctx.beginPath(); ctx.moveTo(p0.x,p0.y);ctx.lineTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.lineTo(p3.x,p3.y);ctx.closePath();
+    ctx.fillStyle=PAL.wall2; ctx.fill();
+    // back-left wall (the gy=0 plane), facing lower-left
+    let q0=iso(0,0,0), q1=iso(GRID.cols,0,0), q2=iso(GRID.cols,0,WH), q3=iso(0,0,WH);
+    ctx.beginPath(); ctx.moveTo(q0.x,q0.y);ctx.lineTo(q1.x,q1.y);ctx.lineTo(q2.x,q2.y);ctx.lineTo(q3.x,q3.y);ctx.closePath();
+    ctx.fillStyle=PAL.wall; ctx.fill();
+
+    // window on the back-left wall (a slab of neon void)
+    winSlab(2.2,0, 1.6, 0.9, 2.0, "left");
+    // pixel art "poster" frame on back-right wall
+    posterRect(0,2.6, 1.4, 0.7, 1.9, "right");
+  }
+  function winSlab(gx,gy,wTiles,z0,z1,facing){
+    // a glowing window on the gy=0 (left) wall
+    const a=iso(gx,gy,z0), b=iso(gx+wTiles,gy,z0), c=iso(gx+wTiles,gy,z1), d=iso(gx,gy,z1);
+    ctx.beginPath(); ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.lineTo(c.x,c.y);ctx.lineTo(d.x,d.y);ctx.closePath();
+    const g=ctx.createLinearGradient(a.x,d.y,a.x,a.y);
+    g.addColorStop(0,"#241b3d"); g.addColorStop(.55,"#3a2a5e"); g.addColorStop(1,"#54407e");
+    ctx.fillStyle=g; ctx.fill();
+    ctx.strokeStyle=PAL.cyandk; ctx.lineWidth=2; ctx.stroke();
+    // muntin bars
+    const midx=iso(gx+wTiles/2,gy,z0), midx2=iso(gx+wTiles/2,gy,z1);
+    ctx.beginPath(); ctx.moveTo(midx.x,midx.y);ctx.lineTo(midx2.x,midx2.y); ctx.strokeStyle=PAL.wall2; ctx.lineWidth=2; ctx.stroke();
+    // little stars
+    ctx.fillStyle=PAL.cyan;
+    for(let i=0;i<5;i++){ const fx=gx+0.2+Math.random()*(wTiles-0.4); const fz=z0+0.2+Math.random()*(z1-z0-0.3); const p=iso(fx,gy,fz); ctx.fillRect(p.x|0,p.y|0,2,2); }
+  }
+  function posterRect(gx,gy,wTiles,z0,z1,facing){
+    // small framed print on right wall (gx=0 plane)
+    const a=iso(0,gy,z0), b=iso(0,gy+wTiles,z0), c=iso(0,gy+wTiles,z1), d=iso(0,gy,z1);
+    ctx.beginPath(); ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.lineTo(c.x,c.y);ctx.lineTo(d.x,d.y);ctx.closePath();
+    ctx.fillStyle="#0d0b18"; ctx.fill(); ctx.strokeStyle=PAL.pinkdk; ctx.lineWidth=2; ctx.stroke();
+    // a tiny neon glyph
+    ctx.fillStyle=PAL.pink;
+    const cx=iso(0,gy+wTiles/2,(z0+z1)/2);
+    ctx.fillRect(cx.x-3, cx.y-6, 2, 12); ctx.fillRect(cx.x+2, cx.y-3, 2, 9);
+  }
+
+  function drawLightCone(){
+    // amber pool emanating from the lamp object's base across the desk + floor
+    const lamp = objects.find(o=>o.id==="recordplayer") || objects[0];
+    // we actually anchor the lamp to the desk monitor area; cone toward camera
+    const src = iso(2.4, 1.0, 0.0);
+    const grad = ctx.createRadialGradient(src.x, src.y, 4, src.x, src.y, TILE*3.2*cam.scale);
+    const aBright = (reduceMotion?1:lampPhase);
+    grad.addColorStop(0, `rgba(255,207,110,${0.34*aBright})`);
+    grad.addColorStop(0.35, `rgba(255,180,90,${0.16*aBright})`);
+    grad.addColorStop(1, "rgba(255,160,80,0)");
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.beginPath();
+    // cone-ish fan toward lower area
+    ctx.moveTo(src.x, src.y);
+    const spread = TILE*3.4*cam.scale;
+    ctx.lineTo(src.x - spread*0.9, src.y + spread*0.7);
+    ctx.lineTo(src.x + spread*0.9, src.y + spread*0.7);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  /* --------------------------------------------------------------------- */
+  /*  Per-object pixel illustration                                        */
+  /* --------------------------------------------------------------------- */
+  function drawObject(o, isActive){
+    const [ac, acdk] = accentOf(o.accent);
+    const out = PAL.ink;
+
+    // soft contact shadow
+    ctx.save();
+    ctx.globalAlpha=0.35;
+    diamondShadow(o.tx,o.ty,o.w,o.d);
+    ctx.restore();
+
+    switch(o.id){
+      case "monitor":     drawMonitor(o,ac,acdk,out); break;
+      case "recordplayer":drawRecordPlayer(o,ac,acdk,out); break;
+      case "bookshelf":   drawBookshelf(o,ac,acdk,out); break;
+      case "plant":       drawPlant(o,ac,acdk,out); break;
+      case "clipboard":   drawClipboard(o,ac,acdk,out); break;
+      case "crt":         drawCRT(o,ac,acdk,out); break;
+      case "crate":       drawCrate(o,ac,acdk,out); break;
+      case "trinket":     drawTrinket(o,ac,acdk,out); break;
+      default:            box(o.tx,o.ty,o.w,o.d,o.h, ac, acdk, acdk, out);
+    }
+
+    // ---- active highlight: glowing outline around the silhouette ----
+    if(isActive){
+      const sil = fullSilhouette(o);
+      ctx.save();
+      ctx.shadowColor = ac; ctx.shadowBlur = reduceMotion?6:16;
+      ctx.strokeStyle = ac; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.moveTo(sil[0].x,sil[0].y);
+      for(let i=1;i<sil.length;i++) ctx.lineTo(sil[i].x,sil[i].y);
+      ctx.closePath(); ctx.stroke();
+      ctx.restore();
+      // little floating "look here" caret
+      const an = anchorOf(o);
+      ctx.fillStyle=ac;
+      ctx.beginPath(); ctx.moveTo(an.x, an.y-8); ctx.lineTo(an.x-5, an.y-16); ctx.lineTo(an.x+5, an.y-16); ctx.closePath(); ctx.fill();
+    }
+  }
+
+  function diamondShadow(gx,gy,w,d){
+    const a=iso(gx,gy,0), b=iso(gx+w,gy,0), c=iso(gx+w,gy+d,0), dd=iso(gx,gy+d,0);
+    ctx.beginPath(); ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.lineTo(c.x,c.y);ctx.lineTo(dd.x,dd.y);ctx.closePath();
+    ctx.fillStyle="#000"; ctx.fill();
+  }
+
+  // ---- DESK + MONITOR (the pre-highlighted hero object) ----
+  function drawMonitor(o,ac,acdk,out){
+    // desk slab under the monitor
+    box(o.tx, o.ty+0.05, o.w, o.d+0.6, 0.55, PAL.wood, PAL.wooddk, PAL.wooddk, out);
+    // a desk lamp arm (the warm source)
+    const base=iso(o.tx+0.2,o.ty+0.7,0.55), elbow=iso(o.tx+0.2,o.ty+0.4,1.5), head=iso(o.tx+0.7,o.ty+0.3,1.4);
+    ctx.strokeStyle=PAL.amberdk; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(base.x,base.y); ctx.lineTo(elbow.x,elbow.y); ctx.lineTo(head.x,head.y); ctx.stroke();
+    ctx.fillStyle=PAL.amber; ctx.shadowColor=PAL.amber; ctx.shadowBlur=reduceMotion?4:12*lampPhase;
+    ctx.beginPath(); ctx.arc(head.x,head.y,5,0,7); ctx.fill(); ctx.shadowBlur=0;
+
+    // monitor body sitting on the desk
+    const mx=o.tx+0.25, my=o.ty+0.1, mw=o.w-0.5, md=o.d-0.2, mh0=0.55, mh1=o.h;
+    box(mx,my,mw,md, mh1, "#1b1830", "#120f22", "#15122a", out);  // case
+    // glowing screen on the right-facing plane
+    panelRight(mx,my,mw,md, mh0+0.25, mh1-0.18, "#0c1b22", PAL.cyandk);
+    // scanline glow on screen
+    const s0=iso(mx+mw,my,mh0+0.25), s1=iso(mx+mw,my+md,mh0+0.25), s2=iso(mx+mw,my+md,mh1-0.18), s3=iso(mx+mw,my,mh1-0.18);
+    const gg=ctx.createLinearGradient(s0.x,s0.y,s2.x,s2.y);
+    gg.addColorStop(0,"rgba(127,239,255,0.05)"); gg.addColorStop(.5,"rgba(255,121,168,0.16)"); gg.addColorStop(1,"rgba(127,239,255,0.05)");
+    ctx.beginPath(); ctx.moveTo(s0.x,s0.y);ctx.lineTo(s1.x,s1.y);ctx.lineTo(s2.x,s2.y);ctx.lineTo(s3.x,s3.y);ctx.closePath();
+    ctx.fillStyle=gg; ctx.fill();
+    // tiny ::: of code on the screen
+    ctx.fillStyle=PAL.pink;
+    for(let i=0;i<4;i++){ const fz=mh0+0.45+i*0.22; const a=iso(mx+mw, my+0.18, fz); ctx.fillRect(a.x, a.y, 6+ (i*3), 2); }
+  }
+
+  function drawRecordPlayer(o,ac,acdk,out){
+    // little side table
+    box(o.tx,o.ty,o.w,o.d,0.45, PAL.wood, PAL.wooddk, PAL.wooddk, out);
+    // turntable box on top
+    box(o.tx+0.06,o.ty+0.06,o.w-0.12,o.d-0.12, o.h, "#211c33","#15122a","#1a1530", out);
+    // the spinning record (a disc on top)
+    const c=iso(o.tx+0.5,o.ty+0.5,o.h);
+    ctx.save();
+    ctx.translate(c.x,c.y); ctx.scale(1,0.5);
+    ctx.fillStyle="#0a0a12"; ctx.beginPath(); ctx.arc(0,0, TILE*0.34*cam.scale,0,7); ctx.fill();
+    ctx.strokeStyle=acdk; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(0,0, TILE*0.22*cam.scale,0,7); ctx.stroke();
+    ctx.fillStyle=ac; ctx.beginPath(); ctx.arc(0,0, TILE*0.07*cam.scale,0,7); ctx.fill();
+    ctx.restore();
+    // tonearm
+    const arm0=iso(o.tx+0.85,o.ty+0.15,o.h+0.02), arm1=iso(o.tx+0.55,o.ty+0.5,o.h+0.02);
+    ctx.strokeStyle=PAL.cyan; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(arm0.x,arm0.y);ctx.lineTo(arm1.x,arm1.y); ctx.stroke();
+  }
+
+  function drawBookshelf(o,ac,acdk,out){
+    // tall shelf against the wall
+    box(o.tx,o.ty,o.w,o.d, o.h, "#3a2a4f","#241a33","#2e2140", out);
+    // 4 shelves of colored book-spines on the right face
+    const cols=[PAL.pink,PAL.cyan,PAL.amber,PAL.leaf,PAL.pinkdk,PAL.cyandk];
+    for(let shelf=0; shelf<4; shelf++){
+      const z = 0.3 + shelf*(o.h-0.4)/4;
+      let bx = o.ty+0.12;
+      for(let b=0;b<5;b++){
+        const bw=0.12+ (b%3)*0.03;
+        const c0=iso(o.tx+o.w, bx, z), c1=iso(o.tx+o.w, bx+bw, z), c2=iso(o.tx+o.w, bx+bw, z+0.34), c3=iso(o.tx+o.w, bx, z+0.34);
+        ctx.beginPath(); ctx.moveTo(c0.x,c0.y);ctx.lineTo(c1.x,c1.y);ctx.lineTo(c2.x,c2.y);ctx.lineTo(c3.x,c3.y);ctx.closePath();
+        ctx.fillStyle=cols[(shelf*5+b)%cols.length]; ctx.fill();
+        ctx.strokeStyle=PAL.ink; ctx.lineWidth=1; ctx.stroke();
+        bx+=bw+0.04;
+      }
+    }
+  }
+
+  function drawPlant(o,ac,acdk,out){
+    // pot
+    box(o.tx+0.2,o.ty+0.2,o.w-0.4,o.d-0.4,0.5, "#7a4a30","#4a2c1c","#5c3823", out);
+    // foliage = stacked leaf diamonds
+    const cx=o.tx+0.5, cy=o.ty+0.5;
+    for(let i=0;i<7;i++){
+      const ang=(i/7)*Math.PI*2;
+      const z=0.5+ (i%3)*0.28 + 0.4;
+      const lx=cx+Math.cos(ang)*0.22, ly=cy+Math.sin(ang)*0.22;
+      const p=iso(lx,ly,z);
+      ctx.fillStyle= i%2? PAL.leaf : PAL.leafdk;
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(ang*0.3);
+      ctx.fillRect(-4,-9,8,16); ctx.restore();
+    }
+    const top=iso(cx,cy,o.h);
+    ctx.fillStyle=PAL.leaf; ctx.beginPath(); ctx.arc(top.x,top.y,6,0,7); ctx.fill();
+  }
+
+  function drawClipboard(o,ac,acdk,out){
+    // a small standing easel / pinned print on a thin stand
+    box(o.tx+0.4,o.ty+0.4,0.2,0.2, 0.2, PAL.wooddk, PAL.ink, PAL.ink, out);  // foot
+    // board
+    const z0=o.h-1.0, z1=o.h;
+    panelRight(o.tx+0.5, o.ty+0.1, 0.0, o.d-0.2, z0, z1, PAL.paper, acdk);
+    // a tiny image hint
+    const a=iso(o.tx+0.5,o.ty+0.1,z0+0.1), b=iso(o.tx+0.5,o.ty+o.d-0.1,z0+0.1);
+    ctx.strokeStyle=ac; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+    // pin
+    const pin=iso(o.tx+0.5,o.ty+o.d/2, z1-0.05);
+    ctx.fillStyle=PAL.pink; ctx.beginPath(); ctx.arc(pin.x,pin.y,3,0,7); ctx.fill();
+  }
+
+  function drawCRT(o,ac,acdk,out){
+    // a chunky CRT on a low cabinet, screen glowing pink (the loop)
+    box(o.tx,o.ty,o.w,o.d, o.h, "#241b33","#171022","#1d1428", out);
+    // screen on right face
+    panelRight(o.tx, o.ty, o.w, o.d, 0.4, o.h-0.2, "#1a0c16", acdk);
+    const s0=iso(o.tx+o.w,o.ty,0.4), s2=iso(o.tx+o.w,o.ty+o.d,o.h-0.2);
+    const gg=ctx.createLinearGradient(s0.x,s0.y,s2.x,s2.y);
+    gg.addColorStop(0,"rgba(255,121,168,0.10)"); gg.addColorStop(.5,"rgba(255,121,168,0.30)"); gg.addColorStop(1,"rgba(255,121,168,0.08)");
+    const s1=iso(o.tx+o.w,o.ty+o.d,0.4), s3=iso(o.tx+o.w,o.ty,o.h-0.2);
+    ctx.beginPath(); ctx.moveTo(s0.x,s0.y);ctx.lineTo(s1.x,s1.y);ctx.lineTo(s2.x,s2.y);ctx.lineTo(s3.x,s3.y);ctx.closePath();
+    ctx.fillStyle=gg; ctx.fill();
+    // play triangle
+    const c=iso(o.tx+o.w, o.ty+o.d/2, o.h/2+0.2);
+    ctx.fillStyle=PAL.pink; ctx.beginPath(); ctx.moveTo(c.x-2,c.y-6);ctx.lineTo(c.x-2,c.y+6);ctx.lineTo(c.x+7,c.y);ctx.closePath(); ctx.fill();
+  }
+
+  function drawCrate(o,ac,acdk,out){
+    box(o.tx,o.ty,o.w,o.d, o.h, PAL.wood, PAL.wooddk, "#5c3a28", out);
+    // X bracing on the right face
+    const z0=0.06, z1=o.h-0.06;
+    const c0=iso(o.tx+o.w,o.ty+0.08,z0), c1=iso(o.tx+o.w,o.ty+o.d-0.08,z1);
+    const c2=iso(o.tx+o.w,o.ty+0.08,z1), c3=iso(o.tx+o.w,o.ty+o.d-0.08,z0);
+    ctx.strokeStyle=acdk; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(c0.x,c0.y);ctx.lineTo(c1.x,c1.y);ctx.moveTo(c2.x,c2.y);ctx.lineTo(c3.x,c3.y); ctx.stroke();
+    // "3D" stencil
+    const m=iso(o.tx+o.w,o.ty+o.d/2,o.h/2);
+    ctx.fillStyle=ac; ctx.fillRect(m.x-3,m.y-4,6,8);
+  }
+
+  function drawTrinket(o,ac,acdk,out){
+    // a tiny low cube (lo-fi study) on the floor
+    box(o.tx+0.25,o.ty+0.25,0.5,0.5, o.h, "#3a2f4f", "#241c33", "#2e2440", out);
+    const top=iso(o.tx+0.5,o.ty+0.5,o.h);
+    ctx.fillStyle=ac; ctx.fillRect(top.x-3,top.y-3,6,6);
+  }
+
+  /* --------------------------------------------------------------------- */
+  /*  Floating tooltip over active object                                  */
+  /* --------------------------------------------------------------------- */
+  function updateTag(){
+    const o=objects[active];
+    if(!o){ tag.classList.remove("show"); return; }
+    const an=anchorOf(o);
+    tag.style.left = an.x+"px";
+    tag.style.top  = (an.y-14)+"px";
+    tag.innerHTML = o.label + "<small>"+o.note+"  &middot;  click to open</small>";
+    tag.classList.add("show");
+  }
+
+  /* --------------------------------------------------------------------- */
+  /*  Idle lamp flicker  (timer-based, NOT a continuous rAF; off on RM)    */
+  /*  Redraws only when phase actually changes, throttled to ~8fps.        */
+  /* --------------------------------------------------------------------- */
+  let flickerTimer=null;
+  function startFlicker(){
+    if(reduceMotion) return;
+    stopFlicker();
+    flickerTimer=setInterval(()=>{
+      if(reveal.classList.contains("open")) return;  // pause when a work is open
+      // gentle warm flicker
+      lampPhase = 0.86 + Math.random()*0.2;
+      draw();
+    }, 130);
+  }
+  function stopFlicker(){ if(flickerTimer){ clearInterval(flickerTimer); flickerTimer=null; } }
+
+  /* --------------------------------------------------------------------- */
+  /*  Pointer interaction  (move = re-highlight + redraw; click = reveal)  */
+  /* --------------------------------------------------------------------- */
+  let lastHover=-1;
+  function onMove(ev){
+    const r=cv.getBoundingClientRect();
+    const px=ev.clientX-r.left, py=ev.clientY-r.top;
+    const hit=pick(px,py);
+    cv.classList.toggle("hot", hit>=0);
+    if(hit>=0 && hit!==lastHover){
+      lastHover=hit; setActive(hit);    // redraw happens in setActive
+    } else if(hit<0 && lastHover>=0){
+      lastHover=-1; // keep last active highlighted (room feels alive), just clear cursor
+    }
+  }
+  function onClick(ev){
+    const r=cv.getBoundingClientRect();
+    const px=ev.clientX-r.left, py=ev.clientY-r.top;
+    const hit=pick(px,py);
+    if(hit>=0) openWork(hit);
+  }
+
+  function setActive(i){
+    if(i<0||i>=objects.length) return;
+    active=i;
+    // dock state
+    [...dock.children].forEach((b,idx)=>b.setAttribute("aria-current", String(idx===i)));
+    draw();   // single redraw on state change (guardrail honored)
+  }
+
+  /* --------------------------------------------------------------------- */
+  /*  Reveal panel : build the right content type, letterboxed             */
+  /* --------------------------------------------------------------------- */
+  let lastFocus=null;
+  function openWork(i){
+    const o=objects[i]; const wk=o.work; if(!wk) return;
+    setActive(i);
+    lastFocus=document.activeElement;
+    stageWork.innerHTML=""; metaWork.innerHTML="";
+
+    // ----- left stage : the media -----
+    if(wk.kind==="image"){
+      const f=frame();
+      const img=document.createElement("img");
+      img.src=wk.src; img.alt=wk.title; img.loading="eager"; img.decoding="async";
+      if(wk.pixel) img.className="pixshot";
+      f.appendChild(img); stageWork.appendChild(f);
+    } else if(wk.kind==="video"){
+      const f=frame();
+      const v=document.createElement("video");
+      v.src=wk.src; v.poster=wk.poster||""; v.loop=true; v.muted=true; v.playsInline=true;
+      v.setAttribute("playsinline",""); v.preload="metadata"; v.controls=false;
+      f.appendChild(v); stageWork.appendChild(f);
+      // play ONLY this focused video (no simultaneous decode elsewhere)
+      if(!reduceMotion){ const p=v.play(); if(p&&p.catch) p.catch(()=>{}); }
+    } else if(wk.kind==="audio"){
+      const wrap=document.createElement("div"); wrap.className="audio-piece";
+      const wav=document.createElement("img"); wav.className="wave"; wav.src=wk.wave; wav.alt="waveform of "+wk.title;
+      const au=document.createElement("audio"); au.src=wk.src; au.controls=true; au.preload="metadata";
+      wrap.appendChild(wav); wrap.appendChild(au); stageWork.appendChild(wrap);
+    } else if(wk.kind==="manifesto"){
+      const m=document.createElement("div"); m.className="manifesto";
+      m.innerHTML="<h2>"+esc(wk.heading)+"</h2>"+wk.body.map(p=>"<p>"+esc(p)+"</p>").join("");
+      stageWork.appendChild(m);
+    } else if(wk.kind==="model"){
+      const f=frame();
+      const img=document.createElement("img");
+      img.src=wk.poster; img.alt=wk.title; img.decoding="async";
+      f.appendChild(img);
+      const dl=document.createElement("a"); dl.href=wk.src; dl.textContent="open .glb";
+      dl.style.cssText="position:absolute;left:10px;bottom:10px;font-family:'Press Start 2P';font-size:8px;color:#0f0f1a;background:#7fefff;padding:6px 8px;border-radius:3px;text-decoration:none;z-index:3";
+      f.appendChild(dl); stageWork.appendChild(f);
+    }
+
+    // ----- right rail : title + meta + thumbnails of every object's work -----
+    let html =
+      '<div class="kicker">'+esc(o.note.toUpperCase())+'</div>'+
+      '<h2>'+esc(wk.title)+'</h2>'+
+      '<p>'+esc(wk.blurb)+'</p>'+
+      '<div class="tags">'+ (wk.tags||[]).map(t=>'<span>'+esc(t)+'</span>').join('') +'</div>'+
+      '<div class="thumbs" role="tablist" aria-label="Jump to another work"></div>';
+    metaWork.innerHTML=html;
+    const thumbs=metaWork.querySelector(".thumbs");
+    objects.forEach((ob,idx)=>{
+      const b=document.createElement("button");
+      b.type="button"; b.setAttribute("aria-current", String(idx===i));
+      b.setAttribute("aria-label","Show "+ob.label);
+      const tImg=document.createElement("img");
+      tImg.src = thumbSrc(ob); tImg.alt=ob.label;
+      b.appendChild(tImg);
+      b.addEventListener("click",()=>openWork(idx));
+      thumbs.appendChild(b);
+    });
+
+    reveal.classList.add("open");
+    closeBtn.focus();
+    stopFlicker();
+  }
+
+  function thumbSrc(o){
+    const w=o.work;
+    if(w.kind==="image") return w.src;
+    if(w.kind==="video") return w.poster;
+    if(w.kind==="audio") return w.wave;
+    if(w.kind==="model") return w.poster;
+    if(w.kind==="manifesto") return A+"sdxl.png"; // stand-in tile for the shelf
+    return A+"hf-tinysd.png";
+  }
+  function frame(){
+    const f=document.createElement("div"); f.className="frame";
+    ["c-tl","c-tr","c-bl","c-br"].forEach(c=>{ const s=document.createElement("span"); s.className="corner "+c; f.appendChild(s); });
+    return f;
+  }
+  function esc(s){ return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m])); }
+
+  function closeWork(){
+    // stop any playing video before hiding (free the decoder)
+    stageWork.querySelectorAll("video").forEach(v=>{ v.pause(); });
+    reveal.classList.remove("open");
+    if(lastFocus && lastFocus.focus) lastFocus.focus();
+    startFlicker();
+    draw();
+  }
+  closeBtn.addEventListener("click", closeWork);
+  reveal.addEventListener("click",(e)=>{ if(e.target===reveal) closeWork(); });
+  document.addEventListener("keydown",(e)=>{
+    if(e.key==="Escape" && reveal.classList.contains("open")){ closeWork(); return; }
+    if(reveal.classList.contains("open")) return;
+    if(e.key==="ArrowRight"||e.key==="ArrowDown"){ e.preventDefault(); setActive((active+1)%objects.length); }
+    else if(e.key==="ArrowLeft"||e.key==="ArrowUp"){ e.preventDefault(); setActive((active-1+objects.length)%objects.length); }
+    else if(e.key==="Enter"||e.key===" "){ if(document.activeElement===document.body||document.activeElement===cv){ e.preventDefault(); openWork(active); } }
+  });
+
+  /* --------------------------------------------------------------------- */
+  /*  Build the object dock (also the accessible nav)                      */
+  /* --------------------------------------------------------------------- */
+  objects.forEach((o,i)=>{
+    const b=document.createElement("button");
+    b.type="button";
+    b.textContent=o.icon+" "+o.label.replace(/^THE /,"");
+    b.setAttribute("aria-current", String(i===active));
+    b.setAttribute("aria-label",o.label+", "+o.note+". Open work.");
+    b.addEventListener("mouseenter",()=>setActive(i));
+    b.addEventListener("focus",()=>setActive(i));
+    b.addEventListener("click",()=>openWork(i));
+    dock.appendChild(b);
+  });
+
+  /* --------------------------------------------------------------------- */
+  /*  Pinch-zoom + drag-pan (mobile + desktop), redraw on gesture only     */
+  /* --------------------------------------------------------------------- */
+  let pointers=new Map();
+  let pinchStart=null;
+  cv.addEventListener("pointerdown",(e)=>{
+    cv.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pointers.size===2){
+      const ps=[...pointers.values()];
+      pinchStart={ dist:dist(ps[0],ps[1]), scale:cam.scale,
+                   cx:(ps[0].x+ps[1].x)/2, cy:(ps[0].y+ps[1].y)/2,
+                   camx:cam.x, camy:cam.y };
+    }
+  });
+  cv.addEventListener("pointermove",(e)=>{
+    if(pointers.has(e.pointerId)){
+      const prev=pointers.get(e.pointerId);
+      pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+      if(pointers.size===2 && pinchStart){
+        const ps=[...pointers.values()];
+        const nd=dist(ps[0],ps[1]);
+        let ns=Math.max(cam.minScale, Math.min(cam.maxScale, pinchStart.scale*(nd/pinchStart.dist)));
+        // zoom about pinch center
+        const k=ns/pinchStart.scale;
+        cam.scale=ns;
+        cam.x = pinchStart.cx - (pinchStart.cx - pinchStart.camx)*k;
+        cam.y = pinchStart.cy - (pinchStart.cy - pinchStart.camy)*k;
+        draw();
+        return;
+      }
+      if(pointers.size===1 && e.pressure>0){
+        // drag-pan
+        const dx=e.clientX-prev.x, dy=e.clientY-prev.y;
+        if(Math.abs(dx)+Math.abs(dy)>0){ cam.x+=dx; cam.y+=dy; draw(); }
+        return;
+      }
+    }
+    onMove(e);   // hover highlight (only when not dragging)
+  });
+  function endPtr(e){
+    const had2 = pointers.size===2;
+    pointers.delete(e.pointerId);
+    if(pointers.size<2) pinchStart=null;
+    // treat as click if it was a clean single tap (no real drag)
+    if(!had2) {/* click handler below fires natively */}
+  }
+  cv.addEventListener("pointerup",endPtr);
+  cv.addEventListener("pointercancel",endPtr);
+  cv.addEventListener("click", onClick);
+  // wheel zoom on desktop
+  cv.addEventListener("wheel",(e)=>{
+    e.preventDefault();
+    const k = e.deltaY<0 ? 1.08 : 0.926;
+    const ns=Math.max(cam.minScale, Math.min(cam.maxScale, cam.scale*k));
+    const r=cv.getBoundingClientRect(); const cx=e.clientX-r.left, cy=e.clientY-r.top;
+    const f=ns/cam.scale; cam.scale=ns;
+    cam.x = cx - (cx-cam.x)*f; cam.y = cy - (cy-cam.y)*f;
+    draw();
+  },{passive:false});
+  function dist(a,b){ return Math.hypot(a.x-b.x,a.y-b.y); }
+
+  /* --------------------------------------------------------------------- */
+  /*  Boot                                                                 */
+  /* --------------------------------------------------------------------- */
+  window.addEventListener("resize", debounce(resize, 120));
+  resize();
+  setActive(0);          // monitor pre-highlighted at scroll=0 (signature visible)
+  startFlicker();
+
+  function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
+})();
+</script>
+</body>
+</html>

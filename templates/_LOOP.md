@@ -41,9 +41,10 @@ After each batch, append any NEW design insight or loop-methodology insight to `
 real skills later via /promote-to-skill. Concrete + actionable bullets only; do not let it go stale.
 
 ## STATE (update each batch; _manifest.json is the source of truth)
-- 83 templates LIVE + cataloged (originals v2/v3/v4 + batches 1-16). Deploy = rsync showcase/templates/ -> /tmp/reel-deploy/templates/ then commit+push (Kinzen-dev).
-- Batch 17 IN FLIGHT (wf, build+verify): procedural-bezier-ribbon, css-houdini-paint, container-query-layout, generative-svg-filter, real-time-collab-cursors (all CSS/Canvas2D/SVG).
-- Batch 18 fuel (in `_backlog-refresh.json`, NOT built): page-morph-barba (WebGL), data-physics-particle-sort. Only 2 left, so run a backlog-refresh agent when batch 17 finishes.
+- 87 templates LIVE + cataloged (originals v2/v3/v4 + batches 1-17, minus the parked one below). Deploy = rsync showcase/templates/ -> /tmp/reel-deploy/templates/ then commit+push (Kinzen-dev).
+- PARKED (do NOT re-attempt blindly): `css-houdini-paint.html` exists but is NOT cataloged. Houdini paint-worklet output renders as a thin hairline in headless/thumbnail capture even though the live page + worklet are correct (3 fix rounds, probe-confirmed registered). Capture-fragile API; thumbnail can't sell it. See _SKILL-IDEAS.md "Know when to PARK".
+- Batch 18 IN FLIGHT (wf, build+verify): knockout-video-type, view-timeline-cinematic-scrub, svg-icon-morph-nav, isometric-pixel-room, scope-cascade-gallery (all CSS/Canvas2D/SVG).
+- Batch 19 fuel (in `_backlog-refresh.json`, NOT built): page-morph-barba (WebGL), data-physics-particle-sort, webgpu-text-dissolve (WebGL/WebGPU - WebGPU is capture-risky), nested-marquee-matrix, skeuomorphic-mixer, weather-reactive-scene, generative-data-letterforms. Refresh when low.
 - Session-limit note: King's own quota can hit ("resets <time> Bangkok") at the build stage; same recovery as a rate-limit (files on disk -> verify-only). Distinct from the transient Anthropic "Server is temporarily limiting" overload.
 - Rate-limit recovery drill (happened twice): builds land on disk even when the verify stage is rate-limited -> check disk + re-run `_verify-workflow.js` on the existing slugs, then qa-harness + judge + catalog as normal.
 - SVG gotcha (cost 3 failed fixes on blind-mask-wipe, found by DOM probe): fill/stroke = var(--x) as an SVG presentation attribute does NOT resolve -> shape invisible; use hex or element.style. Lesson now in _batch-workflow verify prompt.

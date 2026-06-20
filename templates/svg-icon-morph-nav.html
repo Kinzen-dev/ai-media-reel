@@ -1,0 +1,813 @@
+<!-- TEMPLATE: Morph Nav | ARCHETYPE: svg-icon-morph-nav | REF: CSS Design Awards interactive-nav SVG path-morph 2026, Codrops SVG morph icon | WHEN TO USE: a portfolio/work index whose navigation IS a single SVG glyph morphing its d-attribute between section icons on scroll | SWAP: edit the SECTIONS array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Morph Nav</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   PALETTE - the icon geometry IS the color system.
+   Hex literals are repeated as presentation attributes in the
+   SVG (NOT css var()) per the morph-nav contract.
+   ============================================================ */
+:root{
+  --paper:#f8f8f5;       /* off-white field   */
+  --ink:#111111;         /* glyph + type ink  */
+  --vermilion:#c0392b;   /* active-state ring */
+  --hair:#e2e1da;        /* hairline rules    */
+  --mute:#6f6e68;        /* muted captions    */
+  --maxw:1320px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"Space Grotesk",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+  line-height:1.5;
+}
+img,video{display:block;max-width:100%}
+a{color:inherit}
+
+/* ---- focus visibility ---- */
+:focus-visible{outline:2px solid var(--vermilion);outline-offset:3px;border-radius:2px}
+
+/* ============================================================
+   LAYOUT SHELL
+   Left: sticky morph-glyph nav stage (the signature).
+   Right: scrolling section panels with real media.
+   ============================================================ */
+.shell{
+  display:grid;
+  grid-template-columns:minmax(360px,42vw) 1fr;
+  max-width:var(--maxw);
+  margin:0 auto;
+}
+
+/* ---------- STICKY NAV STAGE (signature) ---------- */
+.stage{
+  position:sticky;
+  top:0;
+  height:100vh;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  padding:34px 40px 34px 8px;
+  border-right:1px solid var(--hair);
+}
+.brand{
+  position:absolute;top:30px;left:8px;
+  font-family:"JetBrains Mono",monospace;
+  font-size:12px;letter-spacing:.32em;text-transform:uppercase;
+  color:var(--ink);
+}
+.brand b{color:var(--vermilion)}
+.stage-foot{
+  position:absolute;bottom:28px;left:8px;right:40px;
+  font-family:"JetBrains Mono",monospace;
+  font-size:10.5px;letter-spacing:.16em;color:var(--mute);
+  display:flex;justify-content:space-between;text-transform:uppercase;
+}
+
+/* the morph canvas */
+.glyphwrap{position:relative;width:100%;max-width:420px;margin:0 auto}
+.glyph{width:100%;height:auto;overflow:visible;display:block}
+.glyph .ring{
+  transition:stroke .5s ease, opacity .5s ease;
+}
+.morphpath{
+  /* stroke set as hex attribute on the element; this only animates width */
+  transition:stroke-width .4s ease;
+}
+
+/* index ticks down the side of the glyph */
+.ticks{
+  display:flex;gap:0;margin:26px auto 0;width:100%;max-width:420px;
+}
+.tick{
+  flex:1;display:flex;flex-direction:column;gap:9px;align-items:flex-start;
+  cursor:pointer;background:none;border:0;text-align:left;padding:0;
+  font-family:"JetBrains Mono",monospace;color:var(--mute);
+}
+.tick .bar{
+  width:100%;height:3px;background:var(--hair);transition:background .4s ease, transform .4s ease;
+  transform-origin:left;
+}
+.tick .lbl{
+  font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  transition:color .4s ease;
+}
+.tick[aria-current="true"] .bar{background:var(--vermilion);transform:scaleY(1.8)}
+.tick[aria-current="true"] .lbl{color:var(--ink)}
+
+/* current section read-out under the glyph */
+.readout{
+  text-align:center;margin-top:20px;min-height:54px;
+}
+.readout .ix{
+  font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.3em;
+  color:var(--vermilion);
+}
+.readout .nm{
+  font-family:"Fraunces",serif;font-weight:900;font-size:clamp(22px,3vw,34px);
+  line-height:1.05;letter-spacing:-.01em;margin-top:4px;
+}
+
+/* ---------- SCROLLING PANELS ---------- */
+.panels{padding:0 0 0 0}
+.panel{
+  min-height:100vh;
+  display:flex;flex-direction:column;justify-content:center;
+  padding:96px 56px;
+  border-bottom:1px solid var(--hair);
+  position:relative;
+}
+.panel:last-child{border-bottom:0}
+.p-kick{
+  font-family:"JetBrains Mono",monospace;font-size:11.5px;letter-spacing:.3em;
+  text-transform:uppercase;color:var(--vermilion);
+  display:flex;align-items:center;gap:12px;
+}
+.p-kick::before{content:"";width:30px;height:1px;background:var(--vermilion)}
+.p-title{
+  font-family:"Fraunces",serif;font-weight:900;
+  font-size:clamp(34px,5.4vw,68px);line-height:.98;letter-spacing:-.02em;
+  margin:18px 0 16px;max-width:14ch;
+}
+.p-lead{
+  font-size:clamp(15px,1.35vw,18px);max-width:46ch;color:#262521;
+  margin-bottom:30px;
+}
+.p-meta{
+  display:flex;flex-wrap:wrap;gap:8px 10px;margin-bottom:30px;
+}
+.chip{
+  font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.08em;
+  border:1px solid var(--ink);border-radius:999px;padding:5px 12px;color:var(--ink);
+}
+.chip.v{border-color:var(--vermilion);color:var(--vermilion)}
+
+/* media frame: letterbox-safe, never cover-crops the source */
+.media{
+  position:relative;width:100%;background:var(--ink);
+  border:1px solid var(--hair);overflow:hidden;border-radius:4px;
+}
+.media .frame{
+  position:relative;width:100%;
+  aspect-ratio:16/9;            /* default landscape; overridden per-ratio below */
+  background:#0c0c0c;
+  display:flex;align-items:center;justify-content:center;
+}
+.media .frame.sq{aspect-ratio:4/3}   /* square sources get letterboxed inside */
+.media img,.media video{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:contain;            /* CONTAIN = letterbox, never crop */
+  background:#0c0c0c;
+}
+.media .poster{z-index:1}
+.media video{z-index:2;opacity:0;transition:opacity .5s ease}
+.media.playing video{opacity:1}
+.media .badge{
+  position:absolute;top:12px;left:12px;z-index:4;
+  font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--paper);
+  background:rgba(17,17,17,.72);border:1px solid rgba(248,248,245,.25);
+  padding:5px 10px;border-radius:3px;backdrop-filter:blur(4px);
+}
+.media .play{
+  position:absolute;z-index:5;bottom:14px;right:14px;
+  width:46px;height:46px;border-radius:50%;border:0;cursor:pointer;
+  background:var(--vermilion);color:var(--paper);
+  display:flex;align-items:center;justify-content:center;
+  transition:transform .25s ease, opacity .3s ease;
+}
+.media .play:hover{transform:scale(1.08)}
+.media.playing .play{opacity:0;pointer-events:none}
+.media .play svg{width:16px;height:16px;fill:currentColor}
+
+/* small media grid (dots/grid sections) */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid2 .media .frame{aspect-ratio:1/1}
+
+/* audio strip */
+.audio{
+  display:flex;align-items:center;gap:16px;
+  border:1px solid var(--hair);border-radius:4px;padding:16px 18px;background:#fff;
+}
+.audio .wf{flex:1;min-width:0;height:42px;object-fit:cover;opacity:.85;
+  filter:grayscale(1) contrast(1.1)}
+.audio .pa{
+  width:42px;height:42px;border-radius:50%;border:1px solid var(--ink);
+  background:var(--paper);cursor:pointer;flex:none;
+  display:flex;align-items:center;justify-content:center;color:var(--ink);
+}
+.audio .pa svg{width:14px;height:14px;fill:currentColor}
+.audio .nm{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.1em;color:var(--mute)}
+
+.cap{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.04em;
+  color:var(--mute);margin-top:10px;display:flex;justify-content:space-between;gap:12px}
+
+/* progress scrub at very top */
+.scrub{position:fixed;top:0;left:0;height:3px;background:var(--vermilion);z-index:50;width:0;transition:width .12s linear}
+
+/* ============================================================
+   MOBILE - same mechanic, glyph scaled to ~60vw, media letterboxed.
+   Stage becomes a sticky top band so the morph stays on first screen.
+   ============================================================ */
+@media (max-width:880px){
+  .shell{grid-template-columns:1fr}
+  .stage{
+    position:sticky;top:0;height:auto;z-index:30;
+    flex-direction:row;align-items:center;gap:16px;
+    padding:12px 16px;background:rgba(248,248,245,.92);
+    backdrop-filter:blur(10px);border-right:0;border-bottom:1px solid var(--hair);
+  }
+  .brand{position:static}
+  .stage-foot{display:none}
+  .glyphwrap{width:60vw;max-width:200px;margin:0}
+  .ticks{display:none}
+  .readout{margin-top:0;text-align:left;min-height:auto;flex:1}
+  .readout .nm{font-size:clamp(18px,5vw,24px)}
+  .panel{min-height:auto;padding:54px 22px;scroll-margin-top:96px}
+  .grid2{grid-template-columns:1fr}
+}
+@media (max-width:880px){
+  /* keep the brand from crowding the glyph */
+  .stage .glyphwrap{order:0}
+  .stage .readout{order:1}
+  .stage .brand{order:2;display:none}
+}
+
+/* ============================================================
+   REDUCED MOTION - freeze the glyph at each section's end-state,
+   kill rAF morphing + media autoplay. Final state shown.
+   ============================================================ */
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .scrub{transition:none}
+  .media video{transition:none}
+  .glyph .ring,.morphpath,.tick .bar,.tick .lbl,.media .play{transition:none}
+}
+
+/* ============================================================
+   PHONE (<=640px) - explicitly forbid landscape cover-crop.
+   Landscape sources are letterboxed (contain + taller frame),
+   never cropped to fill; glyph stays compact on the first screen.
+   ============================================================ */
+@media (max-width:640px){
+  .stage{padding:10px 14px}
+  .glyphwrap{width:46vw;max-width:150px}
+  .readout .ix{font-size:10px}
+  .readout .nm{font-size:clamp(16px,5.4vw,22px)}
+  .panel{padding:44px 18px 48px}
+  .p-title{font-size:clamp(28px,8vw,40px)}
+  .p-lead{font-size:15px;max-width:100%}
+  /* letterbox guarantee: never cover-crop a landscape plate on a phone */
+  .media img,.media video{object-fit:contain;width:100%;height:100%}
+  .media .frame{aspect-ratio:4/3}            /* taller frame = full landscape fits, bars top/bottom */
+  .media .frame.sq{aspect-ratio:1/1}
+  .grid2{grid-template-columns:1fr;gap:12px}
+  .audio{flex-wrap:wrap}
+  .cap{flex-direction:column;gap:2px}
+}
+</style>
+</head>
+<body>
+<div class="scrub" id="scrub" aria-hidden="true"></div>
+
+<div class="shell">
+  <!-- ============ STICKY MORPH-GLYPH NAV STAGE ============ -->
+  <aside class="stage">
+    <div class="brand"><b>&#9670;</b>&nbsp; MORPH&nbsp;//&nbsp;INDEX</div>
+
+    <div class="glyphwrap">
+      <svg class="glyph" viewBox="0 0 200 200" id="glyph" role="img" aria-label="Section icon, morphing">
+        <!-- vermilion active-state ring (hex literals, not var) -->
+        <circle class="ring" id="ring" cx="100" cy="100" r="92"
+                fill="none" stroke="#c0392b" stroke-width="2" opacity="0.9"/>
+        <!-- the morphing glyph path. fill+stroke are HEX LITERALS. -->
+        <path class="morphpath" id="morph"
+              d=""
+              fill="#111111" stroke="#111111" stroke-width="0"
+              stroke-linejoin="round" fill-rule="evenodd"/>
+      </svg>
+    </div>
+
+    <div class="ticks" id="ticks" aria-hidden="false"></div>
+
+    <div class="readout" aria-live="polite">
+      <div class="ix" id="ro-ix">01 / 05</div>
+      <div class="nm" id="ro-nm">Loading</div>
+    </div>
+
+    <div class="stage-foot">
+      <span>SVG&nbsp;PATH&nbsp;MORPH</span>
+      <span id="foot-pct">00%</span>
+    </div>
+  </aside>
+
+  <!-- ============ SCROLLING WORK PANELS ============ -->
+  <main class="panels" id="panels"></main>
+</div>
+
+<script>
+/* ============================================================================
+   SECTIONS DATA  --  swap freely. Each section owns:
+     icon   : key into ICONS (the shape this section morphs TO)
+     ix/name/kick/title/lead/chips
+     media  : array of cells {type:'video'|'image'|'audio', ...}
+   Media paths are relative to /showcase/templates/  ->  ../assets/
+   ========================================================================== */
+const SECTIONS = [
+  {
+    icon:"dots",
+    ix:"01", name:"Field Notes", kick:"Dot Constellation",
+    title:"A scatter of work, before it cohered.",
+    lead:"The index opens mid-morph: the glyph is caught between a ring of dots and a triangle, so the mechanic reads in the first second. Every section below re-shapes that one path.",
+    chips:["[ generative ]","[ stills ]","[ 4K ]"],
+    media:[
+      {type:"image", src:"../assets/sdxl.png", ratio:"sq", badge:"SDXL", cap:"painterly autumn fox", credit:"still / sdxl"},
+      {type:"image", src:"../assets/hf-tinysd.png", ratio:"sq", badge:"TINY-SD", cap:"abstract low-fi apple", credit:"still / tiny-sd"}
+    ]
+  },
+  {
+    icon:"triangle",
+    ix:"02", name:"Drive Plate", kick:"Triangle Vector",
+    title:"Matte black, wet neon, one long take.",
+    lead:"The path collapses its dots into three hard vertices. Below, a cinematic image-to-video plate plays only while it is the focused cell, so simultaneous decode never tanks the frame rate.",
+    chips:["[ i2v ]","[ cinematic ]","[ 1080p ]"],
+    media:[
+      {type:"video", src:"../assets/flux-car-i2v.mp4", poster:"../assets/gen/poster-flux-car-i2v.png", ratio:"wide", badge:"FLUX i2v", cap:"matte-black Mercedes, wet neon street", credit:"motion / flux i2v"}
+    ]
+  },
+  {
+    icon:"cross",
+    ix:"03", name:"Cut & Mark", kick:"Cross Register",
+    title:"Registration marks, edits, and grain.",
+    lead:"Vertices invert into a plus. Two silent generative loops sit on one stage; only the hovered or locked cell plays, the other holds its poster frame, keeping the GPU honest.",
+    chips:["[ t2v ]","[ silent ]","[ loop ]"],
+    media:[
+      {type:"video", src:"../assets/kling-video.mp4", poster:"../assets/gen/poster-kling-video.png", ratio:"wide", badge:"KLING", cap:"generative motion loop", credit:"motion / kling"},
+      {type:"video", src:"../assets/fal-video.mp4", poster:"../assets/gen/poster-fal-video.png", ratio:"wide", badge:"FAL", cap:"generative motion loop", credit:"motion / fal"}
+    ]
+  },
+  {
+    icon:"ring",
+    ix:"04", name:"On Camera", kick:"Open Ring",
+    title:"Avatars, lip-sync, and the talking frame.",
+    lead:"The glyph opens into a hollow ring. Talking-head renders carry audio, so they stay muted until you press play, never autoplaying sound on scroll.",
+    chips:["[ avatar ]","[ lip-sync ]","[ audio ]"],
+    media:[
+      {type:"video", src:"../assets/heygen-avatar.mp4", poster:"../assets/gen/poster-heygen.png", ratio:"wide", badge:"HEYGEN", cap:"avatar render (has audio)", credit:"avatar / heygen", muteToggle:true},
+      {type:"video", src:"../assets/did-talking-photo.mp4", poster:"../assets/gen/poster-did.png", ratio:"sq", badge:"D-ID", cap:"talking photo (has audio)", credit:"avatar / d-id", muteToggle:true}
+    ]
+  },
+  {
+    icon:"grid",
+    ix:"05", name:"The Grid", kick:"Nine Cells",
+    title:"Everything, racked and labelled.",
+    lead:"The path resolves into a 3x3 grid: the contact sheet. Stills, a clinic plate, and the generated soundtrack rack up as the final state the reduced-motion view freezes on.",
+    chips:["[ contact ]","[ audio ]","[ archive ]"],
+    media:[
+      {type:"image", src:"../assets/flux-clinic-4k.png", ratio:"wide", badge:"FLUX 4K", cap:"mint + wood dental clinic", credit:"still / flux 4k"},
+      {type:"image", src:"../assets/flux-car-4k.png", ratio:"wide", badge:"FLUX 4K", cap:"matte-black Mercedes, neon street", credit:"still / flux 4k"},
+      {type:"audio", src:"../assets/musicgen.wav", wave:"../assets/gen/wave-musicgen.png", name:"musicgen.wav", credit:"audio / musicgen"},
+      {type:"audio", src:"../assets/elevenlabs-thai.mp3", wave:"../assets/gen/wave-elevenlabs.png", name:"elevenlabs-thai.mp3", credit:"audio / elevenlabs"}
+    ]
+  }
+];
+
+/* ============================================================================
+   ICON GEOMETRY  --  five glyphs, IDENTICAL node count.
+   Each shape is built from the SAME 4 sub-paths, each sub-path = exactly
+   one M + 4 C cubic segments (a closed quad of beziers). Morphing is pure
+   coordinate interpolation: same command structure, only numbers change.
+   This is what makes a library-free d-attribute morph possible.
+   ========================================================================== */
+
+/* helper: a closed shape of 4 cubic segments through 4 anchor points,
+   with explicit control points so we can morph straight<->round.
+   pts = [[x,y]*4] anchors (clockwise). round = handle length factor. */
+function quad(pts, round){
+  const n=4, segs=[];
+  for(let i=0;i<n;i++){
+    const a=pts[i], b=pts[(i+1)%n];
+    // control points = a fraction along the chord; round bends them outward
+    const c1=[a[0]+(b[0]-a[0])*0.33, a[1]+(b[1]-a[1])*0.33];
+    const c2=[a[0]+(b[0]-a[0])*0.67, a[1]+(b[1]-a[1])*0.67];
+    if(round>0){
+      // push controls toward a circle: perpendicular bulge
+      const mx=(a[0]+b[0])/2, my=(a[1]+b[1])/2;
+      const cx=100, cy=100;
+      const dirx=mx-cx, diry=my-cy, dl=Math.hypot(dirx,diry)||1;
+      const bulge=round;
+      c1[0]+=dirx/dl*bulge; c1[1]+=diry/dl*bulge;
+      c2[0]+=dirx/dl*bulge; c2[1]+=diry/dl*bulge;
+    }
+    segs.push([a,c1,c2,b]);
+  }
+  return segs; // array of 4 segments, each [anchor,c1,c2,end]
+}
+
+/* Build the 4 sub-paths for one icon. Returns flat array of segments (16 total)
+   so every icon has the SAME 16 cubic segments -> direct lerp. */
+function buildIcon(kind){
+  const sub=[];
+  if(kind==="dots"){
+    // 4 dots arranged at N,E,S,W -> each a small round quad (circle-ish)
+    const r=20, R=66;
+    [[100,100-R],[100+R,100],[100,100+R],[100-R,100]].forEach(c=>{
+      sub.push(quad([
+        [c[0],c[1]-r],[c[0]+r,c[1]],[c[0],c[1]+r],[c[0]-r,c[1]]
+      ], r*0.9));
+    });
+  }else if(kind==="triangle"){
+    // one big triangle expressed as 4 sub-quads (3 corners + center fold)
+    const A=[100,32], B=[158,148], C=[42,148];
+    const M=[100,109];
+    // corner cluster quads (small) at each vertex + a central quad
+    sub.push(quad([A,[ (A[0]+B[0])/2,(A[1]+B[1])/2 ],M,[ (A[0]+C[0])/2,(A[1]+C[1])/2 ]],0));
+    sub.push(quad([B,[ (B[0]+C[0])/2,(B[1]+C[1])/2 ],M,[ (A[0]+B[0])/2,(A[1]+B[1])/2 ]],0));
+    sub.push(quad([C,[ (A[0]+C[0])/2,(A[1]+C[1])/2 ],M,[ (B[0]+C[0])/2,(B[1]+C[1])/2 ]],0));
+    sub.push(quad([A,B,C,M],0)); // outline quad (degenerate-ish, fills body)
+  }else if(kind==="cross"){
+    // a plus / cross as 4 arm quads meeting at center
+    const t=18, L=66;
+    // top arm, right arm, bottom arm, left arm
+    sub.push(quad([[100-t,100-L],[100+t,100-L],[100+t,100-t],[100-t,100-t]],0));
+    sub.push(quad([[100+t,100-t],[100+L,100-t],[100+L,100+t],[100+t,100+t]],0));
+    sub.push(quad([[100+t,100+t],[100+t,100+L],[100-t,100+L],[100-t,100+t]],0));
+    sub.push(quad([[100-t,100+t],[100-t,100-t],[100-L,100-t],[100-L,100+t]],0));
+  }else if(kind==="ring"){
+    // an annulus approximated: 4 fat round quads forming a ring band
+    const Ro=70, Ri=42;
+    // four 90deg fat-arc segments of the ring
+    const arc=(a0,a1)=>{
+      const p=(ang,rad)=>[100+Math.cos(ang)*rad,100+Math.sin(ang)*rad];
+      const o0=p(a0,Ro), o1=p(a1,Ro), i1=p(a1,Ri), i0=p(a0,Ri);
+      return quad([o0,o1,i1,i0], (Ro-Ri)*0.4);
+    };
+    sub.push(arc(-Math.PI/2,0));
+    sub.push(arc(0,Math.PI/2));
+    sub.push(arc(Math.PI/2,Math.PI));
+    sub.push(arc(Math.PI,Math.PI*1.5));
+  }else if(kind==="grid"){
+    // a 2x2 of square quads (reads as a contact-grid). small inset.
+    const g=30, o=8;
+    const cells=[[100-g-o,100-g-o],[100+o,100-g-o],[100-g-o,100+o],[100+o,100+o]];
+    cells.forEach(c=>{
+      sub.push(quad([
+        [c[0],c[1]],[c[0]+g,c[1]],[c[0]+g,c[1]+g],[c[0],c[1]+g]
+      ],0));
+    });
+  }
+  // flatten to 16 segments
+  return sub.flat();
+}
+
+const KINDS=["dots","triangle","cross","ring","grid"];
+const ICONS={};
+KINDS.forEach(k=>ICONS[k]=buildIcon(k));
+
+/* serialize an array of 16 segments -> d attribute string.
+   Each group of 4 segments = one closed sub-path (M ...C...C...C...C Z). */
+function segsToD(segs){
+  let d="";
+  for(let s=0;s<segs.length;s++){
+    const seg=segs[s];
+    if(s%4===0){ d+=`M ${f(seg[0][0])} ${f(seg[0][1])} `; }
+    d+=`C ${f(seg[1][0])} ${f(seg[1][1])} ${f(seg[2][0])} ${f(seg[2][1])} ${f(seg[3][0])} ${f(seg[3][1])} `;
+    if(s%4===3){ d+="Z "; }
+  }
+  return d.trim();
+}
+function f(n){return Math.round(n*100)/100}
+
+/* lerp between two icon segment-sets at t in [0,1] */
+function lerpIcons(a,b,t){
+  const out=[];
+  for(let i=0;i<a.length;i++){
+    const sa=a[i], sb=b[i], seg=[];
+    for(let p=0;p<4;p++){
+      seg.push([
+        sa[p][0]+(sb[p][0]-sa[p][0])*t,
+        sa[p][1]+(sb[p][1]-sa[p][1])*t
+      ]);
+    }
+    out.push(seg);
+  }
+  return out;
+}
+
+/* ============================================================================
+   PRE-COMPUTE keyframes at LOAD (guardrail: not during rAF).
+   For each adjacent icon pair we bake STEPS interpolated d-strings so the
+   scroll handler just indexes into a cache; no geometry math per frame.
+   ========================================================================== */
+const STEPS=24;
+const FRAMES=[]; // FRAMES[i] = array of STEPS d-strings morphing icon i -> i+1
+for(let i=0;i<KINDS.length-1;i++){
+  const a=ICONS[KINDS[i]], b=ICONS[KINDS[i+1]], frames=[];
+  for(let s=0;s<=STEPS;s++){
+    const t=s/STEPS;
+    // ease the t a touch so the mid-morph reads as deliberate
+    const te=t<0.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2;
+    frames.push(segsToD(lerpIcons(a,b,te)));
+  }
+  FRAMES.push(frames);
+}
+/* also bake each pure end-state for the freeze / reduced-motion path */
+const ENDSTATE=KINDS.map(k=>segsToD(ICONS[k]));
+
+/* ============================================================================
+   RENDER PANELS  (from SECTIONS)
+   ========================================================================== */
+const panelsEl=document.getElementById("panels");
+SECTIONS.forEach((sec,si)=>{
+  const p=document.createElement("section");
+  p.className="panel";
+  p.id="sec-"+si;
+  p.dataset.idx=si;
+
+  let mediaHTML="";
+  const cells=sec.media||[];
+  const isGridish = cells.length>1 && cells.every(c=>c.ratio==="sq") ;
+  cells.forEach((m,mi)=>{
+    if(m.type==="audio"){
+      mediaHTML+=`
+      <div class="audio">
+        <button class="pa" data-audio="${m.src}" aria-label="Play ${m.name}">
+          <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <img class="wf" src="${m.wave}" alt="" loading="lazy"/>
+        <span class="nm">${m.name}</span>
+      </div>`;
+    }else{
+      const sq=m.ratio==="sq"?" sq":"";
+      const credit=m.credit||"";
+      if(m.type==="video"){
+        mediaHTML+=`
+        <figure class="media" data-media>
+          <div class="frame${sq}">
+            <img class="poster" src="${m.poster}" alt="${m.cap||""}" loading="lazy" decoding="async"/>
+            <video preload="none" loop playsinline ${m.muteToggle?"":"muted"} muted
+                   data-src="${m.src}" poster="${m.poster}"></video>
+          </div>
+          <span class="badge">${m.badge||""}</span>
+          <button class="play" aria-label="Play clip">
+            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          </button>
+          <figcaption class="cap"><span>${m.cap||""}</span><span>${credit}</span></figcaption>
+        </figure>`;
+      }else{
+        mediaHTML+=`
+        <figure class="media" data-still>
+          <div class="frame${sq}">
+            <img src="${m.src}" alt="${m.cap||""}" loading="lazy" decoding="async"/>
+          </div>
+          <span class="badge">${m.badge||""}</span>
+          <figcaption class="cap"><span>${m.cap||""}</span><span>${credit}</span></figcaption>
+        </figure>`;
+      }
+    }
+  });
+  const wrapClass = isGridish ? "grid2" : "";
+
+  p.innerHTML=`
+    <div class="p-kick">${sec.kick}</div>
+    <h2 class="p-title">${sec.title}</h2>
+    <p class="p-lead">${sec.lead}</p>
+    <div class="p-meta">${(sec.chips||[]).map((c,i)=>`<span class="chip${i===0?" v":""}">${c}</span>`).join("")}</div>
+    <div class="${wrapClass}">${mediaHTML}</div>
+  `;
+  panelsEl.appendChild(p);
+});
+
+/* index ticks */
+const ticksEl=document.getElementById("ticks");
+SECTIONS.forEach((sec,si)=>{
+  const b=document.createElement("button");
+  b.className="tick";
+  b.type="button";
+  b.dataset.go=si;
+  b.setAttribute("aria-current", si===0?"true":"false");
+  b.innerHTML=`<span class="bar"></span><span class="lbl">${sec.ix} ${sec.name}</span>`;
+  b.addEventListener("click",()=>{
+    document.getElementById("sec-"+si).scrollIntoView({behavior:prefersReduced?"auto":"smooth", block:"start"});
+  });
+  ticksEl.appendChild(b);
+});
+
+/* ============================================================================
+   MORPH DRIVER
+   Continuous: a single scroll handler maps global scroll progress across the
+   5 sections to a (pairIndex, localT) and pulls the pre-baked d-string.
+   IntersectionObserver updates the read-out + active tick once per crossing.
+   ========================================================================== */
+const prefersReduced = window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+const morph=document.getElementById("morph");
+const ring=document.getElementById("ring");
+const roIx=document.getElementById("ro-ix");
+const roNm=document.getElementById("ro-nm");
+const footPct=document.getElementById("foot-pct");
+const scrub=document.getElementById("scrub");
+const tickEls=[...document.querySelectorAll(".tick")];
+
+let currentSection=0;
+
+function setActive(idx){
+  currentSection=idx;
+  roIx.textContent=String(idx+1).padStart(2,"0")+" / "+String(SECTIONS.length).padStart(2,"0");
+  roNm.textContent=SECTIONS[idx].name;
+  tickEls.forEach((t,i)=>t.setAttribute("aria-current", i===idx?"true":"false"));
+  // active ring stays vermilion; pulse stroke-width via class-free attr tweak
+  morph.setAttribute("stroke-width", "0");
+}
+
+/* compute global morph progress 0..(N-1) from scroll, then render baked frame */
+function panelTops(){
+  return SECTIONS.map((_,i)=>document.getElementById("sec-"+i).offsetTop);
+}
+let tops=panelTops();
+function recalc(){ tops=panelTops(); }
+
+function renderMorphFromScroll(){
+  const y=window.scrollY + window.innerHeight*0.5; // sample at mid-viewport
+  // find which pair we're between
+  let prog=0;
+  if(y<=tops[0]) prog=0;
+  else if(y>=tops[tops.length-1]) prog=tops.length-1;
+  else{
+    for(let i=0;i<tops.length-1;i++){
+      if(y>=tops[i] && y<tops[i+1]){
+        const local=(y-tops[i])/(tops[i+1]-tops[i]);
+        prog=i+local; break;
+      }
+    }
+  }
+  const pair=Math.min(Math.floor(prog), FRAMES.length-1);
+  const localT=prog-Math.floor(prog);
+  const fi=Math.round(localT*STEPS);
+  const d=FRAMES[pair][Math.max(0,Math.min(STEPS,fi))];
+  morph.setAttribute("d", d);
+
+  // ring breathes between sections: thicker near a settled state
+  const settle=1-Math.abs(localT-0.5)*2; // 0 mid-morph, 1 at ends (inverted)
+  const ringW=2 + (1-settle)*2.2;
+  ring.setAttribute("stroke-width", f(ringW));
+
+  // global percent
+  const docH=document.documentElement.scrollHeight-window.innerHeight;
+  const pct=Math.max(0,Math.min(1, window.scrollY/Math.max(1,docH)));
+  scrub.style.width=(pct*100)+"%";
+  footPct.textContent=String(Math.round(pct*100)).padStart(2,"0")+"%";
+}
+
+/* rAF-throttled scroll (single rAF, reads only pre-baked cache) */
+let ticking=false;
+function onScroll(){
+  if(prefersReduced) return;
+  if(!ticking){
+    ticking=true;
+    requestAnimationFrame(()=>{ renderMorphFromScroll(); ticking=false; });
+  }
+}
+
+/* IntersectionObserver: identify current section (read-out + tick + media) */
+const io=new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting && e.intersectionRatio>0.5){
+      setActive(parseInt(e.target.dataset.idx,10));
+    }
+  });
+},{threshold:[0.5,0.75]});
+SECTIONS.forEach((_,i)=>io.observe(document.getElementById("sec-"+i)));
+
+/* ============================================================================
+   MEDIA: play only the focused / hovered / locked clip. Never autoplay all.
+   IntersectionObserver pauses off-screen videos; one "locked" at a time.
+   ========================================================================== */
+let lockedVideo=null;
+function ensureSrc(v){ if(!v.src && v.dataset.src){ v.src=v.dataset.src; } }
+function playOnly(fig){
+  const v=fig.querySelector("video"); if(!v) return;
+  // pause any other playing media
+  document.querySelectorAll(".media.playing").forEach(o=>{
+    if(o!==fig){ const ov=o.querySelector("video"); if(ov){ov.pause();} o.classList.remove("playing"); }
+  });
+  ensureSrc(v);
+  v.play().then(()=>fig.classList.add("playing")).catch(()=>{});
+  lockedVideo=v;
+}
+function stopFig(fig){
+  const v=fig.querySelector("video"); if(v){v.pause();}
+  fig.classList.remove("playing");
+}
+
+document.querySelectorAll(".media[data-media]").forEach(fig=>{
+  const v=fig.querySelector("video");
+  const btn=fig.querySelector(".play");
+  btn.addEventListener("click",()=>{
+    if(fig.classList.contains("playing")){ stopFig(fig); }
+    else{
+      // explicit, user-initiated play (allowed even under reduced motion)
+      playOnly(fig);
+    }
+  });
+  // hover preview on desktop (pointer:fine) plays the focused cell muted.
+  // Gated on prefersReduced: no motion-on-hover when reduced motion is requested.
+  fig.addEventListener("pointerenter",()=>{
+    if(prefersReduced) return;
+    if(window.matchMedia("(pointer:fine)").matches && !fig.classList.contains("playing")){
+      // only preview if nothing locked-playing elsewhere
+      if(!document.querySelector(".media.playing")){ ensureSrc(v); v.play().then(()=>fig.classList.add("playing")).catch(()=>{}); }
+    }
+  });
+  fig.addEventListener("pointerleave",()=>{
+    if(prefersReduced) return;
+    if(window.matchMedia("(pointer:fine)").matches && fig!==null){
+      if(lockedVideo!==v){ stopFig(fig); }
+    }
+  });
+
+  // pause when scrolled out of view (perf)
+  const mio=new IntersectionObserver((es)=>{
+    es.forEach(e=>{ if(!e.isIntersecting){ stopFig(fig); if(lockedVideo===v) lockedVideo=null; } });
+  },{threshold:0.1});
+  mio.observe(fig);
+});
+
+/* audio: single-track exclusive playback */
+let audioEl=null, audioBtn=null;
+document.querySelectorAll(".pa[data-audio]").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    const src=btn.dataset.audio;
+    if(audioEl && audioBtn===btn && !audioEl.paused){
+      audioEl.pause(); resetAudioIcon(btn); return;
+    }
+    if(audioEl){ audioEl.pause(); if(audioBtn) resetAudioIcon(audioBtn); }
+    if(!audioEl){ audioEl=new Audio(); }
+    audioEl.src=src; audioBtn=btn;
+    audioEl.play().then(()=>{
+      btn.innerHTML='<svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
+    }).catch(()=>{});
+    audioEl.onended=()=>resetAudioIcon(btn);
+  });
+});
+function resetAudioIcon(btn){ btn.innerHTML='<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>'; }
+
+/* ============================================================================
+   BOOT
+   ========================================================================== */
+function boot(){
+  recalc();
+  if(prefersReduced){
+    // FREEZE the glyph at the current section's END-STATE; no rAF, no morph.
+    setActive(0);
+    morph.setAttribute("d", ENDSTATE[0]);
+    ring.setAttribute("stroke-width","2");
+    // update freeze state on section change (cheap, IO-driven)
+    const freezeIO=new IntersectionObserver((entries)=>{
+      entries.forEach(e=>{
+        if(e.isIntersecting && e.intersectionRatio>0.5){
+          const idx=parseInt(e.target.dataset.idx,10);
+          morph.setAttribute("d", ENDSTATE[idx]);
+        }
+      });
+    },{threshold:0.5});
+    SECTIONS.forEach((_,i)=>freezeIO.observe(document.getElementById("sec-"+i)));
+    return;
+  }
+  // SIGNATURE: open MID-MORPH (caught between dots and triangle) at scroll=0.
+  // Force a partial morph of the first pair so scroll=0 is not a clean shape.
+  const seedT=0.42;                       // mid-morph seed
+  const seedFi=Math.round(seedT*STEPS);
+  morph.setAttribute("d", FRAMES[0][seedFi]);
+  ring.setAttribute("stroke-width","3.1");
+  setActive(0);
+  // then hand control to scroll; first scroll frame re-syncs from real position
+  window.addEventListener("scroll", onScroll, {passive:true});
+  window.addEventListener("resize", ()=>{ recalc(); renderMorphFromScroll(); }, {passive:true});
+  // one initial paint so refresh-at-mid-page is correct, but keep mid-morph at true top
+  if(window.scrollY>4){ renderMorphFromScroll(); }
+}
+
+if(document.readyState==="complete"||document.readyState==="interactive"){
+  // images may shift layout; recalc tops after load
+  boot();
+  window.addEventListener("load", ()=>{ recalc(); if(!prefersReduced && window.scrollY>4) renderMorphFromScroll(); });
+}else{
+  window.addEventListener("DOMContentLoaded", ()=>{
+    boot();
+    window.addEventListener("load", ()=>{ recalc(); if(!prefersReduced && window.scrollY>4) renderMorphFromScroll(); });
+  });
+}
+</script>
+</body>
+</html>

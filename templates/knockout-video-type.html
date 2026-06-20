@@ -10,10 +10,11 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;600&display=swap" rel="stylesheet" />
 <style>
 /* ============================================================
-   ALL design decisions live in the WORKS array (top of <script>)
-   and the few tokens below. Palette: #000 absolute void; the
-   video supplies every other colour. Type weight + spacing are
-   the only deliberate moves.
+   Palette: #000 absolute void; the video supplies every colour.
+   Type weight + spacing are the only deliberate design moves.
+   The signature mechanic (live video inside giant knockout
+   letters) is painted by a fixed stage that swaps source on
+   scroll. Exactly ONE video decodes at a time.
    ============================================================ */
 :root{
   --void:#000;
@@ -25,26 +26,16 @@
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 html,body{background:var(--void);color:var(--ink)}
-body{
-  font-family:"Archivo",system-ui,sans-serif;
-  -webkit-font-smoothing:antialiased;
-  overflow-x:hidden;
-}
+body{font-family:"Archivo",system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 a{color:inherit;text-decoration:none}
 img{display:block;max-width:100%}
+.sr{position:absolute!important;left:-9999px;width:1px;height:1px;overflow:hidden}
 
-/* ---- fixed chrome (overlays the signature, never below the fold) ---- */
-.chrome{
-  position:fixed;inset:0;z-index:40;pointer-events:none;
-  padding:var(--pad);
-  display:flex;flex-direction:column;justify-content:space-between;
-}
+/* ---- fixed chrome overlays the signature; never below the fold ---- */
+.chrome{position:fixed;inset:0;z-index:40;pointer-events:none;padding:var(--pad);display:flex;flex-direction:column;justify-content:space-between}
 .chrome a,.chrome button{pointer-events:auto}
 .bar{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
-.brand{
-  font-family:"Archivo";font-weight:600;letter-spacing:.34em;
-  font-size:clamp(11px,1.1vw,13px);text-transform:uppercase;
-}
+.brand{font-family:"Archivo";font-weight:600;letter-spacing:.34em;font-size:clamp(11px,1.1vw,13px);text-transform:uppercase}
 .brand small{display:block;letter-spacing:.2em;color:var(--dim);font-weight:400;margin-top:5px}
 .nav{display:flex;gap:clamp(14px,2vw,30px);font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--dim)}
 .nav a{transition:color .3s}
@@ -54,80 +45,33 @@ img{display:block;max-width:100%}
 .hint .tick{width:30px;height:1px;background:var(--hair);position:relative;overflow:hidden}
 .hint .tick::after{content:"";position:absolute;inset:0;width:40%;background:var(--ink);animation:slide 2.4s ease-in-out infinite}
 @keyframes slide{0%{transform:translateX(-110%)}55%,100%{transform:translateX(280%)}}
-.reduce-pos{font-size:10.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--dim);font-variant-numeric:tabular-nums}
+.counter{font-size:10.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--dim);font-variant-numeric:tabular-nums}
 
-/* ---- scroll spine: one full-height section per work ---- */
-.reel{position:relative;z-index:1}
-.frame{
-  position:relative;height:100svh;min-height:560px;
-  display:flex;align-items:center;justify-content:center;
-}
-
-/* The fixed stage holds the single live knockout. Only ONE video
-   decodes at a time; the stage swaps source as you scroll. */
-.stage{
-  position:fixed;inset:0;z-index:0;pointer-events:none;
-  display:flex;align-items:center;justify-content:center;
-}
-
-/* knockout: a giant word whose fill is the video, clipped to glyphs */
-.knock{
-  position:relative;
-  width:100%;text-align:center;
-  padding:0 clamp(8px,3vw,40px);
-  will-change:transform,opacity;
-}
-.knock .word{
-  font-family:"Anton",Impact,sans-serif;font-weight:400;
-  text-transform:uppercase;
-  line-height:.82;letter-spacing:-.02em;
-  font-size:clamp(64px,19vw,300px);     /* >= 18vw signature at scroll=0 */
-  /* media-backed fill, clipped to the letterforms */
-  background-position:center;background-size:cover;background-repeat:no-repeat;
-  -webkit-background-clip:text;background-clip:text;
-  color:transparent;-webkit-text-fill-color:transparent;
-  /* faint glyph edge so the void/letter boundary reads even on dark frames */
-  text-shadow:0 0 1px rgba(255,255,255,.05);
-  filter:contrast(1.06) saturate(1.08);
-}
-.knock .word.two-line{font-size:clamp(54px,15vw,228px)}
-/* the live video layer that the active word's background pulls from is
-   painted by JS via a moving <video> element clipped through the text. */
-.knock .vid,.knock .poster{
-  position:absolute;inset:0;width:100%;height:100%;
-  object-fit:cover;
-  -webkit-mask-position:center;mask-position:center;
-  pointer-events:none;
-}
-/* index + meta under the word */
+/* ---- fixed stage: the single live knockout ---- */
+.stage{position:fixed;inset:0;z-index:0;pointer-events:none;will-change:opacity}
+.media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 .meta{
-  margin-top:clamp(14px,2.4vw,30px);
-  display:flex;align-items:center;justify-content:center;gap:clamp(14px,2.6vw,40px);
-  flex-wrap:wrap;
-  font-family:"Archivo";font-size:clamp(10px,1.05vw,12.5px);
-  letter-spacing:.26em;text-transform:uppercase;color:var(--dim);
+  position:absolute;left:0;right:0;bottom:clamp(78px,13vh,130px);z-index:3;
+  display:flex;align-items:center;justify-content:center;gap:clamp(14px,2.6vw,40px);flex-wrap:wrap;
+  font-family:"Archivo";font-size:clamp(10px,1.05vw,12.5px);letter-spacing:.26em;text-transform:uppercase;color:var(--dim);
+  padding:0 var(--pad);
 }
 .meta b{color:var(--ink);font-weight:600}
 .meta .dot{width:4px;height:4px;border-radius:50%;background:currentColor;opacity:.55}
 
-/* progress ribbon of all works, fixed bottom */
-.spine{
-  position:fixed;left:var(--pad);right:var(--pad);bottom:calc(var(--pad) + 30px);z-index:41;
-  display:flex;gap:10px;pointer-events:none;
-}
-.spine i{
-  flex:1;height:2px;background:var(--hair);position:relative;overflow:hidden;border-radius:2px;
-}
+/* ---- scroll spine: one full-height frame per work drives position ---- */
+.reel{position:relative;z-index:1}
+.frame{height:100svh;min-height:560px}
+
+/* ---- progress ribbon ---- */
+.spine{position:fixed;left:var(--pad);right:var(--pad);bottom:calc(var(--pad) + 30px);z-index:41;display:flex;gap:10px;pointer-events:none}
+.spine i{flex:1;height:2px;background:var(--hair);position:relative;overflow:hidden;border-radius:2px}
 .spine i::after{content:"";position:absolute;inset:0;background:var(--ink);transform:scaleX(0);transform-origin:left;transition:transform .5s cubic-bezier(.4,0,.1,1)}
 .spine i.on::after{transform:scaleX(1)}
 .spine i.half::after{transform:scaleX(.4)}
 
-/* closing card */
-.outro{
-  position:relative;z-index:1;background:var(--void);
-  min-height:64svh;display:flex;flex-direction:column;justify-content:center;
-  padding:clamp(40px,8vw,120px) var(--pad);gap:26px;border-top:1px solid var(--hair);
-}
+/* ---- closing card ---- */
+.outro{position:relative;z-index:1;background:var(--void);min-height:64svh;display:flex;flex-direction:column;justify-content:center;padding:clamp(40px,8vw,120px) var(--pad);gap:26px;border-top:1px solid var(--hair)}
 .outro h2{font-family:"Anton";font-weight:400;text-transform:uppercase;letter-spacing:-.01em;line-height:.9;font-size:clamp(40px,9vw,130px)}
 .outro p{max-width:54ch;color:var(--dim);font-size:clamp(13px,1.4vw,16px);line-height:1.7}
 .outro .cta{display:inline-flex;align-items:center;gap:14px;font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:var(--ink);width:max-content;border-bottom:1px solid var(--ink);padding-bottom:7px}
@@ -139,32 +83,26 @@ img{display:block;max-width:100%}
 .outro .grid span{display:block;font-size:10.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--dim);margin-bottom:8px}
 .outro .grid b{font-family:"Archivo";font-weight:600;font-size:14px;letter-spacing:.04em}
 
-/* focus visibility */
 :focus-visible{outline:2px solid var(--ink);outline-offset:4px}
 
-/* ---------- MOBILE: stack/letterbox, gradient swaps for video ---------- */
 @media (max-width:640px){
   :root{--pad:16px}
-  .spine{left:var(--pad);right:var(--pad);bottom:calc(var(--pad) + 26px)}
+  .spine{bottom:calc(var(--pad) + 26px)}
   .nav{display:none}
-  .knock .word{font-size:clamp(54px,22vw,150px);line-height:.86}
-  .knock .word.two-line{font-size:clamp(46px,18vw,120px)}
-  .meta{gap:14px;font-size:10px}
+  .meta{gap:14px;font-size:10px;bottom:clamp(86px,15vh,140px)}
   .botbar{flex-direction:column;align-items:flex-start;gap:8px}
 }
 
-/* ---------- REDUCED MOTION: static poster frame inside type, no rAF ---------- */
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
   .hint .tick::after{animation:none}
-  .knock{transition:none!important}
 }
 </style>
 </head>
-<body>
+<body id="top">
 
-<!-- fixed chrome overlays the live signature, which is already running at scroll=0 -->
-<div class="chrome" aria-hidden="false">
+<!-- fixed chrome overlays the live signature, already running at scroll=0 -->
+<div class="chrome">
   <div class="bar">
     <a href="#top" class="brand">VESPER&nbsp;REEL<small>Motion Index 2026</small></a>
     <nav class="nav" aria-label="Primary">
@@ -175,26 +113,21 @@ img{display:block;max-width:100%}
   </div>
   <div class="botbar">
     <div class="hint">Scroll<span class="tick"></span>Reveal next cut</div>
-    <div class="reduce-pos" id="counter">01 / 04</div>
+    <div class="counter" id="counter">01 / 04</div>
   </div>
 </div>
 
-<!-- the single live knockout stage (fixed). JS paints exactly one decoding video here. -->
+<!-- fixed stage: SVG-masked live video punches the work title out of the void -->
 <div class="stage" id="stage" aria-hidden="true">
-  <div class="knock" id="knock">
-    <h1 class="word" id="word" style="margin:0;">
-      <!-- video + poster layers injected here; text supplies the mask -->
-    </h1>
-    <div class="meta" id="meta"></div>
-  </div>
+  <!-- .media (masked video / img / gradient) injected here -->
+  <div class="meta" id="meta"></div>
 </div>
 
-<!-- accessible real-text reel: one section per work drives the scroll position -->
-<main class="reel" id="top">
-  <h2 class="visually-hidden" style="position:absolute;left:-9999px">Selected works, video revealed inside each title</h2>
-  <section class="reel" id="work" aria-label="Selected works"></section>
+<!-- accessible real-text reel: one section per work sets the scroll position -->
+<main class="reel">
+  <h1 class="sr">VESPER REEL, selected motion works. Each title reveals a live clip inside its letters.</h1>
+  <section id="work" aria-label="Selected works"></section>
 
-  <!-- closing card -->
   <footer class="outro" id="studio">
     <h2>Cut the<br>noise.</h2>
     <p id="contact">A motion studio that builds the title sequence, the reel, and the film. Four works above, each one a single take revealed only where the letters fall. Tell us the brief and we will frame the next cut.</p>
@@ -208,407 +141,203 @@ img{display:block;max-width:100%}
   </footer>
 </main>
 
-<!-- fixed progress ribbon across all works -->
 <div class="spine" id="spine" aria-hidden="true"></div>
 
 <script>
 /* ============================================================
    WORKS  -  the only thing you edit to reuse this template.
-   Each work: a TITLE (uppercase glyphs are the window), a looping
-   VIDEO (landscape mp4), its POSTER frame, and a MOBILE GRADIENT
-   matching the clip's dominant hue (video is swapped for this on
-   phones and is never cover-cropped outside the type).
-   tag/year/role are the small meta line under the word.
+   title  : uppercase glyphs are the window (use "\n" to wrap)
+   video  : landscape mp4 loop, played live inside the letters
+   poster : first-frame still (reduced-motion fill + <video> poster)
+   grad   : "#hex pct%" stops; mobile swaps video for this hue match,
+            so a landscape clip is never cover-cropped on a phone
+   tag/year/role : the small meta line under the word
    ============================================================ */
 const ASSETS = "../assets/";
 const WORKS = [
-  {
-    title: "DRIFT",
-    video:   ASSETS + "kling-video.mp4",
-    poster:  ASSETS + "gen/poster-kling-video.png",
-    grad:    "linear-gradient(125deg,#0a2a33 0%,#1e7d8c 38%,#0c4450 60%,#7a1320 100%)",
-    tag: "Automotive Film", year: "2026", role: "Direction / Edit"
-  },
-  {
-    title: "NEON",
-    video:   ASSETS + "fal-video.mp4",
-    poster:  ASSETS + "gen/poster-fal-video.png",
-    grad:    "linear-gradient(120deg,#1a0626 0%,#7a1f8f 34%,#c4239a 58%,#3a0a52 100%)",
-    tag: "Brand Spot", year: "2026", role: "Concept / Grade"
-  },
-  {
-    title: "AFTER\nHOURS",
-    two: true,
-    video:   ASSETS + "veo-video.mp4",
-    poster:  ASSETS + "gen/poster-veo-video.png",
-    grad:    "linear-gradient(125deg,#05081f 0%,#1d2a6b 40%,#4733b0 62%,#0a1136 100%)",
-    tag: "Title Sequence", year: "2026", role: "Design / Motion"
-  },
-  {
-    title: "CHROME",
-    video:   ASSETS + "flux-car-i2v.mp4",
-    poster:  ASSETS + "gen/poster-flux-car-i2v.png",
-    grad:    "linear-gradient(120deg,#0a0a10 0%,#3a2a1a 36%,#b05a18 60%,#6e1216 100%)",
-    tag: "Product Reel", year: "2026", role: "Direction / Edit"
-  }
+  { title:"DRIFT",
+    video: ASSETS+"kling-video.mp4",  poster: ASSETS+"gen/poster-kling-video.png",
+    grad:"#0a2a33 0%, #1e7d8c 38%, #0c4450 62%, #7a1320 100%",
+    tag:"Automotive Film", year:"2026", role:"Direction / Edit" },
+
+  { title:"NEON",
+    video: ASSETS+"fal-video.mp4",    poster: ASSETS+"gen/poster-fal-video.png",
+    grad:"#1a0626 0%, #7a1f8f 34%, #c4239a 58%, #3a0a52 100%",
+    tag:"Brand Spot", year:"2026", role:"Concept / Grade" },
+
+  { title:"AFTER\nHOURS", two:true,
+    video: ASSETS+"veo-video.mp4",    poster: ASSETS+"gen/poster-veo-video.png",
+    grad:"#05081f 0%, #1d2a6b 40%, #4733b0 62%, #0a1136 100%",
+    tag:"Title Sequence", year:"2026", role:"Design / Motion" },
+
+  { title:"CHROME",
+    video: ASSETS+"flux-car-i2v.mp4", poster: ASSETS+"gen/poster-flux-car-i2v.png",
+    grad:"#0a0a10 0%, #3a2a1a 36%, #b05a18 60%, #6e1216 100%",
+    tag:"Product Reel", year:"2026", role:"Direction / Edit" }
 ];
 
-/* ---------- environment ---------- */
-const REDUCED = window.matchMedia("(prefers-reduced-motion:reduce)").matches;
-const MOBILE  = window.matchMedia("(max-width:640px)").matches;
+const REDUCED = matchMedia("(prefers-reduced-motion:reduce)").matches;
+const isMobile = () => matchMedia("(max-width:640px)").matches;
 
-/* ---------- build the scroll spine (one full-height frame per work) ---------- */
-const work  = document.getElementById("work");
-const spine = document.getElementById("spine");
-const frames = [];
-WORKS.forEach((w,i)=>{
+const stage   = document.getElementById("stage");
+const metaEl  = document.getElementById("meta");
+const counter = document.getElementById("counter");
+const spine   = document.getElementById("spine");
+const work    = document.getElementById("work");
+
+/* build the scroll spine + progress ribbon (one cell per work) */
+const frames = WORKS.map((w,i)=>{
   const f = document.createElement("section");
-  f.className = "frame";
-  f.dataset.i = i;
-  // real, screen-reader-visible title so the reel is accessible text
-  f.innerHTML = '<h2 style="position:absolute;left:-9999px">'+w.title.replace("\n"," ")+' &mdash; '+w.tag+', '+w.year+'</h2>';
+  f.className = "frame"; f.dataset.i = i;
+  f.innerHTML = '<h2 class="sr">'+w.title.replace("\n"," ")+' - '+w.tag+', '+w.year+'</h2>';
   work.appendChild(f);
-  frames.push(f);
-
-  const bar = document.createElement("i");
-  bar.dataset.i = i;
-  spine.appendChild(bar);
+  const bar = document.createElement("i"); spine.appendChild(bar);
+  return f;
 });
 
-/* ---------- the single live knockout stage ---------- */
-const stage  = document.getElementById("stage");
-const wordEl = document.getElementById("word");
-const metaEl = document.getElementById("meta");
-const counter= document.getElementById("counter");
-let active = -1;          // which work currently painted
-let videoEl = null;       // the ONE decoding video, or null on mobile/reduced
+let active = -1;
+let videoEl = null;      // the single decoding <video>, or null on mobile/reduced
+let mediaEl = null;      // the current masked media node (video / img / gradient div)
 
-function buildWord(text, two){
-  // letters are real text; the media layer behind is masked to them via clip:text.
-  // We set the word's own background to the media (clip:text), and ALSO place a
-  // positioned <video> behind that we mask through an identical text shape so the
-  // motion is live, not a static bg-image. Simplest robust path: background-clip:text
-  // on the word, fed a <canvas>-free live source through CSS is not possible, so we
-  // use the proven technique: a <video> as the element's painted fill via
-  // mix-blend on a white-text mask. We keep it to ONE decode.
-  wordEl.classList.toggle("two-line", !!two);
-  wordEl.innerHTML = (two ? text.replace("\n","<br>") : text);
-}
-
-/* Technique: the WORD is white text; behind it a media layer (video or gradient)
-   shows ONLY through the glyphs using -webkit-background-clip:text driven by a
-   blend stack. To keep it dead-simple + one decode, we paint the media as the
-   element background and clip to text. For LIVE video we layer a <video> whose
-   frames are continuously copied into the element background is not feasible w/o
-   canvas. So instead: the stage holds a full-bleed media layer, and the WORD acts
-   as a knockout MASK over solid void using mix-blend-mode. That gives live video
-   inside the letters, void outside, no canvas, one decode. */
-
-/* Rebuild the stage as a 3-layer knockout:
-   layer 0  = live media (video on desktop / gradient div on mobile|reduced)
-   layer 1  = void plate with the word KNOCKED OUT (transparent letters) so media
-              shows through only inside the glyphs.
-   We implement the knockout with background-clip:text directly on the word, fed
-   from the media via CSS by cloning the media into the word's background through
-   a mask image is heavy; the cleanest no-canvas route that shows TRUE live video
-   inside type across browsers is mix-blend-mode:screen on white text over the
-   video. Black void + white glyphs, blend screen => glyphs reveal video, rest black. */
-function paint(i){
-  if(i === active) return;
-  active = i;
-  const w = WORKS[i];
-
-  // tear down previous live video (suspend decode) ------------------------
-  if(videoEl){ try{ videoEl.pause(); }catch(e){} videoEl.remove(); videoEl = null; }
-
-  // (re)build stage layers -------------------------------------------------
-  stage.querySelectorAll(".medialayer").forEach(n=>n.remove());
-
-  const media = document.createElement("div");
-  media.className = "medialayer";
-  media.style.cssText = "position:absolute;inset:0;z-index:0;overflow:hidden;background:#000;";
-
-  if(MOBILE || REDUCED){
-    // MOBILE / REDUCED-MOTION: static fill, never cover-crops outside the type.
-    // gradient (mobile) or poster (reduced) shown ONLY through the glyph mask below.
-    if(REDUCED && !MOBILE){
-      const p = document.createElement("img");
-      p.src = w.poster; p.alt = "";
-      p.style.cssText = "width:100%;height:100%;object-fit:cover;";
-      media.appendChild(p);
-    } else {
-      media.style.background = w.grad;
-    }
-  } else {
-    // DESKTOP: ONE live, muted, looping video. IntersectionObserver keeps only
-    // the in-view stage playing; paint() itself guarantees a single element.
-    const v = document.createElement("video");
-    v.src = w.video; v.poster = w.poster;
-    v.muted = true; v.loop = true; v.playsInline = true;
-    v.setAttribute("muted",""); v.setAttribute("playsinline","");
-    v.preload = "auto";
-    v.style.cssText = "width:100%;height:100%;object-fit:cover;";
-    media.appendChild(v);
-    videoEl = v;
-    v.play().catch(()=>{ /* poster stays if autoplay blocked */ });
-  }
-  stage.insertBefore(media, stage.firstChild);
-
-  // word = white knockout text, blended to reveal the media beneath -------
-  buildWord(w.title, w.two);
-
-  // meta line -------------------------------------------------------------
-  metaEl.innerHTML =
-    '<span><b>'+String(i+1).padStart(2,"0")+'</b> / '+String(WORKS.length).padStart(2,"0")+'</span>'+
-    '<span class="dot"></span><span>'+w.tag+'</span>'+
-    '<span class="dot"></span><span>'+w.year+'</span>'+
-    '<span class="dot"></span><span>'+w.role+'</span>';
-
-  counter.textContent = String(i+1).padStart(2,"0")+" / "+String(WORKS.length).padStart(2,"0");
-
-  // progress ribbon -------------------------------------------------------
-  spine.querySelectorAll("i").forEach((b,bi)=>{
-    b.classList.toggle("on", bi < i);
-    b.classList.toggle("half", bi === i);
-  });
-}
-
-/* ---- the knockout itself: white text over video, screen blend ----
-   We wrap word + meta knock in a void plate and use mix-blend so the
-   white letters punch the video through; everything else stays #000. */
-const knock = document.getElementById("knock");
-knock.style.position = "relative";
-knock.style.zIndex = "2";
-wordEl.style.color = "#fff";
-wordEl.style.webkitTextFillColor = "#fff";
-wordEl.style.background = "none";
-wordEl.style.mixBlendMode = "screen"; // white glyph * video = video; white glyph * black = black-> but screen of white over black gives white. so invert plate below.
-
-/* Correct knockout: media layer on top of a black plate; the WORD is a black
-   mask with white letters using mix-blend-mode:multiply on a WHITE backdrop is
-   fragile. Use the reliable recipe:
-     stage:  [media video]            (z0)
-             [black plate w/ word]    (z1)  <- word letters are TRANSPARENT
-   Transparent letters over media = media shows through; opaque-black plate hides
-   media elsewhere. We get transparent letters via background-clip:text on the
-   plate (text transparent, fill = solid black) is inverted. The cleanest cross-
-   browser knockout w/o canvas: SVG <mask> over the video. Build that now. */
-
-/* Replace the naive approach with an SVG-masked video: the SVG text is the mask,
-   white = reveal, so the video shows inside the letters, black void outside. */
-function svgMaskFor(text, two){
-  // build an inline SVG whose <text> is the alpha mask applied to the media layer.
-  // hex fills only, no css vars. Sized to viewport, text centred.
-  const lines = two ? text.split("\n") : [text];
-  return lines;
-}
-
-/* Final, simplest robust implementation actually used at runtime:
-   We discard the blend experiments above and apply background-clip:text on the
-   WORD, with the media painted as the word's own ::before is not live video.
-   To guarantee LIVE video inside type with one decode and no canvas, we use the
-   SVG-mask path: a single <svg> in the stage masks the <video> to the glyph
-   shapes. Everything below sets that up and overrides the placeholder word. */
-wordEl.style.mixBlendMode = "normal";
-wordEl.style.color = "transparent";
-wordEl.style.webkitTextFillColor = "transparent";
-
-/* Build an SVG-masked live stage. This supersedes paint()'s media handling for
-   the visual; paint() still controls WHICH work + single decode. */
-const ns = "http://www.w3.org/2000/svg";
-let svgWrap = null;
-function renderStage(i){
-  const w = WORKS[i];
-  if(svgWrap) svgWrap.remove();
-
-  svgWrap = document.createElementNS(ns,"svg");
-  svgWrap.setAttribute("class","knocksvg");
-  svgWrap.setAttribute("preserveAspectRatio","xMidYMid slice");
-  svgWrap.setAttribute("viewBox","0 0 1440 900");
-  svgWrap.style.cssText = "position:absolute;inset:0;width:100%;height:100%;z-index:1;";
-
-  const defs = document.createElementNS(ns,"defs");
-  const mask = document.createElementNS(ns,"mask");
-  mask.setAttribute("id","kmask"+i);
-  mask.setAttribute("maskUnits","userSpaceOnUse");
-  // black background of mask = hidden; white text = revealed
-  const bg = document.createElementNS(ns,"rect");
-  bg.setAttribute("x","0");bg.setAttribute("y","0");
-  bg.setAttribute("width","1440");bg.setAttribute("height","900");
-  bg.setAttribute("fill","#000000");
-  mask.appendChild(bg);
-
-  const lines = w.two ? w.title.split("\n") : [w.title];
-  const fs = w.two ? 250 : (w.title.length >= 6 ? 290 : 340);
+/* build the knockout window as an inline-SVG <text> CSS mask sized to the
+   viewport. A CSS mask on a plain DOM element (video / img / div) clips the
+   media to the glyph geometry PER LETTER and survives GPU compositing, whereas
+   an SVG <mask>/<clipPath> over a <foreignObject> video escapes the clip on
+   ANGLE and renders inverted (full rectangle, glyphs punched black). The SVG
+   matches VW x VH 1:1 so mask-size:100% 100% never distorts the type. */
+function maskUri(lines, VW, VH){
+  const longest = Math.max(...lines.map(l=>l.length));
+  // Anton advance ~0.62em/char (with the -0.06em tracking below). Fit the longest
+  // line to ~88% of viewport width, then cap by height so multi-line words clear
+  // the meta band. clamp keeps glyphs huge on desktop, readable on phones.
+  const trackEm = -0.06;
+  const advance = 0.62 + trackEm;                 // em per glyph incl. tracking
+  const byWidth  = (VW * 0.88) / (longest * advance);
+  const byHeight = (VH * (lines.length > 1 ? 0.66 : 0.78)) / (lines.length * 0.9);
+  let fs = Math.min(byWidth, byHeight);
+  fs = Math.max(54, Math.min(fs, VW * 0.34));     // floor + ceiling
   const lh = fs * 0.9;
-  const startY = 450 - ((lines.length-1)*lh)/2 + fs*0.34;
-  lines.forEach((ln,li)=>{
-    const t = document.createElementNS(ns,"text");
-    t.setAttribute("x","720");
-    t.setAttribute("y", String(startY + li*lh));
-    t.setAttribute("text-anchor","middle");
-    t.setAttribute("font-family","Anton, Impact, sans-serif");
-    t.setAttribute("font-size", String(fs));
-    t.setAttribute("letter-spacing","-4");
-    t.setAttribute("fill","#ffffff");
-    t.textContent = ln;
-    mask.appendChild(t);
-  });
-  defs.appendChild(mask);
-  svgWrap.appendChild(defs);
-
-  // the media (video on desktop, gradient/poster on mobile|reduced), masked
-  const g = document.createElementNS(ns,"g");
-  g.setAttribute("mask","url(#kmask"+i+")");
-
-  if(MOBILE || REDUCED){
-    if(REDUCED && !MOBILE){
-      const img = document.createElementNS(ns,"image");
-      img.setAttributeNS("http://www.w3.org/1999/xlink","href", w.poster);
-      img.setAttribute("href", w.poster);
-      img.setAttribute("x","0");img.setAttribute("y","0");
-      img.setAttribute("width","1440");img.setAttribute("height","900");
-      img.setAttribute("preserveAspectRatio","xMidYMid slice");
-      g.appendChild(img);
-    } else {
-      // gradient: render as a fullsize rect filled from a linearGradient
-      const lg = document.createElementNS(ns,"linearGradient");
-      lg.setAttribute("id","grad"+i);
-      lg.setAttribute("x1","0");lg.setAttribute("y1","0");
-      lg.setAttribute("x2","1");lg.setAttribute("y2","1");
-      parseGrad(w.grad).forEach(s=>{
-        const st = document.createElementNS(ns,"stop");
-        st.setAttribute("offset", s.off);
-        st.setAttribute("stop-color", s.col);
-        lg.appendChild(st);
-      });
-      defs.appendChild(lg);
-      const r = document.createElementNS(ns,"rect");
-      r.setAttribute("x","0");r.setAttribute("y","0");
-      r.setAttribute("width","1440");r.setAttribute("height","900");
-      r.setAttribute("fill","url(#grad"+i+")");
-      g.appendChild(r);
-    }
-  } else {
-    // ONE live video as <foreignObject>-free SVG <video> via <foreignObject>.
-    // SVG can't host <video> directly cross-browser, so we use foreignObject.
-    const fo = document.createElementNS(ns,"foreignObject");
-    fo.setAttribute("x","0");fo.setAttribute("y","0");
-    fo.setAttribute("width","1440");fo.setAttribute("height","900");
-    const v = document.createElement("video");
-    v.src = w.video; v.poster = w.poster;
-    v.muted = true; v.loop = true; v.playsInline = true;
-    v.setAttribute("muted","");v.setAttribute("playsinline","");
-    v.preload = "auto";
-    v.style.cssText = "width:1440px;height:900px;object-fit:cover;display:block;";
-    fo.appendChild(v);
-    g.appendChild(fo);
-    if(videoEl){ try{videoEl.pause();}catch(e){} }
-    videoEl = v;
-    v.play().catch(()=>{});
-  }
-  svgWrap.appendChild(g);
-  stage.insertBefore(svgWrap, stage.firstChild);
+  const cx = VW / 2;
+  const startY = VH/2 - ((lines.length-1)*lh)/2 + fs*0.34;
+  const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const texts = lines.map((ln,li)=>
+    "<text x='"+cx+"' y='"+(startY+li*lh).toFixed(1)+"' text-anchor='middle' "+
+    "font-family='Anton,Impact,sans-serif' font-size='"+fs.toFixed(1)+"' "+
+    "letter-spacing='"+(fs*trackEm).toFixed(2)+"' fill='%23fff'>"+esc(ln)+"</text>"
+  ).join("");
+  const svg = "<svg xmlns='http://www.w3.org/2000/svg' width='"+VW+"' height='"+VH+"'>"+texts+"</svg>";
+  return "url(\"data:image/svg+xml;utf8,"+svg+"\")";
+}
+function applyMask(el, uri){
+  el.style.webkitMaskImage = uri;       el.style.maskImage = uri;
+  el.style.webkitMaskRepeat = "no-repeat"; el.style.maskRepeat = "no-repeat";
+  el.style.webkitMaskPosition = "center"; el.style.maskPosition = "center";
+  el.style.webkitMaskSize = "100% 100%";  el.style.maskSize = "100% 100%";
 }
 
-function parseGrad(str){
-  // pull "#hex pct%" pairs out of a linear-gradient() string -> stops
-  const inner = str.slice(str.indexOf("(")+1, str.lastIndexOf(")"));
-  const parts = inner.split(",").map(s=>s.trim());
-  const stops = [];
-  parts.forEach(p=>{
-    const m = p.match(/(#[0-9a-fA-F]{3,8})\s+([\d.]+)%/);
-    if(m) stops.push({col:m[1], off:(parseFloat(m[2])/100).toFixed(3)});
-  });
-  if(!stops.length){ stops.push({col:"#111111",off:"0"},{col:"#000000",off:"1"}); }
-  return stops;
-}
-
-/* the SVG knock replaces the CSS-masked word; hide the placeholder word text */
-wordEl.style.display = "none";
-
-/* unified paint = swap work: one decode, ribbon + meta + counter */
+/* paint a work: swap the single live video, clip it to the title glyphs. */
 function setWork(i){
   if(i === active) return;
   active = i;
   const w = WORKS[i];
-  // suspend any prior live video before rendering the next
-  if(videoEl){ try{videoEl.pause();}catch(e){} videoEl = null; }
-  // clear prior media layers from paint() experiments
-  stage.querySelectorAll(".medialayer").forEach(n=>n.remove());
-  renderStage(i);
+  const mobile = isMobile();
 
+  // suspend + drop the previous live video so only one ever decodes
+  if(videoEl){ try{ videoEl.pause(); }catch(e){} videoEl = null; }
+  if(mediaEl) mediaEl.remove();
+
+  // mask matches the real viewport so the word fits any shape (landscape
+  // desktop OR portrait phone) and is never clipped at the edges.
+  const VW = Math.max(320, innerWidth), VH = Math.max(400, innerHeight);
+  const lines = w.two ? w.title.split("\n") : [w.title];
+  const uri = maskUri(lines, VW, VH);
+
+  let media;
+  if(REDUCED && !mobile){
+    // reduced-motion (desktop): static poster frame inside the type, no decode.
+    media = document.createElement("img");
+    media.src = w.poster; media.alt = "";
+  } else if(mobile){
+    // phones: hue-matched gradient through the SAME glyph mask, so the
+    // landscape source is never cover-cropped outside the type. No decode.
+    media = document.createElement("div");
+    media.style.background = "linear-gradient(135deg, "+w.grad+")";
+  } else {
+    // desktop: exactly one live, muted, looping video inside the glyphs.
+    media = document.createElement("video");
+    media.src = w.video; media.poster = w.poster;
+    media.muted = true; media.loop = true; media.playsInline = true; media.preload = "auto";
+    media.setAttribute("muted",""); media.setAttribute("playsinline","");
+    videoEl = media;
+  }
+  media.className = "media";
+  applyMask(media, uri);
+  mediaEl = media;
+  stage.insertBefore(media, stage.firstChild);
+  if(videoEl) videoEl.play().catch(()=>{}); // poster remains if autoplay is blocked
+
+  // meta line + counter + ribbon
   metaEl.innerHTML =
-    '<span><b>'+String(i+1).padStart(2,"0")+'</b> / '+String(WORKS.length).padStart(2,"0")+'</span>'+
+    '<span><b>'+pad(i+1)+'</b> / '+pad(WORKS.length)+'</span>'+
     '<span class="dot"></span><span>'+w.tag+'</span>'+
     '<span class="dot"></span><span>'+w.year+'</span>'+
     '<span class="dot"></span><span>'+w.role+'</span>';
-  counter.textContent = String(i+1).padStart(2,"0")+" / "+String(WORKS.length).padStart(2,"0");
+  counter.textContent = pad(i+1)+" / "+pad(WORKS.length);
   spine.querySelectorAll("i").forEach((b,bi)=>{
     b.classList.toggle("on", bi < i);
     b.classList.toggle("half", bi === i);
   });
 }
 
-/* keep meta visible above the SVG */
-metaEl.style.position = "absolute";
-metaEl.style.left = "0";
-metaEl.style.right = "0";
-metaEl.style.bottom = "clamp(70px,12vh,120px)";
-metaEl.style.zIndex = "3";
+const pad = n => String(n).padStart(2,"0");
 
-/* ---------- which work is in view -> drive setWork ---------- */
+/* which work is most in view -> setWork */
 const io = new IntersectionObserver((entries)=>{
-  // pick the most-visible frame
   let best=null, ratio=0;
-  entries.forEach(e=>{ if(e.isIntersecting && e.intersectionRatio>ratio){ratio=e.intersectionRatio;best=e;} });
-  if(best){ setWork(parseInt(best.target.dataset.i,10)); }
-},{threshold:[.25,.5,.75]});
+  entries.forEach(e=>{ if(e.isIntersecting && e.intersectionRatio>ratio){ ratio=e.intersectionRatio; best=e; } });
+  if(best) setWork(parseInt(best.target.dataset.i,10));
+},{threshold:[.2,.5,.8]});
 frames.forEach(f=>io.observe(f));
 
-/* suspend the live video entirely when the stage scrolls fully off (outro) */
-const stageGuard = new IntersectionObserver((es)=>{
+/* suspend the live decode entirely once the outro (void) is on screen */
+new IntersectionObserver((es)=>{
   es.forEach(e=>{
     if(!videoEl) return;
-    if(e.isIntersecting){ videoEl.play().catch(()=>{}); }
-    else { try{videoEl.pause();}catch(err){} }
+    if(e.isIntersecting){ try{videoEl.pause();}catch(err){} }
+    else { videoEl.play().catch(()=>{}); }
   });
-},{threshold:0});
-stageGuard.observe(document.getElementById("studio"));
+},{threshold:.15}).observe(document.getElementById("studio"));
 
-/* also pause when the document/tab is hidden (no off-screen decode) */
+/* never decode in a hidden tab */
 document.addEventListener("visibilitychange",()=>{
   if(!videoEl) return;
   if(document.hidden){ try{videoEl.pause();}catch(e){} }
   else { videoEl.play().catch(()=>{}); }
 });
 
-/* fade the stage out as the outro arrives so void wins cleanly */
-let ticking=false;
-function onScroll(){
-  if(ticking) return; ticking=true;
-  requestAnimationFrame(()=>{
-    const studio = document.getElementById("studio");
-    const top = studio.getBoundingClientRect().top;
-    const vh = window.innerHeight;
-    let o = 1;
-    if(top < vh){ o = Math.max(0, Math.min(1, top / (vh*0.85))); }
-    stage.style.opacity = REDUCED ? 1 : o;
-    ticking=false;
-  });
+/* fade stage to void as the outro arrives (skip rAF under reduced-motion) */
+if(!REDUCED){
+  let ticking=false;
+  addEventListener("scroll",()=>{
+    if(ticking) return; ticking=true;
+    requestAnimationFrame(()=>{
+      const top = document.getElementById("studio").getBoundingClientRect().top;
+      const vh = innerHeight;
+      stage.style.opacity = top < vh ? Math.max(0, Math.min(1, top/(vh*0.85))) : 1;
+      ticking=false;
+    });
+  },{passive:true});
 }
-if(!REDUCED){ window.addEventListener("scroll", onScroll, {passive:true}); }
 
-/* ---------- boot: signature is LIVE at scroll=0 ---------- */
-setWork(0);
-onScroll();
-
-/* recompute on resize across the mobile/desktop boundary (re-render the stage) */
+/* re-render across the mobile/desktop boundary on resize */
 let rT;
-window.addEventListener("resize",()=>{
+addEventListener("resize",()=>{
   clearTimeout(rT);
-  rT=setTimeout(()=>{ const cur=active; active=-1; setWork(cur<0?0:cur); }, 220);
+  rT=setTimeout(()=>{ const cur=active<0?0:active; active=-1; setWork(cur); }, 220);
 });
+
+/* boot: signature is LIVE at scroll=0 */
+setWork(0);
 </script>
 </body>
 </html>

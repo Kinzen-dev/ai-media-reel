@@ -124,6 +124,15 @@ Driven by Workflow-completion notifications, so it keeps going across turns unti
   dithered Bayer-LUT, scroll-3d perspective-on-scroll-container).
 - A fresh-context judge that only sees the screenshots grades harder and more honestly than the agent
   that built the thing.
+- Know when to PARK. css-houdini-paint resisted 3 fix rounds: the worklet IS registered and painting
+  (probe-confirmed paint(ink-bleed) on a top overlay, band math reads ~21px), yet it renders as a thin
+  hairline in the 1440x900 screenshot every time. CSS Houdini paint-worklet output is unreliable to
+  CAPTURE in headless/thumbnail screenshots even when the live page is fine. Lesson: when the mechanic
+  is a capture-fragile API (Houdini paint, possibly some WebGPU), the thumbnail can't sell it, so the
+  template fails the library's purpose regardless of correctness. Better to park one stubborn template
+  (mark needs-rework, bank the insight) than perfectionism-stall the loop. Great-not-sloppy is also
+  served by NOT shipping a weak one. Candidate skill rule: "for a template library whose value is the
+  thumbnail, prefer mechanics that render in a static capture; treat capture-fragile APIs as high-risk."
 
 ### Archetype ideas bank (paradigms that proved genuinely distinct + worked)
 Bento, webgl-orbit hero, generating/denoise reel, scroll playhead, command-palette, press-kit,

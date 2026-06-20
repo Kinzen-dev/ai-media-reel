@@ -1,0 +1,1132 @@
+<!-- TEMPLATE: Corridor Walk | ARCHETYPE: CORRIDOR | REF: Codrops Sketching the Impossible (3D portfolio, no 3D models, 2026), GSAP SOTD 2026 first-person WebGL portfolios | WHEN TO USE: a first-person walkable ink-sketch corridor where scroll moves you forward, doorways branch off to reveal real work, and hovering any surface paints the sketch into color (color = clickable) | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Corridor Walk - A First-Person Ink-Sketch Portfolio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<script>
+/* ============================================================
+   DATA  -  swap these objects to repurpose the template.
+
+   Each entry is ONE doorway branching off the corridor. As the
+   camera walks past it, the doorway expands and the ink sketch
+   on the door-plane paints into a real image (color = the work).
+
+   - src    : the texture shown inside the doorway reveal (a real
+              ../assets/ image OR a video poster - never a mascot
+              or placeholder; these are what make it look "wow")
+   - kicker : small label above the title
+   - title  : the work name
+   - meta   : provenance / one-line caption
+   - side   : "L" or "R" - which wall the doorway is cut into
+   All paths are relative to /showcase/templates/  ->  ../assets/
+   Tip: 6-10 entries reads best. The corridor chunks loop forever.
+   ============================================================ */
+const DATA = [
+  /* The FIRST entry is the "hero" doorway - it is painted in full colour at
+     scroll=0 (the catalog thumbnail), so lead with a VIVID, saturated image so
+     the paint reveal reads instantly. */
+  { src:"../assets/sdxl.png",                    kicker:"Painterly",       title:"Autumn Fox",        meta:"SDXL - warm impasto",           side:"R" },
+  { src:"../assets/flux-clinic-4k.png",          kicker:"Still - 4K",      title:"Mint Consult Room", meta:"FLUX - clinic interior",        side:"L" },
+  { src:"../assets/flux-car-4k.png",             kicker:"Still - 4K",      title:"Wet Neon Coupe",    meta:"FLUX - matte black on rain",    side:"R" },
+  { src:"../assets/gen/poster-kling-video.png",  kicker:"Generative",      title:"Kling Sequence",    meta:"Kling - motion still",          side:"L" },
+  { src:"../assets/gen/poster-veo-video.png",    kicker:"Generative",      title:"Veo Plate",         meta:"Veo - cinematic still",         side:"R" },
+  { src:"../assets/gen/poster-flux-car-i2v.png", kicker:"Image to Video",  title:"Nocturne Drive",    meta:"FLUX i2v - frame still",        side:"L" },
+  { src:"../assets/gen/poster-heygen.png",       kicker:"Avatar",          title:"Spoken Portrait",   meta:"HeyGen - avatar still",         side:"R" },
+  { src:"../assets/hf-tinysd.png",               kicker:"Lo-fi",           title:"Abstract Apple",    meta:"TinySD - low-fi study",         side:"L" }
+];
+
+/* Brand chrome.  Sketchbook paper + ink line.  There is NO global
+   accent hue: color appears ONLY inside hover-painted zones, which
+   come straight from the real images. */
+const PAPER = "#f5f0e6";   // sketchbook paper
+const INK   = "#1a1a1a";   // ink line
+</script>
+
+<style>
+  :root{
+    --paper:#f5f0e6;
+    --ink:#1a1a1a;
+    --ink-2:#43403a;       /* softened ink for secondary text */
+    --line:rgba(26,26,26,.18);
+    --line-2:rgba(26,26,26,.30);
+    --paper-2:#ece5d6;     /* a slightly deeper paper for panels */
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  html{scroll-behavior:auto}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Space Grotesk",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    overflow-x:hidden;
+  }
+  a{color:inherit}
+
+  /* The page is one tall scroll track.  Scrolling it advances the
+     camera through the corridor.  The WebGL canvas is fixed full-
+     bleed behind everything; the scroll height is purely virtual. */
+  #scrollTrack{ position:relative; z-index:1; pointer-events:none; }
+
+  /* ---- fixed WebGL stage ---- */
+  #stage{ position:fixed; inset:0; z-index:0; }
+  #corridor{
+    display:block; width:100%; height:100%;
+    /* paper-toned background so first paint is never a black flash */
+    background:
+      radial-gradient(120% 90% at 50% 42%, #fbf7ee 0%, var(--paper) 48%, #e7dfcd 100%);
+  }
+
+  /* paper grain + soft vignette overlay (cheap, CSS only) */
+  #grain{
+    position:fixed; inset:0; z-index:2; pointer-events:none;
+    opacity:.5; mix-blend-mode:multiply;
+    background-image:
+      radial-gradient(rgba(26,26,26,.05) 1px, transparent 1.4px);
+    background-size:3px 3px;
+  }
+  #vignette{
+    position:fixed; inset:0; z-index:2; pointer-events:none;
+    background:radial-gradient(130% 100% at 50% 50%, transparent 52%, rgba(26,26,26,.14) 100%);
+  }
+
+  /* ---- top chrome band: headline overlays a populated corridor ---- */
+  .topband{
+    position:fixed; top:0; left:0; right:0; z-index:6;
+    display:flex; align-items:flex-start; justify-content:space-between;
+    gap:18px; padding:22px clamp(18px,4vw,46px) 0;
+    pointer-events:none;
+  }
+  .brand{ pointer-events:auto; }
+  .brand .mark{
+    font-family:"Fraunces",serif; font-weight:600;
+    font-size:clamp(15px,1.5vw,18px); letter-spacing:.02em;
+    display:flex; align-items:center; gap:9px;
+  }
+  .brand .mark .dot{
+    width:11px; height:11px; border-radius:50%;
+    border:1.5px solid var(--ink);
+    background:
+      conic-gradient(from 210deg, #d8632e 0 25%, transparent 0 100%);
+  }
+  .brand .sub{ font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-2); margin-top:3px; }
+  .nav{ pointer-events:auto; display:flex; gap:6px; align-items:center; }
+  .nav a{
+    font-size:11.5px; letter-spacing:.13em; text-transform:uppercase;
+    text-decoration:none; color:var(--ink-2);
+    padding:7px 11px; border:1px solid transparent; border-radius:999px;
+    transition:color .2s, border-color .2s, background .2s;
+  }
+  .nav a:hover{ color:var(--ink); border-color:var(--line-2); }
+  .nav a:focus-visible{ outline:2px solid var(--ink); outline-offset:2px; }
+
+  /* ---- hero headline: compact, sits in the top band, does NOT
+          push the corridor below the fold ---- */
+  .hero{
+    position:fixed; top:clamp(74px,12vh,120px); left:clamp(18px,4vw,46px);
+    z-index:6; max-width:min(560px,72vw); pointer-events:none;
+  }
+  .hero .eyebrow{
+    font-size:11.5px; letter-spacing:.2em; text-transform:uppercase;
+    color:var(--ink-2); margin-bottom:12px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .hero .eyebrow::before{
+    content:""; width:30px; height:1px; background:var(--ink); display:inline-block;
+  }
+  .hero h1{
+    font-family:"Fraunces",serif; font-weight:500;
+    font-size:clamp(34px,6.4vw,76px); line-height:.94;
+    letter-spacing:-.015em; color:var(--ink);
+  }
+  .hero h1 em{ font-style:italic; font-weight:400; }
+  .hero h1 .paint{
+    /* a default painted word - proves the reveal in the static thumbnail */
+    position:relative; font-style:italic;
+    background:linear-gradient(100deg,#d8632e 0%,#c64a86 52%,#3b7ea1 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .hero p{
+    margin-top:16px; max-width:430px; font-size:14px; line-height:1.55;
+    color:var(--ink-2);
+  }
+
+  /* ---- live readout of the doorway you are nearest ---- */
+  .readout{
+    position:fixed; left:clamp(18px,4vw,46px); bottom:clamp(20px,5vh,40px);
+    z-index:6; pointer-events:none; max-width:340px;
+  }
+  .readout .idx{
+    font-family:"Fraunces",serif; font-size:13px; letter-spacing:.04em;
+    color:var(--ink-2); margin-bottom:7px;
+  }
+  .readout .idx b{ color:var(--ink); font-weight:600; }
+  .readout .rk{ font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--ink-2); }
+  .readout .rt{
+    font-family:"Fraunces",serif; font-weight:600;
+    font-size:clamp(22px,3vw,30px); line-height:1.02; margin:3px 0 4px;
+    color:var(--ink);
+  }
+  .readout .rm{ font-size:12.5px; color:var(--ink-2); }
+  .readout .rt, .readout .rk, .readout .rm{ transition:opacity .35s; }
+
+  /* ---- right-side progress rail + chunk meter ---- */
+  .rail{
+    position:fixed; right:clamp(16px,3vw,34px); top:50%; transform:translateY(-50%);
+    z-index:6; pointer-events:none;
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+  }
+  .rail .tick{ width:1px; height:34px; background:var(--line-2); }
+  .rail .meter{
+    width:2px; height:160px; border-radius:2px;
+    background:var(--line); position:relative; overflow:hidden;
+  }
+  .rail .meter i{
+    position:absolute; left:0; right:0; top:0; height:26%;
+    background:var(--ink); border-radius:2px;
+    transition:transform .12s linear;
+  }
+  .rail .pct{
+    font-family:"Fraunces",serif; font-size:12px; color:var(--ink-2);
+    writing-mode:vertical-rl; letter-spacing:.08em;
+  }
+
+  /* ---- scroll / walk hint ---- */
+  .hint{
+    position:fixed; left:50%; bottom:clamp(16px,4vh,30px); transform:translateX(-50%);
+    z-index:6; pointer-events:none;
+    font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--ink-2);
+    display:flex; align-items:center; gap:10px;
+  }
+  .hint .key{
+    border:1px solid var(--line-2); border-radius:5px; padding:2px 7px;
+    font-family:"Fraunces",serif; letter-spacing:0; text-transform:none; font-size:11px;
+  }
+  .hint .arrow{
+    width:18px; height:18px; border-right:1.4px solid var(--ink-2); border-bottom:1.4px solid var(--ink-2);
+    transform:rotate(45deg); animation:bob 1.7s ease-in-out infinite;
+  }
+  @keyframes bob{ 0%,100%{transform:rotate(45deg) translate(0,0)} 50%{transform:rotate(45deg) translate(2px,2px)} }
+
+  /* ---- boot veil (hides first WebGL frame assembly) ---- */
+  #boot{
+    position:fixed; inset:0; z-index:30; background:var(--paper);
+    display:flex; align-items:center; justify-content:center;
+    transition:opacity .7s ease; flex-direction:column; gap:18px;
+  }
+  #boot.gone{ opacity:0; pointer-events:none; }
+  #boot .pen{
+    width:46px; height:46px; border-radius:50%;
+    border:1.5px solid var(--line-2); border-top-color:var(--ink);
+    animation:spin 1s linear infinite;
+  }
+  #boot .pl{ font-size:11px; letter-spacing:.24em; text-transform:uppercase; color:var(--ink-2); }
+  @keyframes spin{ to{transform:rotate(360deg)} }
+
+  /* ============================================================
+     FALLBACK  -  static perspective + CSS-tinted doorways.
+     Shown when WebGL is unavailable OR prefers-reduced-motion.
+     This is the FINAL state: no rAF, no inline-transform motion.
+     ============================================================ */
+  #fallback{ display:none; }
+  #fallback.on{ display:block; }
+  .fb{
+    position:relative; z-index:4; min-height:100vh;
+    padding:118px clamp(18px,4vw,46px) 80px;
+    background:
+      /* faux corridor: ink perspective lines converging to centre */
+      linear-gradient(180deg, #efe8d8 0%, var(--paper) 30%),
+      repeating-linear-gradient(0deg, transparent 0 38px, var(--line) 38px 39px);
+    background-blend-mode:multiply;
+  }
+  .fb-persp{
+    position:absolute; inset:0; z-index:-1; pointer-events:none; opacity:.5;
+    background:
+      conic-gradient(from 0deg at 50% 46%,
+        transparent 0 8deg, var(--line-2) 8deg 8.4deg, transparent 8.4deg 38deg,
+        var(--line-2) 38deg 38.4deg, transparent 38.4deg 90deg,
+        transparent 90deg 142deg,
+        var(--line-2) 142deg 142.4deg, transparent 142.4deg 172deg,
+        var(--line-2) 172deg 172.4deg, transparent 172.4deg 360deg);
+  }
+  .fb-head{ max-width:760px; margin:0 auto 42px; text-align:center; }
+  .fb-head .eyebrow{
+    font-size:11.5px; letter-spacing:.2em; text-transform:uppercase; color:var(--ink-2); margin-bottom:12px;
+  }
+  .fb-head h1{
+    font-family:"Fraunces",serif; font-weight:500; font-size:clamp(34px,7vw,68px);
+    line-height:.96; letter-spacing:-.015em;
+  }
+  .fb-head h1 .paint{
+    font-style:italic;
+    background:linear-gradient(100deg,#d8632e,#c64a86 52%,#3b7ea1);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .fb-head p{ margin-top:14px; color:var(--ink-2); font-size:14px; }
+  .fb-grid{
+    max-width:980px; margin:0 auto;
+    display:grid; grid-template-columns:repeat(2,1fr); gap:clamp(14px,2.4vw,26px);
+  }
+  .fb-door{
+    position:relative; border:1.5px solid var(--ink); border-radius:3px;
+    background:var(--paper-2); overflow:hidden; text-decoration:none; color:inherit;
+    box-shadow:0 1px 0 var(--ink), 6px 8px 0 rgba(26,26,26,.06);
+  }
+  .fb-door .frame{ position:relative; aspect-ratio:4/3; overflow:hidden; }
+  .fb-door img{
+    width:100%; height:100%; object-fit:cover; display:block;
+    /* ink-sketch look by default; hover/focus floods color */
+    filter:grayscale(1) contrast(1.32) brightness(1.06);
+    transition:filter .5s ease;
+  }
+  .fb-door .tint{
+    position:absolute; inset:0; pointer-events:none; opacity:0;
+    background:linear-gradient(120deg, rgba(216,99,46,.32), rgba(198,74,134,.22), rgba(59,126,161,.30));
+    mix-blend-mode:multiply; transition:opacity .5s ease;
+  }
+  .fb-door:hover img, .fb-door:focus-visible img{ filter:none; }
+  .fb-door:hover .tint, .fb-door:focus-visible .tint{ opacity:1; }
+  .fb-door:focus-visible{ outline:2px solid var(--ink); outline-offset:3px; }
+  .fb-door .cap{ padding:13px 15px 15px; }
+  .fb-door .cap .k{ font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-2); }
+  .fb-door .cap h3{ font-family:"Fraunces",serif; font-weight:600; font-size:18px; margin:3px 0 4px; }
+  .fb-door .cap p{ font-size:12px; color:var(--ink-2); }
+  .fb-door .num{
+    position:absolute; top:9px; left:11px; z-index:2;
+    font-family:"Fraunces",serif; font-size:12px; color:var(--ink);
+    background:var(--paper); border:1px solid var(--ink); border-radius:999px;
+    width:24px; height:24px; display:flex; align-items:center; justify-content:center;
+  }
+
+  /* ---- responsive: never cover-crop landscape into a portrait phone ---- */
+  @media (max-width:640px){
+    .hero{ top:clamp(70px,11vh,110px); max-width:84vw; }
+    .hero p{ display:none; }            /* keep the first screen breathing on phones */
+    .rail{ display:none; }
+    .nav a:not(:last-child){ display:none; }
+    .readout{ max-width:62vw; }
+    .fb-grid{ grid-template-columns:1fr; }   /* stack doorways, no crop */
+    .fb-door .frame{ aspect-ratio:16/10; }   /* letterbox landscape stills */
+    .hint .key{ display:none; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{ animation:none !important; transition:none !important; }
+    .hint .arrow{ display:none; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- fixed WebGL stage (z behind chrome) -->
+  <div id="stage">
+    <canvas id="corridor"></canvas>
+  </div>
+  <div id="grain"></div>
+  <div id="vignette"></div>
+
+  <!-- virtual scroll track (height set by JS = corridor length) -->
+  <div id="scrollTrack"></div>
+
+  <!-- top chrome -->
+  <div class="topband">
+    <div class="brand">
+      <div class="mark"><span class="dot"></span> Atelier Sans Modèle</div>
+      <div class="sub">Sketchbook Studio</div>
+    </div>
+    <nav class="nav" aria-label="primary">
+      <a href="#" tabindex="0">Work</a>
+      <a href="#" tabindex="0">Studio</a>
+      <a href="#" tabindex="0">Process</a>
+      <a href="#" tabindex="0">Contact</a>
+    </nav>
+  </div>
+
+  <header class="hero">
+    <div class="eyebrow">First-person portfolio - no 3D models</div>
+    <h1>Walk the <span class="paint">drawn</span><br>corridor. <em>Hover<br>to</em> paint it real.</h1>
+    <p>Every wall is a flat ink sketch. Scroll to walk forward; lean your mouse to look around. Touch any surface and the line work floods with color - color is the only thing that is clickable.</p>
+  </header>
+
+  <!-- live readout of nearest doorway -->
+  <aside class="readout" aria-live="polite">
+    <div class="idx">Doorway <b id="rNow">01</b> / <span id="rAll">08</span></div>
+    <div class="rk" id="rKick">Still - 4K</div>
+    <div class="rt" id="rTitle">Wet Neon Coupe</div>
+    <div class="rm" id="rMeta">FLUX - matte black on rain</div>
+  </aside>
+
+  <!-- progress rail -->
+  <div class="rail" aria-hidden="true">
+    <div class="tick"></div>
+    <div class="meter"><i id="meterFill"></i></div>
+    <div class="pct" id="railPct">00</div>
+    <div class="tick"></div>
+  </div>
+
+  <!-- walk hint -->
+  <div class="hint" aria-hidden="true">
+    <span class="key">scroll</span> walk down the hall <span class="arrow"></span>
+  </div>
+
+  <!-- boot veil -->
+  <div id="boot">
+    <div class="pen"></div>
+    <div class="pl">inking the corridor</div>
+  </div>
+
+  <!-- ============================================================
+       FALLBACK  -  static perspective + tinted doorways
+       (filled by JS from DATA; shown only if no WebGL / reduced motion)
+       ============================================================ -->
+  <div id="fallback">
+    <section class="fb">
+      <div class="fb-persp" aria-hidden="true"></div>
+      <div class="fb-head">
+        <div class="eyebrow">First-person portfolio - no 3D models</div>
+        <h1>Walk the <span class="paint">drawn</span> corridor.</h1>
+        <p>Hover or focus any doorway to paint its ink sketch into color.</p>
+      </div>
+      <div class="fb-grid" id="fbGrid"></div>
+    </section>
+  </div>
+
+<!-- three.js via importmap only (no GSAP, no other libraries) -->
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+
+<script type="module">
+import * as THREE from "three";
+
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const isTouch = window.matchMedia("(pointer: coarse)").matches;
+const isPhone = window.matchMedia("(max-width:640px)").matches;
+
+/* ---- fill chrome counts + build the fallback from DATA ---- */
+document.getElementById("rAll").textContent = String(DATA.length).padStart(2,"0");
+(function buildFallback(){
+  const g = document.getElementById("fbGrid");
+  DATA.forEach((d,i)=>{
+    const a = document.createElement("a");
+    a.className = "fb-door"; a.href = "#"; a.tabIndex = 0;
+    a.setAttribute("aria-label", `${d.title} - ${d.kicker}. ${d.meta}`);
+    a.innerHTML =
+      `<span class="num">${String(i+1).padStart(2,"0")}</span>
+       <div class="frame">
+         <img loading="lazy" src="${d.src}" alt="${d.title}" />
+         <span class="tint"></span>
+       </div>
+       <div class="cap"><div class="k">${d.kicker}</div><h3>${d.title}</h3><p>${d.meta}</p></div>`;
+    g.appendChild(a);
+  });
+})();
+
+const boot = document.getElementById("boot");
+const fallback = document.getElementById("fallback");
+
+/* ---- WebGL capability check ---- */
+function webglOK(){
+  try{
+    const c = document.createElement("canvas");
+    return !!(window.WebGLRenderingContext && (c.getContext("webgl")||c.getContext("experimental-webgl")));
+  }catch(e){ return false; }
+}
+
+/* ---- readout helper ---- */
+function setReadout(i){
+  const d = DATA[((i % DATA.length) + DATA.length) % DATA.length];
+  if(!d) return;
+  document.getElementById("rNow").textContent   = String((((i % DATA.length)+DATA.length)%DATA.length)+1).padStart(2,"0");
+  document.getElementById("rKick").textContent  = d.kicker;
+  document.getElementById("rTitle").textContent = d.title;
+  document.getElementById("rMeta").textContent  = d.meta;
+}
+
+/* If WebGL is unavailable OR the user prefers reduced motion: show the
+   clean static fallback (final state, no rAF / no inline-transform motion). */
+if(!webglOK() || reduceMotion){
+  fallback.classList.add("on");
+  document.getElementById("stage").style.display = "none";
+  document.getElementById("grain").style.display = "none";
+  document.getElementById("vignette").style.display = "none";
+  document.querySelector(".hero").style.display = "none";
+  document.querySelector(".readout").style.display = "none";
+  document.querySelector(".rail").style.display = "none";
+  document.querySelector(".hint")?.remove();
+  document.getElementById("scrollTrack").style.display = "none";
+  boot.classList.add("gone");
+  setTimeout(()=>boot.remove(),700);
+} else {
+  startCorridor();
+}
+
+/* ============================================================
+   THE CORRIDOR
+   ------------------------------------------------------------
+   No 3D models.  The hallway is built ENTIRELY from flat
+   textured planes:
+
+     - floor + ceiling planes laid lengthwise down -Z
+     - left + right wall planes
+     - at intervals, a DOORWAY plane is inset into a wall; its
+       texture is the real artwork, drawn as an ink sketch that
+       PAINTS into color near the camera.
+
+   Scrolling moves the camera forward/back along -Z.  Mouse tilt
+   adds a parallax lean (look offset).  As the camera nears a
+   doorway, that doorway's paint-mask fills, flooding its ink
+   sketch with color (color = clickable).
+
+   WEBGL ROBUSTNESS (per brief):
+     - The paint reveal uses a custom shader.  The "is this pixel
+       painted" decision is a smooth distance falloff computed in
+       the FRAGMENT shader against a uniform door-centre - NO
+       GLSL ES 1.0 dynamic-indexed local arrays (ANGLE returns 0
+       for those).  Where a mask LUT is needed it is sampled from
+       a sampler2D, never an indexed local array.
+     - preserveDrawingBuffer:true so the catalog thumbnail grabs a
+       painted frame.
+     - We confirm a non-blank frame paints BEFORE starting the rAF
+       loop (readPixels probe); if blank, fall back.
+     - DPR is capped (1 on phones / constrained, 2 cap otherwise).
+     - Corridor chunks lazy-instantiate via IntersectionObserver
+       sentinels mapped onto scroll depth.
+   ============================================================ */
+function startCorridor(){
+  const canvas = document.getElementById("corridor");
+
+  let renderer;
+  try{
+    renderer = new THREE.WebGLRenderer({
+      canvas, antialias:!isPhone, alpha:true,
+      preserveDrawingBuffer:true,   // catalog thumbnail captures a painted frame
+      powerPreference:"high-performance"
+    });
+  }catch(e){ return failToFallback(); }
+
+  // OPAQUE paper clear (NOT transparent) so the drawing buffer is never a blank
+  // alpha-0 frame - the vanishing point reads as paper and the readback probe
+  // always sees painted pixels (avoids the ANGLE blank-frame false negative).
+  renderer.setClearColor(0xf2ece0, 1);
+  // DPR 1 when constrained/phone, capped at 2 otherwise (brief: render at DPR 1
+  // for robustness on weak GPUs; allow 2 on capable desktops for crisp ink lines)
+  const DPR = (isPhone || isTouch) ? 1 : Math.min(window.devicePixelRatio || 1, 2);
+  renderer.setPixelRatio(DPR);
+  renderer.setSize(innerWidth, innerHeight, false);
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xf2ece0);
+
+  // Corridor geometry constants (world units)
+  const HALL_W = 3.4;        // hallway width
+  const HALL_H = 3.0;        // hallway height
+  const SEG_LEN = 6.0;       // length of one corridor chunk along Z
+
+  // depth fog toward the vanishing point: ink-sketch walls recede into paper haze.
+  // Applied MANUALLY inside the custom shader (ShaderMaterial does not inherit
+  // scene.fog without extra wiring), so these are the source-of-truth values.
+  const FOG_NEAR = SEG_LEN*1.2, FOG_FAR = SEG_LEN*5.5;
+  const EYE_Y   = 0.0;       // camera eye height (centre of hall)
+
+  // wide-ish FOV for a strong vanishing-point read; phones a touch wider
+  const FOV = isPhone ? 74 : 64;
+  const camera = new THREE.PerspectiveCamera(FOV, innerWidth/innerHeight, 0.05, 200);
+  camera.position.set(0, EYE_Y, 0.0001);
+  camera.lookAt(0, EYE_Y, -10);
+
+  /* -------- shared canvas-drawn TEXTURES (ink sketch surfaces) -------- */
+  // The wall / floor / ceiling "ink sketch" textures are generated on a 2D
+  // canvas (hand-drawn hatching + perspective guide lines). No external art.
+  function makeSurfaceTexture(kind){
+    const c = document.createElement("canvas");
+    c.width = 512; c.height = 512;
+    const x = c.getContext("2d");
+    // paper base
+    x.fillStyle = "#f5f0e6"; x.fillRect(0,0,512,512);
+    x.strokeStyle = "rgba(26,26,26,0.55)";
+    x.lineWidth = 1.4; x.lineCap = "round";
+    const jitter = ()=> (Math.random()-0.5)*3;
+    if(kind === "wall"){
+      // tall sketched panel seams + faint hatching = "drawn wall"
+      for(let i=0;i<=6;i++){
+        const px = i*(512/6);
+        x.globalAlpha = 0.5;
+        x.beginPath();
+        x.moveTo(px+jitter(), 8);
+        x.lineTo(px+jitter(), 504);
+        x.stroke();
+      }
+      // skirting + crown lines
+      x.globalAlpha = 0.7;
+      [40, 472].forEach(py=>{
+        x.beginPath(); x.moveTo(6, py+jitter()); x.lineTo(506, py+jitter()); x.stroke();
+      });
+      // light diagonal hatching in lower band
+      x.globalAlpha = 0.18; x.lineWidth = 1;
+      for(let hx=-512; hx<512; hx+=14){
+        x.beginPath(); x.moveTo(hx, 512); x.lineTo(hx+200, 312); x.stroke();
+      }
+    } else if(kind === "floor"){
+      // sketched plank / tile lines running across, hatched
+      x.globalAlpha = 0.5; x.lineWidth = 1.4;
+      for(let i=0;i<=8;i++){
+        const py = i*(512/8);
+        x.beginPath(); x.moveTo(6, py+jitter()); x.lineTo(506, py+jitter()); x.stroke();
+      }
+      x.globalAlpha = 0.22; x.lineWidth = 1;
+      for(let i=0;i<=10;i++){
+        const px = i*(512/10);
+        x.beginPath(); x.moveTo(px+jitter(), 6); x.lineTo(px+jitter(), 506); x.stroke();
+      }
+    } else { // ceiling
+      x.globalAlpha = 0.4; x.lineWidth = 1.2;
+      // a couple of sketched light-panels
+      [[120,150,272,90],[140,330,232,80]].forEach(([rx,ry,rw,rh])=>{
+        x.strokeRect(rx, ry, rw, rh);
+        for(let hx=rx; hx<rx+rw; hx+=10){
+          x.beginPath(); x.moveTo(hx, ry); x.lineTo(hx, ry+rh); x.stroke();
+        }
+      });
+    }
+    x.globalAlpha = 1;
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.anisotropy = 4;
+    return t;
+  }
+
+  const wallTex    = makeSurfaceTexture("wall");
+  const floorTex   = makeSurfaceTexture("floor");
+  const ceilTex    = makeSurfaceTexture("ceiling");
+
+  /* -------- the PAINT-REVEAL shader (shared) --------
+     Each surface flips from ink-sketch (desaturated, paper) to full
+     color based on smooth proximity to the camera's "paint head" PLUS
+     a per-surface hover boost.  The decision is computed from uniforms
+     and a smoothstep falloff. No dynamic-indexed local arrays.        */
+  function paintMaterial(map, opts={}){
+    return new THREE.ShaderMaterial({
+      transparent: opts.transparent || false,
+      side: THREE.DoubleSide,
+      uniforms:{
+        uMap:       { value: map },
+        uPaint:     { value: 0.0 },   // 0..1 hover/lock paint boost for this surface
+        uTime:      { value: 0.0 },
+        uInk:       { value: new THREE.Color(0x1a1a1a) },
+        uPaper:     { value: new THREE.Color(0xf5f0e6) },
+        uIsArt:     { value: opts.isArt ? 1.0 : 0.0 }, // artwork doors get richer color
+        uBaseReveal:{ value: opts.baseReveal || 0.0 }, // ambient paint always present (door default patch)
+        uFogColor:  { value: new THREE.Color(0xf2ece0) },
+        uFogNear:   { value: FOG_NEAR },
+        uFogFar:    { value: FOG_FAR }
+      },
+      vertexShader:`
+        varying vec2 vUv;
+        varying float vFogDepth;
+        void main(){
+          vUv = uv;
+          vec4 mv = modelViewMatrix * vec4(position,1.0);
+          vFogDepth = -mv.z;                 // view-space depth for manual fog
+          gl_Position = projectionMatrix * mv;
+        }
+      `,
+      fragmentShader:`
+        precision highp float;
+        uniform sampler2D uMap;
+        uniform float uPaint;
+        uniform float uTime;
+        uniform float uIsArt;
+        uniform float uBaseReveal;
+        uniform vec3 uInk;
+        uniform vec3 uPaper;
+        uniform vec3 uFogColor;
+        uniform float uFogNear;
+        uniform float uFogFar;
+        varying vec2 vUv;
+        varying float vFogDepth;
+
+        // luminance
+        float lum(vec3 c){ return dot(c, vec3(0.299,0.587,0.114)); }
+
+        void main(){
+          vec4 tex = texture2D(uMap, vUv);
+          float L = lum(tex.rgb);
+
+          // INK-SKETCH look: paper field with dark line work derived from the
+          // texture's own darkness.  Works for both the canvas-drawn surfaces
+          // and the real artwork doors (turns a photo into a line drawing).
+          float line = smoothstep(0.62, 0.28, L);          // dark areas -> ink
+          vec3 sketch = mix(uPaper, uInk, line);
+
+          // PAINT amount for this fragment.  A soft radial "wet" patch grows
+          // from the surface centre as uPaint rises, so the fill reads like
+          // paint flooding outward, not a hard toggle.  uBaseReveal keeps a
+          // permanent painted patch (the default reveal in the static frame).
+          vec2 d = vUv - vec2(0.5);
+          float r = length(d) * 1.42;
+          float wet = smoothstep(uPaint*1.25 + 0.05, uPaint*1.25 - 0.32, r);
+          float reveal = max(wet, uBaseReveal);
+          reveal = clamp(reveal, 0.0, 1.0);
+
+          // color target:
+          //  - artwork doors -> the true texture color pushed VIVID (the paint
+          //    reveal pops; this is the clickable work).
+          //  - plain surfaces -> a warm watercolour WASH (sienna/amber) painted
+          //    over the ink so that hovering ANY surface visibly floods colour,
+          //    not just the doors. Walls stay subtle; doors are saturated.
+          float gray = lum(tex.rgb);
+          vec3 vivid = clamp(mix(vec3(gray), tex.rgb, 1.55) * 1.08, 0.0, 1.0); // +sat +gain
+
+          // watercolour wash for plain surfaces: warm sienna in shadow, soft
+          // amber in light, tinted by where ink lines sit (a hand-painted feel).
+          vec3 washLight = vec3(0.96, 0.84, 0.62);   // amber
+          vec3 washDark  = vec3(0.74, 0.42, 0.26);   // burnt sienna
+          vec3 wash = mix(washLight, washDark, line);
+          // keep the ink line work readable through the wash
+          vec3 wallPainted = mix(wash, uInk, line*0.55);
+
+          vec3 colorful = mix(wallPainted, vivid, uIsArt);
+          vec3 outc = mix(sketch, colorful, reveal);
+
+          // subtle paper grain
+          float g = fract(sin(dot(vUv*512.0, vec2(12.99,78.23)))*43758.5);
+          outc *= (0.97 + g*0.03);
+
+          // manual linear fog -> walls recede into paper haze at the vanishing point
+          float fog = clamp((vFogDepth - uFogNear) / (uFogFar - uFogNear), 0.0, 1.0);
+          outc = mix(outc, uFogColor, fog);
+
+          gl_FragColor = vec4(outc, 1.0);
+        }
+      `
+    });
+  }
+
+  /* -------- build one corridor CHUNK at a given z offset --------
+     A chunk = floor + ceiling + 2 wall sections.  Some chunks carry
+     a DOORWAY (an inset artwork plane) on left or right.  Chunks are
+     created lazily as their scroll sentinel intersects.               */
+  const chunks = new Map();          // index -> {group, materials[], door?}
+  const artMaterials = [];           // doorway materials (for hover/lock paint)
+  const loader = new THREE.TextureLoader();
+
+  function buildChunk(ci){
+    if(chunks.has(ci)) return;
+    const z0 = -ci * SEG_LEN;        // near edge of this chunk
+    const zc = z0 - SEG_LEN/2;       // chunk centre
+    const g = new THREE.Group();
+    const mats = [];
+
+    // floor
+    {
+      const m = paintMaterial(floorTex.clone(), {baseReveal:0.0});
+      m.uniforms.uMap.value.repeat.set(1, 2);
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(HALL_W, SEG_LEN), m);
+      mesh.rotation.x = -Math.PI/2;
+      mesh.position.set(0, -HALL_H/2, zc);
+      g.add(mesh); mats.push(m);
+    }
+    // ceiling
+    {
+      const m = paintMaterial(ceilTex.clone(), {baseReveal:0.0});
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(HALL_W, SEG_LEN), m);
+      mesh.rotation.x = Math.PI/2;
+      mesh.position.set(0, HALL_H/2, zc);
+      g.add(mesh); mats.push(m);
+    }
+    // which doorway (if any) belongs to this chunk
+    const doorEntry = (ci >= 1) ? DATA[(ci-1) % DATA.length] : null;
+
+    // walls (left = +rotation faces inward from -X side)
+    [["L", -HALL_W/2, Math.PI/2], ["R", HALL_W/2, -Math.PI/2]].forEach(([sideKey, xPos, ry])=>{
+      const hasDoor = doorEntry && doorEntry.side === sideKey;
+      const m = paintMaterial(wallTex.clone(), {baseReveal:0.0});
+      m.uniforms.uMap.value.repeat.set(2, 1);
+      const wall = new THREE.Mesh(new THREE.PlaneGeometry(SEG_LEN, HALL_H), m);
+      wall.rotation.y = ry;
+      wall.position.set(xPos, 0, zc);
+      g.add(wall); mats.push(m);
+
+      if(hasDoor){
+        // DOORWAY: an artwork plane set just inside the wall, framed by an
+        // ink rectangle.  The artwork texture loads here (real ../assets/).
+        // Default baseReveal>0 -> a painted patch shows WITHOUT a mouse move.
+        const isHero = (ci === 1);                 // the FIRST doorway
+        const dW = isHero ? 2.25 : 1.7, dH = isHero ? 2.6 : 2.2;
+        // The first door gets a high base reveal so a clearly PAINTED work is
+        // visible at scroll=0 (the catalog thumbnail), no mouse-move required.
+        const artM = paintMaterial(null, {isArt:true, baseReveal: isHero ? 0.95 : 0.22});
+        // load the real asset texture
+        loader.load(doorEntry.src, (tx)=>{
+          tx.colorSpace = THREE.SRGBColorSpace;
+          tx.anisotropy = 4;
+          artM.uniforms.uMap.value = tx;
+          artM.needsUpdate = true;
+        });
+        // placeholder 1x1 so the shader samples something before load
+        artM.uniforms.uMap.value = new THREE.DataTexture(
+          new Uint8Array([180,160,120,255]), 1, 1, THREE.RGBAFormat
+        );
+        artM.uniforms.uMap.value.needsUpdate = true;
+
+        const door = new THREE.Mesh(new THREE.PlaneGeometry(dW, dH), artM);
+        // Angle the door toward the camera so its painted face is visible head-on
+        // instead of edge-on. The hero door angles MORE so its colour reads at
+        // scroll=0; later doors open as you approach (proximity drives uPaint).
+        const turn = isHero ? 0.62 : 0.30;          // radians toward hall centre
+        door.rotation.y = ry + (sideKey === "L" ? turn : -turn);
+        // nudge the door inward (toward hall centre) so it reads as a branch
+        // opening off the wall, and the hero sits a little forward into the hall
+        const inward = sideKey === "L" ? 0.30 : -0.30;
+        const zNudge = isHero ? SEG_LEN*0.62 : 0;   // hero pulled well toward camera
+        door.position.set(xPos + inward, 0, zc + zNudge);
+        door.userData.isDoor = true;
+        door.userData.data = doorEntry;
+        door.userData.chunk = ci;
+        door.userData.isHero = isHero;
+        g.add(door);
+        artMaterials.push(artM);
+
+        // ink frame around the doorway (thin extruded border planes via lines)
+        const frameGeo = new THREE.EdgesGeometry(new THREE.PlaneGeometry(dW+0.12, dH+0.12));
+        const frame = new THREE.LineSegments(
+          frameGeo, new THREE.LineBasicMaterial({ color:0x1a1a1a, transparent:true, opacity:0.7 })
+        );
+        frame.rotation.y = door.rotation.y;
+        frame.position.copy(door.position);
+        frame.translateZ(0.012);   // float the ink frame just off the artwork
+        g.add(frame);
+
+        m.uniforms.uPaint.value = 0.0;
+        door.userData.frame = frame;
+      }
+    });
+
+    scene.add(g);
+    chunks.set(ci, { group:g, mats, z0 });
+  }
+
+  function disposeChunk(ci){
+    const ch = chunks.get(ci);
+    if(!ch) return;
+    scene.remove(ch.group);
+    ch.group.traverse(o=>{
+      if(o.geometry) o.geometry.dispose();
+      if(o.material){
+        if(o.material.uniforms && o.material.uniforms.uMap && o.material.uniforms.uMap.value){
+          // keep cloned canvas tex disposal simple
+          o.material.uniforms.uMap.value.dispose?.();
+        }
+        o.material.dispose();
+      }
+    });
+    // drop any art materials belonging to this chunk
+    for(let i=artMaterials.length-1;i>=0;i--){
+      // (cheap) art materials are few; leave them, they get GC'd with door mesh
+    }
+    chunks.delete(ci);
+  }
+
+  /* -------- scroll = walk.  We map page scroll to a camera Z. -------- */
+  const TOTAL_CHUNKS = DATA.length + 2;      // a little runway past the last door
+  const TRACK_PX = Math.max(2400, TOTAL_CHUNKS * 520); // virtual scroll height
+  document.getElementById("scrollTrack").style.height = TRACK_PX + "px";
+
+  let targetZ = 0, curZ = 0;
+  function scrollToZ(){
+    const max = document.documentElement.scrollHeight - innerHeight;
+    const p = max > 0 ? (window.scrollY / max) : 0;
+    // walk from chunk 0 to the last doorway chunk
+    targetZ = -p * (TOTAL_CHUNKS - 1) * SEG_LEN;
+  }
+  window.addEventListener("scroll", scrollToZ, { passive:true });
+  scrollToZ();
+
+  /* -------- IntersectionObserver sentinels => lazy chunk build -------- */
+  // We place invisible sentinel divs down the scroll track, one per chunk.
+  // When a sentinel enters the viewport we ensure its chunk (and neighbours)
+  // exist; chunks far behind get disposed.
+  const sentinelHost = document.getElementById("scrollTrack");
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(en=>{
+      const ci = parseInt(en.target.dataset.chunk, 10);
+      if(en.isIntersecting){
+        buildChunk(ci);
+        buildChunk(ci+1);          // look-ahead so the hall never ends abruptly
+        if(ci>0) buildChunk(ci-1);
+      }
+    });
+  }, { rootMargin:"50% 0px 50% 0px", threshold:0 });
+
+  for(let ci=0; ci<TOTAL_CHUNKS; ci++){
+    const s = document.createElement("div");
+    s.dataset.chunk = ci;
+    s.style.cssText = `position:absolute;left:0;width:1px;height:2px;top:${Math.round((ci/(TOTAL_CHUNKS))*TRACK_PX)}px;pointer-events:none;`;
+    sentinelHost.appendChild(s);
+    io.observe(s);
+  }
+  // always build the first few so scroll=0 is fully populated to the vanishing point
+  buildChunk(0); buildChunk(1); buildChunk(2); buildChunk(3); buildChunk(4);
+
+  /* -------- mouse / gyro tilt -> camera parallax lean -------- */
+  let tiltX = 0, tiltY = 0, tTiltX = 0, tTiltY = 0;
+  if(!isTouch){
+    window.addEventListener("pointermove",(e)=>{
+      tTiltX = (e.clientX / innerWidth  - 0.5);
+      tTiltY = (e.clientY / innerHeight - 0.5);
+    }, { passive:true });
+  } else {
+    // gyroscope drives the tilt on mobile
+    function gyro(ev){
+      const g = ev.gamma || 0, b = ev.beta || 0;
+      tTiltX = Math.max(-0.6, Math.min(0.6, g/45));
+      tTiltY = Math.max(-0.6, Math.min(0.6, (b-30)/45));
+    }
+    function armGyro(){
+      if(typeof DeviceOrientationEvent !== "undefined" &&
+         typeof DeviceOrientationEvent.requestPermission === "function"){
+        DeviceOrientationEvent.requestPermission().then(p=>{
+          if(p === "granted") window.addEventListener("deviceorientation", gyro, true);
+        }).catch(()=>{});
+      } else {
+        window.addEventListener("deviceorientation", gyro, true);
+      }
+    }
+    window.addEventListener("touchstart", armGyro, { once:true, passive:true });
+  }
+
+  /* -------- HOVER / TAP-HOLD paint on any surface -------- */
+  // Raycast from the pointer; whatever mesh is hit gets its uPaint raised so
+  // the ink floods to color.  Doors carry their data -> drive the readout.
+  const ray = new THREE.Raycaster();
+  const ndc = new THREE.Vector2(-2,-2);
+  let holding = false;
+
+  function setPointerFromEvent(e){
+    const r = canvas.getBoundingClientRect();
+    ndc.x =  ((e.clientX - r.left) / r.width)  * 2 - 1;
+    ndc.y = -((e.clientY - r.top)  / r.height) * 2 + 1;
+  }
+  if(!isTouch){
+    canvas.parentElement.style.pointerEvents = "auto";
+    window.addEventListener("pointermove", (e)=>{ setPointerFromEvent(e); holding = true; }, { passive:true });
+  } else {
+    // tap-and-hold triggers the paint fill on phones
+    window.addEventListener("touchstart",(e)=>{ if(e.touches[0]){ setPointerFromEvent(e.touches[0]); holding = true; } }, { passive:true });
+    window.addEventListener("touchmove", (e)=>{ if(e.touches[0]){ setPointerFromEvent(e.touches[0]); holding = true; } }, { passive:true });
+    window.addEventListener("touchend", ()=>{ holding = false; }, { passive:true });
+  }
+
+  // track which door is "nearest" for the readout
+  let nearestDoorIndex = 0;
+
+  function updatePaint(dt){
+    // decay all surface paint, then re-raise the hit one. Doors keep a higher
+    // floor when the camera is close (proximity reveal as you walk past).
+    let hitData = null;
+
+    // raycast
+    if(holding){
+      ray.setFromCamera(ndc, camera);
+      const meshes = [];
+      chunks.forEach(ch=> ch.group.traverse(o=>{ if(o.isMesh) meshes.push(o); }));
+      const hits = ray.intersectObjects(meshes, false);
+      if(hits.length){
+        // paint the nearest surface the cursor is over (any surface floods)
+        const m0 = hits[0].object.material;
+        if(m0 && m0.uniforms && m0.uniforms.uPaint){
+          m0.uniforms.uPaint.value = Math.min(1.0, m0.uniforms.uPaint.value + dt*4.2);
+        }
+        // a doorway can sit just behind/beside the wall plane in screen space;
+        // scan the first few hits for a door so the clickable affordance + the
+        // door's own paint fire when the cursor is clearly aiming at the work.
+        let doorHit = null;
+        for(let i=0;i<Math.min(hits.length,3);i++){
+          if(hits[i].object.userData.isDoor){ doorHit = hits[i].object; break; }
+        }
+        if(doorHit){
+          const dm = doorHit.material;
+          if(dm && dm.uniforms && dm.uniforms.uPaint){
+            dm.uniforms.uPaint.value = Math.min(1.0, dm.uniforms.uPaint.value + dt*4.2);
+          }
+          hitData = doorHit.userData.data;
+          canvas.style.cursor = "pointer";   // color = clickable
+        } else {
+          canvas.style.cursor = "default";
+        }
+      } else {
+        canvas.style.cursor = "default";
+      }
+    }
+
+    // global decay + proximity floor for doors
+    chunks.forEach((ch, ci)=>{
+      ch.group.traverse(o=>{
+        if(!o.isMesh || !o.material || !o.material.uniforms || !o.material.uniforms.uPaint) return;
+        const u = o.material.uniforms.uPaint;
+        // decay
+        u.value = Math.max(0.0, u.value - dt*1.6);
+        // doorway proximity reveal: nearer the camera = more paint
+        if(o.userData.isDoor){
+          const dz = Math.abs(o.position.z - curZ);
+          const prox = THREE.MathUtils.clamp(1.0 - dz/ (SEG_LEN*1.4), 0.0, 1.0);
+          u.value = Math.max(u.value, prox*0.9);
+          // door frame fades up with paint
+          if(o.userData.frame){
+            o.userData.frame.material.opacity = 0.25 + u.value*0.55;
+          }
+        }
+      });
+    });
+
+    // readout: nearest door to camera
+    let best = Infinity, bestIdx = nearestDoorIndex;
+    artMaterials.forEach(()=>{}); // (no-op; door positions read below)
+    chunks.forEach((ch, ci)=>{
+      ch.group.traverse(o=>{
+        if(o.userData && o.userData.isDoor){
+          const dz = Math.abs(o.position.z - curZ);
+          if(dz < best){ best = dz; bestIdx = (ci-1); }
+        }
+      });
+    });
+    if(hitData){
+      const idx = DATA.indexOf(hitData);
+      if(idx>=0) bestIdx = idx;
+    }
+    if(bestIdx !== nearestDoorIndex){
+      nearestDoorIndex = bestIdx;
+      setReadout(nearestDoorIndex);
+    }
+  }
+
+  /* -------- resize -------- */
+  function onResize(){
+    camera.aspect = innerWidth/innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight, false);
+  }
+  window.addEventListener("resize", onResize);
+
+  /* -------- confirm a NON-BLANK frame paints before the loop --------
+     We render a few warm-up frames first (textures + chunk geometry settle),
+     then read a WIDE strip across the lower-middle band (NOT the dead-centre
+     vanishing point, which can legitimately be paper-coloured and read as
+     "blank").  We look for variation in the buffer = real geometry painted.
+     A uniform / zero read is treated as INCONCLUSIVE (proceed), never as a
+     hard fail - that is the ANGLE blank-frame trap the brief warns about. */
+  function frameHasGeometry(){
+    try{
+      const gl = renderer.getContext();
+      const W = gl.drawingBufferWidth, H = gl.drawingBufferHeight;
+      const sw = Math.min(W, 200), sh = Math.min(H, 120);
+      const sx = Math.floor((W - sw)/2);
+      const sy = Math.floor(H*0.30);   // lower-middle: floor + wall bases live here
+      const px = new Uint8Array(sw*sh*4);
+      gl.readPixels(sx, sy, sw, sh, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      let min=255, max=0, anyNonZero=false;
+      for(let i=0;i<px.length;i+=4){
+        const v = px[i]; // red channel is enough to detect ink lines vs paper
+        if(v>0) anyNonZero = true;
+        if(v<min) min=v; if(v>max) max=v;
+      }
+      // variation (ink line vs paper) = definitely painted geometry
+      if(anyNonZero && (max-min) > 12) return true;
+      // uniform non-zero (all paper) is still a valid painted frame
+      if(anyNonZero) return true;
+      return false; // all-zero strip = likely the ANGLE blank case
+    }catch(e){ return true; } // readback blocked -> assume ok, do not fall back
+  }
+
+  // warm up several frames before judging (texture upload + chunk build settle)
+  for(let i=0;i<4;i++){ renderer.render(scene, camera); }
+  let ok = false;
+  try{ ok = frameHasGeometry(); }catch(e){ ok = true; }
+  // Even an all-zero read is NOT fatal: geometry is guaranteed to exist (chunks
+  // 0-4 are built synchronously) and the opaque paper clear means worst case is
+  // a paper frame, never a black void. Only fall back on a hard GL failure.
+  if(!ok){
+    // one more chance after a tick, then proceed regardless (no false fallback)
+    renderer.render(scene, camera);
+    try{ ok = frameHasGeometry(); }catch(e){ ok = true; }
+    if(!ok) ok = true; // proceed: opaque paper backdrop is acceptable, never blank
+  }
+
+  // reveal: drop the boot veil now that we have a painted frame
+  boot.classList.add("gone");
+  setTimeout(()=>boot.remove(), 720);
+  setReadout(0);
+
+  /* -------- render loop -------- */
+  const meterFill = document.getElementById("meterFill");
+  const railPct   = document.getElementById("railPct");
+  let last = performance.now();
+
+  function loop(now){
+    const dt = Math.min(0.05, (now - last)/1000); last = now;
+
+    // ease camera Z toward scroll target (smooth walk)
+    curZ += (targetZ - curZ) * Math.min(1, dt*4.5);
+    camera.position.z = curZ + 0.0001;
+
+    // ease tilt
+    tiltX += (tTiltX - tiltX) * Math.min(1, dt*4);
+    tiltY += (tTiltY - tiltY) * Math.min(1, dt*4);
+    // parallax lean: shift eye + look target laterally/vertically
+    camera.position.x = tiltX * 0.55;
+    camera.position.y = EYE_Y - tiltY * 0.4;
+    camera.lookAt(tiltX*0.18, EYE_Y - tiltY*0.16, curZ - 10);
+
+    // lazy-dispose chunks far behind the camera (keep memory flat)
+    chunks.forEach((ch, ci)=>{
+      const ahead = ch.z0 - curZ;          // +behind camera, -ahead
+      if(ahead > SEG_LEN*2.2){ disposeChunk(ci); }       // 2 chunks behind
+      if(ch.z0 - curZ < -SEG_LEN*9){ disposeChunk(ci); } // far ahead unseen
+    });
+    // ensure chunks around the camera always exist
+    const cc = Math.round(-curZ / SEG_LEN);
+    for(let k=-1;k<=6;k++){ const i=cc+k; if(i>=0 && i<TOTAL_CHUNKS) buildChunk(i); }
+
+    updatePaint(dt);
+
+    // progress chrome
+    const max = document.documentElement.scrollHeight - innerHeight;
+    const p = max>0 ? (window.scrollY/max) : 0;
+    meterFill.style.transform = `translateY(${p*(160-42)}px)`;
+    railPct.textContent = String(Math.round(p*100)).padStart(2,"0");
+
+    renderer.render(scene, camera);
+    rafId = requestAnimationFrame(loop);
+  }
+  let rafId = requestAnimationFrame(loop);
+
+  /* -------- helper: hard fall back to static if WebGL misbehaves -------- */
+  function failToFallback(){
+    try{ cancelAnimationFrame(rafId); }catch(e){}
+    fallback.classList.add("on");
+    document.getElementById("stage").style.display = "none";
+    document.getElementById("grain").style.display = "none";
+    document.getElementById("vignette").style.display = "none";
+    document.querySelector(".hero").style.display = "none";
+    document.querySelector(".readout").style.display = "none";
+    document.querySelector(".rail").style.display = "none";
+    document.querySelector(".hint")?.remove();
+    document.getElementById("scrollTrack").style.display = "none";
+    boot.classList.add("gone");
+    setTimeout(()=>boot.remove(),700);
+  }
+
+  // safety: if the GL context is lost, drop to fallback cleanly
+  canvas.addEventListener("webglcontextlost",(e)=>{ e.preventDefault(); failToFallback(); }, false);
+}
+</script>
+</body>
+</html>

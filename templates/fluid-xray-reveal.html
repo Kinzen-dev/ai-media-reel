@@ -1,0 +1,959 @@
+<!-- TEMPLATE: Fluid X-Ray Reveal | ARCHETYPE: x-ray (cursor fluid-trail unmasks a hidden full-color layer beneath a desaturated work) | REF: Codrops Dual-Scene Fluid X-Ray Reveal in Three.js (2026), Lusion WebGL post-processing | WHEN TO USE: a gallery/portfolio where you want hover to feel like seeing-through, not lighting-up - the work hides its true layer until the viewer's fluid trail dissolves the surface | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Fluid X-Ray Reveal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+<style>
+/* ============================================================
+   FLUID X-RAY REVEAL  -  abyss + bioluminescent teal
+   outer layer: desaturated near-black  |  inner layer: full-color
+   ============================================================ */
+:root{
+  --abyss:#050a12;
+  --abyss-2:#070f1a;
+  --teal:#00f0c8;
+  --teal-dim:#0a3b34;
+  --ink:#cfe9e3;
+  --ink-dim:#6f8a86;
+  --line:rgba(0,240,200,.16);
+  --line-soft:rgba(0,240,200,.08);
+  --gap:clamp(14px,2.2vw,26px);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:
+    radial-gradient(120% 80% at 18% -10%, #0a1722 0%, var(--abyss) 55%),
+    var(--abyss);
+  color:var(--ink);
+  font-family:"Space Grotesk",system-ui,sans-serif;
+  min-height:100vh;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+  cursor:none;
+}
+@media (pointer:coarse){ body{cursor:auto} }
+a{color:inherit}
+.mono{font-family:"Space Mono",ui-monospace,monospace}
+
+/* -------- shell / top band -------- */
+.wrap{max-width:1320px;margin:0 auto;padding:0 clamp(16px,3vw,40px) 80px}
+
+.topband{
+  display:flex;align-items:flex-end;justify-content:space-between;gap:24px;
+  padding:clamp(20px,3.2vw,38px) 0 clamp(16px,2.4vw,26px);
+  border-bottom:1px solid var(--line);
+  position:relative;
+}
+.brand{display:flex;flex-direction:column;gap:10px;max-width:760px}
+.kicker{
+  font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.42em;
+  text-transform:uppercase;color:var(--teal);
+  display:flex;align-items:center;gap:12px;
+}
+.kicker::before{content:"";width:34px;height:1px;background:linear-gradient(90deg,var(--teal),transparent)}
+.pulse{width:7px;height:7px;border-radius:50%;background:var(--teal);box-shadow:0 0 0 0 rgba(0,240,200,.6);animation:pulse 2.4s ease-out infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(0,240,200,.5)}70%{box-shadow:0 0 0 11px rgba(0,240,200,0)}100%{box-shadow:0 0 0 0 rgba(0,240,200,0)}}
+h1{
+  font-size:clamp(30px,6.2vw,62px);line-height:.96;font-weight:700;letter-spacing:-.02em;
+  color:var(--ink);
+}
+h1 em{font-style:normal;color:var(--teal);text-shadow:0 0 24px rgba(0,240,200,.35)}
+.sub{color:var(--ink-dim);font-size:clamp(13px,1.5vw,15.5px);max-width:46ch;line-height:1.5}
+.topmeta{text-align:right;font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.12em;color:var(--ink-dim);line-height:1.9;white-space:nowrap}
+.topmeta b{color:var(--teal);font-weight:700}
+
+/* -------- hint chip -------- */
+.hint{
+  margin:18px 0 calc(var(--gap) - 2px);
+  display:inline-flex;align-items:center;gap:10px;
+  font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.18em;
+  color:var(--ink-dim);text-transform:uppercase;
+  padding:8px 14px;border:1px solid var(--line);border-radius:40px;
+  background:rgba(0,240,200,.03);
+}
+.hint .dot{width:6px;height:6px;border-radius:50%;background:var(--teal);animation:blink 1.6s steps(1) infinite}
+@keyframes blink{50%{opacity:.2}}
+
+/* -------- grid -------- */
+.grid{
+  display:grid;gap:var(--gap);
+  grid-template-columns:repeat(12,1fr);
+  grid-auto-rows:1px;
+}
+.card{
+  position:relative;border-radius:14px;overflow:hidden;
+  background:var(--abyss-2);
+  border:1px solid var(--line-soft);
+  box-shadow:0 18px 50px -28px rgba(0,0,0,.9), inset 0 0 0 1px rgba(255,255,255,.012);
+  isolation:isolate;
+}
+/* span tiles for an editorial, non-uniform rhythm */
+.card.s-wide{grid-column:span 7}
+.card.s-tall{grid-column:span 5}
+.card.s-half{grid-column:span 6}
+.card.s-full{grid-column:span 12}
+
+.stage{position:absolute;inset:0;display:block}
+.stage canvas{display:block;width:100%;height:100%}
+
+/* CSS fallback layers (also the no-WebGL render path) */
+.fallback{position:absolute;inset:0}
+.fallback .lyr{position:absolute;inset:0;background-size:cover;background-position:center}
+.fallback .outer{filter:saturate(.12) brightness(.5) contrast(1.05)}
+.fallback .inner{
+  -webkit-clip-path:circle(0 at 50% 50%);clip-path:circle(0 at 50% 50%);
+  transition:clip-path .25s ease, -webkit-clip-path .25s ease;
+  filter:saturate(1.18) contrast(1.04);
+}
+.card.fb-on .fallback .inner.armed{
+  -webkit-clip-path:circle(34% at var(--fx,50%) var(--fy,50%));
+  clip-path:circle(34% at var(--fx,50%) var(--fy,50%));
+}
+
+/* per-card scrim + label */
+.card .scrim{position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(to top, rgba(5,10,18,.86) 0%, rgba(5,10,18,.18) 36%, rgba(5,10,18,0) 60%);
+  z-index:3;}
+.card .ring{position:absolute;inset:0;pointer-events:none;border-radius:14px;z-index:4;
+  box-shadow:inset 0 0 0 1px var(--line-soft);transition:box-shadow .4s ease}
+.card:hover .ring,.card:focus-visible .ring{box-shadow:inset 0 0 0 1px rgba(0,240,200,.45),0 0 34px -6px rgba(0,240,200,.22)}
+.card:focus-visible{outline:none}
+.card:focus-visible .ring{box-shadow:inset 0 0 0 2px var(--teal),0 0 40px -4px rgba(0,240,200,.4)}
+
+.meta{position:absolute;left:0;right:0;bottom:0;z-index:5;
+  padding:clamp(13px,1.6vw,20px);display:flex;align-items:flex-end;justify-content:space-between;gap:14px;pointer-events:none}
+.meta .l{display:flex;flex-direction:column;gap:6px}
+.tag{font-family:"Space Mono",monospace;font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:var(--teal)}
+.ttl{font-size:clamp(15px,1.8vw,20px);font-weight:500;letter-spacing:-.01em;color:#eafff9;line-height:1.08}
+.desc{font-size:11.5px;color:var(--ink-dim);max-width:32ch;line-height:1.35}
+.idx{font-family:"Space Mono",monospace;font-size:11px;color:var(--ink-dim);letter-spacing:.1em;align-self:flex-end}
+.medkind{display:inline-flex;align-items:center;gap:6px}
+.medkind .b{width:5px;height:5px;border-radius:1px;background:var(--teal);box-shadow:0 0 8px var(--teal)}
+
+/* video-only badge + audio note */
+.badge{position:absolute;top:12px;left:12px;z-index:5;font-family:"Space Mono",monospace;
+  font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--teal);
+  padding:4px 8px;border:1px solid var(--line);border-radius:30px;background:rgba(5,10,18,.5);backdrop-filter:blur(3px)}
+
+/* loading shimmer until first paint */
+.card.loading::after{content:"";position:absolute;inset:0;z-index:2;
+  background:linear-gradient(100deg,transparent 30%,rgba(0,240,200,.06) 50%,transparent 70%);
+  background-size:220% 100%;animation:shim 1.4s linear infinite}
+@keyframes shim{to{background-position:-220% 0}}
+
+/* -------- footer strip -------- */
+.foot{margin-top:54px;padding-top:24px;border-top:1px solid var(--line);
+  display:flex;flex-wrap:wrap;gap:14px 26px;justify-content:space-between;align-items:center;
+  font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.12em;color:var(--ink-dim)}
+.foot b{color:var(--teal)}
+.legend{display:flex;gap:18px;flex-wrap:wrap}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.sw{width:12px;height:12px;border-radius:3px;border:1px solid var(--line)}
+.sw.o{background:#0c141d;filter:saturate(.1)}
+.sw.i{background:linear-gradient(135deg,var(--teal),#0a9e85)}
+
+/* -------- custom cursor (the "lens") -------- */
+.lens{position:fixed;top:0;left:0;z-index:9999;pointer-events:none;
+  width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;
+  border:1px solid rgba(0,240,200,.8);
+  box-shadow:0 0 0 1px rgba(0,240,200,.12),0 0 18px rgba(0,240,200,.35);
+  mix-blend-mode:screen;transition:width .18s ease,height .18s ease,opacity .25s ease;opacity:0}
+.lens::after{content:"";position:absolute;inset:11px;border-radius:50%;background:var(--teal);box-shadow:0 0 10px var(--teal)}
+.lens.big{width:46px;height:46px;margin:-23px 0 0 -23px}
+@media (pointer:coarse){.lens{display:none}}
+
+/* -------- responsive: never cover-crop landscape into portrait -------- */
+@media (max-width:980px){
+  .card.s-wide,.card.s-tall,.card.s-half{grid-column:span 6}
+}
+@media (max-width:640px){
+  body{cursor:auto}
+  .grid{grid-template-columns:repeat(2,1fr)}
+  .card.s-wide,.card.s-tall,.card.s-half,.card.s-full{grid-column:span 2}
+  .topband{flex-direction:column;align-items:flex-start}
+  .topmeta{text-align:left}
+  .desc{display:none}
+  /* no landscape cover-crop on phones: the GL path already cover-fits in-shader;
+     the CSS fallback layers letterbox (contain) instead of crop, on an abyss mat */
+  .fallback .lyr{background-size:contain;background-repeat:no-repeat;background-color:var(--abyss)}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .pulse,.hint .dot,.card.loading::after{animation:none!important}
+  .lens{display:none!important}
+}
+</style>
+</head>
+<body>
+<div class="lens" id="lens" aria-hidden="true"></div>
+
+<div class="wrap">
+
+  <!-- ============ TOP BAND (signature visible immediately below) ============ -->
+  <header class="topband">
+    <div class="brand">
+      <div class="kicker"><span class="pulse"></span> Dual-Scene&nbsp;//&nbsp;Fluid Mask&nbsp;//&nbsp;v2</div>
+      <h1>See <em>through</em> the surface.</h1>
+      <p class="sub">A gallery rendered in two states. Drift the cursor and a fluid trail dissolves the desaturated skin, leaking the full-color layer beneath. Stop, and it heals in about a second.</p>
+    </div>
+    <div class="topmeta">
+      <div>RENDER &nbsp;<b id="mode">webgl / ping-pong</b></div>
+      <div>FBO &nbsp;<b>half-res</b> &nbsp;DPR&nbsp;<b>1</b></div>
+      <div>WORKS &nbsp;<b id="wc">--</b></div>
+    </div>
+  </header>
+
+  <div class="hint"><span class="dot"></span><span id="hintTxt">move to reveal &middot; click to soak the trail</span></div>
+
+  <!-- ============ THE GRID (signature mechanic, populated at scroll=0) ============ -->
+  <main class="grid" id="grid" aria-label="Fluid x-ray gallery"></main>
+
+  <footer class="foot">
+    <div class="legend">
+      <span><i class="sw o"></i> outer&nbsp;/&nbsp;desaturated</span>
+      <span><i class="sw i"></i> inner&nbsp;/&nbsp;full-color</span>
+      <span class="mono">diffuse&nbsp;~1.0s</span>
+    </div>
+    <div class="mono">FLUID-XRAY-REVEAL &middot; <b>three.js</b> ping-pong sim &middot; tap-and-hold on touch</div>
+  </footer>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* ============================================================================
+   DATA  -  swap freely. Each entry stacks an OUTER (desaturated) image over an
+   INNER (full-color) image. For a single asset, set inner === outer and the
+   shader still desaturates outer + boosts inner, so the X-ray reads.
+   `span` controls tile width; `ratio` is the source aspect (w/h) for sizing.
+   `poster` lets video entries reveal a motion frame without autoplay cost.
+   ============================================================================ */
+const A = '../assets/';
+const G = '../assets/gen/';
+const DATA = [
+  {
+    span:'s-wide', ratio:16/9,
+    outer:A+'flux-car-4k.png',  inner:A+'flux-car-4k.png',
+    tag:'IMAGE / FLUX', title:'Nightshade Coupe',
+    desc:'Matte-black sled on a rain-lit street. The X-ray bleeds the neon back into the paint.',
+    kind:'still'
+  },
+  {
+    span:'s-tall', ratio:16/9,
+    outer:A+'flux-clinic-4k.png', inner:A+'flux-clinic-4k.png',
+    tag:'IMAGE / FLUX', title:'Mint Operatory',
+    desc:'Mint + wood clinic interior. Drag to thaw the color out of the grey.',
+    kind:'still'
+  },
+  {
+    span:'s-half', ratio:16/9,
+    outer:G+'poster-kling-video.png', inner:G+'poster-kling-video.png',
+    video:A+'kling-video.mp4',
+    tag:'VIDEO / KLING', title:'Kling Loop',
+    desc:'Generated motion loop. Poster X-rays now; plays on focus.',
+    kind:'video'
+  },
+  {
+    span:'s-half', ratio:16/9,
+    outer:G+'poster-veo-video.png', inner:G+'poster-veo-video.png',
+    video:A+'veo-video.mp4',
+    tag:'VIDEO / VEO', title:'Veo Sequence',
+    desc:'Cinematic veo clip. Focus to soak it in real frames.',
+    kind:'video'
+  },
+  {
+    span:'s-tall', ratio:1, square:true,
+    outer:A+'sdxl.png', inner:A+'sdxl.png',
+    tag:'IMAGE / SDXL', title:'Painterly Fox',
+    desc:'Autumn fox in oils. The inner layer is the saturated original.',
+    kind:'still'
+  },
+  {
+    span:'s-wide', ratio:16/9,
+    outer:G+'poster-flux-car-i2v.png', inner:G+'poster-flux-car-i2v.png',
+    video:A+'flux-car-i2v.mp4',
+    tag:'VIDEO / I2V', title:'Coupe in Motion',
+    desc:'Image-to-video drive cycle. Heavy clip - plays only when focused.',
+    kind:'video'
+  },
+  {
+    span:'s-half', ratio:16/9,
+    outer:G+'poster-fal-video.png', inner:G+'poster-fal-video.png',
+    video:A+'fal-video.mp4',
+    tag:'VIDEO / FAL', title:'Fal Render',
+    desc:'Short generated loop, X-ray reveals the warm grade.',
+    kind:'video'
+  },
+  {
+    span:'s-half', ratio:1, square:true,
+    outer:A+'hf-tinysd.png', inner:A+'hf-tinysd.png',
+    tag:'IMAGE / TINY-SD', title:'Lo-Fi Apple',
+    desc:'Abstract low-fi study. Even noise hides a brighter twin.',
+    kind:'still'
+  },
+];
+
+/* ============================================================================
+   WEBGL SUPPORT PROBE  +  GLOBAL POINTER STATE
+   ============================================================================ */
+const REDUCED = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+const COARSE  = window.matchMedia('(pointer:coarse)').matches;
+
+function webglOK(){
+  try{
+    const c = document.createElement('canvas');
+    const gl = c.getContext('webgl2') || c.getContext('webgl');
+    if(!gl) return false;
+    // float / half-float render target is needed for the fluid sim
+    const f2 = gl.getExtension('EXT_color_buffer_float');
+    const f1 = gl.getExtension('OES_texture_float') || gl.getExtension('OES_texture_half_float');
+    return !!(f2 || f1) || (c.getContext('webgl2')!=null);
+  }catch(e){ return false; }
+}
+const USE_GL = webglOK() && !REDUCED;
+document.getElementById('mode').textContent = USE_GL ? 'webgl / ping-pong' : (REDUCED?'reduced-motion / static':'css clip-path');
+document.getElementById('wc').textContent = DATA.length;
+
+/* ============================================================================
+   SHADERS  (GLSL ES 1.0 safe: NO dynamically-indexed local arrays.
+   Splat points are passed as a uniform vec3 array indexed by the loop var i,
+   which ANGLE handles correctly; we never write `localArr[expr]`.)
+   ============================================================================ */
+const VERT = /* glsl */`
+  varying vec2 vUv;
+  void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }
+`;
+
+// ---- fluid advance: decay previous density + additive splats along the trail
+const MAX_SPLATS = 8;
+const FLUID_FRAG = /* glsl */`
+  precision highp float;
+  varying vec2 vUv;
+  uniform sampler2D uPrev;       // previous fluid state (R = density)
+  uniform vec2  uTexel;          // 1/resolution
+  uniform float uDecay;          // diffusion / restore rate
+  uniform vec2  uAspect;         // aspect correction so splats stay circular
+  uniform int   uCount;          // active splat count this frame
+  uniform vec3  uSplat[${MAX_SPLATS}]; // xy = pos(uv), z = radius
+  uniform float uForce[${MAX_SPLATS}]; // per-splat intensity
+
+  void main(){
+    // sample previous + cheap 4-neighbour blur => organic diffusion
+    float c = texture2D(uPrev, vUv).r;
+    float n =
+      texture2D(uPrev, vUv + vec2(uTexel.x,0.0)).r +
+      texture2D(uPrev, vUv - vec2(uTexel.x,0.0)).r +
+      texture2D(uPrev, vUv + vec2(0.0,uTexel.y)).r +
+      texture2D(uPrev, vUv - vec2(0.0,uTexel.y)).r;
+    float dens = mix(c, n*0.25, 0.16);   // spread
+    dens *= uDecay;                       // heal toward 0
+
+    // additive splats (loop var index into UNIFORM array = ANGLE-safe)
+    float add = 0.0;
+    for(int i=0;i<${MAX_SPLATS};i++){
+      if(i>=uCount) break;
+      vec3 sp = uSplat[i];
+      vec2 d = (vUv - sp.xy) * uAspect;
+      float r = sp.z;
+      float g = exp(-dot(d,d)/(r*r));
+      add += g * uForce[i];
+    }
+    dens = clamp(dens + add, 0.0, 1.0);
+    gl_FragColor = vec4(dens, dens, dens, 1.0);
+  }
+`;
+
+// ---- display: blend OUTER(desat) -> INNER(full color) by fluid density
+const DISPLAY_FRAG = /* glsl */`
+  precision highp float;
+  varying vec2 vUv;
+  uniform sampler2D uOuter;
+  uniform sampler2D uInner;
+  uniform sampler2D uFluid;
+  uniform vec2  uCover;     // uv scale to "cover" the cell without distortion
+  uniform vec2  uOff;       // uv offset to center the cover crop
+  uniform float uTime;
+  uniform float uTeal;      // 0..1 inner teal-grade strength
+  const vec3 TEAL = vec3(0.0, 0.941, 0.784);
+
+  vec3 desat(vec3 c){
+    float l = dot(c, vec3(0.299,0.587,0.114));
+    vec3 g = vec3(l);
+    // outer = near-black desaturated, slightly blue-shadowed
+    g = mix(g, g*vec3(0.55,0.7,0.85), 0.6);
+    return g*0.62;
+  }
+
+  void main(){
+    vec2 uv = vUv * uCover + uOff;
+    vec3 outerC = texture2D(uOuter, uv).rgb;
+    vec3 innerC = texture2D(uInner, uv).rgb;
+
+    float f = texture2D(uFluid, vUv).r;
+    // shape the mask: soft core, crisp organic edge
+    float m = smoothstep(0.06, 0.55, f);
+
+    vec3 out0 = desat(outerC);
+    // inner: full color, pushed saturation + a teal bioluminescent rim
+    float l = dot(innerC, vec3(0.299,0.587,0.114));
+    vec3 inner = mix(vec3(l), innerC, 1.18);
+    inner += TEAL * pow(f,2.0) * 0.10 * uTeal;
+
+    vec3 col = mix(out0, inner, m);
+
+    // teal edge glow where the fluid front is thin (the "x-ray membrane")
+    float edge = smoothstep(0.12,0.34,f) * (1.0 - smoothstep(0.34,0.7,f));
+    col += TEAL * edge * 0.5 * uTeal;
+
+    // faint scanline + vignette for the clinical x-ray feel (perceptual polish)
+    float scan = 0.97 + 0.03*sin((vUv.y*900.0) + uTime*0.6);
+    col *= scan;
+    float vig = smoothstep(1.25,0.35,length(vUv-0.5));
+    col *= mix(0.82,1.0,vig);
+
+    gl_FragColor = vec4(col, 1.0);
+  }
+`;
+
+/* ============================================================================
+   ONE SHARED RENDERER, MANY CARD STAGES (each card = its own scene/targets)
+   ============================================================================ */
+let renderer=null, sharedGL=true;
+if(USE_GL){
+  try{
+    renderer = new THREE.WebGLRenderer({
+      antialias:false, alpha:false,
+      preserveDrawingBuffer:true,        // thumbnail captures a painted frame
+      powerPreference:'high-performance'
+    });
+    renderer.setPixelRatio(1);           // DPR 1 per brief
+    renderer.autoClear = false;
+    renderer.setClearColor(0x050a12, 1);
+  }catch(e){ renderer=null; sharedGL=false; }
+}
+
+const texLoader = new THREE.TextureLoader();
+function loadTex(url){
+  return new Promise((res)=>{
+    texLoader.load(url, t=>{
+      t.minFilter = THREE.LinearFilter; t.magFilter = THREE.LinearFilter;
+      t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+      t.generateMipmaps = false;
+      if('colorSpace' in t) t.colorSpace = THREE.SRGBColorSpace;
+      res(t);
+    }, undefined, ()=>res(null));
+  });
+}
+
+const quad = new THREE.PlaneGeometry(2,2);
+const cam  = new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+
+const cards = [];   // active card controllers
+let rafId=null, running=false, lastT=performance.now();
+
+function makeRT(w,h){
+  const type = (renderer.capabilities.isWebGL2) ? THREE.HalfFloatType : THREE.HalfFloatType;
+  return new THREE.WebGLRenderTarget(w,h,{
+    minFilter:THREE.LinearFilter, magFilter:THREE.LinearFilter,
+    format:THREE.RGBAFormat, type, depthBuffer:false, stencilBuffer:false,
+    wrapS:THREE.ClampToEdgeWrapping, wrapT:THREE.ClampToEdgeWrapping
+  });
+}
+
+/* ---- build a GL card ---- */
+function buildGLCard(def, el, canvas, w, h){
+  const outerT = def._outerT, innerT = def._innerT;
+
+  // cover-fit uv (do not distort landscape into the cell box)
+  const imgRatio = def.ratio;
+  const cellRatio = w/h;
+  let cov = new THREE.Vector2(1,1), off = new THREE.Vector2(0,0);
+  if(cellRatio > imgRatio){ // cell wider -> crop top/bottom
+    const s = imgRatio/cellRatio; cov.set(1,s); off.set(0,(1-s)/2);
+  }else{ // cell taller -> crop sides
+    const s = cellRatio/imgRatio; cov.set(s,1); off.set((1-s)/2,0);
+  }
+
+  // fluid sim at half res
+  const fw = Math.max(2, Math.floor(w/2)), fh = Math.max(2, Math.floor(h/2));
+  let rtA = makeRT(fw,fh), rtB = makeRT(fw,fh);
+
+  const fluidMat = new THREE.ShaderMaterial({
+    vertexShader:VERT, fragmentShader:FLUID_FRAG,
+    uniforms:{
+      uPrev:{value:null}, uTexel:{value:new THREE.Vector2(1/fw,1/fh)},
+      uDecay:{value:0.94}, uAspect:{value:new THREE.Vector2(Math.max(1,fw/fh),Math.max(1,fh/fw))},
+      uCount:{value:0},
+      uSplat:{value:Array.from({length:MAX_SPLATS},()=>new THREE.Vector3())},
+      uForce:{value:new Float32Array(MAX_SPLATS)},
+    }
+  });
+  const dispMat = new THREE.ShaderMaterial({
+    vertexShader:VERT, fragmentShader:DISPLAY_FRAG,
+    uniforms:{
+      uOuter:{value:outerT}, uInner:{value:innerT}, uFluid:{value:rtA.texture},
+      uCover:{value:cov}, uOff:{value:off}, uTime:{value:0}, uTeal:{value:1.0},
+    }
+  });
+  const fluidMesh = new THREE.Mesh(quad, fluidMat);
+  const dispMesh  = new THREE.Mesh(quad, dispMat);
+  const sceneFluid = new THREE.Scene(); sceneFluid.add(fluidMesh);
+  const sceneDisp  = new THREE.Scene(); sceneDisp.add(dispMesh);
+
+  const ctrl = {
+    def, el, canvas, w, h, fw, fh,
+    rtA, rtB, fluidMat, dispMat, sceneFluid, sceneDisp,
+    visible:false, inView:false,
+    // pointer trail
+    splats:[],            // {x,y,r,force,life}
+    last:null,
+    seeded:false,
+    painted:false,
+    burstUntil:0,
+  };
+
+  // SEED a default blob so the static thumbnail SHOWS the mechanic at load.
+  // (revealed patch of inner color, lower-left where copy doesn't sit on top)
+  ctrl.seedBlob = ()=>{
+    ctrl.splats.push({x:0.30,y:0.40,r:0.30,force:0.62,life:1.0,seed:true});
+    ctrl.splats.push({x:0.40,y:0.46,r:0.20,force:0.45,life:1.0,seed:true});
+    ctrl.seeded = true;
+  };
+
+  cards.push(ctrl);
+  return ctrl;
+}
+
+/* ---- step a single GL card one frame ---- */
+function stepGLCard(c, dt, now){
+  // assemble up to MAX_SPLATS splats from the active trail
+  const u = c.fluidMat.uniforms;
+  const arr = u.uSplat.value, force = u.uForce.value;
+  let n = 0;
+  for(let i=c.splats.length-1; i>=0 && n<MAX_SPLATS; i--){
+    const s = c.splats[i];
+    arr[n].set(s.x, s.y, s.r);
+    force[n] = s.force * (s.seed ? (c.seeded? 1:0) : s.life);
+    n++;
+  }
+  u.uCount.value = n;
+
+  // decay non-seed splats; keep one gentle seed alive until first interaction
+  for(let i=c.splats.length-1;i>=0;i--){
+    const s=c.splats[i];
+    if(s.seed){
+      // seed fades out the moment the user actually interacts with this card
+      if(c.hadInput){ s.force *= 0.90; if(s.force<0.02) c.splats.splice(i,1); }
+    }else{
+      s.life *= 0.86; if(s.life<0.03) c.splats.splice(i,1);
+    }
+  }
+
+  // ping-pong: advance fluid A -> B, swap
+  u.uPrev.value = c.rtA.texture;
+  // restore rate: faster heal when idle (so it returns in ~1s)
+  const idle = (now - (c.lastMove||0)) > 90;
+  u.uDecay.value = idle ? 0.905 : 0.952;
+
+  renderer.setRenderTarget(c.rtB);
+  renderer.setViewport(0,0,c.fw,c.fh);
+  renderer.render(c.sceneFluid, cam);
+  const tmp=c.rtA; c.rtA=c.rtB; c.rtB=tmp;
+  c.dispMat.uniforms.uFluid.value = c.rtA.texture;
+
+  // display to the card's canvas
+  c.dispMat.uniforms.uTime.value = now*0.001;
+  renderer.setRenderTarget(null);
+  // size the shared canvas/viewport to THIS card and blit
+  if(renderer.domElement !== c.canvas){
+    // we render into the shared renderer canvas then copy via drawImage
+  }
+  renderer.setViewport(0,0,c.w,c.h);
+  renderer.setScissorTest(true);
+  renderer.setScissor(0,0,c.w,c.h);
+  renderer.clear();
+  renderer.render(c.sceneDisp, cam);
+  renderer.setScissorTest(false);
+
+  // copy shared GL canvas region into the card's own 2D canvas
+  c.ctx2d.drawImage(renderer.domElement, 0, renderer.domElement.height - c.h, c.w, c.h, 0, 0, c.w, c.h);
+  c.painted = true;
+}
+
+/* ---- main loop ---- */
+function loop(){
+  const now = performance.now();
+  const dt = Math.min(40, now-lastT); lastT=now;
+
+  // size the shared renderer to the largest in-view card once per frame
+  let maxW=2, maxH=2, anyVis=false;
+  for(const c of cards){ if(c.inView){ anyVis=true; if(c.w>maxW)maxW=c.w; if(c.h>maxH)maxH=c.h; } }
+  if(anyVis){
+    if(renderer.domElement.width!==maxW || renderer.domElement.height!==maxH){
+      renderer.setSize(maxW,maxH,false);
+    }
+    for(const c of cards){
+      if(!c.inView) continue;
+      stepGLCard(c, dt, now);
+    }
+  }
+  rafId = requestAnimationFrame(loop);
+}
+function startLoop(){ if(!running){ running=true; lastT=performance.now(); rafId=requestAnimationFrame(loop);} }
+
+/* ============================================================================
+   POINTER -> SPLATS  (desktop) and TAP-AND-HOLD BURST (touch)
+   ============================================================================ */
+function cardLocal(c, clientX, clientY){
+  const r = c.el.getBoundingClientRect();
+  let x = (clientX - r.left)/r.width;
+  let y = (clientY - r.top)/r.height;
+  // fluid uv has origin bottom-left; canvas y is top-down -> flip
+  return {x:Math.min(1,Math.max(0,x)), y:Math.min(1,Math.max(0,1-y)), inside:(x>=0&&x<=1&&y>=0&&y<=1)};
+}
+
+function pushSplat(c, x, y, r, f){
+  c.splats.push({x,y,r,force:f,life:1.0});
+  // also fill the segment between last + now so fast moves leave a continuous trail
+  if(c.last){
+    const dx=x-c.last.x, dy=y-c.last.y, d=Math.hypot(dx,dy);
+    const steps=Math.min(4, Math.floor(d/0.05));
+    for(let i=1;i<=steps;i++){
+      c.splats.push({x:c.last.x+dx*(i/steps), y:c.last.y+dy*(i/steps), r:r*0.85, force:f*0.7, life:0.9});
+    }
+  }
+  c.last={x,y};
+  c.lastMove=performance.now();
+  c.hadInput=true;
+}
+
+/* ============================================================================
+   BUILD THE DOM  +  WIRE PER-CARD GL / FALLBACK
+   ============================================================================ */
+const grid = document.getElementById('grid');
+
+function rowSpanFor(el){
+  // grid-auto-rows:1px -> set grid-row span to the rendered height
+  const h = Math.round(el.getBoundingClientRect().height);
+  const rows = Math.ceil(h);   // 1px rows
+  return rows;
+}
+
+function applyHeights(){
+  for(const def of DATA){
+    const el = def._el; if(!el) continue;
+    el.style.gridRowEnd = '';
+    const h = Math.round(el.getBoundingClientRect().width / def._cellRatio);
+    el.style.height = h+'px';
+    el.style.gridRowEnd = 'span '+ (h+Math.round(parseFloat(getComputedStyle(grid).rowGap||14)));
+  }
+}
+
+async function build(){
+  for(let i=0;i<DATA.length;i++){
+    const def = DATA[i];
+    const el = document.createElement(def.video ? 'button' : 'div');
+    el.className = 'card '+def.span+' loading';
+    el.setAttribute('tabindex', def.video? '' : '0');
+    if(!def.video) el.setAttribute('role','img');
+    el.setAttribute('aria-label', def.title+' - '+def.tag);
+    def._cellRatio = def.square ? 1 : (def.span==='s-tall'?4/3:(def.span==='s-full'?21/9:16/9));
+
+    // stage canvas (or CSS fallback)
+    const stage = document.createElement('div'); stage.className='stage';
+    const ring = document.createElement('div'); ring.className='ring';
+    const scrim = document.createElement('div'); scrim.className='scrim';
+
+    // CSS fallback layers always present (used when no GL, and as poster base)
+    const fb = document.createElement('div'); fb.className='fallback';
+    const lo = document.createElement('div'); lo.className='lyr outer'; lo.style.backgroundImage=`url('${def.outer}')`;
+    const li = document.createElement('div'); li.className='lyr inner'; li.style.backgroundImage=`url('${def.inner}')`;
+    fb.appendChild(lo); fb.appendChild(li);
+
+    el.appendChild(fb);
+    el.appendChild(stage);
+    el.appendChild(scrim);
+    el.appendChild(ring);
+
+    if(def.video){
+      const badge=document.createElement('div'); badge.className='badge';
+      badge.textContent='VIDEO'+ (/(heygen|veo|did)/.test(def.video)?' / AUDIO':'');
+      el.appendChild(badge);
+    }
+
+    // meta
+    const meta=document.createElement('div'); meta.className='meta';
+    meta.innerHTML = `
+      <div class="l">
+        <span class="tag"><span class="medkind"><i class="b"></i>${def.tag}</span></span>
+        <span class="ttl">${def.title}</span>
+        <span class="desc">${def.desc}</span>
+      </div>
+      <span class="idx">${String(i+1).padStart(2,'0')} / ${String(DATA.length).padStart(2,'0')}</span>`;
+    el.appendChild(meta);
+
+    grid.appendChild(el);
+    def._el = el; def._fb = {root:fb, inner:li};
+  }
+
+  applyHeights();
+  window.addEventListener('resize', ()=>{ applyHeights(); resizeCards(); }, {passive:true});
+
+  if(USE_GL && renderer){
+    await wireGL();
+  }else{
+    wireFallback();
+  }
+}
+
+/* ---------- GL WIRING ---------- */
+async function wireGL(){
+  // preload textures, build card GL stages
+  for(const def of DATA){
+    const [oT, iT] = await Promise.all([loadTex(def.outer), loadTex(def.inner)]);
+    if(!oT){ def._glFail=true; continue; }
+    def._outerT = oT; def._innerT = iT || oT;
+
+    const el = def._el;
+    const rect = el.getBoundingClientRect();
+    const w = Math.max(2,Math.round(rect.width));
+    const h = Math.max(2,Math.round(rect.height));
+
+    // each card gets its OWN 2D canvas; we blit the shared GL output into it
+    const canvas = document.createElement('canvas');
+    canvas.width=w; canvas.height=h;
+    canvas.style.width='100%'; canvas.style.height='100%';
+    const ctx2d = canvas.getContext('2d');
+    el.querySelector('.stage').appendChild(canvas);
+
+    const c = buildGLCard(def, el, canvas, w, h);
+    c.ctx2d = ctx2d;
+    c.seedBlob();              // seed default reveal blob
+    def._ctrl = c;
+    el.classList.remove('loading');
+  }
+
+  // CONFIRM A PAINTED FRAME before starting the loop.
+  // Prime one card, render once, verify non-blank pixel, then start rAF.
+  let primed=false;
+  for(const c of cards){
+    renderer.setSize(c.w,c.h,false);
+    stepGLCard(c, 16, performance.now());
+    stepGLCard(c, 16, performance.now());   // 2 steps so seed diffuses visibly
+    // read back a few pixels from the shared GL canvas to confirm paint
+    try{
+      const gl = renderer.getContext();
+      const px = new Uint8Array(4);
+      gl.readPixels(Math.floor(c.w*0.32), Math.floor(c.h*0.55), 1,1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      if(px[0]+px[1]+px[2] > 6){ primed=true; }
+    }catch(e){}
+    if(primed) break;
+  }
+
+  if(!primed){
+    // GL produced a blank frame (driver quirk) -> drop to CSS fallback cleanly
+    teardownGL();
+    wireFallback();
+    document.getElementById('mode').textContent='css clip-path (gl blank)';
+    return;
+  }
+
+  // visibility: only animate in-view cards; videos play only when focused
+  setupObservers();
+  setupPointer();
+  startLoop();
+}
+
+function teardownGL(){
+  if(rafId) cancelAnimationFrame(rafId); running=false;
+  for(const c of cards){
+    c.canvas.remove();
+    c.rtA.dispose(); c.rtB.dispose();
+  }
+  cards.length=0;
+}
+
+function resizeCards(){
+  if(!cards.length) return;
+  for(const c of cards){
+    const r=c.el.getBoundingClientRect();
+    const w=Math.max(2,Math.round(r.width)), h=Math.max(2,Math.round(r.height));
+    if(w===c.w && h===c.h) continue;
+    c.w=w; c.h=h; c.canvas.width=w; c.canvas.height=h;
+    c.fw=Math.max(2,Math.floor(w/2)); c.fh=Math.max(2,Math.floor(h/2));
+    c.rtA.setSize(c.fw,c.fh); c.rtB.setSize(c.fw,c.fh);
+    c.fluidMat.uniforms.uTexel.value.set(1/c.fw,1/c.fh);
+    c.fluidMat.uniforms.uAspect.value.set(Math.max(1,c.fw/c.fh),Math.max(1,c.fh/c.fw));
+    // recompute cover fit
+    const imgRatio=c.def.ratio, cellRatio=w/h;
+    if(cellRatio>imgRatio){const s=imgRatio/cellRatio;c.dispMat.uniforms.uCover.value.set(1,s);c.dispMat.uniforms.uOff.value.set(0,(1-s)/2);}
+    else{const s=cellRatio/imgRatio;c.dispMat.uniforms.uCover.value.set(s,1);c.dispMat.uniforms.uOff.value.set((1-s)/2,0);}
+  }
+}
+
+/* ---------- INTERSECTION OBSERVERS ---------- */
+function setupObservers(){
+  const io = new IntersectionObserver((ents)=>{
+    for(const e of ents){
+      const def = DATA.find(d=>d._el===e.target); if(!def||!def._ctrl) continue;
+      def._ctrl.inView = e.isIntersecting && e.intersectionRatio>0.05;
+    }
+  },{threshold:[0,0.06,0.5]});
+  for(const def of DATA){ if(def._ctrl) io.observe(def._el); }
+}
+
+/* ---------- POINTER + VIDEO FOCUS ---------- */
+let lens=document.getElementById('lens');
+function setupPointer(){
+  if(!COARSE){
+    document.addEventListener('mousemove', (e)=>{
+      lens.style.transform=`translate(${e.clientX}px,${e.clientY}px)`;
+      lens.style.opacity='1';
+    }, {passive:true});
+    document.addEventListener('mouseleave', ()=>{ lens.style.opacity='0'; });
+  }
+
+  for(const def of DATA){
+    const c = def._ctrl; if(!c) continue;
+    const el = def._el;
+
+    if(!COARSE){
+      el.addEventListener('mousemove', (e)=>{
+        const p = cardLocal(c, e.clientX, e.clientY);
+        if(p.inside) pushSplat(c, p.x, p.y, 0.16, 0.55);
+        lens.classList.add('big');
+      }, {passive:true});
+      el.addEventListener('mouseleave', ()=>{ lens.classList.remove('big'); c.last=null; });
+      // click = soak: a heavy, slow-fading splat
+      el.addEventListener('mousedown', (e)=>{
+        const p = cardLocal(c, e.clientX, e.clientY);
+        if(p.inside){ c.splats.push({x:p.x,y:p.y,r:0.34,force:0.95,life:1.0}); c.lastMove=performance.now(); c.hadInput=true; }
+      });
+      // keyboard reveal for focusable image cards
+      el.addEventListener('focus', ()=>{ c.splats.push({x:0.5,y:0.5,r:0.4,force:0.85,life:1.0}); c.lastMove=performance.now(); c.hadInput=true; });
+    }
+
+    // TAP-AND-HOLD radial burst on touch
+    if(COARSE){
+      let holdT=null;
+      const burst=(x,y)=>{
+        c.splats.push({x,y,r:0.42,force:1.0,life:1.0});
+        c.splats.push({x,y,r:0.26,force:0.7,life:1.0});
+        c.lastMove=performance.now(); c.hadInput=true;
+        c.burstUntil=performance.now()+1500;   // auto-fade target window
+      };
+      el.addEventListener('touchstart',(e)=>{
+        const t=e.touches[0]; const p=cardLocal(c,t.clientX,t.clientY);
+        holdT=setTimeout(()=>burst(p.x,p.y), 120);
+      },{passive:true});
+      el.addEventListener('touchmove',(e)=>{
+        const t=e.touches[0]; const p=cardLocal(c,t.clientX,t.clientY);
+        if(p.inside) pushSplat(c,p.x,p.y,0.18,0.55);
+      },{passive:true});
+      el.addEventListener('touchend',()=>{ if(holdT)clearTimeout(holdT); c.last=null; },{passive:true});
+    }
+
+    // video focus = play ONLY this one (avoid simultaneous decode)
+    if(def.video){ wireVideoFocus(def); }
+  }
+}
+
+/* video: load + play on focus/hover, swap its frame into the inner texture */
+let activeVideo=null;
+function wireVideoFocus(def){
+  const c=def._ctrl, el=def._el;
+  let vid=null, vtex=null, savedInner=def._innerT;
+
+  const start=()=>{
+    if(REDUCED) return;
+    if(activeVideo && activeVideo!==def) stopVideo(activeVideo);
+    if(!vid){
+      vid=document.createElement('video');
+      vid.src=def.video; vid.loop=true; vid.muted=true; vid.playsInline=true;
+      vid.preload='auto'; vid.crossOrigin='anonymous';
+      vid.addEventListener('playing', ()=>{
+        vtex=new THREE.VideoTexture(vid);
+        vtex.minFilter=THREE.LinearFilter; vtex.magFilter=THREE.LinearFilter;
+        if('colorSpace' in vtex) vtex.colorSpace=THREE.SRGBColorSpace;
+        c.dispMat.uniforms.uInner.value=vtex;   // reveal LIVE video as the inner layer
+      });
+    }
+    def._vid=vid;
+    vid.play().catch(()=>{});
+    activeVideo=def;
+  };
+  const stop=()=>stopVideo(def);
+  def._stopVideo=()=>{ if(vid){ vid.pause(); } c.dispMat.uniforms.uInner.value=savedInner; };
+
+  if(COARSE){
+    // on touch, the hold-burst also wakes the video briefly
+    el.addEventListener('touchstart', start, {passive:true});
+    el.addEventListener('touchend', ()=>{ setTimeout(stop, 1600); }, {passive:true});
+  }else{
+    el.addEventListener('mouseenter', start);
+    el.addEventListener('focus', start);
+    el.addEventListener('mouseleave', stop);
+    el.addEventListener('blur', stop);
+    el.addEventListener('click', start); // button cards
+  }
+}
+function stopVideo(def){ if(def._stopVideo) def._stopVideo(); if(activeVideo===def) activeVideo=null; }
+
+/* ============================================================================
+   CSS FALLBACK PATH (no WebGL, or reduced-motion)
+   ============================================================================ */
+function wireFallback(){
+  for(const def of DATA){
+    const el=def._el; el.classList.remove('loading'); el.classList.add('fb-on');
+    const inner=def._fb.inner; inner.classList.add('armed');
+
+    if(REDUCED){
+      // show final-ish state, no rAF, no inline transform overrides: reveal a static patch
+      el.style.setProperty('--fx','32%'); el.style.setProperty('--fy','58%');
+      continue;
+    }
+    if(!COARSE){
+      el.addEventListener('mousemove',(e)=>{
+        const r=el.getBoundingClientRect();
+        el.style.setProperty('--fx', ((e.clientX-r.left)/r.width*100).toFixed(1)+'%');
+        el.style.setProperty('--fy', ((e.clientY-r.top)/r.height*100).toFixed(1)+'%');
+      },{passive:true});
+      el.addEventListener('mouseleave',()=>{ el.style.setProperty('--fx','-40%'); });
+    }else{
+      // tap-and-hold radial reveal, auto-fade after 1.5s
+      let t=null;
+      el.addEventListener('touchstart',(e)=>{
+        const tt=e.touches[0], r=el.getBoundingClientRect();
+        el.style.setProperty('--fx', ((tt.clientX-r.left)/r.width*100).toFixed(1)+'%');
+        el.style.setProperty('--fy', ((tt.clientY-r.top)/r.height*100).toFixed(1)+'%');
+        inner.style.clipPath='circle(40% at var(--fx) var(--fy))';
+        inner.style.webkitClipPath='circle(40% at var(--fx) var(--fy))';
+        clearTimeout(t); t=setTimeout(()=>{ inner.style.clipPath='circle(0 at var(--fx) var(--fy))'; inner.style.webkitClipPath='circle(0 at var(--fx) var(--fy))'; },1500);
+      },{passive:true});
+    }
+    // seed a small static reveal so the thumbnail still shows the mechanic
+    el.style.setProperty('--fx','32%'); el.style.setProperty('--fy','58%');
+    if(!REDUCED){ inner.style.transition='clip-path .9s ease'; }
+  }
+  document.getElementById('hintTxt').textContent = COARSE ? 'tap and hold to x-ray' : (REDUCED?'reduced-motion: static reveal':'move to x-ray the surface');
+}
+
+/* ============================================================================
+   GO
+   ============================================================================ */
+build();
+
+/* touch hint copy */
+if(COARSE){ document.getElementById('hintTxt').textContent='tap and hold to x-ray the surface'; }
+</script>
+</body>
+</html>

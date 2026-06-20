@@ -1,4 +1,4 @@
-<!-- TEMPLATE: Wavefront Index | ARCHETYPE: HIGHLIGHT WAVE - CSS Custom Highlight API marks matching keywords across all prose as a scroll wavefront rolls down | REF: CSS Custom Highlight API (Baseline 2024, MDN); Codrops Highlighting Text Ranges 2025; web.dev ::highlight() registry 2025 | WHEN TO USE: a typographic work index where reading down the page lights up thematic keywords amber in a temporal ripple, and clicking a keyword propagates its highlight across every paragraph at once | SWAP: edit the DATA array at top of <script> -->
+<!-- TEMPLATE: Wavefront Index | ARCHETYPE: HIGHLIGHT WAVE - CSS Custom Highlight API marks matching keywords across all prose as a scroll wavefront rolls down | REF: CSS Custom Highlight API (Baseline 2024, MDN); Codrops Highlighting Text Ranges 2025; web.dev ::highlight() registry 2025 | WHEN TO USE: a typographic work index where reading down the page lights up thematic keywords amber in a temporal ripple, and clicking a keyword propagates its highlight across every paragraph at once | SWAP: edit the KEYWORDS and DATA arrays at the top of the first <script> -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -377,10 +377,21 @@
     body{font-size:18px;}
     .wrap{padding:0 20px;}
     .wave-tag{display:none;}
-    h1.title{font-size:clamp(2.3rem,12vw,3.2rem);}
-    .legend{gap:7px;}
+    /* COMPACT MASTHEAD so the first entry's lit prose peeks into the
+       first viewport at scroll=0 (the catalogue thumb is a scroll=0 shot).
+       Without this the seeded highlight sits ~3px below the 844px fold. */
+    header.mast{padding:18px 0 16px;margin-bottom:16px;}
+    h1.title{font-size:clamp(2.1rem,11vw,3rem);margin-bottom:.22em;}
+    .standfirst{font-size:1.02rem;margin-bottom:2px;}
+    .kicker{margin-bottom:10px;}
+    .legend{gap:7px;margin:14px 0 2px;}
     .chip{font-size:12px;padding:5px 10px;}
+    .entry{padding:22px 0;}
     figure.thumb{margin-top:14px;}
+    /* never crop a landscape still/loop into the 4/3 thumb on a phone:
+       letterbox it (contain) instead of cover-crop */
+    figure.thumb img,
+    figure.thumb video{object-fit:contain;background:var(--paper-2);}
   }
 </style>
 </head>
@@ -463,7 +474,7 @@ const DATA = [
     id:"mesh",
     title:"Refined Mesh, Form",
     tool:"Meshy - 3D",
-    media:{type:"img", src:"../assets/gen/meshy-refined-thumb.png", poster:"../assets/gen/meshy-refined-thumb.png"},
+    media:{type:"img", src:"../assets/meshy-refined-thumb.png", poster:"../assets/meshy-refined-thumb.png"},
     prose:"A three dimensional form, its mesh refined until the surface holds light cleanly across every face. The material question is literal here - how a grid of polygons becomes a continuous texture, how color wraps a volume, how depth survives a flat frame. Motion is latent in the form, waiting for a turn it has not yet been given."
   }
 ];
@@ -738,8 +749,26 @@ const DATA = [
      The wave sits at WAVE_FRAC of the viewport height. A keyword
      group is "passed" once its document centroid is above the wave's
      document Y. The single group straddling the wave gets the crest. */
-  const WAVE_FRAC = 0.46;
+  const WAVE_FRAC = 0.62;   // sits low enough to cross early prose at scroll=0
   let ticking = false, lastScroll = -1;
+
+  // SEED: the brief requires the first paragraph to read at scroll=0 even
+  // before any scroll. We force-light the first two keyword occurrences in
+  // the first prose paragraph so the mechanic is legible in the catalogue
+  // thumbnail. These are merged into the wave set every frame until the
+  // wavefront naturally passes them.
+  const seedRanges = (function(){
+    const seeds = [];
+    const seen = new Set();
+    for(const rec of allRanges){
+      if(rec.paraIndex !== 0) continue;
+      if(seen.has(rec.word)) continue;        // two DISTINCT keywords
+      seen.add(rec.word);
+      seeds.push(rec);
+      if(seeds.length >= 2) break;
+    }
+    return seeds;
+  })();
 
   function applyAll(){
     // reduced-motion / fallback-static: everything lit, no crest
@@ -765,8 +794,9 @@ const DATA = [
     railFill.style.setProperty("--progress", (prog*100)+"%");
 
     // recolor: passed -> wave-amber; straddling group -> crest
-    // "crest band" = within ~ one line-height of the wave
-    const band = 30;
+    // "crest band" = a generous reading band around the wave so the
+    // keyword the wave is presently crossing visibly intensifies
+    const band = 68;
     let crestWord = null;
     // find the lowest passed keyword group near the wave to crest it
     let nearest = Infinity;
@@ -778,11 +808,13 @@ const DATA = [
       }
     });
 
+    const seedSet = new Set(seedRanges);
     if(SUPPORTS){
       hlWave.clear(); hlCrest.clear();
       allRanges.forEach(rec=>{
         if(pinned.has(rec.word)) return; // pinned highlight owns it
-        if(waveDocY >= rec.yDoc){
+        const passed = waveDocY >= rec.yDoc || seedSet.has(rec);
+        if(passed){
           if(crestWord && rec.word === crestWord && Math.abs(waveDocY - rec.yDoc) <= band){
             hlCrest.add(rec.range);
           } else {
@@ -793,7 +825,7 @@ const DATA = [
     } else {
       allRanges.forEach(rec=>{
         if(pinned.has(rec.word)){ rec.mark.classList.remove("on","crest"); return; }
-        const passed = waveDocY >= rec.yDoc;
+        const passed = (waveDocY >= rec.yDoc) || seedSet.has(rec);
         rec.mark.classList.toggle("on", passed);
         const isCrest = passed && crestWord && rec.word===crestWord && Math.abs(waveDocY-rec.yDoc)<=band;
         rec.mark.classList.toggle("crest", isCrest);

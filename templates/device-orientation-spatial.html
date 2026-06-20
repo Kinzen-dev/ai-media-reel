@@ -525,19 +525,25 @@ const WORKS = [
       }
     }
 
-    // reticle aim + dwell-to-lock logic
+    // reticle aim + dwell-to-lock logic.
+    // Reduced motion: no animated dwell ring; the held card locks instantly so
+    // the signature (a card held under the reticle) still reads in a static frame.
     if(aimed){
       aimed.el.classList.add("aimed");
-      if(dwellTarget !== aimed){
-        dwellTarget = aimed; dwellStart = performance.now();
-      }
-      const held = performance.now() - dwellStart;
-      const t = Math.min(1, held / LOCK_MS);
-      reticle.classList.add("charging");
-      progress.style.strokeDashoffset = (PROG_C * (1 - t)).toFixed(1);
-      elLock.innerHTML = `reticle: <b style="color:var(--amber)">aiming ${aimed.w.num}</b>`;
-      if(t >= 1 && lockedCard !== aimed){
-        lockCard(aimed.el, false);
+      if(reduceMotion){
+        if(lockedCard !== aimed) lockCard(aimed.el, false);
+      } else {
+        if(dwellTarget !== aimed){
+          dwellTarget = aimed; dwellStart = performance.now();
+        }
+        const held = performance.now() - dwellStart;
+        const t = Math.min(1, held / LOCK_MS);
+        reticle.classList.add("charging");
+        progress.style.strokeDashoffset = (PROG_C * (1 - t)).toFixed(1);
+        elLock.innerHTML = `reticle: <b style="color:var(--amber)">aiming ${aimed.w.num}</b>`;
+        if(t >= 1 && lockedCard !== aimed){
+          lockCard(aimed.el, false);
+        }
       }
     } else {
       dwellTarget = null;
@@ -550,6 +556,8 @@ const WORKS = [
     elBear.innerHTML = `${Math.round(camAz)}&deg;`;
     elPitch.innerHTML = `${Math.round(camEl)}&deg;`;
 
+    // Reduced motion: render exactly one static frame, never spin the rAF loop.
+    if(reduceMotion) return;
     requestAnimationFrame(frame);
   }
 
@@ -587,7 +595,7 @@ const WORKS = [
     if(c.w.type !== "video") return;
     const v = c.el.querySelector("video");
     if(!v) return;
-    if(on){
+    if(on && !reduceMotion){
       const src = v.querySelector("source");
       if(src && !src.src){ src.src = src.dataset.src; v.load(); }
       const p = v.play(); if(p && p.catch) p.catch(()=>{});

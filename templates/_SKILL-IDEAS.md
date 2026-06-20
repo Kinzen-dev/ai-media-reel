@@ -139,6 +139,12 @@ verify-improve domain (templates here, but also: bug sweeps, content batches, mi
 - A gradient sized `auto` on a full-viewport MASKED element samples only its midpoint inside small
   letterforms -> the knockout text looks like a flat solid colour. Size/position the gradient to the
   glyph BAND (background-size/background-position) so the full colour range renders inside the letters.
+- `clip-path: path()` is NOT responsive - the path coordinates are fixed CSS pixels in the element's
+  own box, they do NOT scale to the element. A path authored in a ~1000-unit design space looks right
+  only when the element is ~1000px; on a wider viewport the path clips off a vertical strip (reads as a
+  side panel, not the intended shape). For a responsive clipped shape use `clip-path: polygon()` with
+  PERCENT coords (which scale), or an inline SVG `<clipPath clipPathUnits="objectBoundingBox">`. (Parked
+  clip-path-morph-scroll over this; path()->path() morphs are easy to author but non-responsive.)
 
 ### Process insights
 - Perceptual loop: build -> capture the REAL artifact -> critique as a demanding reviewer (composition,

@@ -148,12 +148,11 @@ const PAGES = [
   }
   .topnav a:hover { opacity: 1; }
 
-  /* views container */
-  .view { display: none; }
-  .view.show { display: block; }
+  /* views container (only one is mounted at a time, so default is shown) */
+  .view { display: block; }
 
   /* ============ INDEX VIEW ============ */
-  .idx {
+  .idx.view {
     min-height: 100vh;
     display: grid;
     grid-template-columns: 1.05fr 1fr;
@@ -351,7 +350,7 @@ const PAGES = [
 
   /* ============ RESPONSIVE ============ */
   @media (max-width: 980px) {
-    .idx { grid-template-columns: 1fr; }
+    .idx.view { grid-template-columns: 1fr; }
     .idx-left { border-right: none; }
     .idx-right { min-height: 56vh; order: -1; }
     .detail-content { grid-template-columns: 1fr; gap: 24px; }
@@ -428,6 +427,19 @@ const topnav = document.getElementById("topnav");
 
 const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const MOBILE  = window.matchMedia("(max-width: 640px)").matches;
+
+/* Base-aware routing: the data uses clean routes ("/", "/work/x") but the file
+   may be served from any path (e.g. /templates/page-morph-barba.html). We keep
+   pushState anchored to the document's own URL via a hash-suffix so:
+     - relative assets ("../assets/..") keep resolving against the real file
+     - hard reload / deep link still lands on a valid document
+   URL shape: <file>#<route>  e.g. .../page-morph-barba.html#/work/nocturne   */
+const DOC = location.pathname;                       // real served path of the file
+const routeToUrl = (route) => DOC + (route === "/" ? "" : "#" + route);
+const urlToRoute = () => {
+  const h = location.hash.replace(/^#/, "");
+  return PAGES.some(p => p.route === h) ? h : "/";
+};
 
 /* ------------------------- helpers ------------------------- */
 const byRoute = (r) => PAGES.find(p => p.route === r) || PAGES[0];
@@ -526,6 +538,19 @@ function renderDetail(p){
 
 /* ======================= INDEX INTERACTIONS ======================= */
 let idxHotIndex = 0;
+/* engagement gate: the scroll=0 hero is the pre-hovered Nocturne/amber world.
+   A cursor that merely RESTS on a row at load (no real user gesture) fires
+   mouseenter and would hijack the hero - which also corrupts the catalog
+   thumbnail (a no-interaction scroll=0 shot). So a row hover only swaps the
+   world AFTER a genuine pointer move / key intent. Keyboard focus is itself an
+   intent, so it flips the gate on. */
+let userEngaged = false;
+function markEngaged(){ userEngaged = true; }
+window.addEventListener("pointermove", markEngaged, { once: true, passive: true });
+window.addEventListener("wheel",       markEngaged, { once: true, passive: true });
+window.addEventListener("keydown",     markEngaged, { once: true });
+window.addEventListener("touchstart",  markEngaged, { once: true, passive: true });
+
 function wireIndex(activeRoute){
   const rows  = [...app.querySelectorAll(".work-row")];
   const fig   = document.getElementById("idxFigure");
@@ -553,8 +578,10 @@ function wireIndex(activeRoute){
   }
 
   rows.forEach((row,i)=>{
-    row.addEventListener("mouseenter", ()=> hot(i));
-    row.addEventListener("focus", ()=> hot(i));
+    // only react to a hover once the user has actually moved the pointer;
+    // keeps scroll=0 deterministic on the pre-hovered hero for the thumbnail
+    row.addEventListener("mouseenter", ()=>{ if (userEngaged) hot(i); });
+    row.addEventListener("focus", ()=>{ userEngaged = true; hot(i); });
   });
 
   // scroll=0 pre-hover: first work's world is already composed + colored
@@ -842,7 +869,7 @@ async function navigate(route, push=true){
 
   const swap = ()=>{
     paintRoute(route);
-    if (push){ history.pushState({ route }, "", route); }
+    if (push){ history.pushState({ route }, "", routeToUrl(route)); }
   };
 
   if (webglEnabled && GL){
@@ -864,7 +891,7 @@ document.addEventListener("click", (e)=>{
 });
 
 window.addEventListener("popstate", (e)=>{
-  const route = (e.state && e.state.route) || location.pathname || "/";
+  const route = (e.state && e.state.route) || urlToRoute();
   // popstate: animate but do not push again
   if (route === currentRoute){ return; }
   const fromPage = byRoute(currentRoute || "/");
@@ -879,16 +906,15 @@ window.addEventListener("popstate", (e)=>{
 
 /* ======================= BOOT ======================= */
 function boot(){
-  // normalize unknown deep links to a known route (file:// or server)
-  let start = location.pathname;
-  if (!PAGES.some(p => p.route === start)) start = "/";
+  // resolve the start route from the hash suffix (deep link), else index
+  const start = urlToRoute();
 
   // init WebGL stage first so the paint-confirm runs before any transition
   if (webglEnabled){ initGL(); }
 
   // first paint = composed page at scroll=0 (index shows pre-hovered world)
   paintRoute(start);
-  history.replaceState({ route: start }, "", start);
+  history.replaceState({ route: start }, "", routeToUrl(start));
 }
 
 if (document.readyState === "loading"){

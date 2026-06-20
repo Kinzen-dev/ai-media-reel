@@ -82,12 +82,15 @@
   /* ---- poster stack -------------------------------------------------- */
   main{ position:relative; z-index:1; }
 
+  /* each poster is TALLER than the viewport (200svh) so the sticky stage pins
+     in place while the page scrolls through it - that scroll travel is what
+     drives the zoom. At each poster's start the stage shows the composed,
+     at-rest headline (scale 1). */
   .poster{
     position:relative;
-    min-height:100svh;
-    display:flex; flex-direction:column;
+    height:200svh;
     border-bottom:1px solid var(--hair-css);
-    overflow:hidden;
+    overflow:visible;
   }
   /* first poster leaves room for the fixed top bar but stays full-bleed */
   .poster:first-child{ padding-top:0; }
@@ -97,6 +100,7 @@
     position:sticky; top:0;
     width:100%; height:100svh;
     display:block;
+    overflow:hidden;
   }
   .poster-svg{ width:100%; height:100%; display:block; }
 
@@ -183,9 +187,13 @@
   /* ===== reduced motion: kill the zoom, freeze the stack ============== */
   @media (prefers-reduced-motion: reduce){
     html{ scroll-behavior:auto; }
+    .scrollhint{ display:none; }
     .scrollhint .arrow{ animation:none; }
-    /* posters become a plain stacked gallery; JS also bails on the rAF loop */
-    .stage{ position:relative; height:auto; min-height:100svh; }
+    /* posters become a plain stacked gallery; JS also bails on the rAF loop.
+       Collapse the 200svh scroll-travel panel to a single screen so the stage
+       no longer leaves a 100svh dead bone gap below each poster. */
+    .poster{ height:auto; }
+    .stage{ position:relative; height:100svh; min-height:100svh; }
   }
 </style>
 </head>
@@ -234,7 +242,9 @@
    SVG poster. `word` is the giant hairline-outlined art-director headline
    (kept short so the counters read at 24vw+). `media` is the work that
    sits BEHIND the type. `kind` = "image" | "video". focal{x,y} is the
-   normalized point (0..1) the scroll zoom drives toward.
+   normalized point (0..1) the scroll zoom drives toward. `hollow:true`
+   drops the ink fill to near-zero so the vermilion paint-order hairline
+   becomes the dominant read (alternates rhythm across the reel).
    ===================================================================== */
 const POSTERS = [
   {
@@ -261,6 +271,7 @@ const POSTERS = [
     media:"../assets/flux-clinic-4k.png",
     poster:"../assets/flux-clinic-4k.png",
     kind:"image",
+    hollow:true,
     focal:{x:0.48,y:0.5},
     side:"Plate 02 / paint-order: stroke fill",
     credits:[["Subject","Clinic"],["Frame","FLUX 4K"]]
@@ -303,6 +314,7 @@ const POSTERS = [
     media:"../assets/fal-video.mp4",
     poster:"../assets/gen/poster-fal-video.png",
     kind:"video",
+    hollow:true,
     focal:{x:0.5,y:0.5},
     side:"Plate 05 / scroll = viewBox zoom",
     credits:[["Loop","FAL"],["Audio","silent"]]
@@ -323,14 +335,24 @@ const POSTERS = [
   }
 ];
 
-/* viewBox geometry for every poster (square-ish art-director frame). */
-const VB = { w:1600, h:1000 };
+/* viewBox geometry. Landscape art-director frame on wide screens; a portrait
+   frame on phones so the WHOLE composed poster letterboxes (meet) instead of
+   slice-cropping the giant word down to a fragment. Recomputed on resize. */
+function currentVB(){
+  const portrait = window.matchMedia('(max-width:640px)').matches;
+  return portrait ? { w:1080, h:1620, portrait:true } : { w:1600, h:1000, portrait:false };
+}
+let VB = currentVB();
 
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const reel = document.getElementById('reel');
 
 /* ---------- build the SVG markup for one poster --------------------- */
 function buildMedia(p){
+  // Media fills the viewBox frame edge-to-edge (slice within the frame, no
+  // distortion). The SVG itself uses preserveAspectRatio="meet", so the whole
+  // frame is letterboxed onto the screen - on a phone the media lands inside a
+  // portrait frame with bone bars, never a landscape cover-crop of the device.
   if(p.kind === "video"){
     // foreignObject lets a real <video> live inside the SVG, behind the type
     return `
@@ -347,11 +369,25 @@ function buildMedia(p){
              preserveAspectRatio="xMidYMid slice" />`;
 }
 
-/* the giant hairline-outlined headline. Font-size driven so the word is
-   >= 24vw at rest. We compute size from the viewBox so it always dominates.
-   text stays selectable: it is real <text>, never a <path>. */
+/* the giant hairline-outlined headline. The word is fit to the viewBox width
+   via textLength + lengthAdjust so ANY word fills the frame edge-to-edge (and
+   never overflows / gets cropped) at >= 24vw at rest. The stroke is non-scaling
+   so the outline stays a 1.5px hairline through the scroll zoom. Real, selectable
+   <text> - never a <path>. */
 function buildPoster(p, i){
-  const cx = VB.w/2, cy = VB.h/2 + 70;
+  const cx = VB.w/2, cy = VB.h/2 + (VB.portrait ? 40 : 70);
+  // fit the word to ~88% of the frame width; font-size big enough that even a
+  // long word reads as the dominant element. textLength locks the final width.
+  const targetW = Math.round(VB.w * 0.88);
+  const hedFont = VB.portrait ? Math.round(VB.w*0.42) : Math.round(VB.h*0.5);
+  const kickFont = VB.portrait ? 30 : 34;
+  const plateFont = VB.portrait ? 30 : 26;
+  const kickGap = VB.portrait ? 360 : 250;
+  const plateGap = VB.portrait ? 160 : 120;
+  // hollow posters: drop the ink fill so the vermilion paint-order hairline is
+  // the dominant read (letters appear outlined/empty); solid posters keep #111.
+  const hedFill = p.hollow ? "#111111" : "#111111";
+  const hedFillOpacity = p.hollow ? "0.10" : "1";
   // scrim so the bone type reads over busy media (vermilion hairline + ink fill
   // both rely on local contrast); a soft bone gradient lifts the lower band.
   const sec = document.createElement('section');
@@ -363,15 +399,19 @@ function buildPoster(p, i){
 
   sec.innerHTML = `
     <div class="stage">
-      <svg class="poster-svg" viewBox="0 0 ${VB.w} ${VB.h}" preserveAspectRatio="xMidYMid slice" aria-hidden="false" role="img" aria-label="${p.title} - ${p.word}">
+      <svg class="poster-svg" viewBox="0 0 ${VB.w} ${VB.h}" preserveAspectRatio="xMidYMid meet" aria-hidden="false" role="img" aria-label="${p.title} - ${p.word}">
         <defs>
           <clipPath id="clip-${p.id}"><rect x="0" y="0" width="${VB.w}" height="${VB.h}"/></clipPath>
           <linearGradient id="scrim-${p.id}" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stop-color="#f4f0e6" stop-opacity="0.30"/>
-            <stop offset="0.45" stop-color="#f4f0e6" stop-opacity="0.06"/>
-            <stop offset="1" stop-color="#f4f0e6" stop-opacity="0.46"/>
+            <stop offset="0.45" stop-color="#f4f0e6" stop-opacity="0.04"/>
+            <stop offset="1" stop-color="#f4f0e6" stop-opacity="0.48"/>
           </linearGradient>
         </defs>
+
+        <!-- bone letterbox ground: where the SVG frame is wider/taller than the
+             media the bone stock shows through (no black bars, on-brand). -->
+        <rect x="0" y="0" width="${VB.w}" height="${VB.h}" fill="#f4f0e6"/>
 
         <!-- ZOOM GROUP: scroll scales this toward focal{x,y}. The headline is
              inside, so the WORD zooms; non-scaling-stroke keeps the outline
@@ -383,30 +423,32 @@ function buildPoster(p, i){
           <rect x="0" y="0" width="${VB.w}" height="${VB.h}" fill="url(#scrim-${p.id})"/>
 
           <!-- tiny registration ticks (print-mark flavour, hairline) -->
-          <g stroke="#c94a2e" stroke-width="1.5" vector-effect="non-scaling-stroke" opacity="0.8">
-            <path d="M40 40 L80 40 M40 40 L40 80" fill="none"/>
-            <path d="M${VB.w-40} ${VB.h-40} L${VB.w-80} ${VB.h-40} M${VB.w-40} ${VB.h-40} L${VB.w-40} ${VB.h-80}" fill="none"/>
+          <g stroke="#c94a2e" stroke-width="1.5" vector-effect="non-scaling-stroke" opacity="0.85">
+            <path d="M40 40 L96 40 M40 40 L40 96" fill="none"/>
+            <path d="M${VB.w-40} ${VB.h-40} L${VB.w-96} ${VB.h-40} M${VB.w-40} ${VB.h-40} L${VB.w-40} ${VB.h-96}" fill="none"/>
           </g>
 
           <!-- kicker above the giant word -->
-          <text x="${cx}" y="${cy - 250}" text-anchor="middle"
+          <text x="${cx}" y="${cy - kickGap}" text-anchor="middle"
                 font-family="'Archivo', sans-serif" font-weight="700"
-                font-size="34" letter-spacing="20"
-                fill="#111111" opacity="0.72">${p.sub.toUpperCase()}</text>
+                font-size="${kickFont}" letter-spacing="${VB.portrait?14:20}"
+                fill="#111111" opacity="0.78">${p.sub.toUpperCase()}</text>
 
           <!-- THE HEADLINE: paint-order stroke fill + non-scaling-stroke.
-               font-size ~ 0.5 * viewBox height keeps it >= 24vw at rest. -->
+               textLength fits any word to 88% of the frame width so it never
+               overflows or gets cropped, and reads as the dominant element. -->
           <text class="hed" x="${cx}" y="${cy}" text-anchor="middle"
                 font-family="'Archivo Black', sans-serif"
-                font-size="${Math.round(VB.h*0.5)}"
-                fill="#111111" stroke="#c94a2e" stroke-width="1.5"
-                paint-order="stroke" vector-effect="non-scaling-stroke"
-                style="letter-spacing:-8px">${p.word}</text>
+                font-size="${hedFont}"
+                textLength="${targetW}" lengthAdjust="spacingAndGlyphs"
+                fill="${hedFill}" fill-opacity="${hedFillOpacity}"
+                stroke="#c94a2e" stroke-width="1.5"
+                paint-order="stroke" vector-effect="non-scaling-stroke">${p.word}</text>
 
           <!-- plate number under the word, hairline outline echo -->
-          <text x="${cx}" y="${cy + 120}" text-anchor="middle"
+          <text x="${cx}" y="${cy + plateGap}" text-anchor="middle"
                 font-family="'Archivo', sans-serif" font-weight="700"
-                font-size="26" letter-spacing="10"
+                font-size="${plateFont}" letter-spacing="10"
                 fill="#c94a2e">PLATE ${p.num}</text>
         </g>
       </svg>
@@ -427,33 +469,47 @@ function buildPoster(p, i){
   return sec;
 }
 
-POSTERS.forEach((p,i)=> reel.appendChild(buildPoster(p, i)));
-
-/* =====================================================================
-   SCROLL ZOOM  (skipped entirely under reduced-motion)
-   For each poster we map the panel's scroll position to a scale on the
-   .zoomg group, transform-origin at the focal point (in viewBox units).
-   Because the headline's stroke is non-scaling, the outline never thickens.
-   ===================================================================== */
-const zoomGroups = [...document.querySelectorAll('.poster')].map(sec=>{
-  const g = sec.querySelector('.zoomg');
-  const fx = parseFloat(g.dataset.focalX) * VB.w;
-  const fy = parseFloat(g.dataset.focalY) * VB.h;
-  return { sec, g, fx, fy };
-});
+/* render all posters for the CURRENT VB, then (re)derive the zoom + video maps.
+   Re-run when the viewport crosses the phone breakpoint so the viewBox swaps
+   between landscape and portrait and the word re-fits. */
+let zoomGroups = [];
+function render(){
+  reel.innerHTML = '';
+  POSTERS.forEach((p,i)=> reel.appendChild(buildPoster(p, i)));
+  zoomGroups = [...document.querySelectorAll('.poster')].map(sec=>{
+    const g = sec.querySelector('.zoomg');
+    const fx = parseFloat(g.dataset.focalX) * VB.w;
+    const fy = parseFloat(g.dataset.focalY) * VB.h;
+    return { sec, g, fx, fy };
+  });
+  wireVideos();
+}
 
 const MAX_SCALE = 1.55; // gentle zoom; the point is the crisp hairline, not vertigo
 
 function applyZoom(){
   const vh = window.innerHeight;
   for(const z of zoomGroups){
+    // The stage is position:sticky and pins for the panel's whole height.
+    // Progress = how far we've scrolled PAST the panel's start, normalized by
+    // the panel's scrollable distance (panelHeight - vh). At a panel's start
+    // (scroll=0 for the first poster) progress is 0 -> scale 1 -> the headline
+    // sits FULLY COMPOSED at rest (all letters, hairline visible). The zoom
+    // only engages as you scroll INTO the panel.
     const r = z.sec.getBoundingClientRect();
-    // progress 0..1 as the panel travels through the viewport
-    // 0 when its top hits the top, 1 when its bottom leaves the bottom
-    const total = r.height + vh;
-    const p = Math.min(1, Math.max(0, (vh - r.top) / total));
-    // ease toward focal: scale ramps then holds slightly past centre
-    const eased = p < 0.5 ? (p*2) : 1; // grow through first half, hold
+    const scrollable = Math.max(1, z.sec.offsetHeight - vh);
+    const passed = -r.top; // px scrolled past the panel top (0 at rest)
+    let p = passed / scrollable;
+    p = Math.min(1, Math.max(0, p));
+    // hold the composed view through the first ~30%, then zoom to focal,
+    // then hold zoomed-in for the tail so the crisp hairline reads at scale.
+    let eased;
+    if(p < 0.30){ eased = 0; }
+    else if(p > 0.82){ eased = 1; }
+    else {
+      const t = (p - 0.30) / (0.82 - 0.30);
+      eased = t*t*(3 - 2*t); // smoothstep
+    }
     const scale = 1 + (MAX_SCALE - 1) * eased;
     // SVG-space transform: translate focal to origin, scale, translate back
     const tx = z.fx - z.fx*scale;
@@ -483,24 +539,13 @@ function onScroll(){
   });
 }
 
-if(reduceMotion){
-  // static poster stack: clear any transform, freeze final readable state
-  zoomGroups.forEach(z=> z.g.removeAttribute('transform'));
-  updateProgress();
-} else {
-  applyZoom();
-  updateProgress();
-  window.addEventListener('scroll', onScroll, {passive:true});
-  window.addEventListener('resize', ()=>{ applyZoom(); updateProgress(); }, {passive:true});
-}
-
 /* =====================================================================
    VIDEO: play ONLY the most-in-view video poster. Never decode several
    loops simultaneously (kills FPS). One active <video> at a time.
-   Lazy-attach src on first approach.
+   Lazy-attach src on first approach. Re-wired on every render().
    ===================================================================== */
-const videoEls = [...document.querySelectorAll('.bg-video')];
 let activeVideo = null;
+let vObserver = null;
 
 function ensureSrc(v){
   if(!v.dataset.src) return;
@@ -509,28 +554,30 @@ function ensureSrc(v){
   v.load();
 }
 
-const visMap = new Map(); // video -> intersectionRatio
-
-const vObserver = new IntersectionObserver((entries)=>{
-  for(const e of entries){
-    visMap.set(e.target, e.isIntersecting ? e.intersectionRatio : 0);
-    if(e.isIntersecting) ensureSrc(e.target);
-  }
-  // pick the single most-visible video
-  let best=null, bestR=0.35; // require a real foothold before playing
-  for(const [v,r] of visMap){ if(r>bestR){ bestR=r; best=v; } }
-  if(best !== activeVideo){
-    if(activeVideo){ try{ activeVideo.pause(); }catch(_){} }
-    activeVideo = best;
-    if(activeVideo){
-      ensureSrc(activeVideo);
-      const pr = activeVideo.play();
-      if(pr && pr.catch) pr.catch(()=>{}); // autoplay guard
+function wireVideos(){
+  if(vObserver){ vObserver.disconnect(); }
+  if(activeVideo){ try{ activeVideo.pause(); }catch(_){} activeVideo=null; }
+  const visMap = new Map(); // video -> intersectionRatio
+  vObserver = new IntersectionObserver((entries)=>{
+    for(const e of entries){
+      visMap.set(e.target, e.isIntersecting ? e.intersectionRatio : 0);
+      if(e.isIntersecting) ensureSrc(e.target);
     }
-  }
-},{ threshold:[0,0.2,0.35,0.6,0.85,1] });
-
-videoEls.forEach(v=> vObserver.observe(v));
+    // pick the single most-visible video (one decode at a time)
+    let best=null, bestR=0.35; // require a real foothold before playing
+    for(const [v,r] of visMap){ if(r>bestR){ bestR=r; best=v; } }
+    if(best !== activeVideo){
+      if(activeVideo){ try{ activeVideo.pause(); }catch(_){} }
+      activeVideo = best;
+      if(activeVideo){
+        ensureSrc(activeVideo);
+        const pr = activeVideo.play();
+        if(pr && pr.catch) pr.catch(()=>{}); // autoplay guard
+      }
+    }
+  },{ threshold:[0,0.2,0.35,0.6,0.85,1] });
+  document.querySelectorAll('.bg-video').forEach(v=> vObserver.observe(v));
+}
 
 // pause everything when the tab is hidden
 document.addEventListener('visibilitychange', ()=>{
@@ -539,18 +586,53 @@ document.addEventListener('visibilitychange', ()=>{
 });
 
 /* =====================================================================
+   STARTUP + responsive rebuild
+   ===================================================================== */
+function paint(){
+  if(reduceMotion){
+    zoomGroups.forEach(z=> z.g.removeAttribute('transform')); // freeze composed
+  } else {
+    applyZoom();
+  }
+  updateProgress();
+}
+
+render();
+paint();
+
+if(!reduceMotion){
+  window.addEventListener('scroll', onScroll, {passive:true});
+}
+
+/* on resize: re-apply zoom; if we crossed the phone breakpoint, swap the
+   viewBox (landscape <-> portrait) and rebuild so the word re-fits. */
+let wasPortrait = VB.portrait;
+let rzTimer = null;
+window.addEventListener('resize', ()=>{
+  clearTimeout(rzTimer);
+  rzTimer = setTimeout(()=>{
+    const nv = currentVB();
+    if(nv.portrait !== wasPortrait){
+      VB = nv; wasPortrait = nv.portrait;
+      render();
+    }
+    paint();
+  }, 140);
+}, {passive:true});
+
+/* =====================================================================
    Hide the scroll hint after the first real scroll.
    ===================================================================== */
 const hint = document.getElementById('scrollhint');
 let hinted=false;
 window.addEventListener('scroll', ()=>{
   if(!hinted && window.scrollY > 80){ hint.style.opacity='0'; hinted=true; }
-},{passive:true, once:false});
+},{passive:true});
 
 /* font-load nudge: when Archivo Black resolves, the headline metrics shift,
    so re-apply the zoom to keep the focal centred. */
 if(document.fonts && document.fonts.ready){
-  document.fonts.ready.then(()=>{ if(!reduceMotion) applyZoom(); });
+  document.fonts.ready.then(()=>{ paint(); });
 }
 </script>
 </body>

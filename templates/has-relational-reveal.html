@@ -1,0 +1,605 @@
+<!-- TEMPLATE: Has Relational Reveal | ARCHETYPE: :has() chain | REF: CSS :has() relational pseudo-class (Baseline 2024, MDN); advanced :has() gallery interactions (CSS-Tricks 2026) | WHEN TO USE: a media gallery where hovering one cell should ripple typed state across related cells with ZERO JS visual logic | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Has Relational Reveal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   DATA lives in the <script> at the bottom (one array).
+   The :has() relational chain is the ENTIRE interaction model.
+   No JS touches visual state. The only script is a11y focus.
+   ============================================================ */
+
+:root{
+  --graphite:#1c1c1e;       /* base ground */
+  --graphite-2:#232326;     /* card ground */
+  --graphite-3:#2c2c30;
+  --bone:#f0ede8;           /* text / bone */
+  --bone-dim:#a7a39b;
+  --violet:#7b68ee;         /* the ONE color event: propagation */
+  --violet-soft:rgba(123,104,238,.55);
+  --violet-glow:rgba(123,104,238,.35);
+  --line:rgba(240,237,232,.10);
+  --dim:.26;                /* how far non-related cards fade */
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+
+html{ -webkit-text-size-adjust:100% }
+
+body{
+  font-family:"Space Grotesk",system-ui,sans-serif;
+  background:var(--graphite);
+  color:var(--bone);
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+}
+
+a{color:inherit}
+
+/* ---- top band: compact, sits ABOVE the populated grid ---- */
+.shell{
+  max-width:1320px;
+  margin:0 auto;
+  padding:clamp(18px,3vw,34px) clamp(14px,3vw,34px) 64px;
+}
+
+.band{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:14px 26px;
+  padding-bottom:clamp(14px,2vw,22px);
+  margin-bottom:clamp(16px,2.2vw,26px);
+  border-bottom:1px solid var(--line);
+}
+.band h1{
+  font-size:clamp(26px,4.4vw,52px);
+  font-weight:700;
+  line-height:.98;
+  letter-spacing:-.02em;
+  max-width:14ch;
+}
+.band h1 em{
+  font-style:normal;
+  color:var(--violet);
+}
+.band .meta{
+  font-family:"Space Mono",monospace;
+  font-size:11px;
+  letter-spacing:.04em;
+  color:var(--bone-dim);
+  text-align:right;
+  line-height:1.7;
+  text-transform:uppercase;
+}
+.band .meta b{color:var(--bone);font-weight:700}
+.band .meta .swatch{
+  display:inline-block;width:9px;height:9px;border-radius:2px;
+  background:var(--violet);vertical-align:baseline;margin-right:5px;
+  box-shadow:0 0 8px var(--violet-glow);
+}
+
+/* legend / filter strip ------------------------------------ */
+.legend{
+  display:flex;flex-wrap:wrap;gap:8px;
+  margin-bottom:clamp(14px,2vw,20px);
+  font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.03em;
+}
+.legend .hint{
+  color:var(--bone-dim);margin-right:6px;align-self:center;
+  text-transform:uppercase;
+}
+.legend .chip{
+  border:1px solid var(--line);
+  border-radius:999px;
+  padding:5px 11px;
+  color:var(--bone-dim);
+  display:inline-flex;align-items:center;gap:7px;
+}
+.legend .chip i{
+  width:7px;height:7px;border-radius:50%;background:currentColor;
+  opacity:.7;display:inline-block;
+}
+.legend .chip[data-tag="cinema"]{color:#e0c08a}
+.legend .chip[data-tag="clinical"]{color:#8fd6c2}
+.legend .chip[data-tag="painterly"]{color:#d79bb0}
+.legend .chip[data-tag="motion"]{color:#9fb6e6}
+
+/* ===========================================================
+   THE GRID  -  relational state container
+   =========================================================== */
+.grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:clamp(10px,1.4vw,18px);
+  padding:clamp(12px,1.6vw,20px);
+  border-radius:20px;
+  background:
+    radial-gradient(120% 120% at 0% 0%, rgba(123,104,238,.04), transparent 55%),
+    var(--graphite);
+  border:1px solid var(--line);
+  transition:background .5s var(--ease), box-shadow .5s var(--ease);
+}
+
+/* ---- a single card ---- */
+.card{
+  position:relative;
+  border-radius:14px;
+  overflow:hidden;
+  background:var(--graphite-2);
+  border:1px solid var(--line);
+  aspect-ratio:4/5;
+  isolation:isolate;
+  cursor:pointer;
+  transition:
+    opacity .42s var(--ease),
+    transform .42s var(--ease),
+    box-shadow .42s var(--ease),
+    filter .42s var(--ease);
+  outline:none;
+}
+.card:focus-visible{ box-shadow:0 0 0 3px var(--bone), 0 0 0 6px var(--violet) }
+
+/* media fills cell; object-fit cover is fine here (square-ish cells,
+   not a phone viewport) and we letterbox landscape only at <=640 */
+.card .media{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;display:block;
+  background:var(--graphite-3);
+  filter:grayscale(.18) contrast(1.02);
+  transition:filter .42s var(--ease), transform .6s var(--ease);
+}
+.card video.media{ object-fit:cover }
+
+/* permanent legibility veil */
+.card::after{
+  content:"";position:absolute;inset:0;z-index:1;
+  background:linear-gradient(to top, rgba(20,20,22,.82) 0%, rgba(20,20,22,.12) 42%, transparent 70%);
+  transition:opacity .42s var(--ease);
+}
+
+/* the propagation RING - drawn by an inset box-shadow ring layer */
+.card .ring{
+  position:absolute;inset:0;z-index:3;border-radius:14px;
+  pointer-events:none;
+  box-shadow:inset 0 0 0 0 var(--violet);
+  opacity:0;
+  transition:box-shadow .42s var(--ease), opacity .42s var(--ease);
+}
+
+/* caption */
+.card .cap{
+  position:absolute;left:0;right:0;bottom:0;z-index:4;
+  padding:12px 13px 13px;
+  display:flex;flex-direction:column;gap:3px;
+  pointer-events:none;
+}
+.card .cap .t{
+  font-size:clamp(12px,1.2vw,15px);font-weight:600;letter-spacing:-.01em;
+  line-height:1.15;
+}
+.card .cap .s{
+  font-family:"Space Mono",monospace;font-size:10px;letter-spacing:.05em;
+  color:var(--bone-dim);text-transform:uppercase;
+  display:flex;align-items:center;gap:6px;
+}
+.card .cap .s .tagdot{
+  width:6px;height:6px;border-radius:50%;background:var(--bone-dim);
+  transition:background .42s var(--ease), box-shadow .42s var(--ease);
+}
+.card[data-tag="cinema"] .cap .s .tagdot{background:#e0c08a}
+.card[data-tag="clinical"] .cap .s .tagdot{background:#8fd6c2}
+.card[data-tag="painterly"] .cap .s .tagdot{background:#d79bb0}
+.card[data-tag="motion"] .cap .s .tagdot{background:#9fb6e6}
+
+/* featured badge */
+.card[data-featured] .cap .t::after{
+  content:"\2605";color:var(--violet);font-size:.78em;margin-left:7px;
+  vertical-align:1px;
+}
+
+/* play glyph for video cells */
+.card .play{
+  position:absolute;top:11px;right:11px;z-index:4;
+  width:26px;height:26px;border-radius:50%;
+  background:rgba(20,20,22,.55);backdrop-filter:blur(4px);
+  border:1px solid var(--line);
+  display:none;align-items:center;justify-content:center;
+  font-family:"Space Mono",monospace;font-size:10px;color:var(--bone);
+}
+.card[data-kind="video"] .play{display:flex}
+
+/* tag index pill, top-left, shows the relational key */
+.card .key{
+  position:absolute;top:11px;left:11px;z-index:4;
+  font-family:"Space Mono",monospace;font-size:9.5px;letter-spacing:.06em;
+  text-transform:uppercase;
+  padding:3px 7px;border-radius:6px;
+  background:rgba(20,20,22,.5);backdrop-filter:blur(4px);
+  border:1px solid var(--line);color:var(--bone-dim);
+  transition:color .42s var(--ease), border-color .42s var(--ease), background .42s var(--ease);
+}
+
+/* ===========================================================
+   :HAS() CHAIN  -  the whole interaction, no JS
+   Gated behind @supports so unsupported browsers degrade.
+   =========================================================== */
+@supports selector(:has(*)){
+
+  /* 1. DIM: when ANY card is engaged, the grid dims everyone... */
+  .grid:has(.card:hover) .card,
+  .grid:has(.card:focus-within) .card{
+    opacity:var(--dim);
+    transform:scale(.985);
+    filter:saturate(.55);
+  }
+
+  /* ...then the engaged card itself is restored + lifted */
+  .grid .card:hover,
+  .grid .card:focus-within{
+    opacity:1 !important;
+    transform:scale(1.015) !important;
+    filter:none !important;
+    box-shadow:0 18px 46px -18px rgba(0,0,0,.7), 0 0 0 1px var(--violet-soft);
+    z-index:5;
+  }
+  .grid .card:hover .media,
+  .grid .card:focus-within .media{ filter:grayscale(0) contrast(1.05); transform:scale(1.04) }
+  .grid .card:hover::after,
+  .grid .card:focus-within::after{ opacity:.55 }
+  .grid .card:hover .ring,
+  .grid .card:focus-within .ring{
+    opacity:1;
+    box-shadow:inset 0 0 0 2px var(--violet), 0 0 22px -4px var(--violet-glow);
+  }
+  .grid .card:hover .key,
+  .grid .card:focus-within .key{
+    color:var(--bone);border-color:var(--violet-soft);background:rgba(123,104,238,.18);
+  }
+
+  /* 2. PROPAGATE: cards SHARING the engaged card's data-tag light up.
+     CSS cannot read "the hovered card's tag" dynamically, so we
+     enumerate the closed tag vocabulary (cinema/clinical/painterly/motion).
+     For each tag: if the grid HAS a hovered/focused card of that tag,
+     every card of that tag gains the violet propagation ring. */
+  .grid:has(.card[data-tag="cinema"]:hover) .card[data-tag="cinema"],
+  .grid:has(.card[data-tag="cinema"]:focus-within) .card[data-tag="cinema"],
+  .grid:has(.card[data-tag="clinical"]:hover) .card[data-tag="clinical"],
+  .grid:has(.card[data-tag="clinical"]:focus-within) .card[data-tag="clinical"],
+  .grid:has(.card[data-tag="painterly"]:hover) .card[data-tag="painterly"],
+  .grid:has(.card[data-tag="painterly"]:focus-within) .card[data-tag="painterly"],
+  .grid:has(.card[data-tag="motion"]:hover) .card[data-tag="motion"],
+  .grid:has(.card[data-tag="motion"]:focus-within) .card[data-tag="motion"]{
+    opacity:.92 !important;          /* lifted out of the dim crowd */
+    transform:scale(1) !important;
+    filter:saturate(.85) !important;
+  }
+  /* the propagation ring on tag-mates (not the engaged card itself,
+     it has its own brighter ring above) */
+  .grid:has(.card[data-tag="cinema"]:hover) .card[data-tag="cinema"] .ring,
+  .grid:has(.card[data-tag="cinema"]:focus-within) .card[data-tag="cinema"] .ring,
+  .grid:has(.card[data-tag="clinical"]:hover) .card[data-tag="clinical"] .ring,
+  .grid:has(.card[data-tag="clinical"]:focus-within) .card[data-tag="clinical"] .ring,
+  .grid:has(.card[data-tag="painterly"]:hover) .card[data-tag="painterly"] .ring,
+  .grid:has(.card[data-tag="painterly"]:focus-within) .card[data-tag="painterly"] .ring,
+  .grid:has(.card[data-tag="motion"]:hover) .card[data-tag="motion"] .ring,
+  .grid:has(.card[data-tag="motion"]:focus-within) .card[data-tag="motion"] .ring{
+    opacity:1;
+    box-shadow:inset 0 0 0 1.5px var(--violet-soft), 0 0 14px -6px var(--violet-glow);
+  }
+  /* tag-mate key pill picks up the violet too */
+  .grid:has(.card[data-tag="cinema"]:hover) .card[data-tag="cinema"] .key,
+  .grid:has(.card[data-tag="cinema"]:focus-within) .card[data-tag="cinema"] .key,
+  .grid:has(.card[data-tag="clinical"]:hover) .card[data-tag="clinical"] .key,
+  .grid:has(.card[data-tag="clinical"]:focus-within) .card[data-tag="clinical"] .key,
+  .grid:has(.card[data-tag="painterly"]:hover) .card[data-tag="painterly"] .key,
+  .grid:has(.card[data-tag="painterly"]:focus-within) .card[data-tag="painterly"] .key,
+  .grid:has(.card[data-tag="motion"]:hover) .card[data-tag="motion"] .key,
+  .grid:has(.card[data-tag="motion"]:focus-within) .card[data-tag="motion"] .key{
+    color:var(--violet);border-color:var(--violet-soft);
+  }
+
+  /* 3. FEATURED: a second independent :has() rule shifts the WHOLE
+     grid container ground when any data-featured card is engaged. */
+  .grid:has(.card[data-featured]:hover),
+  .grid:has(.card[data-featured]:focus-within){
+    background:
+      radial-gradient(140% 130% at 50% -10%, rgba(123,104,238,.16), transparent 60%),
+      linear-gradient(180deg, #201d2b 0%, var(--graphite) 70%);
+    box-shadow:0 0 0 1px var(--violet-soft), 0 30px 80px -50px var(--violet-glow);
+  }
+
+  /* 4. SEED (scroll=0 static state): one card shows the full chain
+     with NO interaction, so the catalog thumbnail captures it.
+     It mirrors the :hover/:focus-within rules via a .seed class and
+     a [data-seedtag] flag on the grid. The seed releases the instant
+     the user actually hovers or focuses anything (the :not() guards). */
+  .grid:not(:hover):not(:focus-within) .card.seed{
+    opacity:1; transform:scale(1.015); filter:none;
+    box-shadow:0 18px 46px -18px rgba(0,0,0,.7), 0 0 0 1px var(--violet-soft); z-index:5;
+  }
+  .grid:not(:hover):not(:focus-within) .card.seed .media{ filter:grayscale(0) contrast(1.05); transform:scale(1.04) }
+  .grid:not(:hover):not(:focus-within) .card.seed::after{ opacity:.55 }
+  .grid:not(:hover):not(:focus-within) .card.seed .ring{
+    opacity:1; box-shadow:inset 0 0 0 2px var(--violet), 0 0 22px -4px var(--violet-glow);
+  }
+  .grid:not(:hover):not(:focus-within) .card.seed .key{
+    color:var(--bone);border-color:var(--violet-soft);background:rgba(123,104,238,.18);
+  }
+  /* seed propagates to its tag-mates (seed is data-tag="motion") */
+  .grid[data-seedtag="motion"]:not(:hover):not(:focus-within) .card[data-tag="motion"]{
+    opacity:.92; transform:scale(1); filter:saturate(.85);
+  }
+  .grid[data-seedtag="motion"]:not(:hover):not(:focus-within) .card[data-tag="motion"]:not(.seed) .ring{
+    opacity:1; box-shadow:inset 0 0 0 1.5px var(--violet-soft), 0 0 14px -6px var(--violet-glow);
+  }
+  .grid[data-seedtag="motion"]:not(:hover):not(:focus-within) .card[data-tag="motion"]:not(.seed){
+    opacity:.9;
+  }
+  .grid[data-seedtag="motion"]:not(:hover):not(:focus-within) .card[data-tag="motion"] .key{
+    color:var(--violet);border-color:var(--violet-soft);
+  }
+  /* dim the rest while seeded */
+  .grid[data-seedtag="motion"]:not(:hover):not(:focus-within) .card:not([data-tag="motion"]){
+    opacity:var(--dim); transform:scale(.985); filter:saturate(.55);
+  }
+}
+
+/* ===========================================================
+   FALLBACK (no :has() support): hover-only opacity, no chain.
+   =========================================================== */
+@supports not selector(:has(*)){
+  .grid .card{ opacity:.9 }
+  .grid .card:hover, .grid .card:focus-within{ opacity:1; box-shadow:0 0 0 2px var(--violet) }
+  .grid .card:hover .ring, .grid .card:focus-within .ring{ opacity:1; box-shadow:inset 0 0 0 2px var(--violet) }
+  .fallback-note{ display:block }
+}
+.fallback-note{
+  display:none;font-family:"Space Mono",monospace;font-size:11px;color:var(--bone-dim);
+  margin-top:14px;
+}
+
+/* footer signature ----------------------------------------- */
+.sig{
+  margin-top:clamp(20px,3vw,30px);
+  display:flex;flex-wrap:wrap;gap:10px 22px;justify-content:space-between;
+  font-family:"Space Mono",monospace;font-size:10.5px;letter-spacing:.05em;
+  color:var(--bone-dim);text-transform:uppercase;
+  border-top:1px solid var(--line);padding-top:16px;
+}
+.sig b{color:var(--bone)}
+
+/* ===========================================================
+   RESPONSIVE
+   - 1440 default 4-col grid already in first viewport.
+   - <=1024 -> 3 col, <=720 -> 2 col, <=480 -> 1 col.
+   - <=640  -> landscape media is LETTERBOXED (contain) not cropped.
+   =========================================================== */
+@media (max-width:1024px){ .grid{grid-template-columns:repeat(3,1fr)} }
+@media (max-width:720px){
+  .grid{grid-template-columns:repeat(2,1fr)}
+  .band{align-items:flex-start}
+  .band .meta{text-align:left}
+}
+@media (max-width:480px){
+  .grid{grid-template-columns:1fr}
+  .card{aspect-ratio:16/10}             /* roomier single column */
+}
+
+/* phone: never cover-crop a landscape asset into a tall/narrow cell.
+   At <=640 we letterbox: contain + a graphite mat behind it. */
+@media (max-width:640px){
+  .card{aspect-ratio:16/10}
+  .card .media{
+    object-fit:contain;
+    background:#161617;
+  }
+  .card::after{
+    background:linear-gradient(to top, rgba(20,20,22,.9) 0%, rgba(20,20,22,.05) 55%, transparent 78%);
+  }
+  /* touch: tap = :focus-within drives the chain; make focus obvious */
+  .card:focus-within{ box-shadow:0 0 0 2px var(--violet) }
+
+  /* FIRST-VIEWPORT SIGNATURE on phones:
+     the seed mechanic is item #4 in DOM order, which on a 1-col phone grid
+     would sit below the fold and hide the relational chain from the scroll=0
+     catalog thumb. So on phones we (a) compact the band, and (b) reorder by
+     PRESENTATION ONLY (CSS order) so the pre-activated seed card and one of
+     its motion tag-mates float to the top of the grid. order does NOT change
+     DOM source order, so the :has() chain (matched by class/attribute, not
+     position) is untouched; keyboard tab order is unchanged too. */
+  .shell{ padding-top:14px }
+  .band{ margin-bottom:12px; padding-bottom:12px; gap:8px 18px }
+  .band h1{ font-size:24px; max-width:none }
+  .band .meta{ font-size:10px; line-height:1.55 }
+  .legend{ margin-bottom:12px }
+  .card.seed{ order:-2 }                       /* lit seed first */
+  .card[data-tag="motion"]:not(.seed){ order:-1 } /* a ringed tag-mate next */
+}
+
+/* ===========================================================
+   REDUCED MOTION: keep the relational HIGHLIGHT (the whole point),
+   drop transitions + transforms + any scale/zoom motion.
+   =========================================================== */
+@media (prefers-reduced-motion:reduce){
+  *{transition:none !important; animation:none !important}
+  .grid .card:hover, .grid .card:focus-within,
+  .grid:not(:hover):not(:focus-within) .card.seed{ transform:none !important }
+  .grid .card:hover .media, .grid .card:focus-within .media,
+  .grid:not(:hover):not(:focus-within) .card.seed .media{ transform:none !important }
+  .grid:has(.card:hover) .card,
+  .grid:has(.card:focus-within) .card{ transform:none !important }
+}
+</style>
+</head>
+<body>
+<main class="shell">
+
+  <!-- compact top band, sits ABOVE the populated grid (mechanic stays in first screen) -->
+  <header class="band">
+    <h1>Hover one. The <em>related</em> ones answer.</h1>
+    <div class="meta">
+      <div><span class="swatch"></span> <b>:has()</b> relational chain</div>
+      <div>zero js visual state</div>
+      <div>graphite / bone / <b style="color:var(--violet)">violet</b></div>
+    </div>
+  </header>
+
+  <!-- legend doubles as the tag key for the propagation -->
+  <nav class="legend" aria-label="tag legend">
+    <span class="hint">tags propagate &rarr;</span>
+    <span class="chip" data-tag="cinema"><i></i>cinema</span>
+    <span class="chip" data-tag="clinical"><i></i>clinical</span>
+    <span class="chip" data-tag="painterly"><i></i>painterly</span>
+    <span class="chip" data-tag="motion"><i></i>motion</span>
+  </nav>
+
+  <!-- THE GRID. data-seedtag tells CSS which tag is pre-activated at scroll=0 -->
+  <section class="grid" id="grid" data-seedtag="motion" aria-label="relational media grid"></section>
+
+  <p class="fallback-note">Your browser lacks :has() support; showing the hover-only fallback (no cross-card chain).</p>
+
+  <footer class="sig">
+    <span>archetype <b>:has() chain</b></span>
+    <span>hover or tab a cell &middot; tag-mates ring violet &middot; featured shifts the ground</span>
+    <span>swap the <b>DATA</b> array up top</span>
+  </footer>
+</main>
+
+<script>
+/* =================================================================
+   DATA  -  the ONLY thing to edit when reusing this template.
+   Each item -> one card. tag MUST be one of the closed vocabulary
+   declared in CSS: cinema | clinical | painterly | motion
+   (the :has() propagation rules are enumerated per tag).
+   kind: "image" | "video".  featured:true -> shifts grid ground.
+   seed:true  -> the card shown pre-activated at scroll=0
+                 (its tag must equal the grid's data-seedtag).
+   Paths are relative to /showcase/templates/ -> ../assets/
+   ================================================================= */
+const DATA = [
+  { src:"../assets/flux-car-4k.png",                       kind:"image", tag:"cinema",    featured:true,  title:"Wet Neon Coupe",     sub:"flux 4k still" },
+  { src:"../assets/flux-clinic-4k.png",                    kind:"image", tag:"clinical",                  title:"Mint + Wood Clinic", sub:"flux 4k still" },
+  { src:"../assets/sdxl.png",                              kind:"image", tag:"painterly",                 title:"Autumn Fox",         sub:"sdxl painterly" },
+  { poster:"../assets/gen/poster-kling-video.png", video:"../assets/kling-video.mp4",   kind:"video", tag:"motion", seed:true, title:"Kling Loop", sub:"motion / kling" },
+
+  { poster:"../assets/gen/poster-veo-video.png",   video:"../assets/veo-video.mp4",     kind:"video", tag:"cinema",    featured:true, title:"Veo Cine Pan",   sub:"motion / veo" },
+  { src:"../assets/flux-clinic.png",                       kind:"image", tag:"clinical",                  title:"Clinic Detail",      sub:"flux still" },
+  { src:"../assets/hf-tinysd.png",                         kind:"image", tag:"painterly",                 title:"Low-Fi Apple",       sub:"tiny-sd abstract" },
+  { poster:"../assets/gen/poster-fal-video.png",   video:"../assets/fal-video.mp4",     kind:"video", tag:"motion",                  title:"Fal Drift",      sub:"motion / fal" },
+
+  { poster:"../assets/gen/poster-flux-car-i2v.png",video:"../assets/flux-car-i2v.mp4",  kind:"video", tag:"cinema",                  title:"Coupe In Motion",sub:"motion / i2v" },
+  { src:"../assets/flux-car.png",                          kind:"image", tag:"cinema",                    title:"Matte Black Plate",  sub:"flux still" },
+  { src:"../assets/meshy-refined-thumb.png",              kind:"image", tag:"painterly", featured:true,  title:"Refined Mesh",       sub:"meshy 3d thumb" },
+  { poster:"../assets/gen/poster-hyperframes.png", video:"../assets/hyperframes.mp4",   kind:"video", tag:"motion",                  title:"Hyperframes",    sub:"motion / hf" },
+];
+
+/* ---- render: build cards from DATA. Videos render as POSTER images
+   only (no autoplay -> no simultaneous decode/mix FPS hit). One card
+   gets the .seed class so the static thumbnail shows the chain. ---- */
+const grid = document.getElementById("grid");
+const frag = document.createDocumentFragment();
+
+DATA.forEach((d, i) => {
+  const card = document.createElement("a");
+  card.className = "card" + (d.seed ? " seed" : "");
+  card.href = "#";
+  card.setAttribute("role", "listitem");
+  card.tabIndex = 0;                       // keyboard navigable -> :focus-within
+  card.dataset.tag = d.tag;
+  card.dataset.kind = d.kind;
+  if (d.featured) card.dataset.featured = "";
+  card.setAttribute("aria-label",
+    `${d.title}, tag ${d.tag}${d.featured ? ", featured" : ""}`);
+
+  // media: always an <img> at rest (poster for videos) to protect FPS
+  const imgSrc = d.kind === "video" ? d.poster : d.src;
+  const media = document.createElement("img");
+  media.className = "media";
+  media.src = imgSrc;
+  media.alt = d.title;
+  media.loading = i < 4 ? "eager" : "lazy";
+  media.decoding = "async";
+
+  const ring = document.createElement("span"); ring.className = "ring";
+  const key  = document.createElement("span"); key.className = "key";
+  key.textContent = d.tag;
+  const play = document.createElement("span"); play.className = "play"; play.textContent = "▶";
+
+  const cap  = document.createElement("div"); cap.className = "cap";
+  cap.innerHTML =
+    `<span class="t">${d.title}</span>` +
+    `<span class="s"><span class="tagdot"></span>${d.sub}</span>`;
+
+  card.append(media, ring, key, play, cap);
+  // stash the real video src so a focused/hovered video can swap in on demand
+  if (d.kind === "video") card.dataset.video = d.video;
+  frag.appendChild(card);
+});
+
+grid.appendChild(frag);
+
+/* =================================================================
+   THE ONLY JS THAT TOUCHES THE PAGE  -  accessibility focus only.
+   It does NOT drive any visual relational state (CSS :has() does).
+   It just (a) lets Enter/Space behave like activation without
+   scrolling the page, and (b) plays ONE video at a time when a
+   video card is the focused/hovered one, then pauses on leave -
+   so we never decode 4 clips at once (FPS guard).
+   prefers-reduced-motion -> we skip video playback entirely.
+   ================================================================= */
+(function () {
+  const reduce = window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+  let current = null;
+
+  function play(card) {
+    if (reduce || !card.dataset.video || current === card) return;
+    stop();
+    const img = card.querySelector(".media");
+    const v = document.createElement("video");
+    v.className = "media";
+    v.src = card.dataset.video;
+    v.muted = true; v.loop = true; v.playsInline = true; v.preload = "none";
+    v.poster = img.src;
+    v.style.cssText = img.style.cssText;
+    card.insertBefore(v, img.nextSibling);
+    img.style.opacity = "0";
+    v.play().catch(() => {});
+    card._video = v; card._img = img;
+    current = card;
+  }
+  function stop() {
+    if (!current) return;
+    const c = current;
+    if (c._video) { c._video.pause(); c._video.remove(); }
+    if (c._img) c._img.style.opacity = "";
+    current = null;
+  }
+
+  grid.querySelectorAll(".card").forEach((card) => {
+    card.addEventListener("mouseenter", () => play(card));
+    card.addEventListener("mouseleave", stop);
+    card.addEventListener("focus", () => play(card));
+    card.addEventListener("blur", stop);
+    card.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); play(card); }
+    });
+    card.addEventListener("click", (e) => e.preventDefault());
+  });
+
+  // releasing the scroll=0 seed once the user interacts is handled purely
+  // by CSS (.grid:not(:hover):not(:focus-within)); nothing to do here.
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,811 @@
+<!-- TEMPLATE: SNAP SCORE - Choreographed Scroll-Snap Sections | ARCHETYPE: scroll-snap-choreography | REF: CSS scroll-snap choreography (Codrops 2026), Awwwards SOTD scroll-snap editorial 2026 | WHEN TO USE: an editorial sequence of 6-8 full-viewport snap sections where each section earns a distinct authored CSS entrance (rise, implode, type, iris, triptych, card-drop) fired once on enter - a motion showcase, not a card grid | SWAP: edit the SECTIONS array at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>SNAP SCORE - Choreographed Scroll-Snap Sections</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<!-- Tall editorial serif for display words, grotesque for UI, mono for the typed section + micro-type -->
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..900&family=Inter+Tight:wght@400..800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  /* ===================================================================
+     TOKENS  - void + per-section accent rotation + bone type
+     =================================================================== */
+  :root{
+    --void:#0c0c0c;            /* the constant black stage */
+    --void-2:#080808;
+    --bone:#f0ece4;            /* type */
+    --bone-soft:rgba(240,236,228,.62);
+    --bone-faint:rgba(240,236,228,.30);
+    --bone-line:rgba(240,236,228,.13);
+
+    /* per-section accents, rotated */
+    --cobalt:#1a3fc4;
+    --vermilion:#c0392b;
+    --forest:#1b5e35;
+    --amber:#d4a84b;
+
+    --pad: clamp(18px, 4vw, 72px);
+    --maxw: 1320px;
+
+    /* authored easings */
+    --ease-rise:  cubic-bezier(.16,1,.3,1);   /* decisive settle */
+    --ease-snap:  cubic-bezier(.7,0,.16,1);   /* heavy in/out */
+    --ease-iris:  cubic-bezier(.2,.85,.2,1);
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+
+  html{ scroll-behavior:smooth; }
+
+  body{
+    background:var(--void);
+    color:var(--bone);
+    font-family:"Inter Tight", system-ui, sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+
+  /* The scroll-snap track. Native CSS does the snapping; JS only toggles play-state. */
+  .track{
+    height:100dvh;
+    overflow-y:scroll;
+    overflow-x:hidden;
+    scroll-snap-type:y mandatory;
+    scroll-behavior:smooth;
+    scrollbar-width:none;
+  }
+  .track::-webkit-scrollbar{ width:0; height:0; display:none; }
+
+  .scene{
+    position:relative;
+    min-height:100dvh;
+    scroll-snap-align:start;
+    scroll-snap-stop:always;
+    display:grid;
+    place-items:center;
+    padding:var(--pad);
+    overflow:hidden;
+    isolation:isolate;
+  }
+
+  /* per-scene accent var (set inline per section), used by underlines/rules/chips */
+  .scene{ --accent:var(--cobalt); }
+
+  /* faint accent wash bound to the stage, distinct per section but never washing out the void */
+  .scene::before{
+    content:"";
+    position:absolute; inset:0; z-index:0;
+    background:
+      radial-gradient(120% 90% at 50% 118%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 60%),
+      radial-gradient(80% 60% at 12% -10%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 55%);
+    opacity:.9;
+    pointer-events:none;
+  }
+
+  .inner{
+    position:relative; z-index:2;
+    width:100%;
+    max-width:var(--maxw);
+    margin:0 auto;
+  }
+
+  /* ---- shared editorial chrome ---- */
+  .eyebrow{
+    font-family:"JetBrains Mono", monospace;
+    font-size:clamp(10px,1.05vw,13px);
+    letter-spacing:.32em;
+    text-transform:uppercase;
+    color:var(--bone-soft);
+    display:flex; align-items:center; gap:.7em;
+  }
+  .eyebrow b{ color:var(--accent); font-weight:600; }
+  .eyebrow .dash{ flex:0 0 38px; height:1px; background:var(--accent); }
+
+  .display{
+    font-family:"Fraunces", serif;
+    font-weight:600;
+    line-height:.92;
+    letter-spacing:-.02em;
+    font-size:clamp(2.6rem, 9.2vw, 8.5rem);
+  }
+  .display .lite{ font-weight:300; font-style:italic; }
+  .lede{
+    color:var(--bone-soft);
+    font-size:clamp(.98rem,1.5vw,1.22rem);
+    line-height:1.5;
+    max-width:46ch;
+  }
+
+  .figure{
+    position:relative;
+    border:1px solid var(--bone-line);
+    background:var(--void-2);
+    overflow:hidden;
+    border-radius:2px;
+  }
+  .figure img, .figure video{
+    display:block; width:100%; height:100%;
+    object-fit:cover;
+  }
+  .figure figcaption{
+    position:absolute; left:0; bottom:0;
+    font-family:"JetBrains Mono", monospace;
+    font-size:11px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--bone); background:rgba(8,8,8,.66);
+    backdrop-filter:blur(6px);
+    padding:7px 11px;
+    border-top:1px solid var(--bone-line);
+    border-right:1px solid var(--bone-line);
+  }
+
+  /* persistent scene index rail (top-right) - tells the story is a scored sequence */
+  .rail{
+    position:fixed; top:0; right:0; z-index:50;
+    height:100dvh;
+    display:flex; flex-direction:column; justify-content:center; gap:14px;
+    padding-right:clamp(10px,2vw,26px);
+    pointer-events:none;
+    mix-blend-mode:difference;
+  }
+  .rail button{
+    pointer-events:auto;
+    width:auto; background:none; border:none; cursor:pointer;
+    display:flex; align-items:center; gap:9px;
+    font-family:"JetBrains Mono", monospace;
+    font-size:11px; color:#fff; opacity:.4;
+    letter-spacing:.1em;
+    transition:opacity .35s ease;
+  }
+  .rail button .tick{ width:18px; height:2px; background:#fff; transition:width .35s var(--ease-rise); }
+  .rail button[aria-current="true"]{ opacity:1; }
+  .rail button[aria-current="true"] .tick{ width:42px; }
+  .rail button:focus-visible{ opacity:1; outline:none; }
+  .rail button:focus-visible .tick{ width:42px; }
+  .rail .label{ width:88px; text-align:right; }
+
+  /* fixed brand + progress chrome */
+  .brand{
+    position:fixed; top:0; left:0; z-index:50;
+    padding:clamp(16px,2.4vw,28px) var(--pad);
+    font-family:"JetBrains Mono", monospace;
+    font-size:12px; letter-spacing:.28em; text-transform:uppercase;
+    color:var(--bone); mix-blend-mode:difference;
+    display:flex; align-items:center; gap:.7em;
+  }
+  .brand .dot{ width:8px; height:8px; border-radius:50%; background:#fff; }
+  .progress{
+    position:fixed; left:0; top:0; height:3px; z-index:60;
+    width:var(--pw,0%);
+    background:linear-gradient(90deg,var(--cobalt),var(--vermilion),var(--forest),var(--amber));
+    transition:width .12s linear;
+  }
+  .hint{
+    position:fixed; left:50%; bottom:18px; z-index:50;
+    transform:translateX(-50%);
+    font-family:"JetBrains Mono", monospace;
+    font-size:10px; letter-spacing:.3em; text-transform:uppercase;
+    color:var(--bone-faint);
+    mix-blend-mode:difference;
+    animation:bob 2.4s ease-in-out infinite;
+  }
+  @keyframes bob{ 0%,100%{ transform:translate(-50%,0) } 50%{ transform:translate(-50%,5px) } }
+
+  /* ===================================================================
+     CHOREOGRAPHY ENGINE
+     Each entrance is a CSS @keyframes that starts PAUSED. The
+     IntersectionObserver flips animation-play-state to running ONCE
+     when the scene first enters. No rAF, no scroll listener for motion.
+     =================================================================== */
+
+  /* every animated atom is paused until its scene unlocks it */
+  [data-anim]{
+    animation-duration:1100ms;
+    animation-fill-mode:both;
+    animation-play-state:paused;       /* held at frame 0 -> hero is "mid-play" composition */
+    animation-timing-function:var(--ease-rise);
+  }
+  .scene.is-live [data-anim]{ animation-play-state:running; }
+  /* stagger via inline --d (delay index) */
+  [data-anim]{ animation-delay:calc(var(--d, 0) * 90ms); }
+
+  /* -- S1 RISE: words clip up from below, staggered -- */
+  .a-rise{ animation-name:rise; }
+  @keyframes rise{
+    from{ transform:translateY(115%); clip-path:inset(0 0 100% 0); opacity:0; }
+    60%{ opacity:1; }
+    to{ transform:translateY(0); clip-path:inset(0 0 -2% 0); opacity:1; }
+  }
+  /* word wrapper hides the overflow so the clip reads as a curtain */
+  .word{ display:inline-block; overflow:hidden; vertical-align:top; padding:0 .04em; }
+
+  /* -- S2 IMPLODE: four media tiles converge from the corners -- */
+  .a-implode{ animation-name:implode; animation-timing-function:var(--ease-snap); }
+  @keyframes implode{
+    from{ transform:translate(var(--fx), var(--fy)) scale(1.25) rotate(var(--fr)); opacity:0; }
+    to{ transform:translate(0,0) scale(1) rotate(0); opacity:1; }
+  }
+
+  /* -- S3 TYPE: monospace types in via a stepped width reveal + caret -- */
+  .a-type{
+    animation-name:type;
+    animation-timing-function:steps(var(--steps,28), end);
+    white-space:nowrap; overflow:hidden;
+    border-right:.6ch solid var(--accent);
+    width:0;
+  }
+  @keyframes type{ from{ width:0 } to{ width:var(--w,100%) } }
+  .caret-blink{ animation:caret 900ms steps(1) infinite; }
+  @keyframes caret{ 50%{ border-color:transparent } }
+
+  /* -- S4 IRIS: a circular clip opens from center over the media -- */
+  .a-iris{ animation-name:iris; animation-timing-function:var(--ease-iris); animation-duration:1400ms; }
+  @keyframes iris{
+    from{ clip-path:circle(0% at 50% 50%); }
+    to{ clip-path:circle(150% at 50% 50%); }
+  }
+  .a-iris-ring{ animation-name:irisring; animation-duration:1400ms; animation-timing-function:var(--ease-iris); }
+  @keyframes irisring{
+    from{ transform:scale(.2); opacity:0; }
+    40%{ opacity:1; }
+    to{ transform:scale(1); opacity:.0; }
+  }
+
+  /* -- S5 TRIPTYCH: three panels unfold from a folded center -- */
+  .a-fold-l{ animation-name:foldL; transform-origin:right center; }
+  .a-fold-c{ animation-name:foldC; }
+  .a-fold-r{ animation-name:foldR; transform-origin:left center; }
+  @keyframes foldC{
+    from{ transform:perspective(1400px) scaleX(.04); opacity:0; }
+    to{ transform:perspective(1400px) scaleX(1); opacity:1; }
+  }
+  @keyframes foldL{
+    from{ transform:perspective(1400px) rotateY(86deg); opacity:0; }
+    to{ transform:perspective(1400px) rotateY(0); opacity:1; }
+  }
+  @keyframes foldR{
+    from{ transform:perspective(1400px) rotateY(-86deg); opacity:0; }
+    to{ transform:perspective(1400px) rotateY(0); opacity:1; }
+  }
+
+  /* -- S6 DROP: cards fall from above with staggered delay + slight tilt -- */
+  .a-drop{ animation-name:drop; animation-timing-function:cubic-bezier(.34,1.4,.5,1); animation-duration:900ms; }
+  @keyframes drop{
+    from{ transform:translateY(-130%) rotate(var(--tilt,-4deg)); opacity:0; }
+    70%{ opacity:1; }
+    to{ transform:translateY(0) rotate(0); opacity:1; }
+  }
+
+  /* -- S7 SETTLE: simple confident rise for the closer -- */
+  .a-up{ animation-name:up; }
+  @keyframes up{
+    from{ transform:translateY(40px); opacity:0; }
+    to{ transform:translateY(0); opacity:1; }
+  }
+
+  /* ===================================================================
+     PER-SECTION LAYOUTS
+     =================================================================== */
+
+  /* S1 hero: compact eyebrow band on top, the rising headline + a live
+     strip of the upcoming section accents visible at scroll=0 */
+  .s-hero .inner{ display:grid; gap:clamp(20px,3vw,40px); }
+  .s-hero .head-row{ display:flex; justify-content:space-between; align-items:flex-start; gap:20px; flex-wrap:wrap; }
+  .s-hero .scorestrip{ display:flex; gap:8px; align-items:center; }
+  .s-hero .scorestrip i{
+    width:clamp(34px,4.4vw,64px); height:8px; border-radius:1px;
+    display:block; opacity:.92;
+  }
+  .s-hero .h-meta{ display:flex; gap:clamp(18px,3vw,48px); flex-wrap:wrap; align-items:end; }
+  .s-hero .h-meta .lede{ flex:1 1 280px; }
+  .s-hero .stat{ display:grid; gap:3px; }
+  .s-hero .stat b{ font-family:"Fraunces",serif; font-size:clamp(1.6rem,3vw,2.4rem); font-weight:600; }
+  .s-hero .stat span{ font-family:"JetBrains Mono",monospace; font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:var(--bone-faint); }
+
+  /* S2 implode grid */
+  .s-implode .inner{ display:grid; grid-template-columns:1.1fr .9fr; gap:clamp(18px,3vw,42px); align-items:center; }
+  .imp-grid{ display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:10px; aspect-ratio:1/1; max-height:78dvh; }
+  .imp-grid .figure{ width:100%; height:100%; }
+  .s-implode .copy{ display:grid; gap:18px; }
+
+  /* S3 type terminal */
+  .s-type .inner{ display:grid; grid-template-columns:1fr; gap:clamp(16px,3vw,34px); max-width:1000px; }
+  .terminal{
+    border:1px solid var(--bone-line);
+    background:linear-gradient(180deg, rgba(255,255,255,.02), transparent);
+    border-radius:4px; overflow:hidden;
+  }
+  .terminal .bar{
+    display:flex; align-items:center; gap:7px; padding:11px 14px;
+    border-bottom:1px solid var(--bone-line);
+    font-family:"JetBrains Mono",monospace; font-size:11px; color:var(--bone-faint); letter-spacing:.1em;
+  }
+  .terminal .bar i{ width:9px; height:9px; border-radius:50%; background:var(--bone-line); }
+  .terminal .bar i:nth-child(1){ background:var(--vermilion); }
+  .terminal .bar i:nth-child(2){ background:var(--amber); }
+  .terminal .bar i:nth-child(3){ background:var(--forest); }
+  .terminal .bar span{ margin-left:auto; }
+  .terminal .body{
+    padding:clamp(18px,3vw,34px);
+    font-family:"JetBrains Mono",monospace;
+    font-size:clamp(1rem,2.4vw,1.9rem); line-height:1.6;
+    display:grid; gap:.35em;
+  }
+  .terminal .body .prompt{ color:var(--accent); }
+  .terminal .body .line{ display:flex; gap:.6ch; }
+
+  /* S4 iris media */
+  .s-iris .inner{ display:grid; place-items:center; gap:clamp(18px,3vw,34px); text-align:center; }
+  .iris-stage{
+    position:relative;
+    width:min(78vh, 92vw); aspect-ratio:16/10;
+    max-width:980px;
+  }
+  .iris-stage .figure{ position:absolute; inset:0; }
+  .iris-ring{
+    position:absolute; inset:0; z-index:3; pointer-events:none;
+    border:2px solid var(--accent); border-radius:50%;
+    transform-origin:center;
+  }
+  .s-iris .cap-row{ display:flex; gap:clamp(16px,3vw,40px); justify-content:center; flex-wrap:wrap; }
+
+  /* S5 triptych */
+  .s-tript .inner{ display:grid; gap:clamp(16px,3vw,30px); }
+  .tript{ display:grid; grid-template-columns:1fr 1.4fr 1fr; gap:10px; height:min(72dvh, 620px); }
+  .tript .figure{ height:100%; }
+
+  /* S6 card drop */
+  .s-drop .inner{ display:grid; gap:clamp(18px,3vw,34px); }
+  .drop-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+  .card{
+    position:relative;
+    border:1px solid var(--bone-line);
+    background:var(--void-2);
+    border-radius:4px; overflow:hidden;
+    aspect-ratio:3/4;
+    display:flex; flex-direction:column;
+  }
+  .card .media{ position:relative; flex:1; overflow:hidden; }
+  .card .media img, .card .media video{ width:100%; height:100%; object-fit:cover; }
+  .card .meta{
+    padding:12px 13px; border-top:1px solid var(--bone-line);
+    display:grid; gap:5px;
+  }
+  .card .meta h4{ font-family:"Fraunces",serif; font-weight:600; font-size:1.02rem; }
+  .card .meta p{ font-family:"JetBrains Mono",monospace; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--bone-faint); }
+  .card .tag{
+    position:absolute; top:9px; left:9px; z-index:2;
+    font-family:"JetBrains Mono",monospace; font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+    background:var(--accent); color:var(--void); padding:3px 8px; border-radius:2px; font-weight:600;
+  }
+
+  /* S7 closer */
+  .s-end .inner{ display:grid; gap:clamp(22px,4vw,46px); text-align:center; place-items:center; }
+  .cta{
+    display:inline-flex; align-items:center; gap:.7em;
+    font-family:"JetBrains Mono",monospace; font-size:13px; letter-spacing:.18em; text-transform:uppercase;
+    color:var(--void); background:var(--bone);
+    padding:16px 26px; border-radius:2px; text-decoration:none; font-weight:600;
+    transition:transform .3s var(--ease-rise), background .3s ease;
+  }
+  .cta:hover{ transform:translateY(-3px); }
+  .cta:focus-visible{ outline:3px solid var(--accent); outline-offset:3px; }
+  .end-legend{ display:flex; gap:clamp(14px,3vw,40px); flex-wrap:wrap; justify-content:center; }
+  .end-legend div{ display:flex; align-items:center; gap:9px; font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--bone-soft); }
+  .end-legend i{ width:24px; height:6px; border-radius:1px; display:block; }
+
+  /* ===================================================================
+     RESPONSIVE  - <=900 collapse two-col; <=640 stack + letterbox
+     =================================================================== */
+  @media (max-width:900px){
+    .s-implode .inner{ grid-template-columns:1fr; }
+    .imp-grid{ max-height:52dvh; }
+    .drop-grid{ grid-template-columns:repeat(2,1fr); }
+    .tript{ grid-template-columns:1fr 1.2fr 1fr; height:min(56dvh,460px); }
+    .rail .label{ display:none; }
+  }
+  @media (max-width:640px){
+    :root{ --pad: 18px; }
+    .scene{ place-items:start center; padding-top:84px; padding-bottom:64px; }
+    .display{ font-size:clamp(2.3rem,12vw,3.4rem); }
+    .s-hero .scorestrip i{ width:30px; height:7px; }
+    /* never cover-crop landscape assets into portrait phone: letterbox */
+    .imp-grid{ aspect-ratio:auto; max-height:none; grid-template-rows:auto auto; }
+    .imp-grid .figure{ aspect-ratio:16/10; }
+    .imp-grid .figure img, .imp-grid .figure video{ object-fit:contain; background:#000; }
+    .tript{ grid-template-columns:1fr; height:auto; gap:10px; }
+    .tript .figure{ aspect-ratio:16/10; }
+    .tript .figure img, .tript .figure video{ object-fit:contain; background:#000; }
+    .iris-stage{ width:100%; aspect-ratio:16/10; }
+    .iris-stage .figure img, .iris-stage .figure video{ object-fit:contain; background:#000; }
+    .drop-grid{ grid-template-columns:1fr 1fr; gap:10px; }
+    .card .media img, .card .media video{ object-fit:cover; } /* cards are portrait, assets fill ok */
+    .terminal .body{ font-size:1rem; }
+    .rail{ gap:10px; padding-right:8px; }
+    .rail button .label{ display:none; }
+    /* keep hero stats + lede clear of the collapsed rail ticks on the right edge */
+    .s-hero .h-meta{ padding-right:34px; }
+    .hint{ display:none; }
+  }
+
+  /* ===================================================================
+     REDUCED MOTION  - collapse every authored entrance to a plain
+     opacity fade; kill carets, bob, blend churn. Final state always shown.
+     =================================================================== */
+  @media (prefers-reduced-motion:reduce){
+    html{ scroll-behavior:auto; }
+    .track{ scroll-behavior:auto; }
+    [data-anim]{
+      animation:none !important;
+      opacity:1 !important;
+      transform:none !important;
+      clip-path:none !important;
+      width:auto !important;
+      border-right:0 !important;
+      white-space:normal !important;
+    }
+    .scene.is-live [data-anim], .scene [data-anim]{
+      animation:rmfade 480ms ease both;
+    }
+    @keyframes rmfade{ from{ opacity:0 } to{ opacity:1 } }
+    .a-type{ overflow:visible; }
+    .caret-blink, .hint, .iris-ring{ animation:none !important; }
+    .iris-ring{ display:none; }
+    .figure[data-anim].a-iris{ clip-path:none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress" aria-hidden="true"></div>
+<div class="brand"><span class="dot"></span>SNAP&nbsp;SCORE</div>
+
+<nav class="rail" id="rail" aria-label="Section navigation"></nav>
+
+<main class="track" id="track" aria-label="Scroll-snap choreography sequence">
+  <!-- scenes injected by JS from the SECTIONS data array -->
+</main>
+
+<div class="hint" id="hint" aria-hidden="true">scroll to advance the score</div>
+
+<script>
+/* ====================================================================
+   DATA  - swap content here. Each entry = one full-viewport snap scene
+   with its own choreography "move". Media paths are demo assets in
+   ../assets/ ; posters in ../assets/gen/ . `move` selects the entrance.
+   ==================================================================== */
+const A = "../assets/";
+const G = "../assets/gen/";
+
+const SECTIONS = [
+  {
+    id:"open", move:"rise", accent:"var(--cobalt)", label:"01 / RISE",
+    eyebrow:"Choreographed scroll-snap", tag:"Move 01",
+    // words rise + clip individually, staggered
+    words:["A","scored","descent", "through","seven","rooms."],
+    lede:"Native CSS scroll-snap moves the camera. Each room authors its own entrance - a different motion primitive fires once as you arrive. This first line is held mid-rise at the top of the page.",
+    stats:[["07","rooms"],["0","scroll listeners"],["1x","play toggle / room"]]
+  },
+  {
+    id:"implode", move:"implode", accent:"var(--vermilion)", label:"02 / IMPLODE",
+    eyebrow:"Move 02 - converge", tag:"Move 02",
+    title:["Four corners","collapse","to center."],
+    lede:"Four generated frames launch from the corners and slam into a grid. Heavy ease, single fire. No frame plays until the room is the one you are looking at.",
+    tiles:[
+      { kind:"img", src:A+"flux-car-4k.png",   cap:"flux / car",    fx:"-60vw", fy:"-40vh", fr:"-7deg" },
+      { kind:"img", src:A+"flux-clinic-4k.png", cap:"flux / clinic", fx:"60vw",  fy:"-40vh", fr:"6deg" },
+      { kind:"img", src:A+"sdxl.png",           cap:"sdxl / fox",    fx:"-60vw", fy:"40vh",  fr:"5deg" },
+      { kind:"img", src:A+"hf-tinysd.png",      cap:"tiny-sd / apple",fx:"60vw", fy:"40vh",  fr:"-6deg" }
+    ]
+  },
+  {
+    id:"type", move:"type", accent:"var(--amber)", label:"03 / TYPE",
+    eyebrow:"Move 03 - typeset",  tag:"Move 03",
+    lines:[
+      { prompt:"$", text:"render --room 03 --motion typewriter" },
+      { prompt:">", text:"monospace types in, stepped, one caret" },
+      { prompt:">", text:"steps() timing - no per-char JS, no rAF" },
+      { prompt:"$", text:"_", caret:true }
+    ],
+    lede:"A stepped width reveal plus a single blinking caret. Pure CSS keyframes; the only JavaScript is the one play-state flip on enter."
+  },
+  {
+    id:"iris", move:"iris", accent:"var(--forest)", label:"04 / IRIS",
+    eyebrow:"Move 04 - iris open", tag:"Move 04",
+    title:["The lens","opens","from center."],
+    media:{ kind:"video", src:A+"kling-video.mp4", poster:G+"poster-kling-video.png", cap:"kling / motion" },
+    caps:[["clip-path","circle(0 -> 150%)"],["ring","scale + fade"]],
+    lede:"A circular clip-path expands from a point over a video that only plays while this room is on stage. A ring pulses out with it."
+  },
+  {
+    id:"triptych", move:"triptych", accent:"var(--cobalt)", label:"05 / UNFOLD",
+    eyebrow:"Move 05 - triptych", tag:"Move 05",
+    title:["Three panels","unfold","like a hinge."],
+    panels:[
+      { kind:"video", src:A+"fal-video.mp4",  poster:G+"poster-fal-video.png",   cap:"fal", role:"l" },
+      { kind:"video", src:A+"veo-video.mp4",  poster:G+"poster-veo-video.png",   cap:"veo", role:"c" },
+      { kind:"img",   src:A+"flux-clinic-4k.png",                                cap:"flux", role:"r" }
+    ],
+    note:"Center panel autoplays in-view; side panels hold posters - no simultaneous decode storm.",
+    lede:"Outer wings rotate in on a perspective hinge while the center stretches open from a sliver. Only the focused center frame decodes."
+  },
+  {
+    id:"drop", move:"drop", accent:"var(--vermilion)", label:"06 / DROP",
+    eyebrow:"Move 06 - card drop", tag:"Move 06",
+    title:["Cards fall","in sequence."],
+    cards:[
+      { kind:"img",   src:A+"flux-car-4k.png",  tag:"image", h:"Matte black", p:"flux / 4k" },
+      { kind:"video", src:A+"hyperframes.mp4",  poster:G+"poster-hyperframes.png", tag:"video", h:"Frames", p:"hyperframes" },
+      { kind:"img",   src:A+"sdxl.png",         tag:"image", h:"Autumn fox", p:"sdxl" },
+      { kind:"video", src:A+"did-talking-photo.mp4", poster:G+"poster-did.png", tag:"video", h:"Talking", p:"d-id" }
+    ],
+    lede:"Each card drops from above with an overshoot and a staggered delay - the stagger is one CSS custom property per card, not a timeline lib."
+  },
+  {
+    id:"end", move:"settle", accent:"var(--amber)", label:"07 / SCORE",
+    eyebrow:"End of score", tag:"Move 07",
+    title:["One paradigm.","Seven entrances."],
+    lede:"Swap the SECTIONS array to re-score the descent. The snap is native, the choreography is authored, and reduced-motion flattens every room to a single honest fade.",
+    legend:[["var(--cobalt)","rise / unfold"],["var(--vermilion)","implode / drop"],["var(--forest)","iris"],["var(--amber)","type / score"]],
+    cta:"Replay from the top"
+  }
+];
+
+/* ====================================================================
+   RENDER
+   ==================================================================== */
+const track = document.getElementById("track");
+const rail  = document.getElementById("rail");
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function figure({kind, src, poster, cap}, cls="", extraStyle="", animAttrs=""){
+  const inner = kind === "video"
+    ? `<video muted loop playsinline preload="none" poster="${esc(poster||"")}" data-src="${esc(src)}"></video>`
+    : `<img loading="lazy" src="${esc(src)}" alt="${esc(cap||"")}" />`;
+  const capHtml = cap ? `<figcaption>${esc(cap)}</figcaption>` : "";
+  return `<figure class="figure ${cls}" ${animAttrs} style="${extraStyle}">${inner}${capHtml}</figure>`;
+}
+
+function buildScene(s, i){
+  const sec = document.createElement("section");
+  sec.className = "scene s-" + ({open:"hero",implode:"implode",type:"type",iris:"iris",triptych:"tript",drop:"drop",end:"end"}[s.id] || s.id);
+  sec.style.setProperty("--accent", s.accent);
+  sec.id = "scene-" + s.id;
+  sec.dataset.index = i;
+  sec.setAttribute("aria-label", s.label + " - " + (s.eyebrow||""));
+
+  let html = `<div class="inner">`;
+
+  /* ---- S1 RISE ---- */
+  if(s.move === "rise"){
+    const wordSpans = s.words.map((w,k) =>
+      `<span class="word"><span data-anim class="a-rise" style="--d:${k+2}">${esc(w)}&nbsp;</span></span>`
+    ).join("");
+    const strip = ["var(--cobalt)","var(--vermilion)","var(--amber)","var(--forest)","var(--cobalt)","var(--vermilion)","var(--amber)"]
+      .map((c,k)=>`<i data-anim class="a-rise" style="--d:${k};background:${c}"></i>`).join("");
+    const stats = s.stats.map((st,k)=>
+      `<div class="stat a-rise" data-anim style="--d:${k+7}"><b data-anim class="a-rise" style="--d:${k+8}">${esc(st[0])}</b><span data-anim class="a-rise" style="--d:${k+9}">${esc(st[1])}</span></div>`
+    ).join("");
+    html += `
+      <div class="head-row">
+        <div class="eyebrow a-rise" data-anim style="--d:0"><span class="dash"></span><b>${esc(s.tag)}</b> ${esc(s.eyebrow)}</div>
+        <div class="scorestrip" aria-hidden="true">${strip}</div>
+      </div>
+      <h1 class="display">${wordSpans}</h1>
+      <div class="h-meta">
+        <p class="lede a-rise" data-anim style="--d:9">${esc(s.lede)}</p>
+        ${stats}
+      </div>`;
+  }
+
+  /* ---- S2 IMPLODE ---- */
+  else if(s.move === "implode"){
+    const tiles = s.tiles.map((t,k)=>
+      figure(t, "a-implode", `--fx:${t.fx};--fy:${t.fy};--fr:${t.fr};--d:${k}`, "data-anim")
+    ).join("");
+    const title = s.title.map((t,k)=>`<span class="word"><span data-anim class="a-rise" style="--d:${k}">${esc(t)}&nbsp;</span></span>`).join("");
+    html += `
+      <div class="imp-grid">${tiles}</div>
+      <div class="copy">
+        <div class="eyebrow a-rise" data-anim style="--d:0"><span class="dash"></span><b>${esc(s.tag)}</b> ${esc(s.eyebrow)}</div>
+        <h2 class="display" style="font-size:clamp(2rem,5vw,4.4rem)">${title}</h2>
+        <p class="lede a-rise" data-anim style="--d:4">${esc(s.lede)}</p>
+      </div>`;
+  }
+
+  /* ---- S3 TYPE ---- */
+  else if(s.move === "type"){
+    const lines = s.lines.map((ln,k)=>{
+      const steps = ln.text.length;
+      const caretCls = ln.caret ? " caret-blink" : "";
+      return `<div class="line">
+        <span class="prompt">${esc(ln.prompt)}</span>
+        <span data-anim class="a-type${caretCls}" style="--d:${k*9};--steps:${steps};--w:${ln.text.length+0.5}ch">${esc(ln.text)}</span>
+      </div>`;
+    }).join("");
+    html += `
+      <div class="eyebrow a-rise" data-anim style="--d:0"><span class="dash"></span><b>${esc(s.tag)}</b> ${esc(s.eyebrow)}</div>
+      <div class="terminal">
+        <div class="bar"><i></i><i></i><i></i> snap-score / room-03 <span>steps()</span></div>
+        <div class="body">${lines}</div>
+      </div>
+      <p class="lede a-rise" data-anim style="--d:38">${esc(s.lede)}</p>`;
+  }
+
+  /* ---- S4 IRIS ---- */
+  else if(s.move === "iris"){
+    const title = s.title.map((t,k)=>`<span class="word"><span data-anim class="a-rise" style="--d:${k}">${esc(t)}&nbsp;</span></span>`).join("");
+    const caps = s.caps.map(c=>`<div class="eyebrow"><b>${esc(c[0])}</b> ${esc(c[1])}</div>`).join("");
+    html += `
+      <div class="eyebrow a-rise" data-anim style="--d:0"><span class="dash"></span><b>${esc(s.tag)}</b> ${esc(s.eyebrow)}</div>
+      <div class="iris-stage">
+        ${figure(s.media, "a-iris", "", "data-anim")}
+        <div class="iris-ring a-iris-ring" data-anim aria-hidden="true"></div>
+      </div>
+      <h2 class="display" style="font-size:clamp(1.8rem,4.5vw,3.6rem)">${title}</h2>
+      <div class="cap-row">${caps}</div>
+      <p class="lede a-rise" data-anim style="--d:4;margin:0 auto">${esc(s.lede)}</p>`;
+  }
+
+  /* ---- S5 TRIPTYCH ---- */
+  else if(s.move === "triptych"){
+    const roleCls = { l:"a-fold-l", c:"a-fold-c", r:"a-fold-r" };
+    const panels = s.panels.map((p,k)=>
+      figure(p, roleCls[p.role], `--d:${p.role==="c"?0:1}`, "data-anim")
+    ).join("");
+    const title = s.title.map((t,k)=>`<span class="word"><span data-anim class="a-rise" style="--d:${k}">${esc(t)}&nbsp;</span></span>`).join("");
+    html += `
+      <div class="eyebrow a-rise" data-anim style="--d:0"><span class="dash"></span><b>${esc(s.tag)}</b> ${esc(s.eyebrow)}</div>
+      <div class="tript">${panels}</div>
+      <h2 class="display" style="font-size:clamp(1.8rem,4.5vw,3.6rem)">${title}</h2>
+      <p class="lede a-rise" data-anim style="--d:4">${esc(s.lede)}</p>`;
+  }
+
+  /* ---- S6 DROP ---- */
+  else if(s.move === "drop"){
+    const cards = s.cards.map((c,k)=>{
+      const tilt = (k%2===0) ? "-5deg" : "5deg";
+      const media = c.kind === "video"
+        ? `<video muted loop playsinline preload="none" poster="${esc(c.poster||"")}" data-src="${esc(c.src)}"></video>`
+        : `<img loading="lazy" src="${esc(c.src)}" alt="${esc(c.h)}" />`;
+      return `<article class="card a-drop" data-anim style="--d:${k*1.4};--tilt:${tilt}">
+        <span class="tag">${esc(c.tag)}</span>
+        <div class="media">${media}</div>
+        <div class="meta"><h4>${esc(c.h)}</h4><p>${esc(c.p)}</p></div>
+      </article>`;
+    }).join("");
+    const title = s.title.map((t,k)=>`<span class="word"><span data-anim class="a-rise" style="--d:${k}">${esc(t)}&nbsp;</span></span>`).join("");
+    html += `
+      <div class="eyebrow a-rise" data-anim style="--d:0"><span class="dash"></span><b>${esc(s.tag)}</b> ${esc(s.eyebrow)}</div>
+      <h2 class="display" style="font-size:clamp(1.8rem,4.5vw,3.6rem)">${title}</h2>
+      <div class="drop-grid">${cards}</div>
+      <p class="lede a-rise" data-anim style="--d:7">${esc(s.lede)}</p>`;
+  }
+
+  /* ---- S7 SETTLE ---- */
+  else if(s.move === "settle"){
+    const title = s.title.map((t,k)=>`<span class="word"><span data-anim class="a-up" style="--d:${k+1}">${esc(t)}&nbsp;</span></span>`).join(" ");
+    const legend = s.legend.map((l,k)=>`<div data-anim class="a-up" style="--d:${k+4}"><i style="background:${l[0]}"></i>${esc(l[1])}</div>`).join("");
+    html += `
+      <div class="eyebrow a-up" data-anim style="--d:0"><span class="dash"></span><b>${esc(s.tag)}</b> ${esc(s.eyebrow)}</div>
+      <h2 class="display">${title}</h2>
+      <p class="lede a-up" data-anim style="--d:3;margin:0 auto">${esc(s.lede)}</p>
+      <div class="end-legend">${legend}</div>
+      <a class="cta a-up" data-anim style="--d:8" href="#scene-open">${esc(s.cta)} &#8593;</a>`;
+  }
+
+  html += `</div>`;
+  sec.innerHTML = html;
+  return sec;
+}
+
+SECTIONS.forEach((s,i)=> track.appendChild(buildScene(s,i)));
+
+/* rail nav */
+SECTIONS.forEach((s,i)=>{
+  const b = document.createElement("button");
+  b.type = "button";
+  b.setAttribute("aria-label", "Go to " + s.label);
+  b.innerHTML = `<span class="label">${esc(s.label)}</span><span class="tick"></span>`;
+  b.addEventListener("click", ()=>{
+    document.getElementById("scene-"+s.id).scrollIntoView({behavior: reduceMotion ? "auto" : "smooth"});
+  });
+  rail.appendChild(b);
+});
+const railBtns = Array.from(rail.children);
+
+/* ====================================================================
+   CHOREOGRAPHY TRIGGER  - one IntersectionObserver. On first entry of
+   a scene, flip .is-live (which sets animation-play-state:running on its
+   atoms). Fires ONCE per scene. Also drives video play/pause + rail.
+   No rAF, no scroll listener for motion.
+   ==================================================================== */
+const scenes = Array.from(track.querySelectorAll(".scene"));
+
+/* reduced-motion gate: looping autoplay video is motion - keep videos on
+   their poster frame and skip the smooth-scroll easing when the user asks. */
+const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function bindVideo(v){
+  if(v.dataset.bound) return;
+  v.dataset.bound = "1";
+  if(v.dataset.src && !v.src) v.src = v.dataset.src; // lazy attach source on first activation
+}
+
+const io = new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{
+    const sc = e.target;
+    const idx = +sc.dataset.index;
+    if(e.isIntersecting && e.intersectionRatio > 0.55){
+      // fire choreography once
+      sc.classList.add("is-live");
+      // current rail state
+      railBtns.forEach((b,i)=> b.setAttribute("aria-current", i===idx ? "true":"false"));
+      // play in-view videos (focused only - triptych plays center, others stay poster)
+      sc.querySelectorAll("video").forEach(v=>{
+        const isSide = v.closest(".tript") && !v.parentElement.previousElementSibling; // n/a; handled below
+      });
+      activateVideos(sc, true);
+    } else {
+      activateVideos(sc, false);
+    }
+  });
+},{ root: track, threshold:[0, 0.55, 0.9] });
+
+scenes.forEach(s=> io.observe(s));
+
+/* video policy: never autoplay several heavy frames at once. In the
+   triptych only the CENTER panel plays; everywhere else every video in
+   the live scene plays (cards are small, iris is single). */
+function activateVideos(scene, on){
+  const inTript = scene.classList.contains("s-tript");
+  scene.querySelectorAll("video").forEach(v=>{
+    const isCenter = inTript && v.closest(".a-fold-c");
+    const allowed = inTript ? isCenter : true;
+    if(on && allowed && !reduceMotion){
+      bindVideo(v);
+      const p = v.play(); if(p && p.catch) p.catch(()=>{});
+    } else {
+      try{ v.pause(); }catch(_){}
+    }
+  });
+}
+
+/* ====================================================================
+   PROGRESS BAR  - the one allowed scroll listener, throttled via
+   rAF, purely decorative (does NOT drive any entrance). Honors
+   reduced-motion by simply still updating width (cheap, no transforms).
+   ==================================================================== */
+const progress = document.getElementById("progress");
+let ticking = false;
+track.addEventListener("scroll", ()=>{
+  if(ticking) return;
+  ticking = true;
+  requestAnimationFrame(()=>{
+    const max = track.scrollHeight - track.clientHeight;
+    const pct = max > 0 ? (track.scrollTop / max) * 100 : 0;
+    progress.style.setProperty("--pw", pct.toFixed(2) + "%");
+    if(track.scrollTop > 40){ const h=document.getElementById("hint"); if(h) h.style.opacity="0"; }
+    ticking = false;
+  });
+}, { passive:true });
+
+/* keyboard: arrow / page keys move scene-to-scene (snap handles the rest) */
+document.addEventListener("keydown",(e)=>{
+  const cur = scenes.findIndex(s=> s.classList.contains("is-live") && s.getAttribute("aria-label"));
+  // find the scene most in view
+  let liveIdx = 0, best = Infinity;
+  scenes.forEach((s,i)=>{ const d = Math.abs(s.getBoundingClientRect().top); if(d<best){best=d;liveIdx=i;} });
+  const sb = reduceMotion ? "auto" : "smooth";
+  if(["ArrowDown","PageDown"," "].includes(e.key)){ e.preventDefault(); scenes[Math.min(liveIdx+1,scenes.length-1)].scrollIntoView({behavior:sb}); }
+  if(["ArrowUp","PageUp"].includes(e.key)){ e.preventDefault(); scenes[Math.max(liveIdx-1,0)].scrollIntoView({behavior:sb}); }
+});
+
+/* hero is live immediately so its rise is "mid-play" at scroll=0 */
+requestAnimationFrame(()=>{ scenes[0].classList.add("is-live"); railBtns[0].setAttribute("aria-current","true"); });
+</script>
+</body>
+</html>

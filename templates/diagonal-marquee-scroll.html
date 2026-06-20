@@ -1,0 +1,592 @@
+<!-- TEMPLATE: DIAGONAL DRIFT | ARCHETYPE: diagonal counter-rotating marquee bands | REF: Awwwards experimental 2026 diagonal-ticker, Godly 2026 diagonal-scroll (Bureau Borsche, DIA Studio) | WHEN TO USE: a media-gen portfolio where works race across the viewport on tilted bands that pull apart as you scroll | SWAP: edit the DATA array at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DIAGONAL DRIFT - media-gen marquee</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================ DESIGN TOKENS ============================ */
+:root{
+  --void:#0d0d0d;          /* page void */
+  --void-2:#070707;
+  --bone:#f2ede4;          /* band paper */
+  --bone-dim:#cabfac;
+  --vermilion:#c0392b;     /* counter band + lock overlay */
+  --vermilion-deep:#8c241a;
+  --amber:#e8c547;         /* speed label */
+  --ink:#0d0d0d;
+  --tile-w: 320px;         /* thumbnail width (desktop) */
+  --tile-h: 200px;         /* thumbnail height (desktop) */
+  --gap: 18px;             /* gap between tiles */
+  --band-pad: 18px;        /* vertical padding inside a band */
+  --tilt: 6deg;            /* band tilt magnitude */
+  --speed: 1;              /* global scroll-speed multiplier, driven by JS, capped 5 */
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+html,body{margin:0;background:var(--void);color:var(--bone)}
+body{
+  font-family:"Space Grotesk",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+  min-height:100svh;
+  background:
+    radial-gradient(130% 90% at 50% -10%, #181818 0%, var(--void) 46%, var(--void-2) 100%);
+}
+img,video{display:block;max-width:100%}
+button{font-family:inherit;color:inherit;background:none;border:0;cursor:pointer}
+a{color:inherit}
+::selection{background:var(--vermilion);color:var(--bone)}
+:focus-visible{outline:3px solid var(--amber);outline-offset:3px;border-radius:2px}
+
+/* ============================ STAGE ============================ */
+/* the stage is taller than the viewport so vertical scroll has travel to map onto --speed */
+.stage{position:relative;height:280vh}
+/* the marquee field is pinned: bands fill the viewport at scroll=0, already in motion */
+.field{
+  position:sticky;top:0;height:100svh;width:100%;
+  overflow:hidden;
+  display:flex;flex-direction:column;justify-content:center;
+  gap:clamp(10px,2.4vh,30px);
+  /* a hair of extra width so tilted bands never reveal a void corner */
+  padding-block:2vh;
+}
+
+/* ============================ MASTHEAD (compact top band, overlays the field) ============================ */
+.mast{
+  position:fixed;left:0;right:0;top:0;z-index:60;
+  display:flex;align-items:center;justify-content:space-between;
+  gap:16px;
+  padding:16px clamp(16px,3vw,40px);
+  pointer-events:none;
+  background:linear-gradient(to bottom, rgba(13,13,13,.86), rgba(13,13,13,.32) 70%, transparent);
+}
+.mast .brand{pointer-events:auto;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.mast h1{
+  font-family:"Anton",Impact,sans-serif;
+  margin:0;line-height:.86;letter-spacing:.01em;
+  font-size:clamp(26px,4.4vw,52px);
+  color:var(--bone);
+  text-transform:uppercase;
+}
+.mast h1 em{font-style:normal;color:var(--vermilion);-webkit-text-stroke:1px var(--vermilion)}
+.mast .sub{
+  font-size:clamp(10px,1.1vw,13px);letter-spacing:.26em;text-transform:uppercase;
+  color:var(--bone-dim);max-width:34ch;
+}
+/* speed readout - amber, monospace-ish numerals */
+.speedo{
+  pointer-events:auto;
+  display:flex;align-items:center;gap:10px;
+  font-variant-numeric:tabular-nums;
+  font-weight:600;letter-spacing:.18em;text-transform:uppercase;
+  font-size:clamp(10px,1vw,12px);color:var(--amber);
+  white-space:nowrap;
+}
+.speedo .num{
+  font-family:"Anton",Impact,sans-serif;
+  font-size:clamp(22px,2.6vw,32px);letter-spacing:.02em;
+  color:var(--amber);line-height:1;min-width:3.4ch;text-align:right;
+}
+.speedo .bar{
+  position:relative;width:clamp(54px,7vw,96px);height:6px;border-radius:3px;
+  background:rgba(232,197,71,.16);overflow:hidden;
+}
+.speedo .bar i{
+  position:absolute;inset:0;transform-origin:left;
+  transform:scaleX(var(--spd-frac,.2));
+  background:linear-gradient(90deg,var(--amber),var(--vermilion));
+  transition:transform .12s linear;
+}
+
+/* ============================ BANDS ============================ */
+.band{
+  position:relative;
+  flex:0 0 auto;
+  width:128%;            /* overscan: a tilted full-width strip needs extra length */
+  margin-left:-14%;      /* recenter the overscan */
+  padding-block:var(--band-pad);
+  background:var(--bone);
+  color:var(--ink);
+  box-shadow:0 24px 60px -28px rgba(0,0,0,.85), inset 0 0 0 1px rgba(13,13,13,.06);
+  will-change:transform;
+}
+.band.tilt-pos{transform:rotate(var(--tilt))}
+.band.tilt-neg{transform:rotate(calc(-1 * var(--tilt)))}
+/* the vermilion counter-band - the eye-magnet seam break */
+.band.accent{
+  background:var(--vermilion);
+  color:var(--bone);
+  box-shadow:0 28px 64px -26px rgba(192,57,43,.6), inset 0 0 0 1px rgba(255,255,255,.06);
+}
+.band .edge{
+  /* thin amber seam line so adjacent bands read as separate strips drifting apart */
+  position:absolute;left:0;right:0;height:2px;background:var(--amber);opacity:.85;
+}
+.band .edge.top{top:0}
+.band .edge.bot{bottom:0}
+
+/* the moving track: two identical halves so the loop is seamless with NO JS cloning */
+.track{
+  display:flex;width:max-content;
+  gap:var(--gap);
+  /* duration set per-band; speed multiplier applied via animation-duration calc on --speed */
+  animation-name:driftL;
+  animation-timing-function:linear;
+  animation-iteration-count:infinite;
+  animation-duration:calc(var(--dur,46s) / var(--speed));
+  will-change:transform;
+}
+.track.rev{animation-name:driftR}
+@keyframes driftL{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}
+@keyframes driftR{from{transform:translate3d(-50%,0,0)}to{transform:translate3d(0,0,0)}}
+
+/* speed blur: at high multiplier the racing bands smear (motion-blur fake) */
+.field.fast .track{filter:blur(var(--mblur,0px))}
+
+/* ============================ TILE ============================ */
+.tile{
+  position:relative;flex:0 0 auto;
+  width:var(--tile-w);height:var(--tile-h);
+  border-radius:3px;overflow:hidden;
+  background:#1a1a1a;
+  box-shadow:0 6px 18px -10px rgba(13,13,13,.6), inset 0 0 0 1px rgba(13,13,13,.14);
+  cursor:pointer;
+  display:block;padding:0;
+  isolation:isolate;
+}
+.band.accent .tile{box-shadow:0 6px 18px -8px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.16)}
+.tile .media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.tile .media.contain{object-fit:contain;background:#0d0d0d}
+.tile .veil{
+  position:absolute;inset:0;
+  background:linear-gradient(to top, rgba(13,13,13,.78) 0%, rgba(13,13,13,.05) 46%, transparent 70%);
+  z-index:2;
+}
+.tile .cap{
+  position:absolute;left:10px;right:10px;bottom:9px;z-index:3;
+  display:flex;align-items:flex-end;justify-content:space-between;gap:8px;
+  color:var(--bone);
+}
+.tile .cap .t{
+  font-weight:700;font-size:13px;line-height:1.06;letter-spacing:.01em;
+  text-shadow:0 1px 4px rgba(0,0,0,.7);
+}
+.tile .cap .k{
+  flex:0 0 auto;
+  font-size:9px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
+  padding:3px 6px;border-radius:2px;
+  background:var(--amber);color:var(--ink);
+}
+.tile .vidflag{
+  position:absolute;top:8px;left:8px;z-index:3;
+  width:24px;height:24px;border-radius:50%;
+  display:grid;place-items:center;
+  background:rgba(13,13,13,.6);color:var(--bone);
+  backdrop-filter:blur(2px);
+}
+.tile .vidflag svg{width:11px;height:11px;margin-left:1px}
+.tile:hover .media,.tile:focus-visible .media{transform:scale(1.05)}
+.tile .media{transition:transform .5s cubic-bezier(.2,.7,.2,1)}
+
+/* pause-on-hover: hovering a band freezes its track so you can aim a click */
+@media (hover:hover){
+  .band:hover .track{animation-play-state:paused}
+}
+
+/* ============================ LOCKBOX (full-screen snap) ============================ */
+.lock{
+  position:fixed;inset:0;z-index:200;
+  display:none;
+  align-items:center;justify-content:center;
+  padding:clamp(16px,4vw,56px);
+  background:
+    radial-gradient(120% 120% at 50% 40%, rgba(192,57,43,.42), rgba(140,36,26,.72) 60%, rgba(13,13,13,.94) 100%);
+  backdrop-filter:blur(8px) saturate(1.1);
+  opacity:0;transition:opacity .26s ease;
+}
+.lock.on{display:flex;opacity:1}
+.lock .frame{
+  position:relative;
+  width:min(1120px,92vw);max-height:86svh;
+  display:flex;flex-direction:column;
+  border:2px solid var(--amber);
+  background:#0d0d0d;
+  box-shadow:0 40px 120px -30px rgba(0,0,0,.9);
+  transform:translateY(14px) scale(.985);transition:transform .3s cubic-bezier(.16,1,.3,1);
+}
+.lock.on .frame{transform:none}
+.lock .stagewrap{
+  position:relative;flex:1 1 auto;min-height:0;
+  display:grid;place-items:center;
+  background:#070707;
+  overflow:hidden;
+}
+.lock .stagewrap .media{
+  max-width:100%;max-height:72svh;width:auto;height:auto;object-fit:contain;
+}
+.lock .bar{
+  flex:0 0 auto;
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:14px clamp(14px,2.4vw,24px);
+  border-top:2px solid var(--amber);
+  background:linear-gradient(to right, rgba(192,57,43,.16), transparent);
+}
+.lock .bar .num{
+  font-family:"Anton",Impact,sans-serif;font-size:30px;color:var(--vermilion);line-height:1;
+}
+.lock .bar .meta{display:flex;flex-direction:column;gap:2px;min-width:0}
+.lock .bar .meta .t{font-family:"Anton",Impact,sans-serif;font-size:clamp(18px,2.4vw,26px);letter-spacing:.01em;text-transform:uppercase;color:var(--bone)}
+.lock .bar .meta .d{font-size:13px;color:var(--bone-dim);line-height:1.4}
+.lock .bar .tag{
+  margin-left:auto;font-size:10px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--ink);background:var(--amber);padding:5px 9px;border-radius:2px;align-self:flex-start;
+}
+.lock .x{
+  position:absolute;top:-2px;right:-2px;z-index:5;
+  width:46px;height:46px;display:grid;place-items:center;
+  background:var(--amber);color:var(--ink);font-size:22px;font-weight:700;line-height:1;
+}
+.lock .x:hover{background:var(--bone)}
+.lock .audiowrap{display:flex;flex-direction:column;gap:14px;align-items:center;padding:24px;width:100%}
+.lock .audiowrap img{width:min(640px,86%);height:auto;filter:invert(1) hue-rotate(180deg) brightness(1.3)}
+.lock .audiowrap audio{width:min(640px,86%)}
+
+.hint{
+  position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:55;
+  font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--bone-dim);
+  pointer-events:none;display:flex;align-items:center;gap:10px;
+  background:rgba(13,13,13,.5);padding:7px 14px;border-radius:99px;backdrop-filter:blur(4px);
+}
+.hint b{color:var(--amber);font-weight:700}
+.hint .scrolldot{width:6px;height:6px;border-radius:50%;background:var(--amber);animation:bob 1.4s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0);opacity:1}50%{transform:translateY(4px);opacity:.4}}
+
+/* ============================ MOBILE: tilt removed, 2 bands, horizontal only ============================ */
+@media (max-width:640px){
+  :root{--tile-w:208px;--tile-h:132px;--gap:12px;--band-pad:12px}
+  .stage{height:220vh}
+  .field{gap:14px}
+  .band{width:100%;margin-left:0}
+  .band.tilt-pos,.band.tilt-neg{transform:none}   /* flat bands on phone */
+  /* keep only 2 bands on small screens */
+  .band[data-band="2"],.band[data-band="3"]{display:none}
+  .mast{padding:12px 14px}
+  .mast .sub{display:none}
+  /* letterbox landscape media into the tile rather than cover-cropping the phone */
+  .tile .media{object-fit:contain;background:#0d0d0d}
+  .tile .veil{background:linear-gradient(to top, rgba(13,13,13,.7) 0%, transparent 50%)}
+}
+
+/* ============================ REDUCED MOTION: static thumbnail grid, all bands paused ============================ */
+@media (prefers-reduced-motion:reduce){
+  .stage{height:auto}
+  .field{position:static;height:auto;display:block;padding:78px 16px 40px}
+  .band{
+    width:100%;margin-left:0;transform:none !important;
+    background:transparent;box-shadow:none;padding:0;margin-bottom:24px;
+  }
+  .band.accent{background:transparent}
+  .band .edge{display:none}
+  .track{
+    animation:none !important;filter:none !important;
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+    gap:14px;width:100%;
+  }
+  /* the duplicate loop-half is redundant in a static grid - hide the clones */
+  .track .dupe{display:none}
+  .tile{width:auto;height:auto;aspect-ratio:16/10}
+  .band:hover .track{animation-play-state:paused}
+  .hint{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- compact top band overlaying the live field -->
+<header class="mast">
+  <div class="brand">
+    <h1>DIAGONAL <em>DRIFT</em></h1>
+    <p class="sub">Counter-rotating marquee bands. Scroll to drive the drift. Click a work to lock it full-screen.</p>
+  </div>
+  <div class="speedo" id="speedo" role="status" aria-live="off">
+    <span>Speed</span>
+    <span class="num" id="speedNum">1.0x</span>
+    <span class="bar" aria-hidden="true"><i id="speedBar"></i></span>
+  </div>
+</header>
+
+<!-- the signature: 4 tilted bands fill the viewport at scroll=0, already moving -->
+<main class="stage">
+  <section class="field" id="field" aria-label="Diagonal marquee of generated works"></section>
+</main>
+
+<div class="hint" aria-hidden="true"><span class="scrolldot"></span> Scroll = speed <b>up to 5x</b> &nbsp;/&nbsp; Hover a band to aim, click to lock</div>
+
+<!-- full-screen lock view -->
+<div class="lock" id="lock" role="dialog" aria-modal="true" aria-label="Locked work" hidden>
+  <div class="frame">
+    <button class="x" id="lockX" aria-label="Close">&times;</button>
+    <div class="stagewrap" id="lockStage"></div>
+    <div class="bar">
+      <span class="num" id="lockNum">01</span>
+      <div class="meta">
+        <span class="t" id="lockTitle">Title</span>
+        <span class="d" id="lockDesc">Description</span>
+      </div>
+      <span class="tag" id="lockTag">TAG</span>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ====================================================================
+   DATA - swap these entries to repopulate every band. Each work:
+     title, kind ('image' | 'video' | 'audio' | '3d'),
+     src   (poster for video, image for image, waveform for audio, thumb for 3d),
+     vid   (mp4 path, video only), audio (mp3/wav, audio only),
+     desc, tag
+   Bands are assembled from this pool below (BAND_LAYOUT).
+   ==================================================================== */
+const A = "../assets/";
+const G = "../assets/gen/";
+const DATA = [
+  { title:"Night Mercedes",   kind:"image", src:A+"flux-car-4k.png",
+    desc:"FLUX 4K - cinematic matte-black Mercedes on a wet neon street.", tag:"FLUX" },
+  { title:"Mint Clinic",      kind:"image", src:A+"flux-clinic-4k.png",
+    desc:"FLUX 4K - mint and wood dental clinic, soft daylight.", tag:"FLUX" },
+  { title:"Autumn Fox",       kind:"image", src:A+"sdxl.png",
+    desc:"SDXL - painterly autumn fox, warm impasto strokes.", tag:"SDXL" },
+  { title:"Low-Fi Apple",     kind:"image", src:A+"hf-tinysd.png", contain:true,
+    desc:"TinySD - abstract low-fidelity apple study.", tag:"TINYSD" },
+  { title:"Kling Motion",     kind:"video", src:G+"poster-kling-video.png", vid:A+"kling-video.mp4",
+    desc:"Kling - text-to-video motion loop, silent.", tag:"KLING" },
+  { title:"Fal Render",       kind:"video", src:G+"poster-fal-video.png",   vid:A+"fal-video.mp4",
+    desc:"fal.ai - diffusion video render, silent loop.", tag:"FAL" },
+  { title:"Car Drive (i2v)",  kind:"video", src:G+"poster-flux-car-i2v.png",vid:A+"flux-car-i2v.mp4",
+    desc:"FLUX image-to-video - the Mercedes set in motion.", tag:"I2V" },
+  { title:"Hyperframes",      kind:"video", src:G+"poster-hyperframes.png", vid:A+"hyperframes.mp4",
+    desc:"Hyperframes - interpolated frame study, silent.", tag:"FRAMES" },
+  { title:"HeyGen Avatar",    kind:"video", src:G+"poster-heygen.png",      vid:A+"heygen-avatar.mp4",
+    desc:"HeyGen - talking avatar, has audio.", tag:"AVATAR" },
+  { title:"Veo Scene",        kind:"video", src:G+"poster-veo-video.png",   vid:A+"veo-video.mp4",
+    desc:"Veo - generated cinematic scene, has audio.", tag:"VEO" },
+  { title:"D-ID Photo",       kind:"video", src:G+"poster-did.png",         vid:A+"did-talking-photo.mp4",
+    desc:"D-ID - talking-photo animation, has audio.", tag:"D-ID" },
+  { title:"3D Mesh",          kind:"image", src:A+"meshy-refined-thumb.png",
+    desc:"Meshy - refined 3D mesh, poster still.", tag:"MESHY" },
+  { title:"ElevenLabs TH",    kind:"audio", src:G+"wave-elevenlabs.png", audio:A+"elevenlabs-thai.mp3",
+    desc:"ElevenLabs - Thai voice synthesis.", tag:"TTS" },
+  { title:"MusicGen",         kind:"audio", src:G+"wave-musicgen.png",   audio:A+"musicgen.wav",
+    desc:"MusicGen - generated instrumental bed.", tag:"MUSIC" },
+  { title:"Piper Voice",      kind:"audio", src:G+"wave-piper.png",      audio:A+"piper.wav",
+    desc:"Piper - lightweight local TTS sample.", tag:"TTS" },
+];
+
+/* Which works ride each band, and the band's tilt + direction.
+   4 bands; adjacent bands counter-rotate scroll direction -> they drift apart at the seam.
+   index 1 is the vermilion accent counter-band. */
+const BAND_LAYOUT = [
+  { tilt:"pos", rev:false, dur:"52s", items:[0,4,2,9,11,6] },           // bone, drift left
+  { tilt:"neg", rev:true,  dur:"44s", accent:true, items:[8,1,13,5,12,3] }, // VERMILION counter-band, drift right
+  { tilt:"pos", rev:false, dur:"58s", items:[10,2,7,0,14,4] },          // bone, drift left
+  { tilt:"neg", rev:true,  dur:"48s", items:[6,3,9,1,5,8] },            // bone, drift right
+];
+
+/* ---- icons ---- */
+const PLAY = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+
+/* ---- build a single tile (button) ---- */
+function tileHTML(i, dupe){
+  const w = DATA[i];
+  const contain = (w.contain || w.kind==="audio") ? " contain" : "";
+  const flag = (w.kind==="video") ? `<span class="vidflag" aria-hidden="true">${PLAY}</span>` : "";
+  // audio works show their waveform; everything else shows src image (poster for video)
+  const img = `<img class="media${contain}" src="${w.src}" alt="${w.title}" loading="lazy" decoding="async" draggable="false">`;
+  return `<button class="tile${dupe?' dupe':''}" data-i="${i}"${dupe?' tabindex="-1" aria-hidden="true"':''} aria-label="${w.title} - ${w.tag}. Click to view full screen.">
+    ${img}${flag}
+    <span class="veil" aria-hidden="true"></span>
+    <span class="cap"><span class="t">${w.title}</span><span class="k">${w.tag}</span></span>
+  </button>`;
+}
+
+/* ---- assemble bands; each track is duplicated ONCE for a seamless loop (no JS cloning at runtime) ---- */
+function buildField(){
+  const field = document.getElementById("field");
+  let html = "";
+  BAND_LAYOUT.forEach((band, bi) => {
+    const tilesOnce = band.items.map(i => tileHTML(i,false)).join("");
+    const tilesDupe = band.items.map(i => tileHTML(i,true)).join("");
+    html += `<div class="band tilt-${band.tilt}${band.accent?' accent':''}" data-band="${bi}">
+      <span class="edge top" aria-hidden="true"></span>
+      <div class="track${band.rev?' rev':''}" style="--dur:${band.dur}">${tilesOnce}${tilesDupe}</div>
+      <span class="edge bot" aria-hidden="true"></span>
+    </div>`;
+  });
+  field.innerHTML = html;
+}
+buildField();
+
+/* ====================================================================
+   SPEED ENGINE - vertical scroll maps to a global --speed multiplier.
+   Slow scroll -> ~1x drift; fast / deep scroll -> up to 5x + motion blur.
+   We drive a CSS custom property; the bands' pure-CSS animation reads it
+   via animation-duration: calc(var(--dur)/var(--speed)). No per-frame
+   transform writes, so it stays cheap and reduced-motion-safe.
+   ==================================================================== */
+const reduce = window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+const root   = document.documentElement;
+const field  = document.getElementById("field");
+const speedNum = document.getElementById("speedNum");
+const speedBar = document.getElementById("speedBar");
+
+const MIN_SPEED = 1, MAX_SPEED = 5;   // guardrail: capped at 5x
+let targetSpeed = MIN_SPEED, curSpeed = MIN_SPEED, lastY = 0, lastT = 0, raf = 0;
+
+function computeTarget(){
+  // base term: how far down the stage you are (0..1) gives a steady floor lift
+  const max = (document.documentElement.scrollHeight - window.innerHeight) || 1;
+  const depth = Math.min(1, Math.max(0, window.scrollY / max));   // 0..1
+  // velocity term: how fast you are flicking right now
+  const now = performance.now();
+  const dt = Math.max(16, now - lastT);
+  const vy = Math.abs(window.scrollY - lastY) / dt;               // px per ms
+  lastY = window.scrollY; lastT = now;
+  const velTerm = Math.min(1, vy / 2.4);                          // normalize flick speed
+  // combine: depth sets the floor, velocity adds the race
+  const t = MIN_SPEED + (MAX_SPEED - MIN_SPEED) * Math.min(1, depth*0.55 + velTerm*0.9);
+  targetSpeed = Math.min(MAX_SPEED, Math.max(MIN_SPEED, t));
+}
+
+function tick(){
+  // ease current toward target so the band drift accelerates/decays smoothly
+  curSpeed += (targetSpeed - curSpeed) * 0.12;
+  // velocity term decays when you stop scrolling -> drift settles back toward floor
+  targetSpeed += (speedFloor() - targetSpeed) * 0.04;
+  root.style.setProperty("--speed", curSpeed.toFixed(3));
+  // motion blur + smear class kick in past ~2.4x
+  const frac = (curSpeed - MIN_SPEED) / (MAX_SPEED - MIN_SPEED);   // 0..1
+  const blur = Math.max(0, (curSpeed - 2.2)) * 1.4;               // px
+  root.style.setProperty("--mblur", blur.toFixed(2) + "px");
+  field.classList.toggle("fast", curSpeed > 2.2);
+  // readout
+  speedNum.textContent = curSpeed.toFixed(1) + "x";
+  speedBar.parentElement.style.setProperty("--spd-frac", (0.12 + frac*0.88).toFixed(3));
+  raf = requestAnimationFrame(tick);
+}
+function speedFloor(){
+  const max = (document.documentElement.scrollHeight - window.innerHeight) || 1;
+  const depth = Math.min(1, Math.max(0, window.scrollY / max));
+  return MIN_SPEED + (MAX_SPEED - MIN_SPEED) * depth * 0.55;
+}
+
+if(!reduce){
+  lastY = window.scrollY; lastT = performance.now();
+  window.addEventListener("scroll", computeTarget, {passive:true});
+  raf = requestAnimationFrame(tick);
+} else {
+  // reduced motion: static grid, fix the readout, no rAF, no scroll listener
+  root.style.setProperty("--speed", "1");
+  speedNum.textContent = "static";
+  speedBar.parentElement.style.setProperty("--spd-frac", "0");
+}
+
+/* ====================================================================
+   LOCKBOX - click a tile -> snap full-screen with vermilion overlay.
+   Only the locked media plays (one decode at a time). Esc / X / backdrop closes.
+   ==================================================================== */
+const lock      = document.getElementById("lock");
+const lockStage = document.getElementById("lockStage");
+const lockNum   = document.getElementById("lockNum");
+const lockTitle = document.getElementById("lockTitle");
+const lockDesc  = document.getElementById("lockDesc");
+const lockTag   = document.getElementById("lockTag");
+const lockX     = document.getElementById("lockX");
+let lastFocus = null, activeMedia = null;
+
+function openLock(i){
+  const w = DATA[i];
+  lastFocus = document.activeElement;
+  // build the focused media element fresh each open (single decode at a time)
+  lockStage.innerHTML = "";
+  activeMedia = null;
+  if(w.kind === "video"){
+    const v = document.createElement("video");
+    v.className = "media";
+    v.src = w.vid;
+    v.poster = w.src;
+    v.controls = true;
+    v.loop = true;
+    v.playsInline = true;
+    v.preload = "metadata";
+    // heygen/veo/did carry audio -> leave unmuted; the rest are silent loops
+    const silent = !/heygen|veo|did/.test(w.vid);
+    v.muted = silent;
+    lockStage.appendChild(v);
+    activeMedia = v;
+    v.play().catch(()=>{});   // autoplay best-effort; controls cover the rest
+  } else if(w.kind === "audio"){
+    const wrap = document.createElement("div");
+    wrap.className = "audiowrap";
+    const img = document.createElement("img");
+    img.src = w.src; img.alt = w.title + " waveform";
+    const au = document.createElement("audio");
+    au.src = w.audio; au.controls = true; au.preload = "metadata";
+    wrap.appendChild(img); wrap.appendChild(au);
+    lockStage.appendChild(wrap);
+    activeMedia = au;
+  } else {
+    const img = document.createElement("img");
+    img.className = "media";
+    img.src = w.src; img.alt = w.title; img.decoding = "async";
+    lockStage.appendChild(img);
+  }
+  lockNum.textContent = String(i+1).padStart(2,"0");
+  lockTitle.textContent = w.title;
+  lockDesc.textContent = w.desc;
+  lockTag.textContent = w.tag;
+  lock.hidden = false;
+  // next frame -> add .on for the transition
+  requestAnimationFrame(()=>lock.classList.add("on"));
+  document.body.style.overflow = "hidden";
+  lockX.focus();
+}
+function closeLock(){
+  lock.classList.remove("on");
+  document.body.style.overflow = "";
+  if(activeMedia){ try{ activeMedia.pause(); }catch(e){} }
+  setTimeout(()=>{
+    lock.hidden = true;
+    lockStage.innerHTML = "";
+    activeMedia = null;
+    if(lastFocus && lastFocus.focus) lastFocus.focus();
+  }, 260);
+}
+
+// delegate clicks from any tile (ignore the duplicate loop-halves)
+field.addEventListener("click", (e)=>{
+  const t = e.target.closest(".tile");
+  if(!t || t.classList.contains("dupe")) return;
+  openLock(parseInt(t.dataset.i,10));
+});
+lockX.addEventListener("click", closeLock);
+lock.addEventListener("click", (e)=>{ if(e.target === lock) closeLock(); });
+document.addEventListener("keydown", (e)=>{ if(e.key === "Escape" && lock.classList.contains("on")) closeLock(); });
+
+/* ====================================================================
+   IN-VIEW VIDEO POLITENESS
+   The bands themselves never autoplay video (they show posters only -> no
+   simultaneous decode storm). Only the locked media plays. When the tab is
+   hidden, pause the locked media to save battery.
+   ==================================================================== */
+document.addEventListener("visibilitychange", ()=>{
+  if(document.hidden && activeMedia){ try{ activeMedia.pause(); }catch(e){} }
+});
+</script>
+</body>
+</html>

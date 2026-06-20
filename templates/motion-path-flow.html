@@ -1,0 +1,954 @@
+<!-- TEMPLATE: Motion Path Flow | ARCHETYPE: arc-flow (cards fan along authored bezier SVG paths into a composed layout) | REF: Codrops MotionPath card-choreography 2026, Buttermax CSSDA WOTY 2026 | WHEN TO USE: a small curated set (5-7 works) you want to introduce as a choreographed film - one scroll tick fans a center stack out along deterministic arcs into an asymmetric composition; click flies a card back along its path while the detail enters from a complementary arc | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Motion Path Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   MOTION PATH FLOW
+   Palette: #fafafa chalk white + #0d1b2a ink navy.
+   Trail lines = translucent navy. Card media provides all color.
+   ============================================================ */
+:root{
+  --chalk:#fafafa;
+  --ink:#0d1b2a;
+  --ink-70:rgba(13,27,42,.70);
+  --ink-45:rgba(13,27,42,.45);
+  --ink-20:rgba(13,27,42,.20);
+  --ink-10:rgba(13,27,42,.10);
+  --ink-06:rgba(13,27,42,.06);
+  --stack-w:260px;   /* rest card width (desktop) */
+  --stack-h:340px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--chalk);
+  color:var(--ink);
+  font-family:"Space Grotesk",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+/* page is two screens tall so a single scroll tick drives the fan */
+.scroll-spacer{height:200vh;position:relative}
+
+/* ---- fixed stage that holds the whole choreography ---- */
+.stage{
+  position:fixed;
+  inset:0;
+  overflow:hidden;
+}
+
+/* compact top band: headline overlays the populated stage, never a full hero */
+.topband{
+  position:absolute;
+  top:0;left:0;right:0;
+  z-index:40;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:24px;
+  padding:30px clamp(20px,4.5vw,64px) 0;
+  pointer-events:none;
+}
+.brand{pointer-events:auto}
+.brand .kicker{
+  font-size:11px;
+  letter-spacing:.34em;
+  text-transform:uppercase;
+  color:var(--ink-45);
+  font-weight:600;
+  margin-bottom:9px;
+}
+.brand h1{
+  font-family:"Fraunces",serif;
+  font-weight:400;
+  font-size:clamp(34px,5.6vw,68px);
+  line-height:.96;
+  letter-spacing:-.02em;
+  max-width:11ch;
+}
+.brand h1 em{font-style:italic;color:var(--ink-70)}
+.meta{
+  pointer-events:auto;
+  text-align:right;
+  max-width:30ch;
+}
+.meta p{
+  font-size:13px;
+  line-height:1.5;
+  color:var(--ink-70);
+}
+.meta .idx{
+  margin-top:10px;
+  font-family:"Fraunces",serif;
+  font-size:13px;
+  letter-spacing:.04em;
+  color:var(--ink-45);
+}
+
+/* scroll hint */
+.hint{
+  position:absolute;
+  left:50%;
+  bottom:26px;
+  transform:translateX(-50%);
+  z-index:40;
+  font-size:11px;
+  letter-spacing:.26em;
+  text-transform:uppercase;
+  color:var(--ink-45);
+  display:flex;
+  align-items:center;
+  gap:10px;
+  transition:opacity .5s ease;
+}
+.hint .ln{width:34px;height:1px;background:var(--ink-20);position:relative;overflow:hidden}
+.hint .ln::after{content:"";position:absolute;inset:0;width:40%;background:var(--ink);animation:sweep 2.2s ease-in-out infinite}
+@keyframes sweep{0%{transform:translateX(-120%)}60%,100%{transform:translateX(280%)}}
+
+/* ---- trail SVG sits under the cards ---- */
+.trails{
+  position:absolute;
+  inset:0;
+  z-index:10;
+  pointer-events:none;
+}
+.trails path.guide{
+  fill:none;
+  stroke:rgba(13,27,42,.07);   /* hex/rgb only in presentation attr, never var() */
+  stroke-width:1;
+  stroke-dasharray:3 7;
+  opacity:0;
+  transition:opacity .6s ease;
+}
+.stage.fanned .trails path.guide{opacity:1}
+/* the live arc trail that draws as the card flies */
+.trails path.live{
+  fill:none;
+  stroke:rgba(13,27,42,.22);
+  stroke-width:1.5;
+  stroke-linecap:round;
+}
+
+/* ---- card layer ---- */
+.cards{position:absolute;inset:0;z-index:20}
+.card{
+  position:absolute;
+  top:0;left:0;
+  width:var(--stack-w);
+  height:var(--stack-h);
+  border-radius:14px;
+  overflow:hidden;
+  background:#cfd6dd;
+  box-shadow:0 18px 50px -22px rgba(13,27,42,.55),0 2px 0 rgba(255,255,255,.4) inset;
+  cursor:pointer;
+  /* position is driven by JS transform (translate+rotate+scale). */
+  transform:translate(-50%,-50%);
+  will-change:transform;
+  outline:none;
+  border:1px solid rgba(255,255,255,.5);
+}
+.card:focus-visible{
+  box-shadow:0 0 0 3px var(--chalk),0 0 0 5px var(--ink),0 18px 50px -22px rgba(13,27,42,.55);
+}
+.card .media{
+  position:absolute;
+  inset:0;
+  width:100%;height:100%;
+}
+.card .media img,
+.card .media video{
+  width:100%;height:100%;
+  object-fit:cover;
+  display:block;
+  background:#cfd6dd;
+}
+/* tiny play glyph for video cards */
+.card .vtag{
+  position:absolute;
+  top:10px;right:10px;
+  z-index:3;
+  width:26px;height:26px;
+  border-radius:50%;
+  background:rgba(13,27,42,.55);
+  backdrop-filter:blur(4px);
+  display:flex;align-items:center;justify-content:center;
+}
+.card .vtag::before{
+  content:"";
+  width:0;height:0;
+  border-left:7px solid var(--chalk);
+  border-top:5px solid transparent;
+  border-bottom:5px solid transparent;
+  margin-left:2px;
+}
+.card .cap{
+  position:absolute;
+  left:0;right:0;bottom:0;
+  z-index:2;
+  padding:14px 14px 12px;
+  background:linear-gradient(to top,rgba(13,27,42,.86),rgba(13,27,42,.30) 60%,transparent);
+  color:var(--chalk);
+  transform:translateY(8px);
+  opacity:0;
+  transition:opacity .45s ease,transform .45s ease;
+}
+.stage.fanned .card .cap{opacity:1;transform:translateY(0)}
+.card .cap .t{
+  font-family:"Fraunces",serif;
+  font-size:17px;
+  line-height:1.05;
+  font-weight:500;
+}
+.card .cap .s{
+  margin-top:3px;
+  font-size:10.5px;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  opacity:.78;
+}
+.card .num{
+  position:absolute;
+  top:10px;left:12px;
+  z-index:2;
+  font-family:"Fraunces",serif;
+  font-size:12px;
+  color:var(--chalk);
+  text-shadow:0 1px 6px rgba(13,27,42,.7);
+  opacity:0;
+  transition:opacity .45s ease;
+}
+.stage.fanned .card .num{opacity:.92}
+
+/* at rest (stacked) we tuck captions away and show a tidy edge */
+.stage.resting .card{
+  box-shadow:0 22px 60px -30px rgba(13,27,42,.7);
+}
+
+/* ---- detail overlay (enters from a complementary arc) ---- */
+.detail{
+  position:fixed;
+  inset:0;
+  z-index:60;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:clamp(18px,4vw,64px);
+  background:rgba(250,250,250,0);
+  pointer-events:none;
+  transition:background .5s ease;
+}
+.detail.open{
+  background:rgba(250,250,250,.86);
+  backdrop-filter:blur(8px);
+  pointer-events:auto;
+}
+.detail-card{
+  width:min(1040px,100%);
+  max-height:88vh;
+  display:grid;
+  grid-template-columns:1.15fr 1fr;
+  background:var(--chalk);
+  border:1px solid var(--ink-10);
+  border-radius:18px;
+  overflow:hidden;
+  box-shadow:0 40px 120px -40px rgba(13,27,42,.6);
+  /* JS drives an entrance transform along a complementary arc */
+  transform:translate(0,0);
+  opacity:0;
+  will-change:transform,opacity;
+}
+.detail-media{
+  position:relative;
+  background:#0d1b2a;
+  min-height:300px;
+  display:flex;align-items:center;justify-content:center;
+}
+.detail-media img,
+.detail-media video{
+  width:100%;height:100%;
+  object-fit:cover;            /* desktop: fill the panel */
+  display:block;
+}
+.detail-body{
+  padding:clamp(26px,3vw,44px);
+  display:flex;
+  flex-direction:column;
+  overflow:auto;
+}
+.detail-body .dk{
+  font-size:11px;letter-spacing:.26em;text-transform:uppercase;
+  color:var(--ink-45);font-weight:600;margin-bottom:14px;
+}
+.detail-body h2{
+  font-family:"Fraunces",serif;
+  font-weight:400;
+  font-size:clamp(28px,3.6vw,44px);
+  line-height:1.02;
+  letter-spacing:-.015em;
+}
+.detail-body h2 em{font-style:italic;color:var(--ink-70)}
+.detail-body .lede{
+  margin-top:16px;
+  font-size:15px;line-height:1.6;color:var(--ink-70);
+  max-width:46ch;
+}
+.detail-body .facts{
+  margin-top:auto;
+  padding-top:26px;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:16px 22px;
+  border-top:1px solid var(--ink-10);
+}
+.detail-body .facts dt{
+  font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--ink-45);margin-bottom:3px;
+}
+.detail-body .facts dd{
+  font-family:"Fraunces",serif;font-size:16px;color:var(--ink);
+}
+.detail-close{
+  position:absolute;
+  top:18px;right:18px;
+  z-index:3;
+  width:42px;height:42px;
+  border-radius:50%;
+  border:1px solid var(--ink-20);
+  background:var(--chalk);
+  color:var(--ink);
+  font-size:18px;
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:transform .25s ease,background .25s ease;
+}
+.detail-close:hover{transform:rotate(90deg)}
+.detail-close:focus-visible{outline:none;box-shadow:0 0 0 3px var(--chalk),0 0 0 5px var(--ink)}
+
+/* ============================================================
+   MOBILE  (<=640px): radii scaled, final layout = 2-col grid,
+   media letterboxed (never cover-crop landscape into portrait).
+   ============================================================ */
+@media (max-width:640px){
+  :root{--stack-w:150px;--stack-h:196px}
+  .topband{flex-direction:column;gap:14px;padding:18px 18px 0}
+  .meta{text-align:left;max-width:none}
+  .brand h1{font-size:clamp(30px,10vw,44px)}
+  .detail-card{
+    grid-template-columns:1fr;
+    grid-template-rows:auto 1fr;
+    max-height:90vh;
+  }
+  .detail-media{
+    min-height:0;
+    aspect-ratio:16/10;
+    background:#0d1b2a;
+  }
+  .detail-media img,
+  .detail-media video{object-fit:contain}  /* letterbox, no crop */
+  .hint{bottom:18px}
+}
+
+/* ============================================================
+   REDUCED MOTION: collapse to a simultaneous fade into final
+   layout. JS also disables the rAF lerp and snaps to end frame.
+   ============================================================ */
+@media (prefers-reduced-motion:reduce){
+  .hint .ln::after{animation:none}
+  .card{transition:opacity .5s ease}
+  .detail-card{transition:opacity .4s ease}
+  .trails path.guide{transition:none}
+  .detail-close{transition:background .25s ease}
+  .detail-close:hover{transform:none}   /* no decorative spin under reduced motion */
+}
+.no-anim .card{transition:opacity .6s ease !important}
+.no-anim .detail-card{transition:opacity .45s ease !important}
+</style>
+</head>
+<body>
+<script>
+/* ============================================================
+   DATA  -  swap these objects to re-skin the whole template.
+   Each work authors its OWN cubic-bezier arc as an SVG path
+   string in a 0..1000 x 0..1000 normalized coordinate box.
+   `rest`  = where it sits in the center stack (normalized).
+   `path`  = M start ... C control control end  (start == rest).
+   `endRot`/`endScale` = the locked final-frame transform.
+   `complement` = arc the DETAIL view flies in along (start->end
+                  in viewport px is derived; we just need a dir).
+   ============================================================ */
+const ASSET = "../assets/";
+const GEN   = "../assets/gen/";
+
+const DATA = [
+  {
+    id:"car",
+    title:"Nocturne",
+    subtitle:"Automotive / I2V",
+    kicker:"Film 01",
+    type:"video",
+    src:ASSET+"flux-car-i2v.mp4",
+    poster:GEN+"poster-flux-car-i2v.png",
+    lede:"A matte-black coupe breathing on a wet neon street. Image-to-video motion, color graded for midnight chrome and rain.",
+    facts:[["Medium","I2V loop"],["Source","flux-car-4k"],["Runtime","00:06"],["Year","2026"]],
+    // rest near center, settles upper-left along a left-bowing arc
+    rest:[470,540],
+    path:"M470,540 C300,470 170,300 210,205",
+    end:[210,205], endRot:-7, endScale:1.0, complement:"left"
+  },
+  {
+    id:"clinic",
+    title:"Mint Ward",
+    subtitle:"Interior / Still",
+    kicker:"Film 02",
+    type:"image",
+    src:ASSET+"flux-clinic-4k.png",
+    poster:ASSET+"flux-clinic-4k.png",
+    lede:"A mint-and-wood dental suite rendered as a calm architectural still. Soft daylight, honest materials, zero clinical chill.",
+    facts:[["Medium","Still"],["Source","flux-clinic-4k"],["Ratio","3:2"],["Year","2026"]],
+    // drops from above
+    rest:[505,520],
+    path:"M505,520 C560,330 540,150 565,120",
+    end:[565,120], endRot:4, endScale:.92, complement:"top"
+  },
+  {
+    id:"fox",
+    title:"Autumn Vulpine",
+    subtitle:"Painterly / Still",
+    kicker:"Film 03",
+    type:"image",
+    src:ASSET+"sdxl.png",
+    poster:ASSET+"sdxl.png",
+    lede:"A painterly fox in dissolving autumn light. Brushy diffusion output, kept loose, kept warm.",
+    facts:[["Medium","Diffusion"],["Source","sdxl"],["Ratio","1:1"],["Year","2026"]],
+    // arcs right, settles mid-right
+    rest:[520,520],
+    path:"M520,520 C740,510 860,420 855,345",
+    end:[855,345], endRot:6, endScale:.96, complement:"right"
+  },
+  {
+    id:"kling",
+    title:"Drift Study",
+    subtitle:"Motion / Loop",
+    kicker:"Film 04",
+    type:"video",
+    src:ASSET+"kling-video.mp4",
+    poster:GEN+"poster-kling-video.png",
+    lede:"A generative motion loop, sampled for its drift and grain. Plays only when focused so the stage never decodes five clips at once.",
+    facts:[["Medium","Motion"],["Source","kling"],["Runtime","loop"],["Year","2026"]],
+    // spirals in from off-screen bottom-right, settles lower-right
+    rest:[520,560],
+    path:"M520,560 C980,760 940,640 800,610",
+    end:[800,610], endRot:-5, endScale:.9, complement:"bottom-right"
+  },
+  {
+    id:"veo",
+    title:"Long Take",
+    subtitle:"Cinematic / Loop",
+    kicker:"Film 05",
+    type:"video",
+    src:ASSET+"veo-video.mp4",
+    poster:GEN+"poster-veo-video.png",
+    lede:"A cinematic generated sequence with a steady, deliberate camera. The anchor of the lower band.",
+    facts:[["Medium","Cinematic"],["Source","veo"],["Runtime","loop"],["Year","2026"]],
+    // sweeps up from bottom-left, settles lower-left
+    rest:[480,560],
+    path:"M480,560 C160,720 200,600 320,585",
+    end:[320,585], endRot:5, endScale:.94, complement:"bottom-left"
+  },
+  {
+    id:"apple",
+    title:"Lo-Fi Apple",
+    subtitle:"Abstract / Still",
+    kicker:"Film 06",
+    type:"image",
+    src:ASSET+"hf-tinysd.png",
+    poster:ASSET+"hf-tinysd.png",
+    lede:"A low-fidelity abstraction of an apple. Tiny model, deliberate roughness, used as a quiet counterweight in the composition.",
+    facts:[["Medium","Abstract"],["Source","hf-tinysd"],["Ratio","1:1"],["Year","2026"]],
+    // short hop, settles center-low as the keystone
+    rest:[505,540],
+    path:"M505,540 C540,560 560,540 540,470",
+    end:[540,470], endRot:-3, endScale:.84, complement:"top"
+  }
+];
+</script>
+
+<div class="scroll-spacer" aria-hidden="false">
+  <main class="stage resting" id="stage">
+
+    <!-- compact top band: headline overlays the populated stage -->
+    <header class="topband">
+      <div class="brand">
+        <div class="kicker">Generative Works / 2026</div>
+        <h1>The Fan <em>Reel</em></h1>
+      </div>
+      <div class="meta">
+        <p>Six pieces rest as a single stack. One scroll fans each along its own authored arc into the composed frame.</p>
+        <p class="idx" id="idx">06 works / stacked</p>
+      </div>
+    </header>
+
+    <!-- trail layer (under cards). guide paths persist faintly once fanned -->
+    <svg class="trails" id="trails" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
+
+    <!-- card layer (built by JS from DATA) -->
+    <div class="cards" id="cards" role="list" aria-label="Project works"></div>
+
+    <div class="hint" id="hint"><span class="ln"></span>Scroll to fan</div>
+  </main>
+</div>
+
+<!-- detail overlay -->
+<div class="detail" id="detail" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Work detail">
+  <div class="detail-card" id="detailCard">
+    <div class="detail-media" id="detailMedia"></div>
+    <div class="detail-body">
+      <div class="dk" id="dKicker">Film</div>
+      <h2 id="dTitle"></h2>
+      <p class="lede" id="dLede"></p>
+      <dl class="facts" id="dFacts"></dl>
+    </div>
+    <button class="detail-close" id="detailClose" aria-label="Close detail">&times;</button>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   ENGINE
+   - Build cards + author SVG paths from DATA.
+   - rAF lerp drives progress p in [0..1]; at each p we sample
+     each card's path via SVGPathElement.getPointAtLength() and
+     set transform. No MotionPath lib, no WebGL.
+   - Scroll position maps to a TARGET p; we ease current->target.
+   - Reduced motion: snap to p=1, fade, no rAF transforms.
+   ============================================================ */
+(function(){
+  const stage     = document.getElementById('stage');
+  const cardsWrap = document.getElementById('cards');
+  const trails    = document.getElementById('trails');
+  const idxEl     = document.getElementById('idx');
+  const hint      = document.getElementById('hint');
+
+  const detail      = document.getElementById('detail');
+  const detailCard  = document.getElementById('detailCard');
+  const detailMedia = document.getElementById('detailMedia');
+  const dKicker     = document.getElementById('dKicker');
+  const dTitle      = document.getElementById('dTitle');
+  const dLede       = document.getElementById('dLede');
+  const dFacts      = document.getElementById('dFacts');
+  const detailClose = document.getElementById('detailClose');
+
+  const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const SVGNS   = "http://www.w3.org/2000/svg";
+
+  let isMobile = window.matchMedia('(max-width:640px)').matches;
+  let stageW = window.innerWidth, stageH = window.innerHeight;
+
+  // normalized (0..1000) -> viewport px
+  function nx(x){ return x/1000 * stageW; }
+  function ny(y){ return y/1000 * stageH; }
+
+  /* ---- author one hidden measuring path per card (in px space) ---- */
+  // We build a path element in a hidden SVG sized to the viewport so
+  // getPointAtLength returns px directly. Rebuilt on resize.
+  const measureSVG = document.createElementNS(SVGNS,'svg');
+  measureSVG.setAttribute('width','0');
+  measureSVG.setAttribute('height','0');
+  measureSVG.style.position='absolute';
+  measureSVG.style.visibility='hidden';
+  measureSVG.setAttribute('aria-hidden','true');
+  document.body.appendChild(measureSVG);
+
+  // Convert a normalized "M x,y C ..." path string into px coords.
+  function pathToPx(d){
+    return d.replace(/(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/g, (m,a,b)=>{
+      return nx(parseFloat(a)).toFixed(2)+','+ny(parseFloat(b)).toFixed(2);
+    });
+  }
+
+  // MOBILE: scale arc radii to ~60% toward the path's own start, and
+  // we will instead snap finals to a 2-col grid (computed below).
+  function mobileEnd(i){
+    const cols=2, gap=14;
+    const cw = (stageW - 18*2 - gap)/cols;       // grid card width
+    const ch = cw * (isMobile? (196/150) : (340/260)); // keep card ratio
+    const col = i % cols;
+    const row = Math.floor(i/cols);
+    const gridTop = stageH*0.36;                 // below the top band
+    const cx = 18 + cw/2 + col*(cw+gap);
+    const cy = gridTop + ch/2 + row*(ch+gap);
+    return {cx,cy,rot:0,scale:1};
+  }
+
+  // build card DOM + per-card path state
+  const items = DATA.map((d,i)=>{
+    const el = document.createElement('article');
+    el.className='card';
+    el.setAttribute('role','listitem');
+    el.tabIndex=0;
+    el.setAttribute('aria-label', d.title+', '+d.subtitle+'. Open detail.');
+    el.dataset.id=d.id;
+
+    const media=document.createElement('div');
+    media.className='media';
+    if(d.type==='video'){
+      const v=document.createElement('video');
+      v.muted=true; v.loop=true; v.playsInline=true; v.preload='none';
+      v.poster=d.poster; v.setAttribute('aria-hidden','true');
+      // source added lazily on focus/hover to avoid 5x simultaneous decode
+      v.dataset.src=d.src;
+      media.appendChild(v);
+      const tag=document.createElement('span'); tag.className='vtag'; tag.setAttribute('aria-hidden','true');
+      el.appendChild(tag);
+    } else {
+      const img=document.createElement('img');
+      img.src=d.poster; img.alt=d.title+' - '+d.subtitle; img.loading='lazy'; img.decoding='async';
+      media.appendChild(img);
+    }
+    el.appendChild(media);
+
+    const num=document.createElement('span'); num.className='num';
+    num.textContent=String(i+1).padStart(2,'0'); num.setAttribute('aria-hidden','true');
+    el.appendChild(num);
+
+    const cap=document.createElement('div'); cap.className='cap';
+    cap.innerHTML='<div class="t">'+d.title+'</div><div class="s">'+d.subtitle+'</div>';
+    el.appendChild(cap);
+
+    cardsWrap.appendChild(el);
+
+    // visible guide path (faint, persists once fanned)
+    const guide=document.createElementNS(SVGNS,'path');
+    guide.setAttribute('class','guide');
+    trails.appendChild(guide);
+
+    // live trail (drawn as the card flies)
+    const live=document.createElementNS(SVGNS,'path');
+    live.setAttribute('class','live');
+    trails.appendChild(live);
+
+    // measuring path (px space)
+    const mpath=document.createElementNS(SVGNS,'path');
+    measureSVG.appendChild(mpath);
+
+    return {d,el,media,guide,live,mpath,len:0,
+            videoEl: d.type==='video'? media.querySelector('video'):null,
+            restRot:(i%2?6:-6)-i*1.5, restScale:1};
+  });
+
+  // rebuild px paths + guide geometry on size change
+  function rebuildPaths(){
+    stageW=window.innerWidth; stageH=window.innerHeight;
+    isMobile=window.matchMedia('(max-width:640px)').matches;
+    items.forEach((it,i)=>{
+      const dpx=pathToPx(it.d.path);
+      it.mpath.setAttribute('d',dpx);
+      it.len=it.mpath.getTotalLength();
+      // guide drawn in normalized viewBox (0..1000) so it scales w/ svg
+      it.guide.setAttribute('d', it.d.path);
+    });
+  }
+  rebuildPaths();
+
+  /* ---- sample a card position at progress p (0..1) ---- */
+  function sample(it,p){
+    if(isMobile){
+      // On mobile we still travel the px arc but RETARGET the end of
+      // the arc to the grid slot, by blending arc-end -> grid as p->1.
+      // Path gives motion; grid gives final layout.
+      const arc = it.len ? it.mpath.getPointAtLength(it.len*easeArc(p)) : {x:nx(it.d.rest[0]),y:ny(it.d.rest[1])};
+      const g = it._grid || (it._grid = mobileEnd(items.indexOf(it)));
+      // radius scaled to 60%: pull the arc toward its start point
+      const sp = it.len? it.mpath.getPointAtLength(0):{x:arc.x,y:arc.y};
+      const ax = sp.x + (arc.x-sp.x)*0.6;
+      const ay = sp.y + (arc.y-sp.y)*0.6;
+      const blend = smooth(clamp((p-0.55)/0.45,0,1)); // late blend to grid
+      const x = ax + (g.cx-ax)*blend;
+      const y = ay + (g.cy-ay)*blend;
+      const rot = it.d.endRot*(1-blend);
+      const scale = lerp(restScaleOf(it), 1, easeArc(p));
+      return {x,y,rot:lerp(it.restRot,rot,easeArc(p)),scale};
+    }
+    // desktop: pure authored arc, end frame = endRot/endScale
+    const t=easeArc(p);
+    const pt = it.len? it.mpath.getPointAtLength(it.len*t):{x:nx(it.d.rest[0]),y:ny(it.d.rest[1])};
+    const rot   = lerp(it.restRot, it.d.endRot, t);
+    const scale = lerp(restScaleOf(it), it.d.endScale, t);
+    return {x:pt.x,y:pt.y,rot,scale};
+  }
+  function restScaleOf(it){ return 0.78; } // stack sits slightly smaller, snug
+
+  // easings
+  function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+  function lerp(a,b,t){return a+(b-a)*t;}
+  function smooth(t){return t*t*(3-2*t);}
+  function easeArc(p){ // cinematic ease-out for the fan
+    return 1-Math.pow(1-clamp(p,0,1),2.4);
+  }
+
+  /* ---- apply a sampled frame to a card ---- */
+  function place(it,fr){
+    it.el.style.transform =
+      'translate('+(fr.x).toFixed(2)+'px,'+(fr.y).toFixed(2)+'px) '+
+      'translate(-50%,-50%) '+
+      'rotate('+fr.rot.toFixed(2)+'deg) '+
+      'scale('+fr.scale.toFixed(3)+')';
+    it.el.style.zIndex = 20 + Math.round(fr.scale*20);
+  }
+
+  /* ---- live trail: draw the path up to current p ---- */
+  function drawLiveTrail(it,p){
+    if(REDUCED){ it.live.setAttribute('d',''); return; }
+    if(p<=0.01){ it.live.setAttribute('d',''); return; }
+    // sample a polyline along normalized path up to p (a few pts is enough)
+    const segs=18, t=easeArc(p);
+    let dd='';
+    for(let s=0;s<=segs;s++){
+      const tt=(s/segs)*t;
+      const pt=it.mpath.getPointAtLength(it.len*tt);
+      // back to normalized for the trails viewBox
+      const X=pt.x/stageW*1000, Y=pt.y/stageH*1000;
+      dd += (s?'L':'M')+X.toFixed(1)+','+Y.toFixed(1);
+    }
+    it.live.setAttribute('d',dd);
+    // fade trail out as the fan completes (lines persist only briefly)
+    it.live.style.opacity = (p>0.92? (1-(p-0.92)/0.08) : 1).toFixed(2);
+  }
+
+  /* ====================================================
+     PROGRESS ENGINE
+     target p comes from scroll; current eases toward it.
+     ==================================================== */
+  let cur=0, target=0, raf=null;
+
+  function computeTarget(){
+    const max = document.querySelector('.scroll-spacer').offsetHeight - window.innerHeight;
+    const y = window.scrollY || window.pageYOffset;
+    // the fan completes within the first ~0.9 of the scrollable range,
+    // so the mechanic resolves well before the page bottom.
+    target = clamp( (y/max) / 0.62, 0, 1);
+  }
+
+  function frame(){
+    cur += (target-cur)*0.12;
+    if(Math.abs(target-cur)<0.0005) cur=target;
+    render(cur);
+    if(Math.abs(target-cur)>0.0006){ raf=requestAnimationFrame(frame); }
+    else { raf=null; }
+  }
+
+  function render(p){
+    items.forEach(it=>{
+      place(it, sample(it,p));
+      drawLiveTrail(it,p);
+    });
+    // stage state classes
+    const fanned = p>0.04;
+    stage.classList.toggle('fanned', fanned);
+    stage.classList.toggle('resting', !fanned);
+    hint.style.opacity = p>0.10? '0':'1';
+    idxEl.textContent = p>0.96? '06 works / composed'
+                      : p>0.04? '06 works / fanning'
+                      : '06 works / stacked';
+  }
+
+  function kick(){
+    // Reduced motion: stay pinned on the composed end-frame. Never let
+    // scroll re-derive a target (that would collapse the deck back to a
+    // stack on scroll-to-top, i.e. require interaction to see the result).
+    if(REDUCED){ return; }
+    computeTarget();
+    if(!raf) raf=requestAnimationFrame(frame);
+  }
+
+  /* ---- reduced motion: snap to composed final + fade in ---- */
+  if(REDUCED){
+    document.body.classList.add('no-anim');
+    target=1; cur=1;
+    items.forEach(it=>{ it.el.style.opacity='0'; });
+    requestAnimationFrame(()=>{
+      render(1);
+      items.forEach((it,i)=>{ it.el.style.transitionDelay=(i*60)+'ms'; it.el.style.opacity='1'; });
+      stage.classList.add('fanned'); stage.classList.remove('resting');
+      hint.style.opacity='0';
+      idxEl.textContent='06 works / composed';
+    });
+  } else {
+    render(0);
+  }
+
+  window.addEventListener('scroll', kick, {passive:true});
+  window.addEventListener('resize', ()=>{
+    rebuildPaths();
+    items.forEach(it=>{ it._grid=null; });
+    // re-render at current progress
+    (REDUCED? render(1): kick());
+    if(!REDUCED) render(cur);
+  });
+
+  /* ====================================================
+     IN-VIEW VIDEO POLICY
+     Only the focused/hovered card plays. Others show poster.
+     Source attached lazily; paused + detached when not active.
+     Detail view plays its own video, and we pause card videos.
+     ==================================================== */
+  function activateVideo(it){
+    const v=it.videoEl; if(!v) return;
+    if(!v.src && v.dataset.src){ v.src=v.dataset.src; }
+    pauseAllCardVideos(it);
+    const pr=v.play(); if(pr&&pr.catch) pr.catch(()=>{});
+  }
+  function deactivateVideo(it){
+    const v=it.videoEl; if(!v) return; v.pause();
+  }
+  function pauseAllCardVideos(except){
+    items.forEach(it=>{ if(it!==except && it.videoEl) it.videoEl.pause(); });
+  }
+
+  items.forEach(it=>{
+    it.el.addEventListener('mouseenter',()=>{ if(!detail.classList.contains('open')) activateVideo(it); });
+    it.el.addEventListener('mouseleave',()=>deactivateVideo(it));
+    it.el.addEventListener('focus',()=>{ if(!detail.classList.contains('open')) activateVideo(it); });
+    it.el.addEventListener('blur',()=>deactivateVideo(it));
+    it.el.addEventListener('click',()=>openDetail(it));
+    it.el.addEventListener('keydown',e=>{
+      if(e.key==='Enter'||e.key===' '){ e.preventDefault(); openDetail(it); }
+    });
+  });
+
+  /* ====================================================
+     DETAIL: card flies back along its path while the detail
+     panel enters from a COMPLEMENTARY arc direction.
+     ==================================================== */
+  let activeItem=null, lastFocus=null;
+
+  const COMPLEMENT = {
+    'left':       [ 480, 0],
+    'right':      [-480, 0],
+    'top':        [0, 420],
+    'bottom-right':[-420,-300],
+    'bottom-left':[ 420,-300]
+  };
+
+  function openDetail(it){
+    activeItem=it; lastFocus=document.activeElement;
+    pauseAllCardVideos(null);
+
+    const d=it.d;
+    dKicker.textContent=d.kicker;
+    dTitle.innerHTML=d.title.replace(/\s(\S+)$/,' <em>$1</em>');
+    dLede.textContent=d.lede;
+    dFacts.innerHTML=d.facts.map(f=>'<div><dt>'+f[0]+'</dt><dd>'+f[1]+'</dd></div>').join('');
+
+    // media
+    detailMedia.innerHTML='';
+    if(d.type==='video'){
+      const v=document.createElement('video');
+      v.src=d.src; v.poster=d.poster; v.muted=true; v.loop=true;
+      v.playsInline=true; v.controls=false; v.autoplay=true; v.preload='metadata';
+      detailMedia.appendChild(v);
+      const pr=v.play(); if(pr&&pr.catch) pr.catch(()=>{});
+    } else {
+      const img=document.createElement('img');
+      img.src=d.src; img.alt=d.title+' - '+d.subtitle;
+      detailMedia.appendChild(img);
+    }
+
+    // fly the clicked card back toward its rest (reverse along path)
+    if(!REDUCED){
+      it.el.style.transition='transform .55s cubic-bezier(.5,0,.2,1),opacity .5s ease';
+      const restFr=sample(it,0);
+      requestAnimationFrame(()=>{
+        place(it,restFr);
+        it.el.style.opacity='0';
+      });
+      setTimeout(()=>{ it.el.style.transition=''; }, 580);
+    }
+
+    // detail panel enters from complementary arc
+    detail.classList.add('open');
+    detail.setAttribute('aria-hidden','false');
+    const off=COMPLEMENT[d.complement]||[0,420];
+    if(REDUCED){
+      detailCard.style.transition='opacity .4s ease';
+      detailCard.style.transform='translate(0,0)';
+      detailCard.style.opacity='1';
+    } else {
+      detailCard.style.transition='none';
+      detailCard.style.transform='translate('+off[0]+'px,'+off[1]+'px) scale(.96)';
+      detailCard.style.opacity='0';
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{
+        detailCard.style.transition='transform .62s cubic-bezier(.16,.8,.24,1),opacity .45s ease';
+        detailCard.style.transform='translate(0,0) scale(1)';
+        detailCard.style.opacity='1';
+      }));
+    }
+    detailClose.focus();
+    document.addEventListener('keydown',onEsc);
+  }
+
+  function closeDetail(){
+    if(!activeItem) return;
+    const it=activeItem, d=it.d;
+    const off=COMPLEMENT[d.complement]||[0,420];
+
+    // detail leaves back along the complementary arc
+    if(REDUCED){
+      detailCard.style.opacity='0';
+    } else {
+      detailCard.style.transition='transform .5s cubic-bezier(.5,0,.7,0),opacity .4s ease';
+      detailCard.style.transform='translate('+off[0]+'px,'+off[1]+'px) scale(.96)';
+      detailCard.style.opacity='0';
+    }
+    detail.classList.remove('open');
+    detail.setAttribute('aria-hidden','true');
+
+    // card returns to its composed slot along its path
+    setTimeout(()=>{
+      const v=detailMedia.querySelector('video'); if(v){ v.pause(); }
+      detailMedia.innerHTML='';
+      if(!REDUCED){
+        it.el.style.transition='transform .6s cubic-bezier(.16,.8,.24,1),opacity .5s ease';
+        it.el.style.opacity='1';
+        place(it, sample(it, cur));
+        setTimeout(()=>{ it.el.style.transition=''; }, 640);
+      } else {
+        it.el.style.opacity='1';
+        place(it, sample(it, cur));
+      }
+    }, REDUCED?0:160);
+
+    document.removeEventListener('keydown',onEsc);
+    if(lastFocus&&lastFocus.focus) lastFocus.focus();
+    activeItem=null;
+  }
+  function onEsc(e){ if(e.key==='Escape') closeDetail(); }
+
+  detailClose.addEventListener('click',closeDetail);
+  detail.addEventListener('click',e=>{ if(e.target===detail) closeDetail(); });
+
+  // simple focus trap inside the dialog
+  detail.addEventListener('keydown',e=>{
+    if(e.key!=='Tab'||!detail.classList.contains('open')) return;
+    const f=detail.querySelectorAll('button, video[controls]');
+    if(!f.length) return;
+    const first=f[0], last=f[f.length-1];
+    if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); }
+  });
+
+  // initial paint + kick (covers reload mid-scroll)
+  kick();
+  // ensure a paint after fonts/layout settle
+  window.addEventListener('load', ()=>{ rebuildPaths(); items.forEach(it=>it._grid=null); REDUCED?render(1):render(cur); });
+})();
+</script>
+</body>
+</html>

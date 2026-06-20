@@ -1,0 +1,718 @@
+<!-- TEMPLATE: IRIS - Cinematic Sticky Expansion | ARCHETYPE: sticky-iris-expansion | REF: Codrops Sticky Grid Scroll (Mar 2026), Dropbox Brand staggered-grid reflow (CSSDA 2025) | WHEN TO USE: a single hero moment where a compressed 3-column image grid blooms full-bleed as the camera zooms through center, then settles to reveal a headline + CTA before normal scroll resumes | SWAP: edit the DATA array at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>IRIS - Cinematic Sticky Expansion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<!-- Tall editorial serif for the display word, grotesque for UI, mono for micro-type -->
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..700&family=Inter+Tight:wght@400..700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  /* ============================== TOKENS ============================== */
+  :root{
+    --slate:#1e2530;          /* deep slate, the dark camera-tunnel during the bloom */
+    --slate-2:#171c25;
+    --slate-3:#0f131a;
+    --sand:#d4c9b8;           /* warm sand, the settled daylight state */
+    --sand-2:#e3dccf;
+    --sand-ink:#2a2419;       /* ink that reads on sand */
+    --light:#f4efe6;
+    --light-soft:rgba(244,239,230,.62);
+    --light-faint:rgba(244,239,230,.30);
+    --line:rgba(244,239,230,.14);
+    --accent:#c9794a;         /* warm copper, the CTA + reveal flash */
+    --gap: clamp(7px, 1vw, 14px);
+    --pad: clamp(16px, 2.6vw, 34px);
+    --ease: cubic-bezier(.72,0,.16,1);
+    --ease-out: cubic-bezier(.16,1,.3,1);
+
+    /* THE SINGLE DRIVER: one scroll listener writes --p (0..1) on :root.
+       Everything else is pure CSS derived from --p via calc(). */
+    --p: 0;
+  }
+
+  *{ box-sizing:border-box; }
+  html{ -webkit-text-size-adjust:100%; }
+  body{
+    margin:0;
+    background:var(--slate);
+    color:var(--light);
+    font-family:"Inter Tight", system-ui, sans-serif;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    overflow-x:hidden;
+  }
+  a{ color:inherit; text-decoration:none; }
+  img,video{ display:block; }
+  ::selection{ background:var(--accent); color:var(--slate); }
+
+  :focus-visible{
+    outline:2px solid var(--accent);
+    outline-offset:3px;
+    border-radius:2px;
+  }
+
+  /* fine grain so neither slate nor sand ever reads flat */
+  body::after{
+    content:""; position:fixed; inset:0; z-index:60; pointer-events:none;
+    opacity:.05; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ============================== PHASE SPLIT ==============================
+     --p runs 0..1 across the whole sticky journey. We carve it into three
+     normalized sub-progresses with clamp(), so one property drives all phases:
+       --p1  Phase 1  columns slide inward to fill        (p 0.00 -> 0.40)
+       --p2  Phase 2  grid scales out, camera zoom        (p 0.34 -> 0.74)
+       --p3  Phase 3  headline reposition + CTA fade in    (p 0.70 -> 1.00)
+     A small overlap keeps the motion continuous, never stepped. */
+  :root{
+    --p1: clamp(0, calc(var(--p) / 0.38), 1);
+    --p2: clamp(0, calc((var(--p) - 0.32) / 0.38), 1);
+    /* Phase 3 completes by p=0.82, then HOLDS through 1.0 so the settled
+       headline+CTA state gets a clean, readable scroll dwell before unpin. */
+    --p3: clamp(0, calc((var(--p) - 0.60) / 0.22), 1);
+  }
+
+  /* ============================== SCROLL DRIVER ==============================
+     A tall container (~400vh) gives the bloom its scroll budget. The stage
+     sits sticky inside it and stays pinned for the driver's whole height.
+     The page never scrolls "up" mid-journey: it is one continuous downward
+     scroll mapped to --p. */
+  .driver{ position:relative; z-index:1; height:400vh; }
+
+  /* ============================== STICKY STAGE ============================== */
+  .stage{
+    position:sticky; top:0; height:100svh; overflow:hidden;
+    /* container shifts dark (slate) during the iris phase, warming to sand as
+       it settles. Driven by --p2 so the daylight arrives with the zoom. */
+    background:
+      radial-gradient(120% 90% at 50% 42%,
+        color-mix(in oklab, var(--slate) calc((1 - var(--p3)) * 100%), var(--sand)) 0%,
+        color-mix(in oklab, var(--slate-2) calc((1 - var(--p3)) * 100%), var(--sand-2)) 70%);
+    transition:none;
+  }
+
+  /* vignette deepens the tunnel during the zoom, lifts as it settles to sand */
+  .stage::before{
+    content:""; position:absolute; inset:0; z-index:5; pointer-events:none;
+    background:radial-gradient(120% 100% at 50% 46%,
+      transparent 38%,
+      rgba(15,19,26, calc(0.55 * (1 - var(--p3)))) 100%);
+  }
+
+  /* ============================== THE GRID (camera target) ==============================
+     The grid is the thing the camera flies through. It is centered, and scaled
+     up by Phase 2 (--p2). transform-origin center => a zoom-through-center read. */
+  .iris{
+    position:absolute; inset:0; z-index:2;
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    grid-template-rows: minmax(0, 1fr);   /* one full-height row so columns fill the stage */
+    gap:var(--gap);
+    padding:var(--gap);
+    align-content:stretch; align-items:stretch;
+    transform-origin:50% 46%;
+    /* Phase 2: scale outward (camera zoom), max ~1.4x.
+       Phase 3: ease the scale back slightly as it settles, so the grid reads as
+       a calm backdrop behind the seated headline rather than a wall of motion. */
+    transform: scale( calc(1 + 0.40 * var(--p2) - 0.12 * var(--p3)) );
+    /* Phase 3: the grid recedes behind a sand veil so the text reads cleanly. */
+    opacity: calc(1 - 0.30 * var(--p3));
+    will-change:transform, opacity;
+  }
+  /* sand veil that rises over the grid as the daylight state lands */
+  .iris-veil{
+    position:absolute; inset:0; z-index:3; pointer-events:none;
+    background:var(--sand);
+    opacity: calc(0.42 * var(--p3));
+    transition:none;
+  }
+
+  /* a single grid column. Each holds a stack of cells. The whole column is
+     translated horizontally during Phase 1 (inward, from off-stage) and pushed
+     apart during Phase 2 (outward, camera pass-through). */
+  .col{
+    display:grid;
+    grid-template-rows: minmax(0, 1fr);    /* fill the iris row height */
+    min-height:0; height:100%;
+    will-change:transform;
+  }
+
+  /* COMPRESSED START STATE (p=0): the three columns are NOT off-stage. They are
+     visibly seated behind the headline but squeezed tight toward center, so the
+     populated grid + the imminent bloom both read instantly in the first frame.
+     The flanks start pulled IN toward center (alternating directions) and the
+     whole column footprint is narrowed via --squeeze.
+     Phase 1 = flanks spread OUTWARD to their full-width seats, staggered.
+     Phase 2 = flanks push further apart (camera passes between them).
+     The center column only ever rides the scale. */
+  .col.left{
+    transform: translateX( calc(
+        ( 30vw) * (1 - var(--p1))          /* P1: starts pulled IN, spreads out  */
+      + (-9vw)  * var(--p2)                /* P2: push further left (zoom)        */
+    ));
+  }
+  .col.center{
+    transform: translateX( 0px );
+    /* center column is the nearest-to-camera plate; rides scale only */
+  }
+  .col.right{
+    transform: translateX( calc(
+        (-30vw) * (1 - var(--p1))          /* P1: starts pulled IN, spreads out  */
+      + ( 9vw)  * var(--p2)                /* P2: push further right (zoom)       */
+    ));
+  }
+
+  /* footprint squeeze: tight at p=0 (so columns overlap into a dense central
+     slab behind the headline), relaxing to natural width across Phase 1. */
+  .iris{ --squeeze: calc(0.40 + 0.60 * var(--p1)); }
+  .col{ transform-box:fill-box; }
+  .col > .cellwrap{
+    transform: scaleX(var(--squeeze));
+    transform-origin:50% 50%;
+  }
+
+  /* ============================== CELLS ============================== */
+  .cellwrap{
+    display:grid; gap:var(--gap); min-height:0; height:100%;
+    grid-template-rows:repeat(var(--cellrows,3), minmax(0,1fr));
+  }
+  .cell{
+    position:relative; overflow:hidden;
+    border-radius: clamp(6px, 0.8vw, 12px);
+    background:var(--slate-3);
+    box-shadow:
+      0 1px 0 rgba(244,239,230,.06) inset,
+      0 18px 50px -28px rgba(0,0,0,.85);
+    min-height:0;
+  }
+  .cell img, .cell video{
+    position:absolute; inset:0;
+    width:100%; height:100%;
+    object-fit:cover;
+    /* counter the column squeeze so the imagery never distorts while compressed */
+    transform: scaleX( calc(1 / var(--squeeze)) );
+    transform-origin:50% 50%;
+  }
+  /* tasteful tonal grade so the set reads as one cinematic palette */
+  .cell::after{
+    content:""; position:absolute; inset:0; z-index:2; pointer-events:none;
+    background:linear-gradient(180deg,
+      rgba(30,37,48,.10) 0%,
+      rgba(30,37,48,.02) 40%,
+      rgba(15,19,26,.30) 100%);
+    mix-blend-mode:multiply;
+    /* grade lifts as we settle to daylight */
+    opacity: calc(1 - 0.55 * var(--p3));
+  }
+  .cell .tag{
+    position:absolute; left:9px; bottom:8px; z-index:3;
+    font-family:"Space Mono", ui-monospace, monospace;
+    font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--light); padding:3px 7px; border-radius:999px;
+    background:rgba(15,19,26,.5); backdrop-filter:blur(4px);
+    border:1px solid rgba(244,239,230,.16);
+    /* labels only earn their place once bloomed; hidden while compressed */
+    opacity: calc(var(--p1) * (1 - var(--p3)*0.7));
+  }
+
+  /* the focused (center) cell gets a play/poster swap; siblings stay posters */
+  .cell.is-video .poster{ position:absolute; inset:0; z-index:1; }
+  .cell.is-video video{ z-index:0; }
+
+  /* ============================== HEADLINE + CTA (front layer) ============================== */
+  .front{
+    position:absolute; inset:0; z-index:10;
+    display:grid; place-items:center;
+    text-align:center; padding:var(--pad);
+    pointer-events:none;
+    /* Phase 3 reposition: the whole text block eases gently up into a seated
+       band as the reveal grows; small so neither headline nor CTA clips. */
+    transform: translateY( calc(-3vh * var(--p3)) );
+  }
+  .front .inner{ pointer-events:auto; max-width:min(1100px, 92vw); }
+
+  .eyebrow{
+    font-family:"Space Mono", ui-monospace, monospace;
+    font-size:clamp(10px,1vw,13px); letter-spacing:.42em; text-transform:uppercase;
+    color:var(--light-soft);
+    margin:0 0 clamp(10px,1.4vw,18px);
+    /* drifts up + fades slightly as the bloom takes over */
+    transform: translateY( calc(-14px * var(--p2)) );
+    opacity: calc(1 - 0.55 * var(--p2));
+  }
+
+  /* the display word. At p=0 it sits centered, large, in front of the squeezed
+     grid. During Phase 3 it repositions to the lower band and shrinks, clearing
+     the frame for the imagery + CTA. */
+  .headline{
+    font-family:"Fraunces", Georgia, serif;
+    font-weight:340;
+    line-height:.92;
+    letter-spacing:-.02em;
+    margin:0;
+    /* size: large at start, shrinks into a compact seated line in Phase 3 */
+    font-size: clamp(38px, calc(12vw - 6vw * var(--p3)), 178px);
+    /* the block-level rise lives on .front; the headline itself only drifts
+       slightly during the zoom, then holds. Keeps it from clipping the top. */
+    transform: translateY( calc( (-1.5vh) * var(--p2) ) );
+    text-shadow: 0 6px 40px rgba(0,0,0, calc(.55 * (1 - var(--p3))));
+    /* ink warms from light to sand-ink as the daylight state lands */
+    color: color-mix(in oklab, var(--light) calc((1 - var(--p3)) * 100%), var(--sand-ink));
+    transition:none;
+  }
+  .headline em{ font-style:italic; font-weight:420; color:var(--accent); }
+  .headline .swap{ display:inline-block; }
+
+  /* the sub + CTA only exist in the settled state (Phase 3) */
+  /* sub + CTA grow in directly beneath the (now compact) headline. They take
+     real layout space only as they fade in, so the centered block stays balanced. */
+  .reveal{
+    margin-top: clamp(8px, 1.4vw, 20px);
+    transform: translateY( calc(22px * (1 - var(--p3))) );
+    opacity: var(--p3);
+    /* collapse its footprint while invisible so the headline sits truly centered
+       at the start, then expand as it reveals. */
+    max-height: calc(var(--p3) * 40vh);
+    overflow:hidden;
+  }
+  .sub{
+    font-size: clamp(14px, 1.5vw, 19px);
+    color: color-mix(in oklab, var(--light-soft) calc((1 - var(--p3)) * 100%), rgba(42,36,25,.72));
+    max-width: 56ch; margin: 0 auto clamp(16px,2vw,24px);
+    line-height:1.5;
+  }
+  .cta{
+    display:inline-flex; align-items:center; gap:10px;
+    font-family:"Inter Tight", sans-serif; font-weight:600;
+    font-size: clamp(14px,1.2vw,16px); letter-spacing:.01em;
+    padding:13px 26px; border-radius:999px;
+    background:var(--accent); color:#1c130c;
+    border:1px solid color-mix(in oklab, var(--accent) 80%, #000);
+    box-shadow:0 14px 36px -16px rgba(201,121,74,.8);
+    transform: translateY(calc(12px * (1 - var(--p3))));
+    transition: transform .25s var(--ease-out), box-shadow .25s var(--ease-out), background .2s;
+    cursor:pointer;
+  }
+  .cta:hover, .cta:focus-visible{ transform: translateY(-2px); box-shadow:0 20px 44px -16px rgba(201,121,74,.95); }
+  .cta svg{ width:16px; height:16px; }
+  .cta .ghost{
+    margin-left:6px;
+  }
+  .reveal .secondary{
+    display:inline-flex; align-items:center; gap:8px;
+    margin-left:14px;
+    font-family:"Space Mono", monospace; font-size:12px; letter-spacing:.08em;
+    color: color-mix(in oklab, var(--light-soft) calc((1 - var(--p3)) * 100%), rgba(42,36,25,.6));
+    text-transform:uppercase;
+  }
+
+  /* ============================== PROGRESS / SCROLL HINT ============================== */
+  .hint{
+    position:absolute; left:50%; bottom:clamp(16px,3vh,30px); z-index:11;
+    transform:translateX(-50%);
+    display:flex; flex-direction:column; align-items:center; gap:7px;
+    font-family:"Space Mono", monospace; font-size:10px; letter-spacing:.28em;
+    text-transform:uppercase; color:var(--light-faint);
+    /* fades out once the journey is underway */
+    opacity: calc(1 - var(--p) * 2.2);
+    pointer-events:none;
+  }
+  .hint .bar{ width:1px; height:34px; background:linear-gradient(var(--light-faint), transparent); }
+  .hint .bar::after{
+    content:""; display:block; width:1px; height:10px; background:var(--accent);
+    animation:drip 1.8s var(--ease-out) infinite;
+  }
+  @keyframes drip{ 0%{transform:translateY(-10px);opacity:0} 35%{opacity:1} 100%{transform:translateY(34px);opacity:0} }
+
+  /* thin scrubber rail pinned top, tracks --p exactly */
+  .scrub{
+    position:fixed; top:0; left:0; right:0; height:2px; z-index:50;
+    background:rgba(244,239,230,.08);
+  }
+  .scrub i{
+    display:block; height:100%; width:calc(var(--p) * 100%);
+    background:linear-gradient(90deg, var(--accent), #e6b48a);
+  }
+  .phasechips{
+    position:fixed; top:12px; right:14px; z-index:50;
+    display:flex; gap:6px;
+    font-family:"Space Mono", monospace; font-size:9px; letter-spacing:.16em;
+    text-transform:uppercase;
+  }
+  .phasechips span{
+    padding:4px 8px; border-radius:999px; color:var(--light-faint);
+    border:1px solid var(--line); background:rgba(15,19,26,.4); backdrop-filter:blur(6px);
+    transition:color .2s, border-color .2s, background .2s;
+  }
+  .phasechips span.on{ color:#1c130c; background:var(--accent); border-color:var(--accent); }
+
+  /* ============================== DETAIL PANEL (after the journey) ============================== */
+  .detail{
+    position:relative; z-index:2; background:var(--sand);
+    color:var(--sand-ink);
+    padding: clamp(60px,10vh,140px) var(--pad) clamp(80px,12vh,160px);
+  }
+  .detail .wrap{ max-width:1180px; margin:0 auto; }
+  .detail h2{
+    font-family:"Fraunces", serif; font-weight:340; letter-spacing:-.02em;
+    font-size:clamp(28px,4.4vw,58px); line-height:1.02; margin:0 0 .5em;
+    max-width:18ch;
+  }
+  .detail h2 em{ font-style:italic; color:var(--accent); }
+  .detail .lede{ font-size:clamp(15px,1.5vw,20px); line-height:1.6; max-width:62ch; color:rgba(42,36,25,.8); }
+  .grid3{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:clamp(14px,2vw,28px);
+    margin-top:clamp(40px,6vh,80px);
+  }
+  .feat{
+    background:var(--sand-2); border:1px solid rgba(42,36,25,.12);
+    border-radius:14px; padding:clamp(18px,2vw,26px); min-height:160px;
+  }
+  .feat .n{ font-family:"Space Mono",monospace; font-size:12px; letter-spacing:.14em; color:var(--accent); }
+  .feat h3{ font-family:"Fraunces",serif; font-weight:380; font-size:clamp(18px,1.8vw,24px); margin:10px 0 8px; }
+  .feat p{ margin:0; font-size:14px; line-height:1.55; color:rgba(42,36,25,.74); }
+  .detail .foot{
+    margin-top:clamp(40px,6vh,80px); padding-top:24px; border-top:1px solid rgba(42,36,25,.16);
+    display:flex; flex-wrap:wrap; justify-content:space-between; gap:14px;
+    font-family:"Space Mono",monospace; font-size:11px; letter-spacing:.12em; text-transform:uppercase;
+    color:rgba(42,36,25,.6);
+  }
+
+  /* ============================== MOBILE ==============================
+     <=640px: 2-column grid, Phase-2 scale halved, media letterboxed so a
+     landscape asset is NEVER cover-cropped into a portrait viewport. */
+  @media (max-width:640px){
+    .iris{
+      grid-template-columns:repeat(2, 1fr);
+      transform: scale( calc(1 + 0.21 * var(--p2)) );  /* halved zoom */
+      gap:8px; padding:8px;
+      align-content:center;
+    }
+    /* on 2 cols there is no center plate; both flanks START pulled toward
+       center (compressed slab behind the headline), then spread out in P1 and
+       push modestly apart in P2. Signs MATCH the desktop compressed-start
+       convention: left starts shifted RIGHT (+), right starts shifted LEFT (-). */
+    .col.center{ display:none; }
+    .col.left{
+      transform: translateX( calc(( 26vw) * (1 - var(--p1)) + (-3vw) * var(--p2)) );
+    }
+    .col.right{
+      transform: translateX( calc((-26vw) * (1 - var(--p1)) + ( 3vw) * var(--p2)) );
+    }
+    .iris{ --squeeze: calc(0.50 + 0.50 * var(--p1)); }
+
+    /* On mobile we do NOT horizontally squeeze the cellwrap (that would distort
+       contained art). The compressed-slab read comes purely from the inward
+       column translate + overlap. So neutralize squeeze + its counter-scale. */
+    .iris{ --squeeze: 1; }
+    .col > .cellwrap{ transform:none; }
+    /* letterbox: the cell fills its 1fr row (dense grid, no scattered gaps),
+       and the media is CONTAINED inside it so a landscape asset is letterboxed,
+       never cover-cropped into the portrait cell. */
+    .cell img, .cell video{ object-fit:contain; background:var(--slate-3); transform:none; }
+
+    .headline{ font-size: clamp(34px, calc(15vw - 2vw * var(--p3)), 76px); }
+    .reveal .secondary{ display:flex; margin-left:0; margin-top:10px; }
+    .grid3{ grid-template-columns:1fr; }
+    .phasechips{ display:none; }
+  }
+
+  /* very small height safety: keep the stage from clipping the headline */
+  @media (max-height:560px){
+    .headline{ font-size: clamp(30px, 9vw, 60px); }
+  }
+
+  /* ============================== REDUCED MOTION ==============================
+     Collapse all three phases to the instant settled reveal. We pin --p to its
+     terminal value via CSS, AND the script refuses to run rAF / write --p, AND
+     we drop the sticky pin so there is no 400vh dead-scroll to fight through. */
+  @media (prefers-reduced-motion: reduce){
+    :root{ --p: 1 !important; }
+    .driver{ height:auto !important; }
+    .stage{ position:relative !important; height:100svh; }
+    .iris{ transform:none !important; }
+    .col.left, .col.right, .col.center{ transform:none !important; }
+    .iris{ --squeeze:1 !important; }
+    .col > .cellwrap{ transform:none !important; }
+    .cell img, .cell video{ transform:none !important; }
+    .headline{ transform:none !important; }
+    .reveal{ transform:none !important; opacity:1 !important; }
+    .eyebrow{ transform:none !important; opacity:1 !important; }
+    .hint{ display:none; }
+    .scrub i{ width:100% !important; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="scrub" aria-hidden="true"><i></i></div>
+  <div class="phasechips" aria-hidden="true">
+    <span data-chip="1">P1 BLOOM</span>
+    <span data-chip="2">P2 ZOOM</span>
+    <span data-chip="3">P3 SETTLE</span>
+  </div>
+
+  <!-- ============================== DRIVER + STICKY STAGE ============================== -->
+  <section class="driver" id="driver" aria-label="Cinematic intro">
+    <div class="stage" id="stage">
+
+      <!-- THE IRIS GRID: 3 columns, each a stack of real media cells -->
+      <div class="iris" id="iris" aria-hidden="true">
+        <div class="col left"   data-col="left"></div>
+        <div class="col center" data-col="center"></div>
+        <div class="col right"  data-col="right"></div>
+      </div>
+
+      <!-- sand veil: lifts the grid toward the settled daylight state -->
+      <div class="iris-veil" aria-hidden="true"></div>
+
+      <!-- FRONT LAYER: headline at the start, repositions + CTA in Phase 3 -->
+      <div class="front">
+        <div class="inner">
+          <p class="eyebrow" id="eyebrow">Generative Media Reel</p>
+          <h1 class="headline" id="headline">
+            <span class="swap" id="hl-a">Everything we make,</span>
+            <span class="swap"><em id="hl-b">in one frame.</em></span>
+          </h1>
+          <div class="reveal" id="reveal">
+            <p class="sub" id="sub">
+              Image, video, voice and 3D - generated, graded, and shipped from a single pipeline. Scroll opened the aperture. This is what came through.
+            </p>
+            <a class="cta" id="cta" href="#detail">
+              <span>See the pipeline</span>
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke="#1c130c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+            <span class="secondary">12 assets · 1 stage</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="hint" aria-hidden="true">
+        <span>Scroll to open</span>
+        <span class="bar"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== DETAIL PANEL (normal scroll resumes) ============================== -->
+  <section class="detail" id="detail" aria-label="Detail">
+    <div class="wrap">
+      <h2>One stage. <em>Every</em> medium passed through the same lens.</h2>
+      <p class="lede">The iris you just scrolled through is not decoration. It is the routing surface: each cell is a real generated asset, and the bloom is how we audition a full multimodal batch before it ships to a client deck.</p>
+
+      <div class="grid3" id="featgrid"></div>
+
+      <div class="foot">
+        <span>IRIS · sticky-iris-expansion</span>
+        <span>Slate #1e2530 · Sand #d4c9b8</span>
+        <span>Built native · no GSAP · no canvas</span>
+      </div>
+    </div>
+  </section>
+
+<script>
+/* ==========================================================================
+   DATA - swap these to repurpose the template.
+   Each entry: src (image OR video poster), optional video (mp4), tag label,
+   and a `kind` for the chip color. The three columns are filled round-robin.
+   Paths are relative to /showcase/templates/  ->  ../assets/
+   ========================================================================== */
+const DATA = [
+  { tag:"FLUX · car",     img:"../assets/flux-car-4k.png" },
+  { tag:"VEO · motion",   img:"../assets/gen/poster-veo-video.png",    video:"../assets/veo-video.mp4" },
+  { tag:"FLUX · clinic",  img:"../assets/flux-clinic-4k.png" },
+  { tag:"KLING · motion", img:"../assets/gen/poster-kling-video.png",  video:"../assets/kling-video.mp4" },
+  { tag:"SDXL · fox",     img:"../assets/sdxl.png" },
+  { tag:"i2v · car",      img:"../assets/gen/poster-flux-car-i2v.png", video:"../assets/flux-car-i2v.mp4" },
+  { tag:"FAL · loop",     img:"../assets/gen/poster-fal-video.png",    video:"../assets/fal-video.mp4" },
+  { tag:"TINYSD · apple", img:"../assets/hf-tinysd.png" },
+  { tag:"HEYGEN · avatar",img:"../assets/gen/poster-heygen.png",       video:"../assets/heygen-avatar.mp4" },
+];
+
+/* detail-panel features (independent of grid) */
+const FEATURES = [
+  { n:"01", h:"Compressed to full-bleed", p:"Three tight columns bloom outward, then the camera zooms through center. One scroll, one moment." },
+  { n:"02", h:"Real assets, one grade", p:"Every cell is a live generated file - image, video poster, 3D - tonally matched so the batch reads as one body of work." },
+  { n:"03", h:"Settles into daylight", p:"The slate tunnel warms to sand as the headline seats and the CTA arrives. Then normal scroll resumes here." },
+];
+
+/* ==========================================================================
+   BUILD - distribute DATA across the three columns, mount cells.
+   ========================================================================== */
+const cols = {
+  left:   document.querySelector('[data-col="left"]'),
+  center: document.querySelector('[data-col="center"]'),
+  right:  document.querySelector('[data-col="right"]'),
+};
+const order = ["left","center","right"];
+const colItems = { left:[], center:[], right:[] };
+
+DATA.forEach((d,i)=>{ colItems[order[i % 3]].push(d); });
+
+/* keep track of video cells so we can manage decode load (only one plays) */
+const videoCells = [];
+
+function buildColumn(name){
+  const items = colItems[name];
+  const wrap = document.createElement('div');
+  wrap.className = 'cellwrap';
+  wrap.style.setProperty('--cellrows', items.length);
+
+  items.forEach((d, idx)=>{
+    const cell = document.createElement('div');
+    cell.className = 'cell' + (d.video ? ' is-video' : '');
+
+    if(d.video){
+      // poster image shows by default; video is muted/loop/playsinline,
+      // lazily loaded, and ONLY the focused cell ever plays (decode budget).
+      const poster = document.createElement('img');
+      poster.className = 'poster';
+      poster.src = d.img; poster.alt = d.tag + ' (poster)';
+      poster.loading = 'lazy'; poster.decoding = 'async';
+
+      const vid = document.createElement('video');
+      vid.muted = true; vid.loop = true; vid.playsInline = true;
+      vid.setAttribute('playsinline',''); vid.preload = 'none';
+      vid.poster = d.img;
+      // store src on a data attr; attach only when this cell becomes focus
+      vid.dataset.src = d.video;
+      vid.setAttribute('aria-hidden','true');
+
+      cell.appendChild(vid);
+      cell.appendChild(poster);
+      videoCells.push({ cell, vid, poster });
+    } else {
+      const img = document.createElement('img');
+      img.src = d.img; img.alt = d.tag;
+      img.loading = (name==='center' && idx<2) ? 'eager' : 'lazy';
+      img.decoding = 'async';
+      cell.appendChild(img);
+    }
+
+    const tag = document.createElement('span');
+    tag.className = 'tag'; tag.textContent = d.tag;
+    cell.appendChild(tag);
+
+    wrap.appendChild(cell);
+  });
+
+  cols[name].appendChild(wrap);
+}
+order.forEach(buildColumn);
+
+/* build detail features */
+const fg = document.getElementById('featgrid');
+FEATURES.forEach(f=>{
+  const el = document.createElement('div'); el.className='feat';
+  el.innerHTML = `<div class="n">${f.n}</div><h3>${f.h}</h3><p>${f.p}</p>`;
+  fg.appendChild(el);
+});
+
+/* ==========================================================================
+   THE SINGLE DRIVER - one scroll listener maps progress to ONE CSS var (--p).
+   No per-frame inline transforms: CSS calc() derives every phase from --p.
+   ========================================================================== */
+const root = document.documentElement;
+const driver = document.getElementById('driver');
+const chips = [...document.querySelectorAll('.phasechips span')];
+
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+let lastP = -1;
+let ticking = false;
+
+function computeP(){
+  // progress = how far the window top has travelled through the driver box,
+  // normalized so 0 = stage just pinned, 1 = stage about to unpin.
+  const rect = driver.getBoundingClientRect();
+  const total = driver.offsetHeight - window.innerHeight; // scrollable span
+  if(total <= 0) return 0;
+  const scrolled = -rect.top;                 // how far we are into the driver
+  let p = scrolled / total;
+  return Math.min(1, Math.max(0, p));
+}
+
+function setPhaseChips(p){
+  const active = p < 0.38 ? 1 : (p < 0.66 ? 2 : 3);
+  chips.forEach(c=> c.classList.toggle('on', +c.dataset.chip === active));
+}
+
+/* video focus management: the "focused" cell is the one nearest screen-center
+   weighted by how bloomed we are. We play exactly ONE video at a time and
+   only once the grid has bloomed enough to actually see it (p > 0.3). */
+let currentFocus = null;
+function manageVideo(p){
+  if(reduceMotion || videoCells.length === 0){ return; }
+
+  if(p < 0.28 || p > 0.80){
+    // compressed start, or settled under the sand veil: no playback, posters only
+    if(currentFocus){ pauseCell(currentFocus); currentFocus = null; }
+    return;
+  }
+  // pick the video cell whose rendered center is closest to viewport center
+  const cx = window.innerWidth/2, cy = window.innerHeight*0.46;
+  let best=null, bestD=Infinity;
+  for(const vc of videoCells){
+    const r = vc.cell.getBoundingClientRect();
+    if(r.width===0) continue;
+    const dx = (r.left+r.width/2)-cx, dy=(r.top+r.height/2)-cy;
+    const d = dx*dx + dy*dy;
+    if(d < bestD){ bestD = d; best = vc; }
+  }
+  if(best && best !== currentFocus){
+    if(currentFocus) pauseCell(currentFocus);
+    playCell(best);
+    currentFocus = best;
+  }
+}
+function playCell(vc){
+  if(!vc.vid.src && vc.vid.dataset.src){ vc.vid.src = vc.vid.dataset.src; }
+  const pr = vc.vid.play();
+  if(pr && pr.then){ pr.then(()=>{ vc.poster.style.opacity='0'; }).catch(()=>{}); }
+  else { vc.poster.style.opacity='0'; }
+  vc.poster.style.transition='opacity .4s ease';
+}
+function pauseCell(vc){
+  try{ vc.vid.pause(); }catch(e){}
+  vc.poster.style.opacity='1';
+}
+
+function render(){
+  ticking = false;
+  const p = computeP();
+  if(p !== lastP){
+    root.style.setProperty('--p', p.toFixed(4));
+    setPhaseChips(p);
+    manageVideo(p);
+    lastP = p;
+  }
+}
+
+function onScroll(){
+  if(reduceMotion) return;           // no rAF / no --p writes when reduced
+  if(!ticking){ ticking = true; requestAnimationFrame(render); }
+}
+
+if(reduceMotion){
+  // terminal state already pinned via CSS (--p:1). Show one poster->no-play.
+  // Nothing to do: CSS @media reduced-motion handles the full settled reveal.
+} else {
+  window.addEventListener('scroll', onScroll, { passive:true });
+  window.addEventListener('resize', ()=>{ lastP=-1; onScroll(); }, { passive:true });
+  // pause any playing video when the stage scrolls fully out of view
+  const io = new IntersectionObserver((entries)=>{
+    for(const e of entries){
+      if(!e.isIntersecting && currentFocus){ pauseCell(currentFocus); currentFocus=null; }
+    }
+  }, { threshold:0 });
+  io.observe(document.getElementById('stage'));
+  // initial paint
+  render();
+}
+</script>
+</body>
+</html>

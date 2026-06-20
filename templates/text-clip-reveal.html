@@ -1,0 +1,435 @@
+<!-- TEMPLATE: Letterbox - Text-Clip Reveal | ARCHETYPE: letterbox | REF: CSS background-clip:text window technique (Awwwards SOTD / Codrops 2025-2026), Obys Agency kinetic branding | WHEN TO USE: a portfolio / brand / launch page where giant words ARE windows cut into full-bleed imagery, void everywhere else, with per-letter parallax | SWAP: edit the DATA array at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Letterbox - Text-Clip Reveal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@500;700&display=swap" rel="stylesheet" />
+<style>
+  /* =========================================================================
+     LETTERBOX - giant text clips full-bleed media; void everywhere else.
+
+     Paradigm: the IMAGE lives INSIDE the letterform outlines via
+     background-clip:text. Each glyph is an independent viewport tile, so
+     shifting that glyph's background-position = per-letter parallax. The
+     background OUTSIDE the letters is pure void; only image-through-text reads.
+
+     Constraints honored: -webkit- prefix for Safari; the backing media is a CSS
+     background on the (transparent) text, so NOTHING is painted outside the
+     glyphs - the exterior stays pure void. No WebGL, no canvas, no SVG clip.
+     Each window is a STILL frame (image or a video's poster), so there is zero
+     simultaneous media decode. prefers-reduced-motion freezes all parallax and
+     shows the final centered window.
+     ========================================================================= */
+
+  :root{
+    --void:#0a0a0a;          /* the nothing outside the letterforms           */
+    --bone:#f5f2ed;          /* fallback text-fill before media paints        */
+    --bone-dim:rgba(245,242,237,.42);
+    --hair:rgba(245,242,237,.14);
+    --pad: clamp(18px, 4vw, 64px);
+  }
+
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  @media (prefers-reduced-motion: reduce){ html{ scroll-behavior:auto; } }
+
+  html, body{ background:var(--void); color:var(--bone); }
+  body{
+    font-family:"Archivo", system-ui, sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+    line-height:1.35;
+  }
+  a{ color:inherit; }
+
+  /* --- top brand band: keeps the signature on-screen without a bare hero --- */
+  .topbar{
+    position:fixed; inset:0 0 auto 0; z-index:40;
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    padding:14px var(--pad);
+    background:linear-gradient(to bottom, rgba(10,10,10,.92), rgba(10,10,10,0));
+    pointer-events:none;
+  }
+  .topbar .brand{
+    font-family:"Archivo"; font-weight:700;
+    letter-spacing:.28em; text-transform:uppercase;
+    font-size:clamp(11px,1.5vw,13px); pointer-events:auto;
+  }
+  .topbar .brand b{ color:var(--bone); }
+  .topbar .meta{
+    font-size:clamp(10px,1.3vw,12px); letter-spacing:.22em; text-transform:uppercase;
+    color:var(--bone-dim); display:flex; gap:14px; align-items:center; pointer-events:auto;
+  }
+  .topbar .meta .dot{ width:7px; height:7px; border-radius:50%; background:#7CFFB2; box-shadow:0 0 10px #7CFFB2; }
+  @media (max-width:640px){ .topbar .meta span.hide-sm{ display:none; } }
+
+  /* --- scroll track: one full-height stage per word ------------------------ */
+  .track{ position:relative; }
+
+  .stage{
+    position:relative;
+    min-height:100svh;
+    display:flex; flex-direction:column; justify-content:center;
+    padding:96px var(--pad) 72px;
+    overflow:hidden;            /* clip the focused video to this stage box    */
+    isolation:isolate;
+  }
+
+  /* editorial rail (index + kicker). Deliberately NOT a card grid. */
+  .stage .rail{
+    position:absolute; left:var(--pad); top:50%; transform:translateY(-50%);
+    display:flex; flex-direction:column; gap:8px;
+    z-index:6; pointer-events:none; max-width:min(30vw, 240px);
+  }
+  .stage .rail .idx{
+    font-family:"Archivo"; font-weight:700;
+    font-size:clamp(12px,1.6vw,14px); letter-spacing:.3em; color:var(--bone-dim);
+  }
+  .stage .rail .kicker{
+    font-size:clamp(11px,1.5vw,13px); letter-spacing:.16em; text-transform:uppercase; color:var(--bone-dim);
+  }
+  @media (max-width:760px){
+    .stage .rail{ position:static; transform:none; margin:0 auto 18px; max-width:none; align-items:center; text-align:center; }
+  }
+
+  /* NOTE on video entries: every word (image OR video source) reveals a STILL
+     frame inside the letters via background-clip:text. A reliable, artifact-
+     free letter-clip of LIVE <video> is not achievable in pure CSS without an
+     SVG/canvas mask (banned by this template's guardrail), and a full-bleed
+     video would paint OUTSIDE the glyphs, breaking the pure-void exterior. So
+     "video" entries use their poster as the window. The `type` field is kept in
+     DATA only to document the source; swapping a poster for any other still is
+     a one-line edit. Result: zero simultaneous decode, guaranteed void. */
+
+  /* === the clip word ====================================================== */
+  .clipword{
+    position:relative; z-index:5;
+    margin:0 auto; width:min(100%, 1180px); text-align:center;
+    font-family:"Anton", "Archivo", sans-serif; font-weight:400;
+    text-transform:uppercase; line-height:.82; letter-spacing:-.01em;
+    font-size:clamp(72px, 19vw, 260px);     /* huge: this IS the window       */
+    user-select:none; -webkit-user-select:none;
+  }
+
+  /* each glyph paints THIS stage's media as a background, clipped to the
+     letter; shifting background-position per glyph = the parallax tile. */
+  .glyph{
+    display:inline-block; position:relative;
+    color:var(--bone);                       /* fallback fill (no media yet)  */
+    background-image:var(--media);
+    background-repeat:no-repeat;
+    background-size: var(--bg-size, 150vmax) auto;   /* contain-ish: no crop   */
+    background-position: var(--bx, 50%) var(--by, 50%);
+    -webkit-background-clip:text; background-clip:text;
+    -webkit-text-fill-color:transparent; color:transparent;
+    transition: background-position .45s cubic-bezier(.22,.61,.36,1);
+    will-change: background-position;
+  }
+  .glyph.space{ width:.26em; background:none; }
+
+  /* hard fallback: if background-clip:text is unsupported, keep bone text so
+     the words never disappear. */
+  @supports not ((-webkit-background-clip:text) or (background-clip:text)){
+    .glyph{ color:var(--bone) !important; -webkit-text-fill-color:var(--bone) !important; background:none !important; }
+  }
+
+  .stage::after{
+    content:""; position:absolute; inset:0; z-index:4; pointer-events:none;
+    background:radial-gradient(120% 90% at 50% 50%, transparent 38%, rgba(10,10,10,.55) 100%);
+  }
+
+  /* dim non-focused stages slightly so the focused window pops */
+  .stage:not(.focused) .clipword .glyph{ filter:brightness(.86) saturate(.9); }
+  .stage.focused  .clipword .glyph{ filter:none; }
+
+  /* right-side progress dots */
+  .nav{
+    position:fixed; right:14px; top:50%; transform:translateY(-50%);
+    z-index:42; display:flex; flex-direction:column; gap:12px;
+  }
+  .nav a{
+    width:9px; height:9px; border-radius:50%;
+    background:transparent; border:1.5px solid var(--bone-dim);
+    transition:all .25s ease; display:block;
+  }
+  .nav a.on{ background:var(--bone); border-color:var(--bone); transform:scale(1.15); }
+  .nav a:focus-visible{ outline:2px solid #7CFFB2; outline-offset:3px; }
+  @media (max-width:640px){ .nav{ right:8px; gap:9px; } .nav a{ width:7px; height:7px; } }
+
+  /* scroll hint at scroll=0 */
+  .scrollhint{
+    position:absolute; left:50%; bottom:26px; transform:translateX(-50%);
+    z-index:7; font-size:11px; letter-spacing:.28em; text-transform:uppercase;
+    color:var(--bone-dim); display:flex; flex-direction:column; align-items:center; gap:7px;
+  }
+  .scrollhint .ln{ width:1px; height:34px; background:linear-gradient(var(--bone-dim), transparent); transform-origin:top; animation:drip 1.8s ease-in-out infinite; }
+  @keyframes drip{ 0%,100%{ transform:scaleY(.4); opacity:.4; } 50%{ transform:scaleY(1); opacity:1; } }
+
+  /* end cap */
+  .endcap{
+    min-height:60svh; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:18px; text-align:center; padding:80px var(--pad);
+    border-top:1px solid var(--hair);
+  }
+  .endcap h2{ font-family:"Anton"; font-size:clamp(40px,9vw,120px); text-transform:uppercase; line-height:.9; }
+  .endcap p{ color:var(--bone-dim); max-width:46ch; font-size:clamp(13px,2vw,16px); }
+  .endcap .swap{ font-family:"Archivo"; font-size:12px; letter-spacing:.2em; text-transform:uppercase; color:var(--bone-dim); }
+
+  /* ---- MOBILE: never cover-crop a 16:9 asset into a portrait phone --------
+     Pointer parallax is replaced by scroll-driven shift; the focused video is
+     letterboxed (contain) so the source is never cropped, void fills the bars. */
+  @media (max-width:640px){
+    .clipword{ font-size:clamp(58px, 23vw, 150px); }
+    .stage{ padding:104px 16px 64px; }
+    /* wider tile so smaller phone letters still frame the subject, no crop */
+    .glyph{ background-size: var(--bg-size-sm, 220vw) auto; transition:none; }
+  }
+
+  /* reduced motion: freeze parallax + animations, show final legible state */
+  @media (prefers-reduced-motion: reduce){
+    .glyph{ transition:none !important; will-change:auto; }
+    .scrollhint .ln{ animation:none; }
+  }
+</style>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand"><b>OBYS</b> &nbsp;/&nbsp; LETTERBOX</div>
+    <div class="meta">
+      <span class="hide-sm">Text-Clip Reveal</span>
+      <span><span class="dot" style="display:inline-block;vertical-align:middle;margin-right:7px;"></span>Scroll the index</span>
+    </div>
+  </header>
+
+  <nav class="nav" id="nav" aria-label="Section index"></nav>
+
+  <main class="track" id="track"></main>
+
+  <footer class="endcap">
+    <h2>End&nbsp;of&nbsp;reel</h2>
+    <p>Every word above is a window cut into full-bleed media. The void is the only thing painted; the image lives inside the letters.</p>
+    <div class="swap">Swap content: edit the DATA array at top of the script</div>
+  </footer>
+
+<script>
+/* ============================== DATA (swap me) =============================
+   Each entry = one full-screen word that acts as a clip-mask window into a
+   still image. The exterior of the letters is always pure void.
+     word    : the giant text (the window shape) - keep it short, caps reads best
+     kicker  : small label on the editorial rail
+     poster  : the still painted INSIDE the letters (the window). For a video
+               source, use its poster frame; for a photo, the photo itself.
+     src     : original source path, kept for reference only (not rendered).
+     tint    : accent for the focused nav-dot glow
+     bgSize  : background-size width for each glyph tile on DESKTOP. Bigger =
+               more image inside fewer letters = more dramatic parallax travel.
+     bgSizeSm: same, for phones (wider, since the letters are smaller).
+   Paths are relative to this file at showcase/templates/.
+   ========================================================================== */
+const DATA = [
+  { word:"DRIVE",  kicker:"01 / Cinematic still",
+    poster:"../assets/flux-car-4k.png",          src:"../assets/flux-car-4k.png",
+    tint:"#8ab4ff", bgSize:"160vmax", bgSizeSm:"230vw" },
+
+  { word:"MOTION", kicker:"02 / Kling video frame",
+    poster:"../assets/gen/poster-kling-video.png", src:"../assets/kling-video.mp4",
+    tint:"#7CFFB2", bgSize:"150vmax", bgSizeSm:"230vw" },
+
+  { word:"CARE",   kicker:"03 / Clinic still",
+    poster:"../assets/flux-clinic-4k.png",       src:"../assets/flux-clinic-4k.png",
+    tint:"#a0e7c0", bgSize:"150vmax", bgSizeSm:"220vw" },
+
+  { word:"VEO",    kicker:"04 / Veo video frame",
+    poster:"../assets/gen/poster-veo-video.png", src:"../assets/veo-video.mp4",
+    tint:"#ffd28a", bgSize:"140vmax", bgSizeSm:"210vw" },
+
+  { word:"FOX",    kicker:"05 / SDXL painterly",
+    poster:"../assets/sdxl.png",                 src:"../assets/sdxl.png",
+    tint:"#ff9d6e", bgSize:"120vmax", bgSizeSm:"180vw" }
+];
+/* ========================================================================== */
+
+const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const track = document.getElementById('track');
+const nav   = document.getElementById('nav');
+const stages = [];
+
+/* ---- build one stage per DATA entry -------------------------------------- */
+DATA.forEach((d, i) => {
+  const stage = document.createElement('section');
+  stage.className = 'stage';
+  stage.id = 'w' + i;
+  stage.style.setProperty('--media', `url("${d.poster}")`);
+  stage.style.setProperty('--bg-size',    d.bgSize   || '150vmax');
+  stage.style.setProperty('--bg-size-sm', d.bgSizeSm || '220vw');
+  stage.style.setProperty('--tint', d.tint);
+
+  // editorial rail
+  const rail = document.createElement('div');
+  rail.className = 'rail';
+  rail.innerHTML =
+    `<div class="idx">${String(i+1).padStart(2,'0')} / ${String(DATA.length).padStart(2,'0')}</div>
+     <div class="kicker">${d.kicker}</div>`;
+  stage.appendChild(rail);
+
+  // the accessible clip word (real text, per-letter glyph spans)
+  const wordEl = buildClipWord(d.word);
+  stage.appendChild(wordEl);
+
+  // scroll hint only on the first stage
+  if (i === 0) {
+    const hint = document.createElement('div');
+    hint.className = 'scrollhint';
+    hint.innerHTML = `Scroll<div class="ln"></div>`;
+    stage.appendChild(hint);
+  }
+
+  track.appendChild(stage);
+  stages.push({ el: stage, data: d, word: wordEl });
+
+  // nav dot
+  const dot = document.createElement('a');
+  dot.href = '#w' + i;
+  dot.setAttribute('aria-label', `Go to ${d.word}`);
+  dot.style.setProperty('--dot-tint', d.tint);
+  nav.appendChild(dot);
+});
+
+/* build a clip word as per-letter glyph spans (each glyph = a parallax tile) */
+function buildClipWord(word){
+  const wrap = document.createElement('h1');
+  wrap.className = 'clipword';
+  wrap.setAttribute('aria-label', word);     // screen readers get the real word
+  [...word].forEach((ch) => {
+    const g = document.createElement('span');
+    g.setAttribute('aria-hidden','true');
+    if (ch === ' '){ g.className = 'glyph space'; g.textContent = ' '; }
+    else { g.className = 'glyph'; g.textContent = ch; }
+    wrap.appendChild(g);
+  });
+  return wrap;
+}
+
+/* ==========================================================================
+   FOCUS: mark the most-visible stage as focused (full-bright window + nav dot).
+   Single-stage focus also keeps the eye on one window at a time.
+   ========================================================================== */
+let currentFocus = -1;
+
+const io = new IntersectionObserver((entries)=>{
+  // pick the most-visible intersecting stage
+  let best = null, bestRatio = 0.5;            // need >50% to take focus
+  entries.forEach(e=>{
+    if (e.isIntersecting && e.intersectionRatio > bestRatio){
+      best = e.target; bestRatio = e.intersectionRatio;
+    }
+  });
+  if (best){
+    const idx = stages.findIndex(s => s.el === best);
+    if (idx >= 0) focus(idx);
+  }
+}, { threshold:[0, .25, .5, .55, .75, 1] });
+
+stages.forEach(s => io.observe(s.el));
+
+function focus(idx){
+  if (idx === currentFocus) return;
+  currentFocus = idx;
+
+  stages.forEach((s, i) => s.el.classList.toggle('focused', i === idx));
+
+  [...nav.children].forEach((a,i)=>{
+    a.classList.toggle('on', i===idx);
+    a.style.boxShadow = (i===idx) ? `0 0 12px ${stages[idx].data.tint}` : 'none';
+  });
+}
+
+/* ==========================================================================
+   PARALLAX
+     Desktop (hover + fine pointer): per-letter background-position shift driven
+       by pointer position + each glyph's own screen-x -> independent tiles.
+     Mobile/touch: scroll progress drives a uniform vertical pan with a small
+       per-letter horizontal stagger; media letterboxed, never cropped.
+     Reduced motion: no listeners, glyphs frozen centered.
+   ========================================================================== */
+function setGlyphBG(g, px, py){
+  g.style.setProperty('--bx', px + '%');
+  g.style.setProperty('--by', py + '%');
+}
+function clamp(v, lo, hi){ return v < lo ? lo : v > hi ? hi : v; }
+
+// scroll=0 already shows centered image-through-text on every stage
+stages.forEach(s=>{
+  s.word.querySelectorAll('.glyph:not(.space)').forEach(g => setGlyphBG(g, 50, 50));
+});
+
+if (!REDUCED){
+  if (matchMedia('(hover:hover) and (pointer:fine)').matches){
+    // ---------- DESKTOP: per-letter pointer parallax ----------
+    let raf = 0, pending = null;
+    stages.forEach((s)=>{
+      s.el.addEventListener('pointermove', (ev)=>{
+        pending = { s, x:ev.clientX, y:ev.clientY };
+        if (!raf) raf = requestAnimationFrame(applyPointer);
+      });
+      s.el.addEventListener('pointerleave', ()=>{
+        s.word.querySelectorAll('.glyph:not(.space)').forEach(g => setGlyphBG(g, 50, 50));
+      });
+    });
+    function applyPointer(){
+      raf = 0;
+      if (!pending) return;
+      const { s, x, y } = pending;
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const mx = (x / vw) * 2 - 1;            // -1..1
+      const my = (y / vh) * 2 - 1;
+      s.word.querySelectorAll('.glyph:not(.space)').forEach((g)=>{
+        const r = g.getBoundingClientRect();
+        const cx = (r.left + r.width/2) / vw;  // glyph center 0..1 across screen
+        const depth = 6 + (cx * 10);           // rightward letters travel a touch more
+        const bx = 50 + (mx * depth) + (cx - .5) * 26;
+        const by = 50 + (my * depth);
+        setGlyphBG(g, clamp(bx, 12, 88), clamp(by, 12, 88));
+      });
+    }
+  } else {
+    // ---------- MOBILE / touch: scroll-based shift ----------
+    let sraf = 0;
+    const onScroll = ()=>{ if (!sraf) sraf = requestAnimationFrame(applyScroll); };
+    function applyScroll(){
+      sraf = 0;
+      const vh = window.innerHeight;
+      stages.forEach((s)=>{
+        const r = s.el.getBoundingClientRect();
+        const prog = clamp((vh - r.top) / (vh + r.height), 0, 1);  // 0 enter ->1 leave
+        const by = 50 + (prog - .5) * 36;
+        s.word.querySelectorAll('.glyph:not(.space)').forEach((g, gi)=>{
+          const bx = 50 + Math.sin((gi * 0.9) + prog * 3) * 8;     // per-letter stagger
+          setGlyphBG(g, clamp(bx, 18, 82), clamp(by, 18, 82));
+        });
+      });
+    }
+    window.addEventListener('scroll', onScroll, { passive:true });
+    window.addEventListener('resize', onScroll, { passive:true });
+    applyScroll();
+  }
+}
+
+/* keyboard: arrow up/down jumps between stages (accessibility) */
+window.addEventListener('keydown', (e)=>{
+  if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+  const dir = e.key === 'ArrowDown' ? 1 : -1;
+  const next = clamp((currentFocus < 0 ? 0 : currentFocus) + dir, 0, stages.length - 1);
+  stages[next].el.scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block:'start' });
+});
+
+/* focus the first stage immediately so scroll=0 = the full signature */
+focus(0);
+</script>
+</body>
+</html>

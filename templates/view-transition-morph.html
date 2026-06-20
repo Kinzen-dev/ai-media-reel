@@ -1,0 +1,995 @@
+<!-- TEMPLATE: Morph Nav - View Transitions Shared-Element Gallery | ARCHETYPE: view-transition-morph | REF: Cyd Stumpel Portfolio (Awwwards SOTD 2025), CSS View Transitions API (Baseline 2025) | WHEN TO USE: a portfolio/case-study/catalog where clicking a card morphs that exact thumbnail into a full-bleed detail hero with no page-reload feel; navigation itself is the spectacle | SWAP: edit the DATA array at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>ATELIER MORPH - Shared-Element Navigation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     PALETTE: #f5f1eb off-white index  ·  #1a3020 deep forest detail
+     The View Transition flips the page color like turning a card.
+     ============================================================ */
+  :root {
+    --paper: #f5f1eb;
+    --paper-2: #ece5d8;
+    --ink: #1a1714;
+    --ink-soft: #5b554c;
+    --forest: #1a3020;
+    --forest-2: #0f1f14;
+    --forest-paper: #e8e2d4;
+    --forest-soft: #9db09a;
+    --line: rgba(26, 23, 20, 0.14);
+    --line-forest: rgba(232, 226, 212, 0.16);
+    --gutter: clamp(18px, 4vw, 56px);
+    --r: 14px;
+    --ease: cubic-bezier(0.76, 0, 0.24, 1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+
+  body {
+    font-family: "Inter", system-ui, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+
+  /* When a detail is open we flip the whole document to forest green. */
+  body.detail-open {
+    background: var(--forest);
+    color: var(--forest-paper);
+  }
+
+  img, video { display: block; max-width: 100%; }
+
+  a { color: inherit; text-decoration: none; }
+
+  button {
+    font: inherit; color: inherit; background: none;
+    border: none; cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 2.5px solid currentColor;
+    outline-offset: 3px;
+    border-radius: 3px;
+  }
+
+  /* ============================================================
+     TOP BAND (compact, sits ABOVE the grid so the signature
+     mechanic - the populated card grid - is visible at scroll=0)
+     ============================================================ */
+  .topband {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    padding: clamp(16px, 3vh, 30px) var(--gutter) clamp(12px, 2.4vh, 22px);
+    border-bottom: 1px solid var(--line);
+    transition: border-color 0.5s var(--ease);
+  }
+  body.detail-open .topband { border-bottom-color: var(--line-forest); }
+
+  .brand {
+    font-family: "Fraunces", serif;
+    font-weight: 500;
+    font-size: clamp(15px, 1.5vw, 19px);
+    letter-spacing: 0.06em;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+  }
+  .brand .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--forest);
+    transition: background 0.5s var(--ease), transform 0.5s var(--ease);
+  }
+  body.detail-open .brand .dot { background: var(--forest-soft); transform: scale(1.4); }
+
+  .topband .lede {
+    max-width: 38ch;
+    flex: 1 1 auto;
+    text-align: left;
+  }
+  .topband .lede h1 {
+    font-family: "Fraunces", serif;
+    font-weight: 300;
+    font-size: clamp(26px, 5.2vw, 58px);
+    line-height: 0.98;
+    letter-spacing: -0.018em;
+  }
+  .topband .lede h1 em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--forest);
+    transition: color 0.5s var(--ease);
+  }
+  body.detail-open .topband .lede h1 em { color: var(--forest-soft); }
+
+  .topband .meta {
+    text-align: right;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: var(--ink-soft);
+    line-height: 1.55;
+    flex: 0 0 auto;
+    transition: color 0.5s var(--ease);
+  }
+  body.detail-open .topband .meta { color: var(--forest-soft); }
+  .topband .meta strong { color: inherit; font-weight: 600; display: block; color: var(--ink); }
+  body.detail-open .topband .meta strong { color: var(--forest-paper); }
+
+  /* tiny hint chip about the mechanic */
+  .hint {
+    display: inline-flex; align-items: center; gap: 7px;
+    margin-top: 8px;
+    font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .hint svg { width: 13px; height: 13px; }
+  body.detail-open .hint { color: var(--forest-soft); }
+
+  /* ============================================================
+     INDEX GRID  (the signature - visible at scroll=0)
+     ============================================================ */
+  .index {
+    padding: clamp(16px, 2.4vh, 28px) var(--gutter) calc(var(--gutter) + 30px);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: clamp(12px, 1.6vw, 22px);
+  }
+
+  .card {
+    position: relative;
+    border-radius: var(--r);
+    overflow: hidden;
+    background: var(--paper-2);
+    aspect-ratio: 4 / 3;
+    transition: transform 0.55s var(--ease), box-shadow 0.55s var(--ease);
+    box-shadow: 0 1px 0 rgba(26,23,20,0.04);
+    isolation: isolate;
+  }
+  /* editorial span pattern across the 12-col grid */
+  .card:nth-child(1)  { grid-column: span 7; aspect-ratio: 16 / 10; }
+  .card:nth-child(2)  { grid-column: span 5; aspect-ratio: 4 / 3; }
+  .card:nth-child(3)  { grid-column: span 4; }
+  .card:nth-child(4)  { grid-column: span 4; }
+  .card:nth-child(5)  { grid-column: span 4; }
+  .card:nth-child(6)  { grid-column: span 5; aspect-ratio: 16 / 9; }
+  .card:nth-child(7)  { grid-column: span 7; aspect-ratio: 16 / 9; }
+  .card:nth-child(8)  { grid-column: span 6; aspect-ratio: 3 / 2; }
+  .card:nth-child(9)  { grid-column: span 6; aspect-ratio: 3 / 2; }
+
+  .card:hover { transform: translateY(-4px); box-shadow: 0 18px 40px -18px rgba(26,23,20,0.4); }
+  .card:focus-visible { transform: translateY(-4px); }
+
+  .card .media {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+  }
+  .card .media img,
+  .card .media video {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    transition: transform 0.7s var(--ease);
+  }
+  .card:hover .media img,
+  .card:hover .media video { transform: scale(1.045); }
+
+  .card .badge {
+    position: absolute; top: 11px; left: 11px;
+    z-index: 3;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 9px;
+    font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase;
+    color: #fff;
+    background: rgba(15,31,20,0.55);
+    backdrop-filter: blur(6px);
+    border-radius: 999px;
+  }
+  .card .badge .b-dot { width: 5px; height: 5px; border-radius: 50%; background: #c9e8c9; }
+
+  .card .cap {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    z-index: 2;
+    padding: 30px 14px 13px;
+    background: linear-gradient(to top, rgba(15,31,20,0.78), rgba(15,31,20,0));
+    color: #fff;
+    display: flex; align-items: flex-end; justify-content: space-between; gap: 10px;
+  }
+  .card .cap h3 {
+    font-family: "Fraunces", serif;
+    font-weight: 400;
+    font-size: clamp(15px, 1.5vw, 21px);
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+  }
+  .card .cap .idx {
+    font-size: 11px; letter-spacing: 0.06em;
+    opacity: 0.8; font-variant-numeric: tabular-nums;
+    flex: 0 0 auto;
+  }
+
+  /* play glyph for video cards */
+  .card .play {
+    position: absolute; top: 50%; left: 50%; z-index: 3;
+    transform: translate(-50%, -50%);
+    width: 46px; height: 46px; border-radius: 50%;
+    background: rgba(245,241,235,0.92);
+    display: grid; place-items: center;
+    transition: transform 0.4s var(--ease), background 0.4s var(--ease);
+    pointer-events: none;
+  }
+  .card:hover .play { transform: translate(-50%,-50%) scale(1.1); background: #fff; }
+  .card .play svg { width: 16px; height: 16px; fill: var(--forest); margin-left: 2px; }
+
+  /* ============================================================
+     DETAIL VIEW  (full-bleed forest hero)
+     hidden by default; shown when .detail-open is on body
+     ============================================================ */
+  .detail {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: none;
+    grid-template-rows: auto 1fr auto;
+    background: var(--forest);
+    color: var(--forest-paper);
+  }
+  body.detail-open .detail { display: grid; }
+  body.detail-open { overflow: hidden; }
+
+  .detail-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px;
+    padding: clamp(16px, 3vh, 26px) var(--gutter);
+    border-bottom: 1px solid var(--line-forest);
+  }
+  .detail-bar .d-brand {
+    font-family: "Fraunces", serif; font-weight: 500;
+    letter-spacing: 0.06em; font-size: 16px;
+    display: flex; align-items: center; gap: 11px;
+  }
+  .detail-bar .d-brand .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--forest-soft); }
+
+  .back {
+    display: inline-flex; align-items: center; gap: 9px;
+    padding: 10px 17px 10px 13px;
+    border: 1px solid var(--line-forest);
+    border-radius: 999px;
+    font-size: 13px; letter-spacing: 0.03em;
+    color: var(--forest-paper);
+    transition: background 0.35s var(--ease), border-color 0.35s var(--ease), transform 0.35s var(--ease);
+  }
+  .back:hover { background: rgba(232,226,212,0.08); border-color: var(--forest-soft); transform: translateX(-2px); }
+  .back svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.7; }
+
+  .detail-stage {
+    position: relative;
+    overflow: hidden;
+    min-height: 0;
+  }
+  .detail-hero {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+  }
+  /* letterbox media on the dark stage; never cover-crop awkwardly */
+  .detail-hero img,
+  .detail-hero video {
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
+  .detail-stage::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: linear-gradient(to top, rgba(15,31,20,0.55) 0%, rgba(15,31,20,0) 38%),
+                linear-gradient(to right, rgba(15,31,20,0.35) 0%, rgba(15,31,20,0) 45%);
+    pointer-events: none;
+  }
+
+  .detail-overlay {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    z-index: 4;
+    padding: clamp(22px, 5vh, 54px) var(--gutter) clamp(22px, 4vh, 42px);
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 24px 48px;
+    align-items: end;
+  }
+  .detail-overlay .d-num {
+    font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--forest-soft);
+    margin-bottom: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  .detail-overlay h2 {
+    font-family: "Fraunces", serif;
+    font-weight: 300;
+    font-size: clamp(34px, 6vw, 88px);
+    line-height: 0.94;
+    letter-spacing: -0.022em;
+  }
+  .detail-overlay h2 em { font-style: italic; font-weight: 400; }
+  .detail-overlay .d-body {
+    font-size: clamp(14px, 1.1vw, 16px);
+    line-height: 1.62;
+    color: var(--forest-paper);
+    max-width: 46ch;
+    opacity: 0.92;
+  }
+  .detail-overlay .d-tags {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    margin-top: 16px;
+  }
+  .detail-overlay .d-tags span {
+    font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase;
+    padding: 5px 11px;
+    border: 1px solid var(--line-forest);
+    border-radius: 999px;
+    color: var(--forest-soft);
+  }
+
+  /* audio detail variant: show waveform big */
+  .detail-hero.is-audio {
+    display: grid; place-items: center;
+    background:
+      radial-gradient(120% 90% at 50% 20%, rgba(157,176,154,0.14), transparent 60%),
+      linear-gradient(160deg, #1e3826, #0e1c12);
+  }
+  /* white-bg waveform PNG: invert -> black bg + light strokes, then
+     mix-blend screen drops the now-black background against the dark
+     stage, leaving only the strokes (tinted toward forest-soft). */
+  .detail-hero.is-audio img {
+    width: min(80%, 780px); height: auto; object-fit: contain;
+    background: transparent !important;
+    filter: invert(1) brightness(1.5) sepia(0.4) hue-rotate(60deg) saturate(1.4);
+    mix-blend-mode: screen;
+    opacity: 0.95;
+  }
+
+  /* small media play control inside detail (focus-locked single play) */
+  .d-playctl {
+    position: absolute; z-index: 5; top: clamp(16px, 3vh, 26px); right: var(--gutter);
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 14px;
+    border: 1px solid var(--line-forest);
+    border-radius: 999px;
+    font-size: 12px; letter-spacing: 0.04em;
+    background: rgba(15,31,20,0.4);
+    backdrop-filter: blur(8px);
+    color: var(--forest-paper);
+  }
+  .d-playctl svg { width: 12px; height: 12px; fill: currentColor; }
+  .d-playctl[hidden] { display: none; }
+
+  /* detail footer strip - prev / next within the same shared-element flow */
+  .detail-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px;
+    padding: clamp(14px, 2.4vh, 22px) var(--gutter);
+    border-top: 1px solid var(--line-forest);
+    font-size: 13px;
+  }
+  .detail-foot button {
+    display: inline-flex; align-items: center; gap: 9px;
+    color: var(--forest-soft);
+    transition: color 0.3s var(--ease), transform 0.3s var(--ease);
+    letter-spacing: 0.03em;
+  }
+  .detail-foot button:hover { color: var(--forest-paper); }
+  .detail-foot button.prev:hover { transform: translateX(-3px); }
+  .detail-foot button.next:hover { transform: translateX(3px); }
+  .detail-foot button svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.7; }
+  .detail-foot .counter { color: var(--forest-soft); font-variant-numeric: tabular-nums; letter-spacing: 0.06em; }
+
+  /* page footer (index) */
+  .pagefoot {
+    padding: 22px var(--gutter) 40px;
+    border-top: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px;
+    font-size: 12px; letter-spacing: 0.04em;
+    color: var(--ink-soft);
+  }
+
+  /* ============================================================
+     RESPONSIVE  -  390px phone: stack, never cover-crop awkwardly
+     ============================================================ */
+  @media (max-width: 920px) {
+    .grid { grid-template-columns: repeat(6, 1fr); }
+    .card:nth-child(1) { grid-column: span 6; aspect-ratio: 16/10; }
+    .card:nth-child(2) { grid-column: span 6; }
+    .card:nth-child(n+3) { grid-column: span 3; aspect-ratio: 4/3; }
+    .card:nth-child(7) { grid-column: span 6; aspect-ratio: 16/9; }
+    .detail-overlay { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 640px) {
+    .topband {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 14px;
+    }
+    .topband .meta { text-align: left; }
+    .grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .card { grid-column: span 1 !important; aspect-ratio: 4/5 !important; }
+    .card:nth-child(1) { grid-column: span 2 !important; aspect-ratio: 16/11 !important; }
+    .card:nth-child(7) { grid-column: span 2 !important; aspect-ratio: 16/10 !important; }
+    .card .cap h3 { font-size: 15px; }
+
+    /* DETAIL: letterbox the hero in its own band so a landscape asset is
+       never cropped into a tall phone viewport, then STACK the text band
+       below it. The stage becomes a flex column and is allowed to scroll
+       if content is tall, so overlay text never sits over the media. */
+    .detail { grid-template-rows: auto 1fr auto; }
+    .detail-stage {
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      max-height: none;
+    }
+    .detail-hero {
+      position: relative;
+      inset: auto;
+      flex: 0 0 auto;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      max-height: 44vh;
+      background: var(--forest-2);
+    }
+    .detail-hero img, .detail-hero video { object-fit: contain; background: var(--forest-2); }
+    .detail-hero.is-audio { aspect-ratio: 16 / 9; }
+    .detail-overlay {
+      position: static;
+      flex: 1 1 auto;
+      padding: 24px var(--gutter) 28px;
+      background: var(--forest);
+    }
+    .detail-stage::after { display: none; }
+    .detail-overlay h2 { font-size: clamp(30px, 9vw, 48px); }
+    /* play control pinned to the top-right of the media band */
+    .d-playctl { top: 12px; bottom: auto; right: var(--gutter); }
+  }
+
+  /* ============================================================
+     VIEW TRANSITIONS  -  the morph choreography
+     One element persists visually across two compositions.
+     Each card image and the detail hero share a v-t name set in JS.
+     ============================================================ */
+  ::view-transition-group(*) {
+    animation-duration: 0.62s;
+    animation-timing-function: cubic-bezier(0.76, 0, 0.24, 1);
+  }
+  /* the morphing media: let the group handle position/size,
+     keep the image itself crisp (no cross-fade ghosting on the hero) */
+  ::view-transition-old(morph-media),
+  ::view-transition-new(morph-media) {
+    animation: none;
+    mix-blend-mode: normal;
+    height: 100%;
+  }
+  ::view-transition-image-pair(morph-media) {
+    isolation: isolate;
+  }
+  /* page background / chrome cross-fades softly underneath the morph */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.5s;
+    animation-timing-function: ease;
+  }
+
+  /* ============================================================
+     REDUCED MOTION  -  skip the morph entirely, instant swap,
+     and disable hover scale / float so nothing animates.
+     ============================================================ */
+  @media (prefers-reduced-motion: reduce) {
+    * { scroll-behavior: auto !important; }
+    .card, .card .media img, .card .media video,
+    .card .play, .back, .detail-foot button, .brand .dot { transition: none !important; }
+    .card:hover { transform: none; }
+    .card:hover .media img, .card:hover .media video { transform: none; }
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+      animation: none !important;
+    }
+  }
+
+  .noscript-note {
+    padding: 16px var(--gutter);
+    background: var(--forest); color: var(--forest-paper);
+    font-size: 13px; letter-spacing: 0.03em;
+  }
+</style>
+</head>
+<body>
+
+<noscript>
+  <div class="noscript-note">This gallery uses a shared-element morph on click. With JavaScript disabled the cards still render as a static index.</div>
+</noscript>
+
+<!-- ===================== TOP BAND (compact) ===================== -->
+<header class="topband">
+  <div class="brand"><span class="dot" aria-hidden="true"></span>ATELIER MORPH</div>
+
+  <div class="lede">
+    <h1>The catalog <em>turns over</em> like a card.</h1>
+    <span class="hint" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7h11M4 7l3-3M4 7l3 3"/><path d="M20 17H9M20 17l-3-3M20 17l-3 3"/></svg>
+      Tap any work - it flies into full view
+    </span>
+  </div>
+
+  <div class="meta">
+    <strong>Selected Works</strong>
+    Vol. 09 / 2026<br />
+    Native View Transitions<br />
+    No reload. No library.
+  </div>
+</header>
+
+<!-- ===================== INDEX GRID (visible at scroll=0) ===================== -->
+<main class="index" id="index">
+  <section class="grid" id="grid" aria-label="Index of works"></section>
+</main>
+
+<footer class="pagefoot">
+  <span>ATELIER MORPH - Shared-element navigation study</span>
+  <span>CSS View Transitions API · progressive enhancement · reduced-motion aware</span>
+</footer>
+
+<!-- ===================== DETAIL VIEW (full-bleed forest) ===================== -->
+<section class="detail" id="detail" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Work detail">
+  <div class="detail-bar">
+    <div class="d-brand"><span class="dot" aria-hidden="true"></span>ATELIER MORPH</div>
+    <button class="back" id="backBtn" type="button">
+      <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+      Back to index
+    </button>
+  </div>
+
+  <div class="detail-stage" id="detailStage">
+    <div class="detail-hero" id="detailHero"></div>
+    <button class="d-playctl" id="dPlayCtl" type="button" hidden>
+      <svg viewBox="0 0 24 24" id="dPlayIcon"><path d="M8 5v14l11-7z"/></svg>
+      <span id="dPlayLabel">Play</span>
+    </button>
+    <div class="detail-overlay">
+      <div class="d-left">
+        <div class="d-num" id="dNum">01 / 09</div>
+        <h2 id="dTitle"></h2>
+      </div>
+      <div class="d-right">
+        <p class="d-body" id="dBody"></p>
+        <div class="d-tags" id="dTags"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="detail-foot">
+    <button class="prev" id="prevBtn" type="button">
+      <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+      Previous
+    </button>
+    <span class="counter" id="dCounter">01 / 09</span>
+    <button class="next" id="nextBtn" type="button">
+      Next
+      <svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</section>
+
+<script>
+/* ==================================================================
+   DATA  -  swap freely. Each entry is one work.
+   type: "image" | "video" | "audio"
+   src:  poster/still shown in the grid AND morphed into the hero
+   video: optional mp4 played (in-view / focus only) on the detail hero
+   ================================================================== */
+const DATA = [
+  {
+    id: "car",
+    type: "image",
+    badge: "Still",
+    title: "Nocturne <em>on wet asphalt</em>",
+    client: "Automotive · Flux 4K",
+    src: "../assets/flux-car-4k.png",
+    body: "A matte-black coupe held under sodium and neon, every reflection rebuilt on a rain-slick street. Shot as a single generated frame at 4K, graded for the forest-green plate it lands on.",
+    tags: ["4K Still", "Cinematic", "Reflection grade"]
+  },
+  {
+    id: "carmotion",
+    type: "video",
+    badge: "Motion",
+    title: "Drive-by, <em>looped</em>",
+    client: "Image-to-video · Flux",
+    src: "../assets/gen/poster-flux-car-i2v.png",
+    video: "../assets/flux-car-i2v.mp4",
+    body: "The same coupe set in motion. The card poster is the exact frame that morphs into the hero, then the loop takes over once the detail is locked open and in view.",
+    tags: ["i2v Loop", "Silent", "In-view play"]
+  },
+  {
+    id: "clinic",
+    type: "image",
+    badge: "Interior",
+    title: "Mint <em>and warm oak</em>",
+    client: "Healthcare · Flux 4K",
+    src: "../assets/flux-clinic-4k.png",
+    body: "A dental suite rendered in mint and timber. The brief was calm, not clinical. The morph carries the same warm wood straight across the card flip into full bleed.",
+    tags: ["4K Still", "Interior", "Brand calm"]
+  },
+  {
+    id: "fox",
+    type: "image",
+    badge: "Painterly",
+    title: "Autumn <em>fox study</em>",
+    client: "Editorial · SDXL",
+    src: "../assets/sdxl.png",
+    body: "A painterly fox in deep autumn, brushed rather than photographed. It sits in the index as a small tile and unfolds into a full painterly plate on tap.",
+    tags: ["Painterly", "Editorial", "SDXL"]
+  },
+  {
+    id: "kling",
+    type: "video",
+    badge: "Motion",
+    title: "Kling <em>sequence</em>",
+    client: "Text-to-video · Kling",
+    src: "../assets/gen/poster-kling-video.png",
+    video: "../assets/kling-video.mp4",
+    body: "A generated motion sequence. Heavy file, so the grid only ever shows the poster; the clip decodes and plays only once this detail is the focused, locked view.",
+    tags: ["t2v", "Silent loop", "Lazy decode"]
+  },
+  {
+    id: "veo",
+    type: "video",
+    badge: "Motion",
+    title: "Veo <em>plate</em>",
+    client: "Text-to-video · Veo",
+    src: "../assets/gen/poster-veo-video.png",
+    video: "../assets/veo-video.mp4",
+    body: "A cinematic Veo plate. The poster is what physically reshapes across the navigation; the moving footage is the reward for arriving on the detail.",
+    tags: ["t2v", "Cinematic", "In-view play"]
+  },
+  {
+    id: "fal",
+    type: "video",
+    badge: "Motion",
+    title: "Fal <em>motion test</em>",
+    client: "Text-to-video · Fal",
+    src: "../assets/gen/poster-fal-video.png",
+    video: "../assets/fal-video.mp4",
+    body: "A short motion test. Like every clip here, exactly one video is ever playing at a time - the one you locked open - so the page never tries to decode several at once.",
+    tags: ["t2v", "Single-play", "Silent"]
+  },
+  {
+    id: "apple",
+    type: "image",
+    badge: "Lo-fi",
+    title: "Low-fi <em>apple</em>",
+    client: "Sketch · Tiny SD",
+    src: "../assets/hf-tinysd.png",
+    body: "A deliberately low-fidelity apple from a tiny model. It proves the morph is content-agnostic: even a rough sketch flips cleanly from tile to hero.",
+    tags: ["Lo-fi", "Sketch", "Tiny SD"]
+  },
+  {
+    id: "voice",
+    type: "audio",
+    badge: "Audio",
+    title: "Thai <em>voice plate</em>",
+    client: "TTS · ElevenLabs",
+    src: "../assets/gen/wave-elevenlabs.png",
+    audio: "../assets/elevenlabs-thai.mp3",
+    body: "A generated Thai voice line, shown as its waveform. The card morphs the waveform onto the dark stage, where you can play the audio - one sound source at a time.",
+    tags: ["TTS", "Waveform", "Play to hear"]
+  }
+];
+
+/* ============================ ENGINE ============================ */
+const grid    = document.getElementById("grid");
+const detail  = document.getElementById("detail");
+const heroEl  = document.getElementById("detailHero");
+const stageEl = document.getElementById("detailStage");
+const backBtn = document.getElementById("backBtn");
+const prevBtn = document.getElementById("prevBtn");
+const nextBtn = document.getElementById("nextBtn");
+const dTitle  = document.getElementById("dTitle");
+const dBody   = document.getElementById("dBody");
+const dTags   = document.getElementById("dTags");
+const dNum     = document.getElementById("dNum");
+const dCounter = document.getElementById("dCounter");
+const dPlayCtl = document.getElementById("dPlayCtl");
+const dPlayLabel = document.getElementById("dPlayLabel");
+const dPlayIcon  = document.getElementById("dPlayIcon");
+
+const MORPH_NAME = "morph-media"; // shared view-transition-name (set on exactly one node at a time)
+const supportsVT = typeof document.startViewTransition === "function";
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+let currentIndex = -1;
+let activeCardMedia = null; // the grid <img>/<video> node currently carrying the morph name
+let activeMediaEl = null;   // the playable element inside the detail hero (video/audio)
+let lastFocused = null;     // for restoring focus on close
+
+const PLAY_SVG  = "M8 5v14l11-7z";
+const PAUSE_SVG = "M7 5h3v14H7zM14 5h3v14h-3z";
+
+/* ---- build the index grid ---- */
+DATA.forEach((item, i) => {
+  const card = document.createElement(i === 0 ? "button" : "button");
+  card.className = "card";
+  card.type = "button";
+  card.setAttribute("aria-label", `Open ${item.title.replace(/<[^>]+>/g, "")}`);
+  card.dataset.index = i;
+
+  const media = document.createElement("div");
+  media.className = "media";
+
+  // grid always shows a still image (poster/wave), never an autoplaying video
+  const img = document.createElement("img");
+  img.src = item.src;
+  img.alt = item.title.replace(/<[^>]+>/g, "");
+  img.loading = i < 4 ? "eager" : "lazy";
+  img.decoding = "async";
+  media.appendChild(img);
+
+  card.appendChild(media);
+
+  const badge = document.createElement("span");
+  badge.className = "badge";
+  badge.innerHTML = `<span class="b-dot"></span>${item.badge}`;
+  card.appendChild(badge);
+
+  if (item.type === "video" || item.type === "audio") {
+    const play = document.createElement("span");
+    play.className = "play";
+    play.setAttribute("aria-hidden", "true");
+    play.innerHTML = `<svg viewBox="0 0 24 24"><path d="${PLAY_SVG}"/></svg>`;
+    card.appendChild(play);
+  }
+
+  const cap = document.createElement("div");
+  cap.className = "cap";
+  cap.innerHTML = `<h3>${item.title}</h3><span class="idx">${String(i + 1).padStart(2, "0")}</span>`;
+  card.appendChild(cap);
+
+  card.addEventListener("click", () => open(i, card));
+  grid.appendChild(card);
+});
+
+const cards = Array.from(grid.querySelectorAll(".card"));
+
+/* ---- assign / clear the shared morph name ----
+   Only ONE element in the whole document may hold the name during a
+   transition, or the API throws. We tag the source, run the transition,
+   then move the name to the destination inside the DOM-update callback. */
+function setMorphName(el) {
+  if (activeCardMedia && activeCardMedia !== el) activeCardMedia.style.viewTransitionName = "";
+  if (el) el.style.viewTransitionName = MORPH_NAME;
+  activeCardMedia = el;
+}
+function clearMorphName() {
+  cards.forEach(c => { const im = c.querySelector("img"); if (im) im.style.viewTransitionName = ""; });
+  const hi = heroEl.querySelector("img, video");
+  if (hi) hi.style.viewTransitionName = "";
+  activeCardMedia = null;
+}
+
+/* ---- populate the detail hero for a given item ---- */
+function buildHero(item) {
+  stopMedia();
+  heroEl.innerHTML = "";
+  heroEl.classList.toggle("is-audio", item.type === "audio");
+  activeMediaEl = null;
+
+  // The morphing node is ALWAYS an <img> (the exact still that was in the
+  // card) so the shared-element morph is pixel-consistent. Video/audio
+  // layer in afterwards and play only when locked + in view.
+  const img = document.createElement("img");
+  img.src = item.src;
+  img.alt = item.title.replace(/<[^>]+>/g, "");
+  img.decoding = "async";
+  heroEl.appendChild(img);
+
+  if (item.type === "video") {
+    const vid = document.createElement("video");
+    vid.src = item.video;
+    vid.poster = item.src;
+    vid.muted = true;
+    vid.loop = true;
+    vid.playsInline = true;
+    vid.preload = "none";
+    vid.style.position = "absolute";
+    vid.style.inset = "0";
+    vid.style.opacity = "0";
+    vid.style.transition = reduceMotion ? "none" : "opacity 0.5s ease";
+    heroEl.appendChild(vid);
+    activeMediaEl = vid;
+    setupPlayCtl("video");
+  } else if (item.type === "audio") {
+    const au = document.createElement("audio");
+    au.src = item.audio;
+    au.preload = "none";
+    heroEl.appendChild(au);
+    activeMediaEl = au;
+    setupPlayCtl("audio");
+  } else {
+    dPlayCtl.hidden = true;
+  }
+  return img;
+}
+
+/* ---- single-source play control (only the focused detail ever plays) ---- */
+function setupPlayCtl(kind) {
+  dPlayCtl.hidden = false;
+  dPlayLabel.textContent = kind === "audio" ? "Play audio" : "Play clip";
+  dPlayIcon.innerHTML = `<path d="${PLAY_SVG}"/>`;
+}
+function reflectPlaying(playing) {
+  dPlayIcon.innerHTML = `<path d="${playing ? PAUSE_SVG : PLAY_SVG}"/>`;
+  dPlayLabel.textContent = playing
+    ? "Pause"
+    : (activeMediaEl && activeMediaEl.tagName === "AUDIO" ? "Play audio" : "Play clip");
+}
+function playMedia() {
+  if (!activeMediaEl) return;
+  const p = activeMediaEl.play();
+  if (activeMediaEl.tagName === "VIDEO") activeMediaEl.style.opacity = "1";
+  if (p && p.catch) p.catch(() => {});
+  reflectPlaying(true);
+}
+function stopMedia() {
+  if (!activeMediaEl) return;
+  try { activeMediaEl.pause(); } catch (e) {}
+  if (activeMediaEl.tagName === "VIDEO") activeMediaEl.style.opacity = "0";
+  try { activeMediaEl.currentTime = 0; } catch (e) {}
+  reflectPlaying(false);
+}
+dPlayCtl.addEventListener("click", () => {
+  if (!activeMediaEl) return;
+  if (activeMediaEl.paused) playMedia(); else stopMedia();
+});
+
+/* pause media if the detail scrolls out of view (in-view play guarantee) */
+const stageObserver = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (!e.isIntersecting && activeMediaEl && !activeMediaEl.paused) stopMedia();
+  });
+}, { threshold: 0.25 });
+stageObserver.observe(stageEl);
+
+/* pause when tab hidden */
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && activeMediaEl && !activeMediaEl.paused) stopMedia();
+});
+
+/* ---- fill detail text ---- */
+function fillText(item, i) {
+  dTitle.innerHTML = item.title;
+  dBody.textContent = item.body;
+  dNum.textContent = `${String(i + 1).padStart(2, "0")} / ${String(DATA.length).padStart(2, "0")}`;
+  dCounter.textContent = `${String(i + 1).padStart(2, "0")} / ${String(DATA.length).padStart(2, "0")}`;
+  dTags.innerHTML = item.tags.map(t => `<span>${t}</span>`).join("");
+}
+
+/* ===================== OPEN (index -> detail) ===================== */
+function open(i, card) {
+  if (currentIndex === i && document.body.classList.contains("detail-open")) return;
+  const item = DATA[i];
+  lastFocused = card || document.activeElement;
+  const srcImg = card ? card.querySelector("img") : null;
+
+  const apply = () => {
+    currentIndex = i;
+    document.body.classList.add("detail-open");
+    detail.setAttribute("aria-hidden", "false");
+    const heroImg = buildHero(item);
+    fillText(item, i);
+    // hand the morph name to the destination image
+    if (srcImg) srcImg.style.viewTransitionName = "";
+    setMorphName(heroImg);
+    requestAnimationFrame(() => backBtn.focus());
+  };
+
+  // progressive enhancement: no VT support OR reduced motion = instant swap
+  if (!supportsVT || reduceMotion) { apply(); return; }
+
+  // tag the source node so the API knows what to morph
+  setMorphName(srcImg);
+  const t = document.startViewTransition(apply);
+  t.finished.finally(clearMorphName);
+}
+
+/* ===================== CLOSE (detail -> index) ===================== */
+function close() {
+  if (!document.body.classList.contains("detail-open")) return;
+  const i = currentIndex;
+  const targetCard = cards[i];
+  const targetImg = targetCard ? targetCard.querySelector("img") : null;
+  const heroImg = heroEl.querySelector("img");
+
+  const apply = () => {
+    stopMedia();
+    document.body.classList.remove("detail-open");
+    detail.setAttribute("aria-hidden", "true");
+    if (heroImg) heroImg.style.viewTransitionName = "";
+    setMorphName(targetImg);
+    if (lastFocused && lastFocused.focus) requestAnimationFrame(() => lastFocused.focus());
+  };
+
+  if (!supportsVT || reduceMotion) { apply(); currentIndex = -1; return; }
+
+  if (heroImg) heroImg.style.viewTransitionName = MORPH_NAME;
+  activeCardMedia = heroImg;
+  const t = document.startViewTransition(apply);
+  t.finished.finally(() => { clearMorphName(); currentIndex = -1; });
+}
+
+/* ===================== PREV / NEXT (morph within detail) ===================== */
+function goTo(i) {
+  i = (i + DATA.length) % DATA.length;
+  if (i === currentIndex) return;
+  const item = DATA[i];
+  const heroImg = heroEl.querySelector("img");
+
+  const apply = () => {
+    currentIndex = i;
+    const newImg = buildHero(item);
+    fillText(item, i);
+    setMorphName(newImg);
+  };
+
+  if (!supportsVT || reduceMotion) { apply(); return; }
+
+  if (heroImg) heroImg.style.viewTransitionName = MORPH_NAME;
+  activeCardMedia = heroImg;
+  const t = document.startViewTransition(apply);
+  t.finished.finally(clearMorphName);
+}
+
+/* ===================== WIRING ===================== */
+backBtn.addEventListener("click", close);
+prevBtn.addEventListener("click", () => goTo(currentIndex - 1));
+nextBtn.addEventListener("click", () => goTo(currentIndex + 1));
+
+document.addEventListener("keydown", (e) => {
+  if (!document.body.classList.contains("detail-open")) return;
+  if (e.key === "Escape") { e.preventDefault(); close(); }
+  else if (e.key === "ArrowRight") { e.preventDefault(); goTo(currentIndex + 1); }
+  else if (e.key === "ArrowLeft") { e.preventDefault(); goTo(currentIndex - 1); }
+  else if (e.key === " " && activeMediaEl) {
+    e.preventDefault();
+    if (activeMediaEl.paused) playMedia(); else stopMedia();
+  }
+});
+
+/* focus trap inside the open detail (basic, keeps Tab within the dialog) */
+detail.addEventListener("keydown", (e) => {
+  if (e.key !== "Tab") return;
+  const focusables = detail.querySelectorAll("button:not([hidden])");
+  if (!focusables.length) return;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+});
+
+/* media element events keep the play control honest */
+heroEl.addEventListener("play",  (e) => { if (e.target === activeMediaEl) reflectPlaying(true); }, true);
+heroEl.addEventListener("pause", (e) => { if (e.target === activeMediaEl) reflectPlaying(false); }, true);
+heroEl.addEventListener("ended", (e) => { if (e.target === activeMediaEl) reflectPlaying(false); }, true);
+</script>
+</body>
+</html>

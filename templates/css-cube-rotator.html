@@ -1,0 +1,699 @@
+<!-- TEMPLATE: Cube Reel | ARCHETYPE: css-cube-rotator | REF: Codrops Scroll-Driven 3D Cube Gallery (May 2026), Codrops 2025 Year in Review 3D cube | WHEN TO USE: portfolio / capsule drop where a floating CSS 3D cube acts as a synchronized second-screen mirroring a full-bleed background gallery as you scroll | SWAP: edit the WORKS array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Cube Reel - Synchronized CSS 3D Cube Gallery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  /* =================================================================
+     DATA-DRIVEN: only the WORKS array (in <script>) needs editing to
+     reskin the whole gallery. Everything below is the fixed visual
+     system: matte black ground + raw linen geometry, color photography
+     on the cube faces and the full-bleed background.
+     ================================================================= */
+  :root{
+    --ink:#111111;          /* matte black ground */
+    --linen:#e8e0d4;        /* raw linen */
+    --linen-dim:rgba(232,224,212,.62);
+    --linen-faint:rgba(232,224,212,.30);
+    --hair:rgba(232,224,212,.16);
+    --hair-soft:rgba(232,224,212,.08);
+    --cube:clamp(190px,26vw,360px);   /* cube edge length, desktop  */
+    --persp:1500px;
+    --ease:cubic-bezier(.22,.61,.36,1);
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--ink);
+    color:var(--linen);
+    font-family:"Space Grotesk",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  ::selection{background:var(--linen);color:var(--ink)}
+  a{color:inherit}
+  img,video{display:block;max-width:100%}
+
+  /* ---------- FIXED STAGE (pinned, scroll=0 signature lives here) --- */
+  .stage{
+    position:fixed;
+    inset:0;
+    z-index:0;
+    overflow:hidden;
+  }
+
+  /* full-bleed crossfading background gallery */
+  .bg-layer{
+    position:absolute;
+    inset:0;
+    background-position:center;
+    background-size:cover;
+    background-repeat:no-repeat;
+    opacity:0;
+    transition:opacity .12s linear;   /* JS overrides per-frame on the active pair */
+    transform:scale(1.06);
+    will-change:opacity;
+  }
+  .bg-layer.is-on{opacity:1}
+  /* legibility veil: keeps the linen geometry + type readable over photos */
+  .stage::after{
+    content:"";
+    position:absolute;inset:0;z-index:2;
+    pointer-events:none;
+    background:
+      linear-gradient(180deg, rgba(17,17,17,.62) 0%, rgba(17,17,17,.28) 26%, rgba(17,17,17,.34) 64%, rgba(17,17,17,.86) 100%),
+      radial-gradient(120% 90% at 78% 42%, rgba(17,17,17,0) 38%, rgba(17,17,17,.55) 100%);
+  }
+  /* fine film grain so flat photo areas never read as a generic card */
+  .stage::before{
+    content:"";
+    position:absolute;inset:0;z-index:3;
+    pointer-events:none;opacity:.05;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ---------- THE CUBE (synchronized second screen) ---------------- */
+  .cube-wrap{
+    position:absolute;
+    z-index:4;
+    top:50%;
+    right:clamp(40px,9vw,170px);
+    width:var(--cube);
+    height:var(--cube);
+    perspective:var(--persp);
+    perspective-origin:55% 45%;
+    transform:translateY(-50%);
+  }
+  .cube{
+    position:relative;
+    width:100%;
+    height:100%;
+    transform-style:preserve-3d;
+    transform:translate3d(0,0,calc(var(--cube) * -.5)) rotateX(-18deg) rotateY(0deg) rotateZ(0deg);
+    /* JS writes the live transform each frame; this is the at-rest fallback */
+  }
+  .face{
+    position:absolute;
+    inset:0;
+    overflow:hidden;
+    background:var(--ink);
+    border:1px solid var(--hair);
+    box-shadow:inset 0 0 0 1px rgba(17,17,17,.5);
+    will-change:transform;            /* per brief: only on the faces */
+    -webkit-backface-visibility:hidden;
+    backface-visibility:hidden;
+  }
+  .face .media{
+    position:absolute;inset:0;
+    width:100%;height:100%;
+    object-fit:cover;
+    filter:saturate(1.04) contrast(1.03);
+  }
+  /* darkening + label scrim baked onto each face so geometry stays legible */
+  .face .scrim{
+    position:absolute;inset:0;
+    background:linear-gradient(180deg,rgba(17,17,17,0) 40%,rgba(17,17,17,.78) 100%);
+  }
+  .face .tag{
+    position:absolute;left:0;bottom:0;
+    padding:14px 16px;
+    width:100%;
+    display:flex;justify-content:space-between;align-items:flex-end;gap:10px;
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--linen);
+  }
+  .face .tag b{font-weight:500}
+  .face .tag .no{
+    font-family:"Fraunces",serif;font-size:20px;letter-spacing:0;
+    line-height:1;opacity:.9;
+  }
+  /* six faces of an edge=var(--cube) cube, anchored at the wrap centre */
+  .f-front {transform:rotateY(  0deg) translateZ(calc(var(--cube) * .5))}
+  .f-right {transform:rotateY( 90deg) translateZ(calc(var(--cube) * .5))}
+  .f-back  {transform:rotateY(180deg) translateZ(calc(var(--cube) * .5))}
+  .f-left  {transform:rotateY(-90deg) translateZ(calc(var(--cube) * .5))}
+  .f-top   {transform:rotateX( 90deg) translateZ(calc(var(--cube) * .5))}
+  .f-bottom{transform:rotateX(-90deg) translateZ(calc(var(--cube) * .5))}
+  /* a face carrying a work shows media + scrim + tag and hides its plate;
+     a face with no work (is-plate) becomes a raw-linen plate instead. JS
+     toggles .is-plate per face so the work ring matches the active axis. */
+  .plate{display:none}
+  .face.is-plate{
+    background:var(--linen);
+    border-color:rgba(17,17,17,.25);
+  }
+  .face.is-plate .media,
+  .face.is-plate .scrim,
+  .face.is-plate .tag{display:none}
+  .face.is-plate .plate{
+    display:flex;position:absolute;inset:0;
+    align-items:center;justify-content:center;
+    color:var(--ink);
+    font-family:"Fraunces",serif;font-size:clamp(13px,2vw,22px);
+    letter-spacing:.05em;text-align:center;line-height:1.25;
+    background-image:
+      repeating-linear-gradient(45deg,rgba(17,17,17,.05) 0 2px,transparent 2px 9px);
+  }
+  /* soft contact shadow on the ground under the cube */
+  .cube-shadow{
+    position:absolute;z-index:3;
+    top:50%;right:clamp(40px,9vw,170px);
+    width:var(--cube);height:calc(var(--cube) * .5);
+    transform:translateY(calc(var(--cube) * .42));
+    background:radial-gradient(closest-side,rgba(0,0,0,.55),rgba(0,0,0,0) 72%);
+    filter:blur(8px);
+    pointer-events:none;
+  }
+
+  /* ---------- TYPE STACK (word-by-word clip-path reveal) ----------- */
+  .typestack{
+    position:absolute;z-index:5;
+    left:clamp(22px,6vw,92px);
+    top:50%;
+    transform:translateY(-50%);
+    max-width:min(46vw,560px);
+    pointer-events:none;
+  }
+  .kicker{
+    display:inline-block;
+    font-size:12px;letter-spacing:.34em;text-transform:uppercase;
+    color:var(--linen-dim);
+    padding-bottom:10px;
+    margin-bottom:18px;
+    border-bottom:1px solid var(--hair);
+  }
+  .headline{
+    font-family:"Fraunces",serif;
+    font-weight:300;
+    font-size:clamp(34px,6.4vw,86px);
+    line-height:.98;
+    letter-spacing:-.015em;
+    text-wrap:balance;
+  }
+  .headline .ln{display:block;overflow:hidden}
+  .headline .w{
+    display:inline-block;
+    /* word-by-word mask: clip-path slides off as the word reveals */
+    clip-path:inset(0 100% 0 0);
+    transform:translateY(.36em);
+    opacity:.001;
+    transition:clip-path .62s var(--ease), transform .62s var(--ease), opacity .4s linear;
+  }
+  .headline .w.show{
+    clip-path:inset(0 0 0 0);
+    transform:translateY(0);
+    opacity:1;
+  }
+  .headline em{font-style:italic;color:var(--linen)}
+  .blurb{
+    margin-top:26px;
+    max-width:34ch;
+    font-size:15px;line-height:1.6;
+    color:var(--linen-dim);
+    clip-path:inset(0 100% 0 0);
+    transition:clip-path .7s var(--ease) .12s;
+  }
+  .blurb.show{clip-path:inset(0 0 0 0)}
+  .meta-row{
+    margin-top:22px;
+    display:flex;gap:26px;flex-wrap:wrap;
+    font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--linen-faint);
+  }
+  .meta-row span b{display:block;color:var(--linen);font-size:13px;letter-spacing:.04em;margin-top:4px}
+
+  /* ---------- FIXED CHROME ----------------------------------------- */
+  .topbar{
+    position:fixed;z-index:8;top:0;left:0;right:0;
+    display:flex;justify-content:space-between;align-items:center;
+    padding:20px clamp(22px,5vw,52px);
+    font-size:12px;letter-spacing:.2em;text-transform:uppercase;
+    mix-blend-mode:difference;color:#fff;
+    pointer-events:none;
+  }
+  .topbar .brand{font-family:"Fraunces",serif;letter-spacing:.04em;font-size:16px}
+  .topbar .right{display:flex;gap:22px}
+
+  /* progress + face index rail, bottom centre */
+  .rail{
+    position:fixed;z-index:8;left:50%;bottom:26px;
+    transform:translateX(-50%);
+    display:flex;align-items:center;gap:14px;
+    pointer-events:none;
+  }
+  .rail .dots{display:flex;gap:9px}
+  .rail .dot{
+    width:8px;height:8px;border-radius:50%;
+    border:1px solid var(--linen-faint);
+    transition:background .3s,transform .3s,border-color .3s;
+  }
+  .rail .dot.on{background:var(--linen);border-color:var(--linen);transform:scale(1.25)}
+  .rail .count{
+    font-family:"Fraunces",serif;font-size:13px;letter-spacing:.05em;
+    color:var(--linen-dim);min-width:54px;text-align:center;
+  }
+  .scrollhint{
+    position:fixed;z-index:8;right:clamp(20px,4vw,44px);bottom:26px;
+    font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--linen-faint);
+    display:flex;align-items:center;gap:9px;
+    pointer-events:none;
+    transition:opacity .4s;
+  }
+  .scrollhint .bar{width:34px;height:1px;background:var(--linen-faint);position:relative;overflow:hidden}
+  .scrollhint .bar::after{content:"";position:absolute;inset:0;width:40%;background:var(--linen);animation:slide 2.1s var(--ease) infinite}
+  @keyframes slide{0%{transform:translateX(-110%)}60%,100%{transform:translateX(280%)}}
+
+  /* ---------- SCROLL DRIVER (gives the page its height) ------------ */
+  .scroller{position:relative;z-index:6;pointer-events:none}
+  .panel{height:100vh}
+  .panel:first-child{height:100vh}
+
+  /* ---------- MOBILE: cube -> corner pip, X-axis rotation, letterbox */
+  @media (max-width:640px){
+    :root{ --cube:clamp(120px,38vw,168px); --persp:900px; }
+    /* letterbox the full-bleed bg so a landscape photo is never cover-cropped
+       into a portrait phone: contain on a matte black field */
+    .bg-layer{
+      background-size:contain;
+      background-color:var(--ink);
+      transform:scale(1);
+    }
+    .stage::after{
+      background:
+        linear-gradient(180deg, rgba(17,17,17,.5) 0%, rgba(17,17,17,.15) 30%, rgba(17,17,17,.55) 70%, rgba(17,17,17,.92) 100%);
+    }
+    .cube-wrap{
+      top:auto;bottom:104px;right:16px;
+      transform:none;
+      perspective-origin:50% 50%;
+    }
+    .cube-shadow{
+      top:auto;bottom:104px;right:16px;
+      transform:translateY(calc(var(--cube) * .46));
+    }
+    .typestack{
+      left:20px;right:20px;
+      top:auto;bottom:200px;
+      transform:none;
+      max-width:none;
+    }
+    .headline{font-size:clamp(30px,10vw,46px)}
+    .blurb{display:none}
+    .meta-row{gap:18px;margin-top:16px}
+    .topbar .right{display:none}
+    .scrollhint{display:none}
+  }
+
+  /* ---------- REDUCED MOTION: static first face, instant crossfade -- */
+  @media (prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    .bg-layer{transition:none !important}
+    .headline .w{clip-path:inset(0 0 0 0) !important;transform:none !important;opacity:1 !important;transition:none !important}
+    .blurb{clip-path:inset(0 0 0 0) !important;transition:none !important}
+    .scrollhint .bar::after{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================================= -->
+<!--  DATA  -  swap these entries to reskin the entire gallery.     -->
+<!--  Each work = one cube face + one full-bleed background.        -->
+<!--  Keep 4 entries (one per cube side face).                      -->
+<!-- ============================================================= -->
+<script>
+const ASSETS = "../assets/";
+const WORKS = [
+  {
+    no:"01",
+    img: ASSETS+"flux-car-4k.png",
+    kicker:"Automotive / Image",
+    // headline split into lines; each line is an array of words.
+    headline:[["Wet"],["neon","on"],["matte","<em>black</em>"]],
+    blurb:"A cinematic matte-black coupe parked on a rain-slicked street, neon bleeding across the bodywork. Generated, graded, locked.",
+    meta:[["Model","FLUX 4K"],["Stage","Final grade"],["Ratio","16:9"]],
+    label:"Carbon Coupe"
+  },
+  {
+    no:"02",
+    img: ASSETS+"flux-clinic-4k.png",
+    kicker:"Interior / Brand",
+    headline:[["Calm","in"],["mint","and"],["<em>warm</em>","wood"]],
+    blurb:"A dental clinic reception in mint and oak, soft daylight, every surface engineered to lower a patient's pulse on arrival.",
+    meta:[["Model","FLUX 4K"],["Stage","Concept"],["Ratio","16:9"]],
+    label:"Mint Reception"
+  },
+  {
+    no:"03",
+    img: ASSETS+"sdxl.png",
+    kicker:"Painterly / Wildlife",
+    headline:[["A","fox"],["built","from"],["<em>autumn</em>"]],
+    blurb:"A painterly fox composed entirely of falling leaves and low sun. Brushwork that never touched a brush.",
+    meta:[["Model","SDXL"],["Stage","Selection"],["Ratio","1:1"]],
+    label:"Autumn Fox"
+  },
+  {
+    no:"04",
+    img: ASSETS+"hf-tinysd.png",
+    kicker:"Lo-fi / Study",
+    headline:[["One","low-fi"],["<em>apple</em>,"],["fully","abstract"]],
+    blurb:"A deliberately rough still life from a tiny model. Proof that a smaller engine still has a point of view.",
+    meta:[["Model","TinySD"],["Stage","Study"],["Ratio","1:1"]],
+    label:"Lo-fi Apple"
+  }
+];
+</script>
+
+<div class="stage" aria-hidden="false">
+  <!-- crossfading full-bleed backgrounds (built from WORKS by JS) -->
+  <div class="bg-stack" id="bgStack"></div>
+
+  <!-- type stack: word-by-word reveal (built + driven by JS) -->
+  <div class="typestack" id="typestack">
+    <span class="kicker" id="kicker"></span>
+    <h1 class="headline" id="headline"></h1>
+    <p class="blurb" id="blurb"></p>
+    <div class="meta-row" id="meta"></div>
+  </div>
+
+  <!-- the synchronized cube -->
+  <div class="cube-shadow"></div>
+  <div class="cube-wrap">
+    <div class="cube" id="cube">
+      <div class="face f-front"><img class="media" alt="" /><div class="scrim"></div><div class="tag"><b></b><span class="no"></span></div><div class="plate"></div></div>
+      <div class="face f-right"><img class="media" alt="" /><div class="scrim"></div><div class="tag"><b></b><span class="no"></span></div><div class="plate"></div></div>
+      <div class="face f-back"><img class="media" alt="" /><div class="scrim"></div><div class="tag"><b></b><span class="no"></span></div><div class="plate"></div></div>
+      <div class="face f-left"><img class="media" alt="" /><div class="scrim"></div><div class="tag"><b></b><span class="no"></span></div><div class="plate"></div></div>
+      <div class="face f-top"><img class="media" alt="" /><div class="scrim"></div><div class="tag"><b></b><span class="no"></span></div><div class="plate"></div></div>
+      <div class="face f-bottom"><img class="media" alt="" /><div class="scrim"></div><div class="tag"><b></b><span class="no"></span></div><div class="plate"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- fixed chrome -->
+<header class="topbar">
+  <span class="brand">Cube Reel</span>
+  <span class="right">
+    <span>2026 / Capsule</span>
+    <span>Index 00</span>
+  </span>
+</header>
+
+<div class="rail">
+  <span class="count" id="count">01 / 04</span>
+  <span class="dots" id="dots"></span>
+</div>
+<div class="scrollhint" id="scrollhint"><span>Scroll</span><span class="bar"></span></div>
+
+<!-- scroll driver: one tall panel per work + a lead-in + lead-out -->
+<div class="scroller" id="scroller" aria-hidden="true">
+  <div class="panel"></div>
+  <div class="panel"></div>
+  <div class="panel"></div>
+  <div class="panel"></div>
+  <div class="panel"></div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const N = WORKS.length;
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const isMobile = () => matchMedia("(max-width:640px)").matches;
+  const clamp = (v,a,b) => v<a?a:(v>b?b:v);
+  const lerp  = (a,b,t) => a+(b-a)*t;
+
+  /* ---- map each work to a cube side face + its rest orientation ----
+     The 4 works live on front / right / back / left. Stepping work k
+     means rotating the cube so face k faces the camera. We add a small
+     compound rotateX / rotateZ per step for the multi-axis tumble the
+     brief calls for, and translate the cube along a short compound path
+     so it never feels like a flat spinner. */
+  const FACE_Y = [0, -90, -180, -270];           // deg to bring face k front
+  const tiltX  = [-18, -10, -22, -14];           // per-face X tilt (desktop)
+  const tiltZ  = [0, 4, -3, 5];                  // per-face Z lean
+  // short compound translate path (px) the cube travels across the works
+  const PATH   = [ {x:0,y:0}, {x:-26,y:-14}, {x:18,y:10}, {x:-12,y:-6}, {x:0,y:0} ];
+
+  // ---- build the crossfading backgrounds ----
+  const bgStack = document.getElementById("bgStack");
+  const bgLayers = WORKS.map((w,i) => {
+    const d = document.createElement("div");
+    d.className = "bg-layer" + (i===0 ? " is-on" : "");
+    d.style.backgroundImage = `url("${w.img}")`;
+    d.style.zIndex = String(i+1);
+    bgStack.appendChild(d);
+    // preload
+    const im = new Image(); im.src = w.img;
+    return d;
+  });
+
+  // ---- cube faces ----
+  const cube = document.getElementById("cube");
+  const F = {
+    front : cube.querySelector(".f-front"),
+    right : cube.querySelector(".f-right"),
+    back  : cube.querySelector(".f-back"),
+    left  : cube.querySelector(".f-left"),
+    top   : cube.querySelector(".f-top"),
+    bottom: cube.querySelector(".f-bottom")
+  };
+  // which faces carry works, in step order, per axis:
+  //   horizontal ring (desktop, Y spin): front -> right -> back -> left
+  //   vertical ring   (mobile,  X spin): front -> top   -> back -> bottom
+  const RING_X = ["front","right","back","left"];
+  const RING_Y = ["front","top","back","bottom"];
+  const PLATE_TEXT = [["CUBE","REEL"],["RAW","LINEN"]];
+
+  function paintWork(face, w){
+    face.classList.remove("is-plate");
+    const img = face.querySelector(".media");
+    img.src = w.img; img.alt = w.label;
+    face.querySelector(".tag b").textContent = w.label;
+    face.querySelector(".tag .no").textContent = w.no;
+  }
+  function paintPlate(face, idx){
+    face.classList.add("is-plate");
+    const t = PLATE_TEXT[idx % PLATE_TEXT.length];
+    face.querySelector(".plate").innerHTML = t[0] + "<br>" + t[1];
+  }
+
+  // Assign works to the ring the active axis exposes, plate the rest.
+  let assignedRing = null;
+  function assignFaces(){
+    const ring = isMobile() ? RING_Y : RING_X;
+    if (assignedRing === ring) return;
+    assignedRing = ring;
+    const used = new Set(ring);
+    ring.forEach((name,i)=> paintWork(F[name], WORKS[i]));
+    let p = 0;
+    Object.keys(F).forEach(name => { if (!used.has(name)) paintPlate(F[name], p++); });
+  }
+
+  // ---- type stack DOM ----
+  const kickerEl = document.getElementById("kicker");
+  const headEl   = document.getElementById("headline");
+  const blurbEl  = document.getElementById("blurb");
+  const metaEl   = document.getElementById("meta");
+  const countEl  = document.getElementById("count");
+  const dotsEl   = document.getElementById("dots");
+  const idxEl    = document.querySelector(".topbar .right span:last-child");
+  const hintEl   = document.getElementById("scrollhint");
+
+  WORKS.forEach((_,i) => {
+    const dot = document.createElement("span");
+    dot.className = "dot" + (i===0 ? " on":"");
+    dotsEl.appendChild(dot);
+  });
+  const dotEls = [...dotsEl.children];
+
+  // render the type stack for work k (rebuilds words so the reveal replays)
+  let typedFor = -1;
+  function renderType(k){
+    if (typedFor === k) return;
+    typedFor = k;
+    const w = WORKS[k];
+    kickerEl.textContent = w.kicker;
+    blurbEl.textContent = w.blurb;
+    blurbEl.classList.remove("show");
+    metaEl.innerHTML = w.meta.map(m => `<span>${m[0]}<b>${m[1]}</b></span>`).join("");
+    countEl.textContent = `${w.no} / ${String(N).padStart(2,"0")}`;
+    idxEl.textContent = "Index " + w.no;
+
+    // build words with per-word reveal
+    headEl.innerHTML = "";
+    const wordEls = [];
+    w.headline.forEach(line => {
+      const ln = document.createElement("span"); ln.className = "ln";
+      line.forEach((word,wi) => {
+        const sp = document.createElement("span");
+        sp.className = "w"; sp.innerHTML = word + (wi < line.length-1 ? "&nbsp;" : "");
+        ln.appendChild(sp); wordEls.push(sp);
+      });
+      headEl.appendChild(ln);
+    });
+
+    if (reduce){
+      wordEls.forEach(e => e.classList.add("show"));
+      blurbEl.classList.add("show");
+      return;
+    }
+    // stagger the words in
+    wordEls.forEach((e,i2) => setTimeout(() => e.classList.add("show"), 70 + i2*72));
+    setTimeout(() => blurbEl.classList.add("show"), 120 + wordEls.length*72);
+  }
+
+  // ---- crossfade + cube transform applied from a single progress value ----
+  // p in [0, N-1]; integer part = current work, fraction = transition to next.
+  let curP = 0;          // smoothed progress (rAF lerps toward target)
+  let targetP = 0;
+  let raf = 0;
+
+  function applyBg(p){
+    // crossfade adjacent layers; everything else off.
+    const k = Math.floor(p);
+    const frac = p - k;
+    bgLayers.forEach((layer,i) => {
+      let op = 0;
+      if (i === k) op = 1;            // current fully on under the next
+      if (i === k+1) op = frac;       // next fades up
+      // layers below current stay on so we never flash black during fast scroll
+      if (i < k) op = 1;
+      layer.style.opacity = op.toFixed(3);
+      layer.classList.toggle("is-on", op > 0.001);
+    });
+  }
+
+  function lerpFace(arr,k,frac){ return lerp(arr[k], arr[clamp(k+1,0,N-1)], frac); }
+
+  function applyCube(p){
+    const k  = clamp(Math.floor(p),0,N-1);
+    const kn = clamp(k+1,0,N-1);
+    const frac = p - Math.floor(p);
+    const half = "calc(var(--cube) * -.5)";
+
+    if (isMobile()){
+      // MOBILE: reduced to the X axis only, for legibility. The works ride the
+      // vertical face ring (see applyFaceAssignment), so a -90deg X step per
+      // work brings the next work to the front. Small resting tilt, no Y/Z spin,
+      // no compound translate (the pip stays put in its corner).
+      const rx = -6 - p * 90;
+      cube.style.transform =
+        `translate3d(0px,0px,${half}) rotateX(${rx.toFixed(2)}deg)`;
+      return;
+    }
+
+    // DESKTOP: multi-axis tumble. Continuous Y spins through the horizontal ring,
+    // with a small per-face X tilt and Z lean, plus a short compound translate so
+    // the cube reads as a moving object, not a flat spinner.
+    const ry = lerp(FACE_Y[k], FACE_Y[kn], frac);
+    const rx = lerpFace(tiltX,k,frac);
+    const rz = lerpFace(tiltZ,k,frac);
+    const pt = pathAt(p);
+    cube.style.transform =
+      `translate3d(${pt.x.toFixed(1)}px, ${pt.y.toFixed(1)}px, ${half}) ` +
+      `rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) rotateZ(${rz.toFixed(2)}deg)`;
+  }
+
+  function pathAt(p){
+    const k = clamp(Math.floor(p),0,PATH.length-1);
+    const frac = p - Math.floor(p);
+    const a = PATH[k], b = PATH[clamp(k+1,0,PATH.length-1)];
+    return { x: lerp(a.x,b.x,frac), y: lerp(a.y,b.y,frac) };
+  }
+
+  function setActive(p){
+    const k = clamp(Math.round(p),0,N-1);
+    dotEls.forEach((d,i)=>d.classList.toggle("on", i===k));
+    renderType(k);
+    hintEl.style.opacity = p > 0.15 ? "0" : "1";
+  }
+
+  // ---- scroll -> targetP ----
+  function readScroll(){
+    const max = document.documentElement.scrollHeight - innerHeight;
+    const t = max > 0 ? scrollY / max : 0;
+    targetP = clamp(t * (N-1), 0, N-1);
+  }
+
+  // ---- the ONLY rAF loop: smooths progress + drives crossfade lerp ----
+  function tick(){
+    raf = 0;
+    const diff = targetP - curP;
+    if (Math.abs(diff) > 0.0005){
+      curP = lerp(curP, targetP, 0.16);
+    } else {
+      curP = targetP;
+    }
+    applyBg(curP);
+    applyCube(curP);
+    setActive(curP);
+    if (curP !== targetP) schedule();
+  }
+  function schedule(){ if (!raf) raf = requestAnimationFrame(tick); }
+
+  // ---- reduced motion: no rAF, no inline transform overrides; jump state -
+  function applyReducedState(){
+    const k = clamp(Math.round(targetP),0,N-1);
+    // instant crossfade: only target layer on
+    bgLayers.forEach((layer,i)=>{
+      layer.style.opacity = i===k ? "1" : "0";
+      layer.classList.toggle("is-on", i===k);
+    });
+    // leave the cube at its CSS rest transform (front face / static) - do NOT
+    // write inline transforms so the static first face shows.
+    cube.style.transform = "";
+    dotEls.forEach((d,i)=>d.classList.toggle("on", i===k));
+    renderType(k);
+    hintEl.style.opacity = targetP > 0.15 ? "0" : "1";
+  }
+
+  function onScroll(){
+    readScroll();
+    if (reduce){ applyReducedState(); return; }
+    schedule();
+  }
+
+  // ---- init ----
+  assignFaces();
+  readScroll();
+  if (reduce){
+    applyReducedState();
+  } else {
+    curP = targetP;
+    applyBg(curP); applyCube(curP); setActive(curP);
+  }
+  renderType(clamp(Math.round(targetP),0,N-1));
+
+  addEventListener("scroll", onScroll, {passive:true});
+  addEventListener("resize", () => {
+    assignFaces();            // re-map work ring if we crossed the mobile breakpoint
+    readScroll();
+    reduce ? applyReducedState() : schedule();
+  }, {passive:true});
+
+  // keyboard: arrow / page keys jump between works (a11y, no mouse needed)
+  addEventListener("keydown", (e)=>{
+    const k = clamp(Math.round(curP),0,N-1);
+    let nk = k;
+    if (e.key==="ArrowDown"||e.key==="ArrowRight"||e.key==="PageDown") nk = clamp(k+1,0,N-1);
+    else if (e.key==="ArrowUp"||e.key==="ArrowLeft"||e.key==="PageUp") nk = clamp(k-1,0,N-1);
+    else if (e.key==="Home") nk = 0;
+    else if (e.key==="End") nk = N-1;
+    else return;
+    if (nk===k) return;
+    e.preventDefault();
+    const max = document.documentElement.scrollHeight - innerHeight;
+    window.scrollTo({ top: (nk/(N-1))*max, behavior: reduce ? "auto":"smooth" });
+  });
+})();
+</script>
+</body>
+</html>

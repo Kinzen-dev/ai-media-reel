@@ -1,0 +1,633 @@
+<!-- TEMPLATE: Roster Strip | ARCHETYPE: ROSTER esports org landing | REF: G2 / T1 / FaZe org sites, roster + sponsor-shelf conventions | WHEN TO USE: competitive gaming org, sports team, agency squad, or any "the team behind it" landing with a hero render + player card strip | SWAP: edit the DATA object in the <script> before </body> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>VOLTBORN // Roster</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:ital,wght@0,400;0,600;0,800;1,800&family=Archivo+Narrow:wght@500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+/* =========================================================================
+   DATA-DRIVEN: all swappable content lives in the JS DATA array near </body>.
+   This stylesheet is the visual system only.
+   ========================================================================= */
+
+:root{
+  --ink:#0a0a0d;            /* near-black stage */
+  --ink-2:#101015;          /* raised panels    */
+  --ink-3:#16161d;          /* card body        */
+  --bone:#ece7da;           /* warm bone text   */
+  --bone-dim:#8d897e;       /* muted bone       */
+  --neon:#39ff14;           /* THE single brand accent (toxic green) */
+  --neon-ink:#0a1402;       /* text on neon     */
+  --line:rgba(236,231,218,.12);
+  --line-strong:rgba(236,231,218,.22);
+  --maxw:1680px;
+  --strip-h:clamp(190px,26vh,260px);
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+html{background:var(--ink);-webkit-text-size-adjust:100%}
+body{
+  background:var(--ink);
+  color:var(--bone);
+  font-family:"Archivo",system-ui,sans-serif;
+  font-size:16px;line-height:1.5;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+img{display:block;max-width:100%}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:2px solid var(--neon);outline-offset:3px;border-radius:2px}
+
+.condensed{font-family:"Anton","Archivo Narrow",sans-serif;text-transform:uppercase;letter-spacing:.01em;font-weight:400}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+
+/* ===== STAGE: first viewport holds hero + headline + roster strip ======= */
+.stage{
+  position:relative;
+  min-height:100svh;
+  display:grid;
+  /* clamp the single column to the container: the .strip's 6-card intrinsic
+     width (~1350px) otherwise blows the grid track past a 390px phone, dragging
+     the hero render off-screen and crushing the car to a dark sliver */
+  grid-template-columns:minmax(0,1fr);
+  grid-template-rows:auto 1fr var(--strip-h);
+  overflow:hidden;
+}
+
+/* ---- top utility band (sits ABOVE the render, compact) ---- */
+.topbar{
+  position:relative;z-index:6;
+  display:flex;align-items:center;gap:18px;
+  padding:14px clamp(16px,3vw,40px);
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(10,10,13,.92),rgba(10,10,13,.5));
+}
+.brandmark{display:flex;align-items:center;gap:11px;font-weight:800;letter-spacing:.16em;font-size:13px;text-transform:uppercase}
+.brandmark .glyph{
+  width:26px;height:26px;flex:0 0 auto;
+  display:grid;place-items:center;
+  background:var(--neon);color:var(--neon-ink);
+  font-family:"Anton";font-size:18px;line-height:1;
+  clip-path:polygon(14% 0,100% 0,86% 100%,0 100%);
+}
+.nav{margin-left:auto;display:flex;gap:clamp(14px,2vw,30px);align-items:center}
+.nav a{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--bone-dim);transition:color .2s}
+.nav a:hover{color:var(--bone)}
+.nav .cta{
+  color:var(--neon-ink);background:var(--neon);
+  padding:8px 15px;font-weight:800;letter-spacing:.12em;
+  clip-path:polygon(8% 0,100% 0,92% 100%,0 100%);
+}
+.nav .cta:hover{color:var(--neon-ink);filter:brightness(1.08)}
+@media(max-width:760px){.nav a:not(.cta){display:none}}
+
+/* ---- HERO RENDER (full-bleed, CONTAIN so the landscape render never face/cover crops) ---- */
+.hero{
+  position:relative;z-index:1;
+  display:grid;place-items:center;
+  overflow:hidden;
+  min-height:0;
+}
+.hero-render{
+  position:absolute;inset:0;
+  width:100%;height:100%;
+  object-fit:contain;          /* never crop the team render */
+  object-position:center 42%;
+  background:
+    radial-gradient(120% 90% at 50% 8%, #14160f 0%, var(--ink) 60%),
+    var(--ink);
+  filter:saturate(1.05) contrast(1.04);
+}
+/* neon ground-glow + scanline veil bound the letterbox so contain reads intentional */
+.hero::before{
+  content:"";position:absolute;inset:0;z-index:2;pointer-events:none;
+  background:
+    radial-gradient(80% 55% at 50% 108%, rgba(57,255,20,.30), transparent 60%),
+    linear-gradient(180deg, rgba(10,10,13,.55) 0%, transparent 22% 60%, rgba(10,10,13,.85) 100%);
+  mix-blend-mode:screen;
+}
+.hero::after{
+  content:"";position:absolute;inset:0;z-index:2;pointer-events:none;
+  background:repeating-linear-gradient(180deg,rgba(0,0,0,0) 0 3px,rgba(0,0,0,.16) 3px 4px);
+  opacity:.5;mix-blend-mode:multiply;
+}
+
+/* ---- WORDMARK + tagline overlaying the render ---- */
+.wordwrap{
+  position:relative;z-index:4;
+  padding:clamp(10px,3vh,34px) clamp(16px,3vw,40px);
+  width:min(var(--maxw),100%);margin-inline:auto;
+  align-self:end;justify-self:start;
+  display:flex;flex-direction:column;gap:8px;
+}
+.kicker{
+  display:inline-flex;align-items:center;gap:10px;width:max-content;
+  font-size:11px;letter-spacing:.42em;text-transform:uppercase;color:var(--neon);
+  font-weight:800;
+}
+.kicker::before{content:"";width:34px;height:2px;background:var(--neon);box-shadow:0 0 12px var(--neon)}
+.wordmark{
+  font-family:"Anton",sans-serif;text-transform:uppercase;
+  font-size:clamp(58px,15.5vw,210px);
+  line-height:.82;letter-spacing:-.01em;
+  margin:0;color:var(--bone);
+  text-shadow:0 4px 40px rgba(0,0,0,.6);
+}
+.wordmark em{
+  font-style:normal;color:var(--neon);
+  text-shadow:0 0 26px rgba(57,255,20,.55),0 0 4px rgba(57,255,20,.9);
+  -webkit-text-stroke:0;
+}
+.tagrow{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px 22px;margin-top:4px}
+.tagline{font-size:clamp(13px,1.4vw,17px);color:var(--bone);max-width:46ch;letter-spacing:.01em}
+.tagline strong{color:var(--neon);font-weight:800}
+.season{
+  font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--bone-dim);
+  letter-spacing:.16em;border-left:1px solid var(--line-strong);padding-left:14px;
+}
+
+/* ===================== ROSTER STRIP ====================================== */
+.rosterbar{
+  position:relative;z-index:5;
+  background:linear-gradient(180deg,rgba(10,10,13,.4),var(--ink) 38%);
+  border-top:1px solid var(--line);
+  display:flex;flex-direction:column;min-height:0;
+}
+.rosterbar .roster-head{
+  display:flex;align-items:center;gap:14px;
+  padding:8px clamp(16px,3vw,40px) 6px;
+}
+.roster-head h2{
+  font-family:"Anton";font-size:14px;letter-spacing:.28em;text-transform:uppercase;
+  margin:0;color:var(--bone);
+}
+.roster-head .count{color:var(--neon);font-family:"JetBrains Mono";font-size:12px;letter-spacing:.1em}
+.roster-head .hint{margin-left:auto;color:var(--bone-dim);font-size:11px;letter-spacing:.16em;text-transform:uppercase}
+@media(max-width:560px){.roster-head .hint{display:none}}
+
+.strip{
+  flex:1 1 auto;min-height:0;
+  display:flex;gap:12px;
+  padding:4px clamp(16px,3vw,40px) 16px;
+  overflow-x:auto;overflow-y:hidden;
+  scroll-snap-type:x mandatory;
+  scrollbar-width:thin;scrollbar-color:var(--neon) transparent;
+  -webkit-overflow-scrolling:touch;
+}
+.strip::-webkit-scrollbar{height:6px}
+.strip::-webkit-scrollbar-track{background:transparent}
+.strip::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:3px}
+.strip:hover::-webkit-scrollbar-thumb{background:rgba(57,255,20,.5)}
+
+/* ---- player card ---- */
+.pcard{
+  position:relative;flex:0 0 auto;
+  width:clamp(150px,17vw,212px);height:100%;
+  scroll-snap-align:start;
+  background:linear-gradient(180deg,var(--ink-3),#0c0c11);
+  border:1px solid var(--line);
+  overflow:hidden;
+  display:grid;grid-template-rows:1fr auto;
+  cursor:pointer;
+  clip-path:polygon(0 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%);
+  transition:border-color .25s ease, transform .25s ease;
+}
+.pcard:hover,.pcard:focus-within{border-color:rgba(57,255,20,.7);transform:translateY(-4px)}
+.pcard::after{ /* neon corner cut */
+  content:"";position:absolute;right:-1px;bottom:-1px;width:18px;height:18px;z-index:3;
+  background:linear-gradient(135deg,transparent 49%,var(--neon) 50%);
+  opacity:0;transition:opacity .25s;
+}
+.pcard:hover::after,.pcard:focus-within::after{opacity:1}
+
+.pcard .media{
+  position:relative;overflow:hidden;min-height:0;
+  background:radial-gradient(120% 80% at 50% 0%, #1a1a22, #0a0a0d 75%);
+}
+/* portraits CONTAIN: never crop a face off a card */
+.pcard .media img,.pcard .media video{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:contain;object-position:center 12%;
+}
+.pcard .media::before{ /* number watermark behind portrait */
+  content:attr(data-num);
+  position:absolute;left:-6px;top:-18px;z-index:0;
+  font-family:"Anton";font-size:118px;line-height:1;color:rgba(236,231,218,.05);
+  pointer-events:none;
+}
+.pcard .media::after{ /* readability fade for the role plate */
+  content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:linear-gradient(180deg,transparent 45%,rgba(10,10,13,.55) 78%,rgba(10,10,13,.95));
+}
+.pcard.is-live .media .livedot{
+  position:absolute;z-index:4;top:8px;right:8px;
+  display:flex;align-items:center;gap:5px;
+  font-family:"JetBrains Mono";font-size:9px;letter-spacing:.14em;color:var(--neon);
+  background:rgba(10,10,13,.6);padding:3px 7px;border:1px solid rgba(57,255,20,.4);
+}
+.pcard.is-live .media .livedot i{width:6px;height:6px;background:var(--neon);border-radius:50%;box-shadow:0 0 8px var(--neon);animation:pulse 1.4s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* stat overlay slides up on hover (reduced-motion = always shown) */
+.pcard .stats{
+  position:absolute;left:0;right:0;bottom:38px;z-index:2;
+  display:flex;gap:0;
+  transform:translateY(112%);opacity:0;
+  transition:transform .28s ease, opacity .2s ease;
+  background:linear-gradient(180deg,rgba(57,255,20,.0),rgba(10,10,13,.0));
+}
+.pcard:hover .stats,.pcard:focus-within .stats{transform:translateY(0);opacity:1}
+.pcard .stats .s{
+  flex:1;text-align:center;padding:5px 2px;
+  border-top:1px solid rgba(57,255,20,.3);
+  background:rgba(10,10,13,.82);backdrop-filter:blur(3px);
+}
+.pcard .stats .s + .s{border-left:1px solid var(--line)}
+.pcard .stats .v{font-family:"Anton";font-size:18px;line-height:1;color:var(--neon)}
+.pcard .stats .k{font-family:"JetBrains Mono";font-size:8px;letter-spacing:.1em;color:var(--bone-dim);text-transform:uppercase;margin-top:2px}
+
+/* name plate */
+.pcard .plate{
+  position:relative;z-index:2;
+  padding:9px 11px 11px;
+  border-top:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(16,16,21,.2),var(--ink-3));
+}
+.pcard .role{
+  display:flex;align-items:center;gap:7px;
+  font-family:"JetBrains Mono";font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--neon);margin-bottom:3px;
+}
+.pcard .role .flag{font-size:13px;line-height:1;filter:saturate(1.1)}
+.pcard .role .country{color:var(--bone-dim);margin-left:auto;letter-spacing:.1em}
+.pcard .handle{
+  font-family:"Anton";text-transform:uppercase;
+  font-size:clamp(20px,2.4vw,27px);line-height:.92;letter-spacing:.005em;
+  color:var(--bone);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.pcard .handle b{color:var(--neon)}
+.pcard .realname{font-size:10px;color:var(--bone-dim);letter-spacing:.06em;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ===================== BELOW THE FOLD =================================== */
+.section{width:min(var(--maxw),100%);margin-inline:auto;padding:clamp(48px,8vh,110px) clamp(16px,3vw,40px)}
+.sec-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:34px;border-bottom:1px solid var(--line);padding-bottom:16px}
+.sec-head h3{font-family:"Anton";text-transform:uppercase;font-size:clamp(30px,5.5vw,62px);line-height:.92;margin:0;letter-spacing:-.005em}
+.sec-head h3 em{font-style:normal;color:var(--neon)}
+.sec-head p{color:var(--bone-dim);max-width:38ch;font-size:14px;margin:0}
+
+/* sponsor shelf */
+.sponsors{display:flex;flex-wrap:wrap;align-items:center;gap:clamp(20px,4vw,58px);padding-top:8px}
+.sponsor{
+  display:flex;align-items:center;gap:9px;
+  color:var(--bone);opacity:.62;
+  filter:grayscale(1);transition:opacity .25s,filter .25s,transform .25s;
+}
+.sponsor:hover{opacity:1;filter:grayscale(0);transform:translateY(-2px)}
+.sponsor .mk{
+  width:30px;height:30px;flex:0 0 auto;display:grid;place-items:center;
+  border:1.5px solid currentColor;font-family:"Anton";font-size:16px;
+}
+.sponsor.solid .mk{background:currentColor;color:var(--ink)}
+.sponsor .nm{font-family:"Archivo Narrow";font-weight:700;text-transform:uppercase;letter-spacing:.12em;font-size:15px}
+.sponsor .tier{font-family:"JetBrains Mono";font-size:9px;color:var(--bone-dim);letter-spacing:.12em;display:block;margin-top:1px}
+
+/* trophy / cred row */
+.creds{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}
+.cred{background:var(--ink-2);padding:22px 20px;display:flex;flex-direction:column;gap:6px}
+.cred .big{font-family:"Anton";font-size:clamp(36px,5vw,56px);line-height:1;color:var(--neon)}
+.cred .lbl{font-size:12px;color:var(--bone-dim);letter-spacing:.14em;text-transform:uppercase}
+
+/* footer */
+.foot{border-top:1px solid var(--line);padding:30px clamp(16px,3vw,40px);display:flex;flex-wrap:wrap;gap:14px 30px;align-items:center;color:var(--bone-dim);font-size:12px;letter-spacing:.06em}
+.foot .brandmark{color:var(--bone)}
+.foot .sp{margin-left:auto;display:flex;gap:18px;flex-wrap:wrap}
+.foot a{letter-spacing:.14em;text-transform:uppercase;font-size:11px}
+.foot a:hover{color:var(--neon)}
+
+/* ===================== MOBILE: stack, never crush ====================== */
+@media(max-width:640px){
+  :root{--strip-h:clamp(216px,40vh,300px)}
+  .stage{grid-template-rows:auto auto var(--strip-h);min-height:100svh}
+  .hero{
+    /* letterbox the landscape render into a fixed band so it never cover-crops a phone portrait */
+    height:38svh;min-height:200px;
+  }
+  /* contain leaves the matte-black car small + the desktop veil crushes it to a void on phones:
+     keep the letterbox but soften the darkening and lift the render so the car actually reads */
+  .hero::before{
+    background:
+      radial-gradient(85% 60% at 50% 100%, rgba(57,255,20,.28), transparent 62%),
+      linear-gradient(180deg, rgba(10,10,13,.28) 0%, transparent 30% 70%, rgba(10,10,13,.6) 100%);
+  }
+  .hero::after{opacity:.32}
+  .hero-render{object-position:center center;filter:saturate(1.12) contrast(1.06) brightness(1.18)}
+  .wordwrap{padding-bottom:14px}
+  .wordmark{font-size:clamp(46px,16vw,90px)}
+  .tagrow{gap:6px 14px}
+  .season{border-left:none;padding-left:0}
+  .pcard{width:clamp(158px,72vw,210px)}
+}
+@media(max-width:380px){
+  .hero{height:34svh}
+}
+
+/* ===================== REDUCED MOTION: show final state ================= */
+@media(prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+  .pcard .stats{transform:none;opacity:1;bottom:38px}
+  .pcard::after{opacity:0}
+  .hero::after{opacity:.32}
+}
+</style>
+</head>
+<body>
+
+<main class="stage" id="stage">
+
+  <!-- ===== TOP BAND (above the render) ===== -->
+  <header class="topbar">
+    <div class="brandmark"><span class="glyph" id="brandGlyph">V</span><span id="brandText">VOLTBORN</span></div>
+    <nav class="nav" aria-label="Primary">
+      <a href="#roster">Roster</a>
+      <a href="#partners">Partners</a>
+      <a href="#palmares">Palmares</a>
+      <a href="#join" class="cta">Join VIP</a>
+    </nav>
+  </header>
+
+  <!-- ===== HERO RENDER + WORDMARK ===== -->
+  <section class="hero" aria-label="Team render">
+    <img class="hero-render" id="heroImg" alt="" decoding="async" fetchpriority="high" />
+    <div class="wordwrap">
+      <span class="kicker" id="kicker">SEASON 12 ROSTER REVEAL</span>
+      <h1 class="wordmark" id="wordmark">VOLT<em>BORN</em></h1>
+      <div class="tagrow">
+        <p class="tagline" id="tagline">Five players. One <strong>circuit</strong>. We do not play the meta, we set it.</p>
+        <span class="season" id="seasonTag">REGION: EU // DIV-1</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ROSTER STRIP (lower viewport, horizontal scroll) ===== -->
+  <section class="rosterbar" id="roster" aria-label="Active roster">
+    <div class="roster-head">
+      <h2>Active Roster</h2>
+      <span class="count" id="rosterCount">/ 6 STARTERS</span>
+      <span class="hint" id="rosterHint">Drag / scroll to scout &rarr;</span>
+    </div>
+    <div class="strip" id="strip" tabindex="0" role="list" aria-label="Player cards, horizontal scroll"></div>
+  </section>
+
+</main>
+
+<!-- ===== PARTNERS / SPONSOR SHELF ===== -->
+<section class="section" id="partners">
+  <div class="sec-head">
+    <h3>Backed <em>By</em></h3>
+    <p>The hardware, the fuel and the capital behind every clutch. Partner inquiries welcome.</p>
+  </div>
+  <div class="sponsors" id="sponsors"></div>
+</section>
+
+<!-- ===== PALMARES / CRED ROW ===== -->
+<section class="section" id="palmares" style="padding-top:0">
+  <div class="sec-head">
+    <h3>The <em>Palmares</em></h3>
+    <p>Numbers from the last twelve months on the circuit.</p>
+  </div>
+  <div class="creds" id="creds"></div>
+</section>
+
+<!-- ===== FOOTER ===== -->
+<footer class="foot" id="join">
+  <div class="brandmark"><span class="glyph">V</span><span>VOLTBORN</span></div>
+  <span>&copy; 2026 Voltborn Esports. Built for the circuit.</span>
+  <div class="sp">
+    <a href="#roster">Roster</a>
+    <a href="#partners">Partners</a>
+    <a href="#palmares">Palmares</a>
+    <a href="#join">Careers</a>
+  </div>
+</footer>
+
+<script>
+/* =========================================================================
+   DATA  -  swap everything here. No markup edits needed.
+   - assetsBase: where the demo media lives, relative to this file.
+   - hero.img : a LANDSCAPE team render/photo (contained, never cropped).
+   - roster[] : player cards. portrait = poster/render (CONTAINed, no face-crop).
+                vid (optional) = mp4 that plays only while the card is
+                hovered / focused (single decode, never all at once).
+   ========================================================================= */
+const DATA = {
+  assetsBase: "../assets/",
+  org: {
+    short: "V",
+    name: "VOLTBORN",
+    nameSplit: ["VOLT", "BORN"],        // 2nd part renders in neon
+    kicker: "SEASON 12 ROSTER REVEAL",
+    tagline: ["Five players. One ", "circuit", ". We do not play the meta, we set it."], // middle = neon
+    region: "REGION: EU // DIV-1",
+    starters: 6
+  },
+  hero: { img: "flux-car-4k.png", alt: "Voltborn team render: matte-black machine on a wet neon strip" },
+
+  roster: [
+    { num:"01", handle:"V0LT", role:"IGL / DUELIST", realname:"M. Sorensen", country:"DK", flag:"🇩🇰",
+      portrait:"gen/poster-heygen.png", vid:"heygen-avatar.mp4", live:true,
+      stats:[["1.34","RATING"],["68%","HS"],["412","ACS"]] },
+    { num:"02", handle:"NOX", role:"ENTRY / FRAG", realname:"R. Bianchi", country:"IT", flag:"🇮🇹",
+      portrait:"gen/poster-did.png", vid:"did-talking-photo.mp4", live:false,
+      stats:[["1.21","RATING"],["+148","K/D"],["3.1","FB/R"]] },
+    { num:"03", handle:"HALO", role:"CONTROLLER", realname:"J. Park", country:"KR", flag:"🇰🇷",
+      portrait:"gen/poster-veo-video.png", vid:"veo-video.mp4", live:true,
+      stats:[["1.08","RATING"],["91","UTIL"],["0.9","KAST"]] },
+    { num:"04", handle:"WRAITH", role:"FLEX / OP", realname:"A. Novak", country:"CZ", flag:"🇨🇿",
+      portrait:"gen/poster-kling-video.png", vid:"kling-video.mp4", live:false,
+      stats:[["1.17","RATING"],["44%","OP%"],["1.9","FK/R"]] },
+    { num:"05", handle:"EMBER", role:"SENTINEL", realname:"L. Haddad", country:"FR", flag:"🇫🇷",
+      portrait:"gen/poster-fal-video.png", vid:"fal-video.mp4", live:false,
+      stats:[["1.11","RATING"],["7.2","PLANTS"],["88%","CLUTCH"]] },
+    { num:"06", handle:"VECTOR", role:"COACH", realname:"T. Mueller", country:"DE", flag:"🇩🇪",
+      portrait:"gen/poster-flux-car-i2v.png", vid:"flux-car-i2v.mp4", live:false,
+      stats:[["12","MAJORS"],["7yr","TENURE"],["#1","DRAFT"]] }
+  ],
+
+  sponsors: [
+    { mk:"H",  nm:"HYPRDECK",  tier:"TITLE PARTNER", solid:true  },
+    { mk:"N",  nm:"NOVACELL",  tier:"ENERGY",        solid:false },
+    { mk:"A",  nm:"ARCWEAR",   tier:"APPAREL",       solid:false },
+    { mk:"Q",  nm:"QUANTBYTE",  tier:"HARDWARE",      solid:false },
+    { mk:"K",  nm:"KILOWATT",  tier:"CAPITAL",       solid:true  },
+    { mk:"Z",  nm:"ZEROPING",  tier:"NETWORK",       solid:false }
+  ],
+
+  creds: [
+    { big:"12", lbl:"Majors won" },
+    { big:"#3", lbl:"World ranking" },
+    { big:"68", lbl:"Map win rate %" },
+    { big:"4.1M", lbl:"Avg peak viewers" }
+  ]
+};
+
+/* ========================== RENDER ===================================== */
+const $  = (s,r=document)=>r.querySelector(s);
+const ce = (t,c)=>{const e=document.createElement(t);if(c)e.className=c;return e;};
+const A  = DATA.assetsBase;
+
+/* -- org / hero -- */
+$("#brandGlyph").textContent = DATA.org.short;
+$("#brandText").textContent  = DATA.org.name;
+$("#kicker").textContent     = DATA.org.kicker;
+$("#seasonTag").textContent  = DATA.org.region;
+$("#rosterCount").textContent= "/ " + DATA.org.starters + " STARTERS";
+{
+  const wm=$("#wordmark"); wm.textContent="";
+  wm.append(document.createTextNode(DATA.org.nameSplit[0]));
+  const em=ce("em"); em.textContent=DATA.org.nameSplit[1]; wm.append(em);
+}
+{
+  const t=$("#tagline"); t.textContent="";
+  t.append(document.createTextNode(DATA.org.tagline[0]));
+  const s=ce("strong"); s.textContent=DATA.org.tagline[1]; t.append(s);
+  t.append(document.createTextNode(DATA.org.tagline[2]));
+}
+const heroImg=$("#heroImg");
+heroImg.src=A+DATA.hero.img;
+heroImg.alt=DATA.hero.alt;
+
+/* -- roster cards -- */
+const strip=$("#strip");
+DATA.roster.forEach((p,i)=>{
+  const card=ce("article","pcard"+(p.live?" is-live":""));
+  card.setAttribute("role","listitem");
+  card.tabIndex=0;
+  card.setAttribute("aria-label",`${p.handle}, ${p.role}, ${p.realname}, ${p.country}`);
+
+  const media=ce("div","media");
+  media.dataset.num=p.num;
+
+  const img=ce("img");
+  img.src=A+p.portrait; img.alt=`${p.handle} portrait`;
+  img.loading = i<3 ? "eager" : "lazy"; img.decoding="async";
+  media.append(img);
+
+  // optional in-card video: lazy, plays ONLY when this card is focused/hovered
+  if(p.vid){ card.dataset.vid = A+p.vid; }
+
+  if(p.live){
+    const dot=ce("span","livedot"); dot.innerHTML='<i></i>LIVE';
+    media.append(dot);
+  }
+
+  // stat overlay
+  const stats=ce("div","stats");
+  p.stats.forEach(([v,k])=>{
+    const s=ce("div","s");
+    const vv=ce("div","v"); vv.textContent=v;
+    const kk=ce("div","k"); kk.textContent=k;
+    s.append(vv,kk); stats.append(s);
+  });
+  media.append(stats);
+
+  const plate=ce("div","plate");
+  const role=ce("div","role");
+  role.innerHTML=`<span class="flag" aria-hidden="true">${p.flag}</span>${p.role}<span class="country">${p.country}</span>`;
+  const handle=ce("div","handle"); handle.innerHTML=p.handle.replace(/([0-9])/g,"<b>$1</b>");
+  const real=ce("div","realname"); real.textContent=p.realname;
+  plate.append(role,handle,real);
+
+  card.append(media,plate);
+  strip.append(card);
+});
+
+/* -- sponsor shelf -- */
+const sp=$("#sponsors");
+DATA.sponsors.forEach(s=>{
+  const a=ce("a","sponsor"+(s.solid?" solid":"")); a.href="#partners";
+  a.setAttribute("aria-label",s.nm+" - "+s.tier);
+  a.innerHTML=`<span class="mk" aria-hidden="true">${s.mk}</span><span><span class="nm">${s.nm}</span><span class="tier">${s.tier}</span></span>`;
+  sp.append(a);
+});
+
+/* -- cred row -- */
+const cr=$("#creds");
+DATA.creds.forEach(c=>{
+  const d=ce("div","cred");
+  d.innerHTML=`<span class="big">${c.big}</span><span class="lbl">${c.lbl}</span>`;
+  cr.append(d);
+});
+
+/* ========================== BEHAVIOUR ================================== */
+const reduce = window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+
+/* Single-decode discipline: at most ONE in-card video element exists at a
+   time. Building it on hover/focus and tearing it down on leave/blur means
+   the shared roster stage never decodes 6 clips at once (FPS killer). */
+if(!reduce){
+  let activeVid=null, activeCard=null;
+
+  function play(card){
+    const src=card.dataset.vid;
+    if(!src || card===activeCard) return;
+    stop();
+    const v=ce("video");
+    v.src=src; v.muted=true; v.loop=true; v.playsInline=true; v.preload="auto";
+    v.setAttribute("aria-hidden","true");
+    v.style.opacity="0"; v.style.transition="opacity .35s ease";
+    card.querySelector(".media").append(v);
+    v.play().then(()=>{ v.style.opacity="1"; }).catch(()=>{});
+    activeVid=v; activeCard=card;
+  }
+  function stop(){
+    if(activeVid){ try{activeVid.pause();}catch(e){} activeVid.remove(); }
+    activeVid=null; activeCard=null;
+  }
+
+  strip.querySelectorAll(".pcard").forEach(card=>{
+    if(!card.dataset.vid) return;
+    card.addEventListener("pointerenter",()=>play(card));
+    card.addEventListener("pointerleave",stop);
+    card.addEventListener("focusin",()=>play(card));
+    card.addEventListener("focusout",e=>{ if(!card.contains(e.relatedTarget)) stop(); });
+  });
+
+  // pause the active clip if the whole strip scrolls out of view
+  if("IntersectionObserver" in window){
+    new IntersectionObserver(es=>{
+      es.forEach(e=>{ if(!e.isIntersecting) stop(); });
+    },{threshold:0}).observe(strip);
+  }
+}
+
+/* Keyboard: arrow-scroll the roster when the strip is focused */
+strip.addEventListener("keydown",e=>{
+  const step = strip.querySelector(".pcard")?.offsetWidth + 12 || 200;
+  if(e.key==="ArrowRight"){ strip.scrollBy({left:step,behavior:reduce?"auto":"smooth"}); e.preventDefault(); }
+  if(e.key==="ArrowLeft"){  strip.scrollBy({left:-step,behavior:reduce?"auto":"smooth"}); e.preventDefault(); }
+});
+
+/* Drag-to-scroll on desktop pointer (non-touch), for the "scout" feel */
+(()=>{
+  let down=false,sx=0,sl=0,moved=false;
+  strip.addEventListener("pointerdown",e=>{
+    if(e.pointerType==="touch") return;
+    down=true;moved=false;sx=e.clientX;sl=strip.scrollLeft;strip.style.cursor="grabbing";
+  });
+  window.addEventListener("pointerup",()=>{down=false;strip.style.cursor="";});
+  strip.addEventListener("pointermove",e=>{
+    if(!down)return;
+    const dx=e.clientX-sx; if(Math.abs(dx)>4)moved=true;
+    strip.scrollLeft=sl-dx;
+  });
+  // swallow click after a drag so cards do not trigger
+  strip.addEventListener("click",e=>{ if(moved){e.preventDefault();e.stopPropagation();} },true);
+})();
+</script>
+</body>
+</html>

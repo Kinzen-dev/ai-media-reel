@@ -1,0 +1,751 @@
+<!-- TEMPLATE: Waypoint | ARCHETYPE: ATLAS - annual release recap as a spatial scroll map | REF: annual product-recap scroll experiences 2026 ('100 updates' map sites), spatial waypoint scroll | WHEN TO USE: an end-of-year product recap where dozens of releases live as numbered waypoints clustered on one big illustrative anchor, a connecting path snakes between them, and scrolling travels the map to surface each release note (mobile collapses to a vertical waypoint trail) | SWAP: edit the DATA array at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Waypoint - 2026 Release Recap Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<!-- Fraunces = the cartographic title serif; Spline Sans Mono = engraved waypoint coordinates + numbers. -->
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Spline+Sans+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     PALETTE - deep chart ink + bone + waypoint amber + category hues
+     ============================================================ */
+  :root{
+    --ink:#0e1014;
+    --ink-2:#14171d;
+    --ink-3:#1b1f27;
+    --bone:#ede7d8;
+    --bone-soft:#b8b3a6;
+    --bone-faint:#6f6b62;
+    --amber:#e8c547;
+    --amber-deep:#a98a1f;
+    --grid:rgba(237,231,216,.06);
+    --rule:rgba(237,231,216,.14);
+
+    /* category hues - one per release track */
+    --cat-ship:#e8c547;   /* shipped / amber anchor */
+    --cat-perf:#5fd0c4;   /* performance - teal */
+    --cat-design:#e0789a; /* design - rose */
+    --cat-ai:#9b8cf0;     /* ai - violet */
+    --cat-infra:#79c46a;  /* infra - green */
+
+    --shadow:rgba(0,0,0,.5);
+    --r:14px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  html,body{margin:0;padding:0;background:var(--ink);color:var(--bone);}
+  body{
+    font-family:"Spline Sans Mono",ui-monospace,monospace;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    overflow-x:hidden;
+  }
+  ::selection{background:var(--amber);color:var(--ink);}
+
+  /* ============================================================
+     PAGE FRAME - fixed map shell with a subtle plotted grid
+     ============================================================ */
+  .frame{
+    position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:
+      radial-gradient(120% 90% at 50% 18%, rgba(232,197,71,.07), transparent 60%),
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+      var(--ink);
+    background-size:auto, 44px 44px, 44px 44px, auto;
+  }
+  .frame::after{
+    /* corner ticks like a survey chart */
+    content:"";position:absolute;inset:18px;border:1px solid var(--rule);
+    border-radius:6px;
+    mask:
+      linear-gradient(#000 0 0) top left/26px 1px no-repeat,
+      linear-gradient(#000 0 0) top left/1px 26px no-repeat,
+      linear-gradient(#000 0 0) top right/26px 1px no-repeat,
+      linear-gradient(#000 0 0) top right/1px 26px no-repeat,
+      linear-gradient(#000 0 0) bottom left/26px 1px no-repeat,
+      linear-gradient(#000 0 0) bottom left/1px 26px no-repeat,
+      linear-gradient(#000 0 0) bottom right/26px 1px no-repeat,
+      linear-gradient(#000 0 0) bottom right/1px 26px no-repeat;
+  }
+
+  /* ============================================================
+     TOP BAND - compact recap title, overlays the map (no title-only hero)
+     ============================================================ */
+  .band{
+    position:fixed;top:0;left:0;right:0;z-index:30;
+    display:flex;align-items:flex-start;justify-content:space-between;
+    gap:18px;padding:26px clamp(20px,4vw,52px) 18px;
+    background:linear-gradient(180deg, rgba(14,16,20,.92) 0%, rgba(14,16,20,.62) 70%, transparent 100%);
+    pointer-events:none;
+  }
+  .band .lede{max-width:min(560px,62vw);}
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:9px;
+    font-size:11px;letter-spacing:.34em;text-transform:uppercase;
+    color:var(--amber);font-weight:600;
+  }
+  .eyebrow::before{content:"";width:22px;height:1px;background:var(--amber);display:inline-block;}
+  h1{
+    font-family:"Fraunces",serif;font-weight:600;
+    font-size:clamp(30px,6.4vw,68px);line-height:.94;letter-spacing:-.01em;
+    margin:.32em 0 .26em;color:var(--bone);
+  }
+  h1 .count{
+    color:var(--amber);font-style:italic;font-weight:700;
+    text-shadow:0 0 34px rgba(232,197,71,.4);
+  }
+  .band .sub{
+    font-size:13px;color:var(--bone-soft);line-height:1.5;max-width:46ch;
+    margin:0;
+  }
+  .legend{
+    display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:13px;
+    font-size:10.5px;letter-spacing:.06em;
+  }
+  .legend span{display:inline-flex;align-items:center;gap:6px;color:var(--bone-soft);text-transform:uppercase;}
+  .legend i{width:9px;height:9px;border-radius:50%;display:inline-block;box-shadow:0 0 0 3px rgba(255,255,255,.04);}
+
+  .compass{
+    pointer-events:auto;flex:0 0 auto;
+    display:flex;flex-direction:column;align-items:flex-end;gap:8px;
+    font-size:10px;letter-spacing:.2em;color:var(--bone-faint);text-transform:uppercase;
+  }
+  .compass .badge{
+    display:inline-flex;align-items:center;gap:8px;
+    border:1px solid var(--rule);border-radius:999px;
+    padding:7px 13px;color:var(--bone-soft);background:rgba(20,23,29,.6);
+    backdrop-filter:blur(6px);
+  }
+  .compass .badge b{color:var(--amber);font-weight:600;}
+  .progress-ring{position:relative;width:54px;height:54px;}
+  .progress-ring svg{transform:rotate(-90deg);}
+  .progress-ring .pr-bg{stroke:var(--rule);}
+  .progress-ring .pr-fg{stroke:var(--amber);stroke-linecap:round;transition:stroke-dashoffset .25s linear;}
+  .progress-ring .pr-num{
+    position:absolute;inset:0;display:grid;place-items:center;
+    font-size:12px;font-weight:700;color:var(--bone);
+  }
+
+  /* ============================================================
+     MAP STAGE - the giant illustrative anchor + waypoint cluster
+     This is the SIGNATURE, populated at scroll=0.
+     ============================================================ */
+  .stage-sticky{
+    position:sticky;top:0;height:100svh;z-index:10;
+    display:grid;place-items:center;overflow:hidden;
+  }
+  .map{
+    position:relative;
+    width:min(1180px,94vw);
+    aspect-ratio:2048/1152;          /* matches the contained anchor art, never cropped */
+    max-height:84svh;
+    margin-top:2vh;
+  }
+  /* anchor illustration - contained, letterboxed, never cover-cropped */
+  .anchor-art{
+    position:absolute;inset:0;
+    border-radius:var(--r);
+    overflow:hidden;
+    border:1px solid var(--rule);
+    box-shadow:0 40px 120px -30px var(--shadow), inset 0 0 0 1px rgba(255,255,255,.03);
+  }
+  .anchor-art img{
+    width:100%;height:100%;object-fit:cover;object-position:center;
+    filter:saturate(.92) contrast(1.02) brightness(.82);
+  }
+  /* vignette + chart wash over the art so amber markers pop */
+  .anchor-art::after{
+    content:"";position:absolute;inset:0;
+    background:
+      radial-gradient(120% 120% at 50% 40%, transparent 42%, rgba(14,16,20,.72) 100%),
+      linear-gradient(180deg, rgba(14,16,20,.18), rgba(14,16,20,.5));
+    mix-blend-mode:normal;
+  }
+  .map-label{
+    position:absolute;left:14px;bottom:12px;z-index:6;
+    font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--bone-faint);
+    background:rgba(14,16,20,.5);border:1px solid var(--rule);border-radius:6px;
+    padding:5px 9px;backdrop-filter:blur(4px);
+  }
+
+  /* the connecting path SVG sits above the art, under the markers */
+  .map-svg{position:absolute;inset:0;width:100%;height:100%;z-index:4;overflow:visible;pointer-events:none;}
+  .route-base{fill:none;stroke:rgba(237,231,216,.16);stroke-width:.4;stroke-dasharray:1.4 1.4;}
+  .route-travel{fill:none;stroke:var(--amber);stroke-width:.6;filter:drop-shadow(0 0 3px rgba(232,197,71,.55));transition:stroke-dashoffset .12s linear;}
+
+  /* WAYPOINT MARKERS - numbered pins clustered on the anchor */
+  .wp{
+    position:absolute;z-index:5;
+    transform:translate(-50%,-50%);
+    pointer-events:auto;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .wp-dot{
+    position:relative;
+    width:30px;height:30px;border-radius:50%;
+    display:grid;place-items:center;
+    font-size:12px;font-weight:700;color:var(--ink);
+    background:var(--c, var(--amber));
+    border:2px solid rgba(14,16,20,.85);
+    box-shadow:0 4px 14px rgba(0,0,0,.5), 0 0 0 2px color-mix(in srgb, var(--c, var(--amber)) 40%, transparent);
+    transition:transform .2s ease, box-shadow .2s ease;
+  }
+  .wp-dot::before{
+    /* pulse halo */
+    content:"";position:absolute;inset:-7px;border-radius:50%;
+    border:1.5px solid var(--c, var(--amber));opacity:.0;
+  }
+  .wp:hover .wp-dot,.wp:focus-visible .wp-dot{transform:scale(1.18);}
+  .wp:focus-visible{outline:none;}
+  .wp:focus-visible .wp-dot{box-shadow:0 0 0 3px var(--ink), 0 0 0 6px var(--amber);}
+  .wp.is-active .wp-dot{
+    transform:scale(1.32);
+    box-shadow:0 6px 22px rgba(0,0,0,.6), 0 0 0 3px color-mix(in srgb, var(--c, var(--amber)) 70%, transparent), 0 0 26px color-mix(in srgb, var(--c,var(--amber)) 55%, transparent);
+  }
+  .wp.is-active .wp-dot::before{animation:ping 1.8s ease-out infinite;}
+  @keyframes ping{0%{transform:scale(.7);opacity:.7;}70%,100%{transform:scale(2.1);opacity:0;}}
+
+  /* small floating tag on the marker (title peek) */
+  .wp-tag{
+    position:absolute;left:50%;bottom:calc(100% + 9px);transform:translateX(-50%);
+    white-space:nowrap;font-size:10px;letter-spacing:.04em;
+    background:rgba(14,16,20,.92);border:1px solid var(--rule);color:var(--bone);
+    padding:4px 8px;border-radius:6px;pointer-events:none;
+    opacity:0;transition:opacity .18s ease;
+    box-shadow:0 6px 16px rgba(0,0,0,.5);
+  }
+  .wp-tag b{color:var(--c,var(--amber));font-weight:600;}
+  .wp:hover .wp-tag,.wp.is-active .wp-tag,.wp:focus-visible .wp-tag{opacity:1;}
+
+  /* ============================================================
+     SCROLL SECTIONS - one per waypoint, drive the active marker
+     ============================================================ */
+  .scroll-track{position:relative;z-index:20;}
+  .lead-spacer{height:104svh;}    /* lets the map read clean at scroll=0 */
+  .wp-section{
+    min-height:100svh;
+    display:flex;align-items:center;
+    padding:0 clamp(20px,5vw,72px);
+    pointer-events:none;
+  }
+  /* card alternates side so the map center stays visible */
+  .wp-section:nth-child(even){justify-content:flex-end;}
+  .wp-section:nth-child(odd){justify-content:flex-start;}
+
+  .note{
+    pointer-events:auto;
+    width:min(440px,90vw);
+    background:linear-gradient(180deg, rgba(20,23,29,.93), rgba(14,16,20,.93));
+    border:1px solid var(--rule);
+    border-left:3px solid var(--c,var(--amber));
+    border-radius:var(--r);
+    padding:24px 24px 22px;
+    backdrop-filter:blur(10px);
+    box-shadow:0 30px 70px -24px var(--shadow);
+    transform:translateY(26px);opacity:0;
+    transition:transform .5s cubic-bezier(.2,.7,.2,1), opacity .5s ease;
+  }
+  .wp-section.in .note{transform:translateY(0);opacity:1;}
+  .note-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+  .note-no{
+    flex:0 0 auto;width:40px;height:40px;border-radius:10px;
+    display:grid;place-items:center;font-weight:700;font-size:15px;
+    color:var(--ink);background:var(--c,var(--amber));
+    box-shadow:0 4px 14px color-mix(in srgb, var(--c,var(--amber)) 35%, transparent);
+  }
+  .note-meta{display:flex;flex-direction:column;gap:3px;min-width:0;}
+  .note-cat{
+    font-size:10px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--c,var(--amber));font-weight:600;
+  }
+  .note-date{font-size:11px;color:var(--bone-faint);letter-spacing:.04em;}
+  .note h3{
+    font-family:"Fraunces",serif;font-weight:600;font-size:23px;line-height:1.1;
+    margin:0 0 9px;color:var(--bone);letter-spacing:-.01em;
+  }
+  .note p{font-size:13.5px;line-height:1.62;color:var(--bone-soft);margin:0 0 14px;}
+  .note-tags{display:flex;flex-wrap:wrap;gap:7px;}
+  .note-tags span{
+    font-size:10.5px;letter-spacing:.05em;color:var(--bone-soft);
+    border:1px solid var(--rule);border-radius:999px;padding:3px 10px;
+    background:rgba(237,231,216,.03);
+  }
+  .note-coord{
+    margin-top:14px;display:flex;align-items:center;gap:8px;
+    font-size:10px;letter-spacing:.12em;color:var(--bone-faint);text-transform:uppercase;
+  }
+  .note-coord::before{content:"";flex:1;height:1px;background:var(--rule);}
+
+  /* ============================================================
+     OUTRO - the closing marker / summary
+     ============================================================ */
+  .outro{
+    position:relative;z-index:20;
+    min-height:84svh;display:grid;place-items:center;text-align:center;
+    padding:80px clamp(20px,5vw,52px) 110px;
+  }
+  .outro-inner{max-width:640px;}
+  .outro .star{font-size:30px;color:var(--amber);letter-spacing:.4em;}
+  .outro h2{
+    font-family:"Fraunces",serif;font-weight:600;font-size:clamp(28px,5vw,52px);
+    line-height:1.04;margin:14px 0 16px;color:var(--bone);
+  }
+  .outro h2 em{color:var(--amber);font-style:italic;}
+  .outro p{font-size:14px;color:var(--bone-soft);line-height:1.66;margin:0 auto 26px;max-width:52ch;}
+  .outro .cta{
+    display:inline-flex;align-items:center;gap:10px;
+    font-size:12px;letter-spacing:.18em;text-transform:uppercase;font-weight:600;
+    color:var(--ink);background:var(--amber);border:none;border-radius:999px;
+    padding:13px 26px;cursor:pointer;text-decoration:none;
+    box-shadow:0 12px 30px -8px rgba(232,197,71,.5);
+    transition:transform .2s ease, box-shadow .2s ease;
+  }
+  .outro .cta:hover{transform:translateY(-2px);box-shadow:0 18px 40px -8px rgba(232,197,71,.6);}
+  .outro .cta:focus-visible{outline:3px solid var(--bone);outline-offset:3px;}
+  .outro .stats{
+    display:flex;flex-wrap:wrap;justify-content:center;gap:30px 48px;margin-top:38px;
+  }
+  .outro .stat{display:flex;flex-direction:column;gap:4px;}
+  .outro .stat b{font-family:"Fraunces",serif;font-size:32px;color:var(--amber);font-weight:600;}
+  .outro .stat span{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--bone-faint);}
+
+  /* ============================================================
+     MOBILE - the map collapses to a vertical waypoint trail
+     ============================================================ */
+  .trail{display:none;}
+
+  @media (max-width:640px){
+    .band{padding:18px 18px 14px;flex-direction:column;gap:10px;}
+    /* drop the scroll-to-travel copy on mobile (there is no travel mechanic here);
+       this keeps the fixed band short so the anchor banner below clears it. */
+    .band .sub{display:none;}
+    .compass{flex-direction:row;align-items:center;align-self:flex-start;gap:12px;}
+    .progress-ring{width:42px;height:42px;}
+    .legend{gap:5px 11px;}
+
+    /* hide the sticky spatial stage + side-note scroll machinery */
+    .stage-sticky,.scroll-track{display:none !important;}
+
+    /* show a compact contained anchor banner, then a vertical pin trail.
+       padding-top clears the fixed band (eyebrow + title + legend + compass ~= 220px). */
+    .trail{display:block;position:relative;z-index:20;padding:232px 0 40px;}
+    .trail-hero{
+      width:calc(100% - 36px);margin:0 auto 8px;
+      aspect-ratio:2048/1152;border-radius:12px;overflow:hidden;
+      border:1px solid var(--rule);position:relative;
+      box-shadow:0 24px 60px -24px var(--shadow);
+    }
+    .trail-hero img{width:100%;height:100%;object-fit:cover;filter:saturate(.92) brightness(.82);}
+    .trail-hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%, rgba(14,16,20,.7));}
+    .trail-hero .th-cap{
+      position:absolute;left:12px;bottom:10px;font-size:10px;letter-spacing:.18em;
+      text-transform:uppercase;color:var(--bone-soft);
+    }
+    .trail-list{position:relative;margin:18px 22px 0;padding-left:30px;}
+    .trail-list::before{
+      content:"";position:absolute;left:14px;top:8px;bottom:8px;width:2px;
+      background:linear-gradient(180deg,var(--amber),var(--rule));border-radius:2px;
+    }
+    .trail-item{position:relative;padding:0 0 26px;}
+    .trail-pin{
+      position:absolute;left:-30px;top:0;width:30px;height:30px;border-radius:50%;
+      display:grid;place-items:center;font-size:12px;font-weight:700;color:var(--ink);
+      background:var(--c,var(--amber));border:2px solid var(--ink);
+      box-shadow:0 0 0 3px color-mix(in srgb, var(--c,var(--amber)) 30%, transparent);
+    }
+    .trail-card{
+      background:linear-gradient(180deg, rgba(20,23,29,.92), rgba(14,16,20,.92));
+      border:1px solid var(--rule);border-left:3px solid var(--c,var(--amber));
+      border-radius:12px;padding:15px 16px;
+    }
+    .trail-card .tc-cat{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--c,var(--amber));font-weight:600;}
+    .trail-card h3{font-family:"Fraunces",serif;font-weight:600;font-size:18px;line-height:1.12;margin:5px 0 7px;color:var(--bone);}
+    .trail-card p{font-size:12.5px;line-height:1.55;color:var(--bone-soft);margin:0 0 10px;}
+    .trail-card .tc-tags{display:flex;flex-wrap:wrap;gap:6px;}
+    .trail-card .tc-tags span{font-size:10px;color:var(--bone-soft);border:1px solid var(--rule);border-radius:999px;padding:2px 9px;}
+    .outro{min-height:auto;padding:30px 22px 70px;}
+    .outro .stats{gap:22px 34px;}
+  }
+
+  /* tablet / mid: shrink notes so the map keeps breathing room */
+  @media (min-width:641px) and (max-width:980px){
+    .note{width:min(380px,80vw);}
+    .band .sub{display:none;}
+  }
+
+  /* ============================================================
+     REDUCED MOTION - no auto-pan, no pulse, show final state
+     ============================================================ */
+  @media (prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto;}
+    .note{transition:none;}
+    .wp.is-active .wp-dot::before{animation:none;}
+    .route-travel{transition:none;}
+    .progress-ring .pr-fg{transition:none;}
+    *{scroll-behavior:auto !important;}
+  }
+</style>
+</head>
+<body>
+
+<div class="frame" aria-hidden="true"></div>
+
+<script>
+/* ============================================================================
+   DATA - the entire recap lives here. Swap freely.
+   Each waypoint: number, title, category (drives hue), date, body, tags,
+   and x/y as PERCENT coordinates over the anchor illustration (0-100).
+   `art` = the giant illustrative anchor (contained, never cropped).
+   ============================================================================ */
+const RECAP = {
+  year: "2026",
+  product: "Atlas",
+  art: "../assets/flux-car-4k.png",
+  artCaption: "ATLAS / fig.01 - the year, plotted",
+  // category -> hue token (must match --cat-* in CSS)
+  categories: {
+    ship:   { label: "Shipped",      color: "var(--cat-ship)"   },
+    perf:   { label: "Performance",  color: "var(--cat-perf)"   },
+    design: { label: "Design",       color: "var(--cat-design)" },
+    ai:     { label: "Intelligence", color: "var(--cat-ai)"     },
+    infra:  { label: "Infra",        color: "var(--cat-infra)"  },
+  },
+  waypoints: [
+    { n:1,  cat:"ship",   date:"JAN 2026", x:14, y:30, title:"Workspaces, reimagined",
+      body:"A from-scratch workspace shell that loads in under 400ms and remembers exactly where you left off, down to scroll position and open panels.",
+      tags:["Workspaces","Cold start -62%"] },
+    { n:2,  cat:"perf",   date:"FEB 2026", x:28, y:18, title:"Edge render pipeline",
+      body:"Moved rendering to 19 regional edges. Median time-to-first-paint dropped from 1.9s to 0.7s for users outside the core regions.",
+      tags:["Edge","TTFP 0.7s"] },
+    { n:3,  cat:"ai",     date:"FEB 2026", x:40, y:34, title:"Inline copilot",
+      body:"A context-aware assistant that reads the open document and proposes the next action without a single round-trip to a chat sidebar.",
+      tags:["Copilot","Streaming"] },
+    { n:4,  cat:"design", date:"MAR 2026", x:53, y:20, title:"Type system v3",
+      body:"A fluid optical-size type scale that stays legible from a 320px phone to a 6K display, with engraved numeric tabular figures throughout.",
+      tags:["Typography","Fluid scale"] },
+    { n:5,  cat:"infra",  date:"MAR 2026", x:62, y:40, title:"Zero-downtime migrations",
+      body:"Schema changes now ship behind an online migration runner. We moved 4.1 billion rows across the year with no maintenance windows.",
+      tags:["Migrations","4.1B rows"] },
+    { n:6,  cat:"ship",   date:"APR 2026", x:73, y:24, title:"Shareable maps",
+      body:"Any view becomes a link in one keystroke. Recipients open a read-only spatial map with live data and never need an account.",
+      tags:["Sharing","Read-only links"] },
+    { n:7,  cat:"perf",   date:"MAY 2026", x:84, y:38, title:"60fps everywhere",
+      body:"Reworked the scroll and layer compositor so even the heaviest boards hold a locked 60fps on a four-year-old laptop.",
+      tags:["60fps","Compositor"] },
+    { n:8,  cat:"ai",     date:"JUN 2026", x:46, y:54, title:"Semantic search",
+      body:"Search now understands intent, not keywords. Ask for what you mean and the right release, doc, or thread surfaces first.",
+      tags:["Search","Intent"] },
+    { n:9,  cat:"design", date:"AUG 2026", x:30, y:64, title:"Dark mode, properly",
+      body:"A perceptually tuned dark theme built on OKLCH so every category hue keeps its identity at 6% surface luminance.",
+      tags:["Dark mode","OKLCH"] },
+    { n:10, cat:"infra",  date:"OCT 2026", x:18, y:50, title:"99.99% uptime",
+      body:"Four nines for the full year. Multi-region failover now completes in under eight seconds with zero dropped requests.",
+      tags:["Uptime","Failover 8s"] },
+    { n:11, cat:"ship",   date:"NOV 2026", x:60, y:66, title:"Public API v2",
+      body:"A typed, versioned API with first-class webhooks and a generated SDK in six languages. Built on everything we learned the hard way.",
+      tags:["API v2","Webhooks"] },
+    { n:12, cat:"ai",     date:"DEC 2026", x:78, y:60, title:"Predictive recaps",
+      body:"The system that drew this very map: it reads your release log and renders a spatial recap automatically, every December.",
+      tags:["Recaps","Generative"] },
+  ],
+  outro: {
+    title: "That was the route.",
+    lead: "Twelve waypoints, one year, zero detours we would take back. Here is what the map adds up to.",
+    cta: "Plot 2027",
+    stats: [
+      { value:"12", label:"Major waypoints" },
+      { value:"148", label:"Total releases" },
+      { value:"99.99%", label:"Uptime" },
+      { value:"-62%", label:"Cold start" },
+    ]
+  }
+};
+</script>
+
+<!-- ============================================================
+     TOP BAND (rendered from DATA by the script below)
+     ============================================================ -->
+<header class="band" id="band">
+  <div class="lede">
+    <span class="eyebrow" id="eyebrow">Annual Recap Map</span>
+    <h1 id="title"></h1>
+    <p class="sub" id="subtitle"></p>
+    <div class="legend" id="legend"></div>
+  </div>
+  <div class="compass">
+    <div class="badge"><span>Waypoint</span> <b id="cur-wp">01</b> / <span id="tot-wp">12</span></div>
+    <div class="progress-ring">
+      <svg width="54" height="54" viewBox="0 0 54 54">
+        <circle class="pr-bg" cx="27" cy="27" r="23" fill="none" stroke-width="3"></circle>
+        <circle class="pr-fg" cx="27" cy="27" r="23" fill="none" stroke-width="3"
+          stroke-dasharray="144.5" stroke-dashoffset="144.5" id="pr-fg"></circle>
+      </svg>
+      <span class="pr-num" id="pr-num">0%</span>
+    </div>
+  </div>
+</header>
+
+<!-- ============================================================
+     STICKY MAP STAGE (desktop / tablet) - signature at scroll=0
+     ============================================================ -->
+<div class="stage-sticky" aria-hidden="false">
+  <div class="map" id="map">
+    <div class="anchor-art">
+      <img src="../assets/flux-car-4k.png" alt="Illustrative anchor: the 2026 recap map" id="anchor-img" decoding="async" />
+    </div>
+    <span class="map-label" id="map-label">ATLAS / fig.01 - the year, plotted</span>
+    <svg class="map-svg" id="map-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <path class="route-base" id="route-base" d=""></path>
+      <path class="route-travel" id="route-travel" d=""></path>
+    </svg>
+    <!-- waypoint markers injected here -->
+  </div>
+</div>
+
+<!-- ============================================================
+     SCROLL TRACK (desktop / tablet) - one section per waypoint
+     ============================================================ -->
+<main class="scroll-track" id="scroll-track">
+  <div class="lead-spacer" aria-hidden="true"></div>
+  <!-- wp-sections injected here -->
+</main>
+
+<!-- ============================================================
+     MOBILE VERTICAL TRAIL (rendered + shown <=640px)
+     ============================================================ -->
+<section class="trail" id="trail" aria-label="Release waypoint trail"></section>
+
+<!-- ============================================================
+     OUTRO
+     ============================================================ -->
+<section class="outro" id="outro">
+  <div class="outro-inner">
+    <div class="star" aria-hidden="true">+ + +</div>
+    <h2 id="outro-title"></h2>
+    <p id="outro-lead"></p>
+    <a class="cta" id="outro-cta" href="#title"></a>
+    <div class="stats" id="outro-stats"></div>
+  </div>
+</section>
+
+<script>
+/* ============================================================================
+   RENDER + BEHAVIOR
+   ============================================================================ */
+(function(){
+  const D = RECAP;
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const catColor = (c) => (D.categories[c] && D.categories[c].color) || "var(--amber)";
+  const catLabel = (c) => (D.categories[c] && D.categories[c].label) || c;
+
+  /* ---- TOP BAND copy ---- */
+  document.getElementById("eyebrow").textContent = D.year + " Annual Recap Map";
+  document.getElementById("title").innerHTML =
+    '<span class="count">' + D.waypoints.length + '</span> updates this year';
+  document.getElementById("subtitle").textContent =
+    D.product + " shipped across the whole map. Scroll to travel the route and read each release where it landed.";
+  document.getElementById("tot-wp").textContent = String(D.waypoints.length).padStart(2,"0");
+  document.getElementById("anchor-img").src = D.art;
+  document.getElementById("map-label").textContent = D.artCaption;
+  document.title = "Waypoint - " + D.year + " Release Recap Map";
+
+  /* legend from used categories */
+  const usedCats = [...new Set(D.waypoints.map(w=>w.cat))];
+  const legendEl = document.getElementById("legend");
+  usedCats.forEach(c=>{
+    const s=document.createElement("span");
+    s.innerHTML = '<i style="background:'+catColor(c)+'"></i>'+catLabel(c);
+    legendEl.appendChild(s);
+  });
+
+  /* ---- MAP: markers + connecting path ---- */
+  const map = document.getElementById("map");
+  const baseP = document.getElementById("route-base");
+  const travP = document.getElementById("route-travel");
+
+  // smooth path through the waypoints (Catmull-Rom -> cubic bezier), in 0-100 user units
+  const pts = D.waypoints.map(w=>({x:w.x, y:w.y}));
+  function buildPath(p){
+    if(p.length<2) return "";
+    let d = "M "+p[0].x+" "+p[0].y;
+    for(let i=0;i<p.length-1;i++){
+      const p0=p[i-1]||p[i], p1=p[i], p2=p[i+1], p3=p[i+2]||p[i+1];
+      const c1x=p1.x+(p2.x-p0.x)/6, c1y=p1.y+(p2.y-p0.y)/6;
+      const c2x=p2.x-(p3.x-p1.x)/6, c2y=p2.y-(p3.y-p1.y)/6;
+      d+=" C "+c1x.toFixed(2)+" "+c1y.toFixed(2)+", "+c2x.toFixed(2)+" "+c2y.toFixed(2)+", "+p2.x+" "+p2.y;
+    }
+    return d;
+  }
+  const pathD = buildPath(pts);
+  baseP.setAttribute("d", pathD);
+  travP.setAttribute("d", pathD);
+
+  // markers
+  const markers = [];
+  D.waypoints.forEach((w)=>{
+    const a=document.createElement("a");
+    a.className="wp";
+    a.href="#wp-"+w.n;
+    a.style.left=w.x+"%";
+    a.style.top=w.y+"%";
+    a.style.setProperty("--c", catColor(w.cat));
+    a.setAttribute("aria-label", "Waypoint "+w.n+": "+w.title+" ("+catLabel(w.cat)+", "+w.date+")");
+    a.innerHTML =
+      '<span class="wp-tag"><b>#'+w.n+'</b> '+w.title+'</span>'+
+      '<span class="wp-dot">'+w.n+'</span>';
+    map.appendChild(a);
+    markers.push(a);
+  });
+
+  /* set travel path length for scroll-fill */
+  let pathLen = 0;
+  try { pathLen = travP.getTotalLength(); } catch(e){ pathLen = 400; }
+  travP.style.strokeDasharray = pathLen;
+  travP.style.strokeDashoffset = reduceMotion ? 0 : pathLen;
+
+  /* ---- SCROLL SECTIONS (desktop) ---- */
+  const track = document.getElementById("scroll-track");
+  const sections = [];
+  D.waypoints.forEach((w)=>{
+    const sec=document.createElement("section");
+    sec.className="wp-section";
+    sec.id="wp-"+w.n;
+    sec.dataset.n=w.n;
+    sec.style.setProperty("--c", catColor(w.cat));
+    sec.innerHTML =
+      '<article class="note">'+
+        '<div class="note-head">'+
+          '<div class="note-no">'+w.n+'</div>'+
+          '<div class="note-meta">'+
+            '<span class="note-cat">'+catLabel(w.cat)+'</span>'+
+            '<span class="note-date">'+w.date+'</span>'+
+          '</div>'+
+        '</div>'+
+        '<h3>'+w.title+'</h3>'+
+        '<p>'+w.body+'</p>'+
+        '<div class="note-tags">'+w.tags.map(t=>'<span>'+t+'</span>').join('')+'</div>'+
+        '<div class="note-coord">lat '+(w.y).toFixed(1)+' / lng '+(w.x).toFixed(1)+'</div>'+
+      '</article>';
+    track.appendChild(sec);
+    sections.push(sec);
+  });
+
+  /* ---- MOBILE TRAIL ---- */
+  const trail=document.getElementById("trail");
+  let trailHTML =
+    '<div class="trail-hero"><img src="'+D.art+'" alt="2026 recap anchor" decoding="async"/>'+
+    '<span class="th-cap">'+D.waypoints.length+' updates this year</span></div>'+
+    '<div class="trail-list">';
+  D.waypoints.forEach(w=>{
+    trailHTML +=
+      '<div class="trail-item" style="--c:'+catColor(w.cat)+'">'+
+        '<span class="trail-pin">'+w.n+'</span>'+
+        '<div class="trail-card">'+
+          '<span class="tc-cat">'+catLabel(w.cat)+' / '+w.date+'</span>'+
+          '<h3>'+w.title+'</h3>'+
+          '<p>'+w.body+'</p>'+
+          '<div class="tc-tags">'+w.tags.map(t=>'<span>'+t+'</span>').join('')+'</div>'+
+        '</div>'+
+      '</div>';
+  });
+  trailHTML+='</div>';
+  trail.innerHTML=trailHTML;
+
+  /* ---- OUTRO ---- */
+  document.getElementById("outro-title").innerHTML = D.outro.title.replace(/route\./,'<em>route.</em>');
+  document.getElementById("outro-lead").textContent = D.outro.lead;
+  const ctaEl=document.getElementById("outro-cta");
+  ctaEl.textContent = D.outro.cta;
+  ctaEl.innerHTML = D.outro.cta + ' <span aria-hidden="true">&rarr;</span>';
+  const statsEl=document.getElementById("outro-stats");
+  D.outro.stats.forEach(s=>{
+    const d=document.createElement("div");
+    d.className="stat";
+    d.innerHTML='<b>'+s.value+'</b><span>'+s.label+'</span>';
+    statsEl.appendChild(d);
+  });
+
+  /* ---- progress ring + active marker driving ---- */
+  const PR_LEN = 2*Math.PI*23; // 144.51
+  const prFg=document.getElementById("pr-fg");
+  const prNum=document.getElementById("pr-num");
+  const curWp=document.getElementById("cur-wp");
+  let activeN = 1;
+
+  function setActive(n){
+    if(n===activeN) return;
+    activeN=n;
+    markers.forEach((m,i)=>m.classList.toggle("is-active", i===n-1));
+    curWp.textContent=String(n).padStart(2,"0");
+  }
+
+  // IntersectionObserver lights the note + sets active marker
+  if("IntersectionObserver" in window){
+    const io=new IntersectionObserver((entries)=>{
+      entries.forEach(e=>{
+        if(e.isIntersecting){
+          e.target.classList.add("in");
+          setActive(parseInt(e.target.dataset.n,10));
+        }
+      });
+    },{rootMargin:"-40% 0px -40% 0px", threshold:0});
+    sections.forEach(s=>io.observe(s));
+  } else {
+    sections.forEach(s=>s.classList.add("in"));
+    setActive(1);
+  }
+
+  // scroll progress -> ring + traveling route fill (skipped in reduced motion via guard)
+  let ticking=false;
+  function onScroll(){
+    if(ticking) return;
+    ticking=true;
+    requestAnimationFrame(()=>{
+      const doc=document.documentElement;
+      const max=doc.scrollHeight - window.innerHeight;
+      const p = max>0 ? Math.min(1, Math.max(0, window.scrollY/max)) : 0;
+      prFg.style.strokeDashoffset = (PR_LEN*(1-p)).toFixed(2);
+      prNum.textContent = Math.round(p*100)+"%";
+      if(!reduceMotion){
+        travP.style.strokeDashoffset = (pathLen*(1-p)).toFixed(2);
+      }
+      ticking=false;
+    });
+  }
+
+  // initial state: marker 1 active, note 1 visible-ish, ring at 0
+  markers[0] && markers[0].classList.add("is-active");
+  if(reduceMotion){
+    // show final settled state: all notes visible, full route drawn
+    sections.forEach(s=>s.classList.add("in"));
+    travP.style.strokeDashoffset = 0;
+    prFg.style.strokeDashoffset = 0;
+    prNum.textContent = "100%";
+  } else {
+    window.addEventListener("scroll", onScroll, {passive:true});
+    onScroll();
+  }
+
+  // recompute path length if fonts/layout settle (path is in user units so it is stable,
+  // but getTotalLength after first paint is most accurate)
+  window.addEventListener("load", ()=>{
+    try{
+      const L=travP.getTotalLength();
+      if(L && Math.abs(L-pathLen)>1){
+        pathLen=L;
+        travP.style.strokeDasharray=pathLen;
+        if(reduceMotion){ travP.style.strokeDashoffset=0; }
+        else { onScroll(); }
+      }
+    }catch(e){}
+  });
+})();
+</script>
+</body>
+</html>

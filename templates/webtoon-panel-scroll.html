@@ -1,0 +1,652 @@
+<!-- TEMPLATE: Webtoon Panel Scroll | ARCHETYPE: webtoon-panel-scroll (vertical inked comic panels that breathe) | REF: Ponpon Mania by Patrick Heng / OKAY DEV (Awwwards SOTM Oct 2025), Siena Film Foundation filmstrip | WHEN TO USE: a portfolio read as a vertical manga/webtoon strip - each work is an inked panel with a caption box, dialogue bubbles, a breathe-pulse + speed-line sweep on enter, and click-to-expand manga-style | SWAP: edit the DATA array at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>INK / RUN - a webtoon portfolio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Gloria+Hallelujah&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     PALETTE - panel paper, ink outline, spot red
+     ============================================================ */
+  :root{
+    --paper:#fefcf6;        /* panel paper */
+    --ink:#1a1a1a;          /* inked outline + text */
+    --red:#e63946;          /* spot red - bubbles, action lines */
+    --gutter:#fefcf6;       /* intentional white between panels */
+    --rule:#dcd7c8;         /* thin pacing rule in the gutter */
+    --paper-shade:#f4f0e2;  /* letterbox bars / behind contained media */
+    --ink-soft:rgba(26,26,26,.55);
+    --panel-pad:clamp(14px,2.2vw,26px);
+    --ease:cubic-bezier(.16,.84,.44,1);
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--gutter);
+    color:var(--ink);
+    font-family:"Space Grotesk",system-ui,sans-serif;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  /* faint halftone-dot texture on the gutter so white reads as "comic page" not "blank" */
+  body::before{
+    content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+    background-image:radial-gradient(var(--rule) 1px,transparent 1.4px);
+    background-size:18px 18px;
+    opacity:.5;
+  }
+  img,video{display:block;max-width:100%}
+  a{color:inherit}
+
+  /* ============================================================
+     TOP BAND - compact masthead, mechanic stays in first screen
+     ============================================================ */
+  .masthead{
+    position:relative;z-index:3;
+    max-width:760px;margin:0 auto;
+    padding:clamp(20px,4vw,40px) var(--panel-pad) 6px;
+    text-align:center;
+  }
+  .masthead h1{
+    font-family:"Bangers",cursive;
+    font-size:clamp(38px,8.5vw,76px);
+    letter-spacing:.04em;line-height:.92;
+    text-transform:uppercase;
+    -webkit-text-stroke:1.5px var(--ink);
+    color:var(--paper);
+    text-shadow:4px 4px 0 var(--ink), 7px 7px 0 var(--red);
+  }
+  .masthead h1 .pow{color:var(--red);-webkit-text-stroke:1.5px var(--ink);text-shadow:4px 4px 0 var(--ink)}
+  .masthead p{
+    margin:14px auto 0;max-width:46ch;
+    font-size:clamp(13px,1.5vw,15px);color:var(--ink-soft);
+  }
+  .scrollcue{
+    margin:14px auto 0;display:inline-flex;align-items:center;gap:8px;
+    font-family:"Gloria Hallelujah",cursive;font-size:12px;color:var(--red);
+  }
+  .scrollcue .arrow{
+    width:14px;height:14px;border-right:2.5px solid var(--red);border-bottom:2.5px solid var(--red);
+    transform:rotate(45deg);animation:bob 1.4s var(--ease) infinite;
+  }
+  @keyframes bob{0%,100%{transform:rotate(45deg) translate(0,0)}50%{transform:rotate(45deg) translate(3px,3px)}}
+
+  /* ============================================================
+     STRIP - the vertical webtoon column
+     ============================================================ */
+  .strip{
+    position:relative;z-index:1;
+    max-width:760px;margin:0 auto;
+    padding:0 var(--panel-pad) 18vh;
+  }
+
+  /* the pacing gap: intentional white gutter + thin rule between panels */
+  .gutter{
+    height:clamp(34px,6vw,64px);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .gutter::after{
+    content:"";width:38%;max-width:160px;height:0;
+    border-top:1.5px dashed var(--rule);
+  }
+
+  /* ---- PANEL ---- */
+  .panel{
+    position:relative;
+    background:var(--paper);
+    border:3px solid var(--ink);
+    border-radius:3px;
+    /* hand-inked double-line feel via a tight outer offset shadow */
+    box-shadow:6px 6px 0 var(--ink);
+    overflow:hidden;
+    transform:scale(.985);
+    transition:transform .6s var(--ease), box-shadow .35s var(--ease);
+    cursor:pointer;
+    will-change:transform;
+  }
+  /* breathing pulse - applied when in view */
+  .panel.breathing{animation:breathe 5.5s ease-in-out infinite}
+  @keyframes breathe{
+    0%,100%{transform:scale(.992)}
+    50%{transform:scale(1.0)}
+  }
+  .panel:focus-visible{outline:3px solid var(--red);outline-offset:5px}
+  .panel:hover{box-shadow:9px 9px 0 var(--red)}
+
+  /* speed-line radial sweep, drawn on enter, fades out */
+  .panel .speedlines{
+    position:absolute;inset:0;z-index:4;pointer-events:none;
+    opacity:0;
+    background:
+      repeating-conic-gradient(from 0deg at 50% 50%,
+        rgba(230,57,70,.0) 0deg,
+        rgba(230,57,70,.0) 3deg,
+        rgba(230,57,70,.28) 3.6deg,
+        rgba(230,57,70,.0) 4.2deg);
+    -webkit-mask-image:radial-gradient(circle at 50% 50%, transparent 30%, #000 78%);
+            mask-image:radial-gradient(circle at 50% 50%, transparent 30%, #000 78%);
+  }
+  .panel.swept .speedlines{animation:sweep 1.05s var(--ease) 1 forwards}
+  @keyframes sweep{
+    0%{opacity:0;transform:scale(.55) rotate(-14deg)}
+    22%{opacity:1}
+    100%{opacity:0;transform:scale(1.5) rotate(10deg)}
+  }
+
+  /* media stage - letterbox, never crop. aspect-ratio keeps phones honest */
+  .stage{
+    position:relative;
+    background:var(--ink);              /* black bars frame contained landscape media */
+    aspect-ratio:16/9;                  /* default; per-panel override via --ar */
+    aspect-ratio:var(--ar,16/9);
+    display:flex;align-items:center;justify-content:center;
+    overflow:hidden;
+  }
+  .stage img,.stage video{
+    width:100%;height:100%;
+    object-fit:contain;                 /* LETTERBOX - the no-crop guarantee */
+    background:var(--ink);
+  }
+  /* poster overlay for videos: we only play the focused panel */
+  .stage video{opacity:0;transition:opacity .5s var(--ease)}
+  .panel.playing .stage video{opacity:1}
+  .stage .poster{
+    position:absolute;inset:0;width:100%;height:100%;object-fit:contain;
+    background:var(--ink);transition:opacity .5s var(--ease);
+  }
+  .panel.playing .stage .poster{opacity:0}
+  /* play chip on video panels */
+  .stage .chip{
+    position:absolute;right:10px;bottom:10px;z-index:5;
+    display:flex;align-items:center;gap:6px;
+    background:var(--red);color:var(--paper);
+    font-family:"Bangers",cursive;letter-spacing:.06em;font-size:12px;
+    padding:4px 10px;border:2px solid var(--ink);border-radius:2px;
+    box-shadow:2px 2px 0 var(--ink);
+  }
+  .stage .chip .dot{width:7px;height:7px;border-radius:50%;background:var(--paper)}
+  .panel.playing .stage .chip{background:var(--ink)}
+  .panel.playing .stage .chip .dot{background:var(--red);animation:blink 1s step-end infinite}
+  @keyframes blink{50%{opacity:.25}}
+
+  /* caption box - upper-left, types itself in */
+  .caption{
+    position:absolute;top:0;left:0;z-index:6;
+    max-width:min(74%,420px);
+    background:var(--paper);
+    border-right:3px solid var(--ink);
+    border-bottom:3px solid var(--ink);
+    border-bottom-right-radius:10px;
+    padding:10px 16px 11px 12px;
+  }
+  .caption .kicker{
+    font-family:"Bangers",cursive;letter-spacing:.05em;
+    font-size:11px;color:var(--red);line-height:1;
+  }
+  .caption .title{
+    font-weight:700;font-size:clamp(15px,2.1vw,19px);
+    line-height:1.15;margin-top:3px;
+    /* typing rig: text revealed by JS char-count via clamp on a measured span */
+    white-space:nowrap;overflow:hidden;
+  }
+  .caption .title .cursor{
+    display:inline-block;width:.62ch;color:var(--red);
+    animation:caret .8s step-end infinite;
+  }
+  @keyframes caret{50%{opacity:0}}
+  .caption .prompt{
+    font-family:"Gloria Hallelujah",cursive;
+    font-size:11px;color:var(--ink-soft);margin-top:5px;line-height:1.35;
+    white-space:normal;
+  }
+
+  /* dialogue bubble annotation - lower-right, spot red */
+  .bubble{
+    position:absolute;z-index:6;
+    bottom:14px;left:14px;
+    max-width:62%;
+    background:var(--red);color:var(--paper);
+    font-family:"Gloria Hallelujah",cursive;
+    font-size:clamp(11px,1.5vw,13px);line-height:1.3;
+    padding:9px 13px;border:2.5px solid var(--ink);border-radius:16px;
+    box-shadow:3px 3px 0 var(--ink);
+    transform:scale(.6) rotate(-3deg);opacity:0;transform-origin:bottom left;
+    transition:transform .45s var(--ease) .35s, opacity .3s ease .35s;
+  }
+  .panel.breathing .bubble,.panel.swept .bubble{transform:scale(1) rotate(-3deg);opacity:1}
+  /* bubble tail */
+  .bubble::after{
+    content:"";position:absolute;left:22px;bottom:-13px;
+    width:0;height:0;border:7px solid transparent;
+    border-top-color:var(--red);
+    filter:drop-shadow(2px 3px 0 var(--ink));
+  }
+
+  /* index sticker, top-right of each panel */
+  .panel .idx{
+    position:absolute;top:8px;right:10px;z-index:6;
+    font-family:"Bangers",cursive;font-size:13px;letter-spacing:.05em;
+    color:var(--ink);background:var(--paper);
+    border:2px solid var(--ink);border-radius:50%;
+    width:30px;height:30px;display:flex;align-items:center;justify-content:center;
+    box-shadow:2px 2px 0 var(--red);
+  }
+
+  /* ============================================================
+     EXPANDED / LIGHTBOX - manga "splash page" with perspective push
+     ============================================================ */
+  /* NOTE: perspective lives ONLY on the open stage (via the push keyframe's
+     own perspective()), never on a strip ancestor - a perspective ancestor
+     would become the containing block for position:fixed and trap the splash
+     inside the 760px column. */
+  .panel.open{
+    position:fixed;inset:0;z-index:50;
+    width:100vw;height:100vh;height:100dvh;
+    margin:0;border:none;border-radius:0;cursor:zoom-out;
+    transform:none !important;animation:none !important;
+    box-shadow:none;
+    max-width:100vw;
+    display:flex;flex-direction:column;
+    background:var(--paper);
+  }
+  .panel.open .stage{
+    aspect-ratio:auto !important;
+    flex:1 1 auto;min-height:0;height:auto;max-height:none;
+    animation:push 0.6s var(--ease) 1;
+  }
+  @keyframes push{
+    0%{transform:perspective(1400px) translateZ(-260px) rotateX(7deg);opacity:.4}
+    100%{transform:perspective(1400px) translateZ(0) rotateX(0);opacity:1}
+  }
+  .panel.open .caption{max-width:min(80%,560px)}
+  .overlay{
+    position:fixed;inset:0;z-index:40;
+    background:rgba(26,26,26,.78);
+    opacity:0;pointer-events:none;transition:opacity .4s ease;
+  }
+  .overlay.on{opacity:1;pointer-events:auto}
+  .closehint{
+    position:fixed;top:14px;right:16px;z-index:60;
+    font-family:"Bangers",cursive;letter-spacing:.06em;font-size:14px;
+    color:var(--paper);background:var(--red);
+    border:2.5px solid var(--paper);border-radius:3px;
+    padding:5px 12px;box-shadow:3px 3px 0 rgba(0,0,0,.5);
+    opacity:0;pointer-events:none;transition:opacity .3s ease;
+  }
+  .closehint.on{opacity:1;pointer-events:auto;cursor:pointer}
+
+  /* ============================================================
+     FOOTER
+     ============================================================ */
+  .endcap{
+    position:relative;z-index:1;text-align:center;
+    padding:6vh var(--panel-pad) 12vh;
+  }
+  .endcap .fin{
+    font-family:"Bangers",cursive;font-size:clamp(32px,7vw,58px);
+    letter-spacing:.06em;color:var(--ink);
+    -webkit-text-stroke:1px var(--ink);text-shadow:3px 3px 0 var(--red);
+  }
+  .endcap small{display:block;margin-top:8px;color:var(--ink-soft);font-size:12px}
+
+  /* ============================================================
+     RESPONSIVE - <=640px is the native webtoon strip
+     single column already; just tighten chrome, never crop media
+     ============================================================ */
+  @media (max-width:640px){
+    .strip{padding:0 12px 16vh}
+    .panel{box-shadow:4px 4px 0 var(--ink)}
+    .caption{max-width:84%;padding:8px 12px 9px 10px}
+    .caption .title{font-size:15px}
+    .bubble{max-width:80%;bottom:12px;left:12px}
+    /* on phones, very wide media (16:9) in a portrait column is fine because
+       we CONTAIN it; but cap the stage height so a landscape panel never eats
+       the whole screen and the caption stays legible */
+    .stage{max-height:62vh}
+    .masthead h1{text-shadow:3px 3px 0 var(--ink),5px 5px 0 var(--red)}
+  }
+  /* portrait-ish square media on phones reads better letterboxed in 4/5 */
+  @media (max-width:640px){
+    .panel[data-shape="square"] .stage{aspect-ratio:1/1;max-height:70vh}
+    .panel[data-shape="wide"] .stage{aspect-ratio:16/10}
+  }
+
+  /* ============================================================
+     REDUCED MOTION - disable pulse, speed-lines, typing, push.
+     show final state, no rAF overrides.
+     ============================================================ */
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none !important;transition:none !important;scroll-behavior:auto !important}
+    .panel{transform:none !important}
+    .panel .speedlines{display:none}
+    .bubble{opacity:1 !important;transform:scale(1) rotate(-3deg) !important}
+    .caption .title .cursor{display:none}
+    .stage video{opacity:1}      /* reduced motion users still see final state; JS keeps them paused-on-poster though */
+    .scrollcue .arrow{animation:none}
+  }
+</style>
+</head>
+<body>
+
+  <!-- ============================================================
+       DATA - swap works here. one object per panel.
+       shape: "wide" (16:9 landscape) | "square" (1:1) | "tall"
+       media kind: "img" or "video" (video needs poster)
+       ============================================================ -->
+  <header class="masthead">
+    <h1>Ink<span class="pow">.</span>Run<span class="pow">!</span></h1>
+    <p>A generated-media portfolio read like a webtoon. Scroll the strip - each panel breathes as it enters. Tap a panel to splash it full-page.</p>
+    <span class="scrollcue">scroll the strip <span class="arrow"></span></span>
+  </header>
+
+  <main class="strip" id="strip" aria-label="Webtoon panel strip"></main>
+
+  <footer class="endcap">
+    <div class="fin">- FIN -</div>
+    <small>Native CSS + IntersectionObserver. No GSAP, no WebGL. Reduced-motion safe.</small>
+  </footer>
+
+  <div class="overlay" id="overlay"></div>
+  <button class="closehint" id="closehint" aria-label="Close expanded panel">CLOSE x</button>
+
+<script>
+  /* ============================================================
+     DATA ARRAY - edit me to reswap the whole portfolio
+     ============================================================ */
+  const DATA = [
+    {
+      kicker:"PANEL 01 // I2V",
+      title:"Night Drive, Wet Neon",
+      prompt:"prompt: matte-black Mercedes, rain-slick street, neon bleed",
+      bubble:"“engine on. let it loop.”",
+      kind:"video", shape:"wide",
+      src:"../assets/flux-car-i2v.mp4",
+      poster:"../assets/gen/poster-flux-car-i2v.png",
+      alt:"Cinematic matte-black Mercedes on a wet neon street, looping image-to-video clip"
+    },
+    {
+      kicker:"PANEL 02 // STILL",
+      title:"The Showroom Frame",
+      prompt:"prompt: hero render, 4K, cinematic key light",
+      bubble:"“same car, frozen mid-frame.”",
+      kind:"img", shape:"wide",
+      src:"../assets/flux-car-4k.png",
+      alt:"4K cinematic still of a matte-black Mercedes on a neon street"
+    },
+    {
+      kicker:"PANEL 03 // STILL",
+      title:"Mint & Wood Clinic",
+      prompt:"prompt: calm dental clinic, mint walls, warm wood, soft daylight",
+      bubble:"“cut to: somewhere it doesn’t hurt.”",
+      kind:"img", shape:"wide",
+      src:"../assets/flux-clinic-4k.png",
+      alt:"A mint and wood dental clinic interior, soft natural light, 4K render"
+    },
+    {
+      kicker:"PANEL 04 // T2V",
+      title:"Kling Motion Test",
+      prompt:"prompt: text-to-video, dynamic camera, generated loop",
+      bubble:"“watch it move.”",
+      kind:"video", shape:"wide",
+      src:"../assets/kling-video.mp4",
+      poster:"../assets/gen/poster-kling-video.png",
+      alt:"A generated text-to-video loop with dynamic camera motion"
+    },
+    {
+      kicker:"PANEL 05 // PAINT",
+      title:"Autumn Fox",
+      prompt:"prompt: painterly fox, autumn palette, SDXL",
+      bubble:"“a quieter beat. softer ink.”",
+      kind:"img", shape:"square",
+      src:"../assets/sdxl.png",
+      alt:"A painterly autumn fox illustration generated with SDXL"
+    },
+    {
+      kicker:"PANEL 06 // T2V",
+      title:"FAL Generative Reel",
+      prompt:"prompt: fal.ai generated motion, silent loop",
+      bubble:"“one more loop, then we cut.”",
+      kind:"video", shape:"wide",
+      src:"../assets/fal-video.mp4",
+      poster:"../assets/gen/poster-fal-video.png",
+      alt:"A generated video loop from fal.ai"
+    },
+    {
+      kicker:"PANEL 07 // AVATAR",
+      title:"Talking Head, Veo",
+      prompt:"prompt: photoreal generated presenter, ambient room",
+      bubble:"“and here, somebody speaks.”",
+      kind:"video", shape:"wide",
+      src:"../assets/veo-video.mp4",
+      poster:"../assets/gen/poster-veo-video.png",
+      alt:"A photoreal generated presenter video from Veo"
+    },
+    {
+      kicker:"PANEL 08 // LO-FI",
+      title:"Abstract Apple",
+      prompt:"prompt: low-fi abstract apple, tinySD",
+      bubble:"“end on something small.”",
+      kind:"img", shape:"square",
+      src:"../assets/hf-tinysd.png",
+      alt:"An abstract low-fidelity apple image generated with tinySD"
+    }
+  ];
+
+  /* ============================================================
+     RENDER - build panels from DATA
+     ============================================================ */
+  const strip = document.getElementById('strip');
+  const RM = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+  DATA.forEach((d,i)=>{
+    if(i>0){
+      const g=document.createElement('div'); g.className='gutter'; strip.appendChild(g);
+    }
+    const p=document.createElement('article');
+    p.className='panel';
+    p.dataset.shape=d.shape;
+    p.tabIndex=0;
+    p.setAttribute('role','button');
+    p.setAttribute('aria-label',(d.title||'panel')+' - tap to expand');
+
+    // per-shape aspect ratio (desktop default)
+    const ar = d.shape==='square' ? '1/1' : '16/9';
+    const mediaEl = d.kind==='video'
+      ? `<img class="poster" src="${d.poster}" alt="${d.alt}" loading="lazy" decoding="async">
+         <video src="${d.src}" muted loop playsinline preload="none" aria-hidden="true"></video>
+         <span class="chip"><span class="dot"></span>LOOP</span>`
+      : `<img src="${d.src}" alt="${d.alt}" loading="lazy" decoding="async">`;
+
+    p.innerHTML = `
+      <div class="speedlines" aria-hidden="true"></div>
+      <span class="idx">${String(i+1).padStart(2,'0')}</span>
+      <div class="stage" style="--ar:${ar}">${mediaEl}</div>
+      <div class="caption">
+        <div class="kicker">${d.kicker}</div>
+        <div class="title" data-full="${d.title.replace(/"/g,'&quot;')}"><span class="txt"></span><span class="cursor">█</span></div>
+        <div class="prompt">${d.prompt}</div>
+      </div>
+      <div class="bubble">${d.bubble}</div>
+    `;
+    strip.appendChild(p);
+  });
+
+  const panels = Array.from(strip.querySelectorAll('.panel'));
+
+  /* ============================================================
+     TYPEWRITER for caption titles (skipped under reduced motion)
+     ============================================================ */
+  function typeTitle(panel){
+    const el = panel.querySelector('.title');
+    const txtSpan = panel.querySelector('.title .txt');
+    const cursor = panel.querySelector('.title .cursor');
+    const full = el.dataset.full;
+    if(panel.dataset.typed) return;
+    panel.dataset.typed = '1';
+
+    if(RM){ txtSpan.textContent = full; if(cursor) cursor.style.display='none'; return; }
+
+    let n=0;
+    (function step(){
+      txtSpan.textContent = full.slice(0,n);
+      n++;
+      if(n<=full.length){ setTimeout(step, 34); }
+      else { setTimeout(()=>{ if(cursor) cursor.style.opacity=''; }, 400); }
+    })();
+  }
+
+  /* ============================================================
+     INTERSECTION OBSERVER - breathe, speed-line sweep, play video
+     only the most-centered visible video plays at a time.
+     ============================================================ */
+  let focusedVideoPanel = null;
+
+  function setVideo(panel, on){
+    const v = panel.querySelector('video');
+    if(!v) return;
+    if(on){
+      panel.classList.add('playing');
+      const pr = v.play();
+      if(pr && pr.catch) pr.catch(()=>{ /* autoplay guard: stays on poster, fine */ });
+    } else {
+      panel.classList.remove('playing');
+      try{ v.pause(); }catch(e){}
+    }
+  }
+
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{
+      const panel = e.target;
+      if(e.isIntersecting){
+        // breathe + speed-line sweep on first meaningful entry
+        if(!RM){
+          panel.classList.add('breathing');
+          if(!panel.dataset.swept && e.intersectionRatio>0.18){
+            panel.dataset.swept='1';
+            panel.classList.add('swept');
+          }
+        } else {
+          // reduced motion: just reveal bubble (CSS handles via .swept marker)
+          panel.classList.add('swept');
+        }
+        typeTitle(panel);
+      } else {
+        panel.classList.remove('breathing');
+        // leaving view: stop its video if it was the focused one
+        if(focusedVideoPanel===panel){ setVideo(panel,false); focusedVideoPanel=null; }
+      }
+    });
+    pickFocusedVideo();
+  },{ threshold:[0,0.18,0.5,0.75], rootMargin:'-6% 0px -6% 0px' });
+
+  panels.forEach(p=>io.observe(p));
+
+  /* choose the single video panel closest to viewport center to play.
+     prevents simultaneous decode of many clips (FPS protection). */
+  function pickFocusedVideo(){
+    const mid = window.innerHeight/2;
+    let best=null, bestDist=Infinity;
+    panels.forEach(p=>{
+      if(!p.querySelector('video')) return;
+      if(p.classList.contains('open')) { best=p; bestDist=-1; return; }
+      const r = p.getBoundingClientRect();
+      if(r.bottom<0 || r.top>window.innerHeight) return;
+      const c = r.top + r.height/2;
+      const dist = Math.abs(c-mid);
+      // require the panel to be substantially on-screen
+      const visible = Math.min(r.bottom,window.innerHeight)-Math.max(r.top,0);
+      if(visible < r.height*0.35) return;
+      if(dist<bestDist){ bestDist=dist; best=p; }
+    });
+    // reduced motion: never AUTO-play a scrolled-into-view clip (autoplay loop
+    // is motion). keep it paused on its poster (final still). only an explicitly
+    // opened/clicked panel is allowed to play, since that is user-initiated.
+    if(RM && best && !best.classList.contains('open')) best = null;
+    if(best===focusedVideoPanel) return;
+    if(focusedVideoPanel) setVideo(focusedVideoPanel,false);
+    focusedVideoPanel = best;
+    if(best) setVideo(best,true);
+  }
+
+  // re-evaluate focused video on scroll (rAF-throttled). Under reduced motion
+  // we STILL throttle-pick so only one clip decodes, but motion classes are off.
+  let ticking=false;
+  window.addEventListener('scroll',()=>{
+    if(ticking) return; ticking=true;
+    requestAnimationFrame(()=>{ pickFocusedVideo(); ticking=false; });
+  }, {passive:true});
+  window.addEventListener('resize', pickFocusedVideo, {passive:true});
+
+  /* ============================================================
+     EXPAND / SPLASH - click a panel to fill viewport, perspective push
+     ============================================================ */
+  const overlay = document.getElementById('overlay');
+  const closehint = document.getElementById('closehint');
+  let openPanel = null;
+  let savedScrollY = 0;
+
+  function openPanelFn(panel){
+    if(openPanel) return;
+    openPanel = panel;
+    savedScrollY = window.scrollY;
+    panel.classList.add('open');
+    panel.classList.remove('breathing');
+    overlay.classList.add('on');
+    closehint.classList.add('on');
+    document.body.style.overflow='hidden';
+    // play this panel's video if it has one (single focused clip)
+    if(panel.querySelector('video')){
+      if(focusedVideoPanel && focusedVideoPanel!==panel) setVideo(focusedVideoPanel,false);
+      focusedVideoPanel=panel; setVideo(panel,true);
+    }
+    closehint.focus();
+  }
+
+  function closePanelFn(){
+    if(!openPanel) return;
+    const panel = openPanel;
+    panel.classList.remove('open');
+    overlay.classList.remove('on');
+    closehint.classList.remove('on');
+    document.body.style.overflow='';
+    window.scrollTo(0, savedScrollY);
+    openPanel = null;
+    panel.focus({preventScroll:true});
+    // re-pick focused video for the strip
+    pickFocusedVideo();
+  }
+
+  panels.forEach(p=>{
+    p.addEventListener('click', ()=>{ if(openPanel) closePanelFn(); else openPanelFn(p); });
+    p.addEventListener('keydown', (ev)=>{
+      if(ev.key==='Enter' || ev.key===' '){ ev.preventDefault(); if(!openPanel) openPanelFn(p); }
+    });
+  });
+  overlay.addEventListener('click', closePanelFn);
+  closehint.addEventListener('click', closePanelFn);
+  window.addEventListener('keydown', (ev)=>{ if(ev.key==='Escape' && openPanel) closePanelFn(); });
+
+  /* ============================================================
+     FIRST-VIEWPORT SIGNATURE
+     ensure the top panel is already breathing + typed + media-visible
+     at scroll=0 (so the catalog thumbnail shows the mechanic alive).
+     ============================================================ */
+  window.addEventListener('load', ()=>{
+    const first = panels[0];
+    if(first){
+      if(!RM){ first.classList.add('breathing'); first.dataset.swept='1'; first.classList.add('swept'); }
+      else { first.classList.add('swept'); }
+      typeTitle(first);
+    }
+    // kick off video selection immediately
+    pickFocusedVideo();
+  });
+</script>
+</body>
+</html>

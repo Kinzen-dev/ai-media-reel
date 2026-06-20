@@ -1,0 +1,507 @@
+<!-- TEMPLATE: Blind Wipe | ARCHETYPE: SVG mask reveal gallery (4 wipe patterns: H-blinds, random grid, V-blinds, column wave) | REF: Codrops SVG Mask Transitions on Scroll (Mar 2026), Cyd Stumpel CSS View Transitions (Awwwards SOTD 2025) | WHEN TO USE: a portfolio / lookbook where each work should arrive with a tactile mask-reveal as it scrolls into view, the mechanic itself being the brand | SWAP: edit the WORKS array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Blind Wipe - SVG Mask Reveal Gallery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================================
+   ALL CONTENT lives in the WORKS array inside <script> at the bottom of <body>.
+   To reskin: edit that array (type, src, poster, title, meta) and the THEME
+   tokens just below. The wipe engine and the four patterns are generic.
+   ============================================================================ */
+:root{
+  --bone:#f4f0e8;        /* the reveal surface / page base */
+  --mask:#111111;        /* the mask black that hides each work */
+  --seam:#d8482a;        /* vermilion seam, visible mid-wipe */
+  --ink:#16140f;         /* text on bone */
+  --ink-dim:#6f685c;
+  --line:#16140f1f;
+  --display:'Fraunces',Georgia,serif;
+  --body:'Space Grotesk',system-ui,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --open:1100ms;         /* wipe duration */
+  --ease:cubic-bezier(.76,0,.24,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{
+  background:var(--bone);color:var(--ink);font-family:var(--body);
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;
+  background-image:
+    radial-gradient(120% 90% at 80% -10%, #ffffff 0%, transparent 55%),
+    repeating-linear-gradient(0deg, #00000005 0 1px, transparent 1px 3px);
+}
+img,video,svg{display:block;max-width:100%}
+a{color:inherit;text-decoration:none}
+::selection{background:var(--seam);color:var(--bone)}
+
+/* ---- fixed brand rail ---- */
+.rail{
+  position:fixed;inset:0;z-index:60;pointer-events:none;
+  display:flex;justify-content:space-between;align-items:flex-start;
+  padding:clamp(14px,2.4vw,30px);
+  font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-dim);
+  mix-blend-mode:multiply;
+}
+.rail b{color:var(--ink);font-weight:500}
+.rail .seam{color:var(--seam)}
+.rail .right{text-align:right;line-height:1.7}
+
+/* ---- top band: compact headline that overlays the first, already-populated work ---- */
+.band{
+  position:absolute;top:0;left:0;right:0;z-index:5;
+  padding:clamp(54px,8vw,88px) clamp(16px,5vw,72px) clamp(40px,7vw,90px);
+  pointer-events:none;color:var(--bone);
+  background:linear-gradient(180deg, #0d0c0bd9 0%, #0d0c0b9c 42%, #0d0c0b00 100%);
+}
+.band .sub{color:#f4f0e8d4}
+.band h1{
+  font-family:var(--display);font-weight:900;font-optical-sizing:auto;
+  font-size:clamp(38px,8.2vw,112px);line-height:.86;letter-spacing:-.025em;
+  max-width:15ch;
+}
+.band h1 em{font-style:italic;font-weight:400;color:#ff6a47}
+.band .sub{
+  margin-top:clamp(14px,2vw,24px);max-width:48ch;
+  font-size:clamp(13px,1.5vw,17px);line-height:1.5;color:var(--ink-dim);
+}
+
+/* ---- the gallery: each work is a sticky-ish full-bleed stage ---- */
+.gallery{position:relative;z-index:2}
+.work{
+  position:relative;width:100%;
+  height:100svh;min-height:540px;
+  display:grid;place-items:center;
+  border-top:1px solid var(--line);
+  overflow:hidden;
+  /* a faint paper between works so the bone reveal reads as a surface */
+  background:
+    linear-gradient(180deg,#0000 0,#0000 100%),
+    var(--bone);
+}
+.work:first-child{border-top:0}
+
+/* the media frame: letterboxed on phones, cover on desktop landscape stage */
+.frame{
+  position:relative;width:100%;height:100%;
+  display:grid;place-items:center;
+}
+.frame .media{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;object-position:center;
+  background:#0c0b0a;
+}
+/* the mask SVG sits over the media; its panels are the curtain */
+.curtain{
+  position:absolute;inset:0;width:100%;height:100%;z-index:3;
+  pointer-events:none;
+}
+
+/* caption plate, lower-left, on the bone-revealed margin */
+.plate{
+  position:absolute;left:clamp(14px,3vw,40px);bottom:clamp(14px,3vw,40px);
+  z-index:4;max-width:min(78vw,560px);
+  background:#f4f0e8e8;backdrop-filter:blur(6px);
+  border:1px solid var(--line);border-left:3px solid var(--seam);
+  padding:clamp(12px,1.6vw,18px) clamp(14px,2vw,22px);
+  transform:translateY(14px);opacity:0;
+  transition:opacity .6s var(--ease) .35s, transform .6s var(--ease) .35s;
+}
+.work.is-open .plate{opacity:1;transform:none}
+.plate .idx{font-family:var(--mono);font-size:11px;letter-spacing:.16em;color:var(--seam);text-transform:uppercase}
+.plate h2{font-family:var(--display);font-weight:600;font-size:clamp(20px,3vw,34px);line-height:1.02;margin:.18em 0 .28em;letter-spacing:-.01em}
+.plate .meta{font-family:var(--mono);font-size:11.5px;letter-spacing:.04em;color:var(--ink-dim);line-height:1.65}
+.plate .pat{
+  display:inline-block;margin-top:.5em;font-family:var(--mono);font-size:10.5px;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--ink);
+  border:1px solid var(--line);border-radius:99px;padding:3px 10px;background:#fff6;
+}
+
+/* pattern label, top-right of each stage, while wiping */
+.tag{
+  position:absolute;right:clamp(14px,3vw,40px);top:clamp(14px,3vw,40px);
+  z-index:4;font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--bone);mix-blend-mode:difference;
+}
+
+/* sound toggle for video works */
+.snd{
+  position:absolute;right:clamp(14px,3vw,40px);bottom:clamp(14px,3vw,40px);
+  z-index:5;pointer-events:auto;
+  appearance:none;border:1px solid #f4f0e84d;background:#111111b3;color:var(--bone);
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+  padding:7px 12px;border-radius:99px;cursor:pointer;opacity:0;transition:opacity .5s var(--ease) .4s;
+  backdrop-filter:blur(4px);
+}
+.work.is-open .snd{opacity:1}
+.snd:hover,.snd:focus-visible{border-color:var(--seam);color:var(--seam)}
+
+/* progress dots */
+.dots{
+  position:fixed;right:clamp(8px,1.6vw,20px);top:50%;transform:translateY(-50%);
+  z-index:62;display:flex;flex-direction:column;gap:10px;pointer-events:auto;
+  mix-blend-mode:multiply;
+}
+.dots button{appearance:none;border:0;background:transparent;cursor:pointer;width:20px;height:20px;display:grid;place-items:center}
+.dots span{width:7px;height:7px;border-radius:50%;background:#16140f33;transition:all .4s var(--ease)}
+.dots button[aria-current="true"] span{background:var(--seam);transform:scale(1.55)}
+
+/* footer */
+.foot{
+  position:relative;z-index:2;border-top:1px solid var(--line);
+  padding:clamp(40px,7vw,96px) clamp(16px,5vw,72px);
+  display:flex;flex-wrap:wrap;gap:18px 40px;justify-content:space-between;align-items:flex-end;
+}
+.foot .big{font-family:var(--display);font-weight:900;font-size:clamp(30px,6vw,72px);line-height:.9;letter-spacing:-.02em}
+.foot .big em{font-style:italic;font-weight:400;color:var(--seam)}
+.foot .legend{font-family:var(--mono);font-size:11px;letter-spacing:.04em;color:var(--ink-dim);line-height:1.9;max-width:42ch}
+.foot .legend b{color:var(--ink);font-weight:500}
+
+:focus-visible{outline:2px solid var(--seam);outline-offset:3px}
+
+/* ---------- MOBILE: letterbox landscape media, never cover-crop into portrait ---------- */
+@media (max-width:640px){
+  .frame .media{object-fit:contain;background:#0c0b0a}
+  .work{height:84svh;min-height:460px}
+  .band{padding-top:clamp(78px,22vw,120px)}
+  .plate{max-width:88vw}
+  .dots{display:none}
+}
+
+/* ---------- REDUCED MOTION: collapse every wipe to an instant opacity reveal ---------- */
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .curtain{transition:none!important;opacity:1}
+  .curtain rect{transition:none!important}
+  .plate,.snd{transition:opacity .001ms!important;transform:none!important}
+}
+</style>
+</head>
+<body>
+
+<div class="rail" aria-hidden="true">
+  <div><b>ATELIER</b> / <span class="seam">BLIND WIPE</span></div>
+  <div class="right"><b>SVG MASK REVEAL</b><br>04 PATTERNS</div>
+</div>
+
+<header class="band">
+  <h1>Works behind <em>blinds</em>, opened by the scroll.</h1>
+  <p class="sub">Each piece is sealed under a black SVG mask. Reach it and the curtain runs one of four wipes - horizontal blinds, a shuffled grid, vertical blinds, a column wave - the vermilion seam flashing along every closing edge. Native masks, no libraries.</p>
+</header>
+
+<main class="gallery" id="gallery" aria-label="Masked works"></main>
+
+<nav class="dots" id="dots" aria-label="Jump to work"></nav>
+
+<footer class="foot">
+  <div class="big">Open the <em>blinds</em>.</div>
+  <div class="legend">
+    <b>Engine:</b> one SVG <code>&lt;mask&gt;</code> per work; black panels are <code>&lt;rect&gt;</code>s animated by CSS width/height transitions, so reveal = panel retract.<br>
+    <b>Mechanic:</b> IntersectionObserver arms each stage; the first work is held mid-wipe at load so the gallery thumbnail already shows the move.<br>
+    <b>Quiet:</b> prefers-reduced-motion collapses all four to an instant opacity reveal.
+  </div>
+</footer>
+
+<script>
+/* ============================================================================
+   WORKS - the only thing you edit to reswap content.
+   type:  'image' | 'video'
+   src:   path to media (relative to this file)
+   poster:video poster (also the still shown until a video is focused)
+   title / meta: caption text
+   pattern is assigned automatically, cycling 1..4 down the page, but you can
+   pin one by adding  pattern:'hblinds' | 'grid' | 'vblinds' | 'wave'.
+   ============================================================================ */
+const WORKS = [
+  { type:'image', src:'../assets/flux-car-4k.png',
+    title:'Nocturne, wet asphalt',
+    meta:'FLUX 4K / matte-black coupe / neon rain' },
+  { type:'video', src:'../assets/kling-video.mp4', poster:'../assets/gen/poster-kling-video.png', muted:true,
+    title:'Drift study',
+    meta:'KLING / silent loop / motion plate' },
+  { type:'image', src:'../assets/flux-clinic-4k.png',
+    title:'Mint and timber',
+    meta:'FLUX 4K / clinic interior / calm light' },
+  { type:'video', src:'../assets/veo-video.mp4', poster:'../assets/gen/poster-veo-video.png', muted:false,
+    title:'Veo motion',
+    meta:'VEO / cinematic loop / has audio' },
+  { type:'image', src:'../assets/sdxl.png',
+    title:'Autumn fox',
+    meta:'SDXL / painterly / 512 native' },
+  { type:'video', src:'../assets/fal-video.mp4', poster:'../assets/gen/poster-fal-video.png', muted:true,
+    title:'Fal sequence',
+    meta:'FAL / silent loop / generated frames' },
+  { type:'image', src:'../assets/hf-tinysd.png',
+    title:'Low-fi apple',
+    meta:'TINY-SD / abstract / on-device' },
+  { type:'video', src:'../assets/heygen-avatar.mp4', poster:'../assets/gen/poster-heygen.png', muted:false,
+    title:'Synthetic presenter',
+    meta:'HEYGEN / avatar / has audio' },
+];
+
+/* ---- the four patterns, each a list of {x,y,w,h} closed-panel rects in a 100x100 box.
+   "closed" = panel covers the work. Opening animates it toward zero so the work shows. ---- */
+const VB = 100;                 // mask viewBox is 0..100 in both axes
+const PATTERNS = {
+  /* 1) HORIZONTAL BLINDS: paired rows open from the horizontal centre, up and down */
+  hblinds(){
+    const rows = 7, h = VB/rows, out=[];
+    for(let i=0;i<rows;i++){
+      // each row collapses toward its own centre line -> classic venetian feel
+      out.push({ x:0, y:i*h, w:VB, h:h, ox:0, oy:i*h+h/2, ow:VB, oh:0,
+                 delay: Math.abs(i-(rows-1)/2)*70 });
+    }
+    return out;
+  },
+  /* 2) RANDOM GRID: a grid of panels, each opening (shrink to centre) at a shuffled time */
+  grid(){
+    const c=5, r=4, w=VB/c, h=VB/r, out=[];
+    for(let i=0;i<r;i++) for(let j=0;j<c;j++){
+      out.push({ x:j*w, y:i*h, w, h, ox:j*w+w/2, oy:i*h+h/2, ow:0, oh:0,
+                 delay: Math.floor(Math.random()*620) });
+    }
+    return out;
+  },
+  /* 3) VERTICAL BLINDS: strips expand open outward, splitting from screen centre column */
+  vblinds(){
+    const cols = 8, w = VB/cols, out=[];
+    for(let i=0;i<cols;i++){
+      out.push({ x:i*w, y:0, w:w, h:VB, ox:i*w+w/2, oy:0, ow:0, oh:VB,
+                 delay: Math.abs(i-(cols-1)/2)*80 });
+    }
+    return out;
+  },
+  /* 4) COLUMN WAVE: left-to-right wave, panels within each column open at random offsets */
+  wave(){
+    const c=6, r=3, w=VB/c, h=VB/r, out=[];
+    for(let j=0;j<c;j++) for(let i=0;i<r;i++){
+      out.push({ x:j*w, y:i*h, w, h, ox:j*w, oy:i*h+h/2, ow:w, oh:0,
+                 delay: j*150 + Math.floor(Math.random()*170) });
+    }
+    return out;
+  }
+};
+const PATTERN_ORDER = ['hblinds','grid','vblinds','wave'];
+const PATTERN_LABEL = { hblinds:'H-BLINDS', grid:'RANDOM GRID', vblinds:'V-BLINDS', wave:'COLUMN WAVE' };
+
+const reduce = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+const OPEN_MS = reduce ? 0 : 1100;
+const gallery = document.getElementById('gallery');
+const dotsNav = document.getElementById('dots');
+let uid = 0;
+
+/* build one work stage */
+function buildWork(w, i){
+  const patKey = w.pattern || PATTERN_ORDER[i % PATTERN_ORDER.length];
+  const panels = PATTERNS[patKey]();
+  const maskId = 'm'+(uid++);
+
+  const sec = document.createElement('section');
+  sec.className = 'work';
+  sec.dataset.pattern = patKey;
+  sec.id = 'work-'+i;
+  sec.setAttribute('aria-roledescription','masked work');
+  sec.setAttribute('aria-label', (i+1)+'. '+w.title);
+
+  const frame = document.createElement('div');
+  frame.className = 'frame';
+
+  /* media element */
+  let media;
+  if(w.type==='video'){
+    media = document.createElement('video');
+    media.className='media'; media.src=w.src; media.poster=w.poster||'';
+    media.loop=true; media.muted=true; media.playsInline=true; media.preload='none';
+    media.setAttribute('webkit-playsinline','');
+    media.setAttribute('aria-label', w.title+' (video)');
+  } else {
+    media = document.createElement('img');
+    media.className='media'; media.src=w.src; media.alt=w.title; media.loading='lazy'; media.decoding='async';
+  }
+  frame.appendChild(media);
+
+  /* the curtain: an SVG where black rects (the mask) cover the media.
+     We do it with a real <mask>: a white backdrop minus animated black holes is
+     awkward, so instead the curtain is opaque <rect>s of --mask sitting ON TOP,
+     and we shrink each rect to reveal the media below. The vermilion seam is a
+     thin stroke that rides the closing edge and fades as the panel vanishes. */
+  const NSV='http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NSV,'svg');
+  svg.setAttribute('class','curtain');
+  svg.setAttribute('viewBox','0 0 100 100');
+  svg.setAttribute('preserveAspectRatio','none');
+  svg.setAttribute('aria-hidden','true');
+
+  const rects=[];
+  panels.forEach((p)=>{
+    // seam rect (vermilion) drawn slightly larger, behind the black panel,
+    // so a sliver shows at the moving edge during the wipe
+    const seam = document.createElementNS(NSV,'rect');
+    seam.setAttribute('x',p.x); seam.setAttribute('y',p.y);
+    seam.setAttribute('width',p.w); seam.setAttribute('height',p.h);
+    seam.setAttribute('fill','var(--seam)');
+    seam.setAttribute('class','seam-rect');
+    seam.style.transition = reduce ? 'none'
+      : `transform ${OPEN_MS}ms var(--ease), opacity ${Math.round(OPEN_MS*0.5)}ms linear`;
+    seam.style.transformBox='fill-box'; seam.style.transformOrigin='center';
+    svg.appendChild(seam);
+
+    const r = document.createElementNS(NSV,'rect');
+    r.setAttribute('x',p.x); r.setAttribute('y',p.y);
+    r.setAttribute('width',p.w); r.setAttribute('height',p.h);
+    r.setAttribute('fill','var(--mask)');
+    r.setAttribute('class','mask-rect');
+    r.style.transition = reduce ? 'none' : `transform ${OPEN_MS}ms var(--ease)`;
+    // transform around the panel's own open-origin so it collapses the right way
+    r.style.transformBox='fill-box';
+    // compute origin as a fraction of this rect's box (0..1) for transform-origin
+    const oxFrac = p.w? (p.ox - p.x)/p.w : .5;
+    const oyFrac = p.h? (p.oy - p.y)/p.h : .5;
+    r.style.transformOrigin = `${oxFrac*100}% ${oyFrac*100}%`;
+    // open scale: target panel size / current size
+    const sx = p.w? (p.ow/p.w) : 0;
+    const sy = p.h? (p.oh/p.h) : 0;
+    r.dataset.sx = sx; r.dataset.sy = sy; r.dataset.delay = reduce?0:p.delay;
+    // seam shares the same transform/origin so its edge tracks the panel
+    seam.style.transformOrigin = r.style.transformOrigin;
+    seam.dataset.sx = sx; seam.dataset.sy = sy; seam.dataset.delay = reduce?0:p.delay;
+    // append the black panel ON TOP of its seam (later in document order = painted above),
+    // so the curtain hides the media and the vermilion sliver shows at the retracting edge
+    svg.appendChild(r);
+    rects.push([r,seam]);
+  });
+  frame.appendChild(svg);
+
+  /* caption + chrome */
+  const tag = document.createElement('div'); tag.className='tag'; tag.textContent=PATTERN_LABEL[patKey];
+  const plate = document.createElement('div'); plate.className='plate';
+  plate.innerHTML =
+    `<div class="idx">Work ${String(i+1).padStart(2,'0')} / ${String(WORKS.length).padStart(2,'0')}</div>`+
+    `<h2>${w.title}</h2>`+
+    `<div class="meta">${w.meta}</div>`+
+    `<span class="pat">${PATTERN_LABEL[patKey]}</span>`;
+  frame.appendChild(tag);
+  frame.appendChild(plate);
+
+  /* sound toggle only for videos that carry audio */
+  if(w.type==='video' && w.muted===false){
+    const snd=document.createElement('button');
+    snd.className='snd'; snd.type='button'; snd.textContent='SOUND OFF'; snd.setAttribute('aria-pressed','false');
+    snd.addEventListener('click',()=>{
+      media.muted=!media.muted;
+      snd.textContent = media.muted?'SOUND OFF':'SOUND ON';
+      snd.setAttribute('aria-pressed', String(!media.muted));
+      if(!media.muted) media.play().catch(()=>{});
+    });
+    frame.appendChild(snd);
+  }
+
+  sec.appendChild(frame);
+  sec._rects = rects;
+  sec._media = media;
+  sec._type = w.type;
+  sec._opened = false;
+  return sec;
+}
+
+/* apply the open transform to every panel of a stage (staggered by its delay) */
+function openWork(sec, partial){
+  if(sec._opened && !partial) return;
+  sec._opened = true;
+  sec.classList.add('is-open');
+  sec._rects.forEach(([r,seam],k)=>{
+    const sx=parseFloat(r.dataset.sx), sy=parseFloat(r.dataset.sy), delay=parseFloat(r.dataset.delay);
+    // partial: open only some panels a fraction, leaving seams mid-flight (first-paint signature)
+    const apply=()=>{
+      if(partial){
+        // open ~55% of panels fully, hold the rest closed -> a frozen mid-wipe
+        const go = (k % 2 === 0);
+        const fx = go ? sx : 1, fy = go ? sy : 1;
+        r.style.transform = `scale(${fx},${fy})`;
+        seam.style.transform = `scale(${fx},${fy})`;
+        seam.style.opacity = go ? '0' : '1';   // closed panels keep their hot seam lit
+      } else {
+        r.style.transform = `scale(${sx},${sy})`;
+        seam.style.transform = `scale(${sx},${sy})`;
+        seam.style.opacity = '0';
+      }
+    };
+    if(reduce || delay===0) apply();
+    else setTimeout(apply, delay);
+  });
+}
+
+/* video focus control: only the in-view video decodes/plays; others show poster */
+function focusVideo(sec, on){
+  if(sec._type!=='video') return;
+  const v=sec._media;
+  if(on){
+    if(!v.dataset.lazied){ v.dataset.lazied='1'; } // src already set; preload=none keeps it cheap until play
+    v.play().catch(()=>{});
+  } else {
+    v.pause();
+    if(!v.muted){ v.muted=true; const b=sec.querySelector('.snd'); if(b){b.textContent='SOUND OFF';b.setAttribute('aria-pressed','false');} }
+  }
+}
+
+/* build all */
+WORKS.forEach((w,i)=>{
+  const sec=buildWork(w,i);
+  gallery.appendChild(sec);
+  const b=document.createElement('button');
+  b.type='button'; b.setAttribute('aria-label','Go to work '+(i+1));
+  b.innerHTML='<span></span>';
+  b.addEventListener('click',()=>document.getElementById('work-'+i).scrollIntoView({behavior:reduce?'auto':'smooth'}));
+  dotsNav.appendChild(b);
+});
+const allWorks=[...gallery.children];
+const allDots=[...dotsNav.children];
+
+/* IntersectionObserver: arm the wipe + manage video focus + active dot */
+const io=new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{
+    const sec=e.target;
+    if(e.isIntersecting && e.intersectionRatio>0.35){
+      openWork(sec,false);
+      focusVideo(sec,true);
+      const idx=allWorks.indexOf(sec);
+      allDots.forEach((d,k)=>d.setAttribute('aria-current', String(k===idx)));
+    } else if(!e.isIntersecting){
+      focusVideo(sec,false);
+    }
+  });
+},{threshold:[0,0.35,0.6]});
+allWorks.forEach(s=>io.observe(s));
+
+/* FIRST-VIEWPORT SIGNATURE: hold work #1 mid-wipe at scroll=0 so the catalog
+   thumbnail already shows the blinds half-open with the vermilion seam lit.
+   Once the user scrolls (or after a beat) it completes into a full reveal. */
+const first=allWorks[0];
+if(reduce){
+  openWork(first,false);                    // reduced motion: just show it
+  allDots[0]?.setAttribute('aria-current','true');
+} else {
+  // paint the frozen mid-wipe on next frame (after transitions are wired)
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    openWork(first,true);
+    allDots[0]?.setAttribute('aria-current','true');
+  }));
+  // complete it on first scroll, or automatically after a short dwell
+  let completed=false;
+  const finish=()=>{ if(completed) return; completed=true; first._opened=false; openWork(first,false); window.removeEventListener('scroll',finish); };
+  window.addEventListener('scroll',finish,{passive:true,once:true});
+  setTimeout(finish, 2600);
+}
+
+/* pause any playing video when the tab is hidden (battery + decode budget) */
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden) allWorks.forEach(s=>{ if(s._type==='video') s._media.pause(); });
+});
+</script>
+</body>
+</html>

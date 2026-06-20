@@ -1,0 +1,1194 @@
+<!-- TEMPLATE: Creative Atlas | ARCHETYPE: JOURNEY MAP - scroll draws a cinematic SVG route across a stylized map | REF: Codrops Scroll-Driven SVG Map Animations (May 2026), Floema Jewelry scroll hybrid (Awwwards SOTM 2026) | WHEN TO USE: a portfolio narrated as a journey across a hand-drawn atlas, where scroll draws a parchment route past golden waypoints that unfold into each work | SWAP: edit the WAYPOINTS array at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Creative Atlas - A Journey Map Portfolio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     CREATIVE ATLAS - JOURNEY MAP
+     Palette: cartographic navy / gold waypoints / parchment route
+     ============================================================ */
+  :root {
+    --navy: #0f1923;
+    --navy-2: #15212e;
+    --navy-3: #1b2c3c;
+    --gold: #c9a35b;
+    --gold-soft: #d8b878;
+    --parchment: #e8dcc4;
+    --parchment-dim: #b7ac96;
+    --ink: #0a1118;
+    --contour: rgba(201, 163, 91, 0.10);
+    --grid: rgba(232, 220, 196, 0.05);
+    --serif: "Cormorant Garamond", Georgia, serif;
+    --sans: "Space Grotesk", system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--navy);
+    color: var(--parchment);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    touch-action: pan-y; /* pinch-zoom disabled to preserve scroll narrative */
+  }
+
+  ::selection { background: var(--gold); color: var(--ink); }
+
+  a { color: inherit; }
+
+  /* ---------- Fixed cartographic stage (the camera) ---------- */
+  .atlas-stage {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    z-index: 0;
+    background:
+      radial-gradient(120% 90% at 70% 18%, var(--navy-3) 0%, var(--navy-2) 42%, var(--navy) 78%),
+      var(--navy);
+  }
+  /* faint cartographic graticule */
+  .atlas-stage::before {
+    content: "";
+    position: absolute;
+    inset: -10%;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(120% 100% at 50% 40%, #000 55%, transparent 100%);
+    -webkit-mask-image: radial-gradient(120% 100% at 50% 40%, #000 55%, transparent 100%);
+    pointer-events: none;
+  }
+  /* film grain / paper tooth */
+  .atlas-stage::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.5;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/></svg>");
+  }
+
+  /* The map plate that the camera pans + zooms */
+  .map-plate {
+    position: absolute;
+    inset: 0;
+    transform-origin: 50% 50%;
+    transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+  }
+  .map-plate svg { display: block; width: 100%; height: 100%; }
+
+  /* contour lines */
+  .contour { fill: none; stroke: var(--gold); stroke-opacity: 0.12; stroke-width: 1; }
+  .contour.faint { stroke-opacity: 0.06; }
+  .landmass { fill: rgba(232, 220, 196, 0.018); stroke: rgba(232, 220, 196, 0.10); stroke-width: 1.1; }
+
+  /* place names (minimalist condensed serif) */
+  .place-name {
+    font-family: var(--serif);
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    fill: var(--parchment-dim);
+    font-size: 13px;
+  }
+  .place-name.tiny { font-size: 10px; fill: rgba(183, 172, 150, 0.55); letter-spacing: 0.22em; }
+
+  /* compass + scalebar */
+  .cartouche { fill: none; stroke: var(--gold); stroke-opacity: 0.5; stroke-width: 1; }
+  .cartouche-fill { fill: var(--gold); fill-opacity: 0.55; }
+
+  /* ---------- The drawn route ---------- */
+  .route {
+    fill: none;
+    stroke: var(--parchment);
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 7 9;
+    filter: drop-shadow(0 0 6px rgba(232, 220, 196, 0.35));
+  }
+  /* the actual drawing line uses a long dash + dashoffset trick layered above */
+  .route-draw {
+    fill: none;
+    stroke: var(--gold-soft);
+    stroke-width: 3.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 0 10px rgba(201, 163, 91, 0.55));
+  }
+  .route-ghost {
+    fill: none;
+    stroke: var(--parchment);
+    stroke-opacity: 0.12;
+    stroke-width: 2;
+    stroke-dasharray: 2 10;
+    stroke-linecap: round;
+  }
+
+  /* the travelling vehicle dot at the route tip */
+  .vehicle {
+    fill: var(--parchment);
+    stroke: var(--gold);
+    stroke-width: 2;
+    filter: drop-shadow(0 0 8px rgba(232, 220, 196, 0.8));
+  }
+  .vehicle-pulse { fill: none; stroke: var(--gold); stroke-width: 1.5; stroke-opacity: 0.7; }
+
+  /* golden waypoint markers */
+  .waypoint-ring { fill: none; stroke: var(--gold); stroke-width: 1.6; }
+  .waypoint-dot { fill: var(--gold); }
+  .waypoint-halo { fill: var(--gold); fill-opacity: 0.10; }
+  .waypoint-label {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 15px;
+    fill: var(--parchment);
+    letter-spacing: 0.04em;
+  }
+  .waypoint-num {
+    font-family: var(--sans);
+    font-size: 9px;
+    font-weight: 700;
+    fill: var(--ink);
+    letter-spacing: 0.05em;
+  }
+  .waypoint[data-active="true"] .waypoint-ring { stroke-width: 2.4; }
+  .waypoint[data-active="true"] .waypoint-halo { fill-opacity: 0.22; }
+
+  /* ---------- Top band: headline overlay ---------- */
+  .top-band {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 30;
+    padding: 22px clamp(20px, 4vw, 54px);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(15, 25, 35, 0.92) 0%, rgba(15, 25, 35, 0.55) 60%, transparent 100%);
+  }
+  .brandmark {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(20px, 2.4vw, 30px);
+    letter-spacing: 0.02em;
+    line-height: 1;
+    color: var(--parchment);
+    pointer-events: auto;
+  }
+  .brandmark small {
+    display: block;
+    font-family: var(--sans);
+    font-size: 10px;
+    letter-spacing: 0.42em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-top: 7px;
+    font-weight: 500;
+  }
+  .top-tagline {
+    max-width: 360px;
+    text-align: right;
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: clamp(14px, 1.5vw, 19px);
+    line-height: 1.35;
+    color: rgba(232, 220, 196, 0.82);
+  }
+
+  /* ---------- Bottom legend / progress (the journey HUD) ---------- */
+  .journey-hud {
+    position: fixed;
+    left: clamp(20px, 4vw, 54px);
+    bottom: clamp(18px, 3.4vh, 34px);
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    pointer-events: none;
+  }
+  .hud-stop {
+    font-family: var(--sans);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--parchment-dim);
+  }
+  .hud-track {
+    width: clamp(120px, 22vw, 300px);
+    height: 2px;
+    background: rgba(232, 220, 196, 0.14);
+    position: relative;
+    border-radius: 2px;
+  }
+  .hud-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 0%;
+    background: linear-gradient(90deg, var(--gold), var(--gold-soft));
+    border-radius: 2px;
+    box-shadow: 0 0 8px rgba(201, 163, 91, 0.6);
+    transition: width 200ms linear;
+  }
+  .hud-dots { display: flex; gap: 9px; }
+  .hud-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    border: 1px solid var(--gold);
+    background: transparent;
+    transition: background 240ms, transform 240ms;
+  }
+  .hud-dot.lit { background: var(--gold); transform: scale(1.25); }
+
+  /* scroll cue at first viewport */
+  .scroll-cue {
+    position: fixed;
+    right: clamp(20px, 4vw, 54px);
+    bottom: clamp(18px, 3.4vh, 34px);
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--sans);
+    font-size: 10px;
+    letter-spacing: 0.34em;
+    text-transform: uppercase;
+    color: var(--gold);
+    pointer-events: none;
+    transition: opacity 500ms;
+  }
+  .scroll-cue .bead {
+    width: 18px; height: 30px;
+    border: 1px solid var(--gold);
+    border-radius: 11px;
+    position: relative;
+  }
+  .scroll-cue .bead::after {
+    content: "";
+    position: absolute;
+    top: 6px; left: 50%;
+    width: 3px; height: 6px;
+    border-radius: 2px;
+    background: var(--gold);
+    transform: translateX(-50%);
+    animation: bead 1.7s ease-in-out infinite;
+  }
+  @keyframes bead { 0%,100% { opacity: 0.2; transform: translate(-50%, 0); } 45% { opacity: 1; transform: translate(-50%, 10px); } }
+
+  /* ---------- Scroll scenes: each waypoint unfolds a document ---------- */
+  .scenes { position: relative; z-index: 10; }
+
+  /* the first scene is short so the map signature owns the first viewport */
+  .scene-intro {
+    height: 100vh;
+    pointer-events: none;
+  }
+
+  .scene {
+    min-height: 130vh;
+    display: flex;
+    align-items: center;
+    padding: 6vh clamp(20px, 5vw, 80px);
+    position: relative;
+  }
+  .scene[data-side="left"] { justify-content: flex-start; }
+  .scene[data-side="right"] { justify-content: flex-end; }
+
+  /* the document that "unfolds from the marker" */
+  .dossier {
+    width: min(560px, 92vw);
+    background:
+      linear-gradient(180deg, rgba(21, 33, 46, 0.92), rgba(15, 25, 35, 0.96));
+    border: 1px solid rgba(201, 163, 91, 0.32);
+    border-radius: 4px;
+    box-shadow:
+      0 40px 90px -30px rgba(0, 0, 0, 0.8),
+      0 0 0 1px rgba(232, 220, 196, 0.04) inset;
+    backdrop-filter: blur(7px);
+    -webkit-backdrop-filter: blur(7px);
+    overflow: hidden;
+    transform-origin: var(--unfold-x, 0%) var(--unfold-y, 100%);
+    /* enter state */
+    opacity: 0;
+    transform: scale(0.86) translateY(34px) rotate(-0.6deg);
+    transition: opacity 700ms cubic-bezier(0.22, 1, 0.36, 1),
+                transform 800ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .scene.in .dossier {
+    opacity: 1;
+    transform: scale(1) translateY(0) rotate(0deg);
+  }
+
+  /* corner fold detail like a paper document */
+  .dossier::before {
+    content: "";
+    position: absolute;
+    top: 0; right: 0;
+    border-width: 0 26px 26px 0;
+    border-style: solid;
+    border-color: transparent rgba(201, 163, 91, 0.28) transparent transparent;
+    z-index: 4;
+  }
+
+  .dossier-media {
+    position: relative;
+    width: 100%;
+    /* letterbox container: never cover-crop the landscape asset */
+    aspect-ratio: 16 / 9;
+    background: #060b11;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .dossier-media img,
+  .dossier-media video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* letterbox, no crop */
+    display: block;
+  }
+  .dossier-media .poster-img { position: absolute; inset: 0; transition: opacity 400ms; }
+  .dossier-media.playing .poster-img { opacity: 0; }
+  .dossier-media video { position: relative; z-index: 1; }
+
+  .media-flag {
+    position: absolute;
+    top: 12px; left: 12px;
+    z-index: 3;
+    font-family: var(--sans);
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: var(--gold);
+    padding: 4px 9px;
+    border-radius: 2px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .media-flag .coord { color: var(--ink); opacity: 0.7; font-weight: 700; }
+
+  /* 3d / audio media variants */
+  .dossier-media.is-audio {
+    aspect-ratio: 16 / 5;
+    background: linear-gradient(135deg, var(--navy-2), var(--navy-3));
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px;
+  }
+  .dossier-media.is-audio img { object-fit: contain; height: auto; width: 92%; filter: invert(1) sepia(1) hue-rotate(5deg) saturate(2); opacity: 0.78; }
+  .audio-row { display: flex; align-items: center; gap: 12px; width: 100%; z-index: 2; }
+  .audio-btn {
+    flex: 0 0 auto;
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: 1px solid var(--gold);
+    background: rgba(201,163,91,0.12);
+    color: var(--gold);
+    cursor: pointer;
+    display: grid; place-items: center;
+    font-size: 14px;
+    pointer-events: auto;
+  }
+  .audio-btn:hover { background: rgba(201,163,91,0.24); }
+
+  .dossier-media.is-3d { aspect-ratio: 16 / 9; }
+  .dossier-media.is-3d model-viewer { width: 100%; height: 100%; background: transparent; }
+
+  .dossier-body { padding: 22px clamp(18px, 3vw, 30px) 26px; }
+  .dossier-eyebrow {
+    font-family: var(--sans);
+    font-size: 10px;
+    letter-spacing: 0.34em;
+    text-transform: uppercase;
+    color: var(--gold);
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 12px;
+  }
+  .dossier-eyebrow::before {
+    content: "";
+    width: 22px; height: 1px; background: var(--gold); opacity: 0.6;
+  }
+  .dossier-title {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(28px, 4vw, 42px);
+    line-height: 1.02;
+    color: var(--parchment);
+    margin-bottom: 12px;
+  }
+  .dossier-desc {
+    font-size: 14px;
+    line-height: 1.62;
+    color: rgba(232, 220, 196, 0.72);
+    max-width: 46ch;
+    margin-bottom: 18px;
+  }
+  .dossier-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 10px;
+  }
+  .meta-tag {
+    font-family: var(--sans);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--parchment-dim);
+    border: 1px solid rgba(232, 220, 196, 0.18);
+    padding: 5px 10px;
+    border-radius: 999px;
+  }
+  .meta-coord {
+    font-family: var(--sans);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--gold);
+    border-color: rgba(201, 163, 91, 0.4);
+  }
+
+  /* closing scene */
+  .scene-end {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 10vh 24px;
+    gap: 18px;
+    position: relative;
+    z-index: 10;
+  }
+  .end-stamp {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: clamp(34px, 6vw, 70px);
+    line-height: 1.0;
+    color: var(--parchment);
+  }
+  .end-sub {
+    font-family: var(--sans);
+    font-size: 11px;
+    letter-spacing: 0.34em;
+    text-transform: uppercase;
+    color: var(--gold);
+  }
+  .end-line { width: 80px; height: 1px; background: var(--gold); opacity: 0.6; }
+
+  /* focus visibility */
+  :focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+  .restart-btn {
+    margin-top: 8px;
+    pointer-events: auto;
+    font-family: var(--sans);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: var(--gold);
+    border: none;
+    padding: 11px 22px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background 200ms, transform 200ms;
+  }
+  .restart-btn:hover { background: var(--gold-soft); transform: translateY(-2px); }
+
+  /* ===========================================================
+     MOBILE: <=640px
+     - SVG stays responsive (preserveAspectRatio handles it)
+     - camera zoom uses transform-origin per waypoint (unchanged)
+     - dossiers center, media letterboxed
+     =========================================================== */
+  @media (max-width: 640px) {
+    .top-band { padding: 16px 18px; flex-direction: column; gap: 8px; }
+    .top-tagline { text-align: left; max-width: 100%; font-size: 14px; }
+    .scene { padding: 5vh 16px; justify-content: center !important; min-height: 120vh; }
+    .dossier { width: 94vw; }
+    .scroll-cue { display: none; }
+    .journey-hud { gap: 10px; }
+    .hud-stop { font-size: 10px; }
+    .hud-dots { display: none; }
+    .dossier-media.is-audio { aspect-ratio: 16 / 7; }
+  }
+  @media (max-width: 380px) {
+    .dossier-title { font-size: 26px; }
+  }
+
+  /* ===========================================================
+     REDUCED MOTION: full route drawn, first work expanded,
+     no camera pans, no rAF overrides, no marquee animation
+     =========================================================== */
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .map-plate { transition: none !important; }
+    .dossier { opacity: 1 !important; transform: none !important; transition: none !important; }
+    .scroll-cue .bead::after { animation: none; }
+  }
+
+  /* native scroll-driven enhancement (progressive; rAF is the source of truth and overrides via inline styles) */
+  @supports (animation-timeline: view()) {
+    .scene .dossier { /* hook reserved; JS drives final state to stay in sync with camera */ }
+  }
+</style>
+</head>
+<body>
+
+<!-- ========================= FIXED ATLAS STAGE ========================= -->
+<div class="atlas-stage" aria-hidden="true">
+  <div class="map-plate" id="mapPlate">
+    <svg id="atlasSvg" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <radialGradient id="haloGrad" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#c9a35b" stop-opacity="0.5"/>
+          <stop offset="100%" stop-color="#c9a35b" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+
+      <!-- stylized landmasses (hand-drawn contour feel) -->
+      <g id="terrain">
+        <path class="landmass" d="M120,210 C220,150 360,170 430,250 C520,200 640,240 690,330 C760,300 850,360 820,450 C900,470 930,560 850,610 C880,700 760,760 660,720 C600,800 460,790 420,700 C320,740 200,690 220,590 C120,580 90,470 170,420 C100,360 60,270 120,210 Z"/>
+        <path class="landmass" d="M980,120 C1080,90 1200,120 1240,210 C1340,200 1400,290 1340,360 C1390,440 1300,520 1210,490 C1180,580 1050,580 1010,500 C920,520 880,430 940,370 C880,300 900,190 980,120 Z"/>
+        <path class="landmass" d="M520,840 C600,800 720,820 760,880 L520,895 Z"/>
+
+        <!-- contour rings around peaks -->
+        <ellipse class="contour" cx="430" cy="430" rx="180" ry="120"/>
+        <ellipse class="contour faint" cx="430" cy="430" rx="240" ry="160"/>
+        <ellipse class="contour faint" cx="430" cy="430" rx="300" ry="200"/>
+        <ellipse class="contour" cx="1140" cy="320" rx="150" ry="110"/>
+        <ellipse class="contour faint" cx="1140" cy="320" rx="210" ry="155"/>
+        <ellipse class="contour" cx="800" cy="560" rx="90" ry="64" transform="rotate(-18 800 560)"/>
+        <ellipse class="contour faint" cx="800" cy="560" rx="140" ry="100" transform="rotate(-18 800 560)"/>
+
+        <!-- decorative place names -->
+        <text class="place-name" x="320" y="300">Northreach</text>
+        <text class="place-name tiny" x="500" y="540">SILT BASIN</text>
+        <text class="place-name" x="1010" y="250">Aurelis Coast</text>
+        <text class="place-name tiny" x="1180" y="470">CINDER FLATS</text>
+        <text class="place-name tiny" x="240" y="650">LOWER MARROW</text>
+        <text class="place-name tiny" x="600" y="870">THE NARROWS</text>
+
+        <!-- compass rose -->
+        <g transform="translate(1330,800)">
+          <circle class="cartouche" r="34"/>
+          <circle class="cartouche" r="24"/>
+          <path class="cartouche-fill" d="M0,-30 L6,0 L0,30 L-6,0 Z"/>
+          <path class="cartouche" d="M-30,0 L0,6 L30,0 L0,-6 Z" fill="rgba(201,163,91,0.25)"/>
+          <text class="place-name tiny" x="-4" y="-40">N</text>
+        </g>
+        <!-- scale bar -->
+        <g transform="translate(70,840)">
+          <line class="cartouche" x1="0" y1="0" x2="120" y2="0"/>
+          <line class="cartouche" x1="0" y1="-5" x2="0" y2="5"/>
+          <line class="cartouche" x1="60" y1="-4" x2="60" y2="4"/>
+          <line class="cartouche" x1="120" y1="-5" x2="120" y2="5"/>
+          <text class="place-name tiny" x="0" y="22">0</text>
+          <text class="place-name tiny" x="96" y="22">500 LEAGUES</text>
+        </g>
+      </g>
+
+      <!-- ghost of the full route (always faintly visible) -->
+      <path id="routeGhost" class="route-ghost" d=""/>
+      <!-- the drawn route (animated via stroke-dashoffset) -->
+      <path id="routePath" class="route-draw" d=""/>
+      <!-- dashed parchment overlay drawn in lockstep -->
+      <path id="routeDash" class="route" d="" style="opacity:0"/>
+
+      <!-- waypoint markers (one per work, injected by JS) -->
+      <g id="waypointLayer"></g>
+
+      <!-- travelling vehicle dot at the route tip -->
+      <g id="vehicle" style="opacity:0">
+        <circle class="vehicle-pulse" r="14"/>
+        <circle class="vehicle-pulse" r="9"/>
+        <circle class="vehicle" r="5.5"/>
+      </g>
+    </svg>
+  </div>
+</div>
+
+<!-- ========================= HEADLINE TOP BAND ========================= -->
+<header class="top-band">
+  <div class="brandmark">
+    Creative Atlas
+    <small>A Journey Map Portfolio</small>
+  </div>
+  <p class="top-tagline">Scroll to travel the route. Each golden waypoint unfolds a work from the map.</p>
+</header>
+
+<!-- ========================= JOURNEY HUD ========================= -->
+<div class="journey-hud" aria-hidden="true">
+  <span class="hud-stop" id="hudStop">Stop 1 / 6</span>
+  <div class="hud-track"><div class="hud-fill" id="hudFill"></div></div>
+  <div class="hud-dots" id="hudDots"></div>
+</div>
+
+<div class="scroll-cue" id="scrollCue" aria-hidden="true">
+  <span>Begin the route</span>
+  <span class="bead"></span>
+</div>
+
+<!-- ========================= SCROLL SCENES ========================= -->
+<main class="scenes" id="scenes">
+  <div class="scene-intro" aria-hidden="true"></div>
+  <!-- scene cards injected by JS so DATA stays the single source -->
+  <section class="scene-end" id="sceneEnd">
+    <div class="end-line"></div>
+    <p class="end-sub">End of the route</p>
+    <h2 class="end-stamp">Six waypoints,<br/>one cartographer.</h2>
+    <p class="end-sub" style="color:var(--parchment-dim)">Built as a single self-contained file</p>
+    <button class="restart-btn" id="restartBtn">Return to origin</button>
+  </section>
+</main>
+
+<!-- model-viewer for the 3D waypoint (loaded lazily, only used by one card) -->
+<script type="module">
+  // load on idle so the map paints first
+  const loadMV = () => {
+    if (document.querySelector('script[data-mv]')) return;
+    const s = document.createElement('script');
+    s.type = 'module';
+    s.dataset.mv = '1';
+    s.src = 'https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js';
+    document.head.appendChild(s);
+  };
+  if ('requestIdleCallback' in window) requestIdleCallback(loadMV, { timeout: 3000 });
+  else setTimeout(loadMV, 1800);
+</script>
+
+<script>
+/* ============================================================================
+   DATA - swap the journey here. Each waypoint becomes a marker on the map
+   plus a dossier that unfolds. xy are 0..1 normalized positions on the SVG
+   plate (viewBox 1440 x 900); the route is auto-generated through them.
+   media.kind: "image" | "video" | "audio" | "3d"
+   ASSET PATHS are relative to /showcase/templates/ -> ../assets/
+   ============================================================================ */
+const ASSET = "../assets/";
+const WAYPOINTS = [
+  {
+    id: "obsidian-drive",
+    coord: "47.2 N / 12.8 W",
+    region: "Aurelis Coast",
+    eyebrow: "Waypoint 01 - Cinematic Plate",
+    title: "Obsidian Drive",
+    desc: "A matte-black coupe holds a rain-slick neon street. Shot as a hero still for an automotive launch, every reflection hand-graded to the parchment-and-navy atlas palette.",
+    tags: ["Still Render", "Automotive", "Neon Grade"],
+    xy: [0.79, 0.27],
+    media: { kind: "image", src: ASSET + "flux-car-4k.png", flag: "FLUX 4K" }
+  },
+  {
+    id: "the-grove",
+    coord: "31.0 N / 04.1 W",
+    region: "Silt Basin",
+    eyebrow: "Waypoint 02 - Interior Study",
+    title: "The Grove Clinic",
+    desc: "Mint and warm-wood treatment room bathed in morning light. Generated as a spatial reference for a healthcare brand, letterboxed here so the wide frame never crops.",
+    tags: ["Interior", "Healthcare", "Daylight"],
+    xy: [0.36, 0.60],
+    media: { kind: "image", src: ASSET + "flux-clinic-4k.png", flag: "FLUX 4K" }
+  },
+  {
+    id: "vesper-motion",
+    coord: "55.6 N / 02.0 E",
+    region: "Northreach",
+    eyebrow: "Waypoint 03 - Motion Loop",
+    title: "Vesper in Motion",
+    desc: "The coupe set loose: a silent drive-by loop through a synthwave skyline. Plays only while this waypoint is in view to keep the journey smooth.",
+    tags: ["Video Loop", "Image-to-Video", "Silent"],
+    xy: [0.30, 0.33],
+    media: { kind: "video", src: ASSET + "veo-video.mp4", poster: ASSET + "gen/poster-veo-video.png", flag: "VEO", muted: true }
+  },
+  {
+    id: "autumn-den",
+    coord: "44.0 N / 19.5 W",
+    region: "Lower Marrow",
+    eyebrow: "Waypoint 04 - Painterly Plate",
+    title: "Autumn Den",
+    desc: "A resting fox under turning maples, rendered as flat painterly illustration. The warm ochres echo the gold waypoints threading this atlas together.",
+    tags: ["Illustration", "Painterly", "Editorial"],
+    xy: [0.17, 0.72],
+    media: { kind: "image", src: ASSET + "sdxl.png", flag: "SDXL" }
+  },
+  {
+    id: "narrator",
+    coord: "13.7 N / 100.5 E",
+    region: "The Narrows",
+    eyebrow: "Waypoint 05 - Voice Plate",
+    title: "The Narrator",
+    desc: "A Thai voiceover generated for a guided-tour script. Press play to hear the route described aloud. Audio is letterboxed into a waveform card, never autoplayed.",
+    tags: ["Text-to-Speech", "Thai", "Narration"],
+    xy: [0.50, 0.92],
+    media: { kind: "audio", src: ASSET + "elevenlabs-thai.mp3", wave: ASSET + "gen/wave-elevenlabs.png", flag: "ELEVENLABS" }
+  },
+  {
+    id: "relic",
+    coord: "79.1 N / 28.4 E",
+    region: "Cinder Flats",
+    eyebrow: "Waypoint 06 - Dimensional Plate",
+    title: "The Relic",
+    desc: "A refined 3D mesh, the final landmark of the route. Drag to orbit it. Loaded only when you arrive so the earlier legs of the journey stay light.",
+    tags: ["3D Mesh", "glTF", "Orbit"],
+    xy: [0.82, 0.47],
+    media: { kind: "3d", src: ASSET + "meshy-refined.glb", poster: ASSET + "meshy-refined-thumb.png", flag: "MESHY" }
+  }
+];
+
+/* ----------------------------------------------------------------------------
+   STATE + ENVIRONMENT
+   ---------------------------------------------------------------------------- */
+const VB_W = 1440, VB_H = 900;
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const svg = document.getElementById("atlasSvg");
+const mapPlate = document.getElementById("mapPlate");
+const routePath = document.getElementById("routePath");
+const routeDash = document.getElementById("routeDash");
+const routeGhost = document.getElementById("routeGhost");
+const vehicle = document.getElementById("vehicle");
+const waypointLayer = document.getElementById("waypointLayer");
+const scenesEl = document.getElementById("scenes");
+const sceneEnd = document.getElementById("sceneEnd");
+const hudFill = document.getElementById("hudFill");
+const hudStop = document.getElementById("hudStop");
+const hudDots = document.getElementById("hudDots");
+const scrollCue = document.getElementById("scrollCue");
+
+/* ----------------------------------------------------------------------------
+   BUILD THE ROUTE PATH through every waypoint (smooth Catmull-Rom -> Bezier)
+   ---------------------------------------------------------------------------- */
+function pt(wp) { return { x: wp.xy[0] * VB_W, y: wp.xy[1] * VB_H }; }
+// ORIGIN: a hidden anchor that gives the route a leading leg into waypoint 1,
+// so a drawn gold segment is already present at scroll=0 (the signature mechanic
+// must be visible in the first viewport). It is not a waypoint, just geometry.
+const ORIGIN = { x: WAYPOINTS[0].xy[0] * VB_W - 150, y: WAYPOINTS[0].xy[1] * VB_H - 120 };
+const nodes = [ORIGIN, ...WAYPOINTS.map(pt)];
+
+function catmullRom(points) {
+  if (points.length < 2) return "";
+  let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i - 1] || points[i];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2] || p2;
+    const c1x = p1.x + (p2.x - p0.x) / 6;
+    const c1y = p1.y + (p2.y - p0.y) / 6;
+    const c2x = p2.x - (p3.x - p1.x) / 6;
+    const c2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+  }
+  return d;
+}
+const routeD = catmullRom(nodes);
+routePath.setAttribute("d", routeD);
+routeDash.setAttribute("d", routeD);
+routeGhost.setAttribute("d", routeD);
+
+const ROUTE_LEN = routePath.getTotalLength();
+// set up stroke-dashoffset draw
+routePath.style.strokeDasharray = ROUTE_LEN;
+routePath.style.strokeDashoffset = ROUTE_LEN;
+
+// precompute the path-length fraction at each waypoint so camera + draw align
+const wpLengthFrac = WAYPOINTS.map(wp => {
+  const target = pt(wp);
+  // binary search closest length
+  let lo = 0, hi = ROUTE_LEN, best = 0, bestDist = Infinity;
+  for (let i = 0; i <= 240; i++) {
+    const l = (ROUTE_LEN * i) / 240;
+    const p = routePath.getPointAtLength(l);
+    const dist = (p.x - target.x) ** 2 + (p.y - target.y) ** 2;
+    if (dist < bestDist) { bestDist = dist; best = l; }
+  }
+  return best / ROUTE_LEN;
+});
+// the route is always drawn at least up to waypoint 1 (the leading ORIGIN leg
+// plus the first marker), so scroll=0 already shows a gold segment + vehicle.
+const START_FRAC = wpLengthFrac[0];
+// draw fraction as a function of scroll progress 0..1
+function drawFrac(progress) { return START_FRAC + (1 - START_FRAC) * progress; }
+
+/* ----------------------------------------------------------------------------
+   BUILD WAYPOINT MARKERS on the SVG
+   ---------------------------------------------------------------------------- */
+WAYPOINTS.forEach((wp, i) => {
+  const p = pt(wp);
+  const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  g.setAttribute("class", "waypoint");
+  g.setAttribute("data-i", i);
+  g.setAttribute("transform", `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`);
+  // label anchor flips to keep it on-plate
+  const labelLeft = wp.xy[0] > 0.7;
+  g.innerHTML = `
+    <circle class="waypoint-halo" r="34"></circle>
+    <circle class="waypoint-ring" r="18"></circle>
+    <circle class="waypoint-ring" r="11" style="stroke-opacity:0.55"></circle>
+    <circle class="waypoint-dot" r="5"></circle>
+    <text class="waypoint-num" x="${i < 9 ? -2.5 : -5}" y="3.2">${String(i + 1).padStart(2, "0")}</text>
+    <text class="waypoint-label" x="${labelLeft ? -26 : 26}" y="4.5"
+          text-anchor="${labelLeft ? "end" : "start"}">${wp.title}</text>
+  `;
+  waypointLayer.appendChild(g);
+});
+const waypointEls = Array.from(waypointLayer.querySelectorAll(".waypoint"));
+
+/* ----------------------------------------------------------------------------
+   BUILD SCENE DOSSIERS (single source of truth = DATA)
+   ---------------------------------------------------------------------------- */
+function mediaMarkup(wp) {
+  const m = wp.media;
+  if (m.kind === "image") {
+    return `<div class="dossier-media">
+      <span class="media-flag">${m.flag} <span class="coord">${wp.coord}</span></span>
+      <img src="${m.src}" alt="${wp.title}" loading="lazy" decoding="async"/>
+    </div>`;
+  }
+  if (m.kind === "video") {
+    return `<div class="dossier-media" data-media="video">
+      <span class="media-flag">${m.flag} <span class="coord">${wp.coord}</span></span>
+      <img class="poster-img" src="${m.poster}" alt="${wp.title} preview" loading="lazy" decoding="async"/>
+      <video preload="none" playsinline ${m.muted ? "muted" : ""} loop poster="${m.poster}">
+        <source data-src="${m.src}" type="video/mp4"/>
+      </video>
+    </div>`;
+  }
+  if (m.kind === "audio") {
+    return `<div class="dossier-media is-audio" data-media="audio">
+      <span class="media-flag">${m.flag} <span class="coord">${wp.coord}</span></span>
+      <div class="audio-row">
+        <button class="audio-btn" aria-label="Play ${wp.title} narration" data-audio-btn>&#9658;</button>
+        <img src="${m.wave}" alt="audio waveform"/>
+      </div>
+      <audio preload="none"><source data-src="${m.src}" type="audio/mpeg"/></audio>
+    </div>`;
+  }
+  if (m.kind === "3d") {
+    return `<div class="dossier-media is-3d" data-media="3d">
+      <span class="media-flag">${m.flag} <span class="coord">${wp.coord}</span></span>
+      <img class="poster-img" src="${m.poster}" alt="${wp.title} preview" loading="lazy" decoding="async"/>
+      <div data-mv-mount data-glb="${m.src}" data-poster="${m.poster}" style="position:absolute;inset:0;z-index:1;opacity:0;transition:opacity .5s"></div>
+    </div>`;
+  }
+  return "";
+}
+
+WAYPOINTS.forEach((wp, i) => {
+  const side = i % 2 === 0 ? "right" : "left";
+  const sec = document.createElement("section");
+  sec.className = "scene";
+  sec.dataset.i = i;
+  sec.dataset.side = side;
+  // unfold origin points back toward the marker side
+  const ox = side === "right" ? "100%" : "0%";
+  sec.innerHTML = `
+    <article class="dossier" style="--unfold-x:${ox}">
+      ${mediaMarkup(wp)}
+      <div class="dossier-body">
+        <div class="dossier-eyebrow">${wp.eyebrow}</div>
+        <h2 class="dossier-title">${wp.title}</h2>
+        <p class="dossier-desc">${wp.desc}</p>
+        <div class="dossier-meta">
+          <span class="meta-tag meta-coord">${wp.region} - ${wp.coord}</span>
+          ${wp.tags.map(t => `<span class="meta-tag">${t}</span>`).join("")}
+        </div>
+      </div>
+    </article>`;
+  scenesEl.insertBefore(sec, sceneEnd);
+});
+const sceneEls = Array.from(scenesEl.querySelectorAll(".scene"));
+
+// build HUD dots
+WAYPOINTS.forEach((_, i) => {
+  const d = document.createElement("span");
+  d.className = "hud-dot";
+  hudDots.appendChild(d);
+});
+const hudDotEls = Array.from(hudDots.querySelectorAll(".hud-dot"));
+
+/* ----------------------------------------------------------------------------
+   CAMERA: zoom into the active waypoint via transform on .map-plate.
+   transform-origin set to the waypoint's normalized position so the zoom
+   pivots on the marker (works identically on mobile).
+   ---------------------------------------------------------------------------- */
+const isPhone = window.matchMedia("(max-width: 640px)").matches;
+// On phones the landscape map is letterboxed to FIT (meet) so every waypoint and
+// the whole route are visible at scroll=0; on desktop it COVERS (slice) for drama.
+const SVG_FIT = isPhone ? "meet" : "slice";
+svg.setAttribute("preserveAspectRatio", "xMidYMid " + SVG_FIT);
+const ZOOM_IN = isPhone ? 1.55 : 2.15;   // gentler zoom on phones (map already fits)
+const ZOOM_BASE = isPhone ? 1.0 : 1.18;  // gentle overscan at rest
+
+// Map a viewBox point (in the SVG's 1440x900 space) to its rendered fraction
+// of the stage, accounting for preserveAspectRatio meet/slice. This is what
+// makes the zoom pivot land ON the marker regardless of viewport aspect/mobile.
+function vbToStageFrac(vbx, vby) {
+  const sw = window.innerWidth, sh = window.innerHeight;
+  // slice => COVER (larger ratio wins); meet => FIT (smaller ratio wins)
+  const scale = SVG_FIT === "slice"
+    ? Math.max(sw / VB_W, sh / VB_H)
+    : Math.min(sw / VB_W, sh / VB_H);
+  const dispW = VB_W * scale, dispH = VB_H * scale;
+  // xMidYMid centering offsets (negative when cropped, positive when letterboxed)
+  const offX = (sw - dispW) / 2, offY = (sh - dispH) / 2;
+  const px = offX + vbx * scale;
+  const py = offY + vby * scale;
+  return { fx: px / sw, fy: py / sh };
+}
+
+function setCamera(frac, zoom, vbNormX, vbNormY, wpIndex) {
+  // focal point as a fraction of the visible stage (not of the viewBox)
+  const { fx, fy } = vbToStageFrac(vbNormX * VB_W, vbNormY * VB_H);
+  // PAN: translate the plate (in % of viewport) so the focal marker is pulled
+  // toward viewport center. On portrait phones the slice crop can push an edge
+  // marker fully off-screen, so we pan hard; on desktop a light pan keeps motion.
+  const panStrength = isPhone ? 0.5 : 0.55;
+  const panX = (0.5 - fx) * 100 * panStrength;
+  const panY = (0.5 - fy) * 100 * panStrength;
+  // zoom pivots on the (already recentered) focal point
+  const cx = Math.min(0.985, Math.max(0.015, fx + (0.5 - fx) * panStrength));
+  const cy = Math.min(0.985, Math.max(0.015, fy + (0.5 - fy) * panStrength));
+  mapPlate.style.transformOrigin = `${(cx * 100).toFixed(1)}% ${(cy * 100).toFixed(1)}%`;
+  mapPlate.style.transform =
+    `translate(${panX.toFixed(2)}%, ${panY.toFixed(2)}%) scale(${zoom.toFixed(3)})`;
+}
+
+/* ----------------------------------------------------------------------------
+   MEDIA: play only the focused waypoint's media (no simultaneous decode)
+   ---------------------------------------------------------------------------- */
+let activeMediaIndex = -1;
+function focusMedia(index) {
+  if (index === activeMediaIndex) return;
+  // pause everything first
+  sceneEls.forEach((sec, i) => {
+    if (i === index) return;
+    const v = sec.querySelector("video");
+    const a = sec.querySelector("audio");
+    if (v && !v.paused) { v.pause(); }
+    const mc = sec.querySelector(".dossier-media");
+    if (mc) mc.classList.remove("playing");
+  });
+  activeMediaIndex = index;
+  if (index < 0) return;
+  const sec = sceneEls[index];
+  const v = sec.querySelector("video");
+  if (v) {
+    const src = v.querySelector("source");
+    if (src && !src.src && src.dataset.src) { src.src = src.dataset.src; v.load(); }
+    const mc = sec.querySelector(".dossier-media");
+    mc && mc.classList.add("playing");
+    v.play().catch(() => {/* autoplay may be blocked; poster stays */});
+  }
+  // lazy-mount 3D only when its waypoint is focused
+  const mvMount = sec.querySelector("[data-mv-mount]");
+  if (mvMount && !mvMount.dataset.mounted) {
+    mvMount.dataset.mounted = "1";
+    const el = document.createElement("model-viewer");
+    el.setAttribute("src", mvMount.dataset.glb);
+    el.setAttribute("poster", mvMount.dataset.poster);
+    el.setAttribute("camera-controls", "");
+    el.setAttribute("auto-rotate", "");
+    el.setAttribute("rotation-per-second", "18deg");
+    el.setAttribute("interaction-prompt", "none");
+    el.setAttribute("shadow-intensity", "0.7");
+    el.setAttribute("exposure", "0.95");
+    el.setAttribute("environment-image", "neutral");
+    el.style.width = "100%"; el.style.height = "100%";
+    el.addEventListener("load", () => { mvMount.style.opacity = "1"; });
+    mvMount.appendChild(el);
+    // if model-viewer never upgrades (CDN blocked), poster stays visible
+    setTimeout(() => {
+      if (!customElements.get("model-viewer")) {
+        const pi = sec.querySelector(".poster-img");
+        if (pi) pi.style.opacity = "1";
+      } else {
+        mvMount.style.opacity = "1";
+      }
+    }, 4000);
+  }
+}
+
+// audio play buttons (explicit user action)
+scenesEl.querySelectorAll("[data-audio-btn]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const wrap = btn.closest(".dossier-media");
+    const audio = wrap.querySelector("audio");
+    const src = audio.querySelector("source");
+    if (src && !src.src && src.dataset.src) { src.src = src.dataset.src; audio.load(); }
+    // stop any other audio
+    scenesEl.querySelectorAll("audio").forEach(a => { if (a !== audio) { a.pause(); } });
+    if (audio.paused) { audio.play(); btn.innerHTML = "&#10073;&#10073;"; }
+    else { audio.pause(); btn.innerHTML = "&#9658;"; }
+    audio.onended = () => { btn.innerHTML = "&#9658;"; };
+  });
+});
+
+/* ----------------------------------------------------------------------------
+   SCROLL ENGINE
+   We compute one global progress (0..1) over the scenes, drive the route draw,
+   move the vehicle, set the camera to the nearest waypoint, reveal dossiers,
+   and update the HUD. Throttled with rAF. This is the source of truth; the
+   native scroll-driven CSS (where supported) only enhances dossier reveal but
+   JS owns final state so the two never disagree.
+   ---------------------------------------------------------------------------- */
+let ticking = false;
+let lastActive = -1;
+
+function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+
+function computeProgress() {
+  // progress measured from top of first scene to bottom of last scene
+  const first = sceneEls[0];
+  const last = sceneEls[sceneEls.length - 1];
+  const start = first.offsetTop - window.innerHeight * 0.55;
+  const end = last.offsetTop + last.offsetHeight - window.innerHeight * 0.55;
+  const y = window.scrollY;
+  return clamp01((y - start) / Math.max(1, end - start));
+}
+
+// which waypoint is "locked" right now (nearest scene to viewport center)
+function activeIndex() {
+  const mid = window.scrollY + window.innerHeight / 2;
+  let best = 0, bestDist = Infinity;
+  sceneEls.forEach((sec, i) => {
+    const center = sec.offsetTop + sec.offsetHeight / 2;
+    const dist = Math.abs(center - mid);
+    if (dist < bestDist) { bestDist = dist; best = i; }
+  });
+  return best;
+}
+
+function render() {
+  ticking = false;
+  const progress = computeProgress();
+
+  // ---- draw the route by stroke-dashoffset ----
+  // always include the leading ORIGIN->wp1 leg so a gold segment shows at scroll=0
+  const frac = drawFrac(progress);
+  routePath.style.strokeDashoffset = (ROUTE_LEN * (1 - frac)).toFixed(1);
+
+  // ---- vehicle dot at the route tip ----
+  const tip = routePath.getPointAtLength(ROUTE_LEN * Math.min(frac, 0.9999));
+  vehicle.setAttribute("transform", `translate(${tip.x.toFixed(1)} ${tip.y.toFixed(1)})`);
+  vehicle.style.opacity = progress >= 0.999 ? "0.55" : "1";
+
+  // ---- camera lock on active waypoint ----
+  const ai = activeIndex();
+  const wp = WAYPOINTS[ai];
+  // zoom strength eases up as a scene comes into center
+  const sec = sceneEls[ai];
+  const center = sec.offsetTop + sec.offsetHeight / 2;
+  const mid = window.scrollY + window.innerHeight / 2;
+  let proximity = clamp01(1 - Math.abs(center - mid) / (window.innerHeight * 0.9));
+  // at the very top, lock onto the first waypoint so the signature reads at scroll=0
+  if (window.scrollY < window.innerHeight * 0.4) proximity = Math.max(proximity, 0.92);
+  const zoom = ZOOM_BASE + (ZOOM_IN - ZOOM_BASE) * proximity;
+  setCamera(wpLengthFrac[ai], zoom, wp.xy[0], wp.xy[1]);
+
+  // ---- HUD ----
+  hudFill.style.width = (progress * 100).toFixed(1) + "%";
+  hudStop.textContent = `Stop ${ai + 1} / ${WAYPOINTS.length}`;
+  hudDotEls.forEach((d, i) => d.classList.toggle("lit", i <= ai && progress > 0.02 || i === ai));
+
+  // ---- waypoint active styling + scene reveal + media focus ----
+  if (ai !== lastActive) {
+    waypointEls.forEach((g, i) => g.setAttribute("data-active", i === ai ? "true" : "false"));
+    focusMedia(ai);
+    lastActive = ai;
+  }
+
+  // reveal each dossier when its scene enters
+  sceneEls.forEach((s) => {
+    const r = s.getBoundingClientRect();
+    const visible = r.top < window.innerHeight * 0.82 && r.bottom > window.innerHeight * 0.18;
+    s.classList.toggle("in", visible);
+  });
+
+  // hide scroll cue after first movement
+  if (window.scrollY > 40) scrollCue.style.opacity = "0";
+  else scrollCue.style.opacity = "1";
+}
+
+function onScroll() {
+  if (!ticking) { ticking = true; requestAnimationFrame(render); }
+}
+
+/* ----------------------------------------------------------------------------
+   REDUCED MOTION: show full route drawn + first work expanded, no rAF camera
+   ---------------------------------------------------------------------------- */
+function initReducedMotion() {
+  // full route drawn
+  routePath.style.strokeDashoffset = "0";
+  routeDash.style.opacity = "1";
+  vehicle.style.opacity = "0.4";
+  const last = routePath.getPointAtLength(ROUTE_LEN);
+  vehicle.setAttribute("transform", `translate(${last.x.toFixed(1)} ${last.y.toFixed(1)})`);
+  // static gentle camera, first marker active
+  setCamera(0, ZOOM_BASE, WAYPOINTS[0].xy[0], WAYPOINTS[0].xy[1]);
+  waypointEls.forEach((g, i) => g.setAttribute("data-active", i === 0 ? "true" : "false"));
+  // expand first dossier, reveal all (no transform animation)
+  sceneEls.forEach(s => s.classList.add("in"));
+  // HUD full
+  hudFill.style.width = "100%";
+  hudDots.querySelectorAll(".hud-dot").forEach(d => d.classList.add("lit"));
+  scrollCue.style.display = "none";
+  // load first video poster only; no autoplay under reduced motion
+}
+
+/* ----------------------------------------------------------------------------
+   BOOT
+   ---------------------------------------------------------------------------- */
+function boot() {
+  if (reduceMotion) {
+    initReducedMotion();
+    return;
+  }
+  // initial paint: at scroll=0 the route is drawn up to waypoint 1 (the leading
+  // ORIGIN leg + first marker) with the vehicle sitting on the tip and the camera
+  // zoomed on the first golden waypoint. render() reproduces this exactly.
+  routeDash.style.opacity = "1";
+  window.addEventListener("scroll", onScroll, { passive: true });
+  window.addEventListener("resize", () => requestAnimationFrame(render), { passive: true });
+  // run once to sync
+  requestAnimationFrame(render);
+}
+
+// fonts/layout settle before measuring offsets
+if (document.readyState === "complete") boot();
+else window.addEventListener("load", boot);
+
+// restart button
+document.getElementById("restartBtn").addEventListener("click", () => {
+  window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+});
+
+// IntersectionObserver as a media safety net (pause when fully off-screen)
+const io = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (!e.isIntersecting) {
+      const v = e.target.querySelector("video");
+      if (v && !v.paused) v.pause();
+    }
+  });
+}, { threshold: 0.01 });
+sceneEls.forEach(s => io.observe(s));
+</script>
+</body>
+</html>

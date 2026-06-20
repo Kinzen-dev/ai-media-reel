@@ -1,0 +1,574 @@
+<!-- TEMPLATE: Never-Ending Parallax | ARCHETYPE: ENDLESS LOOP - seamless infinite parallax scroll with no page end | REF: Codrops The Never Ending Story (May 2026), Codrops Infinite Parallax Grid (2025) | WHEN TO USE: a portfolio that should feel boundless - works orbit perpetually across three depth layers, scroll never ends, a LOOP counter is the only sign it is circular | SWAP: edit the WORKS array at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Never-Ending Parallax</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     NEVER-ENDING PARALLAX
+     One rAF loop advances a single scalar `pos` (px of travel).
+     Each of three layers renders pos * factor, then wraps each
+     panel with modulo arithmetic against the layer tile-width:
+        x = base + offset
+        x = ((x % W) + W) % W   (positive modulo)
+        x -= TILE                (so a panel can sit just left)
+     When a panel's right edge leaves the viewport it has already
+     been re-placed at the front by the modulo - no teleport flash,
+     no duplicated DOM beyond the minimum tile set (works x reps).
+     The midground is the focus tier: snap rhythm + LOOP counter.
+     No WebGL, no libraries, GPU-only transforms.
+     ============================================================ */
+
+  :root{
+    --void:#06060a;          /* deep void base */
+    --ember:#ff6b35;         /* ember accent - loop indicator only */
+    --ink:#f3f0ea;
+    --muted:#8b8794;
+    --line:rgba(243,240,234,.12);
+    --pane:#0d0d14;
+    --ease:cubic-bezier(.22,1,.36,1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--void);
+    color:var(--ink);
+    font-family:"Space Grotesk",system-ui,sans-serif;
+    overflow:hidden;                /* the page itself never scrolls */
+    -webkit-font-smoothing:antialiased;
+    position:fixed;inset:0;
+    overscroll-behavior:none;
+    touch-action:none;
+  }
+
+  /* atmospheric depth gradient + vignette so far layers recede */
+  .sky{
+    position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:
+      radial-gradient(120% 80% at 50% -10%, #14101f 0%, #0a0a12 45%, var(--void) 100%),
+      radial-gradient(90% 60% at 80% 110%, rgba(255,107,53,.06) 0%, transparent 60%);
+  }
+  .grain{
+    position:fixed;inset:0;z-index:6;pointer-events:none;opacity:.05;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ---- the orbit stage ---- */
+  .stage{position:fixed;inset:0;z-index:1;overflow:hidden}
+  .layer{position:absolute;top:0;left:0;width:100%;height:100%;will-change:transform}
+  .panel{
+    position:absolute;top:50%;
+    transform:translate3d(var(--x,0),-50%,0);
+    will-change:transform;
+    transition:filter .5s var(--ease),opacity .5s var(--ease);
+  }
+
+  /* depth tiers: size, blur, vertical band, brightness */
+  .layer-bg   .panel{filter:blur(2.5px) brightness(.5) saturate(.7);opacity:.65}
+  .layer-mid  .panel{filter:none}
+  .layer-fg   .panel{filter:brightness(1.05) contrast(1.02)}
+
+  .frame{
+    position:relative;
+    background:var(--pane);
+    border:1px solid var(--line);
+    box-shadow:0 30px 60px -20px rgba(0,0,0,.8), 0 2px 0 rgba(255,255,255,.03) inset;
+    overflow:hidden;
+    border-radius:3px;
+  }
+  .frame::after{ /* inner bevel */
+    content:"";position:absolute;inset:0;border:1px solid rgba(255,255,255,.05);
+    border-radius:3px;pointer-events:none;
+  }
+  .frame .media{
+    width:100%;height:100%;
+    object-fit:contain;          /* letterbox - never cover-crop landscape into portrait */
+    background:#000;display:block;
+  }
+  .frame .poster{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
+  video.media{object-fit:contain}
+
+  /* focus tier framing dimensions (mid) */
+  .layer-mid .frame{width:clamp(280px,34vw,520px);aspect-ratio:16/10}
+  .layer-bg  .frame{width:clamp(220px,26vw,400px);aspect-ratio:16/10}
+  .layer-fg  .frame{width:clamp(150px,18vw,260px);aspect-ratio:1/1.15}
+
+  /* vertical placement bands per tier (set inline via --y) */
+  .layer-bg  .panel{top:38%}
+  .layer-mid .panel{top:54%}
+  .layer-fg  .panel{top:78%}
+
+  /* the active mid panel (centred) gets a lit label + ember edge */
+  .panel.active .frame{
+    box-shadow:0 40px 80px -20px rgba(0,0,0,.85), 0 0 0 1px rgba(255,107,53,.45), 0 0 50px -10px rgba(255,107,53,.25);
+  }
+  .label{
+    position:absolute;left:0;bottom:-46px;width:100%;
+    display:flex;align-items:baseline;gap:.6em;
+    opacity:0;transform:translateY(6px);transition:.45s var(--ease);
+  }
+  .panel.active .label{opacity:1;transform:none}
+  .label .n{
+    font-family:"Space Grotesk";font-size:11px;letter-spacing:.18em;
+    color:var(--ember);font-weight:600;
+  }
+  .label .t{font-family:"Fraunces";font-size:17px;color:var(--ink);font-weight:600}
+  .label .k{font-size:11px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+
+  /* ---- fixed chrome ---- */
+  .topband{
+    position:fixed;top:0;left:0;width:100%;z-index:5;
+    display:flex;justify-content:space-between;align-items:flex-start;
+    padding:22px clamp(18px,4vw,46px);pointer-events:none;
+    background:linear-gradient(to bottom, rgba(6,6,10,.85), transparent);
+  }
+  .brand{max-width:60ch}
+  .brand .eyebrow{
+    font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--ember);font-weight:600;
+  }
+  .brand h1{
+    font-family:"Fraunces";font-weight:400;line-height:.98;margin-top:8px;
+    font-size:clamp(28px,5vw,56px);letter-spacing:-.01em;
+  }
+  .brand h1 em{font-style:italic;color:var(--ember)}
+  .brand p{margin-top:10px;color:var(--muted);font-size:13px;max-width:42ch;line-height:1.5}
+
+  .loop{
+    text-align:right;pointer-events:auto;
+    font-family:"Space Grotesk";
+  }
+  .loop .cap{font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:var(--muted)}
+  .loop .num{
+    display:flex;align-items:baseline;gap:6px;justify-content:flex-end;margin-top:2px;
+  }
+  .loop .num b{
+    font-size:clamp(34px,5vw,52px);font-weight:700;line-height:1;
+    color:var(--ember);font-variant-numeric:tabular-nums;
+    text-shadow:0 0 24px rgba(255,107,53,.4);
+  }
+  .loop .num .x{font-size:13px;color:var(--muted)}
+  /* tick pulse on increment */
+  .loop.tick .num b{animation:tick .5s var(--ease)}
+  @keyframes tick{0%{transform:scale(1.18);text-shadow:0 0 40px rgba(255,107,53,.9)}100%{transform:scale(1)}}
+
+  /* progress dot ring - position within current cycle */
+  .ring{position:fixed;right:clamp(18px,4vw,46px);top:96px;z-index:5;width:46px;height:46px;pointer-events:none}
+  .ring svg{transform:rotate(-90deg)}
+  .ring circle{fill:none;stroke-width:2}
+  .ring .bg{stroke:var(--line)}
+  .ring .fg{stroke:var(--ember);stroke-linecap:round;transition:stroke-dashoffset .1s linear}
+
+  .hint{
+    position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:5;
+    font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--muted);
+    display:flex;align-items:center;gap:10px;pointer-events:none;
+    opacity:.9;transition:opacity .6s;
+  }
+  .hint.gone{opacity:0}
+  .hint .bar{width:46px;height:1px;background:linear-gradient(90deg,transparent,var(--ember),transparent);
+    animation:slide 2.4s linear infinite;background-size:200% 100%}
+  @keyframes slide{to{background-position:-200% 0}}
+
+  .creditline{
+    position:fixed;left:clamp(18px,4vw,46px);bottom:18px;z-index:5;
+    font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#4d4a55;pointer-events:none;
+  }
+
+  /* accessible focus */
+  a:focus-visible,button:focus-visible,.panel:focus-visible{
+    outline:2px solid var(--ember);outline-offset:3px;border-radius:4px;
+  }
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+  /* ----- MOBILE: <=640px ----- */
+  @media (max-width:640px){
+    .layer-mid .frame{width:78vw;aspect-ratio:16/11}
+    .layer-bg  .frame{width:60vw;aspect-ratio:16/10}
+    .layer-fg  .frame{width:42vw;aspect-ratio:1/1.1}
+    .layer-bg  .panel{top:34%}
+    .layer-mid .panel{top:52%}
+    .layer-fg  .panel{top:80%}
+    .brand p{display:none}
+    .brand h1{font-size:30px}
+    .ring{top:84px;width:40px;height:40px}
+    .label .t{font-size:15px}
+    .label{bottom:-40px}
+  }
+
+  /* ----- reduced motion: freeze the orbit, show final populated state ----- */
+  @media (prefers-reduced-motion:reduce){
+    .panel,.layer,*{transition:none!important;animation:none!important}
+    .hint .bar{display:none}
+  }
+</style>
+</head>
+<body>
+  <div class="sky"></div>
+
+  <div class="stage" id="stage" aria-label="Perpetual three-layer parallax portfolio">
+    <div class="layer layer-bg" id="layer-bg" aria-hidden="true"></div>
+    <div class="layer layer-fg" id="layer-fg" aria-hidden="true"></div>
+    <div class="layer layer-mid" id="layer-mid" role="list"></div>
+  </div>
+
+  <div class="grain"></div>
+
+  <header class="topband">
+    <div class="brand">
+      <div class="eyebrow">Studio Reel - No End</div>
+      <h1>The work just keeps <em>orbiting</em></h1>
+      <p>Three depth layers tile forever. Scroll, flick or drag - the catalog never bottoms out. Only the LOOP counter knows you have been here before.</p>
+    </div>
+    <div class="loop" id="loop">
+      <div class="cap">Loop</div>
+      <div class="num"><b id="loopN">00</b><span class="x">/ &infin;</span></div>
+    </div>
+  </header>
+
+  <div class="ring" aria-hidden="true">
+    <svg viewBox="0 0 46 46" width="46" height="46">
+      <circle class="bg" cx="23" cy="23" r="20"></circle>
+      <circle class="fg" id="ringFg" cx="23" cy="23" r="20"></circle>
+    </svg>
+  </div>
+
+  <div class="hint" id="hint"><span class="bar"></span> scroll &middot; drag &middot; it never ends <span class="bar"></span></div>
+  <div class="creditline">Generative demo media - swap the WORKS array</div>
+
+  <p class="sr">This portfolio loops endlessly. Works float across foreground, midground and background depth layers and recycle seamlessly. A loop counter increments each full cycle.</p>
+
+<script>
+/* ============================================================
+   DATA - swap freely. Each work: title, kind label, src, type.
+   poster only needed for video (used as in-view poster).
+   The same pool feeds all three depth layers (different slices),
+   so a tiny set tiles into an infinite orbit.
+   ============================================================ */
+const A = "../assets/";
+const WORKS = [
+  { title:"Midnight Mercedes",  kind:"Image / Flux",    type:"img", src:A+"flux-car-4k.png" },
+  { title:"Mint & Wood Clinic", kind:"Image / Flux",    type:"img", src:A+"flux-clinic-4k.png" },
+  { title:"Autumn Fox",         kind:"Image / SDXL",    type:"img", src:A+"sdxl.png" },
+  { title:"Low-Fi Apple",       kind:"Image / TinySD",  type:"img", src:A+"hf-tinysd.png" },
+  { title:"Kling Motion",       kind:"Video / Kling",   type:"vid", src:A+"kling-video.mp4",     poster:A+"gen/poster-kling-video.png" },
+  { title:"Fal Loop",           kind:"Video / Fal",     type:"vid", src:A+"fal-video.mp4",       poster:A+"gen/poster-fal-video.png" },
+  { title:"Car Drive",          kind:"Video / Flux i2v",type:"vid", src:A+"flux-car-i2v.mp4",    poster:A+"gen/poster-flux-car-i2v.png" },
+  { title:"Veo Frame",          kind:"Video / Veo",     type:"vid", src:A+"veo-video.mp4",       poster:A+"gen/poster-veo-video.png" },
+  { title:"Talking Avatar",     kind:"Video / HeyGen",  type:"vid", src:A+"heygen-avatar.mp4",   poster:A+"gen/poster-heygen.png", muted:false },
+  { title:"Talking Photo",      kind:"Video / D-ID",    type:"vid", src:A+"did-talking-photo.mp4",poster:A+"gen/poster-did.png", muted:false },
+];
+
+/* layer config: which works, the parallax factor (depth), and gap.
+   bg drifts slowest (far), fg fastest (near). mid = focus = 1.0 base.
+   gap is set per viewport: on phones the gaps shrink so the centred
+   focus panel still has its neighbours peeking in from both edges -
+   that is what makes the orbit read at scroll=0 on a 390px screen. */
+const REDUCED = matchMedia("(prefers-reduced-motion:reduce)").matches;
+const isPhone = ()=>window.innerWidth<=640;
+
+function pick(idxs){ return idxs.map(i=>WORKS[i % WORKS.length]); }
+
+const LAYERS = [
+  { el:"layer-bg",  factor:0.42, gap:140, gapPhone:46, items:pick([1,4,7,2,6]),       cls:"bg"  },
+  { el:"layer-mid", factor:1.00, gap:120, gapPhone:34, items:pick([0,4,2,6,5,7,1,8]), cls:"mid", focus:true },
+  { el:"layer-fg",  factor:1.55, gap:90,  gapPhone:30, items:pick([2,3,9,0,7]),       cls:"fg"  },
+];
+
+/* ---- build panels ---- */
+const stage = document.getElementById("stage");
+const built = [];      // per-layer state
+
+LAYERS.forEach(L=>{
+  const el = document.getElementById(L.el);
+  const panels = [];
+  L.items.forEach((w,i)=>{
+    const p = document.createElement("div");
+    p.className = "panel";
+    if(L.focus){ p.setAttribute("role","listitem"); p.tabIndex = 0; }
+    const frame = document.createElement("div");
+    frame.className = "frame";
+
+    if(w.type==="img"){
+      const img = document.createElement("img");
+      img.className="media"; img.src=w.src; img.alt=w.title;
+      img.loading="lazy"; img.decoding="async";
+      frame.appendChild(img);
+    } else {
+      // video: show poster always; the rAF focus logic plays only the centred mid panel
+      const poster = document.createElement("img");
+      poster.className="poster"; poster.src=w.poster||""; poster.alt=w.title;
+      poster.loading="lazy"; poster.decoding="async";
+      frame.appendChild(poster);
+      const v = document.createElement("video");
+      v.className="media";
+      v.muted = (w.muted===false)? false : true;
+      v.loop=true; v.playsInline=true; v.preload="none";
+      v.setAttribute("playsinline",""); v.setAttribute("webkit-playsinline","");
+      v.dataset.src = w.src;
+      v.style.opacity = "0"; v.style.transition="opacity .4s ease";
+      frame.appendChild(v);
+      p._video = v; p._poster = poster;
+    }
+
+    if(L.focus){
+      const lab = document.createElement("div");
+      lab.className="label";
+      lab.innerHTML = `<span class="n">${String(i+1).padStart(2,"0")}</span><span class="t">${w.title}</span><span class="k">${w.kind}</span>`;
+      frame.appendChild(lab);
+      p._label = lab;
+    }
+
+    p.appendChild(frame);
+    el.appendChild(p);
+    panels.push(p);
+  });
+
+  built.push({ ...L, node:el, panels, widths:[], positions:[], tile:0 });
+});
+
+/* measure tile width per layer = sum(panelWidth+gap). Each panel's
+   base position is cumulative. Re-measured on resize. */
+function measure(){
+  built.forEach(L=>{
+    let x = 0;
+    L.positions = [];
+    L.widths = [];
+    L.panels.forEach(p=>{
+      const w = p.querySelector(".frame").getBoundingClientRect().width || 300;
+      L.widths.push(w);
+      L.positions.push(x);
+      x += w + L.gap;
+    });
+    L.tile = x; // total length of one full set
+  });
+}
+
+/* ---- motion state ---- */
+let pos = 0;            // master travel in px (grows forever)
+let vel = 0;           // current velocity
+let target = 0;        // wheel/touch target delta accumulator
+const VW = ()=>window.innerWidth;
+
+let loopCount = 0;
+let lastMidCycle = 0;
+const loopN = document.getElementById("loopN");
+const loopEl = document.getElementById("loop");
+const ringFg = document.getElementById("ringFg");
+const RING_C = 2*Math.PI*20;
+ringFg.style.strokeDasharray = RING_C;
+
+function bumpLoop(){
+  loopCount++;
+  loopN.textContent = String(loopCount).padStart(2,"0");
+  loopEl.classList.remove("tick"); void loopEl.offsetWidth; loopEl.classList.add("tick");
+}
+
+/* positive modulo placement: returns wrapped x for a panel so that
+   it sits in [-tile/?, vw] and recycles seamlessly. */
+function place(L, basePos, offset){
+  const W = L.tile;
+  let x = basePos - offset;            // offset = pos*factor (we move panels left)
+  // wrap into a window that starts one panel-width before the viewport
+  const lead = L.widths.length? L.widths[0]+L.gap : 320;
+  x = ((x + lead) % W + W) % W - lead;
+  return x;
+}
+
+/* focus detection for mid layer: the panel whose centre is nearest
+   to viewport centre is "active" - gets label + its video plays. */
+let activePanel = null;
+
+function setActive(L){
+  if(!L.focus) return;
+  const cx = VW()/2;
+  let best=null, bestD=1e9, bestI=0;
+  L.panels.forEach((p,i)=>{
+    const rect = p.getBoundingClientRect();
+    const c = rect.left + rect.width/2;
+    const d = Math.abs(c-cx);
+    if(d<bestD){bestD=d;best=p;bestI=i;}
+  });
+  if(best!==activePanel){
+    if(activePanel){
+      activePanel.classList.remove("active");
+      stopVid(activePanel);
+    }
+    activePanel = best;
+    activePanel.classList.add("active");
+    playVid(activePanel);
+  }
+}
+
+function playVid(p){
+  if(!p || !p._video || REDUCED) return;
+  const v = p._video;
+  if(!v.src && v.dataset.src){ v.src = v.dataset.src; }
+  // keep the poster on top until the video actually paints a frame,
+  // so a slow-decoding clip never flashes a black panel.
+  if(!v._wired){
+    v._wired = true;
+    const reveal = ()=>{ v.style.opacity="1"; if(p._poster) p._poster.style.opacity="0"; };
+    v.addEventListener("playing", reveal);
+    v.addEventListener("timeupdate", ()=>{ if(v.currentTime>0) reveal(); }, {once:true});
+  }
+  const pr = v.play();
+  if(pr && pr.catch) pr.catch(()=>{});
+}
+function stopVid(p){
+  if(!p || !p._video) return;
+  const v = p._video;
+  try{ v.pause(); }catch(e){}
+  v.style.opacity="0";
+  if(p._poster) p._poster.style.opacity="1";
+}
+
+/* ---- snap rhythm: ease velocity toward nearest mid panel centre ---- */
+let snapTo = null;
+function computeSnap(){
+  const L = built[1]; // mid
+  if(!L.tile) return;
+  const cx = VW()/2;
+  // current pos maps each mid panel to a viewport x; find pos that
+  // lands the nearest panel's centre on cx.
+  let best=1e9, bestPos=pos;
+  L.panels.forEach((p,i)=>{
+    const halfW = L.widths[i]/2;
+    // panel centre x = place(...) + halfW ; we want = cx
+    // solve roughly by sampling current placement then nudging pos
+    const rect = p.getBoundingClientRect();
+    const c = rect.left + rect.width/2;
+    const delta = (c - cx);          // px panel is off-centre (mid factor=1)
+    if(Math.abs(delta) < Math.abs(best)){ best = delta; bestPos = pos + delta; }
+  });
+  snapTo = bestPos;
+}
+
+/* ---- input ---- */
+let idle = 0;
+const hint = document.getElementById("hint");
+function nudge(d){
+  target += d;
+  snapTo = null;
+  idle = 0;
+  hint.classList.add("gone");
+}
+
+window.addEventListener("wheel", e=>{
+  e.preventDefault();
+  nudge(e.deltaY * 1.0 + e.deltaX * 1.0);
+}, {passive:false});
+
+/* touch / pointer drag */
+let dragging=false, lastP=0;
+function down(x){ dragging=true; lastP=x; snapTo=null; idle=0; hint.classList.add("gone"); }
+function move(x){ if(!dragging) return; const dx = lastP - x; lastP = x; nudge(dx*1.4); }
+function up(){ dragging=false; }
+
+window.addEventListener("touchstart", e=>down(e.touches[0].clientX), {passive:true});
+window.addEventListener("touchmove",  e=>{ if(dragging){e.preventDefault();} move(e.touches[0].clientX); }, {passive:false});
+window.addEventListener("touchend", up, {passive:true});
+window.addEventListener("mousedown", e=>down(e.clientX));
+window.addEventListener("mousemove", e=>move(e.clientX));
+window.addEventListener("mouseup", up);
+
+/* keyboard for accessibility */
+window.addEventListener("keydown", e=>{
+  if(e.key==="ArrowRight"||e.key==="PageDown"){ nudge(built[1].widths[0]||340); }
+  if(e.key==="ArrowLeft" ||e.key==="PageUp"){ nudge(-(built[1].widths[0]||340)); }
+});
+
+/* ---- the single rAF orbit loop ---- */
+let snapCooldown = 0;
+function frame(){
+  // integrate input into velocity with smoothing
+  vel += (target) * 0.12;
+  target *= 0.88;
+  vel *= 0.90;                         // friction
+
+  // snap pull when idle and slow (mid rhythm)
+  if(!dragging && Math.abs(vel) < 0.6 && Math.abs(target) < 0.4){
+    if(snapTo===null){ computeSnap(); }
+    if(snapTo!==null){
+      const d = snapTo - pos;
+      vel += d * 0.08;
+      vel *= 0.78;
+    }
+  }
+
+  if(Math.abs(vel) < 0.01) vel = 0;
+  pos += vel;
+
+  // track full midground cycles -> loop counter
+  const midTile = built[1].tile || 1;
+  const cyc = Math.floor(pos / midTile);
+  if(cyc !== lastMidCycle){
+    if(cyc > lastMidCycle) bumpLoop();
+    lastMidCycle = cyc;
+  }
+
+  // ring = fraction through current cycle
+  const frac = ((pos % midTile)/midTile + 1) % 1;
+  ringFg.style.strokeDashoffset = RING_C * (1 - frac);
+
+  // render every layer
+  built.forEach(L=>{
+    const off = pos * L.factor;
+    L.panels.forEach((p,i)=>{
+      const x = place(L, L.positions[i], off);
+      p.style.setProperty("--x", x.toFixed(2)+"px");
+    });
+  });
+
+  setActive(built[1]);
+  requestAnimationFrame(frame);
+}
+
+/* ---- reduced motion: static populated final state, no rAF ---- */
+function staticState(){
+  measure();
+  pos = 0;
+  built.forEach(L=>{
+    L.panels.forEach((p,i)=>{
+      const x = place(L, L.positions[i], 0);
+      p.style.setProperty("--x", x.toFixed(2)+"px");
+    });
+  });
+  // light up the centre mid panel + its poster, no playback
+  setActive(built[1]);
+  if(activePanel){ activePanel.classList.add("active"); }
+  loopN.textContent="01";
+  ringFg.style.strokeDashoffset = RING_C*0.5;
+  hint.classList.add("gone");
+}
+
+/* ---- boot ---- */
+function boot(){
+  measure();
+  if(REDUCED){ staticState(); return; }
+  // seed a gentle drift so the orbit reads as alive at scroll=0
+  vel = 0.0;
+  requestAnimationFrame(frame);
+  // auto-hint fade after a while
+  setTimeout(()=>hint.classList.remove("gone"), 200);
+}
+
+let rtid;
+window.addEventListener("resize", ()=>{
+  clearTimeout(rtid);
+  rtid = setTimeout(()=>{ measure(); if(REDUCED) staticState(); }, 150);
+});
+
+// wait for fonts + first images to lay out so measure() is correct
+if(document.readyState==="complete") boot();
+else window.addEventListener("load", boot);
+// also measure once images settle (object-fit doesn't change frame width,
+// but font load shifts label metrics)
+document.fonts && document.fonts.ready.then(()=>{ measure(); });
+</script>
+</body>
+</html>

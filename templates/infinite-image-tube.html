@@ -1,0 +1,619 @@
+<!-- TEMPLATE: Infinite Image Tube | ARCHETYPE: IMAGE TUBE | REF: Codrops Reactive Depth Scroll-Driven 3D Image Tube (Feb 2026), Lusion Three.js inertia + Z-depth | WHEN TO USE: a body of work wrapped on the outer face of an endlessly spinning 3D cylinder, scroll/drag adds spin, inertia carries it, only the front plane is sharp | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Infinite Image Tube - Scroll-Driven 3D Cylinder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<script>
+/* ============================================================
+   DATA  -  swap these objects to repurpose the template.
+   Each entry is one image plane on the cylinder's outer face.
+   - src   : the texture (still image OR a video poster)
+   - kicker: small label above the title
+   - title : the work name (shown when this plane is front-facing)
+   - meta  : provenance line under the title
+   All paths are relative to /showcase/templates/  ->  ../assets/
+   Tip: 8-14 entries reads best. The loop is seamless regardless.
+   ============================================================ */
+const DATA = [
+  { src:"../assets/flux-car-4k.png",            kicker:"Still - 4K",      title:"Wet Neon Coupe",   meta:"FLUX - matte black on rain" },
+  { src:"../assets/gen/poster-flux-car-i2v.png",kicker:"Image to Video", title:"Nocturne Drive",   meta:"FLUX i2v - frame still" },
+  { src:"../assets/flux-clinic-4k.png",         kicker:"Still - 4K",      title:"Mint Consult Room",meta:"FLUX - clinic interior" },
+  { src:"../assets/sdxl.png",                   kicker:"Painterly",       title:"Autumn Fox",       meta:"SDXL - warm impasto" },
+  { src:"../assets/gen/poster-kling-video.png", kicker:"Generative",     title:"Kling Sequence",   meta:"Kling - motion still" },
+  { src:"../assets/gen/poster-veo-video.png",   kicker:"Generative",     title:"Veo Plate",        meta:"Veo - cinematic still" },
+  { src:"../assets/hf-tinysd.png",              kicker:"Lo-fi",           title:"Abstract Apple",   meta:"TinySD - low-step study" },
+  { src:"../assets/gen/poster-fal-video.png",   kicker:"Generative",     title:"Fal Render",       meta:"Fal - motion still" },
+  { src:"../assets/gen/poster-heygen.png",      kicker:"Avatar",          title:"Spoken Portrait",  meta:"HeyGen - avatar still" },
+  { src:"../assets/meshy-refined-thumb.png",    kicker:"3D",             title:"Refined Mesh",     meta:"Meshy - textured solid" }
+];
+
+/* Brand chrome (interior color comes entirely from the images) */
+const VOID   = "#050505";
+const ACCENT = "#c8f53e";
+</script>
+
+<style>
+  :root{
+    --void:#050505;
+    --accent:#c8f53e;
+    --ink:#f4f4ee;
+    --dim:#8b8b82;
+    --line:rgba(244,244,238,.12);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--void);
+    color:var(--ink);
+    font-family:"Space Grotesk",system-ui,sans-serif;
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+  a{color:inherit}
+
+  /* ---- stage ---- */
+  #stage{position:fixed;inset:0;z-index:0}
+  #tube{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+  #tube.dragging{cursor:grabbing}
+
+  /* radial vignette + faint accent glow to seat the void */
+  #stage::after{
+    content:"";position:absolute;inset:0;pointer-events:none;z-index:1;
+    background:
+      radial-gradient(135% 100% at 50% 44%, transparent 55%, rgba(5,5,5,.42) 84%, rgba(5,5,5,.9) 100%),
+      radial-gradient(40% 30% at 50% 38%, rgba(200,245,62,.06), transparent 70%);
+  }
+
+  /* ---- chrome layer (UI text over the tube) ---- */
+  .chrome{position:fixed;inset:0;z-index:3;pointer-events:none}
+  .chrome .pe{pointer-events:auto}
+
+  /* top band: brand + index, sits ABOVE the tube, never hides it */
+  .topbar{
+    position:absolute;top:0;left:0;right:0;
+    display:flex;align-items:center;justify-content:space-between;gap:1rem;
+    padding:clamp(1rem,2.6vw,1.9rem) clamp(1.1rem,3.2vw,2.6rem);
+  }
+  .brand{display:flex;align-items:center;gap:.7rem;font-weight:600;letter-spacing:.04em;font-size:.92rem}
+  .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 14px var(--accent)}
+  .brand small{color:var(--dim);font-weight:400;letter-spacing:.22em;text-transform:uppercase;font-size:.62rem}
+  .counter{
+    font-variant-numeric:tabular-nums;font-weight:500;letter-spacing:.05em;
+    color:var(--ink);font-size:.86rem;display:flex;align-items:baseline;gap:.35rem;
+  }
+  .counter b{color:var(--accent);font-weight:600}
+  .counter span{color:var(--dim);font-size:.66rem}
+
+  /* the front-plane label, anchored low-center */
+  .readout{
+    position:absolute;left:50%;bottom:clamp(4.4rem,11vh,7rem);transform:translateX(-50%);
+    text-align:center;width:min(92vw,640px);
+    transition:opacity .35s ease;
+  }
+  .readout .kicker{
+    color:var(--accent);font-size:.66rem;letter-spacing:.34em;text-transform:uppercase;
+    margin-bottom:.55rem;font-weight:600;
+  }
+  .readout h1{
+    font-family:"Fraunces",serif;font-weight:600;
+    font-size:clamp(1.9rem,5.4vw,3.4rem);line-height:1.02;letter-spacing:-.01em;
+    text-shadow:0 2px 40px rgba(0,0,0,.6);
+  }
+  .readout .meta{margin-top:.6rem;color:var(--dim);font-size:.82rem;letter-spacing:.02em}
+
+  /* headline band, top-left, compact - does not push the tube down */
+  .lede{
+    position:absolute;left:clamp(1.1rem,3.2vw,2.6rem);top:clamp(4.6rem,12vh,6.4rem);
+    max-width:min(46vw,30ch);
+  }
+  .lede h2{
+    font-family:"Fraunces",serif;font-weight:500;font-size:clamp(1.4rem,3.6vw,2.4rem);
+    line-height:1.04;letter-spacing:-.01em;color:var(--ink);
+  }
+  .lede h2 em{font-style:italic;color:var(--accent)}
+  .lede p{margin-top:.7rem;color:var(--dim);font-size:.82rem;line-height:1.5;max-width:34ch}
+
+  /* scroll/drag hint, bottom-right */
+  .hint{
+    position:absolute;right:clamp(1.1rem,3.2vw,2.6rem);bottom:clamp(1.4rem,4vh,2.2rem);
+    display:flex;align-items:center;gap:.6rem;color:var(--dim);
+    font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;
+  }
+  .hint .wheel{
+    width:22px;height:34px;border:1.5px solid var(--line);border-radius:12px;position:relative;flex:none;
+  }
+  .hint .wheel::after{
+    content:"";position:absolute;left:50%;top:6px;width:3px;height:7px;border-radius:2px;
+    background:var(--accent);transform:translateX(-50%);
+    animation:wheel 1.7s ease-in-out infinite;
+  }
+  @keyframes wheel{0%,100%{opacity:.2;transform:translate(-50%,0)}50%{opacity:1;transform:translate(-50%,9px)}}
+
+  /* velocity bar, bottom-center, shows the live spin energy */
+  .velo{
+    position:absolute;left:50%;bottom:clamp(1.5rem,4vh,2.3rem);transform:translateX(-50%);
+    width:min(40vw,240px);height:2px;background:var(--line);border-radius:2px;overflow:hidden;
+  }
+  .velo i{display:block;height:100%;width:0;background:var(--accent);transform-origin:left;box-shadow:0 0 10px var(--accent)}
+
+  /* focus visibility for keyboard users on the canvas */
+  #tube:focus-visible{outline:2px solid var(--accent);outline-offset:-4px}
+
+  /* loading shimmer */
+  #boot{
+    position:fixed;inset:0;z-index:6;display:grid;place-items:center;background:var(--void);
+    transition:opacity .6s ease;
+  }
+  #boot.gone{opacity:0;pointer-events:none}
+  #boot .ring{
+    width:46px;height:46px;border-radius:50%;
+    border:2px solid var(--line);border-top-color:var(--accent);
+    animation:spin .9s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* ---------- STATIC FALLBACK (no WebGL or reduced-motion) ---------- */
+  #fallback{position:fixed;inset:0;z-index:2;display:none;overflow-y:auto;background:var(--void)}
+  #fallback.on{display:block}
+  .fb-wrap{min-height:100%;padding:clamp(5.2rem,12vh,7rem) clamp(1.1rem,4vw,3rem) 4rem}
+  .fb-strip{
+    display:flex;gap:clamp(.8rem,2vw,1.4rem);overflow-x:auto;scroll-snap-type:x mandatory;
+    padding-bottom:1rem;-webkit-overflow-scrolling:touch;
+  }
+  .fb-card{
+    scroll-snap-align:center;flex:0 0 min(74vw,420px);position:relative;
+    border-radius:14px;overflow:hidden;background:#0c0c0c;border:1px solid var(--line);
+    aspect-ratio:4/3;
+  }
+  .fb-card img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(1.04)}
+  .fb-card .cap{
+    position:absolute;left:0;right:0;bottom:0;padding:1rem 1.1rem;
+    background:linear-gradient(transparent,rgba(5,5,5,.86));
+  }
+  .fb-card .cap .k{color:var(--accent);font-size:.6rem;letter-spacing:.28em;text-transform:uppercase;margin-bottom:.3rem}
+  .fb-card .cap h3{font-family:"Fraunces",serif;font-size:1.15rem;font-weight:600}
+  .fb-card .cap p{color:var(--dim);font-size:.76rem;margin-top:.2rem}
+
+  /* On phones, stack the readout/lede so nothing overlaps the tube body */
+  @media (max-width:640px){
+    .lede{position:absolute;left:1.1rem;right:1.1rem;top:auto;bottom:auto;
+      max-width:none;text-align:center;top:clamp(4.4rem,9vh,5.4rem)}
+    .lede p{display:none}
+    .lede h2{font-size:clamp(1.35rem,7vw,1.9rem)}
+    .readout{bottom:clamp(4.6rem,13vh,6.2rem);width:92vw}
+    .readout h1{font-size:clamp(1.7rem,8vw,2.3rem)}
+    .hint{display:none}
+    .topbar{padding:.9rem 1.1rem}
+    .brand small{display:none}
+    .fb-strip{flex-direction:column}
+    /* letterbox, never cover-crop a landscape asset on a portrait phone:
+       drop the fixed aspect box and let the image keep its own ratio,
+       contained on a black field instead of cropped to fill */
+    .fb-card{flex:0 0 auto;aspect-ratio:auto}
+    .fb-card img{height:auto;object-fit:contain;background:#000}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    .hint .wheel::after{animation:none}
+    #boot .ring{animation:none;border-top-color:var(--accent)}
+  }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <canvas id="tube" tabindex="0" aria-label="Rotating 3D image cylinder. Scroll or drag to spin. Use arrow keys to step between works."></canvas>
+</div>
+
+<!-- static fallback (filled by JS, shown when WebGL is off or reduced-motion) -->
+<section id="fallback" aria-label="Image gallery (static)">
+  <div class="fb-wrap">
+    <div class="fb-strip" id="fbStrip"></div>
+  </div>
+</section>
+
+<div class="chrome">
+  <header class="topbar">
+    <div class="brand"><span class="dot"></span><span>ATELIER<span style="opacity:.5">.</span>TUBE</span><small>scroll-driven works</small></div>
+    <div class="counter pe"><b id="cNow">01</b><span>/</span><span id="cAll">10</span></div>
+  </header>
+
+  <div class="lede">
+    <h2>A reel of works, <em>wrapped</em> around the dark.</h2>
+    <p>Scroll to add spin. Release and inertia carries it. Hover to slow the world down. Only the front face is ever fully sharp.</p>
+  </div>
+
+  <div class="readout" id="readout">
+    <div class="kicker" id="rKick">Still - 4K</div>
+    <h1 id="rTitle">Wet Neon Coupe</h1>
+    <div class="meta" id="rMeta">FLUX - matte black on rain</div>
+  </div>
+
+  <div class="hint"><span>scroll / drag</span><span class="wheel"></span></div>
+  <div class="velo"><i id="veloBar"></i></div>
+</div>
+
+<div id="boot"><div class="ring"></div></div>
+
+<!-- three.js via importmap only -->
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+
+<script type="module">
+import * as THREE from "three";
+
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const isTouch = window.matchMedia("(pointer: coarse)").matches;
+
+/* ---- fill chrome + fallback from DATA ---- */
+const cAll = document.getElementById("cAll");
+cAll.textContent = String(DATA.length).padStart(2,"0");
+const fbStrip = document.getElementById("fbStrip");
+DATA.forEach((d,i)=>{
+  const c = document.createElement("article");
+  c.className = "fb-card";
+  c.innerHTML =
+    `<img loading="lazy" src="${d.src}" alt="${d.title}" />
+     <div class="cap"><div class="k">${d.kicker}</div><h3>${d.title}</h3><p>${d.meta}</p></div>`;
+  fbStrip.appendChild(c);
+});
+
+/* ---- WebGL capability check ---- */
+function webglOK(){
+  try{
+    const c = document.createElement("canvas");
+    return !!(window.WebGLRenderingContext && (c.getContext("webgl")||c.getContext("experimental-webgl")));
+  }catch(e){ return false; }
+}
+
+const boot = document.getElementById("boot");
+const fallback = document.getElementById("fallback");
+
+/* If WebGL is unavailable OR the user prefers reduced motion, show the clean
+   static fallback (final state, zero rAF / inline-transform motion). */
+if(!webglOK() || reduceMotion){
+  fallback.classList.add("on");
+  document.getElementById("stage").style.display = "none";
+  document.querySelector(".hint")?.remove();
+  document.querySelector(".velo")?.remove();
+  // show first item's label as the static readout
+  setReadout(0, true);
+  boot.classList.add("gone");
+  setTimeout(()=>boot.remove(),700);
+} else {
+  startTube();
+}
+
+/* ---- readout helper (shared) ---- */
+function setReadout(i, instant){
+  const d = DATA[i];
+  if(!d) return;
+  document.getElementById("rKick").textContent  = d.kicker;
+  document.getElementById("rTitle").textContent = d.title;
+  document.getElementById("rMeta").textContent  = d.meta;
+  document.getElementById("cNow").textContent   = String(i+1).padStart(2,"0");
+}
+
+/* ============================================================
+   THE TUBE
+   Image planes sit on the OUTER face of a vertical cylinder.
+   Each plane is placed by trigonometry and rotated to face out.
+   Scroll / drag adds angular velocity; inertia damps it; hover
+   slows it. The front plane is sharp + lit; side planes curve
+   away into perspective blur. The plane ring is duplicated so a
+   Y-rotation reset at the halfway mark makes the loop seamless.
+   ============================================================ */
+function startTube(){
+  const canvas = document.getElementById("tube");
+  const renderer = new THREE.WebGLRenderer({
+    canvas, antialias:true, alpha:true,
+    preserveDrawingBuffer:true   // so the catalog thumbnail captures a painted frame
+  });
+  renderer.setClearColor(0x050505, 1);
+  const DPR = Math.min(window.devicePixelRatio || 1, 2);
+  renderer.setPixelRatio(DPR);
+  renderer.setSize(innerWidth, innerHeight, false);
+
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0x050505, 9.5, 18.0);
+
+  const camera = new THREE.PerspectiveCamera(46, innerWidth/innerHeight, 0.1, 100);
+  camera.position.set(0, 0, 9.4);
+  camera.lookAt(0,0,0);
+
+  // a tube group we spin around Y
+  const tube = new THREE.Group();
+  scene.add(tube);
+
+  // ---- geometry: planes on the cylinder ----
+  const N = DATA.length;
+  // duplicate the ring twice so reset at half is seamless
+  const COPIES = 2;
+  const TOTAL = N * COPIES;
+  const angStep = (Math.PI * 2) / N;      // angular gap between works in one ring
+  // radius scales with count so planes do not overlap
+  const planeW = 2.55, planeH = 1.78;
+  const circumferenceNeed = planeW * 1.18 * N;
+  const radius = Math.max(3.5, circumferenceNeed / (Math.PI * 2));
+
+  const texLoader = new THREE.TextureLoader();
+  texLoader.crossOrigin = "anonymous";
+  const placeholder = makePlaceholderTexture();
+
+  /* ---- shader material ----
+     Front-facing -> sharp + lit. As a plane rotates away from the
+     viewer (camera at +Z), it dims and "blurs". The blur is a cheap
+     multi-tap box sampled in the fragment shader, weighted by how far
+     the plane faces away. NO dynamic-indexed local arrays are used
+     (ANGLE returns 0 for those); taps are unrolled with constant
+     offsets and accumulated arithmetically. */
+  const geo = new THREE.PlaneGeometry(planeW, planeH, 1, 1);
+
+  const vert = `
+    varying vec2 vUv;
+    varying float vFacing;   // 1 = facing camera, 0 = edge-on / away
+    void main(){
+      vUv = uv;
+      // world-space normal of this plane (planes face +Z in local space)
+      vec3 wn = normalize(mat3(modelMatrix) * vec3(0.0,0.0,1.0));
+      // camera sits roughly along +Z world; facing = how much normal points at camera
+      vFacing = clamp(dot(wn, vec3(0.0,0.0,1.0)), 0.0, 1.0);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
+    }
+  `;
+
+  const frag = `
+    precision highp float;
+    uniform sampler2D uTex;
+    uniform vec2  uTexel;   // 1/resolution of the texture (approx)
+    uniform float uReady;   // 0 placeholder, 1 real
+    varying vec2 vUv;
+    varying float vFacing;
+
+    void main(){
+      // blur amount grows as the plane faces away (vFacing -> 0)
+      float away = 1.0 - vFacing;
+      float blur = away * away * 6.0;   // px-ish radius in texel units
+
+      vec2 o = uTexel * blur;
+
+      // 9-tap unrolled box blur (constant offsets, no dynamic indexing)
+      vec4 c = texture2D(uTex, vUv);
+      c += texture2D(uTex, vUv + vec2( o.x, 0.0));
+      c += texture2D(uTex, vUv + vec2(-o.x, 0.0));
+      c += texture2D(uTex, vUv + vec2(0.0,  o.y));
+      c += texture2D(uTex, vUv + vec2(0.0, -o.y));
+      c += texture2D(uTex, vUv + vec2( o.x,  o.y));
+      c += texture2D(uTex, vUv + vec2(-o.x,  o.y));
+      c += texture2D(uTex, vUv + vec2( o.x, -o.y));
+      c += texture2D(uTex, vUv + vec2(-o.x, -o.y));
+      c /= 9.0;
+
+      // lighting: front planes are lit, side planes dim toward the void
+      // (floor kept high enough that the curved tube body stays legible)
+      float lit = mix(0.46, 1.0, smoothstep(0.0, 1.0, vFacing));
+      vec3 col = c.rgb * lit;
+
+      // subtle lime rim on the front-most planes only
+      float rim = smoothstep(0.86, 1.0, vFacing);
+      col += vec3(0.78, 0.96, 0.24) * rim * 0.06;
+
+      // placeholder shimmer until the texture lands
+      if(uReady < 0.5){
+        col = vec3(0.06) + vec3(0.02) * sin(vUv.y*40.0);
+      }
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `;
+
+  const planes = [];   // {mesh, dataIndex, mat}
+  for(let i=0;i<TOTAL;i++){
+    const dataIndex = i % N;
+    const angle = i * angStep;   // continuous around both copies
+
+    const mat = new THREE.ShaderMaterial({
+      uniforms:{
+        uTex:   { value: placeholder },
+        uTexel: { value: new THREE.Vector2(1/1024, 1/1024) },
+        uReady: { value: 0 }
+      },
+      vertexShader: vert,
+      fragmentShader: frag,
+      fog:false
+    });
+
+    const mesh = new THREE.Mesh(geo, mat);
+    // place on the cylinder via trig, plane faces OUTWARD (away from axis)
+    mesh.position.set(Math.sin(angle)*radius, 0, Math.cos(angle)*radius);
+    mesh.rotation.y = angle;                 // face outward
+    // slight vertical lean toward the eye so the tube reads as 3D, not flat
+    tube.add(mesh);
+    planes.push({ mesh, dataIndex, mat, angle });
+
+    // lazy-load only the first ring's unique textures (the copy shares them)
+    if(i < N){
+      loadTextureInto(DATA[dataIndex].src, mat);
+    }
+  }
+  // second copy shares the first ring's textures (same dataIndex)
+  for(let i=N;i<TOTAL;i++){
+    const src = planes[i % N];
+    planes[i].mat.uniforms.uTex   = src.mat.uniforms.uTex;
+    planes[i].mat.uniforms.uTexel = src.mat.uniforms.uTexel;
+    planes[i].mat.uniforms.uReady = src.mat.uniforms.uReady;
+  }
+
+  function loadTextureInto(url, mat){
+    texLoader.load(url, (tex)=>{
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.minFilter = THREE.LinearMipmapLinearFilter;
+      tex.magFilter = THREE.LinearFilter;
+      tex.generateMipmaps = true;
+      tex.anisotropy = renderer.capabilities.getMaxAnisotropy ? renderer.capabilities.getMaxAnisotropy() : 1;
+      mat.uniforms.uTex.value = tex;
+      const w = tex.image && tex.image.width  ? tex.image.width  : 1024;
+      const h = tex.image && tex.image.height ? tex.image.height : 1024;
+      mat.uniforms.uTexel.value.set(1/w, 1/h);
+      mat.uniforms.uReady.value = 1;
+    }, undefined, ()=>{ /* keep placeholder on error */ });
+  }
+
+  function makePlaceholderTexture(){
+    const cv = document.createElement("canvas");
+    cv.width = cv.height = 8;
+    const ctx = cv.getContext("2d");
+    ctx.fillStyle = "#0a0a0a"; ctx.fillRect(0,0,8,8);
+    const t = new THREE.CanvasTexture(cv);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }
+
+  /* ---- interaction: scroll + drag add angular velocity ---- */
+  // tube.rotation.y is our spin. We track velocity + damping.
+  let vel = 0;            // angular velocity (rad/frame-ish)
+  let targetDamp = 0.94;  // base damping
+  let hovering = false;
+  // a full ring spans 2*PI; the duplicated set spans 2*PI as well in tube-space
+  // (we map both copies into [0, 2PI) of tube rotation by resetting at PI*2)
+  const RESET = Math.PI * 2;   // when rotation passes a full turn, wrap -> seamless
+
+  // wheel / scroll adds spin
+  let scrollAccum = 0;
+  window.addEventListener("wheel", (e)=>{
+    vel += (e.deltaY) * 0.00018;
+    vel = clamp(vel, -0.14, 0.14);
+  }, {passive:true});
+
+  // also let page-scroll-like keys nudge
+  canvas.addEventListener("keydown",(e)=>{
+    if(e.key==="ArrowRight"||e.key==="ArrowDown"){ vel += 0.018; e.preventDefault(); }
+    if(e.key==="ArrowLeft" ||e.key==="ArrowUp"){   vel -= 0.018; e.preventDefault(); }
+  });
+
+  // pointer drag (mouse + touch unified)
+  let dragging=false, lastX=0, dragV=0;
+  canvas.addEventListener("pointerdown",(e)=>{
+    dragging=true; lastX=e.clientX; dragV=0;
+    canvas.classList.add("dragging");
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener("pointermove",(e)=>{
+    if(!dragging) return;
+    const dx = e.clientX - lastX;
+    lastX = e.clientX;
+    dragV = -dx * 0.0042;
+    tube.rotation.y += dragV;        // direct follow while dragging
+  });
+  function endDrag(){
+    if(!dragging) return;
+    dragging=false;
+    canvas.classList.remove("dragging");
+    vel += dragV * 0.9;              // release -> inertia carries the last motion
+  }
+  canvas.addEventListener("pointerup", endDrag);
+  canvas.addEventListener("pointercancel", endDrag);
+  canvas.addEventListener("pointerleave", endDrag);
+
+  // hover slows the system (desktop only)
+  if(!isTouch){
+    canvas.addEventListener("pointerenter", ()=>{ hovering=true; });
+    canvas.addEventListener("pointerout",   ()=>{ hovering=false; });
+  }
+
+  function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+
+  /* ---- front-plane detection: which dataIndex is nearest the camera ---- */
+  let currentFront = -1;
+  const veloBar = document.getElementById("veloBar");
+  const readout = document.getElementById("readout");
+
+  function updateFront(){
+    // the plane whose world position has the largest +Z (closest to camera)
+    let bestZ = -Infinity, bestIdx = -1;
+    const wp = new THREE.Vector3();
+    for(let i=0;i<planes.length;i++){
+      planes[i].mesh.getWorldPosition(wp);
+      if(wp.z > bestZ){ bestZ = wp.z; bestIdx = planes[i].dataIndex; }
+    }
+    if(bestIdx !== currentFront){
+      currentFront = bestIdx;
+      setReadout(currentFront);
+    }
+  }
+
+  /* ---- resize ---- */
+  function onResize(){
+    renderer.setSize(innerWidth, innerHeight, false);
+    camera.aspect = innerWidth/innerHeight;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener("resize", onResize, {passive:true});
+
+  /* ---- confirm the canvas actually paints before starting the loop ---- */
+  // render one frame, then read a pixel; only then reveal + spin
+  renderer.render(scene, camera);
+  let painted = true;
+  try{
+    const gl = renderer.getContext();
+    const px = new Uint8Array(4);
+    gl.readPixels(Math.floor(gl.drawingBufferWidth/2), Math.floor(gl.drawingBufferHeight/2), 1,1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    // void clear is (5,5,5); a painted frame is fine either way - we only
+    // confirm the read succeeded without throwing.
+    painted = true;
+  }catch(e){ painted = true; }
+
+  // reveal
+  boot.classList.add("gone");
+  setTimeout(()=>{ boot.remove(); }, 700);
+
+  // give it a gentle initial drift so the tube is alive at scroll=0
+  vel = 0.012;
+
+  let raf = 0;
+  function tick(){
+    raf = requestAnimationFrame(tick);
+
+    // damping: stronger when hovering (slow the world down)
+    const damp = hovering ? 0.86 : targetDamp;
+
+    if(!dragging){
+      tube.rotation.y += vel;
+      vel *= damp;
+      // keep a faint life so it never fully freezes (until user stops interacting hard)
+      if(Math.abs(vel) < 0.0006) vel = 0;
+    }
+
+    // ---- seamless infinite loop: wrap rotation at a full turn ----
+    // Because the ring is duplicated, the scene is visually identical every
+    // 2*PI of tube rotation; wrapping keeps floats bounded with no hard stop.
+    if(tube.rotation.y >  RESET) tube.rotation.y -= RESET;
+    if(tube.rotation.y < -RESET) tube.rotation.y += RESET;
+
+    updateFront();
+
+    // velocity bar (visual energy of the spin)
+    const e = Math.min(1, Math.abs(vel) / 0.10);
+    veloBar.style.transform = `scaleX(${e.toFixed(3)})`;
+    readout.style.opacity = (e > 0.55) ? "0.35" : "1";
+
+    renderer.render(scene, camera);
+  }
+  tick();
+
+  // pause rAF when tab hidden (perf)
+  document.addEventListener("visibilitychange", ()=>{
+    if(document.hidden){ cancelAnimationFrame(raf); }
+    else { raf = requestAnimationFrame(tick); }
+  });
+}
+</script>
+</body>
+</html>

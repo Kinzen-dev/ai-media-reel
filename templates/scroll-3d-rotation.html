@@ -1,0 +1,451 @@
+<!-- TEMPLATE: Tumble Reel | ARCHETYPE: scroll-3d-rotation | REF: Codrops Exploring 3D Image Rotations on Scroll (2026), Lusion Mercedes EQS scroll-driven 3D | WHEN TO USE: portfolio / gallery / capsule drop where each work should tumble through a 3D wave path as you scroll, resting flat and sharp at center | SWAP: edit the WORKS array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Tumble Reel - Scroll-Driven 3D Rotation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600&family=Space+Grotesk:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     DATA-DRIVEN: only the WORKS array (in <script>) needs editing.
+     Visual system below is fixed chrome-free monochrome.
+     ============================================================ */
+  :root{
+    --ink:#0c0c0c;        /* near-black ground */
+    --matte:#f0ece4;      /* bone image matte */
+    --hair:rgba(240,236,228,.14);
+    --hair-soft:rgba(240,236,228,.07);
+    --card-w:clamp(280px, 46vw, 620px);
+    --card-ratio:1.5;     /* 3:2 landscape card; media object-fit covers within */
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:auto;-webkit-text-size-adjust:100%}
+  body{
+    background:var(--ink);
+    color:var(--matte);
+    font-family:"Space Grotesk",system-ui,sans-serif;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+  /* faint vertical guide-line down the spine of the reel */
+  body::before{
+    content:"";position:fixed;left:50%;top:0;bottom:0;width:1px;
+    background:linear-gradient(180deg,transparent,var(--hair-soft) 12%,var(--hair-soft) 88%,transparent);
+    transform:translateX(-50%);pointer-events:none;z-index:0;
+  }
+
+  /* ---------- compact top band: headline OVERLAYS the partial first card ----------
+     absolute so the reel starts at the very top of the page and the first
+     tumbling card is already populating the first screen behind the headline. */
+  .band{
+    position:absolute;z-index:5;left:0;right:0;top:0;
+    padding:clamp(20px,4vh,46px) clamp(20px,5vw,64px) 0;
+    pointer-events:none;
+    mix-blend-mode:difference; /* reads over either ground or image */
+  }
+  .kicker{
+    font-size:clamp(10px,1vw,12px);
+    letter-spacing:.42em;text-transform:uppercase;
+    color:var(--matte);opacity:.7;font-weight:400;
+  }
+  .title{
+    font-family:"Fraunces",serif;font-weight:300;
+    font-size:clamp(40px,9vw,124px);
+    line-height:.92;letter-spacing:-.02em;margin-top:.18em;
+    color:var(--matte);
+  }
+  .title em{font-style:italic;font-weight:400}
+  .sub{
+    margin-top:1.1em;max-width:34ch;font-size:clamp(12px,1.25vw,15px);
+    line-height:1.5;color:var(--matte);opacity:.78;font-weight:300;
+  }
+
+  /* ---------- the reel ---------- */
+  .reel{
+    position:relative;z-index:1;
+    perspective:1200px;          /* the 3D depth viewing distance */
+    perspective-origin:50% 50%;
+  }
+  .slot{
+    height:88vh;                 /* vertical rhythm: one work per ~viewport */
+    display:flex;align-items:center;justify-content:center;
+    position:relative;
+  }
+  /* work #1 shares the first screen with the overlay headline:
+     center its card in the lower-center band so the tumble is fully visible
+     below the title yet sharp and above the fold. */
+  .slot:first-of-type{height:96vh;align-items:center;padding-top:14vh}
+  .card{
+    position:relative;
+    width:var(--card-w);
+    aspect-ratio:var(--card-ratio);
+    transform-style:preserve-3d;
+    will-change:transform,filter,opacity;
+    backface-visibility:hidden;
+    /* JS writes --ty,--tz,--rx,--rz,--sc,--bl,--br,--op each frame */
+    transform:
+      translate3d(0, var(--ty,0px), var(--tz,0px))
+      rotateX(var(--rx,0deg))
+      rotateZ(var(--rz,0deg))
+      scale(var(--sc,1));
+    filter:blur(var(--bl,0px)) brightness(var(--br,1));
+    opacity:var(--op,1);
+  }
+  .frame{
+    position:absolute;inset:0;overflow:hidden;
+    background:var(--matte);
+    border:1px solid var(--hair);
+    box-shadow:0 40px 90px -40px rgba(0,0,0,.9), 0 2px 0 rgba(255,255,255,.04) inset;
+  }
+  .frame img,.frame video{
+    position:absolute;inset:0;width:100%;height:100%;
+    object-fit:cover;object-position:center;
+    display:block;
+  }
+  /* index + caption ride flat on the card face */
+  .meta{
+    position:absolute;left:0;right:0;bottom:0;z-index:2;
+    display:flex;justify-content:space-between;align-items:flex-end;
+    padding:14px 16px;
+    background:linear-gradient(0deg,rgba(12,12,12,.62),transparent);
+    color:var(--matte);pointer-events:none;
+  }
+  .meta .no{font-family:"Fraunces",serif;font-size:13px;letter-spacing:.1em;opacity:.85}
+  .meta .name{font-family:"Fraunces",serif;font-style:italic;font-size:clamp(13px,1.5vw,19px);text-align:right;line-height:1.1}
+  .meta .tag{display:block;font-family:"Space Grotesk";font-style:normal;font-size:10px;letter-spacing:.28em;text-transform:uppercase;opacity:.6;margin-top:3px}
+
+  /* video play affordance: only the focused card plays; others show poster */
+  .frame video{opacity:0;transition:opacity .5s ease}
+  .card[data-playing="1"] .frame video{opacity:1}
+  .frame .poster{transition:opacity .5s ease}
+  .card[data-playing="1"] .frame .poster{opacity:0}
+
+  /* ---------- persistent UI: scroll-progress indicator (only chrome) ---------- */
+  .progress{
+    position:fixed;z-index:30;right:clamp(14px,2.4vw,34px);top:50%;
+    transform:translateY(-50%);
+    display:flex;flex-direction:column;align-items:center;gap:10px;
+    pointer-events:none;mix-blend-mode:difference;
+  }
+  .progress .rail{
+    width:1px;height:34vh;background:var(--hair);position:relative;border-radius:1px;
+  }
+  .progress .fill{
+    position:absolute;left:50%;top:0;width:1px;transform:translateX(-50%);
+    height:var(--p,0%);background:var(--matte);transition:height .08s linear;
+  }
+  .progress .pct{
+    font-family:"Space Grotesk";font-size:10px;letter-spacing:.18em;
+    color:var(--matte);font-variant-numeric:tabular-nums;
+  }
+  .progress .label{
+    writing-mode:vertical-rl;font-size:9px;letter-spacing:.32em;text-transform:uppercase;
+    color:var(--matte);opacity:.55;
+  }
+
+  /* ---------- outro ---------- */
+  .outro{
+    position:relative;z-index:2;text-align:center;
+    padding:18vh 24px 22vh;
+  }
+  .outro h2{font-family:"Fraunces",serif;font-weight:300;font-size:clamp(28px,5vw,64px);line-height:1;letter-spacing:-.01em}
+  .outro p{margin-top:1em;font-size:13px;letter-spacing:.2em;text-transform:uppercase;opacity:.55}
+
+  /* ---------- mobile: never cover-crop a landscape into a phone column ---------- */
+  @media (max-width:640px){
+    :root{--card-w:88vw;--card-ratio:1.5}
+    .slot{height:78vh}
+    .slot:first-of-type{height:64vh}
+    .band{padding-top:24px;mix-blend-mode:difference}
+    .progress .rail{height:26vh}
+    .progress .label{display:none}
+    /* media letterboxes inside the bone matte instead of cropping */
+    .frame img,.frame video{object-fit:contain;background:var(--matte)}
+    .meta{background:linear-gradient(0deg,rgba(12,12,12,.72),transparent)}
+  }
+
+  /* ---------- reduced motion: collapse to a calm vertical fade-in, no rAF overrides ---------- */
+  @media (prefers-reduced-motion:reduce){
+    .card{
+      transform:none !important;filter:none !important;opacity:1 !important;
+      will-change:auto;
+      animation:rise .8s ease both;
+    }
+    .slot{height:auto;padding:6vh 0}
+    .slot:first-of-type{height:auto}
+    @keyframes rise{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
+    .progress{display:none}
+    body::before{display:none}
+  }
+
+  a:focus-visible,.card:focus-visible{outline:2px solid var(--matte);outline-offset:6px;border-radius:2px}
+  .skip{position:absolute;left:-9999px;top:0;z-index:99;background:var(--matte);color:var(--ink);padding:8px 14px;border-radius:3px}
+  .skip:focus{left:12px;top:12px}
+</style>
+</head>
+<body>
+<a class="skip" href="#reel">Skip to works</a>
+
+<!-- compact headline band; the first card sits partly within the first screen below it -->
+<header class="band">
+  <p class="kicker">Tumble Reel - Scroll-Driven 3D Rotation</p>
+  <h1 class="title">Works that <em>fall</em><br>through depth</h1>
+  <p class="sub">Scroll. Each piece travels a sine-wave Z-path, rotating on X and Z as it tumbles, snapping flat and sharp at the center of the frame before it spins out the far side.</p>
+</header>
+
+<main id="reel" class="reel" aria-label="Tumbling works reel"></main>
+
+<section class="outro">
+  <h2>End of reel</h2>
+  <p>Scroll up to rewind</p>
+</section>
+
+<!-- persistent UI: the only chrome -->
+<aside class="progress" aria-hidden="true">
+  <span class="pct" id="pct">00</span>
+  <div class="rail"><div class="fill" id="fill"></div></div>
+  <span class="label">scroll</span>
+</aside>
+
+<script>
+/* ============================================================================
+   WORKS DATA - swap freely. Each entry renders one tumbling card.
+   type: "img" | "video"
+   src:    media path (relative to this file)
+   poster: poster path for videos (shown until that card is focused)
+   muted:  videos default muted; only the in-focus card plays
+   ease:   per-card easing flavour so no two tumble identically
+           "soft" | "snap" | "lazy" | "elastic"
+   tilt:   per-card rotation-direction sign (+1 / -1) and Z-lean multiplier
+   ============================================================================ */
+const WORKS = [
+  { type:"img",   src:"../assets/flux-car-4k.png",                                       name:"Nightfall Coupe",   tag:"flux · 4k matte", ease:"snap",    tilt:{dir:+1, lean:1.0} },
+  { type:"video", src:"../assets/kling-video.mp4",  poster:"../assets/gen/poster-kling-video.png", name:"Drift Loop",        tag:"kling · motion",  ease:"lazy",    tilt:{dir:-1, lean:0.7} },
+  { type:"img",   src:"../assets/flux-clinic-4k.png",                                     name:"Mint Theatre",      tag:"flux · interior", ease:"elastic", tilt:{dir:+1, lean:1.3} },
+  { type:"video", src:"../assets/veo-video.mp4",    poster:"../assets/gen/poster-veo-video.png",   name:"Veo Study",         tag:"veo · cinematic", ease:"soft",    tilt:{dir:-1, lean:0.9} },
+  { type:"img",   src:"../assets/sdxl.png",                                               name:"Autumn Fox",        tag:"sdxl · painterly",ease:"lazy",    tilt:{dir:+1, lean:1.1} },
+  { type:"video", src:"../assets/fal-video.mp4",    poster:"../assets/gen/poster-fal-video.png",   name:"Fal Sequence",      tag:"fal · loop",      ease:"snap",    tilt:{dir:-1, lean:0.8} },
+  { type:"img",   src:"../assets/hf-tinysd.png",                                          name:"Low-Fi Apple",      tag:"tinySD · abstract",ease:"elastic",tilt:{dir:+1, lean:1.2} },
+];
+
+/* tuning constants for the tumble physics */
+const CFG = {
+  TZ:   620,   // peak Z-depth push (px) - how far back the card sails
+  TY:   150,   // vertical drift amplitude (px)
+  RX:   72,    // X-axis tumble range (deg) at scroll extremes
+  RZ:   26,    // Z-axis lean range (deg)
+  WAVE: 0.55,  // sine-wave frequency along the reel for the Z-depth path
+  BLUR: 5,     // max defocus blur (px) when far from rest
+  DIMMIN: 0.42 // min brightness at the depth extremes
+};
+
+const reel = document.getElementById('reel');
+const fillEl = document.getElementById('fill');
+const pctEl = document.getElementById('pct');
+const reduce = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+let isMobile = window.matchMedia('(max-width:640px)').matches;
+
+/* ---- build cards from DATA ---- */
+const cards = [];
+WORKS.forEach((w, i) => {
+  const slot = document.createElement('div');
+  slot.className = 'slot';
+
+  const card = document.createElement('article');
+  card.className = 'card';
+  card.tabIndex = 0;
+  card.setAttribute('aria-roledescription','tumbling work');
+
+  const frame = document.createElement('div');
+  frame.className = 'frame';
+
+  if (w.type === 'video') {
+    const poster = document.createElement('img');
+    poster.className = 'poster';
+    poster.src = w.poster;
+    poster.alt = w.name + ' - poster frame';
+    poster.loading = 'lazy';
+    poster.decoding = 'async';
+    frame.appendChild(poster);
+
+    const v = document.createElement('video');
+    v.src = w.src;
+    v.muted = true; v.loop = true; v.playsInline = true;
+    v.preload = 'none';            // only load when focused - saves bandwidth + decode
+    v.setAttribute('aria-hidden','true');
+    frame.appendChild(v);
+    card._video = v;
+  } else {
+    const img = document.createElement('img');
+    img.src = w.src;
+    img.alt = w.name;
+    img.loading = i === 0 ? 'eager' : 'lazy';
+    img.decoding = 'async';
+    frame.appendChild(img);
+  }
+
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  meta.innerHTML =
+    '<span class="no">' + String(i+1).padStart(2,'0') + ' / ' + String(WORKS.length).padStart(2,'0') + '</span>' +
+    '<span class="name">' + w.name + '<span class="tag">' + w.tag + '</span></span>';
+  frame.appendChild(meta);
+
+  card.appendChild(frame);
+  slot.appendChild(card);
+  reel.appendChild(slot);
+  cards.push({ el:card, slot, work:w });
+});
+
+/* ---- easing flavours: each returns a shaped 0..1 from a 0..1 input ---- */
+const EASE = {
+  soft:    t => t<.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2,                 // inOutQuad
+  snap:    t => 1-Math.pow(1-t,3.2),                                   // sharp settle
+  lazy:    t => t*t*(3-2*t),                                           // smoothstep, gentle
+  elastic: t => { const c=(2*Math.PI)/3; return t===0?0:t===1?1:Math.pow(2,-9*t)*Math.sin((t*9-0.6)*c)+1; }
+};
+
+/* ---- the per-frame transform writer ----
+   p = signed -1..1 position of the card center relative to viewport center.
+   0 = at rest (flat, full scale, sharp). +/-1 = far edges (deep, tumbling). */
+function applyTransform(idx, p) {
+  const c = cards[idx];
+  const w = c.work;
+  const ease = EASE[w.ease] || EASE.soft;
+  const dir = w.tilt.dir;
+  const lean = w.tilt.lean;
+
+  const ap = Math.min(1, Math.abs(p));     // 0 at center, 1 at extremes
+  const shaped = ease(ap);                  // per-card eased magnitude
+  const sgn = p < 0 ? -1 : 1;               // above center vs below
+
+  // sine-wave Z-depth path: cards ride a wave as they travel the reel
+  const wave = Math.sin((idx + p) * Math.PI * CFG.WAVE);
+  const tz = -(shaped * CFG.TZ) - (Math.abs(wave) * 70);   // always recede with distance
+  const ty = sgn * shaped * CFG.TY * (0.7 + Math.abs(wave) * 0.5);
+
+  // rotation: X tumbles (falling card), Z leans (per-card sign)
+  const rx = (isMobile ? sgn * shaped * CFG.RX * 1.05         // mobile: X-axis only, slightly fuller
+                       : sgn * shaped * CFG.RX);
+  const rz = isMobile ? 0 : (dir * sgn * shaped * CFG.RZ * lean);
+
+  // scale settles to 1 at rest, shrinks with depth
+  const sc = 1 - shaped * 0.30;
+
+  // optical: defocus + dim away from the sharp rest plane
+  const bl = isMobile ? 0 : shaped * CFG.BLUR;
+  const br = 1 - shaped * (1 - CFG.DIMMIN);
+  const op = 1 - shaped * 0.28;
+
+  const s = c.el.style;
+  s.setProperty('--ty', ty.toFixed(1) + 'px');
+  s.setProperty('--tz', tz.toFixed(1) + 'px');
+  s.setProperty('--rx', rx.toFixed(2) + 'deg');
+  s.setProperty('--rz', rz.toFixed(2) + 'deg');
+  s.setProperty('--sc', sc.toFixed(3));
+  s.setProperty('--bl', bl.toFixed(2) + 'px');
+  s.setProperty('--br', br.toFixed(3));
+  s.setProperty('--op', op.toFixed(3));
+
+  return ap; // distance from rest, used to pick the focused card
+}
+
+/* ---- single scroll listener + rAF coalescing ---- */
+let ticking = false;
+let vh = window.innerHeight;
+
+function frame() {
+  ticking = false;
+  vh = window.innerHeight;
+  const mid = vh / 2;
+
+  let bestIdx = -1, bestDist = Infinity;
+
+  for (let i = 0; i < cards.length; i++) {
+    const c = cards[i];
+    const r = c.el.getBoundingClientRect();
+    // skip work fully off-screen (cheap cull) but still settle near-edge cards
+    if (r.bottom < -vh || r.top > vh * 2) {
+      continue;
+    }
+    const center = r.top + r.height / 2;
+    // signed normalized position: how far the card center is from viewport center
+    let p = (center - mid) / (vh * 0.62);
+    // FIRST-VIEWPORT SIGNATURE pin: while parked at the very top, force card #1
+    // to a fixed readable tumble so the scroll=0 thumbnail shows the mechanic.
+    if (i === 0 && window.scrollY <= 4) p = (isMobile ? 0.34 : 0.30);
+    const dist = applyTransform(i, p);
+
+    if (Math.abs(p) < 0.5 && dist < bestDist) { bestDist = dist; bestIdx = i; }
+  }
+
+  // focus management: play only the single closest-to-rest video
+  for (let i = 0; i < cards.length; i++) {
+    const c = cards[i];
+    if (!c.work || c.work.type !== 'video') continue;
+    const v = c.el._video;
+    if (i === bestIdx) {
+      if (c.el.dataset.playing !== '1') {
+        c.el.dataset.playing = '1';
+        if (v.preload === 'none') v.preload = 'auto';
+        v.play().catch(()=>{}); // autoplay-block tolerant; poster remains
+      }
+    } else if (c.el.dataset.playing === '1') {
+      c.el.dataset.playing = '0';
+      v.pause();
+    }
+  }
+
+  // progress indicator
+  const doc = document.documentElement;
+  const max = doc.scrollHeight - vh;
+  const pr = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
+  fillEl.style.height = (pr * 100).toFixed(1) + '%';
+  pctEl.textContent = String(Math.round(pr * 100)).padStart(2,'0');
+}
+
+function onScroll() {
+  if (!ticking) { ticking = true; requestAnimationFrame(frame); }
+}
+
+if (reduce) {
+  // honor reduced-motion fully: no rAF, no inline transforms - CSS shows final state.
+  // ensure nothing we wrote earlier lingers (we never wrote in this branch).
+  document.querySelector('.progress')?.setAttribute('hidden','');
+} else {
+  window.addEventListener('scroll', onScroll, { passive:true });
+  window.addEventListener('resize', () => {
+    isMobile = window.matchMedia('(max-width:640px)').matches;
+    onScroll();
+  }, { passive:true });
+
+  // FIRST-VIEWPORT SIGNATURE: run once so card #1 is mid-tumble at scroll=0.
+  // We pin its rest-position to a fixed, readable tumble (deterministic, layout-
+  // independent) so the catalog thumbnail clearly shows the mechanic: clearly
+  // rotated in 3D yet sharp enough to read the work.
+  function pinFirstTumble() {
+    const first = cards[0];
+    if (!first) return;
+    if (window.scrollY > 4) return;            // only while parked at the top
+    const SIG_P = isMobile ? 0.34 : 0.30;      // tuned tumble magnitude at load
+    applyTransform(0, SIG_P);
+  }
+  requestAnimationFrame(() => { frame(); pinFirstTumble(); });
+  // keep it pinned through the first few frames (after media decode / font swap)
+  setTimeout(pinFirstTumble, 120);
+  setTimeout(pinFirstTumble, 600);
+
+  // pause all videos when tab hidden (battery/decode hygiene)
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      cards.forEach(c => { if (c.el._video) { c.el._video.pause(); c.el.dataset.playing='0'; } });
+    } else { onScroll(); }
+  });
+}
+</script>
+</body>
+</html>

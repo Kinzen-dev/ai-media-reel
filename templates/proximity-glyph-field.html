@@ -1,0 +1,781 @@
+<!-- TEMPLATE: Glyph Field | ARCHETYPE: GLYPH FIELD - cursor-proximity variable-font specimen grid | REF: variable-font specimen microsites / kinetic typography type foundries / proximity-reactive glyph grids | WHEN TO USE: a typographic index where the whole first screen is a living glyph specimen; works hide beneath the type and are parted open by clicking a glyph cluster | SWAP: edit the DATA array at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>GLYPH FIELD - proximity variable-type specimen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<!-- Roboto Flex: one variable font carrying the whole field; wght 100..1000 is the live axis -->
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100..1000&family=Roboto+Mono:wght@300;500&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     GLYPH FIELD
+     - First viewport = a dense grid of one repeated lowercase glyph,
+       all in a single variable font (Roboto Flex).
+     - Each cell's wght axis + hue is driven by its Euclidean distance
+       to the ring center: hairline + ice-blue at the periphery,
+       ultra-black + deep-red at the center. 7 concentric rings.
+     - The page loads with the pressure depression ALREADY applied at a
+       default focal point (center) so the mechanic shows at scroll=0.
+     - One rAF loop writes per-cell custom properties. No WebGL, no libs.
+     - Desktop: cursor drives the ring center. Mobile: device tilt
+       (DeviceOrientation) drives it; works revealed by tap-and-hold.
+     ============================================================ */
+
+  :root {
+    --void:   #0d0d0d;   /* near-black ground */
+    --bone:   #f0ece4;   /* bone glyph fill at rest */
+    --ice:    #90c8f0;   /* ring color at distance */
+    --blood:  #c0392b;   /* ring color at the pointer center */
+    --bone-dim: rgba(240,236,228,0.34);
+
+    /* live ring center in field-fraction 0..1, written by JS each frame */
+    --cx: 0.5;
+    --cy: 0.42;
+    --press: 1;          /* 0..1 global intensity (eases in on load / interaction) */
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+
+  body {
+    background: var(--void);
+    color: var(--bone);
+    font-family: "Roboto Flex", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+    overscroll-behavior-y: none;
+  }
+
+  a { color: inherit; text-decoration: none; }
+  ::selection { background: var(--blood); color: var(--void); }
+
+  /* ---------- top band: compact, sits ABOVE the field, never hides it ---------- */
+  .band {
+    position: relative;
+    z-index: 6;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: clamp(0.9rem, 2.2vh, 1.6rem) clamp(1rem, 4vw, 3rem) 0.7rem;
+    pointer-events: none;
+  }
+  .band > * { pointer-events: auto; }
+  .mark {
+    font-family: "Roboto Mono", monospace;
+    font-weight: 500;
+    letter-spacing: 0.42em;
+    font-size: clamp(0.62rem, 1.2vw, 0.8rem);
+    text-transform: uppercase;
+    color: var(--bone);
+  }
+  .mark b { color: var(--blood); font-weight: 500; }
+  .meta {
+    font-family: "Roboto Mono", monospace;
+    font-weight: 300;
+    letter-spacing: 0.2em;
+    font-size: clamp(0.54rem, 1vw, 0.7rem);
+    text-transform: uppercase;
+    color: var(--bone-dim);
+    text-align: right;
+    line-height: 1.5;
+  }
+
+  /* ---------- the headline overlays the field, big and ignorable to pointer ---------- */
+  .stage {
+    position: relative;
+    height: calc(100svh - 0px);
+    min-height: 540px;
+  }
+
+  .field {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    /* columns/rows filled by JS; this is just a fallback */
+    grid-template-columns: repeat(20, 1fr);
+    align-content: stretch;
+    user-select: none;
+    z-index: 1;
+    cursor: crosshair;
+  }
+
+  /* each cell: one glyph. weight + color set by per-cell vars from rAF. */
+  .cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0.8;
+    font-variation-settings: "wght" var(--w, 120), "opsz" 144;
+    color: var(--c, var(--ice));
+    font-size: var(--fs, 2.2rem);
+    will-change: font-variation-settings, color, opacity;
+    transition: none;
+    opacity: var(--o, 0.9);
+  }
+
+  /* the curtain split: applied to columns when a cluster is opened */
+  .field.parting .cell {
+    transition: transform 0.9s cubic-bezier(.7,0,.2,1), opacity 0.7s ease;
+    transform: translateX(var(--part, 0));
+    opacity: var(--popacity, 1);
+  }
+
+  /* ---------- headline overlay ---------- */
+  .head {
+    position: absolute;
+    left: 0; right: 0;
+    bottom: clamp(1.4rem, 6vh, 4rem);
+    z-index: 4;
+    padding: 0 clamp(1rem, 4vw, 3rem);
+    pointer-events: none;
+    mix-blend-mode: difference; /* legible over any glyph weight */
+  }
+  .head h1 {
+    font-weight: 200;
+    font-variation-settings: "wght" 240, "opsz" 144;
+    font-size: clamp(2.4rem, 9vw, 8.2rem);
+    line-height: 0.92;
+    letter-spacing: -0.02em;
+    color: #ffffff;
+    max-width: 16ch;
+  }
+  .head h1 em {
+    font-style: normal;
+    font-variation-settings: "wght" 880, "opsz" 144;
+  }
+  .head p {
+    margin-top: clamp(0.6rem, 1.6vh, 1.1rem);
+    max-width: 46ch;
+    font-family: "Roboto Mono", monospace;
+    font-weight: 300;
+    font-size: clamp(0.68rem, 1.5vw, 0.92rem);
+    line-height: 1.55;
+    letter-spacing: 0.04em;
+    color: #cfcfcf;
+  }
+
+  /* hint chip - tells the viewer the field is interactive */
+  .hint {
+    position: absolute;
+    z-index: 5;
+    top: clamp(0.6rem, 1.4vh, 1rem);
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: "Roboto Mono", monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--bone-dim);
+    padding: 0.4rem 0.9rem;
+    border: 1px solid rgba(240,236,228,0.14);
+    border-radius: 999px;
+    background: rgba(13,13,13,0.4);
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  /* glyph picker - which lowercase glyph fills the field */
+  .picker {
+    position: absolute;
+    z-index: 6;
+    bottom: clamp(1.4rem, 6vh, 4rem);
+    right: clamp(1rem, 4vw, 3rem);
+    display: flex;
+    gap: 0.35rem;
+    pointer-events: auto;
+  }
+  .picker button {
+    font-family: "Roboto Flex", sans-serif;
+    font-variation-settings: "wght" 600;
+    background: transparent;
+    border: 1px solid rgba(240,236,228,0.18);
+    color: var(--bone-dim);
+    width: 2.1rem; height: 2.1rem;
+    border-radius: 6px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: color .2s, border-color .2s, background .2s;
+  }
+  .picker button:hover { color: var(--bone); border-color: var(--bone); }
+  .picker button[aria-pressed="true"] {
+    color: var(--void); background: var(--blood); border-color: var(--blood);
+  }
+  .picker button:focus-visible,
+  .work:focus-visible,
+  a:focus-visible {
+    outline: 2px solid var(--ice);
+    outline-offset: 3px;
+  }
+
+  /* ======================= WORKS LAYER (revealed beneath the field) ======= */
+  .works-rail {
+    position: relative;
+    z-index: 2;
+    background: var(--void);
+    padding: clamp(2.5rem, 7vw, 6rem) clamp(1rem, 4vw, 3rem) clamp(3rem, 9vw, 7rem);
+    border-top: 1px solid rgba(240,236,228,0.08);
+  }
+  .rail-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: clamp(1.4rem, 4vw, 3rem);
+  }
+  .rail-head h2 {
+    font-weight: 300;
+    font-variation-settings: "wght" 300, "opsz" 144;
+    font-size: clamp(1.6rem, 5vw, 3.4rem);
+    letter-spacing: -0.01em;
+  }
+  .rail-head h2 b { font-variation-settings: "wght" 900, "opsz" 144; color: var(--blood); }
+  .rail-head .idx {
+    font-family: "Roboto Mono", monospace;
+    font-size: 0.66rem; letter-spacing: 0.24em; text-transform: uppercase;
+    color: var(--bone-dim);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: clamp(0.8rem, 2vw, 1.4rem);
+  }
+  .work {
+    position: relative;
+    display: block;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    border-radius: 10px;
+    background: #151515;
+    border: 1px solid rgba(240,236,228,0.06);
+    cursor: pointer;
+    text-align: left;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+  }
+  .work img, .work video {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+    filter: grayscale(0.2) contrast(1.02);
+    transition: transform .8s cubic-bezier(.2,.7,.2,1), filter .5s;
+  }
+  .work:hover img, .work:hover video,
+  .work.is-live img, .work.is-live video { transform: scale(1.05); filter: none; }
+
+  .work .scrim {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(13,13,13,0) 35%, rgba(13,13,13,0.86) 100%);
+    z-index: 1;
+  }
+  .work .cap {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    z-index: 2;
+    padding: clamp(0.8rem, 2vw, 1.2rem);
+    display: flex; align-items: flex-end; justify-content: space-between; gap: 0.6rem;
+  }
+  .work .cap .t {
+    font-variation-settings: "wght" 600, "opsz" 144;
+    font-size: clamp(1rem, 2.4vw, 1.35rem);
+    line-height: 1.05;
+  }
+  .work .cap .s {
+    font-family: "Roboto Mono", monospace;
+    font-weight: 300; font-size: 0.62rem;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--bone-dim);
+    white-space: nowrap;
+  }
+  .work .glyph-tag {
+    position: absolute; top: 0.7rem; left: 0.8rem; z-index: 2;
+    font-variation-settings: "wght" 900, "opsz" 144;
+    font-size: 1.5rem; line-height: 1;
+    color: var(--bone);
+    mix-blend-mode: difference;
+  }
+  .work .media-type {
+    position: absolute; top: 0.7rem; right: 0.8rem; z-index: 2;
+    font-family: "Roboto Mono", monospace;
+    font-size: 0.54rem; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--void);
+    background: var(--bone);
+    padding: 0.18rem 0.45rem; border-radius: 3px;
+  }
+  .work .media-type.vid { background: var(--blood); color: var(--bone); }
+  .work .play {
+    position: absolute; top: 50%; left: 50%; z-index: 2;
+    width: 56px; height: 56px;
+    transform: translate(-50%,-50%);
+    border-radius: 50%;
+    border: 1px solid rgba(240,236,228,0.7);
+    background: rgba(13,13,13,0.35);
+    display: grid; place-items: center;
+    transition: opacity .3s, transform .3s;
+  }
+  .work .play::after {
+    content: ""; width: 0; height: 0;
+    border-left: 13px solid var(--bone);
+    border-top: 8px solid transparent;
+    border-bottom: 8px solid transparent;
+    margin-left: 3px;
+  }
+  .work.is-live .play { opacity: 0; transform: translate(-50%,-50%) scale(0.6); }
+
+  footer {
+    position: relative; z-index: 2;
+    background: var(--void);
+    padding: clamp(1.4rem, 4vw, 2.4rem) clamp(1rem, 4vw, 3rem) clamp(2.4rem, 6vw, 4rem);
+    font-family: "Roboto Mono", monospace;
+    font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--bone-dim);
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
+    border-top: 1px solid rgba(240,236,228,0.08);
+  }
+
+  /* ---------- mobile: <=640px. Field stays but coarser; works stack. ---------- */
+  @media (max-width: 640px) {
+    .head h1 { font-size: clamp(2rem, 11vw, 3.6rem); }
+    .head { bottom: 5.5rem; }
+    .picker { bottom: 1.1rem; right: 1rem; }
+    .picker button { width: 1.8rem; height: 1.8rem; font-size: 0.85rem; }
+    .grid { grid-template-columns: 1fr; }
+    .work { aspect-ratio: 16 / 10; }
+    .hint { font-size: 0.52rem; letter-spacing: 0.18em; }
+  }
+  @media (max-width: 380px) {
+    .meta { display: none; }
+  }
+
+  /* ---------- reduced motion: kill rAF overrides, show a clean final state ---------- */
+  @media (prefers-reduced-motion: reduce) {
+    .field.parting .cell { transition: none; }
+    .work img, .work video { transition: none; }
+    .cell { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+  <header class="band">
+    <div class="mark">GLYPH<b>/</b>FIELD</div>
+    <div class="meta">
+      type specimen no.7<br>
+      roboto flex // wght 100-1000
+    </div>
+  </header>
+
+  <section class="stage" aria-label="Interactive glyph specimen field">
+    <div class="hint" id="hint">move to press the field // click a cluster to reveal a work</div>
+
+    <div class="field" id="field" role="img"
+         aria-label="A grid of repeated glyphs that thicken and turn red near the pointer, hairline and blue at the edges."></div>
+
+    <div class="head">
+      <h1>a field of <em>type</em><br>under pressure</h1>
+      <p>Every cell is one glyph in a single variable font. Distance to your pointer drives its weight and hue across seven rings. Click a cluster to part the field and reveal the work beneath.</p>
+    </div>
+
+    <div class="picker" id="picker" aria-label="Choose the specimen glyph"></div>
+  </section>
+
+  <!-- ===================== WORKS (hidden beneath, revealed on cluster click) ===================== -->
+  <section class="works-rail" id="works" aria-label="Works">
+    <div class="rail-head">
+      <h2>beneath the <b>field</b></h2>
+      <div class="idx" id="idx">07 works // hover to focus // click to play</div>
+    </div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <footer>
+    <span>GLYPH FIELD // proximity specimen</span>
+    <span>euclidean rings = 7 // no webgl</span>
+    <span>&copy; 2026 studio specimen</span>
+  </footer>
+
+<script type="module">
+/* =========================================================================
+   DATA  - swap these to repurpose the template.
+   Each work is a tile revealed beneath the glyph field. `glyph` is the
+   lowercase letter whose cluster, when clicked, parts to reveal that work.
+   ========================================================================= */
+const DATA = {
+  // glyphs offered in the field picker (lowercase, single variable font)
+  glyphs: ["a", "e", "o", "s", "g", "y"],
+  startGlyph: "a",
+  works: [
+    { glyph:"a", title:"matte black, wet neon",  tag:"FLUX // still",  type:"image",
+      src:"../assets/flux-car-4k.png" },
+    { glyph:"e", title:"car in motion",          tag:"i2v // loop",    type:"video",
+      src:"../assets/flux-car-i2v.mp4",  poster:"../assets/gen/poster-flux-car-i2v.png" },
+    { glyph:"o", title:"mint + wood clinic",     tag:"FLUX // still",  type:"image",
+      src:"../assets/flux-clinic-4k.png" },
+    { glyph:"s", title:"kinetic plates",         tag:"KLING // loop",  type:"video",
+      src:"../assets/kling-video.mp4",   poster:"../assets/gen/poster-kling-video.png" },
+    { glyph:"g", title:"painterly fox",          tag:"SDXL // still",  type:"image",
+      src:"../assets/sdxl.png" },
+    { glyph:"y", title:"abstract apple",         tag:"tinySD // still",type:"image",
+      src:"../assets/hf-tinysd.png" },
+    { glyph:"a", title:"frame interpolation",    tag:"VEO // loop",    type:"video",
+      src:"../assets/veo-video.mp4",     poster:"../assets/gen/poster-veo-video.png" },
+  ],
+  copyright: "studio specimen",
+};
+
+/* =========================================================================
+   FIELD BUILD - dense grid of one repeated glyph.
+   ========================================================================= */
+const fieldEl = document.getElementById("field");
+const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+let COLS = 0, ROWS = 0, cells = [], cellMeta = [];
+let activeGlyph = DATA.startGlyph;
+
+// 7-ring lookup: distance band -> {weight, mix(0=ice..1=blood)}
+// band 0 = center (heaviest, reddest), band 6 = periphery (hairline, ice)
+const RINGS = 7;
+function ringWeight(t){ // t = 0 (center) .. 1 (edge)
+  // ease so the depression is sharp at center, soft at the rim
+  const e = Math.pow(1 - t, 1.8);
+  return Math.round(120 + e * (980 - 120)); // 120..980
+}
+
+function buildField(){
+  // cell target size scales with viewport; coarser on phones for FPS
+  const vw = Math.max(document.documentElement.clientWidth, 320);
+  const vh = Math.max(window.innerHeight, 480);
+  const isPhone = vw <= 640;
+  const target = isPhone ? 30 : 46;          // px per cell (approx)
+  COLS = Math.max(8, Math.round(vw / target));
+  ROWS = Math.max(6, Math.round((vh) / target));
+  // cap total cells so the rAF loop stays cheap
+  const MAXCELLS = isPhone ? 360 : 1100;
+  while (COLS * ROWS > MAXCELLS) { if (COLS >= ROWS) COLS--; else ROWS--; }
+
+  fieldEl.style.gridTemplateColumns = `repeat(${COLS}, 1fr)`;
+  fieldEl.style.gridTemplateRows = `repeat(${ROWS}, 1fr)`;
+  const fs = Math.min(vw / COLS, vh / ROWS) * 0.92;
+
+  fieldEl.innerHTML = "";
+  cells = []; cellMeta = [];
+  const frag = document.createDocumentFragment();
+  for (let r = 0; r < ROWS; r++){
+    for (let c = 0; c < COLS; c++){
+      const d = document.createElement("span");
+      d.className = "cell";
+      d.textContent = activeGlyph;
+      d.style.setProperty("--fs", fs + "px");
+      // normalized cell center, used by the proximity math
+      const nx = (c + 0.5) / COLS;
+      const ny = (r + 0.5) / ROWS;
+      d.dataset.col = c;
+      frag.appendChild(d);
+      cells.push(d);
+      cellMeta.push({ nx, ny, col: c });
+    }
+  }
+  fieldEl.appendChild(frag);
+}
+
+/* =========================================================================
+   PROXIMITY ENGINE - one rAF loop writes per-cell weight + hue.
+   Color blends ice -> blood by ring; weight follows ringWeight().
+   The field loads with the depression already at the default center.
+   ========================================================================= */
+// target + smoothed ring center in field fraction
+let tx = 0.5, ty = 0.42;     // target (from pointer / tilt)
+let sx = 0.5, sy = 0.42;     // smoothed
+// Start at full press so the depression is baked in on frame 1: the scroll=0
+// catalog thumbnail (an early grab) must already show the signature rings.
+// No ease-in; the interaction animation comes from the sx/sy center smoothing.
+let press = 1;               // 0..1 global intensity (kept fixed at 1)
+const ICE = [144,200,240], BLOOD=[192,57,43], BONE=[240,236,228];
+const RADIUS = 0.34;         // ring field reaches ~34% of the diagonal
+
+function mix3(a,b,t){ return [
+  Math.round(a[0]+(b[0]-a[0])*t),
+  Math.round(a[1]+(b[1]-a[1])*t),
+  Math.round(a[2]+(b[2]-a[2])*t),
+]; }
+
+function frame(){
+  // ease smoothed center toward target (the only animated thing; press is fixed at 1)
+  sx += (tx - sx) * 0.14;
+  sy += (ty - sy) * 0.14;
+
+  const aspect = (fieldEl.clientWidth || 1) / (fieldEl.clientHeight || 1);
+  for (let i = 0; i < cells.length; i++){
+    const m = cellMeta[i];
+    // Euclidean distance in aspect-corrected space
+    const dx = (m.nx - sx) * aspect;
+    const dy = (m.ny - sy);
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    // t: 0 at center, 1 at/after RADIUS
+    let t = dist / RADIUS;
+    if (t > 1) t = 1;
+    // quantize into 7 rings for the stepped specimen look
+    const band = Math.min(RINGS-1, Math.floor(t * RINGS));
+    const bt = band / (RINGS - 1);              // 0..1 by ring
+    const eff = bt;                              // press fixed at 1 -> depression is full from frame 1
+    const w = ringWeight(eff);
+    // hue: center -> blood, edge -> ice, with a bone midtone for legibility
+    let col;
+    if (eff < 0.5) col = mix3(BLOOD, BONE, eff/0.5);
+    else col = mix3(BONE, ICE, (eff-0.5)/0.5);
+    const cell = cells[i];
+    cell.style.setProperty("--w", w);
+    cell.style.setProperty("--c", `rgb(${col[0]},${col[1]},${col[2]})`);
+    cell.style.setProperty("--o", (0.55 + (1-eff)*0.45).toFixed(2));
+  }
+  rafId = requestAnimationFrame(frame);
+}
+let rafId = null;
+
+// static render for reduced-motion: depression baked at center, no loop
+function staticRender(){
+  sx = 0.5; sy = 0.42; press = 1;
+  const aspect = (fieldEl.clientWidth || 1) / (fieldEl.clientHeight || 1);
+  for (let i = 0; i < cells.length; i++){
+    const m = cellMeta[i];
+    const dx = (m.nx - sx) * aspect, dy = (m.ny - sy);
+    let t = Math.min(1, Math.sqrt(dx*dx+dy*dy) / RADIUS);
+    const band = Math.min(RINGS-1, Math.floor(t*RINGS));
+    const bt = band/(RINGS-1);
+    const w = ringWeight(bt);
+    let col = bt < 0.5 ? mix3(BLOOD,BONE,bt/0.5) : mix3(BONE,ICE,(bt-0.5)/0.5);
+    cells[i].style.setProperty("--w", w);
+    cells[i].style.setProperty("--c", `rgb(${col[0]},${col[1]},${col[2]})`);
+    cells[i].style.setProperty("--o", (0.55+(1-bt)*0.45).toFixed(2));
+  }
+}
+
+/* =========================================================================
+   POINTER + TILT INPUT
+   ========================================================================= */
+function pointerMove(e){
+  const rect = fieldEl.getBoundingClientRect();
+  tx = (e.clientX - rect.left) / rect.width;
+  ty = (e.clientY - rect.top) / rect.height;
+  tx = Math.max(0, Math.min(1, tx));
+  ty = Math.max(0, Math.min(1, ty));
+}
+fieldEl.addEventListener("pointermove", pointerMove);
+
+// device tilt drives the ring center on mobile
+function enableTilt(){
+  window.addEventListener("deviceorientation", (ev)=>{
+    if (ev.gamma == null) return;
+    // gamma: left/right -45..45 ; beta: front/back ~ 0..90 (clamp)
+    tx = Math.max(0, Math.min(1, 0.5 + (ev.gamma/45)*0.5));
+    const b = (ev.beta == null) ? 45 : ev.beta;
+    ty = Math.max(0, Math.min(1, ( (b-20) /60 )));
+  }, true);
+}
+// iOS needs a user gesture to grant orientation; wire it to first touch
+function maybeRequestTilt(){
+  const D = window.DeviceOrientationEvent;
+  if (D && typeof D.requestPermission === "function"){
+    D.requestPermission().then(s=>{ if (s === "granted") enableTilt(); }).catch(()=>{});
+  } else { enableTilt(); }
+}
+if (window.matchMedia("(pointer: coarse)").matches) {
+  window.addEventListener("touchstart", maybeRequestTilt, { once:true, passive:true });
+}
+
+/* =========================================================================
+   CLUSTER CLICK -> PART THE FIELD LIKE A CURTAIN -> SCROLL TO WORK
+   tap-and-hold on touch.
+   ========================================================================= */
+function partAndReveal(targetWork){
+  if (reduced){ scrollToWork(targetWork); return; }
+  fieldEl.classList.add("parting");
+  // push each cell sideways by its column, away from field center -> a clean split
+  const mid = (COLS - 1) / 2;
+  const W = fieldEl.clientWidth;
+  for (const cell of cells){
+    const col = +cell.dataset.col;
+    const dir = col < mid ? -1 : 1;
+    const amt = (Math.abs(col - mid) / mid) * (W * 0.62);
+    cell.style.setProperty("--part", (dir * amt) + "px");
+    cell.style.setProperty("--popacity", "0");
+  }
+  setTimeout(()=>{
+    scrollToWork(targetWork);
+    // re-close the curtain after the eye has moved on
+    setTimeout(()=>{
+      fieldEl.classList.remove("parting");
+      for (const cell of cells){
+        cell.style.removeProperty("--part");
+        cell.style.removeProperty("--popacity");
+      }
+    }, 1400);
+  }, 700);
+}
+function scrollToWork(work){
+  const card = work ? document.querySelector(`[data-id="${work}"]`) : document.getElementById("works");
+  (card || document.getElementById("works")).scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: reduced ? "start" : "center" });
+}
+
+// find the first work whose glyph == active field glyph (or first work)
+function firstWorkForGlyph(g){
+  const idx = DATA.works.findIndex(w => w.glyph === g);
+  return idx >= 0 ? idx : 0;
+}
+// desktop click
+fieldEl.addEventListener("click", ()=> partAndReveal(firstWorkForGlyph(activeGlyph)));
+// touch tap-and-hold
+let holdTimer = null;
+fieldEl.addEventListener("touchstart", ()=>{
+  holdTimer = setTimeout(()=> partAndReveal(firstWorkForGlyph(activeGlyph)), 480);
+}, { passive:true });
+fieldEl.addEventListener("touchend", ()=> clearTimeout(holdTimer));
+fieldEl.addEventListener("touchmove", ()=> clearTimeout(holdTimer), { passive:true });
+
+/* =========================================================================
+   GLYPH PICKER
+   ========================================================================= */
+const pickerEl = document.getElementById("picker");
+DATA.glyphs.forEach(g=>{
+  const b = document.createElement("button");
+  b.textContent = g;
+  b.setAttribute("aria-label", `Fill the field with the letter ${g}`);
+  b.setAttribute("aria-pressed", String(g === activeGlyph));
+  b.addEventListener("click", ()=>{
+    activeGlyph = g;
+    [...pickerEl.children].forEach(x=> x.setAttribute("aria-pressed", String(x.textContent === g)));
+    for (const cell of cells) cell.textContent = g;
+  });
+  pickerEl.appendChild(b);
+});
+
+/* =========================================================================
+   WORKS GRID - posters by default; play only the focused/hovered/locked one.
+   No simultaneous autoplay (avoids decode/mix-blend FPS collapse).
+   ========================================================================= */
+const gridEl = document.getElementById("grid");
+let liveVideo = null;
+const io = ("IntersectionObserver" in window)
+  ? new IntersectionObserver(entries=>{
+      entries.forEach(en=>{
+        const v = en.target.querySelector("video");
+        if (!v) return;
+        if (!en.isIntersecting && !v.paused){ v.pause(); }
+      });
+    }, { threshold: 0.05 })
+  : null;
+
+function setLive(card){
+  if (liveVideo && liveVideo !== card){
+    const ov = liveVideo.querySelector("video");
+    if (ov){ ov.pause(); }
+    liveVideo.classList.remove("is-live");
+  }
+  const v = card.querySelector("video");
+  if (v){
+    card.classList.add("is-live");
+    v.play().catch(()=>{});
+    liveVideo = card;
+  }
+}
+function clearLive(card){
+  const v = card.querySelector("video");
+  if (v){ v.pause(); card.classList.remove("is-live"); }
+  if (liveVideo === card) liveVideo = null;
+}
+
+DATA.works.forEach((w, i)=>{
+  const a = document.createElement("button");
+  a.className = "work";
+  a.dataset.id = i;
+  a.setAttribute("aria-label", `${w.title} - ${w.type}. ${w.type === "video" ? "Focus to play." : ""}`);
+
+  let media;
+  if (w.type === "video"){
+    media = document.createElement("video");
+    media.src = w.src;
+    media.poster = w.poster || "";
+    media.muted = true; media.loop = true; media.playsInline = true;
+    media.preload = "none";
+  } else {
+    media = document.createElement("img");
+    media.src = w.src;
+    media.loading = "lazy";
+    media.decoding = "async";
+    media.alt = w.title;
+  }
+  a.appendChild(media);
+
+  const scrim = document.createElement("div"); scrim.className = "scrim"; a.appendChild(scrim);
+
+  const gt = document.createElement("span"); gt.className = "glyph-tag"; gt.textContent = w.glyph; a.appendChild(gt);
+
+  const mt = document.createElement("span");
+  mt.className = "media-type" + (w.type === "video" ? " vid" : "");
+  mt.textContent = w.type;
+  a.appendChild(mt);
+
+  if (w.type === "video"){
+    const play = document.createElement("span"); play.className = "play"; a.appendChild(play);
+  }
+
+  const cap = document.createElement("div"); cap.className = "cap";
+  cap.innerHTML = `<span class="t">${w.title}</span><span class="s">${w.tag}</span>`;
+  a.appendChild(cap);
+
+  // focus/hover plays only this one
+  if (w.type === "video"){
+    a.addEventListener("pointerenter", ()=> setLive(a));
+    a.addEventListener("focus", ()=> setLive(a));
+    a.addEventListener("pointerleave", ()=> clearLive(a));
+    a.addEventListener("blur", ()=> clearLive(a));
+    a.addEventListener("click", ()=> setLive(a)); // tap = lock-play on touch
+    if (io) io.observe(a);
+  }
+  gridEl.appendChild(a);
+});
+
+document.getElementById("idx").textContent =
+  `${String(DATA.works.length).padStart(2,"0")} works // hover to focus // click to play`;
+
+/* =========================================================================
+   BOOT
+   ========================================================================= */
+let resizeT = null;
+function boot(){
+  buildField();
+  if (reduced){ staticRender(); }
+  else {
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(frame);
+  }
+}
+boot();
+window.addEventListener("resize", ()=>{
+  clearTimeout(resizeT);
+  resizeT = setTimeout(()=>{
+    const wasParting = fieldEl.classList.contains("parting");
+    buildField();
+    if (reduced) staticRender();
+    if (wasParting) fieldEl.classList.remove("parting");
+  }, 200);
+});
+
+// pause the rAF loop when the field scrolls out of view (battery + FPS)
+if ("IntersectionObserver" in window && !reduced){
+  const stageIO = new IntersectionObserver(([e])=>{
+    if (e.isIntersecting){ if (!rafId) rafId = requestAnimationFrame(frame); }
+    else { if (rafId){ cancelAnimationFrame(rafId); rafId = null; } }
+  }, { threshold: 0.02 });
+  stageIO.observe(document.querySelector(".stage"));
+}
+</script>
+</body>
+</html>

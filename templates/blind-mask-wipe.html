@@ -344,7 +344,7 @@ function buildWork(w, i){
     const seam = document.createElementNS(NSV,'rect');
     seam.setAttribute('x',p.x); seam.setAttribute('y',p.y);
     seam.setAttribute('width',p.w); seam.setAttribute('height',p.h);
-    seam.setAttribute('fill','var(--seam)');
+    seam.setAttribute('fill','#d8482a'); /* hex, not var(): CSS custom props do not resolve in SVG presentation attributes */
     seam.setAttribute('class','seam-rect');
     seam.style.transition = reduce ? 'none'
       : `transform ${OPEN_MS}ms var(--ease), opacity ${Math.round(OPEN_MS*0.5)}ms linear`;
@@ -354,7 +354,7 @@ function buildWork(w, i){
     const r = document.createElementNS(NSV,'rect');
     r.setAttribute('x',p.x); r.setAttribute('y',p.y);
     r.setAttribute('width',p.w); r.setAttribute('height',p.h);
-    r.setAttribute('fill','var(--mask)');
+    r.setAttribute('fill','#111111'); /* hex, not var(): CSS custom props do not resolve in SVG presentation attributes */
     r.setAttribute('class','mask-rect');
     r.style.transition = reduce ? 'none' : `transform ${OPEN_MS}ms var(--ease)`;
     // transform around the panel's own open-origin so it collapses the right way
@@ -467,7 +467,7 @@ const io=new IntersectionObserver((entries)=>{
   entries.forEach(e=>{
     const sec=e.target;
     if(e.isIntersecting && e.intersectionRatio>0.35){
-      openWork(sec,false);
+      if(!sec._held) openWork(sec,false);   // the held first work stays frozen mid-wipe until the user scrolls
       focusVideo(sec,true);
       const idx=allWorks.indexOf(sec);
       allDots.forEach((d,k)=>d.setAttribute('aria-current', String(k===idx)));
@@ -486,16 +486,18 @@ if(reduce){
   openWork(first,false);                    // reduced motion: just show it
   allDots[0]?.setAttribute('aria-current','true');
 } else {
-  // paint the frozen mid-wipe on next frame (after transitions are wired)
+  // hold work #1 frozen mid-wipe at scroll=0 so the catalog thumbnail (a no-scroll
+  // screenshot) shows the blinds half-open with the vermilion seam lit. Complete it
+  // only when the user actually scrolls - no auto-timeout, or the thumbnail would
+  // catch the finished reveal instead of the move.
+  first._held = true;
   requestAnimationFrame(()=>requestAnimationFrame(()=>{
     openWork(first,true);
     allDots[0]?.setAttribute('aria-current','true');
   }));
-  // complete it on first scroll, or automatically after a short dwell
   let completed=false;
-  const finish=()=>{ if(completed) return; completed=true; first._opened=false; openWork(first,false); window.removeEventListener('scroll',finish); };
+  const finish=()=>{ if(completed) return; completed=true; first._held=false; first._opened=false; openWork(first,false); window.removeEventListener('scroll',finish); };
   window.addEventListener('scroll',finish,{passive:true,once:true});
-  setTimeout(finish, 2600);
 }
 
 /* pause any playing video when the tab is hidden (battery + decode budget) */

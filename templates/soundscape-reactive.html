@@ -1,0 +1,981 @@
+<!-- TEMPLATE: Soundscape Reactive | ARCHETYPE: audio-reactive equalizer gallery | REF: Codrops Audio-Reactive Visual Experience (Web Audio API), CSS Design Awards 2025-26 frequency visualizers | WHEN TO USE: portfolio / showreel where each work carries its own sound signature and you want bars that breathe with audio, not scroll | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Soundscape Reactive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     SOUNDSCAPE REACTIVE - audio-reactive equalizer gallery
+     Palette: #080808 void + #00e5ff cyan bars + #ff2d78 magenta peaks
+     The bars ARE the color system.
+     ============================================================ */
+  :root {
+    --void: #080808;
+    --void-2: #0d0e10;
+    --cyan: #00e5ff;
+    --magenta: #ff2d78;
+    --ink: #f2f5f7;
+    --mute: #6b7177;
+    --line: rgba(255, 255, 255, 0.08);
+    --card: rgba(255, 255, 255, 0.025);
+    --gut: clamp(16px, 4vw, 56px);
+    --bar-glow: 0 0 14px rgba(0, 229, 255, 0.45);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    background: var(--void);
+    color: var(--ink);
+    font-family: "Space Grotesk", system-ui, sans-serif;
+    overflow-x: hidden;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* faint frequency-line backdrop so the void is never dead */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(120% 80% at 80% -10%, rgba(0, 229, 255, 0.08), transparent 60%),
+      radial-gradient(90% 70% at 0% 110%, rgba(255, 45, 120, 0.06), transparent 60%),
+      repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 64px);
+  }
+
+  a { color: inherit; text-decoration: none; }
+
+  /* ---------------- TOP BAND (compact, signature shows under it) -------------- */
+  .topband {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 18px 24px;
+    padding: clamp(20px, 4vw, 40px) var(--gut) clamp(14px, 2.4vw, 24px);
+    border-bottom: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: center; gap: 16px; min-width: 0; }
+  .brand-mark {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 34px;
+  }
+  .brand-mark i {
+    display: block;
+    width: 4px;
+    background: var(--cyan);
+    border-radius: 2px;
+    box-shadow: var(--bar-glow);
+    transform-origin: bottom;
+  }
+  h1 {
+    font-size: clamp(22px, 4.4vw, 40px);
+    line-height: 0.98;
+    margin: 0;
+    letter-spacing: -0.02em;
+    font-weight: 700;
+  }
+  h1 .accent { color: var(--cyan); }
+  .tag {
+    font-family: "Space Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--mute);
+    margin: 6px 0 0;
+  }
+  .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .btn {
+    font-family: "Space Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--line);
+    padding: 9px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: border-color 0.2s, background 0.2s, color 0.2s;
+  }
+  .btn:hover { border-color: var(--cyan); color: var(--cyan); }
+  .btn .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--mute);
+    box-shadow: none;
+    transition: background 0.2s, box-shadow 0.2s;
+  }
+  .btn.live .dot { background: var(--magenta); box-shadow: 0 0 9px var(--magenta); animation: pulse 1.3s infinite; }
+  .btn.on { border-color: var(--cyan); color: var(--cyan); }
+  .btn.on .dot { background: var(--cyan); box-shadow: var(--bar-glow); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+  .btn:focus-visible,
+  .card:focus-visible,
+  .card-cta:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 3px;
+  }
+
+  /* ---------------- GALLERY ---------------- */
+  .gallery {
+    position: relative;
+    z-index: 2;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: clamp(18px, 3vw, 34px) var(--gut) 96px;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(16px, 2.4vw, 26px);
+    transition: filter 0.4s ease;
+  }
+  /* when one card is locked, the gallery dims around it */
+  .gallery.focusing { }
+  .gallery.focusing .card:not(.locked) {
+    opacity: 0.32;
+    filter: saturate(0.4) brightness(0.7);
+  }
+
+  .card {
+    position: relative;
+    display: grid;
+    grid-template-columns: 120px 1fr minmax(180px, 0.9fr);
+    gap: clamp(14px, 2vw, 28px);
+    align-items: stretch;
+    padding: clamp(14px, 1.8vw, 22px);
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: opacity 0.4s, filter 0.4s, border-color 0.3s, transform 0.3s, box-shadow 0.3s;
+  }
+  .card::after {
+    /* active highlight rail on the left edge */
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--cyan);
+    opacity: 0;
+    box-shadow: var(--bar-glow);
+    transition: opacity 0.3s;
+  }
+  .card.active::after { opacity: 0.9; }
+  .card:hover { border-color: rgba(0, 229, 255, 0.4); }
+  .card.locked {
+    border-color: var(--cyan);
+    box-shadow: 0 0 0 1px rgba(0, 229, 255, 0.35), 0 24px 60px -28px rgba(0, 229, 255, 0.5);
+    transform: translateY(-2px);
+  }
+
+  /* equalizer column */
+  .eq {
+    position: relative;
+    align-self: stretch;
+    min-height: 130px;
+    background: linear-gradient(180deg, rgba(0,229,255,0.06), rgba(8,8,8,0) 70%);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .eq canvas { display: block; width: 100%; height: 100%; }
+  .eq-peak {
+    position: absolute;
+    top: 8px; left: 8px;
+    font-family: "Space Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--magenta);
+    text-shadow: 0 0 8px rgba(255, 45, 120, 0.5);
+    pointer-events: none;
+  }
+
+  /* media / poster region */
+  .media {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    min-height: 130px;
+    background: #000;
+    border: 1px solid var(--line);
+  }
+  .media img, .media video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .media .scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, rgba(8,8,8,0.55), rgba(8,8,8,0) 55%);
+    pointer-events: none;
+  }
+  .media .kind {
+    position: absolute;
+    top: 8px; right: 8px;
+    font-family: "Space Mono", monospace;
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: rgba(8,8,8,0.62);
+    border: 1px solid var(--line);
+    padding: 3px 7px;
+    border-radius: 6px;
+    backdrop-filter: blur(4px);
+  }
+
+  /* meta block */
+  .meta {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+    gap: 8px;
+  }
+  .idx {
+    font-family: "Space Mono", monospace;
+    font-size: 11px;
+    color: var(--cyan);
+    letter-spacing: 0.1em;
+  }
+  .title {
+    font-size: clamp(18px, 2.4vw, 26px);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.05;
+    margin: 0;
+  }
+  .desc {
+    font-size: 13.5px;
+    color: var(--mute);
+    margin: 0;
+    max-width: 46ch;
+  }
+  .specrow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 2px;
+  }
+  .chip {
+    font-family: "Space Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--mute);
+    border: 1px solid var(--line);
+    padding: 3px 8px;
+    border-radius: 999px;
+  }
+  .chip.hz { color: var(--cyan); border-color: rgba(0,229,255,0.3); }
+  .card-cta {
+    align-self: flex-start;
+    margin-top: 4px;
+    font-family: "Space Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid var(--line);
+    padding: 8px 13px;
+    border-radius: 999px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: border-color 0.2s, color 0.2s, background 0.2s;
+  }
+  .card.locked .card-cta { border-color: var(--magenta); color: var(--magenta); }
+  .card-cta:hover { border-color: var(--cyan); color: var(--cyan); }
+  .card-cta .ico { width: 9px; height: 9px; display: inline-block; }
+
+  /* footer */
+  .foot {
+    position: relative;
+    z-index: 2;
+    padding: 28px var(--gut) 56px;
+    border-top: 1px solid var(--line);
+    font-family: "Space Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--mute);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 12px;
+    max-width: 1180px;
+    margin: 0 auto;
+  }
+
+  /* ============ MOBILE: stack everything, never crop landscape into portrait ============ */
+  @media (max-width: 760px) {
+    .card {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    .eq { min-height: 96px; order: 2; }
+    .media {
+      order: 1;
+      min-height: 0;
+      aspect-ratio: 16 / 9;   /* letterbox landscape assets, no cover-crop into a tall box */
+    }
+    .meta { order: 3; }
+    .card.locked { transform: none; }
+  }
+  @media (max-width: 420px) {
+    h1 { font-size: 24px; }
+    .brand-mark { height: 28px; }
+    .controls { width: 100%; }
+    .btn { flex: 1; justify-content: center; }
+  }
+
+  /* ============ REDUCED MOTION: disable only the bar SCALE animation, keep bars drawn ============ */
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .btn.live .dot, .brand-mark i { animation: none !important; }
+  }
+
+  .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<!-- ======================= TOP BAND ======================= -->
+<header class="topband">
+  <div class="brand">
+    <div class="brand-mark" id="brandMark" aria-hidden="true">
+      <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+    </div>
+    <div>
+      <h1>Sound<span class="accent">scape</span></h1>
+      <p class="tag">Audio-reactive works // FFT 2048 // cyan = level, magenta = peak</p>
+    </div>
+  </div>
+  <div class="controls">
+    <button class="btn" id="soundBtn" aria-pressed="false">
+      <span class="dot"></span><span id="soundLabel">Enable sound</span>
+    </button>
+    <button class="btn" id="micBtn" aria-pressed="false">
+      <span class="dot"></span><span id="micLabel">Use mic</span>
+    </button>
+  </div>
+</header>
+
+<!-- ======================= GALLERY (signature visible at scroll=0) ======================= -->
+<main class="gallery" id="gallery" aria-label="Soundscape gallery"></main>
+
+<footer class="foot">
+  <span>Soundscape Reactive // template</span>
+  <span id="ctxState">audio: seeding</span>
+  <span>click a work to lock + play</span>
+</footer>
+
+<script>
+/* ============================================================================
+   DATA  --  swap works here. One object per gallery card.
+   audio:  path to a per-card loop (real AnalyserNode source). null = synth-only.
+   synth:  { base, type } seeds a default ambient oscillator band so a card with
+           no audio file is still visibly ALIVE at scroll=0.
+   media:  poster shown always; src+video plays only when this card is locked.
+   ============================================================================ */
+const ASSETS = "../assets/";
+const DATA = [
+  {
+    title: "Bangkok Rain, Mu-law",
+    idx: "01",
+    desc: "Thai neural voice loop, telephony band. The equalizer reads the formants of speech in real time.",
+    kind: "voice / mp3",
+    hz: "300 Hz - 3.4 kHz",
+    chips: ["ElevenLabs", "Thai", "8 kHz"],
+    audio: ASSETS + "elevenlabs-thai.mp3",
+    synth: { base: 220, type: "triangle" },
+    media: { poster: ASSETS + "flux-car-4k.png", video: null },
+    hue: "cyan"
+  },
+  {
+    title: "Generative Score No. 4",
+    idx: "02",
+    desc: "MusicGen ambient bed, full spectrum. Wide low end pushes the left bars; the peak marker rides the kick.",
+    kind: "music / wav",
+    hz: "40 Hz - 14 kHz",
+    chips: ["MusicGen", "Stereo", "Loop"],
+    audio: ASSETS + "musicgen.wav",
+    synth: { base: 110, type: "sawtooth" },
+    media: { poster: ASSETS + "gen/poster-kling-video.png", video: ASSETS + "kling-video.mp4" },
+    hue: "magenta"
+  },
+  {
+    title: "Synthetic Whisper",
+    idx: "03",
+    desc: "Piper TTS, dry and close. Sparse high content keeps most of the column dark until a sibilant hits.",
+    kind: "voice / wav",
+    hz: "120 Hz - 8 kHz",
+    chips: ["Piper", "Local", "Dry"],
+    audio: ASSETS + "piper.wav",
+    synth: { base: 330, type: "sine" },
+    media: { poster: ASSETS + "sdxl.png", video: null },
+    hue: "cyan"
+  },
+  {
+    title: "Matte Black Drive",
+    idx: "04",
+    desc: "Image-to-video work, scored by a low resonant synth pad. No file loop, the bars are pure oscillator.",
+    kind: "video / synth",
+    hz: "60 Hz - 6 kHz",
+    chips: ["Flux i2v", "Cinematic", "Synth"],
+    audio: null,
+    synth: { base: 86, type: "sawtooth" },
+    media: { poster: ASSETS + "gen/poster-flux-car-i2v.png", video: ASSETS + "flux-car-i2v.mp4" },
+    hue: "cyan"
+  },
+  {
+    title: "Clinic, Mint and Wood",
+    idx: "05",
+    desc: "Still work paired with an airy high-mid tone. Reduced-motion users still see the seeded frequency shape.",
+    kind: "still / synth",
+    hz: "500 Hz - 9 kHz",
+    chips: ["Flux", "Interior", "Synth"],
+    audio: null,
+    synth: { base: 392, type: "triangle" },
+    media: { poster: ASSETS + "flux-clinic-4k.png", video: null },
+    hue: "magenta"
+  },
+  {
+    title: "Avatar, Talking Head",
+    idx: "06",
+    desc: "HeyGen avatar loop. Its own audio track drives the analyser when locked; otherwise a vocal-range synth.",
+    kind: "video / synth",
+    hz: "200 Hz - 5 kHz",
+    chips: ["HeyGen", "Avatar", "Lip-sync"],
+    audio: null,
+    synth: { base: 174, type: "sine" },
+    media: { poster: ASSETS + "gen/poster-heygen.png", video: ASSETS + "heygen-avatar.mp4" },
+    hue: "cyan"
+  }
+];
+
+/* ============================================================================
+   AUDIO ENGINE
+   - one shared AudioContext (suspended-safe).
+   - each card gets its own AnalyserNode.
+   - DEFAULT-ALIVE: a master "ambient" oscillator bank drives every analyser on
+     load so the bars are varied at scroll=0 even with no gesture and no mic.
+     If the context cannot start (truly suspended), we fall back to a seeded
+     animated pattern per card so nothing is ever a flat row.
+   ============================================================================ */
+const FFT = 2048;
+const SMOOTH = 0.85;            // guardrail
+const BANDS = 22;               // bars per column
+const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const DPR = 1;                  // guardrail: canvas 2D bars at DPR 1
+
+let ctx = null;
+let masterGain = null;          // near-silent bed that feeds analysers, audible only when a card is locked
+let ambientNodes = [];          // default oscillator bank (drives bars before any user audio)
+let started = false;            // ctx running with sound enabled
+let micStream = null;
+let micSource = null;
+let lockedCard = null;
+
+const cards = [];               // { el, canvas, cctx, analyser, data, src, gain, mediaEl, video, seedPhase, peakEl, hue }
+
+/* per-card seeded fallback pattern (used when analyser data is all-zero / ctx not running).
+   Returns a 0..1 value per band, animated over time so it never reads as static or flat. */
+function seedValue(bandIndex, t, seedPhase, baseHz) {
+  const n = bandIndex / (BANDS - 1);
+  // a leaning spectral envelope: more energy where baseHz sits, gentle rolloff
+  const tilt = baseHz < 150 ? (1 - n) : baseHz < 280 ? Math.sin(n * Math.PI) : n * 0.85 + 0.15;
+  const wobble =
+    0.30 * Math.sin(t * 1.7 + bandIndex * 0.55 + seedPhase) +
+    0.18 * Math.sin(t * 2.9 + bandIndex * 0.21 + seedPhase * 1.7) +
+    0.12 * Math.sin(t * 0.8 + bandIndex * 0.9);
+  const v = 0.42 * tilt + 0.30 + wobble * 0.32;
+  return Math.max(0.04, Math.min(1, v));
+}
+
+function buildGallery() {
+  const gallery = document.getElementById("gallery");
+  DATA.forEach((d, i) => {
+    const card = document.createElement("article");
+    card.className = "card";
+    card.tabIndex = 0;
+    card.setAttribute("role", "button");
+    card.setAttribute("aria-pressed", "false");
+    card.setAttribute("aria-label", "Play " + d.title);
+
+    // EQ column
+    const eq = document.createElement("div");
+    eq.className = "eq";
+    const canvas = document.createElement("canvas");
+    eq.appendChild(canvas);
+    const peakEl = document.createElement("div");
+    peakEl.className = "eq-peak";
+    peakEl.textContent = "PK --";
+    eq.appendChild(peakEl);
+
+    // META
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.innerHTML =
+      '<span class="idx">WORK ' + d.idx + '</span>' +
+      '<h2 class="title">' + d.title + '</h2>' +
+      '<p class="desc">' + d.desc + '</p>' +
+      '<div class="specrow">' +
+        '<span class="chip hz">' + d.hz + '</span>' +
+        d.chips.map(c => '<span class="chip">' + c + '</span>').join('') +
+      '</div>';
+    const cta = document.createElement("button");
+    cta.className = "card-cta";
+    cta.type = "button";
+    cta.innerHTML = '<span class="ico">' + svgPlay() + '</span><span class="cta-label">Lock + play</span>';
+    meta.appendChild(cta);
+
+    // MEDIA (poster only by default; video element created lazily on lock)
+    const media = document.createElement("div");
+    media.className = "media";
+    const img = document.createElement("img");
+    img.src = d.media.poster;
+    img.alt = d.title + " poster";
+    img.loading = "lazy";
+    img.decoding = "async";
+    media.appendChild(img);
+    const scrim = document.createElement("div"); scrim.className = "scrim"; media.appendChild(scrim);
+    const kind = document.createElement("span"); kind.className = "kind"; kind.textContent = d.kind; media.appendChild(kind);
+
+    card.appendChild(eq);
+    card.appendChild(meta);
+    card.appendChild(media);
+    gallery.appendChild(card);
+
+    const cctx = canvas.getContext("2d");
+    const rec = {
+      d, el: card, canvas, cctx,
+      analyser: null, data: null,
+      src: null, gain: null, audioEl: null,
+      mediaEl: media, video: null,
+      seedPhase: i * 1.37,
+      peakEl, hue: d.hue, idx: i,
+      level: new Float32Array(BANDS) // smoothed bar levels for nicer motion
+    };
+
+    const onActivate = (e) => { e.preventDefault(); toggleLock(rec); };
+    card.addEventListener("click", onActivate);
+    card.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") onActivate(e);
+    });
+    cta.addEventListener("click", (e) => { e.stopPropagation(); toggleLock(rec); });
+
+    cards.push(rec);
+  });
+}
+
+function svgPlay() {
+  return '<svg viewBox="0 0 10 10" width="9" height="9" fill="currentColor"><path d="M1 0v10l8-5z"/></svg>';
+}
+function svgStop() {
+  return '<svg viewBox="0 0 10 10" width="9" height="9" fill="currentColor"><rect x="1" y="1" width="8" height="8" rx="1"/></svg>';
+}
+
+/* ---- size canvases to their box at DPR 1 ---- */
+function sizeCanvases() {
+  cards.forEach(rec => {
+    const r = rec.canvas.getBoundingClientRect();
+    rec.canvas.width = Math.max(1, Math.round(r.width * DPR));
+    rec.canvas.height = Math.max(1, Math.round(r.height * DPR));
+  });
+}
+
+/* ============================================================================
+   CONTEXT + ANALYSERS
+   ============================================================================ */
+function ensureContext() {
+  if (ctx) return ctx;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  ctx = new AC();
+  masterGain = ctx.createGain();
+  masterGain.gain.value = 0.0001;     // effectively silent bed; we raise per-locked-card only
+  masterGain.connect(ctx.destination);
+
+  // build per-card analysers + their own near-silent oscillator so bars have signal even pre-gesture
+  cards.forEach((rec) => {
+    const an = ctx.createAnalyser();
+    an.fftSize = FFT;
+    an.smoothingTimeConstant = SMOOTH;
+    rec.analyser = an;
+    rec.data = new Uint8Array(an.frequencyBinCount);
+
+    // default ambient: two detuned oscillators per card -> its analyser only (not to speakers)
+    const g = ctx.createGain();
+    g.gain.value = 0.9;                // healthy signal into the analyser
+    const o1 = ctx.createOscillator();
+    const o2 = ctx.createOscillator();
+    o1.type = rec.d.synth.type;
+    o2.type = rec.d.synth.type;
+    o1.frequency.value = rec.d.synth.base;
+    o2.frequency.value = rec.d.synth.base * 1.5;   // a fifth, fills the column
+    // slow LFO on detune so the spectrum shifts -> bars never freeze
+    const lfo = ctx.createOscillator();
+    const lfoG = ctx.createGain();
+    lfo.frequency.value = 0.12 + rec.idx * 0.05;
+    lfoG.gain.value = rec.d.synth.base * 0.25;
+    lfo.connect(lfoG); lfoG.connect(o1.detune); lfoG.connect(o2.detune);
+    o1.connect(g); o2.connect(g);
+    g.connect(an);                     // -> analyser ONLY, so this drives bars silently
+    o1.start(); o2.start(); lfo.start();
+    rec.ambient = { o1, o2, lfo, g };
+    ambientNodes.push(rec.ambient);
+  });
+  return ctx;
+}
+
+/* attach a real per-card audio file source when the card is locked (so the analyser reads it) */
+function attachAudioSource(rec) {
+  if (!rec.d.audio || rec.audioEl) return;
+  const a = new Audio();
+  a.src = rec.d.audio;
+  a.loop = true;
+  a.crossOrigin = "anonymous";
+  rec.audioEl = a;
+  try {
+    const src = ctx.createMediaElementSource(a);
+    const g = ctx.createGain();
+    g.gain.value = 0.0001;             // silent until locked-raise
+    src.connect(rec.analyser);         // drive bars
+    src.connect(g); g.connect(masterGain);  // audible path
+    rec.src = src; rec.gain = g;
+  } catch (e) { /* ignore, synth bars still run */ }
+}
+
+/* ============================================================================
+   RENDER  --  one frame across every card's equalizer.
+   The single rAF chain lives in boot() (tick); this draws one column.
+   ============================================================================ */
+function drawColumn(rec, bands, W, H) {
+  const { cctx } = rec;
+  const gap = Math.max(1, Math.round(W * 0.012));
+  const bw = (W - gap * (BANDS - 1)) / BANDS;
+  const pad = Math.round(H * 0.06);
+  const usable = H - pad * 2;
+
+  // find tallest band -> peak marker (magenta)
+  let peakIdx = 0, peakVal = 0;
+  for (let b = 0; b < BANDS; b++) {
+    // smooth the level for nicer motion unless reduced-motion (then snap to value = final state, no animated overshoot)
+    if (REDUCED) {
+      rec.level[b] = bands[b];
+    } else {
+      rec.level[b] += (bands[b] - rec.level[b]) * 0.35;
+    }
+    if (rec.level[b] > peakVal) { peakVal = rec.level[b]; peakIdx = b; }
+  }
+
+  const baseColor = rec.hue === "magenta" ? [255, 45, 120] : [0, 229, 255];
+
+  for (let b = 0; b < BANDS; b++) {
+    const v = rec.level[b];
+    const x = Math.round(b * (bw + gap));
+    const h = Math.max(2, v * usable);
+    const y = pad + (usable - h);
+
+    const isPeak = b === peakIdx && peakVal > 0.06;
+    // vertical gradient: cyan/magenta base -> hot white-ish toward the top of tall bars
+    const grad = cctx.createLinearGradient(0, y + h, 0, y);
+    grad.addColorStop(0, `rgba(${baseColor[0]},${baseColor[1]},${baseColor[2]},0.25)`);
+    grad.addColorStop(1, `rgba(${baseColor[0]},${baseColor[1]},${baseColor[2]},${0.55 + v * 0.45})`);
+    cctx.fillStyle = grad;
+    cctx.fillRect(x, y, bw, h);
+
+    // peak cap marker in magenta for the tallest band (the active-band highlight)
+    if (isPeak) {
+      cctx.fillStyle = "rgba(255,45,120,0.95)";
+      cctx.fillRect(x, Math.max(pad, y - 4), bw, 3);
+      cctx.shadowColor = "rgba(255,45,120,0.8)";
+      cctx.shadowBlur = 8;
+      cctx.fillRect(x, Math.max(pad, y - 4), bw, 3);
+      cctx.shadowBlur = 0;
+    }
+  }
+
+  // mirror floor reflection line for polish
+  cctx.fillStyle = "rgba(255,255,255,0.05)";
+  cctx.fillRect(0, H - pad, W, 1);
+
+  // peak readout label + active-card highlight on the strongest column overall
+  const pkHz = Math.round(40 + (peakIdx / (BANDS - 1)) * 8000);
+  rec.peakEl.textContent = "PK " + pkHz + "Hz";
+
+  // mark the loudest card "active" (tallest peak across gallery) -> handled globally
+  rec._peak = peakVal;
+}
+
+/* after each frame batch, flag the single loudest card as active */
+function markActive() {
+  let best = null, bestV = -1;
+  for (const rec of cards) {
+    if ((rec._peak || 0) > bestV) { bestV = rec._peak || 0; best = rec; }
+  }
+  cards.forEach(rec => rec.el.classList.toggle("active", rec === best));
+}
+
+/* ============================================================================
+   LOCK / FOCUS
+   ============================================================================ */
+async function toggleLock(rec) {
+  // first interaction also enables sound
+  await enableSound(true);
+  if (lockedCard === rec) { unlock(rec); return; }
+  if (lockedCard) unlock(lockedCard);
+
+  lockedCard = rec;
+  document.getElementById("gallery").classList.add("focusing");
+  rec.el.classList.add("locked");
+  rec.el.setAttribute("aria-pressed", "true");
+  setCardCta(rec, true);
+
+  // raise this card's audio (real file or, if none, raise its ambient synth so it is audible)
+  if (rec.d.audio) {
+    attachAudioSource(rec);
+    if (rec.audioEl) { try { await rec.audioEl.play(); } catch(e){} }
+    if (rec.gain) rampGain(rec.gain.gain, 0.85);
+  } else if (rec.ambient) {
+    // route ambient bank to speakers for this card (it was analyser-only before)
+    if (!rec.ambient.spk) {
+      const sg = ctx.createGain(); sg.gain.value = 0.0001;
+      rec.ambient.g.connect(sg); sg.connect(masterGain);
+      rec.ambient.spk = sg;
+    }
+    rampGain(rec.ambient.spk.gain, 0.20);
+  }
+  rampGain(masterGain.gain, 0.9);
+
+  // lazily mount + play the video poster -> video, only for the locked card
+  mountVideo(rec);
+}
+
+function unlock(rec) {
+  rec.el.classList.remove("locked");
+  rec.el.setAttribute("aria-pressed", "false");
+  setCardCta(rec, false);
+  if (rec.audioEl) { try { rec.audioEl.pause(); } catch(e){} }
+  if (rec.gain) rampGain(rec.gain.gain, 0.0001);
+  if (rec.ambient && rec.ambient.spk) rampGain(rec.ambient.spk.gain, 0.0001);
+  unmountVideo(rec);
+  if (lockedCard === rec) {
+    lockedCard = null;
+    document.getElementById("gallery").classList.remove("focusing");
+    if (masterGain) rampGain(masterGain.gain, 0.0001);
+  }
+}
+
+function setCardCta(rec, locked) {
+  const ico = rec.el.querySelector(".card-cta .ico");
+  const label = rec.el.querySelector(".card-cta .cta-label");
+  if (ico) ico.innerHTML = locked ? svgStop() : svgPlay();
+  if (label) label.textContent = locked ? "Locked" : "Lock + play";
+}
+
+function rampGain(param, target) {
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  param.cancelScheduledValues(now);
+  param.setValueAtTime(Math.max(0.0001, param.value), now);
+  param.linearRampToValueAtTime(Math.max(0.0001, target), now + 0.25);
+}
+
+/* video: only the locked card decodes/plays (avoids simultaneous decode FPS hit) */
+function mountVideo(rec) {
+  if (!rec.d.media.video || rec.video) return;
+  const v = document.createElement("video");
+  v.src = rec.d.media.video;
+  v.muted = true;          // card AUDIO is driven by file/synth; avoid double audio + autoplay block
+  v.loop = true;
+  v.playsInline = true;
+  v.setAttribute("playsinline", "");
+  v.preload = "metadata";
+  rec.mediaEl.insertBefore(v, rec.mediaEl.querySelector(".scrim"));
+  rec.video = v;
+  if (!REDUCED) { v.play().catch(()=>{}); }
+}
+function unmountVideo(rec) {
+  if (!rec.video) return;
+  try { rec.video.pause(); } catch(e){}
+  rec.video.removeAttribute("src");
+  rec.video.load();
+  rec.video.remove();
+  rec.video = null;
+}
+
+/* ============================================================================
+   ENABLE SOUND / MIC
+   ============================================================================ */
+async function enableSound(fromGesture) {
+  ensureContext();
+  if (ctx.state === "suspended") {
+    try { await ctx.resume(); } catch (e) {}
+  }
+  const running = ctx.state === "running";
+  if (running && !started) {
+    started = true;
+    const b = document.getElementById("soundBtn");
+    b.classList.add("on"); b.setAttribute("aria-pressed", "true");
+    document.getElementById("soundLabel").textContent = "Sound on";
+  }
+  updateCtxState();
+  return running;
+}
+
+async function toggleMic() {
+  ensureContext();
+  const micBtn = document.getElementById("micBtn");
+  if (micStream) {
+    // stop mic
+    micStream.getTracks().forEach(t => t.stop());
+    micStream = null;
+    if (micSource) { try { micSource.disconnect(); } catch(e){} micSource = null; }
+    micBtn.classList.remove("live"); micBtn.setAttribute("aria-pressed", "false");
+    document.getElementById("micLabel").textContent = "Use mic";
+    // re-attach ambient banks to analysers (they were never detached, so nothing to do)
+    updateCtxState();
+    return;
+  }
+  try {
+    if (ctx.state === "suspended") await ctx.resume();
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    micSource = ctx.createMediaStreamSource(micStream);
+    // fan the mic into EVERY card analyser so the whole gallery reacts to the room
+    cards.forEach(rec => { try { micSource.connect(rec.analyser); } catch(e){} });
+    micBtn.classList.add("live"); micBtn.setAttribute("aria-pressed", "true");
+    document.getElementById("micLabel").textContent = "Mic live";
+    started = true;
+    document.getElementById("soundBtn").classList.add("on");
+    updateCtxState();
+  } catch (e) {
+    document.getElementById("micLabel").textContent = "Mic blocked";
+    setTimeout(() => { document.getElementById("micLabel").textContent = "Use mic"; }, 2200);
+  }
+}
+
+function updateCtxState() {
+  const el = document.getElementById("ctxState");
+  if (!ctx) { el.textContent = "audio: seeding"; return; }
+  if (micStream) { el.textContent = "audio: mic live"; return; }
+  el.textContent = "audio: " + ctx.state + (lockedCard ? " // locked" : "");
+}
+
+/* ============================================================================
+   BRAND MARK  --  tiny live equalizer in the header (reflects loudest card)
+   ============================================================================ */
+function animateBrand() {
+  const bars = document.querySelectorAll("#brandMark i");
+  if (REDUCED) {
+    // static varied pattern, final state, no animation
+    const fixed = [0.5, 0.85, 0.35, 1, 0.6, 0.45, 0.75];
+    bars.forEach((b, i) => { b.style.height = (10 + fixed[i] * 24) + "px"; });
+    return;
+  }
+  const t = performance.now() / 1000;
+  bars.forEach((b, i) => {
+    const v = 0.4 + 0.45 * Math.abs(Math.sin(t * 2.2 + i * 0.7)) + 0.15 * Math.abs(Math.sin(t * 5 + i));
+    b.style.height = (8 + Math.min(1, v) * 26) + "px";
+  });
+  requestAnimationFrame(animateBrand);
+}
+
+/* ============================================================================
+   BOOT
+   ============================================================================ */
+function boot() {
+  buildGallery();
+  sizeCanvases();
+
+  // try to start a suspended-safe ambient context immediately so bars are alive at scroll=0.
+  // qa harness allows autoplay; if the browser blocks it, the seeded fallback keeps bars varied.
+  ensureContext();
+  if (ctx.state === "suspended") {
+    ctx.resume().then(updateCtxState).catch(()=>{});
+  }
+  updateCtxState();
+
+  // single rAF chain: read each analyser (or seeded fallback) and draw every column.
+  (function tick() {
+    const t = performance.now() / 1000;
+    const running = ctx && ctx.state === "running";
+    for (const rec of cards) {
+      const { canvas, cctx } = rec;
+      const W = canvas.width, H = canvas.height;
+      if (W < 2 || H < 2) continue;
+      cctx.clearRect(0, 0, W, H);
+      let bands = new Array(BANDS), haveReal = false;
+      if (running && rec.analyser) {
+        rec.analyser.getByteFrequencyData(rec.data);
+        const len = rec.data.length; let sum = 0;
+        for (let b = 0; b < BANDS; b++) {
+          const lo = Math.floor(Math.pow(b / BANDS, 1.6) * len * 0.55);
+          const hi = Math.max(lo + 1, Math.floor(Math.pow((b + 1) / BANDS, 1.6) * len * 0.55));
+          let acc = 0, c = 0;
+          for (let k = lo; k < hi && k < len; k++) { acc += rec.data[k]; c++; }
+          const v = c ? (acc / c) / 255 : 0; bands[b] = v; sum += v;
+        }
+        haveReal = sum > 0.02;
+      }
+      if (!haveReal) for (let b = 0; b < BANDS; b++) bands[b] = seedValue(b, t, rec.seedPhase, rec.d.synth.base);
+      drawColumn(rec, bands, W, H);
+    }
+    markActive();
+    updateCtxState();
+    requestAnimationFrame(tick);
+  })();
+
+  animateBrand();
+
+  // wire controls
+  document.getElementById("soundBtn").addEventListener("click", () => enableSound(true));
+  document.getElementById("micBtn").addEventListener("click", toggleMic);
+
+  // first user gesture anywhere unlocks audio (autoplay policies)
+  const kick = () => { enableSound(true); window.removeEventListener("pointerdown", kick); };
+  window.addEventListener("pointerdown", kick, { once: true });
+
+  // resize
+  let rt;
+  window.addEventListener("resize", () => {
+    clearTimeout(rt);
+    rt = setTimeout(() => { sizeCanvases(); cards.forEach(r => r.level.fill(0)); }, 120);
+  });
+
+  // pause heavy work when tab hidden
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden && lockedCard && lockedCard.video) { try { lockedCard.video.pause(); } catch(e){} }
+    else if (!document.hidden && lockedCard && lockedCard.video && !REDUCED) { lockedCard.video.play().catch(()=>{}); }
+  });
+}
+
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+else boot();
+</script>
+</body>
+</html>

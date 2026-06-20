@@ -42,9 +42,11 @@ body{
     radial-gradient(circle at 18% 12%, rgba(216,72,42,.05), transparent 36%),
     radial-gradient(circle at 84% 88%, rgba(22,19,13,.05), transparent 40%);
 }
-.stage[data-fallback="true"] body{overflow:auto}
-
 a{color:inherit}
+
+/* keyboard focus ring on the primary drag surface */
+.stage:focus{outline:none}
+.stage:focus-visible{outline:3px solid var(--accent-deep); outline-offset:-3px}
 
 /* ---------- chrome / header ---------- */
 .masthead{
@@ -235,6 +237,17 @@ body.is-fallback .dock{display:none}
 }
 @media (prefers-reduced-motion:reduce){
   *{scroll-behavior:auto !important}
+  /* kill every animation + transition; show the settled final state */
+  *,*::before,*::after{
+    animation-duration:.001ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.001ms !important;
+    transition-delay:0 !important;
+  }
+  /* posters are already visible in fallback; no fade needed */
+  .frame img.poster{opacity:1 !important}
+  .tick{transition:none !important}
+  .card{transition:none !important; transform:none !important; opacity:1 !important}
 }
 </style>
 </head>
@@ -614,6 +627,9 @@ const DATA = [
       } else {
         v.pause();
         v.classList.remove('playing');
+        // release the decoder of any video we are not focused on, so only
+        // ONE decode pipeline is ever live (heavy clips do not stack)
+        if (v.src){ v.removeAttribute('src'); v.load(); }
       }
     });
   }

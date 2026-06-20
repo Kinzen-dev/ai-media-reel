@@ -203,14 +203,24 @@ body{
 #lock .audiowrap .wave{width:100%; border-radius:8px; background:var(--bone-2); padding:18px}
 #lock .audiowrap audio{width:100%}
 
-/* a soft "shake to reshuffle" pulse */
-@keyframes nudge{0%,100%{transform:translate(0,0)}25%{transform:translate(-2px,1px)}75%{transform:translate(2px,-1px)}}
-
-/* ---- reduced-motion fallback: a calm tidy stack, no physics, no rAF ---- */
+/* ---- reduced-motion fallback: a calm tidy stack, no physics, no rAF, no autoplay ---- */
 .reduced #table{cursor:default}
 .reduced .toolbar .tool[data-act="shuffle"],
 .reduced .toolbar .tool[data-act="tidy"]{display:none}
-.reduced .card{transition:none !important}
+/* gate EVERY animation + transition + transform-on-hover; show the settled final state */
+.reduced *,
+.reduced *::before,
+.reduced *::after{
+  animation:none !important;
+  transition:none !important;
+  scroll-behavior:auto !important;
+}
+.reduced .tool:hover,
+.reduced #lock .close:hover{transform:none !important}
+/* video stays as its poster frame under reduced motion (no autoplay, no fade) */
+.reduced .card .vid{display:none !important}
+/* the pinned sheet appears settled, not sliding in */
+.reduced #lock .sheet{transform:none !important; opacity:1 !important}
 
 /* ---- small screens: bigger targets, drag still works, lock letterboxes ---- */
 @media (max-width:640px){
@@ -350,7 +360,7 @@ function buildCards(){
     } else if(d.kind === 'video'){
       frameInner =
         `<img class="poster" src="${d.poster}" alt="${d.title}" loading="lazy" decoding="async">`+
-        `<video class="vid" muted loop playsinline preload="none" ${d.audio?'':'muted'} poster="${d.poster}">
+        `<video class="vid" muted loop playsinline preload="none" poster="${d.poster}">
            <source data-src="${d.media}" type="video/mp4"></video>`+
         `<span class="playmark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>`;
     } else {
@@ -576,6 +586,7 @@ if(!REDUCED){
 /* ---------- hover/focus -> play the single focused video ---------- */
 let playingCard = null;
 function playOnly(st){
+  if(REDUCED) return;                       // no hover autoplay under reduced motion
   if(playingCard === st) return;
   stopPlaying();
   if(!st || st.data.kind !== 'video') return;
@@ -659,7 +670,11 @@ function pin(st){
        </div>`;
     requestAnimationFrame(()=>{
       const v = document.getElementById('lockVid');
-      if(v){ v.muted = d.audio ? false : true; const p=v.play(); if(p&&p.catch)p.catch(()=>{}); }
+      if(v){
+        v.muted = d.audio ? false : true;
+        // under reduced motion, settle on the poster frame; user presses the visible controls
+        if(!REDUCED){ const p=v.play(); if(p&&p.catch)p.catch(()=>{}); }
+      }
     });
   } else if(d.kind === 'audio'){
     lockBody.innerHTML =

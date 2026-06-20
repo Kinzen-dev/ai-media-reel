@@ -332,8 +332,8 @@ const DATA = [
     title:"Cascade", meta:"Loop / Fal", tag:"video", weight:1 },
   { id:"apple",  media:"image", src:ASSET+"hf-tinysd.png",
     title:"Low-Fi Fruit", meta:"Abstract / Tiny-SD", tag:"image", weight:1 },
-  { id:"hyper",  media:"video", src:ASSET+"hyperframes.mp4", poster:GEN+"poster-hyperframes.png",
-    title:"Hyperframe", meta:"Loop / Hyperframes", tag:"video", weight:1 },
+  { id:"amg",    media:"image", src:ASSET+"flux-car-4k.png",
+    title:"Wet Asphalt", meta:"Still / FLUX 4K", tag:"image", weight:1 },
 ];
 
 /* layout names in scroll order; current one shows in the corner */
@@ -478,23 +478,48 @@ function layoutRadial(){
   });
 }
 
-/* MOBILE variants: only two simple layouts, linear morph between them. */
-function layoutMobileStack(){
-  const w = 0.86, x=(1-w)/2, gap=0.02;
-  const h = (1 - gap*(N-1))/N;
-  return Array.from({length:N},(_,i)=>({ x, y:i*(h+gap), w, h, rot:0, z:1, cap:true, r:6 }));
+/* MOBILE variants: two 16:9-correct 2-column formations, linear morph between them.
+   Cells carry the source aspect (16:9), so object-fit:contain shows full media with
+   no letterbox band and no cover-crop. Stage aspect is read live so the cells stay
+   true 16:9 in pixels on any phone. Layout A = aligned grid, B = staggered brick. */
+function mobileCellH(wNorm){
+  // h_norm chosen so w_px : h_px == 16 : 9 given the current stage box
+  const aspect = (stageW && stageH) ? (stageW/stageH) : (366/540);
+  return wNorm * aspect * (9/16);
 }
 function layoutMobilePairs(){
-  // 2-column packed mosaic-lite
-  const cols=2, gap=0.016;
+  // aligned 2-column grid of 16:9 cards, vertically centred as a block
+  const cols=2, gap=0.022;
   const w=(1-gap*(cols+1))/cols;
+  const h=mobileCellH(w);
   const rows=Math.ceil(N/cols);
-  const h=(1-gap*(rows+1))/rows;
+  const blockH = rows*h + (rows-1)*gap;
+  const y0 = Math.max(gap, (1-blockH)/2);
   return Array.from({length:N},(_,i)=>{
     const c=i%cols, r=Math.floor(i/cols);
-    return { x:gap+c*(w+gap), y:gap+r*(h+gap), w, h, rot:0, z:1, cap:false, r:6 };
+    return { x:gap+c*(w+gap), y:y0+r*(h+gap), w, h, rot:0, z:1, cap:false, r:6 };
   });
 }
+function layoutMobileStack(){
+  // staggered brick of the same 16:9 cards: odd column dropped half a cell, the
+  // first (hero) card spans wider for editorial emphasis
+  const cols=2, gap=0.024;
+  const w=(1-gap*(cols+1))/cols;
+  const h=mobileCellH(w);
+  const drop=h*0.5;
+  const rows=Math.ceil(N/cols);
+  const blockH = rows*h + (rows-1)*gap + drop;
+  const y0 = Math.max(gap, (1-blockH)/2);
+  return Array.from({length:N},(_,i)=>{
+    const c=i%cols, r=Math.floor(i/cols);
+    const yShift = (c===1) ? drop : 0;
+    return { x:gap+c*(w+gap), y:y0+r*(h+gap)+yShift, w, h, rot:0, z:1, cap:true, r:6 };
+  });
+}
+
+// stage box in px; populated by measure(). Declared here so the mobile solvers
+// (which read it via mobileCellH) can run during the initial solve below.
+let stageW=0, stageH=0;
 
 let LAYOUT_FNS = isMobile
   ? [layoutMobilePairs, layoutMobileStack]
@@ -510,7 +535,6 @@ const lerp = (a,b,t)=>a+(b-a)*t;
 // smootherstep for buttery cross-layout easing
 const ease = t => t*t*t*(t*(t*6-15)+10);
 
-let stageW=0, stageH=0;
 function measure(){
   const r = stage.getBoundingClientRect();
   stageW = r.width; stageH = r.height;
@@ -735,6 +759,7 @@ const io = new IntersectionObserver((ents)=>{
 function init(){
   sizeTrack();
   metrics();
+  solved = LAYOUT_FNS.map(fn=>fn());   // re-solve now that stage dims are known (mobile aspect)
   if(reduce){
     staticRender();
     return;
@@ -750,7 +775,7 @@ function init(){
 }
 
 // fonts can shift metrics; render after load too
-window.addEventListener('load', ()=>{ metrics(); if(!reduce) render(progressNow()); else staticRender(); });
+window.addEventListener('load', ()=>{ metrics(); solved = LAYOUT_FNS.map(fn=>fn()); if(!reduce) render(progressNow()); else staticRender(); });
 init();
 </script>
 </body>

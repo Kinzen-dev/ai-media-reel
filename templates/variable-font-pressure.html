@@ -1,0 +1,810 @@
+<!-- TEMPLATE: Pressure | ARCHETYPE: PRESSURE - variable-font weight driven by cursor speed / scroll velocity | REF: Obys Agency kinetic typography 2026, AVA SRG variable type animation | WHEN TO USE: a typography-only index/portfolio where the text IS the navigation - no imagery in the frame, works revealed full-screen only on demand | SWAP: edit the DATA array at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>PRESSURE - variable type index</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<!-- Roboto Flex: full variable font, real weight (wght) + width (wdth) + optical (opsz) axes -->
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght,wdth@8..144,100..1000,25..151&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     PRESSURE
+     - All type set in ONE variable font (Roboto Flex).
+     - wght axis  <- cursor speed (desktop) / scroll speed (mobile)
+     - wdth axis  <- scroll velocity
+     - opsz axis  <- coupled to size (optical sizing)
+     - Zero decorative colour: off-white + near-black only.
+     ============================================================ */
+
+  :root {
+    --paper:   #f8f8f5;   /* off-white */
+    --ink:     #111111;   /* near-black */
+    --ink-60:  rgba(17,17,17,0.60);
+    --ink-30:  rgba(17,17,17,0.28);
+    --ink-12:  rgba(17,17,17,0.12);
+
+    /* live axis values, written by JS each frame */
+    --wght: 300;          /* hairline at rest */
+    --wdth: 100;          /* normal width at rest */
+    --press: 0;           /* 0..1 normalized pressure, for subtle UI cues */
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Roboto Flex", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+    overscroll-behavior-y: none;
+    cursor: none; /* custom dot cursor on desktop */
+  }
+
+  /* keep the native pointer on touch / no-hover devices */
+  @media (hover: none), (pointer: coarse) {
+    body { cursor: auto; }
+    .cursor { display: none !important; }
+  }
+
+  a { color: inherit; text-decoration: none; }
+
+  /* ---------- custom cursor (desktop only) ---------- */
+  .cursor {
+    position: fixed;
+    top: 0; left: 0;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--ink);
+    pointer-events: none;
+    z-index: 999;
+    transform: translate(-50%, -50%);
+    mix-blend-mode: difference;
+    will-change: transform;
+  }
+  .cursor::after {
+    content: "";
+    position: absolute;
+    inset: -10px;
+    border: 1px solid var(--ink);
+    border-radius: 50%;
+    /* ring grows with pressure */
+    transform: scale(calc(1 + var(--press) * 1.6));
+    opacity: calc(0.25 + var(--press) * 0.5);
+    transition: transform .12s ease-out, opacity .12s ease-out;
+  }
+
+  /* ---------- top frame ---------- */
+  .frame {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 40;
+    padding: clamp(16px, 2.4vw, 30px);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    mix-blend-mode: multiply;
+  }
+  .frame__row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    width: 100%;
+  }
+  .meta {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-variation-settings: "wght" 600, "wdth" 75;
+    color: var(--ink-60);
+    line-height: 1.5;
+    max-width: 38ch;
+  }
+  .meta--right { text-align: right; }
+
+  /* live pressure gauge: a thin bar that fills with pressure */
+  .gauge {
+    position: relative;
+    width: 96px; height: 2px;
+    background: var(--ink-12);
+    margin-top: 8px;
+    overflow: hidden;
+  }
+  .gauge__fill {
+    position: absolute; inset: 0;
+    transform-origin: left center;
+    transform: scaleX(var(--press));
+    background: var(--ink);
+  }
+  .meta--right .gauge { margin-left: auto; }
+
+  /* ---------- the index: text IS the navigation ---------- */
+  main {
+    position: relative;
+    z-index: 10;
+    min-height: 100vh;
+    padding: clamp(96px, 14vh, 200px) clamp(16px, 4vw, 64px) clamp(80px, 12vh, 160px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .lede {
+    font-size: clamp(13px, 1.4vw, 16px);
+    line-height: 1.5;
+    font-variation-settings: "wght" 400, "wdth" 90, "opsz" 14;
+    color: var(--ink-60);
+    max-width: 30ch;
+    margin-bottom: clamp(40px, 8vh, 110px);
+  }
+  .lede strong {
+    color: var(--ink);
+    font-variation-settings: "wght" 700, "wdth" 90;
+  }
+
+  .index { list-style: none; }
+
+  .work {
+    position: relative;
+    border-top: 1px solid var(--ink-12);
+  }
+  .index .work:last-child { border-bottom: 1px solid var(--ink-12); }
+
+  .work__btn {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: 0;
+    font: inherit;
+    color: inherit;
+    cursor: inherit;
+    padding: clamp(8px, 1.6vh, 22px) 0;
+    position: relative;
+  }
+  /* the headline: this is the live variable type.
+     wght + wdth pull from CSS vars set every frame by JS. */
+  .work__title {
+    display: block;
+    font-size: clamp(44px, 12vw, 168px);
+    line-height: 0.92;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    font-optical-sizing: auto;
+    font-variation-settings:
+      "wght" var(--wght),
+      "wdth" var(--wdth),
+      "opsz" 144;
+    transition: opacity .4s ease;
+  }
+  /* caption beneath the expanding type */
+  .work__caption {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    align-items: baseline;
+    font-size: 11px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--ink-60);
+    font-variation-settings: "wght" 600, "wdth" 75;
+    margin-top: 4px;
+    /* caption reveals as the row warms up */
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height .5s cubic-bezier(.2,.8,.2,1), opacity .4s ease, margin .5s ease;
+  }
+  .work__num { color: var(--ink-30); }
+  .work__caption .dot { color: var(--ink-30); }
+
+  /* hover / focus warms a row: reveal caption, settle to readable weight */
+  .work__btn:hover .work__caption,
+  .work__btn:focus-visible .work__caption {
+    max-height: 40px;
+    opacity: 1;
+    margin-top: 12px;
+  }
+  .work__btn:hover .work__title { opacity: 1; }
+  .work:not(:hover) .work__title { opacity: 0.86; }
+
+  .index:hover .work:not(:hover) .work__title { opacity: 0.42; }
+
+  /* the active/locked row pins to heavy while it expands */
+  .work.is-locked .work__title {
+    font-variation-settings: "wght" 900, "wdth" 110, "opsz" 144 !important;
+    opacity: 1 !important;
+  }
+
+  .work__btn:focus-visible {
+    outline: none;
+  }
+  .work__btn:focus-visible .work__title {
+    text-decoration: underline;
+    text-underline-offset: 0.12em;
+    text-decoration-thickness: clamp(2px, 0.4vw, 6px);
+  }
+
+  /* trailing index footer */
+  .colophon {
+    margin-top: clamp(48px, 10vh, 120px);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-60);
+    font-variation-settings: "wght" 600, "wdth" 75;
+  }
+
+  /* ============================================================
+     FULL-SCREEN WORK OVERLAY
+     - clicking a title expands the work; the giant title morphs
+       from heavy -> normal as the media reveals.
+     ============================================================ */
+  .stage {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: var(--paper);
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    padding: clamp(16px, 3vw, 40px);
+    gap: clamp(12px, 2vh, 24px);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity .5s ease, visibility .5s;
+  }
+  .stage.is-open {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .stage__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+  }
+  .stage__title {
+    font-size: clamp(28px, 6vw, 88px);
+    line-height: 0.9;
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+    font-optical-sizing: auto;
+    /* starts heavy (matching the locked index row), animates to normal */
+    font-variation-settings: "wght" 900, "wdth" 110, "opsz" 144;
+    transition: font-variation-settings .8s cubic-bezier(.2,.8,.2,1);
+  }
+  .stage.is-open .stage__title {
+    font-variation-settings: "wght" 380, "wdth" 95, "opsz" 144;
+  }
+  .stage__close {
+    flex: 0 0 auto;
+    background: none; border: 0; font: inherit; color: var(--ink);
+    cursor: pointer;
+    font-size: 12px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    font-variation-settings: "wght" 700, "wdth" 75;
+    padding: 8px 0 8px 16px;
+  }
+  .stage__close:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 3px;
+  }
+
+  .stage__media {
+    position: relative;
+    min-height: 0;
+    border: 1px solid var(--ink-12);
+    background: var(--paper);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  /* letterbox media: never cover-crop. contain keeps the whole asset. */
+  .stage__media img,
+  .stage__media video {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: block;
+  }
+  .stage__media model-viewer {
+    width: 100%;
+    height: 100%;
+  }
+
+  .stage__foot {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+    align-items: baseline;
+    font-size: 11px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--ink-60);
+    font-variation-settings: "wght" 600, "wdth" 75;
+  }
+  .stage__foot .desc {
+    color: var(--ink);
+    font-variation-settings: "wght" 500, "wdth" 90;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    max-width: 56ch;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  .stage__nav { display: flex; gap: 20px; }
+  .stage__nav button {
+    background: none; border: 0; font: inherit; cursor: pointer; color: var(--ink-60);
+    letter-spacing: 0.13em; text-transform: uppercase;
+    font-variation-settings: "wght" 600, "wdth" 75;
+  }
+  .stage__nav button:hover,
+  .stage__nav button:focus-visible { color: var(--ink); outline: none; }
+  .stage__nav button:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
+
+  /* mobile: stack the stage and letterbox tall media cleanly */
+  @media (max-width: 640px) {
+    main { padding-top: 84px; padding-bottom: 64px; }
+    .work__title { font-size: clamp(40px, 15vw, 92px); }
+    .frame { mix-blend-mode: normal; }
+    .meta { max-width: 22ch; font-size: 10px; }
+    .gauge { width: 64px; }
+    .stage { padding: 14px; gap: 12px; grid-template-rows: auto minmax(40vh, 1fr) auto; }
+    .stage__foot { font-size: 10px; }
+    .stage__foot .desc { font-size: 12px; }
+    .stage__nav { gap: 14px; }
+    /* caption always slightly visible on touch (no hover) */
+    .work__caption { max-height: 30px; opacity: .9; margin-top: 10px; }
+  }
+
+  /* ============================================================
+     REDUCED MOTION: pin a fixed readable weight, kill all rAF
+     overrides via .rm flag (JS checks it), show final states.
+     ============================================================ */
+  @media (prefers-reduced-motion: reduce) {
+    :root { --wght: 460; --wdth: 100; --press: 0; }
+    .work__title {
+      font-variation-settings: "wght" 460 !important, "wdth" 100 !important, "opsz" 144 !important;
+    }
+    .stage__title, .stage.is-open .stage__title {
+      transition: none !important;
+      font-variation-settings: "wght" 460 !important, "wdth" 100 !important, "opsz" 144 !important;
+    }
+    .cursor { display: none !important; }
+    body { cursor: auto; }
+    .work__caption { transition: none; }
+    .stage { transition: opacity .2s linear, visibility .2s; }
+    * { scroll-behavior: auto !important; }
+  }
+
+  noscript .ns { padding: 24px; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<!-- custom cursor (hidden on touch + reduced-motion) -->
+<div class="cursor" aria-hidden="true"></div>
+
+<!-- fixed frame / meta -->
+<div class="frame" aria-hidden="true">
+  <div class="frame__row">
+    <div class="meta">
+      PRESSURE<br />
+      <span style="color:var(--ink-30)">VARIABLE TYPE INDEX</span>
+    </div>
+    <div class="meta meta--right">
+      MOVE FAST / TYPE GAINS WEIGHT<br />
+      <span style="color:var(--ink-30)">SCROLL / TYPE GAINS WIDTH</span>
+      <div class="gauge"><div class="gauge__fill"></div></div>
+    </div>
+  </div>
+  <div class="frame__row">
+    <div class="meta">© 2026 · STUDIO PRESSURE</div>
+    <div class="meta meta--right">ROBOTO FLEX · WGHT 100 TO 1000 · WDTH 25 TO 151</div>
+  </div>
+</div>
+
+<main>
+  <p class="lede">
+    The page has <strong>no images</strong>. The type is the interface. Move your cursor to load
+    weight onto the letterforms; scroll to stretch them wide. <strong>Select</strong> a line to open the work.
+  </p>
+
+  <ol class="index" id="index" aria-label="Selected works"></ol>
+
+  <div class="colophon">
+    <span>INDEX / 2026</span>
+    <span>SET ENTIRELY IN ONE VARIABLE FONT</span>
+    <span>NO DECORATIVE COLOUR</span>
+  </div>
+</main>
+
+<!-- full-screen work stage -->
+<section class="stage" id="stage" role="dialog" aria-modal="true" aria-labelledby="stageTitle" hidden>
+  <div class="stage__head">
+    <h2 class="stage__title" id="stageTitle"></h2>
+    <button class="stage__close" id="stageClose" type="button" aria-label="Close work, return to index">Close ✕</button>
+  </div>
+  <div class="stage__media" id="stageMedia"></div>
+  <div class="stage__foot">
+    <p class="desc" id="stageDesc"></p>
+    <div style="display:flex; gap:24px; align-items:baseline;">
+      <span id="stageTags"></span>
+      <span class="stage__nav">
+        <button type="button" id="stagePrev">← Prev</button>
+        <button type="button" id="stageNext">Next →</button>
+      </span>
+    </div>
+  </div>
+</section>
+
+<noscript><div class="ns">This index uses live variable typography. With scripting off, the works are listed below at a fixed readable weight. Re-enable scripting for the full experience.</div></noscript>
+
+<!-- model-viewer loaded lazily, only if a 3D work is opened -->
+<script>
+/* ============================================================
+   DATA - swap freely. Each work maps to ONE reusable demo asset.
+   kind: "image" | "video" | "model"
+   src/poster paths are relative to this file (../assets/...).
+   ============================================================ */
+const DATA = [
+  {
+    title: "Nocturne",
+    num: "01",
+    tags: ["DIRECTION", "CGI", "2026"],
+    desc: "Matte-black coupe on a rain-slicked neon street. A still frame that holds its breath.",
+    kind: "image",
+    src: "../assets/flux-car-4k.png"
+  },
+  {
+    title: "Mint Ward",
+    num: "02",
+    tags: ["INTERIOR", "BRAND", "HEALTHCARE"],
+    desc: "A dental suite rendered in mint and warm wood - clinical calm without the clinic chill.",
+    kind: "image",
+    src: "../assets/flux-clinic-4k.png"
+  },
+  {
+    title: "Velocity",
+    num: "03",
+    tags: ["MOTION", "I2V", "LOOP"],
+    desc: "The still car set in motion - image-to-video drift down the wet boulevard.",
+    kind: "video",
+    src: "../assets/flux-car-i2v.mp4",
+    poster: "../assets/gen/poster-flux-car-i2v.png"
+  },
+  {
+    title: "Driftframe",
+    num: "04",
+    tags: ["MOTION", "GEN", "LOOP"],
+    desc: "A generated sequence that loops without a seam. Pure kinetic texture.",
+    kind: "video",
+    src: "../assets/kling-video.mp4",
+    poster: "../assets/gen/poster-kling-video.png"
+  },
+  {
+    title: "Reverie",
+    num: "05",
+    tags: ["MOTION", "GEN", "AMBIENT"],
+    desc: "Slow ambient footage - the kind of loop you forget is looping.",
+    kind: "video",
+    src: "../assets/veo-video.mp4",
+    poster: "../assets/gen/poster-veo-video.png"
+  },
+  {
+    title: "The Fox",
+    num: "06",
+    tags: ["PAINTERLY", "STILL", "AUTUMN"],
+    desc: "A painterly autumn fox - diffusion as oil on canvas.",
+    kind: "image",
+    src: "../assets/sdxl.png"
+  },
+  {
+    title: "Object",
+    num: "07",
+    tags: ["3D", "MESH", "INTERACTIVE"],
+    desc: "A refined mesh you can orbit. Drag to turn it over in the light.",
+    kind: "model",
+    src: "../assets/meshy-refined.glb",
+    poster: "../assets/gen/meshy-refined-thumb.png"
+  }
+];
+
+/* ============================================================
+   PRESSURE ENGINE  (single IIFE, one source of truth for state)
+
+   Axes:
+     wght <- pointer speed (desktop) / max(scroll,flick) speed (touch)
+     wdth <- scroll velocity
+     opsz <- coupled to size via font-optical-sizing
+   Spring-smoothed, written once per rAF to :root.
+   prefers-reduced-motion: pin a fixed readable weight, no rAF.
+   ============================================================ */
+(function () {
+  "use strict";
+
+  const root = document.documentElement;
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const coarse = window.matchMedia("(hover: none), (pointer: coarse)").matches;
+
+  // axis bounds
+  const WGHT_MIN = 240, WGHT_MAX = 900;   // hairline rest -> ultra-heavy
+  const WDTH_MIN = 70,  WDTH_MAX = 140;   // condensed rest -> extended on velocity
+  const SPEED_FULL = 2.4;                 // px/ms that maps to max weight
+  const SCROLL_FULL = 3.0;                // px/ms that maps to max width
+
+  /* ---------- 1. render the index ---------- */
+  const indexEl = document.getElementById("index");
+  DATA.forEach((w, i) => {
+    const li = document.createElement("li");
+    li.className = "work";
+    li.dataset.idx = i;
+    li.innerHTML =
+      '<button class="work__btn" type="button" aria-haspopup="dialog">' +
+        '<span class="work__title">' + esc(w.title) + '</span>' +
+        '<span class="work__caption">' +
+          '<span class="work__num">' + esc(w.num) + '</span>' +
+          w.tags.map(t => '<span>' + esc(t) + '</span>').join('<span class="dot">/</span>') +
+        '</span>' +
+      '</button>';
+    indexEl.appendChild(li);
+  });
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+  }
+
+  /* ============================================================
+     2. STAGE / OVERLAY  (one state machine: `current` + `lastFocus`)
+     ============================================================ */
+  const stage     = document.getElementById("stage");
+  const stageMedia= document.getElementById("stageMedia");
+  const closeBtn  = document.getElementById("stageClose");
+  const prevBtn   = document.getElementById("stagePrev");
+  const nextBtn   = document.getElementById("stageNext");
+
+  let current = -1;
+  let lastFocus = null;
+  let modelViewerLoaded = false;
+
+  function ensureModelViewer() {
+    if (modelViewerLoaded) return;
+    modelViewerLoaded = true;
+    const s = document.createElement("script");
+    s.type = "module";
+    s.src = "https://unpkg.com/@google/model-viewer@4.0.0/dist/model-viewer.min.js";
+    document.head.appendChild(s);
+  }
+
+  function stopMedia() {
+    const v = stageMedia.querySelector("video");
+    if (v) { v.pause(); }
+  }
+
+  function renderStage(i) {
+    const w = DATA[i];
+    document.getElementById("stageTitle").textContent = w.title;
+    document.getElementById("stageDesc").textContent = w.desc;
+    document.getElementById("stageTags").textContent = w.num + " / " + w.tags.join(" · ");
+
+    stageMedia.innerHTML = "";
+
+    if (w.kind === "image") {
+      const img = document.createElement("img");
+      img.src = w.src;
+      img.alt = w.title + " - " + w.desc;
+      img.loading = "lazy";
+      stageMedia.appendChild(img);
+
+    } else if (w.kind === "video") {
+      const v = document.createElement("video");
+      v.src = w.src;
+      if (w.poster) v.poster = w.poster;
+      v.muted = true;              // never autoplay with sound
+      v.loop = true;
+      v.playsInline = true;
+      v.setAttribute("playsinline", "");
+      v.preload = "metadata";
+      v.controls = false;
+      stageMedia.appendChild(v);
+      // only THIS focused work plays (single decode). reduced-motion = poster + controls.
+      if (reduceMotion) {
+        v.controls = true;
+      } else {
+        const p = v.play();
+        if (p && p.catch) p.catch(() => { v.controls = true; });
+      }
+
+    } else if (w.kind === "model") {
+      ensureModelViewer();
+      const mv = document.createElement("model-viewer");
+      mv.setAttribute("src", w.src);
+      if (w.poster) mv.setAttribute("poster", w.poster);
+      mv.setAttribute("alt", w.title + " - " + w.desc);
+      mv.setAttribute("camera-controls", "");
+      if (!reduceMotion) mv.setAttribute("auto-rotate", "");
+      mv.setAttribute("shadow-intensity", "0");
+      mv.setAttribute("exposure", "1");
+      mv.setAttribute("loading", "lazy");
+      mv.style.setProperty("--poster-color", "transparent");
+      stageMedia.appendChild(mv);
+    }
+  }
+
+  function openWork(i, li) {
+    current = i;
+    lastFocus = (li && li.querySelector(".work__btn")) || document.activeElement;
+    if (li) { li.classList.add("is-locked"); setTimeout(() => li.classList.remove("is-locked"), 900); }
+    renderStage(i);
+    stage.hidden = false;
+    // double rAF: paint heavy state first, then run the heavy->normal title morph
+    requestAnimationFrame(() => requestAnimationFrame(() => stage.classList.add("is-open")));
+    document.body.style.overflow = "hidden";
+    closeBtn.focus();
+  }
+
+  function closeStage() {
+    stopMedia();
+    stage.classList.remove("is-open");
+    document.body.style.overflow = "";
+    setTimeout(() => { stage.hidden = true; stageMedia.innerHTML = ""; }, reduceMotion ? 0 : 500);
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+
+  function step(dir) {
+    if (current < 0) return;
+    stopMedia();
+    current = (current + dir + DATA.length) % DATA.length;
+    // re-trigger the heavy->normal morph on the new title
+    stage.classList.remove("is-open");
+    requestAnimationFrame(() => {
+      renderStage(current);
+      requestAnimationFrame(() => stage.classList.add("is-open"));
+    });
+  }
+
+  // wire index buttons
+  indexEl.querySelectorAll(".work").forEach((li) => {
+    const btn = li.querySelector(".work__btn");
+    btn.addEventListener("click", () => openWork(parseInt(li.dataset.idx, 10), li));
+    // press-and-hold momentarily locks the row heavy, seeding the handoff
+    btn.addEventListener("pointerdown", () => li.classList.add("is-locked"));
+    btn.addEventListener("pointerup",   () => setTimeout(() => li.classList.remove("is-locked"), 600));
+    btn.addEventListener("pointerleave",() => li.classList.remove("is-locked"));
+  });
+
+  // wire stage controls
+  closeBtn.addEventListener("click", closeStage);
+  prevBtn.addEventListener("click", () => step(-1));
+  nextBtn.addEventListener("click", () => step(1));
+  stage.addEventListener("click", (e) => { if (e.target === stage) closeStage(); });
+
+  document.addEventListener("keydown", (e) => {
+    if (stage.hidden) return;
+    if (e.key === "Escape") closeStage();
+    else if (e.key === "ArrowRight") step(1);
+    else if (e.key === "ArrowLeft") step(-1);
+  });
+
+  // focus trap inside the open stage
+  stage.addEventListener("keydown", (e) => {
+    if (e.key !== "Tab") return;
+    const f = stage.querySelectorAll("button");
+    if (!f.length) return;
+    const first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
+
+  /* ============================================================
+     3. AXIS ENGINE  (skip entirely under reduced-motion)
+     ============================================================ */
+  if (reduceMotion) {
+    root.style.setProperty("--wght", 460);
+    root.style.setProperty("--wdth", 100);
+    root.style.setProperty("--press", 0);
+    return; // no rAF, no inline transform overrides; CSS shows the pinned state
+  }
+
+  const cursorEl = document.querySelector(".cursor");
+  let cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+  let curX = cx, curY = cy;
+
+  // pointer speed (desktop)
+  let lastX = null, lastY = null, lastT = performance.now();
+  let speed = 0, speedSmoothed = 0;
+  if (!coarse) {
+    window.addEventListener("pointermove", (e) => {
+      const now = performance.now();
+      const dt = Math.max(1, now - lastT);
+      if (lastX !== null) {
+        speed = Math.hypot(e.clientX - lastX, e.clientY - lastY) / dt;
+      }
+      lastX = e.clientX; lastY = e.clientY; lastT = now;
+      cx = e.clientX; cy = e.clientY;
+    }, { passive: true });
+  }
+
+  // scroll velocity (width axis on both, weight axis on touch)
+  let lastScroll = window.scrollY, scrollVel = 0, scrollVelSmoothed = 0;
+  let lastScrollT = performance.now();
+  window.addEventListener("scroll", () => {
+    const now = performance.now();
+    const dt = Math.max(1, now - lastScrollT);
+    scrollVel = Math.abs(window.scrollY - lastScroll) / dt;
+    lastScroll = window.scrollY;
+    lastScrollT = now;
+  }, { passive: true });
+
+  // touch flick speed (mobile primary weight driver: fast swipe = bold)
+  let touchSpeed = 0;
+  if (coarse) {
+    let tLastY = null, tLastT = performance.now();
+    window.addEventListener("touchmove", (e) => {
+      const y = e.touches[0].clientY;
+      const now = performance.now();
+      const dt = Math.max(1, now - tLastT);
+      if (tLastY !== null) touchSpeed = Math.abs(y - tLastY) / dt;
+      tLastY = y; tLastT = now;
+    }, { passive: true });
+    window.addEventListener("touchend", () => { touchSpeed = 0; }, { passive: true });
+  }
+
+  let running = true;
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) { running = false; }
+    else if (!running) { running = true; requestAnimationFrame(frame); }
+  });
+
+  function frame() {
+    if (!running) return;
+
+    // decay raw speeds so stillness returns to hairline
+    speed *= 0.86;
+    scrollVel *= 0.80;
+    touchSpeed *= 0.88;
+
+    const wDriver = coarse ? Math.max(scrollVel, touchSpeed) : speed;
+    const wTarget = Math.min(1, wDriver / SPEED_FULL);
+    const widthTarget = Math.min(1, scrollVel / SCROLL_FULL);
+
+    // asymmetric spring: punch up fast, ease down slow (feels like real pressure)
+    speedSmoothed     += (wTarget - speedSmoothed)         * (wTarget > speedSmoothed ? 0.35 : 0.06);
+    scrollVelSmoothed += (widthTarget - scrollVelSmoothed) * (widthTarget > scrollVelSmoothed ? 0.40 : 0.08);
+
+    root.style.setProperty("--wght", (WGHT_MIN + (WGHT_MAX - WGHT_MIN) * speedSmoothed).toFixed(1));
+    root.style.setProperty("--wdth", (WDTH_MIN + (WDTH_MAX - WDTH_MIN) * scrollVelSmoothed).toFixed(1));
+    root.style.setProperty("--press", speedSmoothed.toFixed(3));
+
+    if (cursorEl && !coarse) {
+      curX += (cx - curX) * 0.35;
+      curY += (cy - curY) * 0.35;
+      cursorEl.style.transform = "translate(" + curX + "px," + curY + "px) translate(-50%,-50%)";
+    }
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

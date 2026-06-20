@@ -1,0 +1,1293 @@
+<!-- TEMPLATE: Interface Nostalgia OS | ARCHETYPE: desktop-core (draggable faux-OS windows) | REF: Milosz Chudy portfolio (Interface Nostalgia 2026), Player Zero AI desktop UI | WHEN TO USE: a portfolio/showcase where the OPERATING SYSTEM itself is the gallery - works live inside draggable, minimisable, overlapping app windows on a Win95-era desktop | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>STUDIO.OS - a desktop you can rummage through</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23c0c0c0'/%3E%3Crect x='2' y='2' width='28' height='28' fill='none' stroke='%23000080' stroke-width='3'/%3E%3Crect x='6' y='6' width='20' height='6' fill='%23000080'/%3E%3Crect x='6' y='16' width='14' height='2' fill='%23000'/%3E%3Crect x='6' y='20' width='14' height='2' fill='%23000'/%3E%3C/svg%3E" />
+<meta name="theme-color" content="#008080" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+<!-- three.js as bare specifiers so example modules (OrbitControls, GLTFLoader) resolve their internal `import 'three'`. Only fetched if a 3D window is opened. -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+/* ============================================================
+   SWAP CONTENT IN THE JS `DATA` ARRAY NEAR THE TOP OF <script>.
+   Each app = {id,title,icon,kind,media,poster,ratio,blurb,meta}.
+   Everything below is the OS engine + skeuomorphic styling.
+   Win95 silver #c0c0c0  +  title-bar navy #000080.
+   Beveled 1px borders: light top/left, dark bottom/right.
+   ============================================================ */
+:root{
+  --silver:#c0c0c0;        /* the chrome */
+  --silver-d:#a8a8a8;
+  --navy:#000080;          /* active title bar */
+  --navy-2:#1084d0;        /* gradient tail */
+  --gray:#808080;          /* inactive title bar */
+  --gray-2:#b5b5b5;
+  --teal:#008080;          /* the classic desktop */
+  --ink:#000;
+  --hi:#ffffff;            /* bevel highlight */
+  --lo:#000000;            /* bevel deepest shadow */
+  --lo2:#808080;           /* bevel mid shadow */
+  --link:#0000ee;
+  --px:"Press Start 2P","Courier New",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--teal);
+  color:var(--ink);
+  font-family:var(--px);
+  font-size:11px;
+  line-height:1.7;
+  overflow:hidden;
+  -webkit-font-smoothing:none;
+  image-rendering:pixelated;
+  touch-action:none;
+  overscroll-behavior:none;
+  cursor:default;
+  user-select:none;
+}
+/* crisp pixel rendering on every raster image */
+img{image-rendering:auto}
+.px{font-family:var(--px)}
+
+/* ---- bevels: the entire OS look lives in these four mixins ---- */
+.out{   /* raised panel (buttons, windows, taskbar) */
+  border:2px solid;
+  border-color:var(--hi) var(--lo) var(--lo) var(--hi);
+  box-shadow:inset 1px 1px 0 var(--silver), inset -1px -1px 0 var(--lo2);
+}
+.in{    /* sunken well (screens, fields, content) */
+  border:2px solid;
+  border-color:var(--lo) var(--hi) var(--hi) var(--lo);
+  box-shadow:inset 1px 1px 0 var(--lo2), inset -1px -1px 0 var(--silver);
+}
+.thin{  /* tight 1px groove */
+  border:1px solid;
+  border-color:var(--lo2) var(--hi) var(--hi) var(--lo2);
+}
+
+/* ============================== DESKTOP ============================== */
+#desktop{
+  position:fixed; inset:0;
+  background:var(--teal);
+  /* faint CRT scanlines, very subtle */
+  background-image:repeating-linear-gradient(0deg, rgba(0,0,0,.04) 0 1px, transparent 1px 3px);
+  overflow:hidden;
+}
+
+/* desktop icon shortcuts (top-left column) */
+#shortcuts{
+  position:absolute; top:14px; left:14px; z-index:5;
+  display:grid; grid-auto-flow:row; gap:6px;
+  width:84px;
+}
+.shortcut{
+  display:flex; flex-direction:column; align-items:center; gap:5px;
+  width:84px; padding:6px 4px; cursor:pointer;
+  text-align:center; color:#fff; background:transparent;
+  border:1px dotted transparent;
+}
+.shortcut .ico{ font-size:24px; line-height:1; filter:drop-shadow(1px 1px 0 rgba(0,0,0,.45)); }
+.shortcut .lbl{
+  font-size:8px; line-height:1.5; letter-spacing:.5px;
+  text-shadow:1px 1px 0 #000; word-break:break-word;
+  padding:1px 2px;
+}
+.shortcut.sel{ border:1px dotted #fff; background:rgba(0,0,128,.55); }
+.shortcut.sel .lbl{ background:var(--navy); }
+.shortcut:focus-visible{ outline:2px solid #ffec3d; outline-offset:1px; }
+
+/* welcome sticky note on the desktop */
+#welcome{
+  position:absolute; right:18px; top:18px; z-index:4;
+  width:min(248px,42vw);
+  background:#fbf8c8; color:#3a3300;
+  font-family:var(--px); font-size:8px; line-height:1.9;
+  padding:12px 13px 14px;
+  box-shadow:3px 4px 0 rgba(0,0,0,.28);
+  transform:rotate(1.4deg);
+  pointer-events:none;
+}
+#welcome b{ display:block; font-size:9px; margin-bottom:7px; color:#7a1f00; }
+#welcome .sig{ display:block; margin-top:9px; text-align:right; color:#7a6a00; }
+
+/* ============================== WINDOWS ============================== */
+.window{
+  position:absolute;
+  display:flex; flex-direction:column;
+  background:var(--silver);
+  min-width:230px; min-height:120px;
+  /* .out bevel applied via class too */
+  will-change:transform;
+}
+.window.dragging{ opacity:.97; }
+.window.snap{ transition:left .14s ease, top .14s ease, width .14s ease, height .14s ease; }
+
+.titlebar{
+  display:flex; align-items:center; gap:6px;
+  height:24px; padding:0 3px 0 5px; margin:2px;
+  background:linear-gradient(90deg, var(--navy), var(--navy-2));
+  color:#fff; cursor:grab; flex:0 0 auto;
+  touch-action:none;
+}
+.window.inactive .titlebar{ background:linear-gradient(90deg, var(--gray), var(--gray-2)); }
+.titlebar.grabbing{ cursor:grabbing; }
+.titlebar .tico{ font-size:13px; line-height:1; flex:0 0 auto; }
+.titlebar .ttl{
+  flex:1 1 auto; font-size:8.5px; letter-spacing:.5px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  text-shadow:1px 1px 0 rgba(0,0,0,.4);
+}
+.tbtns{ display:flex; gap:2px; flex:0 0 auto; }
+.tbtn{
+  width:18px; height:16px; display:grid; place-items:center;
+  background:var(--silver); color:#000;
+  font-family:var(--px); font-size:8px; line-height:1; cursor:pointer;
+  padding:0;
+}
+.tbtn:active{ border-color:var(--lo) var(--hi) var(--hi) var(--lo); box-shadow:inset 1px 1px 0 var(--lo2); }
+.tbtn:focus-visible{ outline:1px dotted #000; outline-offset:1px; }
+.tbtn svg{ width:8px; height:8px; }
+
+/* menu strip under the title bar */
+.menustrip{
+  display:flex; gap:0; padding:1px 4px; margin:0 2px;
+  font-size:8px; color:#000; flex:0 0 auto;
+}
+.menustrip span{ padding:2px 6px 3px; }
+.menustrip span u{ text-decoration:underline; }
+.menustrip span:hover{ background:var(--navy); color:#fff; }
+
+/* the sunken content well */
+.client{
+  flex:1 1 auto; margin:2px; overflow:hidden;
+  background:#fff; position:relative; min-height:0;
+  display:flex; flex-direction:column;
+}
+.client.padded{ background:var(--silver); padding:0; }
+
+/* stage that holds media, letterboxed (never cover-crops) */
+.stage{
+  flex:1 1 auto; position:relative; min-height:0;
+  background:#000;
+  display:flex; align-items:center; justify-content:center;
+  overflow:hidden;
+}
+.stage img.media, .stage video.media{
+  max-width:100%; max-height:100%;
+  width:auto; height:auto;
+  display:block; object-fit:contain;
+}
+.stage .meshframe{ width:100%; height:100%; border:0; display:block; background:#0b0b14; }
+
+/* play overlay for paused/poster videos */
+.playover{
+  position:absolute; inset:0; display:grid; place-items:center;
+  cursor:pointer; z-index:2;
+}
+.playover::after{
+  content:""; width:0; height:0;
+  border-style:solid; border-width:13px 0 13px 22px;
+  border-color:transparent transparent transparent #fff;
+  filter:drop-shadow(2px 2px 0 rgba(0,0,0,.6));
+  margin-left:5px;
+}
+.playover .ring{
+  position:absolute; width:54px; height:54px; border-radius:50%;
+  background:rgba(0,0,0,.5); border:2px solid #fff;
+}
+.window.playing .playover{ display:none; }
+
+/* status bar at the foot of a window */
+.statusbar{
+  display:flex; gap:4px; padding:2px; margin:0 2px 2px; flex:0 0 auto;
+}
+.statusbar .cell{
+  font-size:7.5px; padding:3px 6px; color:#000; line-height:1.5;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.statusbar .cell.grow{ flex:1 1 auto; }
+
+/* text-content body (about, audio readme) */
+.body{
+  background:#fff; color:#000; padding:14px 14px 16px; overflow:auto;
+  flex:1 1 auto; font-size:9px; line-height:1.95;
+}
+.body h2{ font-size:11px; color:var(--navy); margin-bottom:10px; line-height:1.6; }
+.body p{ margin-bottom:11px; }
+.body a{ color:var(--link); text-decoration:underline; }
+.body ul{ margin:0 0 11px 16px; }
+.body li{ margin-bottom:6px; }
+.body .kv{ display:flex; gap:8px; margin-bottom:5px; }
+.body .kv b{ color:var(--navy); min-width:64px; flex:0 0 auto; }
+.body img.wave{ width:100%; height:auto; image-rendering:pixelated; margin:8px 0 12px; background:#101018; }
+
+/* a little resize grip */
+.resize{
+  position:absolute; right:0; bottom:0; width:16px; height:16px;
+  cursor:nwse-resize; z-index:3;
+  background:
+    linear-gradient(135deg, transparent 0 46%, var(--lo2) 46% 52%, transparent 52% 60%, var(--lo2) 60% 66%, transparent 66% 74%, var(--lo2) 74% 80%, transparent 80%);
+}
+
+/* ============================== TASKBAR ============================== */
+#taskbar{
+  position:fixed; left:0; right:0; bottom:0; height:34px; z-index:1000;
+  display:flex; align-items:center; gap:4px; padding:3px;
+  background:var(--silver);
+}
+#startbtn{
+  display:flex; align-items:center; gap:6px;
+  height:26px; padding:0 9px 0 6px; flex:0 0 auto;
+  background:var(--silver); color:#000; cursor:pointer;
+  font-family:var(--px); font-size:9px;
+}
+#startbtn .logo{
+  display:inline-grid; grid-template-columns:1fr 1fr; gap:1px; width:14px; height:14px;
+}
+#startbtn .logo i{ display:block; }
+#startbtn .logo i:nth-child(1){ background:#ff3b3b; }
+#startbtn .logo i:nth-child(2){ background:#3bd24a; }
+#startbtn .logo i:nth-child(3){ background:#2b7bff; }
+#startbtn .logo i:nth-child(4){ background:#ffd23b; }
+#startbtn.open{ border-color:var(--lo) var(--hi) var(--hi) var(--lo); box-shadow:inset 1px 1px 0 var(--lo2); }
+#startbtn:focus-visible{ outline:1px dotted #000; outline-offset:-3px; }
+
+.tdiv{ width:1px; height:22px; flex:0 0 auto;
+  border-left:1px solid var(--lo2); border-right:1px solid var(--hi); margin:0 2px; }
+
+#tasks{ flex:1 1 auto; display:flex; gap:4px; overflow:hidden; height:26px; }
+.taskbtn{
+  display:flex; align-items:center; gap:6px;
+  height:26px; min-width:120px; max-width:170px; padding:0 8px; cursor:pointer;
+  background:var(--silver); color:#000; font-family:var(--px); font-size:8px;
+  white-space:nowrap; overflow:hidden;
+}
+.taskbtn .tico{ font-size:12px; flex:0 0 auto; }
+.taskbtn .lbl{ overflow:hidden; text-overflow:ellipsis; }
+.taskbtn.active{ border-color:var(--lo) var(--hi) var(--hi) var(--lo);
+  box-shadow:inset 1px 1px 0 var(--lo2);
+  background-image:repeating-linear-gradient(45deg,#fff 0 1px,transparent 1px 2px); }
+.taskbtn:focus-visible{ outline:1px dotted #000; outline-offset:-3px; }
+
+#tray{
+  display:flex; align-items:center; gap:8px; flex:0 0 auto;
+  height:26px; padding:0 4px 0 8px;
+  border-color:var(--lo) var(--hi) var(--hi) var(--lo);
+  box-shadow:inset 1px 1px 0 var(--lo2), inset -1px -1px 0 var(--silver);
+  border:2px solid; border-color:var(--lo2) var(--hi) var(--hi) var(--lo2);
+}
+#tray .ticon{ font-size:11px; line-height:1; }
+#clock{ font-family:var(--px); font-size:8.5px; min-width:58px; text-align:center; }
+#clock .sep{ transition:opacity .12s; }
+#clock.blink .sep{ opacity:.15; }
+
+/* ============================== START MENU ============================== */
+#startmenu{
+  position:fixed; left:3px; bottom:37px; z-index:1100; width:228px;
+  background:var(--silver); padding:3px; display:none;
+}
+#startmenu.show{ display:flex; }
+#startmenu .spine{
+  width:26px; flex:0 0 auto; align-self:stretch;
+  background:linear-gradient(180deg,var(--navy),var(--navy-2));
+  display:flex; align-items:flex-end; justify-content:center; padding-bottom:8px;
+}
+#startmenu .spine span{
+  writing-mode:vertical-rl; transform:rotate(180deg);
+  color:#fff; font-family:var(--px); font-size:11px; letter-spacing:2px;
+}
+#startmenu .spine span b{ color:#ffd23b; }
+#startmenu .items{ flex:1 1 auto; padding:2px; }
+.mitem{
+  display:flex; align-items:center; gap:9px; padding:6px 8px; cursor:pointer;
+  font-family:var(--px); font-size:8px; color:#000;
+}
+.mitem .ico{ font-size:15px; flex:0 0 auto; }
+.mitem:hover, .mitem:focus-visible{ background:var(--navy); color:#fff; outline:none; }
+.mitem.sep{ height:0; padding:0; margin:4px 2px; cursor:default;
+  border-top:1px solid var(--lo2); border-bottom:1px solid var(--hi); }
+
+/* ============================== CONTEXT MENU ============================== */
+#ctxmenu{
+  position:fixed; z-index:1200; width:176px; display:none;
+  background:var(--silver); padding:2px;
+}
+#ctxmenu.show{ display:block; }
+.citem{
+  padding:5px 22px 5px 14px; font-family:var(--px); font-size:8px; color:#000; cursor:pointer;
+  white-space:nowrap;
+}
+.citem:hover{ background:var(--navy); color:#fff; }
+.citem.disabled{ color:var(--gray); cursor:default; }
+.citem.disabled:hover{ background:transparent; color:var(--gray); }
+.citem.sep{ height:0; padding:0; margin:3px 1px; cursor:default;
+  border-top:1px solid var(--lo2); border-bottom:1px solid var(--hi); }
+.citem.disabled:hover, .citem.sep:hover{ background:transparent; }
+
+/* ============================== BOOT / CRT ============================== */
+#boot{
+  position:fixed; inset:0; z-index:5000; background:#000; color:#c0c0c0;
+  font-family:var(--px); font-size:10px; line-height:2.2; padding:22px;
+  display:flex; flex-direction:column; gap:1px;
+}
+#boot .ok{ color:#3bd24a; }
+#boot .dim{ color:#5a5a5a; }
+#boot.gone{ display:none; }
+#boot .cursor{ display:inline-block; width:8px; height:13px; background:#c0c0c0;
+  vertical-align:middle; animation:bk 1s steps(1) infinite; }
+@keyframes bk{ 50%{opacity:0} }
+
+/* ============================== MOBILE: PHONE HOME ============================== */
+#phone{ display:none; }
+
+@media (max-width:640px){
+  /* Hide the desktop metaphor; show a phone home-screen grid. */
+  #desktop, #taskbar, #startmenu, #ctxmenu, #shortcuts, #welcome{ display:none !important; }
+  body{ background:#0d1b2a; overflow:hidden; }
+
+  #phone{
+    display:flex; flex-direction:column; position:fixed; inset:0;
+    background:
+      radial-gradient(120% 90% at 50% -10%, #1f6f8b 0%, #123247 45%, #0a1622 100%);
+    color:#fff;
+  }
+  #phone .statusrow{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:14px 18px 6px; font-family:var(--px); font-size:8px; letter-spacing:.5px;
+    text-shadow:1px 1px 0 rgba(0,0,0,.5);
+  }
+  #phone .statusrow .right{ display:flex; gap:8px; }
+  #phone .phead{
+    text-align:center; padding:18px 16px 8px;
+  }
+  #phone .phead h1{ font-family:var(--px); font-size:18px; line-height:1.5;
+    text-shadow:2px 2px 0 rgba(0,0,0,.45); }
+  #phone .phead p{ font-family:var(--px); font-size:8px; line-height:1.9; margin-top:10px;
+    color:#bfe3ef; }
+  #phone .grid{
+    flex:1 1 auto; align-content:start;
+    display:grid; grid-template-columns:repeat(4,1fr); gap:10px 8px;
+    padding:18px 16px 26px; overflow-y:auto; -webkit-overflow-scrolling:touch;
+  }
+  #phone .appicon{
+    display:flex; flex-direction:column; align-items:center; gap:7px; cursor:pointer;
+    background:none; color:#fff;
+  }
+  #phone .appicon .tile{
+    width:56px; height:56px; display:grid; place-items:center; font-size:28px;
+    border-radius:14px;
+    background:linear-gradient(160deg, rgba(255,255,255,.92), rgba(220,228,236,.78));
+    color:#16384a;
+    box-shadow:0 4px 10px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.9);
+  }
+  #phone .appicon .lbl{ font-family:var(--px); font-size:7px; line-height:1.5; text-align:center;
+    text-shadow:1px 1px 0 rgba(0,0,0,.5); max-width:64px; }
+  #phone .appicon:active .tile{ transform:scale(.93); }
+  #phone .dock{
+    display:flex; justify-content:center; gap:8px; padding:10px 16px calc(16px + env(safe-area-inset-bottom));
+    background:rgba(255,255,255,.08); backdrop-filter:blur(6px);
+    border-top:1px solid rgba(255,255,255,.12);
+  }
+  #phone .dock .dot{ width:6px; height:6px; border-radius:50%; background:rgba(255,255,255,.5); }
+
+  /* full-screen work modal on mobile */
+  #pmodal{
+    position:fixed; inset:0; z-index:2000; display:none;
+    flex-direction:column; background:#0a1622;
+  }
+  #pmodal.show{ display:flex; }
+  #pmodal .pmbar{
+    display:flex; align-items:center; gap:8px; flex:0 0 auto;
+    height:46px; padding:0 10px;
+    background:linear-gradient(90deg,var(--navy),var(--navy-2)); color:#fff;
+    font-family:var(--px); font-size:9px;
+  }
+  #pmodal .pmbar .tico{ font-size:16px; }
+  #pmodal .pmbar .ttl{ flex:1 1 auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #pmodal .pmclose{
+    width:30px; height:28px; display:grid; place-items:center; cursor:pointer;
+    background:var(--silver); color:#000; font-family:var(--px); font-size:10px;
+    border:2px solid; border-color:var(--hi) var(--lo) var(--lo) var(--hi);
+  }
+  #pmodal .pmstage{
+    flex:0 0 auto; background:#000; min-height:46vh; max-height:60vh;
+    display:flex; align-items:center; justify-content:center; overflow:hidden;
+  }
+  #pmodal .pmstage img, #pmodal .pmstage video{
+    max-width:100%; max-height:60vh; width:auto; height:auto; object-fit:contain; display:block;
+  }
+  #pmodal .pmstage iframe{ width:100%; height:100%; border:0; }
+  #pmodal .pmbody{ flex:1 1 auto; overflow:auto; padding:16px 16px 28px;
+    background:#fff; color:#000; font-family:var(--px); font-size:9px; line-height:2; }
+  #pmodal .pmbody h2{ color:var(--navy); font-size:11px; margin-bottom:10px; line-height:1.6; }
+  #pmodal .pmbody p{ margin-bottom:11px; }
+  #pmodal .pmbody .kv{ display:flex; gap:8px; margin-bottom:5px; }
+  #pmodal .pmbody .kv b{ color:var(--navy); min-width:60px; }
+  #pmodal .pmbody img.wave{ width:100%; image-rendering:pixelated; margin:8px 0; background:#101018; }
+  #pmodal .pmplay{ position:absolute; inset:0; display:grid; place-items:center; cursor:pointer; }
+  #pmodal .pmplay::after{ content:""; border-style:solid; border-width:14px 0 14px 24px;
+    border-color:transparent transparent transparent #fff; margin-left:5px;
+    filter:drop-shadow(2px 2px 0 rgba(0,0,0,.6)); }
+}
+
+/* honor reduced motion: kill blink + boot animation, show final state instantly */
+@media (prefers-reduced-motion: reduce){
+  #clock.blink .sep{ opacity:1 !important; }
+  #boot .cursor{ animation:none; }
+  .window.snap{ transition:none !important; }
+}
+
+/* hide the desktop scrollbars cleanly */
+::-webkit-scrollbar{ width:14px; height:14px; }
+::-webkit-scrollbar-track{ background:var(--silver); box-shadow:inset 1px 1px 0 var(--lo2); }
+::-webkit-scrollbar-thumb{ background:var(--silver); border:2px solid;
+  border-color:var(--hi) var(--lo) var(--lo) var(--hi); }
+</style>
+</head>
+<body>
+
+<!-- =================== BOOT SPLASH (decorative, dismissible) =================== -->
+<div id="boot" aria-hidden="true">
+  <div>STUDIO.OS  v9.5  [Build 2026]</div>
+  <div class="dim">(C) Vesperwerk Systems. All rights reserved.</div>
+  <div>&nbsp;</div>
+  <div>Detecting hardware <span class="ok">[ OK ]</span></div>
+  <div>Loading media drivers <span class="ok">[ OK ]</span></div>
+  <div>Mounting /WORKS <span class="ok">[ OK ]</span></div>
+  <div>Initializing window manager <span class="ok">[ OK ]</span></div>
+  <div>&nbsp;</div>
+  <div>Press any key to enter the desktop <span class="cursor"></span></div>
+</div>
+
+<!-- =================== DESKTOP (>640px) =================== -->
+<main id="desktop" aria-label="Desktop">
+  <div id="shortcuts" role="list" aria-label="Desktop shortcuts"></div>
+
+  <aside id="welcome" aria-hidden="true">
+    <b>README.TXT</b>
+    Double-click any icon to open a work. Drag the title bars. Minimise to the
+    taskbar. Right-click the desktop for the menu.
+    <span class="sig">- the studio</span>
+  </aside>
+</main>
+
+<!-- =================== TASKBAR =================== -->
+<nav id="taskbar" aria-label="Taskbar">
+  <button id="startbtn" class="out" aria-haspopup="menu" aria-expanded="false">
+    <span class="logo"><i></i><i></i><i></i><i></i></span> Start
+  </button>
+  <div class="tdiv"></div>
+  <div id="tasks" role="list" aria-label="Open windows"></div>
+  <div id="tray">
+    <span class="ticon" title="Sound">&#128266;</span>
+    <span class="ticon" title="Network">&#128225;</span>
+    <span id="clock" aria-live="off">12<span class="sep">:</span>00</span>
+  </div>
+</nav>
+
+<!-- =================== START MENU =================== -->
+<div id="startmenu" role="menu" aria-label="Start menu">
+  <div class="spine"><span>STUDIO<b>.OS</b></span></div>
+  <div class="items" id="startitems"></div>
+</div>
+
+<!-- =================== CONTEXT MENU =================== -->
+<div id="ctxmenu" role="menu" aria-label="Context menu">
+  <div class="citem" data-act="arrange">Arrange Windows</div>
+  <div class="citem" data-act="cascade">Cascade</div>
+  <div class="citem sep"></div>
+  <div class="citem" data-act="openall">Open All Works</div>
+  <div class="citem" data-act="closeall">Close All</div>
+  <div class="citem sep"></div>
+  <div class="citem" data-act="about">About STUDIO.OS</div>
+  <div class="citem disabled">Properties</div>
+</div>
+
+<!-- =================== MOBILE: PHONE HOME =================== -->
+<div id="phone">
+  <div class="statusrow">
+    <span id="pclock">12:00</span>
+    <span class="right"><span>&#128246;</span><span>&#128268; 87%</span></span>
+  </div>
+  <div class="phead">
+    <h1>STUDIO.OS</h1>
+    <p>tap an app to open a work</p>
+  </div>
+  <div class="grid" id="phonegrid" role="list" aria-label="Apps"></div>
+  <div class="dock"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+</div>
+
+<!-- mobile work modal -->
+<div id="pmodal" role="dialog" aria-modal="true" aria-label="Work">
+  <div class="pmbar">
+    <span class="tico" id="pmico"></span>
+    <span class="ttl" id="pmttl"></span>
+    <span class="pmclose" id="pmclose" role="button" tabindex="0" aria-label="Close">&#10005;</span>
+  </div>
+  <div class="pmstage" id="pmstage"></div>
+  <div class="pmbody" id="pmbody"></div>
+</div>
+
+<script>
+/* ============================================================================
+   DATA  -  swap these to repurpose the template.
+   kind: "image" | "video" | "model" | "audio" | "text"
+   media/poster paths are relative to this file (../assets/...).
+   ratio is the natural aspect (w/h) used to size windows nicely.
+   ============================================================================ */
+const A = "../assets/";          // asset root
+const G = "../assets/gen/";      // generated posters / waveforms
+
+const DATA = [
+  {
+    id:"car", title:"Night Drive.png", icon:"🖼️", kind:"image",
+    media:A+"flux-car-4k.png", ratio:16/9,
+    meta:"FLUX  -  4096x2304  -  3.2 MB",
+    blurb:"Cinematic matte-black coupe on a rain-slick neon street. Single-pass text-to-image, no compositing.",
+    tool:"FLUX.1 [pro]"
+  },
+  {
+    id:"clinic", title:"Clinic Render.png", icon:"🖼️", kind:"image",
+    media:A+"flux-clinic-4k.png", ratio:16/9,
+    meta:"FLUX  -  4096x2304  -  3.1 MB",
+    blurb:"Mint-and-wood dental interior. Generated as a hero plate for a clinic brand pitch.",
+    tool:"FLUX.1 [pro]"
+  },
+  {
+    id:"fox", title:"Autumn Fox.png", icon:"🎨", kind:"image",
+    media:A+"sdxl.png", ratio:1,
+    meta:"SDXL  -  1024x1024  -  421 KB",
+    blurb:"Painterly fox, warm autumn palette. Stable Diffusion XL with a hand-tuned style prompt.",
+    tool:"SDXL 1.0"
+  },
+  {
+    id:"apple", title:"Lo-Fi Apple.png", icon:"🎨", kind:"image",
+    media:A+"hf-tinysd.png", ratio:1,
+    meta:"Tiny-SD  -  512x512  -  356 KB",
+    blurb:"Abstract low-fidelity apple from a tiny distilled diffusion model. Fast, characterful, imperfect.",
+    tool:"Tiny-SD"
+  },
+  {
+    id:"kling", title:"Kling Loop.mp4", icon:"🎬", kind:"video",
+    media:A+"kling-video.mp4", poster:G+"poster-kling-video.png", ratio:16/9, muted:true,
+    meta:"Kling  -  silent loop  -  21 MB",
+    blurb:"Camera-move video loop. Click play to decode; only one video plays at a time to protect FPS.",
+    tool:"Kling 1.6"
+  },
+  {
+    id:"car-i2v", title:"Drive (motion).mp4", icon:"🎬", kind:"video",
+    media:A+"flux-car-i2v.mp4", poster:G+"poster-flux-car-i2v.png", ratio:16/9, muted:true,
+    meta:"FLUX i2v  -  silent  -  11.7 MB",
+    blurb:"The Night Drive still, animated. Image-to-video brings the rain and reflections to life.",
+    tool:"FLUX image-to-video"
+  },
+  {
+    id:"veo", title:"Veo Clip.mp4", icon:"🎬", kind:"video",
+    media:A+"veo-video.mp4", poster:G+"poster-veo-video.png", ratio:16/9, muted:false,
+    meta:"Veo  -  with audio  -  6.7 MB",
+    blurb:"Veo text-to-video with synced audio track. Unmute from the window controls.",
+    tool:"Veo"
+  },
+  {
+    id:"avatar", title:"Avatar.mp4", icon:"🗣️", kind:"video",
+    media:A+"heygen-avatar.mp4", poster:G+"poster-heygen.png", ratio:9/16, muted:false,
+    meta:"HeyGen  -  talking avatar  -  569 KB",
+    blurb:"Portrait talking-head avatar with audio. Note the vertical frame is letterboxed, never cropped.",
+    tool:"HeyGen"
+  },
+  {
+    id:"mesh", title:"3D Asset.glb", icon:"🧊", kind:"model",
+    media:A+"meshy-refined.glb", poster:A+"meshy-refined-thumb.png", ratio:1,
+    meta:"Meshy  -  refined GLB  -  2.6 MB",
+    blurb:"AI-generated 3D mesh. Loads on demand in a real-time WebGL viewer; orbit with drag.",
+    tool:"Meshy (refined)"
+  },
+  {
+    id:"audio", title:"Sound Lab.wav", icon:"🎵", kind:"audio",
+    tracks:[
+      {name:"ElevenLabs (Thai VO)", file:A+"elevenlabs-thai.mp3", wave:G+"wave-elevenlabs.png"},
+      {name:"MusicGen (score)",      file:A+"musicgen.wav",        wave:G+"wave-musicgen.png"},
+      {name:"Piper (TTS)",           file:A+"piper.wav",           wave:G+"wave-piper.png"}
+    ],
+    ratio:4/3,
+    meta:"3 clips  -  VO / score / TTS",
+    blurb:"A jukebox of generated audio. Click a waveform to play; only one clip sounds at a time."
+  },
+  {
+    id:"about", title:"About.txt", icon:"ℹ️", kind:"text",
+    ratio:4/3,
+    meta:"Notepad  -  read only",
+    html:`<h2>STUDIO.OS</h2>
+      <p>This portfolio is a small operating system. Every work lives in its own
+      window. You can drag them, stack them, minimise them to the taskbar, and
+      maximise them to fill the screen.</p>
+      <p>It is built from a single self-contained HTML file: no frameworks, no
+      build step, no dependencies beyond one pixel font. The window manager is
+      ~200 lines of vanilla pointer-events and CSS transforms.</p>
+      <div class="kv"><b>Studio</b><span>Vesperwerk</span></div>
+      <div class="kv"><b>Stack</b><span>HTML + CSS + JS</span></div>
+      <div class="kv"><b>Year</b><span>2026</span></div>
+      <p><a href="#" onclick="return false">contact -&gt; hello@studio.os</a></p>`
+  }
+];
+
+/* ============================================================================
+   ENGINE
+   ============================================================================ */
+const isTouch = matchMedia("(max-width:640px)").matches;
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const desktop = document.getElementById("desktop");
+const tasks   = document.getElementById("tasks");
+const byId = id => DATA.find(d => d.id === id);
+
+let zTop = 20;
+const wins = new Map();   // id -> {el, state, geom, mediaEl}
+
+/* ---------- desktop shortcuts ---------- */
+(function buildShortcuts(){
+  const wrap = document.getElementById("shortcuts");
+  DATA.forEach(d=>{
+    const s = document.createElement("button");
+    s.className = "shortcut"; s.type="button"; s.dataset.id = d.id;
+    s.setAttribute("role","listitem");
+    s.innerHTML = `<span class="ico">${d.icon}</span><span class="lbl">${d.title}</span>`;
+    wrap.appendChild(s);
+  });
+})();
+
+/* single click selects, double click opens */
+let selTimer = null;
+desktop.addEventListener("click", e=>{
+  const s = e.target.closest(".shortcut");
+  document.querySelectorAll(".shortcut.sel").forEach(x=>x.classList.remove("sel"));
+  if(s){ s.classList.add("sel"); }
+  hideStart(); hideCtx();
+});
+desktop.addEventListener("dblclick", e=>{
+  const s = e.target.closest(".shortcut");
+  if(s) openWindow(s.dataset.id);
+});
+document.getElementById("shortcuts").addEventListener("keydown", e=>{
+  const s = e.target.closest(".shortcut");
+  if(s && (e.key==="Enter"||e.key===" ")){ e.preventDefault(); openWindow(s.dataset.id); }
+});
+
+/* ---------- window factory ---------- */
+function clampGeom(g){
+  const W = innerWidth, H = innerHeight - 34;
+  g.w = Math.min(g.w, W-8); g.h = Math.min(g.h, H-8);
+  g.x = Math.max(2, Math.min(g.x, W - g.w - 2));
+  g.y = Math.max(2, Math.min(g.y, H - g.h - 2));
+  return g;
+}
+function defaultGeom(d, i){
+  const W = innerWidth, H = innerHeight - 34;
+  // size from aspect, bounded
+  let w = Math.min(560, W*0.62);
+  let h = Math.min(w/ (d.ratio||1.4) + 120, H*0.82);
+  if(d.kind==="text" || d.kind==="audio"){ w = Math.min(420, W*0.5); h = Math.min(360, H*0.7); }
+  if(d.ratio && d.ratio < 1){ // portrait media: narrower
+    w = Math.min(360, W*0.5); h = Math.min(H*0.82, w/d.ratio + 110);
+  }
+  const off = (i%6)*26;
+  return clampGeom({ x: 120+off, y: 60+off, w, h });
+}
+
+function openWindow(id){
+  const d = byId(id);
+  if(!d) return;
+  if(isTouch){ openMobile(d); return; }
+
+  if(wins.has(id)){
+    const rec = wins.get(id);
+    if(rec.state==="min") restoreWindow(id);
+    focusWindow(id);
+    return;
+  }
+  const i = wins.size;
+  const geom = defaultGeom(d, i);
+  const el = document.createElement("section");
+  el.className = "window out"; el.dataset.id = id;
+  el.style.cssText = `left:${geom.x}px;top:${geom.y}px;width:${geom.w}px;height:${geom.h}px;z-index:${++zTop}`;
+  el.setAttribute("role","dialog"); el.setAttribute("aria-label", d.title);
+
+  el.innerHTML = `
+    <div class="titlebar">
+      <span class="tico">${d.icon}</span>
+      <span class="ttl">${d.title}</span>
+      <span class="tbtns">
+        <button class="tbtn out" data-a="min" title="Minimise" aria-label="Minimise">${ICO.min}</button>
+        <button class="tbtn out" data-a="max" title="Maximise" aria-label="Maximise">${ICO.max}</button>
+        <button class="tbtn out" data-a="close" title="Close" aria-label="Close">${ICO.close}</button>
+      </span>
+    </div>
+    <div class="menustrip"><span><u>F</u>ile</span><span><u>E</u>dit</span><span><u>V</u>iew</span><span><u>H</u>elp</span></div>
+    <div class="client in">${clientHTML(d)}</div>
+    <div class="statusbar">
+      <span class="cell in grow">${d.meta||""}</span>
+      <span class="cell in">${d.tool||d.kind.toUpperCase()}</span>
+    </div>
+    <div class="resize" title="Resize"></div>`;
+
+  desktop.appendChild(el);
+  const rec = { el, d, state:"normal", geom, prev:null };
+  wins.set(id, rec);
+
+  wireWindow(rec);
+  addTask(rec);
+  focusWindow(id);
+  initClient(rec);
+}
+
+const ICO = {
+  min:`<svg viewBox="0 0 8 8"><rect x="1" y="6" width="6" height="1.4" fill="#000"/></svg>`,
+  max:`<svg viewBox="0 0 8 8"><rect x="1" y="1" width="6" height="6" fill="none" stroke="#000" stroke-width="1.2"/><rect x="1" y="1" width="6" height="1.6" fill="#000"/></svg>`,
+  close:`<svg viewBox="0 0 8 8"><path d="M1 1 L7 7 M7 1 L1 7" stroke="#000" stroke-width="1.3"/></svg>`
+};
+
+function clientHTML(d){
+  if(d.kind==="image"){
+    return `<div class="stage"><img class="media" alt="${d.title}" src="${d.media}" loading="lazy"></div>`;
+  }
+  if(d.kind==="video"){
+    return `<div class="stage" data-video="1">
+      <img class="media poster" alt="${d.title} poster" src="${d.poster}">
+      <div class="playover" role="button" tabindex="0" aria-label="Play ${d.title}"><span class="ring"></span></div>
+    </div>`;
+  }
+  if(d.kind==="model"){
+    return `<div class="stage" data-model="1">
+      <img class="media poster" alt="${d.title} preview" src="${d.poster}">
+      <div class="playover" role="button" tabindex="0" aria-label="Load 3D viewer"><span class="ring"></span></div>
+    </div>`;
+  }
+  if(d.kind==="audio"){
+    return `<div class="body audiobody">${audioHTML(d)}</div>`;
+  }
+  if(d.kind==="text"){
+    return `<div class="body">${d.html}</div>`;
+  }
+  return "";
+}
+function audioHTML(d){
+  return `<h2>Sound Lab</h2>
+    <p style="font-size:8px;color:#444">${d.blurb}</p>` +
+    d.tracks.map((t,i)=>`
+      <div class="atrack" data-i="${i}" data-file="${t.file}" role="button" tabindex="0" aria-label="Play ${t.name}" style="cursor:pointer;margin-bottom:10px">
+        <div style="font-size:8px;color:var(--navy);margin-bottom:4px">&#9655; ${t.name}</div>
+        <img class="wave" alt="${t.name} waveform" src="${t.wave}">
+      </div>`).join("");
+}
+
+/* ---------- per-window wiring ---------- */
+function wireWindow(rec){
+  const { el, d } = rec;
+  // focus on any pointerdown
+  el.addEventListener("pointerdown", ()=>focusWindow(d.id), true);
+
+  // title bar buttons
+  el.querySelector('[data-a="min"]').addEventListener("click", e=>{ e.stopPropagation(); minimizeWindow(d.id); });
+  el.querySelector('[data-a="max"]').addEventListener("click", e=>{ e.stopPropagation(); toggleMax(d.id); });
+  el.querySelector('[data-a="close"]').addEventListener("click", e=>{ e.stopPropagation(); closeWindow(d.id); });
+
+  // double-click title bar = maximise toggle
+  const bar = el.querySelector(".titlebar");
+  bar.addEventListener("dblclick", ()=>toggleMax(d.id));
+
+  // dragging
+  makeDraggable(rec, bar);
+  // resizing
+  makeResizable(rec, el.querySelector(".resize"));
+}
+
+function makeDraggable(rec, handle){
+  const { el } = rec;
+  let sx, sy, ox, oy, active=false;
+  handle.addEventListener("pointerdown", e=>{
+    if(e.target.closest(".tbtn")) return;
+    if(rec.state==="max") return;            // don't drag a maximised window
+    active = true; handle.classList.add("grabbing");
+    el.classList.add("dragging");
+    sx = e.clientX; sy = e.clientY;
+    ox = parseFloat(el.style.left); oy = parseFloat(el.style.top);
+    handle.setPointerCapture(e.pointerId);
+  });
+  handle.addEventListener("pointermove", e=>{
+    if(!active) return;
+    let nx = ox + (e.clientX - sx);
+    let ny = oy + (e.clientY - sy);
+    const W = innerWidth, H = innerHeight - 34;
+    nx = Math.max(-el.offsetWidth+60, Math.min(nx, W-60));
+    ny = Math.max(0, Math.min(ny, H-26));
+    el.style.left = nx+"px"; el.style.top = ny+"px";
+  });
+  const end = e=>{
+    if(!active) return;
+    active=false; handle.classList.remove("grabbing"); el.classList.remove("dragging");
+    rec.geom.x = parseFloat(el.style.left); rec.geom.y = parseFloat(el.style.top);
+    try{ handle.releasePointerCapture(e.pointerId); }catch(_){}
+  };
+  handle.addEventListener("pointerup", end);
+  handle.addEventListener("pointercancel", end);
+}
+
+function makeResizable(rec, grip){
+  const { el } = rec;
+  let sx, sy, ow, oh, active=false;
+  grip.addEventListener("pointerdown", e=>{
+    if(rec.state==="max") return;
+    e.stopPropagation(); active=true;
+    sx=e.clientX; sy=e.clientY; ow=el.offsetWidth; oh=el.offsetHeight;
+    grip.setPointerCapture(e.pointerId);
+  });
+  grip.addEventListener("pointermove", e=>{
+    if(!active) return;
+    const W = innerWidth, H = innerHeight - 34;
+    let nw = Math.max(230, Math.min(ow + (e.clientX-sx), W - parseFloat(el.style.left) - 4));
+    let nh = Math.max(140, Math.min(oh + (e.clientY-sy), H - parseFloat(el.style.top) - 4));
+    el.style.width = nw+"px"; el.style.height = nh+"px";
+  });
+  const end = e=>{
+    if(!active) return; active=false;
+    rec.geom.w = el.offsetWidth; rec.geom.h = el.offsetHeight;
+    try{ grip.releasePointerCapture(e.pointerId); }catch(_){}
+  };
+  grip.addEventListener("pointerup", end);
+  grip.addEventListener("pointercancel", end);
+}
+
+/* ---------- client init (media behaviour) ---------- */
+let currentAudio = null;     // single global <audio> for the jukebox
+function stopAudio(){ if(currentAudio){ currentAudio.pause(); currentAudio=null; document.querySelectorAll(".atrack.on").forEach(t=>t.classList.remove("on")); } }
+
+function initClient(rec){
+  const { el, d } = rec;
+  if(d.kind==="video"){
+    const stage = el.querySelector(".stage");
+    const over  = el.querySelector(".playover");
+    const play = ()=>{
+      stopAllVideos(rec);                 // only one video decodes at a time
+      stopAudio();
+      let v = stage.querySelector("video");
+      if(!v){
+        v = document.createElement("video");
+        v.className="media"; v.src=d.media; v.playsInline=true; v.loop=true;
+        v.controls=true; v.preload="metadata"; v.poster=d.poster||"";
+        if(d.muted){ v.muted=true; }
+        const poster = stage.querySelector("img.poster"); if(poster) poster.style.display="none";
+        stage.insertBefore(v, over);
+        rec.video = v;
+      }
+      el.classList.add("playing");
+      v.play().catch(()=>{});
+    };
+    over.addEventListener("click", play);
+    over.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); play(); } });
+  }
+  if(d.kind==="model"){
+    const stage = el.querySelector(".stage");
+    const over  = el.querySelector(".playover");
+    const load = ()=>{ el.classList.add("playing"); mountModel(stage, d); };
+    over.addEventListener("click", load);
+    over.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); load(); } });
+  }
+  if(d.kind==="audio"){
+    el.querySelectorAll(".atrack").forEach(tr=>{
+      const fire = ()=>{
+        const file = tr.dataset.file;
+        stopAllVideos(null);
+        if(currentAudio && tr.classList.contains("on")){ stopAudio(); return; }
+        stopAudio();
+        currentAudio = new Audio(file);
+        tr.classList.add("on");
+        currentAudio.play().catch(()=>{});
+        currentAudio.onended = ()=>{ tr.classList.remove("on"); currentAudio=null; };
+      };
+      tr.addEventListener("click", fire);
+      tr.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); fire(); } });
+    });
+  }
+}
+
+/* pause every other open video so only one decodes (FPS guard) */
+function stopAllVideos(keepRec){
+  wins.forEach(r=>{
+    if(keepRec && r===keepRec) return;
+    if(r.video){ r.video.pause(); r.el.classList.remove("playing");
+      // restore poster
+      const stage = r.el.querySelector(".stage");
+      const poster = stage && stage.querySelector("img.poster");
+      if(poster) poster.style.display="";
+      const v = stage && stage.querySelector("video"); if(v){ v.remove(); r.video=null; }
+    }
+  });
+}
+
+/* pause videos that scroll/get covered? windows don't scroll, but pause when minimised/closed handled elsewhere */
+
+/* ---------- focus / z-order ---------- */
+function focusWindow(id){
+  const rec = wins.get(id); if(!rec) return;
+  wins.forEach(r=> r.el.classList.add("inactive"));
+  rec.el.classList.remove("inactive");
+  rec.el.style.zIndex = ++zTop;
+  // taskbar active state
+  document.querySelectorAll(".taskbtn").forEach(b=> b.classList.toggle("active", b.dataset.id===id && rec.state!=="min"));
+}
+
+/* ---------- minimise / restore / maximise / close ---------- */
+function minimizeWindow(id){
+  const rec = wins.get(id); if(!rec) return;
+  rec.state="min"; rec.el.style.display="none";
+  if(rec.video){ rec.video.pause(); }
+  document.querySelectorAll(`.taskbtn[data-id="${id}"]`).forEach(b=>b.classList.remove("active"));
+  // focus next visible window
+  const next = [...wins.values()].filter(r=>r.state!=="min").sort((a,b)=>b.el.style.zIndex-a.el.style.zIndex)[0];
+  if(next) focusWindow(next.d.id);
+}
+function restoreWindow(id){
+  const rec = wins.get(id); if(!rec) return;
+  rec.state = rec.prev==="max" ? "max" : "normal";
+  rec.el.style.display="flex";
+  focusWindow(id);
+}
+function toggleMax(id){
+  const rec = wins.get(id); if(!rec) return;
+  const el = rec.el;
+  if(rec.state==="max"){
+    rec.state="normal";
+    if(!reduce) el.classList.add("snap");
+    Object.assign(el.style,{ left:rec.geom.x+"px", top:rec.geom.y+"px", width:rec.geom.w+"px", height:rec.geom.h+"px" });
+  }else{
+    rec.geom = { x:parseFloat(el.style.left), y:parseFloat(el.style.top), w:el.offsetWidth, h:el.offsetHeight };
+    rec.prev="max"; rec.state="max";
+    if(!reduce) el.classList.add("snap");
+    Object.assign(el.style,{ left:"2px", top:"2px", width:(innerWidth-8)+"px", height:(innerHeight-34-6)+"px" });
+  }
+  setTimeout(()=>el.classList.remove("snap"), 180);
+  focusWindow(id);
+}
+function closeWindow(id){
+  const rec = wins.get(id); if(!rec) return;
+  if(rec.video) rec.video.pause();
+  if(rec.renderer){ rec.renderer.dispose && rec.renderer.dispose(); cancelAnimationFrame(rec.raf); }
+  rec.el.remove();
+  document.querySelectorAll(`.taskbtn[data-id="${id}"]`).forEach(b=>b.remove());
+  wins.delete(id);
+  const next = [...wins.values()].filter(r=>r.state!=="min").sort((a,b)=>b.el.style.zIndex-a.el.style.zIndex)[0];
+  if(next) focusWindow(next.d.id);
+}
+
+/* ---------- taskbar buttons ---------- */
+function addTask(rec){
+  const { d } = rec;
+  const b = document.createElement("button");
+  b.className="taskbtn out active"; b.dataset.id=d.id; b.setAttribute("role","listitem");
+  b.innerHTML = `<span class="tico">${d.icon}</span><span class="lbl">${d.title}</span>`;
+  b.addEventListener("click", ()=>{
+    const r = wins.get(d.id); if(!r) return;
+    if(r.state==="min"){ restoreWindow(d.id); }
+    else if(b.classList.contains("active") && r.el.style.zIndex==zTop){ minimizeWindow(d.id); }
+    else { restoreWindow(d.id); }
+  });
+  tasks.appendChild(b);
+}
+
+/* ============================================================================
+   3D MODEL VIEWER  (three.js via importmap, lazy, DPR capped at 2)
+   ============================================================================ */
+let THREE_P = null;
+function loadThree(){
+  if(THREE_P) return THREE_P;
+  THREE_P = (async()=>{
+    const THREE = await import("three");
+    const { OrbitControls } = await import("three/addons/controls/OrbitControls.js");
+    const { GLTFLoader } = await import("three/addons/loaders/GLTFLoader.js");
+    return { THREE, OrbitControls, GLTFLoader };
+  })();
+  return THREE_P;
+}
+async function mountModel(stage, d){
+  const rec = [...wins.values()].find(r=>r.d.id===d.id);
+  const poster = stage.querySelector("img.poster"); if(poster) poster.style.display="none";
+  const over = stage.querySelector(".playover"); if(over) over.remove();
+  const wrap = document.createElement("div");
+  wrap.style.cssText="position:absolute;inset:0;background:#0b0b14;display:grid;place-items:center;color:#7fd;font-size:8px";
+  wrap.textContent="loading 3D...";
+  stage.appendChild(wrap);
+  try{
+    const { THREE, OrbitControls, GLTFLoader } = await loadThree();
+    wrap.textContent="";
+    const w = stage.clientWidth, h = stage.clientHeight;
+    const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false });
+    renderer.setPixelRatio(Math.min(devicePixelRatio,2));   // cap DPR
+    renderer.setSize(w,h);
+    wrap.appendChild(renderer.domElement);
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0b0b14);
+    const cam = new THREE.PerspectiveCamera(45, w/h, .1, 100);
+    cam.position.set(0, .6, 3.2);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x223044, 1.1));
+    const key = new THREE.DirectionalLight(0xffffff, 1.4); key.position.set(3,5,4); scene.add(key);
+    const rim = new THREE.DirectionalLight(0x3bd2ff, .7); rim.position.set(-4,2,-3); scene.add(rim);
+    const ctrl = new OrbitControls(cam, renderer.domElement);
+    ctrl.enableDamping=true; ctrl.autoRotate=!reduce; ctrl.autoRotateSpeed=1.4;
+    new GLTFLoader().load(d.media, gltf=>{
+      const obj = gltf.scene;
+      const box = new THREE.Box3().setFromObject(obj);
+      const size = box.getSize(new THREE.Vector3()).length();
+      const center = box.getCenter(new THREE.Vector3());
+      obj.position.sub(center);
+      const s = 1.8 / size; obj.scale.setScalar(s);
+      scene.add(obj);
+    }, undefined, ()=>{ wrap.textContent="3D load failed"; });
+    const loop = ()=>{ rec.raf = requestAnimationFrame(loop); ctrl.update(); renderer.render(scene,cam); };
+    if(reduce){ ctrl.autoRotate=false; ctrl.update(); renderer.render(scene,cam); } else loop();
+    rec.renderer = renderer;
+    // resize with the window
+    const ro = new ResizeObserver(()=>{ const W=stage.clientWidth,H=stage.clientHeight; if(W&&H){ renderer.setSize(W,H); cam.aspect=W/H; cam.updateProjectionMatrix(); }});
+    ro.observe(stage);
+  }catch(err){ wrap.textContent="3D unavailable"; }
+}
+
+/* ============================================================================
+   TASKBAR CLOCK  (blinking colon)
+   ============================================================================ */
+const clock = document.getElementById("clock");
+const pclock = document.getElementById("pclock");
+function tick(){
+  const d = new Date();
+  let h = d.getHours(), m = d.getMinutes();
+  const ap = h>=12 ? "PM":"AM"; let hh = h%12; if(hh===0) hh=12;
+  const mm = String(m).padStart(2,"0");
+  clock.innerHTML = `${hh}<span class="sep">:</span>${mm} ${ap}`;
+  if(pclock) pclock.textContent = `${hh}:${mm} ${ap}`;
+}
+tick();
+if(!reduce){
+  let on=true;
+  setInterval(()=>{ on=!on; clock.classList.toggle("blink", !on); }, 1000);
+}
+setInterval(tick, 15000);
+
+/* ============================================================================
+   START MENU
+   ============================================================================ */
+const startBtn = document.getElementById("startbtn");
+const startMenu = document.getElementById("startmenu");
+const startItems = document.getElementById("startitems");
+(function buildStart(){
+  DATA.forEach(d=>{
+    const it = document.createElement("div");
+    it.className="mitem"; it.tabIndex=0; it.setAttribute("role","menuitem"); it.dataset.id=d.id;
+    it.innerHTML = `<span class="ico">${d.icon}</span><span>${d.title.replace(/\.\w+$/,"")}</span>`;
+    it.addEventListener("click", ()=>{ openWindow(d.id); hideStart(); });
+    it.addEventListener("keydown", e=>{ if(e.key==="Enter"){ openWindow(d.id); hideStart(); }});
+    startItems.appendChild(it);
+  });
+  const sep = document.createElement("div"); sep.className="mitem sep"; startItems.appendChild(sep);
+  const shut = document.createElement("div");
+  shut.className="mitem"; shut.tabIndex=0; shut.setAttribute("role","menuitem");
+  shut.innerHTML = `<span class="ico">&#9211;</span><span>Shut Down...</span>`;
+  shut.addEventListener("click", ()=>{ hideStart(); shutdown(); });
+  startItems.appendChild(shut);
+})();
+function showStart(){ startMenu.classList.add("show"); startBtn.classList.add("open"); startBtn.setAttribute("aria-expanded","true"); }
+function hideStart(){ startMenu.classList.remove("show"); startBtn.classList.remove("open"); startBtn.setAttribute("aria-expanded","false"); }
+startBtn.addEventListener("click", e=>{ e.stopPropagation(); startMenu.classList.contains("show")?hideStart():showStart(); });
+document.addEventListener("click", e=>{ if(!startMenu.contains(e.target) && e.target!==startBtn) hideStart(); });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ hideStart(); hideCtx(); }});
+
+/* ============================================================================
+   CONTEXT MENU (right-click desktop)
+   ============================================================================ */
+const ctx = document.getElementById("ctxmenu");
+function showCtx(x,y){
+  ctx.style.left = Math.min(x, innerWidth-180)+"px";
+  ctx.style.top  = Math.min(y, innerHeight-200)+"px";
+  ctx.classList.add("show");
+}
+function hideCtx(){ ctx.classList.remove("show"); }
+desktop.addEventListener("contextmenu", e=>{ e.preventDefault(); hideStart(); showCtx(e.clientX, e.clientY); });
+document.addEventListener("click", e=>{ if(!ctx.contains(e.target)) hideCtx(); });
+ctx.addEventListener("click", e=>{
+  const it = e.target.closest(".citem"); if(!it || it.classList.contains("disabled")||it.classList.contains("sep")) return;
+  const act = it.dataset.act; hideCtx();
+  if(act==="openall") DATA.forEach((d,i)=> setTimeout(()=>openWindow(d.id), i*70));
+  if(act==="closeall"){ stopAudio(); [...wins.keys()].forEach(closeWindow); }
+  if(act==="about") openWindow("about");
+  if(act==="cascade") cascade();
+  if(act==="arrange") arrange();
+});
+function cascade(){
+  let i=0;
+  [...wins.values()].filter(r=>r.state!=="min").forEach(r=>{
+    if(r.state==="max") toggleMax(r.d.id);
+    const x=40+i*28, y=40+i*28;
+    if(!reduce) r.el.classList.add("snap");
+    Object.assign(r.el.style,{left:x+"px",top:y+"px"});
+    r.geom.x=x; r.geom.y=y; r.el.style.zIndex=++zTop;
+    setTimeout(()=>r.el.classList.remove("snap"),180); i++;
+  });
+}
+function arrange(){
+  const vis=[...wins.values()].filter(r=>r.state!=="min" && r.state!=="max");
+  const n=vis.length; if(!n) return;
+  const cols=Math.ceil(Math.sqrt(n)), rows=Math.ceil(n/cols);
+  const W=innerWidth, H=innerHeight-34, gw=Math.floor(W/cols), gh=Math.floor(H/rows);
+  vis.forEach((r,i)=>{
+    const cx=i%cols, cy=Math.floor(i/cols);
+    if(!reduce) r.el.classList.add("snap");
+    Object.assign(r.el.style,{left:(cx*gw+4)+"px",top:(cy*gh+4)+"px",width:(gw-10)+"px",height:(gh-10)+"px"});
+    r.geom={x:cx*gw+4,y:cy*gh+4,w:gw-10,h:gh-10};
+    setTimeout(()=>r.el.classList.remove("snap"),180);
+  });
+}
+
+/* ============================================================================
+   MOBILE: phone home grid + full-screen modal
+   ============================================================================ */
+(function buildPhone(){
+  const grid = document.getElementById("phonegrid");
+  DATA.forEach(d=>{
+    const a = document.createElement("button");
+    a.className="appicon"; a.type="button"; a.dataset.id=d.id; a.setAttribute("role","listitem");
+    a.innerHTML = `<span class="tile">${d.icon}</span><span class="lbl">${d.title.replace(/\.\w+$/,"")}</span>`;
+    a.addEventListener("click", ()=>openMobile(d));
+    grid.appendChild(a);
+  });
+})();
+const pmodal = document.getElementById("pmodal");
+const pmstage = document.getElementById("pmstage");
+const pmbody  = document.getElementById("pmbody");
+const pmttl   = document.getElementById("pmttl");
+const pmico   = document.getElementById("pmico");
+
+function openMobile(d){
+  stopAudio();
+  pmico.textContent = d.icon; pmttl.textContent = d.title;
+  pmstage.innerHTML=""; pmbody.innerHTML="";
+  pmstage.style.display="flex";
+
+  if(d.kind==="image"){
+    pmstage.innerHTML = `<img alt="${d.title}" src="${d.media}">`;
+  } else if(d.kind==="video"){
+    pmstage.innerHTML = `<img alt="poster" src="${d.poster}" style="max-height:60vh"><div class="pmplay" role="button" tabindex="0" aria-label="Play"></div>`;
+    const play = ()=>{
+      pmstage.innerHTML = `<video src="${d.media}" controls playsinline ${d.muted?"muted":""} autoplay loop style="max-height:60vh"></video>`;
+    };
+    const pl = pmstage.querySelector(".pmplay");
+    pl.addEventListener("click", play);
+    pl.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); play(); }});
+  } else if(d.kind==="model"){
+    pmstage.innerHTML = `<img alt="3D preview" src="${d.poster}" style="max-height:60vh"><div class="pmplay" role="button" tabindex="0" aria-label="Load 3D"></div>`;
+    const wrapStage = ()=>{ pmstage.innerHTML=""; pmstage.style.position="relative"; mountModel(pmstageAsStage(), d); };
+    const pl = pmstage.querySelector(".pmplay");
+    pl.addEventListener("click", wrapStage);
+    pl.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); wrapStage(); }});
+  } else if(d.kind==="audio"){
+    pmstage.style.display="none";
+    pmbody.innerHTML = audioHTML(d);
+    pmbody.querySelectorAll(".atrack").forEach(tr=>{
+      tr.addEventListener("click", ()=>{
+        const file=tr.dataset.file;
+        if(currentAudio && tr.classList.contains("on")){ stopAudio(); return; }
+        stopAudio(); currentAudio=new Audio(file); tr.classList.add("on");
+        currentAudio.play().catch(()=>{}); currentAudio.onended=()=>{ tr.classList.remove("on"); currentAudio=null; };
+      });
+    });
+  } else if(d.kind==="text"){
+    pmstage.style.display="none";
+    pmbody.innerHTML = d.html;
+  }
+
+  // shared footer blurb for media kinds
+  if(d.blurb && d.kind!=="text" && d.kind!=="audio"){
+    pmbody.innerHTML = `<h2>${d.title.replace(/\.\w+$/,"")}</h2><p>${d.blurb}</p>
+      <div class="kv"><b>Type</b><span>${d.kind.toUpperCase()}</span></div>
+      <div class="kv"><b>Tool</b><span>${d.tool||"-"}</span></div>
+      <div class="kv"><b>File</b><span>${d.meta||"-"}</span></div>`;
+  }
+  pmodal.classList.add("show");
+  document.getElementById("pmclose").focus();
+}
+// helper: mobile model viewer needs a relatively-positioned stage element
+function pmstageAsStage(){
+  const s = document.createElement("div");
+  s.style.cssText="position:absolute;inset:0";
+  pmstage.appendChild(s);
+  // emulate the stage clientWidth/Height by reading pmstage box
+  Object.defineProperty(s,"clientWidth",{get:()=>pmstage.clientWidth});
+  Object.defineProperty(s,"clientHeight",{get:()=>pmstage.clientHeight});
+  return s;
+}
+function closeMobile(){
+  stopAudio();
+  pmstage.querySelectorAll("video").forEach(v=>v.pause());
+  pmodal.classList.remove("show");
+}
+document.getElementById("pmclose").addEventListener("click", closeMobile);
+document.getElementById("pmclose").addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); closeMobile(); }});
+
+/* ============================================================================
+   SHUTDOWN screen (fun easter egg)
+   ============================================================================ */
+function shutdown(){
+  const s = document.createElement("div");
+  s.style.cssText="position:fixed;inset:0;z-index:6000;background:#000;color:#ffb13b;font-family:var(--px);font-size:13px;display:grid;place-items:center;text-align:center;line-height:2.2;cursor:pointer";
+  s.innerHTML = `It is now safe to turn off<br>your computer.<br><br><span style="font-size:8px;color:#888">[ click anywhere to return ]</span>`;
+  s.addEventListener("click", ()=>s.remove());
+  document.body.appendChild(s);
+}
+
+/* ============================================================================
+   BOOT + AUTO-OPEN a couple windows so it never looks empty
+   ============================================================================ */
+const boot = document.getElementById("boot");
+function enter(){
+  boot.classList.add("gone");
+  if(!isTouch){
+    // open a curated trio, cascaded; do NOT autoplay any video (FPS guard)
+    ["car","kling","about"].forEach((id,i)=> setTimeout(()=>openWindow(id), 250 + i*180));
+  }
+}
+let booted=false;
+function doEnter(){ if(booted) return; booted=true; enter(); }
+if(reduce){
+  // show final state instantly
+  boot.classList.add("gone"); booted=true;
+  if(!isTouch) ["car","kling","about"].forEach(id=>openWindow(id));
+}else{
+  boot.addEventListener("click", doEnter);
+  document.addEventListener("keydown", doEnter, { once:true });
+  setTimeout(doEnter, 2600);   // auto-dismiss
+}
+
+/* keep windows inside the viewport on resize */
+let rt=null;
+addEventListener("resize", ()=>{
+  clearTimeout(rt);
+  rt=setTimeout(()=>{
+    wins.forEach(r=>{
+      if(r.state==="max"){ Object.assign(r.el.style,{width:(innerWidth-8)+"px",height:(innerHeight-34-6)+"px"}); return; }
+      const g=clampGeom({x:parseFloat(r.el.style.left),y:parseFloat(r.el.style.top),w:r.el.offsetWidth,h:r.el.offsetHeight});
+      Object.assign(r.el.style,{left:g.x+"px",top:g.y+"px",width:g.w+"px",height:g.h+"px"});
+    });
+  },120);
+});
+</script>
+</body>
+</html>

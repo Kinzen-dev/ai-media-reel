@@ -1,0 +1,671 @@
+<!-- TEMPLATE: HOLODECK Holographic Display Case | ARCHETYPE: Retro-Futurism Holo (Y3K holographic trading card / display case) | REF: holographic foil trading cards, FVCKRENDER iridescent renders, Bebas Neue Y3K wordmarks | STACK: pure CSS (conic-gradient foil via @property hue rotation), no WebGL | WHEN TO USE: showcase a small set of hero works (3-12) as collectible holo-foil cards with cursor/tilt shimmer and a lens-flare wipe between them | SWAP: edit the DATA array near the top of body -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>HOLODECK // Holographic Display Case</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+/* ===================================================================
+   HOLODECK  -  Y3K holographic trading-card display case
+   Pure-CSS conic-gradient foil via @property hue rotation.
+   Foil shifts with cursor (desktop) / deviceorientation tilt (mobile).
+   Lens-flare wipe between works. Reduced-motion freezes everything.
+   =================================================================== */
+
+/* Animatable custom props for the foil. Degrades to static if @property
+   is unsupported (the conic-gradient still renders, just no rotation). */
+@property --holo-hue   { syntax: '<angle>'; inherits: true; initial-value: 0deg; }
+@property --holo-shift { syntax: '<percentage>'; inherits: true; initial-value: 50%; }
+
+:root{
+  --void:#06000a;
+  --void-2:#0d0414;
+  --magenta:#ff2d78;
+  --ink:#f4ecff;
+  --dim:#9b86b8;
+  --line:rgba(255,255,255,.10);
+  --sat:60%;
+  --card-w:min(78vw, 560px);
+  --card-ar: 5 / 7;          /* trading-card ratio */
+  --ease:cubic-bezier(.2,.8,.2,1);
+  --tilt-x:0deg;             /* driven by JS (cursor / orientation) */
+  --tilt-y:0deg;
+  --px:50%;                  /* foil light origin, driven by JS */
+  --py:42%;
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;height:100%;}
+body{
+  background:
+    radial-gradient(120% 90% at 50% -10%, #170825 0%, var(--void-2) 38%, var(--void) 78%);
+  color:var(--ink);
+  font-family:'Space Mono', ui-monospace, monospace;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+  min-height:100svh;
+}
+
+/* faint scanline + chromatic grain over the whole void */
+body::before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.022) 0 1px, transparent 1px 3px);
+  mix-blend-mode:screen;opacity:.5;
+}
+
+a{color:inherit;}
+button{font-family:inherit;color:inherit;cursor:pointer;}
+
+/* ---------- shell ---------- */
+.shell{position:relative;z-index:1;max-width:1240px;margin:0 auto;padding:clamp(18px,4vw,40px);}
+
+/* ---------- masthead ---------- */
+.mast{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;}
+.mast h1{
+  font-family:'Bebas Neue', Impact, sans-serif;
+  font-weight:400;margin:0;line-height:.82;letter-spacing:.01em;
+  font-size:clamp(54px, 13vw, 168px);
+  /* the wordmark itself is foil */
+  background:
+    conic-gradient(from var(--holo-hue),
+      hsl(330 90% 60%), hsl(190 90% 60%), hsl(280 90% 62%),
+      hsl(50 95% 60%), hsl(330 90% 60%));
+  background-size:200% 200%;
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:saturate(var(--sat)) brightness(1.15);
+  text-shadow:0 0 38px rgba(255,45,120,.18);
+}
+.mast .meta{font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--dim);text-align:right;line-height:1.9;}
+.mast .meta b{color:var(--magenta);font-weight:700;}
+
+/* ---------- stage ---------- */
+.stage{
+  position:relative;
+  display:grid;
+  grid-template-columns:1fr;
+  gap:clamp(20px,4vw,46px);
+  margin-top:clamp(26px,5vw,54px);
+  align-items:center;
+}
+@media(min-width:880px){
+  .stage{grid-template-columns:var(--card-w) 1fr;}
+}
+
+/* perspective wrapper so the card can tilt in 3D */
+.card-pit{
+  perspective:1300px;
+  display:flex;align-items:center;justify-content:center;
+  min-height:clamp(380px,68vw,640px);
+}
+
+/* ---------- THE CARD ---------- */
+.card{
+  position:relative;
+  width:var(--card-w);
+  aspect-ratio:var(--card-ar);
+  border-radius:20px;
+  transform-style:preserve-3d;
+  transform:rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+  transition:transform .12s linear;
+  isolation:isolate;
+  box-shadow:
+    0 40px 90px -30px rgba(0,0,0,.9),
+    0 0 0 1px rgba(255,255,255,.06) inset;
+}
+
+/* the holo-foil bezel: conic rainbow, hue animates via @property */
+.card::before{
+  content:"";position:absolute;inset:-2px;border-radius:22px;z-index:-1;
+  background:
+    conic-gradient(from var(--holo-hue) at var(--px) var(--py),
+      hsl(330 90% 58%), hsl(195 92% 58%), hsl(265 90% 60%),
+      hsl(45 95% 58%),  hsl(150 85% 56%), hsl(330 90% 58%));
+  filter:saturate(var(--sat)) blur(.3px);
+  opacity:.95;
+}
+
+/* recessed window holding the artwork */
+.card__win{
+  position:absolute;inset:5px;border-radius:15px;overflow:hidden;
+  background:#05030a;
+  display:flex;align-items:center;justify-content:center;
+}
+/* letterbox: NEVER cover-crop. contain keeps landscape + square intact. */
+.card__win img,
+.card__win video{
+  max-width:100%;max-height:100%;width:auto;height:auto;
+  object-fit:contain;display:block;
+}
+/* faint inner vignette + top sheen */
+.card__win::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(255,255,255,.10), transparent 55%),
+    radial-gradient(140% 120% at 50% 120%, rgba(0,0,0,.6), transparent 60%);
+  mix-blend-mode:screen;
+}
+
+/* the moving foil GLINT layer on top of the artwork (hard-light) */
+.card__glint{
+  position:absolute;inset:5px;border-radius:15px;z-index:3;pointer-events:none;
+  background:
+    conic-gradient(from calc(var(--holo-hue) * -1) at var(--px) var(--py),
+      hsla(330,95%,70%,.0),  hsla(195,95%,70%,.55), hsla(265,95%,72%,.0),
+      hsla(45,97%,70%,.55),  hsla(150,90%,66%,.0),  hsla(330,95%,70%,.0));
+  mix-blend-mode:hard-light;
+  opacity:.55;
+  filter:saturate(var(--sat));
+}
+/* a thin specular sweep that tracks the light origin */
+.card__sweep{
+  position:absolute;inset:5px;border-radius:15px;z-index:4;pointer-events:none;
+  background:radial-gradient(circle at var(--px) var(--py),
+    rgba(255,255,255,.42) 0%, rgba(255,255,255,.10) 14%, transparent 34%);
+  mix-blend-mode:screen;opacity:.8;
+}
+
+/* card chrome: index + holo seal, sit on the foil above the window */
+.card__hud{
+  position:absolute;left:14px;right:14px;top:11px;z-index:5;
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:10px;letter-spacing:.3em;text-transform:uppercase;
+  color:rgba(255,255,255,.85);text-shadow:0 1px 6px #000;pointer-events:none;
+}
+.card__seal{
+  width:26px;height:26px;border-radius:50%;
+  background:conic-gradient(from var(--holo-hue), #fff,var(--magenta),#5ff,#fff);
+  filter:saturate(var(--sat));
+  box-shadow:0 0 14px rgba(255,45,120,.6);
+}
+/* lower nameplate strip */
+.card__plate{
+  position:absolute;left:0;right:0;bottom:0;z-index:5;
+  padding:16px 16px 14px;
+  background:linear-gradient(0deg, rgba(2,0,6,.92) 8%, rgba(2,0,6,.55) 60%, transparent);
+  pointer-events:none;
+}
+.card__tool{
+  font-family:'Bebas Neue',sans-serif;font-size:clamp(30px,7vw,52px);
+  line-height:.86;letter-spacing:.02em;margin:0;color:#fff;
+  text-shadow:0 2px 18px rgba(0,0,0,.8);
+}
+.card__tag{display:inline-block;margin-top:6px;font-size:10px;letter-spacing:.28em;
+  text-transform:uppercase;color:var(--void);background:var(--magenta);
+  padding:3px 9px;border-radius:999px;font-weight:700;}
+
+/* ---------- the LENS-FLARE WIPE overlay (covers card during swap) ---------- */
+.flare{
+  position:absolute;inset:-2px;border-radius:22px;z-index:9;pointer-events:none;
+  opacity:0;
+}
+.flare.run{animation:wipe .62s var(--ease) both;}
+@keyframes wipe{
+  0%  {opacity:0; transform:translateX(-115%) skewX(-12deg);}
+  18% {opacity:1;}
+  50% {opacity:1;}
+  100%{opacity:0; transform:translateX(115%) skewX(-12deg);}
+}
+.flare__bar{
+  position:absolute;inset:0;border-radius:22px;
+  background:
+    linear-gradient(100deg, transparent 0%, rgba(255,255,255,.0) 30%,
+      hsla(330,100%,75%,.9) 44%, #ffffff 50%, hsla(190,100%,75%,.9) 56%,
+      rgba(255,255,255,0) 70%, transparent 100%);
+  mix-blend-mode:hard-light;
+  filter:blur(.4px) saturate(160%);
+}
+
+/* ---------- side panel (caption + nav + filmstrip) ---------- */
+.panel{display:flex;flex-direction:column;gap:22px;min-width:0;}
+.kick{font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--magenta);}
+.cap{font-size:clamp(15px,2.4vw,19px);line-height:1.5;color:var(--ink);margin:0;max-width:46ch;}
+.sig{font-size:13px;line-height:1.55;color:var(--dim);margin:0;max-width:48ch;}
+.dossier{display:flex;flex-wrap:wrap;gap:8px;}
+.dossier span{font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+  border:1px solid var(--line);border-radius:999px;padding:5px 11px;color:var(--dim);}
+.dossier span b{color:var(--ink);font-weight:700;}
+
+/* nav row */
+.nav{display:flex;align-items:center;gap:12px;}
+.nav button{
+  width:54px;height:54px;border-radius:50%;
+  background:rgba(255,255,255,.04);border:1px solid var(--line);
+  font-size:20px;display:grid;place-items:center;transition:.18s var(--ease);
+}
+.nav button:hover{background:var(--magenta);border-color:var(--magenta);color:var(--void);transform:translateY(-2px);}
+.nav button:focus-visible{outline:3px solid var(--magenta);outline-offset:3px;}
+.counter{font-family:'Bebas Neue',sans-serif;font-size:34px;letter-spacing:.05em;line-height:1;}
+.counter b{color:var(--magenta);}
+.counter small{font-size:14px;color:var(--dim);}
+
+/* filmstrip of all cards */
+.strip{display:flex;gap:10px;overflow-x:auto;padding:6px 2px 12px;scrollbar-width:thin;-webkit-overflow-scrolling:touch;}
+.strip::-webkit-scrollbar{height:6px;}
+.strip::-webkit-scrollbar-thumb{background:var(--line);border-radius:99px;}
+.thumb{
+  position:relative;flex:0 0 auto;width:64px;aspect-ratio:5/7;border-radius:9px;
+  overflow:hidden;border:1px solid var(--line);background:#05030a;
+  cursor:pointer;transition:.2s var(--ease);
+}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block;opacity:.62;transition:.2s;}
+.thumb:hover img{opacity:.95;}
+.thumb.active{border-color:transparent;transform:translateY(-3px);}
+.thumb.active::before{
+  content:"";position:absolute;inset:-1px;border-radius:10px;z-index:1;
+  background:conic-gradient(from var(--holo-hue),var(--magenta),#5ff,#c8f,var(--magenta));
+  filter:saturate(var(--sat));
+}
+.thumb.active img{opacity:1;position:relative;z-index:2;inset:2px;width:calc(100% - 4px);height:calc(100% - 4px);border-radius:8px;}
+.thumb:focus-visible{outline:3px solid var(--magenta);outline-offset:2px;}
+
+/* tilt-permission button (iOS 13+ needs a user gesture) */
+.tiltbtn{
+  margin-top:2px;align-self:flex-start;font-size:11px;letter-spacing:.2em;
+  text-transform:uppercase;background:transparent;border:1px solid var(--line);
+  border-radius:999px;padding:9px 16px;color:var(--dim);transition:.2s var(--ease);display:none;
+}
+.tiltbtn:hover{border-color:var(--magenta);color:var(--magenta);}
+.tiltbtn:focus-visible{outline:3px solid var(--magenta);outline-offset:3px;}
+
+/* foot */
+.foot{margin-top:clamp(34px,6vw,64px);padding-top:16px;border-top:1px solid var(--line);
+  display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:var(--dim);}
+.foot b{color:var(--magenta);font-weight:700;}
+
+/* ---------- hue-rotation drift (frozen by reduced-motion) ---------- */
+@keyframes drift{to{--holo-hue:360deg;}}
+.card::before,.card__glint,.card__seal,.mast h1,.thumb.active::before{
+  animation:drift 14s linear infinite;
+}
+.card__glint{animation-duration:9s;animation-direction:reverse;}
+.mast h1{animation-duration:20s;}
+
+/* ---------- REDUCED MOTION: freeze hue, kill tilt, kill wipe ---------- */
+@media(prefers-reduced-motion:reduce){
+  /* kill via BOTH shorthand and longhand: shorthand alone can fail to stop
+     a registered-@property animation in some engines, so be explicit. */
+  *{
+    animation:none !important;
+    animation-name:none !important;
+    animation-duration:0s !important;
+    animation-play-state:paused !important;
+    transition:none !important;
+  }
+  /* universal-selector reset can miss pseudo-element animations in some
+     engines; null them explicitly on the exact originating selectors. */
+  .card::before, .card__glint, .card__seal, .mast h1, .thumb.active::before{
+    animation:none !important; animation-name:none !important;
+    animation-play-state:paused !important;
+  }
+  .card{transform:none !important;}
+  .flare{display:none !important;}
+  /* freeze the foil at a saturated static hue so the look survives */
+  :root{--holo-hue:312deg !important;}
+}
+
+@media(max-width:879px){
+  .card-pit{min-height:auto;padding:8px 0 4px;}
+  .panel{order:2;}
+  .card-pit{order:1;}
+}
+@media(max-width:640px){
+  :root{--card-w:min(86vw, 360px);}
+  .mast{align-items:flex-start;}
+  .mast .meta{text-align:left;}
+  .nav{flex-wrap:wrap;}
+}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ===================== SWAP HERE: the DATA array ===================== -->
+  <script>
+  /* Each work = one holographic card.
+     kind: "image" | "video"   (video also needs poster + src)
+     src / poster paths are relative to this file (../assets/...).
+     plate = big Bebas tool name; tag = small magenta pill.        */
+  const DATA = [
+    {
+      kind:"video",
+      src:"../assets/kling-video.mp4",
+      poster:"../assets/gen/poster-kling-video.png",
+      plate:"KLING",
+      tag:"Motion",
+      kicker:"Cinematic text-to-video",
+      cap:"A generated cinematic loop straight off the holodeck. Kling renders motion with film-grade depth from a single prompt.",
+      sig:"Frame-coherent video that holds character and lighting across the whole clip.",
+      dossier:[["Tool","Kling"],["Mode","Text to video"],["Access","API"]]
+    },
+    {
+      kind:"image",
+      src:"../assets/flux-car-4k.png",
+      plate:"FLUX 4K",
+      tag:"Still",
+      kicker:"SOTA still image",
+      cap:"Matte-black coupe on a rain-slick neon street, rendered at 4K. FLUX holds reflections and wet-asphalt highlights with no artifacting.",
+      sig:"Among the highest-quality open-weight image models. Photoreal at architectural scale.",
+      dossier:[["Tool","BFL Flux"],["Mode","Text to image"],["Res","2048 x 1152"]]
+    },
+    {
+      kind:"video",
+      src:"../assets/veo-video.mp4",
+      poster:"../assets/gen/poster-veo-video.png",
+      plate:"VEO",
+      tag:"Motion",
+      kicker:"High-fidelity video",
+      cap:"Veo synthesizes a fully realized scene with native audio and natural camera language. The display case brings it to life on hover.",
+      sig:"Premium generative video with grounded physics and sound baked in.",
+      dossier:[["Tool","Veo"],["Mode","Text to video"],["Audio","Native"]]
+    },
+    {
+      kind:"image",
+      src:"../assets/flux-clinic-4k.png",
+      plate:"CLINIC",
+      tag:"Still",
+      kicker:"Interior render",
+      cap:"Mint-and-wood dental clinic interior, 4K. Clean material separation, soft daylight, brand-ready environment shot from one line of prompt.",
+      sig:"Production-usable interior visualization without a render farm.",
+      dossier:[["Tool","BFL Flux"],["Mode","Text to image"],["Res","2048 x 1152"]]
+    },
+    {
+      kind:"video",
+      src:"../assets/heygen-avatar.mp4",
+      poster:"../assets/gen/poster-heygen.png",
+      plate:"HEYGEN",
+      tag:"Avatar",
+      kicker:"Talking avatar",
+      cap:"A photoreal avatar speaking Thai, lip-synced from script to screen. HeyGen drives a presenter that looks and moves like a real person.",
+      sig:"Avatar with natural speech and gesture. CLI plus MCP, end to end.",
+      dossier:[["Tool","HeyGen"],["Mode","Avatar"],["Lang","Thai"]]
+    },
+    {
+      kind:"video",
+      src:"../assets/flux-car-i2v.mp4",
+      poster:"../assets/gen/poster-flux-car-i2v.png",
+      plate:"I2V",
+      tag:"Motion",
+      kicker:"Image to video",
+      cap:"The FLUX still, set in motion. Image-to-video animates the coupe with parallax and reflected light while keeping the original frame intact.",
+      sig:"Turn any hero still into a living loop without losing fidelity.",
+      dossier:[["Tool","Flux i2v"],["Mode","Image to video"],["Source","FLUX 4K"]]
+    },
+    {
+      kind:"image",
+      src:"../assets/sdxl.png",
+      plate:"SDXL",
+      tag:"Local",
+      kicker:"Local inference, free",
+      cap:"A painterly autumn fox generated entirely on-device with SDXL-Turbo. No API cost, no rate limit, no cloud round-trip.",
+      sig:"Generate on your own machine. Zero marginal cost per image.",
+      dossier:[["Tool","SDXL-Turbo"],["Mode","Local"],["Cost","Free"]]
+    },
+    {
+      kind:"image",
+      src:"../assets/hf-tinysd.png",
+      plate:"TINY-SD",
+      tag:"Local",
+      kicker:"Plumbing proof",
+      cap:"A deliberately low-fi apple from HuggingFace tiny-sd. The output is rough by design - what it proves is that one Hub reaches 1000+ models.",
+      sig:"One pipeline, one Hub, the full model catalog behind it.",
+      dossier:[["Tool","HF tiny-sd"],["Mode","Local"],["Access","HF Hub"]]
+    }
+  ];
+  </script>
+  <!-- =================== END SWAP ZONE =================== -->
+
+  <header class="mast">
+    <h1>HOLODECK</h1>
+    <div class="meta">
+      Holographic Display Case<br/>
+      <b>Y3K</b> // Foil Series 01<br/>
+      Tilt &middot; Cursor &middot; Shimmer
+    </div>
+  </header>
+
+  <main class="stage" aria-label="Holographic work display case">
+
+    <div class="card-pit">
+      <article class="card" id="card" tabindex="0" aria-live="polite" aria-label="Featured work card">
+        <div class="card__win" id="win"><!-- media injected --></div>
+        <div class="card__glint" aria-hidden="true"></div>
+        <div class="card__sweep" aria-hidden="true"></div>
+        <div class="card__hud">
+          <span id="hudIdx">001 / 008</span>
+          <span class="card__seal" aria-hidden="true"></span>
+        </div>
+        <div class="card__plate">
+          <h2 class="card__tool" id="plate">KLING</h2>
+          <span class="card__tag" id="tag">Motion</span>
+        </div>
+        <div class="flare" id="flare" aria-hidden="true"><div class="flare__bar"></div></div>
+      </article>
+    </div>
+
+    <section class="panel">
+      <div>
+        <p class="kick" id="kicker">Cinematic text-to-video</p>
+        <p class="cap" id="cap"></p>
+      </div>
+      <p class="sig" id="sig"></p>
+      <div class="dossier" id="dossier" aria-label="Specifications"></div>
+
+      <div class="nav">
+        <button id="prev" aria-label="Previous work">&larr;</button>
+        <button id="next" aria-label="Next work">&rarr;</button>
+        <span class="counter"><b id="cur">01</b><small id="tot">/08</small></span>
+      </div>
+
+      <button class="tiltbtn" id="tiltbtn" aria-label="Enable tilt-driven foil on this device">Enable tilt foil</button>
+
+      <div class="strip" id="strip" role="tablist" aria-label="All works"></div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span>HOLODECK &middot; Foil rotates via CSS <b>@property</b></span>
+    <span><b>Reduced-motion</b> freezes hue + tilt</span>
+  </footer>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (s, r=document) => r.querySelector(s);
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const win = $('#win'), card = $('#card'), flare = $('#flare');
+  const plate=$('#plate'), tag=$('#tag'), kicker=$('#kicker'), cap=$('#cap'),
+        sig=$('#sig'), dossier=$('#dossier'), strip=$('#strip'),
+        cur=$('#cur'), tot=$('#tot'), hudIdx=$('#hudIdx');
+  let i = 0, busy = false;
+  const pad = n => String(n).padStart(2,'0');
+  const pad3 = n => String(n).padStart(3,'0');
+
+  /* ---------- build filmstrip once ---------- */
+  DATA.forEach((d, n) => {
+    const t = document.createElement('button');
+    t.className = 'thumb';
+    t.setAttribute('role','tab');
+    t.setAttribute('aria-label', `${d.plate} - ${d.kicker}`);
+    const img = document.createElement('img');
+    img.loading = 'lazy';
+    img.alt = '';
+    img.src = d.kind === 'video' ? d.poster : d.src;
+    t.appendChild(img);
+    t.addEventListener('click', () => go(n));
+    strip.appendChild(t);
+  });
+  tot.textContent = '/' + pad(DATA.length);
+
+  /* ---------- render one work into the card ---------- */
+  function paint(n){
+    const d = DATA[n];
+    // tear down previous media (stop any video decode)
+    const old = win.querySelector('video');
+    if (old){ try{ old.pause(); }catch(e){} old.removeAttribute('src'); old.load && old.load(); }
+    win.innerHTML = '';
+
+    let media;
+    if (d.kind === 'video'){
+      media = document.createElement('video');
+      media.src = d.src;
+      media.poster = d.poster;
+      media.muted = true;            // required for autoplay; avatar/veo audio off by default
+      media.loop = true;
+      media.playsInline = true;
+      media.setAttribute('playsinline','');
+      media.preload = 'metadata';
+      // only the FOCUSED card plays - no simultaneous decode of the strip
+      if (!reduce){
+        const p = media.play();
+        if (p && p.catch) p.catch(()=>{}); // poster stays if blocked
+      }
+    } else {
+      media = document.createElement('img');
+      media.src = d.src;
+      media.loading = 'eager';
+      media.decoding = 'async';
+    }
+    media.alt = `${d.plate}: ${d.kicker}`;
+    win.appendChild(media);
+
+    plate.textContent = d.plate;
+    tag.textContent   = d.tag;
+    kicker.textContent= d.kicker;
+    cap.textContent   = d.cap;
+    sig.textContent   = d.sig;
+    cur.textContent   = pad(n+1);
+    hudIdx.textContent= pad3(n+1) + ' / ' + pad3(DATA.length);
+
+    dossier.innerHTML = '';
+    d.dossier.forEach(([k,v]) => {
+      const s = document.createElement('span');
+      s.innerHTML = `${k} <b>${v}</b>`;
+      dossier.appendChild(s);
+    });
+
+    [...strip.children].forEach((c,k)=>{
+      c.classList.toggle('active', k===n);
+      c.setAttribute('aria-selected', k===n ? 'true':'false');
+    });
+  }
+
+  /* ---------- navigate with the lens-flare wipe ---------- */
+  function go(n){
+    n = (n + DATA.length) % DATA.length;
+    if (n === i && win.children.length) return;
+    if (busy) return;
+    i = n;
+
+    if (reduce){ paint(i); return; }      // no wipe under reduced-motion
+
+    busy = true;
+    flare.classList.remove('run');
+    void flare.offsetWidth;               // restart animation
+    flare.classList.add('run');
+    // swap the artwork at the bright midpoint of the wipe
+    setTimeout(() => paint(i), 230);
+    setTimeout(() => { busy = false; }, 640);
+  }
+
+  $('#prev').addEventListener('click', () => go(i-1));
+  $('#next').addEventListener('click', () => go(i+1));
+  window.addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft')  go(i-1);
+    if (e.key === 'ArrowRight') go(i+1);
+  });
+
+  paint(0);
+  [...strip.children][0].classList.add('active');
+
+  /* ===================================================================
+     FOIL TILT  -  cursor delta (desktop) + DeviceOrientation (mobile)
+     Drives CSS vars --tilt-x/y (3D card) and --px/--py (foil light).
+     Degrades gracefully: no input -> static foil. Frozen by reduce.
+     =================================================================== */
+  if (!reduce){
+    const root = document.documentElement.style;
+    let tx=0, ty=0, px=50, py=42, raf=0;
+    const set = () => {
+      raf = 0;
+      root.setProperty('--tilt-x', ty.toFixed(2)+'deg');
+      root.setProperty('--tilt-y', tx.toFixed(2)+'deg');
+      root.setProperty('--px', px.toFixed(1)+'%');
+      root.setProperty('--py', py.toFixed(1)+'%');
+    };
+    const schedule = () => { if (!raf) raf = requestAnimationFrame(set); };
+
+    // DESKTOP: pointer over the card pit
+    const pit = document.querySelector('.card-pit');
+    pit.addEventListener('pointermove', e => {
+      const r = card.getBoundingClientRect();
+      const nx = (e.clientX - r.left) / r.width;   // 0..1
+      const ny = (e.clientY - r.top)  / r.height;
+      tx = (nx - .5) *  16;        // rotateY
+      ty = (.5 - ny) *  16;        // rotateX
+      px = 20 + nx * 60;           // light origin tracks cursor
+      py = 18 + ny * 60;
+      schedule();
+    });
+    pit.addEventListener('pointerleave', () => {
+      tx=0; ty=0; px=50; py=42; schedule();
+    });
+
+    // MOBILE: device orientation -> tilt. iOS 13+ needs a tap to permit.
+    const tiltbtn = $('#tiltbtn');
+    let oriBound = false;
+    function onOri(e){
+      // gamma: left/right (-90..90), beta: front/back (-180..180)
+      const g = Math.max(-30, Math.min(30, e.gamma || 0));
+      const b = Math.max(-30, Math.min(30, (e.beta || 0) - 35)); // 35deg natural hold
+      tx = g * 0.6;
+      ty = -b * 0.6;
+      px = 50 + g * 1.4;
+      py = 42 + b * 1.2;
+      schedule();
+    }
+    function bindOri(){
+      if (oriBound) return;
+      window.addEventListener('deviceorientation', onOri, true);
+      oriBound = true;
+    }
+    const NeedsPermission =
+      typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function';
+
+    if (NeedsPermission){
+      // iOS: show button, request on tap
+      tiltbtn.style.display = 'inline-block';
+      tiltbtn.addEventListener('click', async () => {
+        try{
+          const res = await DeviceOrientationEvent.requestPermission();
+          if (res === 'granted'){ bindOri(); tiltbtn.style.display = 'none'; }
+          else tiltbtn.textContent = 'Tilt blocked';
+        }catch(err){ tiltbtn.textContent = 'Tilt unavailable'; }
+      });
+    } else if ('ondeviceorientation' in window){
+      // Android / desktop sensors: bind directly (no-op if no sensor)
+      bindOri();
+    }
+    // if neither path fires, the foil simply stays static = graceful degrade
+  }
+
+  /* ---------- pause video when tab/page is hidden (save battery) ---------- */
+  document.addEventListener('visibilitychange', () => {
+    const v = win.querySelector('video');
+    if (!v) return;
+    if (document.hidden) v.pause();
+    else if (!reduce){ const p=v.play(); if(p&&p.catch) p.catch(()=>{}); }
+  });
+})();
+</script>
+</body>
+</html>

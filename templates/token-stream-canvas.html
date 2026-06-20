@@ -1,0 +1,816 @@
+<!-- TEMPLATE: Token Stream Canvas | ARCHETYPE: STREAM | REF: Anthropic extended-thinking UI 2026, Vercel v0 streaming, OpenAI streaming completions | WHEN TO USE: gallery as a live LLM response streaming token by token, media resolving blur-to-sharp; incompleteness is the brand | SWAP: edit the STREAM.works array in the first <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Token Stream Canvas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   TOKEN STREAM CANVAS
+   The gallery IS an LLM response being streamed in real time.
+   Each work = a paragraph materializing token by token, a
+   blinking red cursor, ghost-incomplete text fading right, and
+   media resolving from an 8px blur to a sharp full image.
+   ============================================================ */
+
+:root{
+  --bg:#0a0a0c;          /* near-black canvas         */
+  --bone:#f0ece4;        /* bone-white settled type   */
+  --cursor:#e8472a;      /* blinking red token cursor */
+  --ghost:#2c6fad;       /* ghost-incomplete tint     */
+  --dim:#6b6862;         /* metadata / muted          */
+  --line:rgba(240,236,228,.10);
+  --panel:#101013;
+  --maxcol:680px;
+  --pad:clamp(20px,5vw,72px);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--bg);
+  color:var(--bone);
+  font-family:"Newsreader",Georgia,serif;
+  font-size:18px;
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+}
+
+/* subtle vertical scan / dither so the void isn't dead flat */
+body::before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(120% 80% at 50% -10%, rgba(44,111,173,.10), transparent 60%),
+    radial-gradient(100% 60% at 100% 110%, rgba(232,71,42,.06), transparent 55%);
+}
+
+/* ---------- top response bar (status line of the stream) ---------- */
+.bar{
+  position:sticky;top:0;z-index:30;
+  display:flex;align-items:center;gap:14px;
+  padding:14px var(--pad);
+  background:linear-gradient(180deg,rgba(10,10,12,.96),rgba(10,10,12,.82));
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);
+  font-family:"JetBrains Mono",monospace;
+  font-size:12px;letter-spacing:.04em;
+}
+.bar .dot{
+  width:9px;height:9px;border-radius:50%;
+  background:var(--cursor);
+  box-shadow:0 0 0 0 rgba(232,71,42,.5);
+  animation:pulseDot 1.6s ease-out infinite;
+}
+@keyframes pulseDot{
+  0%{box-shadow:0 0 0 0 rgba(232,71,42,.45)}
+  70%{box-shadow:0 0 0 7px rgba(232,71,42,0)}
+  100%{box-shadow:0 0 0 0 rgba(232,71,42,0)}
+}
+.bar .who{color:var(--bone);font-weight:600}
+.bar .state{color:var(--ghost)}
+.bar .spacer{flex:1}
+.bar .meta{color:var(--dim)}
+.bar .meta b{color:var(--bone);font-weight:600}
+
+/* ---------- stream column ---------- */
+.stream{
+  position:relative;z-index:1;
+  max-width:var(--maxcol);
+  margin:0 auto;
+  padding:clamp(14px,2vh,22px) var(--pad) 40vh;
+}
+
+/* response preamble: looks like the model opened the answer */
+.preamble{
+  font-family:"JetBrains Mono",monospace;
+  font-size:11px;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--dim);
+  margin-bottom:14px;
+  display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;
+}
+.preamble .tag{
+  color:var(--ghost);
+  border:1px solid var(--line);
+  padding:3px 9px;border-radius:999px;
+}
+.lede{
+  font-size:clamp(19px,2.3vw,23px);
+  line-height:1.32;
+  letter-spacing:-.01em;
+  margin-bottom:4px;
+  max-width:none;
+}
+.lede .em{font-style:italic;color:var(--ghost)}
+
+/* a work = one streamed paragraph block */
+.work{
+  margin-top:clamp(24px,3.2vh,40px);
+  position:relative;
+}
+
+/* the prose paragraph itself */
+.para{
+  position:relative;
+  font-size:clamp(18px,2.2vw,21px);
+  line-height:1.66;
+}
+.para .label{
+  display:block;
+  font-family:"JetBrains Mono",monospace;
+  font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--dim);
+  margin-bottom:8px;
+}
+.para .label b{color:var(--bone);font-weight:600}
+
+/* settled (fully streamed) text */
+.txt{color:var(--bone)}
+
+/* ghost-incomplete tail: tinted, faded, drifting in from the right */
+.ghost{
+  color:var(--ghost);
+  opacity:.55;
+}
+.ghost .tok{
+  display:inline-block;
+  white-space:pre;          /* preserve the token's trailing space */
+  opacity:0;
+  transform:translateX(10px);
+  filter:blur(1px);
+  animation:tokIn .5s ease forwards;
+}
+@keyframes tokIn{
+  to{opacity:1;transform:translateX(0);filter:blur(0)}
+}
+
+/* the blinking token cursor */
+.caret{
+  display:inline-block;
+  width:.52ch;height:1.05em;
+  margin-left:.06em;
+  vertical-align:-.16em;
+  background:var(--cursor);
+  border-radius:1px;
+  box-shadow:0 0 10px rgba(232,71,42,.55);
+  animation:blink 1.05s steps(1,end) infinite;
+}
+@keyframes blink{50%{opacity:0}}
+
+/* ---------- media frame ---------- */
+.frame{
+  margin-top:14px;
+  position:relative;
+  width:100%;
+  border:1px solid var(--line);
+  border-radius:10px;
+  overflow:hidden;
+  background:var(--panel);
+  /* letterbox: never crop. media is contained, bars fill the rest. */
+  aspect-ratio:16/9;
+}
+.frame.tall{aspect-ratio:4/5}
+.frame.square{aspect-ratio:1/1}
+
+/* SETTLED works read as "already streamed" history: the paragraph and a
+   compact thumbnail sit side by side so each completed work collapses to
+   roughly one text block. The live edge (work in progress) keeps the full
+   stacked frame. This lands two completed works + the live work 3 (ghost
+   tail, cursor, blurred frame) inside the first screen at scroll=0. */
+.work.done{
+  margin-top:clamp(12px,1.6vh,18px);
+  display:grid;
+  grid-template-columns:1fr 168px;
+  gap:18px;align-items:center;
+  padding-bottom:14px;
+  border-bottom:1px solid var(--line);
+}
+.work.done .para{font-size:clamp(15px,1.7vw,16px);line-height:1.5;opacity:.88;grid-column:1}
+.work.done .para .label{margin-bottom:6px}
+.work.done .stamp{grid-column:1;margin-top:6px;font-size:11px}
+.work.done .frame{
+  grid-column:2;grid-row:1 / span 2;
+  margin-top:0;
+  aspect-ratio:16/9;
+}
+.work.done .frame .chip{font-size:10px;left:8px;bottom:8px;padding:4px 7px}
+
+/* the ACTIVE (currently streaming) work keeps the prominent stacked frame.
+   Tight top gap so its 8px-blurred frame sits inside the first screen. */
+.work.active{margin-top:clamp(16px,2vh,22px)}
+.work.active .frame{max-width:100%}
+.work.active .para{font-size:clamp(18px,2.2vw,21px)}
+
+.frame .media{
+  position:absolute;inset:0;
+  width:100%;height:100%;
+  object-fit:contain;            /* letterbox, never cover-crop */
+  background:#070708;
+  display:block;
+}
+
+/* resolving state: blurred placeholder + shimmer until "generation completes" */
+.frame.resolving .media{
+  filter:blur(8px) saturate(.7) brightness(.9);
+  transform:scale(1.04);
+  transition:filter 1.1s ease, transform 1.1s ease;
+}
+.frame.resolved .media{
+  filter:blur(0) saturate(1) brightness(1);
+  transform:scale(1);
+  transition:filter 1.1s ease, transform 1.1s ease;
+}
+
+/* pulsing scan shimmer over an unresolved frame */
+.frame .shimmer{
+  position:absolute;inset:0;z-index:2;pointer-events:none;
+  background:linear-gradient(105deg,
+     transparent 30%, rgba(44,111,173,.16) 47%,
+     rgba(240,236,228,.10) 50%, rgba(44,111,173,.16) 53%, transparent 70%);
+  background-size:240% 100%;
+  opacity:0;
+  animation:sweep 1.9s linear infinite;
+}
+.frame.resolving .shimmer{opacity:1}
+@keyframes sweep{0%{background-position:120% 0}100%{background-position:-120% 0}}
+
+/* generation progress chip on each frame */
+.frame .chip{
+  position:absolute;left:12px;bottom:12px;z-index:3;
+  font-family:"JetBrains Mono",monospace;
+  font-size:11px;letter-spacing:.05em;
+  padding:5px 10px;border-radius:6px;
+  background:rgba(10,10,12,.74);
+  border:1px solid var(--line);
+  color:var(--dim);
+  backdrop-filter:blur(4px);
+  display:flex;align-items:center;gap:8px;
+}
+.frame .chip i{font-style:normal}
+.frame.resolving .chip{color:var(--ghost)}
+.frame.resolved  .chip .pct{color:var(--bone)}
+.frame.resolved  .chip .ok{color:var(--cursor)}
+
+/* play affordance for video frames */
+.frame.video::after{
+  content:"";position:absolute;left:50%;top:50%;z-index:3;
+  width:54px;height:54px;transform:translate(-50%,-50%);
+  border-radius:50%;
+  background:rgba(10,10,12,.55);
+  border:1px solid rgba(240,236,228,.4);
+  pointer-events:none;
+  transition:opacity .3s;
+}
+.frame.video::before{
+  content:"";position:absolute;left:calc(50% + 2px);top:50%;z-index:4;
+  transform:translate(-50%,-50%);
+  width:0;height:0;border-style:solid;
+  border-width:9px 0 9px 15px;
+  border-color:transparent transparent transparent var(--bone);
+  pointer-events:none;
+  transition:opacity .3s;
+}
+.frame.video.playing::after,
+.frame.video.playing::before{opacity:0}
+
+/* trailing meta line under each work, monospace stamp */
+.stamp{
+  margin-top:12px;
+  font-family:"JetBrains Mono",monospace;
+  font-size:11.5px;letter-spacing:.04em;
+  color:var(--dim);
+  display:flex;flex-wrap:wrap;gap:6px 16px;
+}
+.stamp b{color:var(--bone);font-weight:500}
+.stamp .sep{color:var(--line)}
+
+/* the live tail: appended works after the seeded ones get this look */
+.work.pending .frame{aspect-ratio:16/9}
+
+/* end-of-stream sentinel */
+.eos{
+  margin-top:64px;
+  font-family:"JetBrains Mono",monospace;
+  font-size:12px;letter-spacing:.06em;
+  color:var(--dim);
+  display:flex;align-items:center;gap:10px;
+}
+.eos .sq{width:9px;height:9px;background:var(--cursor);border-radius:2px;animation:blink 1.05s steps(1,end) infinite}
+
+/* ---------- mobile: narrow the column, same stream, media letterboxed ---------- */
+@media (max-width:640px){
+  :root{--maxcol:100%}
+  body{font-size:17px}
+  .bar{gap:10px;font-size:11px}
+  .bar .meta{display:none}
+  .stream{padding:30px 20px 38vh}
+  .lede{font-size:clamp(20px,6vw,26px);max-width:none}
+  .para{font-size:18px}
+  .frame{aspect-ratio:16/10}     /* letterbox landscape comfortably on a phone */
+  .frame.tall{aspect-ratio:4/5}
+  .frame.square{aspect-ratio:1/1}
+  /* on a phone the side-by-side history layout is too cramped: stack it,
+     full-width but with a SHORTER history frame so the live streaming edge
+     (work 3: ghost tail + red cursor + blurred frame) climbs into the
+     first screen at scroll=0. Active work keeps the tall hero frame. */
+  /* COMPLETED works collapse to a compact streamed-history row: a short
+     prose snippet + a small resolved thumbnail, so the live streaming edge
+     (work 3: ghost tail + red cursor + 8px-blurred frame) is guaranteed in
+     the first screen at scroll=0 on a 390px phone. */
+  .work.done{
+    display:grid;grid-template-columns:1fr 84px;gap:12px;align-items:center;
+    margin-top:14px;
+    padding-bottom:14px;border-bottom:1px solid var(--line);
+  }
+  .work.done .para{grid-column:1;font-size:14px;line-height:1.42;opacity:.78;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .work.done .para .label{margin-bottom:4px}
+  .work.done .stamp{display:none}
+  .work.done .frame{grid-column:2;grid-row:1;margin-top:0;aspect-ratio:1/1;border-radius:7px}
+  .work.done .frame .chip{display:none}
+  .work.active .frame{aspect-ratio:16/10}
+  .stream{padding-top:20px}
+  .preamble{margin-bottom:10px}
+  .lede{margin-bottom:2px;font-size:clamp(18px,5.4vw,23px)}
+}
+
+/* ---------- reduced motion: settled complete state, no streaming ---------- */
+@media (prefers-reduced-motion:reduce){
+  *{animation:none !important;transition:none !important}
+  .ghost{opacity:1;color:var(--bone)}
+  .ghost .tok{opacity:1;transform:none;filter:none}
+  .caret{display:none}
+  .frame.resolving .media{filter:none;transform:none}
+  .frame .shimmer{display:none}
+  .frame .chip{color:var(--bone)}
+  .bar .dot{animation:none}
+  .eos .sq{animation:none}
+}
+
+/* focus visibility */
+a:focus-visible,button:focus-visible,.frame:focus-visible{
+  outline:2px solid var(--cursor);outline-offset:3px;border-radius:10px;
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     DATA  -  swap works here. Each entry is one streamed paragraph.
+     type: "image" | "video"
+     ratio: "wide" | "tall" | "square"  (letterbox shape of the frame)
+     For video, set poster + src. For image, set src only.
+     ============================================================ -->
+<script>
+const STREAM = {
+  model: "media-gen-1",
+  intentLead: "Render the full catalogue as one continuous response. Each work",
+  intentEm: "materializes token by token",
+  intentTail: " until its image resolves.",
+  works: [
+    {
+      label: "WORK 01",
+      title: "Wet Neon Mercedes",
+      text: "A matte-black Mercedes idles on rain-slicked asphalt, the city's neon bleeding into every reflection. The frame holds the car like a held breath, chrome catching magenta and cyan in equal measure.",
+      type: "image",
+      ratio: "wide",
+      src: "../assets/flux-car-4k.png",
+      stamp: "flux.1 · 3840x2160 · seed 4471 · 28 steps"
+    },
+    {
+      label: "WORK 02",
+      title: "Mint and Wood Clinic",
+      text: "Inside, a dental suite resolves in soft mint and warm oak, every surface lit to feel less clinical than calm. The composition trades sterility for hospitality, the kind of room a patient forgets to dread.",
+      type: "image",
+      ratio: "wide",
+      src: "../assets/flux-clinic-4k.png",
+      stamp: "flux.1 · 3840x2160 · seed 2208 · 30 steps"
+    },
+    {
+      // SEEDED IN-PROGRESS work at scroll=0: ~60% typed, ghost tail,
+      // blinking cursor, frame still blurred + shimmering.
+      label: "WORK 03",
+      title: "Painterly Autumn Fox",
+      // settled portion (already streamed)
+      text: "A fox turns its head through a wash of autumn pigment, fur breaking into brushstrokes where the",
+      // ghost-incomplete tail (fading in from the right, tinted blue)
+      ghost: " light begins to leave the canvas and the season",
+      inProgress: true,
+      type: "image",
+      ratio: "wide",
+      src: "../assets/sdxl.png",
+      stamp: "sdxl · 1024x1024 · seed 9013 · generating"
+    },
+    // ---- works below the fold: streamed live as you scroll ----
+    {
+      label: "WORK 04",
+      title: "Low-Fi Apple Study",
+      text: "An apple flattens into abstraction, all bold planes and lo-fi color, less still life than icon. The render leans into its own roughness, refusing to pretend it is anything but generated.",
+      type: "image",
+      ratio: "square",
+      src: "../assets/hf-tinysd.png",
+      stamp: "tiny-sd · 512x512 · seed 0007 · 20 steps"
+    },
+    {
+      label: "WORK 05",
+      title: "Kling Motion Pass",
+      text: "Then the still gives way to motion. A clip loops and breathes, the model now reasoning across frames instead of pixels, holding coherence as the camera drifts.",
+      type: "video",
+      ratio: "wide",
+      src: "../assets/kling-video.mp4",
+      poster: "../assets/gen/poster-kling-video.png",
+      stamp: "kling · 1280x720 · 5s loop · interpolated"
+    },
+    {
+      label: "WORK 06",
+      title: "Veo Establishing Shot",
+      text: "A wider establishing shot resolves last, the most expensive token of all. It earns its place by moving with intent, every frame a small argument that synthetic footage can carry a scene.",
+      type: "video",
+      ratio: "wide",
+      src: "../assets/veo-video.mp4",
+      poster: "../assets/gen/poster-veo-video.png",
+      stamp: "veo · 1280x720 · 6s loop · with audio"
+    }
+  ]
+};
+</script>
+
+<!-- ===================== TOP STATUS BAR ===================== -->
+<header class="bar" aria-hidden="true">
+  <span class="dot"></span>
+  <span class="who">media-gen-1</span>
+  <span class="state">streaming response</span>
+  <span class="spacer"></span>
+  <span class="meta"><b id="m-tok">0</b> tokens · <b id="m-work">0</b>/6 works · temp <b>0.7</b></span>
+</header>
+
+<!-- ===================== STREAM COLUMN ===================== -->
+<main class="stream" id="stream">
+
+  <div class="preamble">
+    <span class="tag">extended response</span>
+    <span>prompt: "render the catalogue, token by token"</span>
+  </div>
+
+  <p class="lede"><span id="lede-settled"></span><span class="em" id="lede-em"></span><span id="lede-tail"></span></p>
+
+  <!-- works injected here -->
+  <div id="works"></div>
+
+  <div class="eos" id="eos" hidden><span class="sq"></span> response complete · 6 works rendered · stream closed</div>
+</main>
+
+<script>
+/* ============================================================
+   STREAM ENGINE
+   - Seeds the first three works visible at scroll=0:
+       work 1 & 2 = fully streamed, images resolved
+       work 3     = ~60% typed, ghost tail, blinking cursor,
+                    frame blurred at 8px with pulsing shimmer
+   - Works below the fold stream in (type + resolve) as you scroll.
+   - prefers-reduced-motion: render everything settled, no typing.
+   ============================================================ */
+(function(){
+  const REDUCED = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const worksEl = document.getElementById('works');
+  const ratioClass = {wide:'', tall:'tall', square:'square'};
+
+  // ---- build the static skeleton for one work -------------------------
+  function buildWork(w, i){
+    const art = document.createElement('article');
+    art.className = 'work';
+    art.dataset.index = i;
+
+    // paragraph
+    const para = document.createElement('div');
+    para.className = 'para';
+    const label = document.createElement('span');
+    label.className = 'label';
+    label.innerHTML = `${w.label} <b>${w.title}</b>`;
+    para.appendChild(label);
+
+    const body = document.createElement('span');
+    body.className = 'body';
+    para.appendChild(body);
+    art.appendChild(para);
+
+    // media frame (letterboxed, contained, never cropped)
+    const frame = document.createElement('figure');
+    frame.className = 'frame ' + (ratioClass[w.ratio]||'') + (w.type==='video'?' video':'');
+    frame.tabIndex = 0;
+    frame.setAttribute('role','group');
+    frame.setAttribute('aria-label', `${w.title} - generated ${w.type}`);
+
+    let media;
+    if(w.type==='video'){
+      media = document.createElement('video');
+      media.className='media';
+      media.muted = true;
+      media.loop = true;
+      media.playsInline = true;
+      media.preload = 'none';
+      media.poster = w.poster || '';
+      media.dataset.src = w.src;     // lazy: real src attached when in view
+    }else{
+      media = document.createElement('img');
+      media.className='media';
+      media.loading = 'lazy';
+      media.decoding = 'async';
+      media.alt = w.title + ' - generated image';
+      media.dataset.src = w.src;
+    }
+    frame.appendChild(media);
+
+    const shimmer = document.createElement('span');
+    shimmer.className='shimmer';
+    frame.appendChild(shimmer);
+
+    const chip = document.createElement('span');
+    chip.className='chip';
+    chip.innerHTML = `<i>render</i> <span class="pct">0%</span>`;
+    frame.appendChild(chip);
+
+    art.appendChild(frame);
+
+    // stamp line
+    const stamp = document.createElement('div');
+    stamp.className='stamp';
+    stamp.innerHTML = `<b>${w.title}</b> <span class="sep">/</span> ${w.stamp}`;
+    art.appendChild(stamp);
+
+    worksEl.appendChild(art);
+    return {art, body, frame, media, chip};
+  }
+
+  // ---- token splitter (keeps trailing whitespace on the token) --------
+  function toTokens(str){
+    return (str.match(/\S+\s*|\s+/g)) || [];
+  }
+
+  // ---- type a string token by token into target ----------------------
+  function typeInto(target, str, done, speed){
+    if(REDUCED){ target.innerHTML += escapeHTML(str); if(done) done(); return; }
+    const toks = toTokens(str);
+    let k = 0;
+    // ensure a caret exists at the tail of the active body
+    const caret = ensureCaret(target.closest('.para'));
+    (function step(){
+      if(k >= toks.length){ if(done) done(); return; }
+      const span = document.createElement('span');
+      span.className='txt';
+      span.textContent = toks[k++];
+      target.insertBefore(span, caret);
+      setTimeout(step, speed + Math.random()*speed*0.7);
+    })();
+  }
+
+  // ---- render a ghost (incomplete) tail with fade-in tokens -----------
+  function ghostTail(target, str){
+    const wrap = document.createElement('span');
+    wrap.className='ghost';
+    const toks = toTokens(str);
+    toks.forEach((t,idx)=>{
+      const s = document.createElement('span');
+      s.className = REDUCED ? '' : 'tok';
+      s.textContent = t;
+      if(!REDUCED) s.style.animationDelay = (idx*55)+'ms';
+      wrap.appendChild(s);
+    });
+    target.appendChild(wrap);
+  }
+
+  function ensureCaret(para){
+    let c = para.querySelector('.caret');
+    if(!c){
+      c = document.createElement('span');
+      c.className='caret';
+      c.setAttribute('aria-hidden','true');
+      para.querySelector('.body').appendChild(c);
+    }
+    return c;
+  }
+  function removeCaret(para){
+    const c = para.querySelector('.caret');
+    if(c) c.remove();
+  }
+  function escapeHTML(s){return s.replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));}
+
+  // ---- resolve a frame: load media, blur -> sharp, chip to 100% -------
+  function resolveFrame(node){
+    const {frame, media, chip} = node;
+    if(frame.dataset.armed) return;
+    frame.dataset.armed = '1';
+
+    // lazy attach + load
+    if(media.dataset.src && !media.src){
+      media.src = media.dataset.src;
+    }
+
+    frame.classList.add('resolving');
+    const pct = chip.querySelector('.pct');
+
+    if(REDUCED){
+      frame.classList.remove('resolving');
+      frame.classList.add('resolved');
+      chip.innerHTML = `<i>render</i> <span class="ok">✓</span> <span class="pct">done</span>`;
+      return;
+    }
+
+    // animate a believable generation progress
+    let p = 0;
+    const tick = setInterval(()=>{
+      p += 6 + Math.random()*11;
+      if(p>=100){ p=100; clearInterval(tick); finish(); }
+      pct.textContent = Math.floor(p)+'%';
+    }, 130);
+
+    function finish(){
+      frame.classList.remove('resolving');
+      frame.classList.add('resolved');
+      chip.innerHTML = `<i>render</i> <span class="ok">✓</span> <span class="pct">done</span>`;
+    }
+  }
+
+  // ---- counters in the top bar ---------------------------------------
+  const mTok = document.getElementById('m-tok');
+  const mWork = document.getElementById('m-work');
+  let tokCount = 0, workCount = 0;
+  function bumpTokens(n){ tokCount += n; mTok.textContent = tokCount.toLocaleString(); }
+  function setWorks(n){ workCount = n; mWork.textContent = n; }
+
+  // =========================================================
+  // SEED THE LEDE (settled, since it's the response opener)
+  // =========================================================
+  document.getElementById('lede-settled').textContent = STREAM.intentLead + ' ';
+  document.getElementById('lede-em').textContent = STREAM.intentEm;
+  document.getElementById('lede-tail').textContent = STREAM.intentTail;
+
+  // =========================================================
+  // BUILD ALL WORKS, then seed first 3 for scroll=0
+  // =========================================================
+  const nodes = STREAM.works.map(buildWork);
+
+  // Work 1 & 2: fully settled (compact "history" treatment), images
+  // resolved immediately.
+  [0,1].forEach(i=>{
+    const w = STREAM.works[i];
+    nodes[i].art.classList.add('done');
+    const span = document.createElement('span');
+    span.className='txt';
+    span.textContent = w.text;
+    nodes[i].body.appendChild(span);
+    resolveFrame(nodes[i]);
+    bumpTokens(toTokens(w.text).length);
+  });
+  setWorks(2);
+
+  // Work 3: seeded mid-stream. ~60% typed already (settled), then a
+  // live ghost tail fading in from the right, a blinking cursor, and
+  // the frame still blurred at 8px with pulsing shimmer.
+  (function seedActive(){
+    const i = 2, w = STREAM.works[i], n = nodes[i];
+    n.art.classList.add('active');
+    // settled (the ~60% already produced)
+    const settled = document.createElement('span');
+    settled.className='txt';
+    settled.textContent = w.text;
+    n.body.appendChild(settled);
+    // ghost-incomplete tail
+    ghostTail(n.body, w.ghost);
+    bumpTokens(toTokens(w.text).length);
+
+    // load the frame media for both paths
+    n.media.src = n.media.dataset.src;
+
+    if(REDUCED){
+      // Reduced motion contract: everything settled + complete, no live
+      // streaming state. Promote the ghost tail to settled type, drop the
+      // caret, and resolve the frame to done (no perpetual "61%" chip).
+      n.art.querySelectorAll('.ghost').forEach(g=>{ g.classList.remove('ghost'); });
+      bumpTokens(toTokens(w.ghost).length);
+      resolveFrame(n);   // REDUCED branch inside marks it resolved + done
+      setWorks(3);
+      return;
+    }
+
+    // blinking caret right after the ghost tail
+    ensureCaret(n.art.querySelector('.para'));
+
+    // frame: load + sit in resolving (blurred + shimmer). Do NOT resolve
+    // immediately, so scroll=0 shows the unresolved generating state.
+    n.frame.dataset.armed = '1';
+    n.frame.classList.add('resolving');
+    n.frame.querySelector('.pct').textContent = '61%';
+
+    // After a beat, finish typing the ghost, then resolve the image -
+    // so a viewer who lingers sees the stream actually progress.
+    const FRAME = n.frame;
+    setTimeout(()=>{
+      // promote ghost tokens to settled
+      n.art.querySelectorAll('.ghost').forEach(g=>{
+        g.classList.remove('ghost');
+        g.style.opacity='1';
+        g.querySelectorAll('.tok').forEach(t=>t.className='txt');
+      });
+      removeCaret(n.art.querySelector('.para'));
+      bumpTokens(toTokens(w.ghost).length);
+      setWorks(3);
+      // delete the armed flag so resolveFrame runs its progress anim
+      FRAME.dataset.armed = '';
+      FRAME.classList.remove('resolving');
+      resolveFrame(n);
+    }, 2600);
+  })();
+
+  // =========================================================
+  // BELOW THE FOLD: stream works in on scroll (IntersectionObserver)
+  // Each work types its paragraph, then resolves its media.
+  // Videos: load lazily, play only the one in view, pause others.
+  // =========================================================
+  const streamed = new Set([0,1,2]); // already handled
+  const eos = document.getElementById('eos');
+
+  const typeObs = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{
+      const i = +e.target.dataset.index;
+      if(!e.isIntersecting || streamed.has(i)) return;
+      streamed.add(i);
+      const w = STREAM.works[i], n = nodes[i];
+
+      typeInto(n.body, w.text, ()=>{
+        removeCaret(n.art.querySelector('.para'));
+        bumpTokens(toTokens(w.text).length);
+        setWorks(Math.max(workCount, i+1));
+        resolveFrame(n);
+        if(i === STREAM.works.length-1){ eos.hidden = false; }
+      }, 34);
+    });
+  }, {rootMargin:'0px 0px -25% 0px', threshold:0.15});
+
+  nodes.forEach(n=>typeObs.observe(n.art));
+
+  // Video play/pause control: only the focused/in-view video plays.
+  // Avoids simultaneous decode of multiple clips (FPS killer).
+  const vidObs = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{
+      const v = e.target.querySelector('video');
+      if(!v) return;
+      if(e.isIntersecting && e.intersectionRatio > 0.55){
+        // ensure src is attached (lazy)
+        if(v.dataset.src && !v.src){ v.src = v.dataset.src; }
+        // pause every other video first
+        document.querySelectorAll('video.media').forEach(o=>{
+          if(o!==v){ o.pause(); o.closest('.frame').classList.remove('playing'); }
+        });
+        const p = v.play();
+        if(p && p.catch) p.catch(()=>{});
+        e.target.classList.add('playing');
+      }else{
+        v.pause();
+        e.target.classList.remove('playing');
+      }
+    });
+  }, {threshold:[0,0.55,1]});
+
+  nodes.forEach(n=>{ if(n.frame.classList.contains('video')) vidObs.observe(n.frame); });
+
+  // Click/Enter on a video frame toggles play (accessibility).
+  nodes.forEach(n=>{
+    if(!n.frame.classList.contains('video')) return;
+    const v = n.media;
+    function toggle(){
+      if(v.dataset.src && !v.src) v.src = v.dataset.src;
+      if(v.paused){
+        document.querySelectorAll('video.media').forEach(o=>{ if(o!==v){o.pause();o.closest('.frame').classList.remove('playing');} });
+        const p=v.play(); if(p&&p.catch)p.catch(()=>{});
+        n.frame.classList.add('playing');
+      }else{ v.pause(); n.frame.classList.remove('playing'); }
+    }
+    n.frame.addEventListener('click', toggle);
+    n.frame.addEventListener('keydown', ev=>{ if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); toggle(); }});
+  });
+
+  // Reduced motion: reveal everything settled + complete immediately,
+  // including below-the-fold works (no typing, no streaming).
+  if(REDUCED){
+    STREAM.works.forEach((w,i)=>{
+      if(streamed.has(i)) return;
+      streamed.add(i);
+      const n = nodes[i];
+      const span=document.createElement('span'); span.className='txt'; span.textContent=w.text;
+      n.body.appendChild(span);
+      resolveFrame(n);
+      if(w.type==='video'){ if(n.media.dataset.src) n.media.src=n.media.dataset.src; n.media.removeAttribute('autoplay'); }
+    });
+    setWorks(STREAM.works.length);
+    eos.hidden=false;
+  }
+})();
+</script>
+</body>
+</html>

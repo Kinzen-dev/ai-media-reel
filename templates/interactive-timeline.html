@@ -1,0 +1,861 @@
+<!-- TEMPLATE: Epoch Spine | ARCHETYPE: interactive-timeline | REF: Basement Systems timeline (Awwwards SOTD 2025), Knight Lab TimelineJS, NASA history timeline (CSS Design Awards 2025) | WHEN TO USE: chronological story with distinct eras you click-to-jump and scroll-to-track along a glowing spine | SWAP: edit the EPOCHS array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Epoch Spine - Interactive Timeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+<script>
+/* ============================================================
+   DATA - edit this array to retheme the whole timeline.
+   Each epoch: id, year, era label, era color band, title,
+   body paragraphs, and a media object (image | video | wave).
+   Order is chronological top to bottom along the spine.
+   ============================================================ */
+const EPOCHS = [
+  {
+    id: "first-light",
+    year: "1998",
+    era: "Origins",
+    band: "#2c6fad",
+    title: "First Light on the Wet Road",
+    lede: "The earliest experiments rendered a single frame at a time, painstakingly, on hardware that hummed through the night.",
+    body: [
+      "Before motion there was the still image. A matte black coupe parked under neon, every reflection placed by hand. This is where the grammar of the medium was set: composition, light, restraint.",
+      "What looks effortless now took hours of iteration. The era of origins is the era of patience."
+    ],
+    media: { type: "image", src: "../assets/flux-car-4k.png", alt: "Cinematic matte-black Mercedes on a wet neon street" }
+  },
+  {
+    id: "the-clinic",
+    year: "2009",
+    era: "Refinement",
+    band: "#3f8f6e",
+    title: "Calm Surfaces, Considered Spaces",
+    lede: "A decade in, the craft turned toward warmth and trust. Softer palettes, human spaces, light that invites rather than dazzles.",
+    body: [
+      "Mint and wood, a clinic that feels like a living room. The refinement era traded spectacle for comfort and learned that restraint reads as quality.",
+      "Color became a language. Each surface chosen to lower the heart rate of whoever walked in."
+    ],
+    media: { type: "image", src: "../assets/flux-clinic-4k.png", alt: "Mint and wood dental clinic interior, calm and warm" }
+  },
+  {
+    id: "in-motion",
+    year: "2018",
+    era: "Motion",
+    band: "#c0653b",
+    title: "The Frame Begins to Breathe",
+    lede: "Still images learned to move. Loops, drifts, and parallax turned a single composition into a living moment.",
+    body: [
+      "The motion era is when the road itself moved beneath the car. Image-to-video pipelines made every matte painting a window onto a continuous world.",
+      "Play is on demand only here: the clip wakes when it enters view and sleeps when it leaves, so the spine stays smooth."
+    ],
+    media: { type: "video", src: "../assets/flux-car-i2v.mp4", poster: "../assets/gen/poster-flux-car-i2v.png", alt: "Looping drive sequence of the matte-black coupe" }
+  },
+  {
+    id: "the-voice",
+    year: "2026",
+    era: "Voice",
+    band: "#e8c547",
+    title: "The Medium Learns to Speak",
+    lede: "The present epoch is sound. Synthetic voices carry warmth and accent, and the timeline finally has a narrator.",
+    body: [
+      "A waveform is just another frame now, painted in amplitude instead of light. The voice era closes the loop: image, motion, and speech in one continuous craft.",
+      "This is the live edge of the spine. Everything above led here, and the amber node marks the present."
+    ],
+    media: { type: "wave", src: "../assets/gen/wave-elevenlabs.png", audio: "../assets/elevenlabs-thai.mp3", alt: "Audio waveform of a synthesized Thai voice" }
+  }
+];
+</script>
+<style>
+  :root {
+    --ink: #0c0c10;
+    --ink-2: #131319;
+    --bone: #f0ece4;
+    --bone-dim: rgba(240, 236, 228, 0.62);
+    --amber: #e8c547;
+    --blue: #2c6fad;
+    --spine-w: 88px;
+    --node: 16px;
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--ink);
+    color: var(--bone);
+    font-family: "Space Grotesk", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  ::selection { background: var(--amber); color: var(--ink); }
+
+  a { color: inherit; }
+
+  /* ---------- top brand band (compact, never a full hero) ---------- */
+  .topband {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 0 26px 0 calc(var(--spine-w) + 26px);
+    background: linear-gradient(180deg, rgba(12,12,16,0.96) 0%, rgba(12,12,16,0.72) 70%, rgba(12,12,16,0) 100%);
+    z-index: 40;
+    pointer-events: none;
+  }
+  .topband .mark {
+    font-family: "Fraunces", serif;
+    font-weight: 900;
+    font-size: 17px;
+    letter-spacing: 0.02em;
+  }
+  .topband .mark b { color: var(--amber); }
+  .topband .kicker {
+    font-size: 11px;
+    letter-spacing: 0.34em;
+    text-transform: uppercase;
+    color: var(--bone-dim);
+  }
+  .topband .live {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--bone-dim);
+  }
+  .topband .live i {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--amber);
+    box-shadow: 0 0 0 0 rgba(232,197,71,0.6);
+    animation: pulse 2.4s var(--ease) infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(232,197,71,0.55); }
+    70% { box-shadow: 0 0 0 10px rgba(232,197,71,0); }
+    100% { box-shadow: 0 0 0 0 rgba(232,197,71,0); }
+  }
+
+  /* ---------- the spine (signature mechanic, fixed full height) ---------- */
+  .spine {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    width: var(--spine-w);
+    z-index: 50;
+    background: linear-gradient(180deg, rgba(19,19,25,0.9), rgba(8,8,11,0.96));
+    border-right: 1px solid rgba(240,236,228,0.08);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .spine .rail {
+    position: absolute;
+    top: 78px; bottom: 40px;
+    left: 50%;
+    width: 3px;
+    transform: translateX(-50%);
+    border-radius: 3px;
+    /* base rail is dim, era bands painted by gradient set in JS */
+    background: rgba(240,236,228,0.12);
+    overflow: visible;
+  }
+  /* faint always-on era-band ghost so the color story reads at scroll=0 too */
+  .spine .rail .ghost {
+    position: absolute;
+    inset: 0;
+    border-radius: 3px;
+    background: var(--rail-bands, linear-gradient(180deg, var(--blue), var(--amber)));
+    opacity: 0.32;
+  }
+  /* era-banded color fill, clipped by scroll progress via clip-path */
+  .spine .fill {
+    position: absolute;
+    inset: 0;
+    border-radius: 3px;
+    background: var(--rail-bands, linear-gradient(180deg, var(--blue), var(--amber)));
+    clip-path: inset(0 0 100% 0);
+    transition: clip-path 0.12s linear;
+    box-shadow: 0 0 12px rgba(232,197,71,0.25);
+  }
+  .spine .glow {
+    /* the glowing amber progress dot */
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 14px; height: 14px;
+    margin-left: -7px;
+    margin-top: -7px;
+    border-radius: 50%;
+    background: var(--amber);
+    box-shadow: 0 0 0 4px rgba(232,197,71,0.18), 0 0 18px 4px rgba(232,197,71,0.7);
+    transition: top 0.12s linear;
+    z-index: 4;
+  }
+
+  .nodes {
+    position: absolute;
+    top: 78px; bottom: 40px;
+    left: 0; right: 0;
+  }
+  .node {
+    position: absolute;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px; height: 44px;
+    display: grid;
+    place-items: center;
+    background: none; border: none;
+    cursor: pointer;
+    color: var(--bone);
+    z-index: 5;
+  }
+  .node .dot {
+    width: var(--node); height: var(--node);
+    border-radius: 50%;
+    background: var(--ink-2);
+    border: 2px solid var(--ndband, var(--bone-dim));
+    transition: transform 0.4s var(--ease), background 0.4s var(--ease), box-shadow 0.4s var(--ease);
+  }
+  .node .yr {
+    position: absolute;
+    left: 52px;
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    white-space: nowrap;
+    color: var(--bone-dim);
+    background: rgba(12,12,16,0.7);
+    padding: 2px 8px;
+    border-radius: 4px;
+    opacity: 0;
+    transform: translateX(-6px);
+    transition: opacity 0.3s var(--ease), transform 0.3s var(--ease);
+    pointer-events: none;
+  }
+  .node:hover .yr,
+  .node:focus-visible .yr { opacity: 1; transform: translateX(0); }
+  .node:hover .dot { transform: scale(1.25); }
+  .node:focus-visible { outline: none; }
+  .node:focus-visible .dot {
+    outline: 2px solid var(--amber);
+    outline-offset: 4px;
+  }
+  .node.active .dot {
+    background: var(--ndband, var(--amber));
+    border-color: var(--bone);
+    transform: scale(1.45);
+    box-shadow: 0 0 16px 2px color-mix(in srgb, var(--ndband, var(--amber)) 70%, transparent);
+  }
+
+  /* ---------- main content rail ---------- */
+  main {
+    margin-left: var(--spine-w);
+    padding-top: 56px;
+  }
+
+  .epoch {
+    position: relative;
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: minmax(280px, 1fr) minmax(0, 1.55fr);
+    gap: clamp(24px, 4vw, 64px);
+    align-items: center;
+    padding: clamp(40px, 6vh, 88px) clamp(28px, 5vw, 80px);
+    border-bottom: 1px solid rgba(240,236,228,0.06);
+  }
+  /* era tint wash behind each panel, color set inline per epoch */
+  .epoch::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(120% 90% at 8% 0%, var(--wash, rgba(44,111,173,0.16)) 0%, transparent 55%),
+      radial-gradient(90% 70% at 100% 100%, rgba(8,8,11,0.6) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .epoch > * { position: relative; z-index: 1; }
+
+  .panel-text .era-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--bone-dim);
+    margin-bottom: 18px;
+  }
+  .panel-text .era-tag i {
+    width: 26px; height: 3px; border-radius: 3px;
+    background: var(--band, var(--blue));
+  }
+  .panel-text .year {
+    font-family: "Fraunces", serif;
+    font-weight: 900;
+    font-size: clamp(58px, 9vw, 124px);
+    line-height: 0.86;
+    letter-spacing: -0.02em;
+    background: linear-gradient(160deg, var(--bone) 30%, var(--band, var(--blue)) 130%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin-bottom: 14px;
+  }
+  .panel-text h2 {
+    font-family: "Fraunces", serif;
+    font-weight: 600;
+    font-size: clamp(22px, 2.6vw, 32px);
+    line-height: 1.12;
+    margin-bottom: 18px;
+    max-width: 18ch;
+  }
+  .panel-text .lede {
+    font-size: clamp(15px, 1.4vw, 18px);
+    color: var(--bone);
+    margin-bottom: 16px;
+    max-width: 46ch;
+  }
+  .panel-text p.body {
+    font-size: 14.5px;
+    color: var(--bone-dim);
+    margin-bottom: 12px;
+    max-width: 50ch;
+  }
+
+  /* ---------- media frame, always letterboxed, never cover-cropped ---------- */
+  .panel-media {
+    position: relative;
+    width: 100%;
+  }
+  .frame {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    background: #06060a;
+    border: 1px solid rgba(240,236,228,0.1);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 30px 80px -30px rgba(0,0,0,0.8);
+  }
+  .frame::after {
+    /* subtle era-tinted edge light */
+    content: "";
+    position: absolute; inset: 0;
+    border-radius: 14px;
+    box-shadow: inset 0 0 0 1px rgba(240,236,228,0.05),
+                inset 0 -60px 80px -50px var(--band, var(--blue));
+    pointer-events: none;
+    z-index: 2;
+  }
+  .frame img,
+  .frame video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* letterbox, never crop landscape into portrait */
+    background: #06060a;
+    display: block;
+  }
+  .frame .mediatag {
+    position: absolute;
+    left: 12px; bottom: 12px;
+    z-index: 3;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--bone-dim);
+    background: rgba(6,6,10,0.7);
+    border: 1px solid rgba(240,236,228,0.1);
+    padding: 4px 9px;
+    border-radius: 20px;
+    backdrop-filter: blur(4px);
+  }
+  /* wave epoch media: waveform image as a calm panel, with play control */
+  .wavewrap {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 28px;
+  }
+  .wavewrap img {
+    position: static;
+    width: 100%;
+    height: auto;
+    max-height: 60%;
+    object-fit: contain;
+    filter: drop-shadow(0 0 16px rgba(232,197,71,0.3));
+  }
+  .playbtn {
+    position: absolute;
+    right: 14px; top: 14px;
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: var(--amber);
+    border: none;
+    padding: 8px 14px;
+    border-radius: 22px;
+    cursor: pointer;
+    transition: transform 0.25s var(--ease), filter 0.25s var(--ease);
+  }
+  .playbtn:hover { transform: translateY(-1px); filter: brightness(1.08); }
+  .playbtn:focus-visible { outline: 2px solid var(--bone); outline-offset: 3px; }
+
+  /* ---------- mobile horizontal ticker (spine rotated) ---------- */
+  .ticker { display: none; }
+
+  @media (max-width: 860px) {
+    .epoch {
+      grid-template-columns: 1fr;
+      gap: 26px;
+      min-height: auto;
+      padding: 88px clamp(20px, 6vw, 36px) 56px;
+    }
+    .panel-media { order: -1; }
+  }
+
+  @media (max-width: 640px) {
+    :root { --spine-w: 0px; }
+    .spine { display: none; }
+    .topband { padding-left: 20px; padding-right: 16px; height: 50px; }
+    .topband .kicker { display: none; }
+    main { margin-left: 0; padding-top: 50px; }
+
+    /* spine rotates to a horizontal scrollable ticker pinned under brand band */
+    .ticker {
+      display: block;
+      position: fixed;
+      top: 50px; left: 0; right: 0;
+      z-index: 45;
+      background: linear-gradient(180deg, rgba(12,12,16,0.97), rgba(12,12,16,0.86));
+      border-bottom: 1px solid rgba(240,236,228,0.08);
+      padding: 10px 0 12px;
+    }
+    .ticker .track {
+      display: flex;
+      gap: 0;
+      overflow-x: auto;
+      scroll-snap-type: x proximity;
+      -webkit-overflow-scrolling: touch;
+      padding: 0 16px;
+      position: relative;
+    }
+    .ticker .track::-webkit-scrollbar { display: none; }
+    .ticker .track { scrollbar-width: none; }
+    /* horizontal progress line behind the ticker chips */
+    .ticker .hline {
+      position: absolute;
+      left: 16px; right: 16px;
+      top: 19px;
+      height: 3px;
+      border-radius: 3px;
+      background: rgba(240,236,228,0.12);
+    }
+    .ticker .hfill {
+      position: absolute;
+      left: 16px;
+      top: 19px;
+      height: 3px;
+      border-radius: 3px;
+      background: var(--rail-bands, linear-gradient(90deg, var(--blue), var(--amber)));
+      width: 0;
+      box-shadow: 0 0 10px rgba(232,197,71,0.4);
+      transition: width 0.12s linear;
+      z-index: 1;
+    }
+    .tchip {
+      flex: 0 0 auto;
+      scroll-snap-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      min-width: 84px;
+      padding: 4px 6px 2px;
+      background: none; border: none;
+      cursor: pointer;
+      color: var(--bone-dim);
+      position: relative;
+      z-index: 2;
+    }
+    .tchip .tdot {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: var(--ink-2);
+      border: 2px solid var(--tband, var(--bone-dim));
+      transition: transform 0.3s var(--ease), background 0.3s var(--ease);
+    }
+    .tchip .tyr {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+    }
+    .tchip .tera {
+      font-size: 8.5px; letter-spacing: 0.16em; text-transform: uppercase;
+      opacity: 0.7;
+    }
+    .tchip.active { color: var(--bone); }
+    .tchip.active .tdot {
+      background: var(--tband, var(--amber));
+      transform: scale(1.4);
+      box-shadow: 0 0 12px 1px color-mix(in srgb, var(--tband, var(--amber)) 70%, transparent);
+    }
+    .tchip:focus-visible { outline: none; }
+    .tchip:focus-visible .tdot { outline: 2px solid var(--amber); outline-offset: 3px; }
+
+    main { padding-top: 122px; }
+    .epoch { padding-top: 36px; }
+    .panel-text .year { font-size: clamp(52px, 18vw, 92px); }
+    .frame { aspect-ratio: 4 / 3; }
+  }
+
+  /* ---------- reduced motion: show final state, kill heavy motion ---------- */
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+    .topband .live i { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- compact brand band, never a full-viewport hero -->
+  <header class="topband">
+    <span class="mark">Epoch<b>.</b>Spine</span>
+    <span class="kicker">A timeline of the medium</span>
+    <span class="live"><i></i> Live edge: 2026</span>
+  </header>
+
+  <!-- SIGNATURE: fixed vertical spine, full page height, four era nodes -->
+  <nav class="spine" aria-label="Timeline spine">
+    <div class="rail">
+      <div class="ghost"></div>
+      <div class="fill" id="spineFill"></div>
+      <div class="glow" id="spineGlow"></div>
+    </div>
+    <div class="nodes" id="spineNodes"></div>
+  </nav>
+
+  <!-- mobile-only horizontal ticker (spine rotated) -->
+  <div class="ticker" aria-hidden="true">
+    <div class="track" id="tickerTrack">
+      <div class="hline"></div>
+      <div class="hfill" id="tickerFill"></div>
+    </div>
+  </div>
+
+  <main id="main"></main>
+
+<script>
+(function () {
+  "use strict";
+
+  const main = document.getElementById("main");
+  const nodesWrap = document.getElementById("spineNodes");
+  const fill = document.getElementById("spineFill");
+  const glow = document.getElementById("spineGlow");
+  const rail = document.querySelector(".spine .rail");
+  const tickerTrack = document.getElementById("tickerTrack");
+  const tickerFill = document.getElementById("tickerFill");
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---------- build era-banded gradient for the rail + ticker ---------- */
+  function buildBands(horizontal) {
+    const n = EPOCHS.length;
+    const stops = EPOCHS.map((e, i) => {
+      const from = (i / n) * 100;
+      const to = ((i + 1) / n) * 100;
+      return `${e.band} ${from}%, ${e.band} ${to}%`;
+    }).join(", ");
+    return `linear-gradient(${horizontal ? "90deg" : "180deg"}, ${stops})`;
+  }
+  rail.style.setProperty("--rail-bands", buildBands(false));
+  document.documentElement.style.setProperty("--rail-bands", buildBands(false));
+  if (tickerTrack) {
+    tickerTrack.style.setProperty("--rail-bands", buildBands(true));
+  }
+
+  /* ---------- render content panels ---------- */
+  EPOCHS.forEach(function (e, i) {
+    const sec = document.createElement("section");
+    sec.className = "epoch";
+    sec.id = "epoch-" + e.id;
+    sec.dataset.index = i;
+    sec.style.setProperty("--band", e.band);
+    sec.style.setProperty("--wash", hexToRgba(e.band, 0.18));
+
+    const text = document.createElement("div");
+    text.className = "panel-text";
+    text.innerHTML =
+      '<span class="era-tag"><i></i>' + esc(e.era) + ' Era</span>' +
+      '<div class="year">' + esc(e.year) + '</div>' +
+      '<h2>' + esc(e.title) + '</h2>' +
+      '<p class="lede">' + esc(e.lede) + '</p>' +
+      e.body.map(function (p) { return '<p class="body">' + esc(p) + '</p>'; }).join("");
+
+    const media = document.createElement("div");
+    media.className = "panel-media";
+    media.appendChild(buildMedia(e));
+
+    sec.appendChild(text);
+    sec.appendChild(media);
+    main.appendChild(sec);
+  });
+
+  /* ---------- build spine nodes + ticker chips ---------- */
+  const nodeEls = [];
+  const chipEls = [];
+  EPOCHS.forEach(function (e, i) {
+    // vertical node
+    const btn = document.createElement("button");
+    btn.className = "node";
+    btn.type = "button";
+    btn.style.setProperty("--ndband", e.band);
+    btn.setAttribute("aria-label", "Jump to " + e.year + ", " + e.era + " era: " + e.title);
+    btn.innerHTML = '<span class="dot"></span><span class="yr">' + esc(e.year) + " " + esc(e.era) + "</span>";
+    btn.addEventListener("click", function () { jumpTo(e.id); });
+    nodesWrap.appendChild(btn);
+    nodeEls.push(btn);
+
+    // horizontal ticker chip
+    const chip = document.createElement("button");
+    chip.className = "tchip";
+    chip.type = "button";
+    chip.style.setProperty("--tband", e.band);
+    chip.setAttribute("aria-label", "Jump to " + e.year + " " + e.era);
+    chip.innerHTML =
+      '<span class="tdot"></span>' +
+      '<span class="tyr">' + esc(e.year) + "</span>" +
+      '<span class="tera">' + esc(e.era) + "</span>";
+    chip.addEventListener("click", function () { jumpTo(e.id); });
+    tickerTrack.appendChild(chip);
+    chipEls.push(chip);
+  });
+
+  /* position nodes evenly along the rail */
+  function layoutNodes() {
+    const n = EPOCHS.length;
+    nodeEls.forEach(function (btn, i) {
+      const pct = n === 1 ? 0 : (i / (n - 1)) * 100;
+      btn.style.top = pct + "%";
+    });
+  }
+  layoutNodes();
+
+  /* ---------- jump to an epoch ---------- */
+  function jumpTo(id) {
+    const target = document.getElementById("epoch-" + id);
+    if (!target) return;
+    const top = target.getBoundingClientRect().top + window.scrollY - 60;
+    window.scrollTo({ top: top, behavior: reduceMotion ? "auto" : "smooth" });
+  }
+
+  /* ---------- scroll progress -> spine fill + glow dot ---------- */
+  let ticking = false;
+  function onScroll() {
+    if (ticking) return;
+    ticking = true;
+    (reduceMotion ? runFrame : requestAnimationFrame)(function () {
+      updateProgress();
+      ticking = false;
+    });
+  }
+  function runFrame(fn) { fn(); } // reduced-motion: no rAF override, run immediately
+
+  function updateProgress() {
+    const doc = document.documentElement;
+    const maxScroll = doc.scrollHeight - window.innerHeight;
+    const p = maxScroll <= 0 ? 0 : clamp(window.scrollY / maxScroll, 0, 1);
+
+    // clip-path fill from top down
+    fill.style.clipPath = "inset(0 0 " + ((1 - p) * 100).toFixed(2) + "% 0)";
+
+    // glow dot travels the rail
+    const railH = rail.clientHeight;
+    glow.style.top = (p * railH).toFixed(1) + "px";
+
+    // mobile ticker fill
+    if (tickerFill) {
+      const trackInner = tickerTrack.clientWidth - 32; // minus side padding
+      tickerFill.style.width = Math.max(0, p * trackInner).toFixed(1) + "px";
+    }
+  }
+
+  /* ---------- IntersectionObserver: active era + in-view video play ---------- */
+  const sections = Array.from(document.querySelectorAll(".epoch"));
+  let activeIndex = -1;
+
+  const activeObs = new IntersectionObserver(function (entries) {
+    entries.forEach(function (en) {
+      if (en.isIntersecting && en.intersectionRatio >= 0.5) {
+        setActive(parseInt(en.target.dataset.index, 10));
+      }
+    });
+  }, { threshold: [0.5, 0.75] });
+  sections.forEach(function (s) { activeObs.observe(s); });
+
+  function setActive(i) {
+    if (i === activeIndex) return;
+    activeIndex = i;
+    nodeEls.forEach(function (n, idx) {
+      n.classList.toggle("active", idx === i);
+      if (idx === i) n.setAttribute("aria-current", "true");
+      else n.removeAttribute("aria-current");
+    });
+    chipEls.forEach(function (c, idx) {
+      c.classList.toggle("active", idx === i);
+    });
+    // center the active chip in the mobile ticker
+    const chip = chipEls[i];
+    if (chip && tickerTrack && window.innerWidth <= 640) {
+      const left = chip.offsetLeft - (tickerTrack.clientWidth / 2) + (chip.clientWidth / 2);
+      tickerTrack.scrollTo({ left: Math.max(0, left), behavior: reduceMotion ? "auto" : "smooth" });
+    }
+  }
+
+  // play videos only while in view (single focused clip, no simultaneous decode)
+  const vids = Array.from(document.querySelectorAll("video"));
+  if (vids.length) {
+    const vidObs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        const v = en.target;
+        if (en.isIntersecting && en.intersectionRatio > 0.4) {
+          if (!reduceMotion) {
+            const pr = v.play();
+            if (pr && pr.catch) pr.catch(function () {});
+          }
+        } else {
+          v.pause();
+        }
+      });
+    }, { threshold: [0, 0.4] });
+    vids.forEach(function (v) { vidObs.observe(v); });
+  }
+
+  window.addEventListener("scroll", onScroll, { passive: true });
+  window.addEventListener("resize", function () {
+    layoutNodes();
+    updateProgress();
+  }, { passive: true });
+
+  // initial paint: dot at node 1, first era active, at scroll=0
+  setActive(0);
+  updateProgress();
+
+  /* ---------- media builders ---------- */
+  function buildMedia(e) {
+    const frame = document.createElement("div");
+    frame.className = "frame";
+    const m = e.media;
+
+    if (m.type === "image") {
+      const img = document.createElement("img");
+      img.src = m.src;
+      img.alt = m.alt || "";
+      img.loading = "lazy";
+      img.decoding = "async";
+      frame.appendChild(img);
+      frame.appendChild(tag("Image"));
+    } else if (m.type === "video") {
+      const v = document.createElement("video");
+      v.src = m.src;
+      if (m.poster) v.poster = m.poster;
+      v.muted = true;
+      v.loop = true;
+      v.playsInline = true;
+      v.setAttribute("playsinline", "");
+      v.preload = "none";
+      v.setAttribute("aria-label", m.alt || "");
+      frame.appendChild(v);
+      frame.appendChild(tag("Motion"));
+    } else if (m.type === "wave") {
+      const wrap = document.createElement("div");
+      wrap.className = "wavewrap";
+      const img = document.createElement("img");
+      img.src = m.src;
+      img.alt = m.alt || "";
+      img.loading = "lazy";
+      wrap.appendChild(img);
+      frame.appendChild(wrap);
+
+      const audio = new Audio();
+      audio.src = m.audio;
+      audio.preload = "none";
+
+      const btn = document.createElement("button");
+      btn.className = "playbtn";
+      btn.type = "button";
+      btn.textContent = "Play voice";
+      btn.setAttribute("aria-label", "Play synthesized voice sample");
+      btn.addEventListener("click", function () {
+        if (audio.paused) {
+          // pause any other audio on the page first
+          document.querySelectorAll("audio").forEach(function (a) { if (a !== audio) a.pause(); });
+          const pr = audio.play();
+          if (pr && pr.catch) pr.catch(function () {});
+          btn.textContent = "Pause";
+        } else {
+          audio.pause();
+          btn.textContent = "Play voice";
+        }
+      });
+      audio.addEventListener("ended", function () { btn.textContent = "Play voice"; });
+      // expose for cleanup if needed
+      document.body.appendChild(audio);
+      frame.appendChild(btn);
+      frame.appendChild(tag("Voice"));
+    }
+    return frame;
+  }
+
+  function tag(t) {
+    const s = document.createElement("span");
+    s.className = "mediatag";
+    s.textContent = t;
+    return s;
+  }
+
+  /* ---------- helpers ---------- */
+  function clamp(v, a, b) { return Math.min(b, Math.max(a, v)); }
+  function esc(s) {
+    return String(s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+  function hexToRgba(hex, a) {
+    const h = hex.replace("#", "");
+    const r = parseInt(h.substring(0, 2), 16);
+    const g = parseInt(h.substring(2, 4), 16);
+    const b = parseInt(h.substring(4, 6), 16);
+    return "rgba(" + r + "," + g + "," + b + "," + a + ")";
+  }
+})();
+</script>
+</body>
+</html>

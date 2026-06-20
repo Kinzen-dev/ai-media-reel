@@ -1,0 +1,645 @@
+<!-- TEMPLATE: Multistep Onboarding Form | ARCHETYPE: onboard | REF: Typeform visual form (Awwwards 2024-2025), Notion onboarding (SOTD), Linear onboarding (Godly 2026) | WHEN TO USE: one-question-per-screen onboarding, surveys, qualification wizards, or product finders where the payload is form fields and answer state, not media | SWAP: edit the STEPS array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Multistep Onboarding Form</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   DATA lives in the <script> at the very top of <body> (STEPS).
+   One question per full viewport. A vertical track slides on
+   transform:translateY; only a handful of CSS vars + the active
+   step index change at runtime. No canvas, no WebGL, no libs.
+   ============================================================ */
+
+:root{
+  --paper:#f5f2ed;          /* off-white ground */
+  --ink:#111111;            /* primary ink */
+  --ink-60:#5b5852;         /* muted ink */
+  --ink-30:#b7b2a8;         /* hairlines */
+  --blue:#2c6fad;           /* step-active blue */
+  --amber:#e8c547;          /* progress amber */
+  --card:#fbfaf7;           /* raised surface */
+  --line:#e4dfd5;           /* borders on paper */
+  --radius:18px;
+  --ease:cubic-bezier(.65,.02,.2,1);
+  --dur:.62s;
+  --rail:84px;              /* sticky header height */
+  --maxw:760px;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+html{height:100%}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:Inter,system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  height:100dvh;
+  overflow:hidden;
+}
+
+/* ---- subtle paper texture so the off-white reads premium ---- */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(120% 90% at 80% -10%, rgba(44,111,173,.05), transparent 55%),
+    radial-gradient(90% 70% at -10% 110%, rgba(232,197,71,.06), transparent 55%);
+}
+
+/* ============================================================
+   STICKY HEADER  -  brand mark + the five-dot progress arc
+   ============================================================ */
+.rail{
+  position:fixed;top:0;left:0;right:0;height:var(--rail);z-index:30;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 clamp(18px,4vw,44px);
+  background:linear-gradient(var(--paper),rgba(245,242,237,.86) 70%,rgba(245,242,237,0));
+  backdrop-filter:saturate(120%);
+}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;letter-spacing:.04em;font-size:13px;text-transform:uppercase}
+.brand .seal{
+  width:26px;height:26px;border-radius:50%;
+  background:var(--ink);color:var(--paper);
+  display:grid;place-items:center;font-family:Fraunces,serif;font-weight:600;font-size:14px;
+}
+.brand small{color:var(--ink-60);font-weight:500;letter-spacing:.02em;text-transform:none}
+
+/* ---- the arc progress: one SVG ring dot per step ---- */
+.arcs{display:flex;align-items:center;gap:clamp(10px,2.2vw,18px)}
+.arc{position:relative;width:30px;height:30px;flex:0 0 auto;cursor:pointer;background:none;border:0;padding:0}
+.arc svg{display:block;transform:rotate(-90deg)}
+.arc .track{stroke:var(--ink-30);stroke-width:2.4;fill:none}
+.arc .fill{
+  stroke:var(--blue);stroke-width:2.8;fill:none;stroke-linecap:round;
+  stroke-dasharray:var(--circ);stroke-dashoffset:var(--circ);
+  transition:stroke-dashoffset var(--dur) var(--ease), stroke .3s;
+}
+.arc .core{
+  position:absolute;inset:0;display:grid;place-items:center;
+  font-size:11px;font-weight:600;color:var(--ink-30);
+  transition:color .3s;
+}
+.arc[data-state="done"] .fill{stroke:var(--amber);stroke-dashoffset:0}
+.arc[data-state="done"] .core{color:var(--ink)}
+.arc[data-state="active"] .core{color:var(--blue)}
+.arc[data-state="active"]::after{
+  content:"";position:absolute;inset:-6px;border-radius:50%;
+  border:1.5px solid rgba(44,111,173,.28);
+  animation:pulse 2.4s var(--ease) infinite;
+}
+@keyframes pulse{0%{transform:scale(.9);opacity:.9}70%{transform:scale(1.18);opacity:0}100%{opacity:0}}
+.arc:focus-visible{outline:none}
+.arc:focus-visible::before{
+  content:"";position:absolute;inset:-7px;border-radius:50%;
+  box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--blue);
+}
+
+/* ============================================================
+   THE SLIDING TRACK  -  each .step is one full viewport
+   ============================================================ */
+.viewport{position:fixed;inset:0;z-index:5;overflow:hidden}
+.track{
+  position:absolute;left:0;top:0;width:100%;
+  transform:translateY(calc(var(--i,0) * -100dvh));
+  transition:transform var(--dur) var(--ease);
+  will-change:transform;
+}
+.step{
+  height:100dvh;width:100%;
+  display:grid;align-content:center;
+  padding:calc(var(--rail) + clamp(14px,3vh,30px)) clamp(20px,5vw,52px) clamp(80px,12vh,120px);
+}
+.inner{width:100%;max-width:var(--maxw);margin:0 auto}
+
+/* entrance: only the active step's contents lift in */
+.step .reveal{opacity:0;transform:translateY(18px)}
+.step.is-active .reveal{
+  opacity:1;transform:none;
+  transition:opacity .55s var(--ease) var(--d,0s), transform .55s var(--ease) var(--d,0s);
+}
+
+.eyebrow{
+  display:inline-flex;align-items:center;gap:9px;
+  font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--blue);margin-bottom:18px;
+}
+.eyebrow .num{
+  font-family:Fraunces,serif;font-size:13px;color:var(--ink);
+  background:var(--amber);border-radius:6px;padding:2px 8px;letter-spacing:0;
+}
+.q-head{
+  font-family:Fraunces,serif;font-weight:600;
+  font-size:clamp(2rem,5.4vw,3.7rem);
+  line-height:1.04;letter-spacing:-.018em;margin:0 0 14px;
+  max-width:18ch;
+}
+.q-sub{font-size:clamp(.98rem,1.6vw,1.12rem);color:var(--ink-60);line-height:1.5;margin:0 0 32px;max-width:46ch}
+
+/* ---- OPTION buttons (single-select) ---- */
+.opts{display:grid;gap:12px}
+.opts.two{grid-template-columns:repeat(2,1fr)}
+.opt{
+  position:relative;text-align:left;cursor:pointer;
+  background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);
+  padding:18px 20px;display:flex;align-items:center;gap:16px;
+  font-family:inherit;font-size:1.02rem;color:var(--ink);
+  transition:border-color .2s,background .2s,transform .15s,box-shadow .2s;
+}
+.opt:hover{border-color:var(--ink);transform:translateY(-2px)}
+.opt .key{
+  flex:0 0 auto;width:30px;height:30px;border-radius:8px;
+  border:1.5px solid var(--ink-30);display:grid;place-items:center;
+  font-size:13px;font-weight:600;color:var(--ink-60);transition:.2s;
+}
+.opt .otxt{display:flex;flex-direction:column;gap:3px}
+.opt .otxt b{font-weight:600;letter-spacing:-.01em}
+.opt .otxt span{font-size:.84rem;color:var(--ink-60)}
+.opt .tick{margin-left:auto;width:22px;height:22px;flex:0 0 auto;opacity:0;transform:scale(.6);transition:.25s var(--ease)}
+.opt .tick circle{fill:var(--blue)}
+.opt .tick path{stroke:#fff;stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.opt[aria-pressed="true"]{
+  border-color:var(--blue);background:#fff;
+  box-shadow:0 0 0 1.5px var(--blue), 0 14px 34px -18px rgba(44,111,173,.5);
+}
+.opt[aria-pressed="true"] .key{background:var(--blue);border-color:var(--blue);color:#fff}
+.opt[aria-pressed="true"] .tick{opacity:1;transform:scale(1)}
+.opt:focus-visible{outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--blue)}
+
+/* ---- option card variant with a real (letterboxed) image ---- */
+.opt.media{flex-direction:column;align-items:stretch;gap:0;padding:0;overflow:hidden}
+.opt.media .thumb{
+  width:100%;aspect-ratio:16/9;background:#0d0d0f center/cover no-repeat;
+  display:block;border-bottom:1.5px solid var(--line);
+}
+.opt.media .mbody{display:flex;align-items:center;gap:14px;padding:16px 18px}
+.opt.media[aria-pressed="true"] .thumb{border-color:var(--blue)}
+
+/* ---- text input variant ---- */
+.field{position:relative;margin-top:6px}
+.field input{
+  width:100%;background:transparent;border:0;border-bottom:2px solid var(--ink-30);
+  font-family:Fraunces,serif;font-size:clamp(1.5rem,4vw,2.4rem);color:var(--ink);
+  padding:8px 2px 12px;outline:none;transition:border-color .25s;
+}
+.field input::placeholder{color:var(--ink-30)}
+.field input:focus{border-color:var(--blue)}
+.field .hint{margin-top:12px;font-size:.86rem;color:var(--ink-60)}
+
+/* ---- footer nav inside each step ---- */
+.nav{display:flex;align-items:center;gap:14px;margin-top:34px;flex-wrap:wrap}
+.btn{
+  font-family:inherit;font-weight:600;font-size:.96rem;cursor:pointer;
+  border-radius:999px;padding:13px 26px;border:1.5px solid var(--ink);
+  background:var(--ink);color:var(--paper);transition:.2s;display:inline-flex;align-items:center;gap:9px;
+}
+.btn:hover{transform:translateY(-2px);box-shadow:0 12px 28px -14px rgba(17,17,17,.6)}
+.btn[disabled]{opacity:.32;cursor:not-allowed;transform:none;box-shadow:none}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.ghost:hover{border-color:var(--ink);box-shadow:none}
+.btn:focus-visible{outline:none;box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--blue)}
+.btn svg{width:16px;height:16px}
+.enterhint{font-size:.82rem;color:var(--ink-60)}
+.enterhint kbd{
+  font-family:Inter,sans-serif;font-size:.74rem;background:#fff;border:1px solid var(--line);
+  border-bottom-width:2px;border-radius:6px;padding:2px 7px;color:var(--ink);
+}
+
+/* ============================================================
+   SUMMARY  -  the final step is a recap card
+   ============================================================ */
+.summary{
+  background:var(--card);border:1.5px solid var(--line);border-radius:24px;
+  padding:clamp(22px,3.4vw,38px);box-shadow:0 30px 60px -40px rgba(17,17,17,.4);
+}
+.summary h2{font-family:Fraunces,serif;font-weight:600;font-size:clamp(1.6rem,3.4vw,2.3rem);margin:0 0 6px;letter-spacing:-.02em}
+.summary .lede{color:var(--ink-60);margin:0 0 22px;font-size:1rem}
+.recap{display:grid;gap:0;border-top:1px solid var(--line)}
+.recap .row{
+  display:flex;justify-content:space-between;align-items:center;gap:18px;
+  padding:14px 2px;border-bottom:1px solid var(--line);
+}
+.recap .row .lbl{font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-60)}
+.recap .row .val{font-family:Fraunces,serif;font-size:1.06rem;color:var(--ink);text-align:right}
+.recap .row .val.empty{color:var(--ink-30);font-style:italic;font-family:Inter}
+.summary .cta{margin-top:26px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.summary .cta .btn{padding:15px 30px;font-size:1rem}
+.done-badge{display:none;align-items:center;gap:10px;color:var(--blue);font-weight:600;font-size:.92rem}
+.done-badge.show{display:inline-flex}
+.done-badge svg{width:20px;height:20px}
+
+/* ---- ambient progress text bottom-left ---- */
+.foot-meta{
+  position:fixed;left:clamp(18px,4vw,44px);bottom:18px;z-index:20;
+  font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-60);
+  display:flex;align-items:center;gap:10px;pointer-events:none;
+}
+.foot-meta .bar{width:90px;height:3px;border-radius:3px;background:var(--ink-30);overflow:hidden}
+.foot-meta .bar i{display:block;height:100%;width:var(--pct,20%);background:linear-gradient(90deg,var(--blue),var(--amber));transition:width var(--dur) var(--ease)}
+
+/* ============================================================
+   RESPONSIVE  -  single column by design, so mobile == desktop.
+   We only relax spacing + drop two-up option grids.
+   ============================================================ */
+@media (max-width:640px){
+  :root{--rail:70px}
+  .brand small{display:none}
+  .opts.two{grid-template-columns:1fr}
+  .q-head{font-size:clamp(1.9rem,8.5vw,2.5rem)}
+  .opt.media .thumb{aspect-ratio:16/9} /* keep ratio, letterbox not crop */
+  .enterhint{display:none}
+  .foot-meta{bottom:12px}
+  .step{padding-bottom:clamp(64px,14vh,90px)}
+}
+@media (max-height:560px){
+  .step{align-content:start}
+  .q-head{font-size:clamp(1.6rem,5vw,2rem);margin-bottom:10px}
+  .q-sub{margin-bottom:18px}
+}
+
+/* ============================================================
+   REDUCED MOTION  -  no slide, no pulse, no entrance lift.
+   The track jumps instantly to the active step (final state).
+   ============================================================ */
+@media (prefers-reduced-motion:reduce){
+  .track{transition:none}
+  .step .reveal,.step.is-active .reveal{transition:none;opacity:1;transform:none}
+  .arc .fill{transition:none}
+  .arc[data-state="active"]::after{animation:none;display:none}
+  .opt,.btn{transition:none}
+  .foot-meta .bar i{transition:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     DATA  -  swap this STEPS array to repurpose the whole flow.
+     types: "choice" (options[]), "choice-media" (options w/ img),
+             "text" (free input), "summary" (recap card).
+     ============================================================ -->
+<script>
+const ASSETS = "../assets/";
+const STEPS = [
+  {
+    id:"role",
+    type:"choice",
+    eyebrow:"Tell us about you",
+    head:"What best describes your work?",
+    sub:"This shapes the workspace we set up for you. You can change it any time later.",
+    options:[
+      {key:"A", label:"Founder or operator", note:"Running the business day to day"},
+      {key:"B", label:"Designer or builder", note:"Shipping product and brand"},
+      {key:"C", label:"Marketer or growth", note:"Demand, content, and pipeline"}
+    ]
+  },
+  {
+    id:"team",
+    type:"choice",
+    eyebrow:"Your team",
+    head:"How many people will use this?",
+    sub:"We tune collaboration defaults to match your team size.",
+    options:[
+      {key:"A", label:"Just me", note:"Solo workspace"},
+      {key:"B", label:"2 to 10", note:"Small team"},
+      {key:"C", label:"11 to 50", note:"Growing company"},
+      {key:"D", label:"50 plus", note:"Org-wide rollout"}
+    ]
+  },
+  {
+    id:"look",
+    type:"choice-media",
+    eyebrow:"Pick a starting canvas",
+    head:"Which workspace feels like you?",
+    sub:"A starter theme. Real preview, fully editable once you are in.",
+    options:[
+      {key:"A", label:"Showroom", note:"Bold, cinematic, dark", img:ASSETS+"flux-car-4k.png"},
+      {key:"B", label:"Studio", note:"Calm, warm, editorial", img:ASSETS+"flux-clinic-4k.png"}
+    ]
+  },
+  {
+    id:"goal",
+    type:"choice",
+    eyebrow:"What matters most",
+    head:"What do you want to do first?",
+    sub:"We will surface the right tools on your home screen.",
+    options:[
+      {key:"A", label:"Launch something fast", note:"Templates and quick start"},
+      {key:"B", label:"Organize what I have", note:"Import and structure"},
+      {key:"C", label:"Collaborate with others", note:"Invite and share"}
+    ]
+  },
+  {
+    id:"name",
+    type:"text",
+    eyebrow:"Almost there",
+    head:"What should we name your workspace?",
+    sub:"Pick anything. It is just for you and your team.",
+    placeholder:"Acme Studio",
+    hint:"Press Enter to continue."
+  },
+  {
+    id:"done",
+    type:"summary",
+    eyebrow:"Review",
+    head:"Your workspace is ready",
+    sub:"Here is what we set up. Confirm to enter."
+  }
+];
+/* Map answer-step id -> friendly summary label */
+const SUMMARY_LABELS = {
+  role:"Role", team:"Team size", look:"Canvas", goal:"First goal", name:"Workspace name"
+};
+</script>
+
+<!-- ============================ HEADER ============================ -->
+<header class="rail">
+  <div class="brand">
+    <span class="seal">N</span>
+    <span>Onboard <small>set up your workspace</small></span>
+  </div>
+  <nav class="arcs" id="arcs" aria-label="Onboarding progress"></nav>
+</header>
+
+<!-- ============================ TRACK ============================ -->
+<main class="viewport">
+  <div class="track" id="track"></div>
+</main>
+
+<div class="foot-meta" aria-hidden="true">
+  <span id="metaTxt">Step 1 of 5</span>
+  <span class="bar"><i id="metaBar"></i></span>
+</div>
+
+<script>
+(() => {
+  const track  = document.getElementById('track');
+  const arcsEl = document.getElementById('arcs');
+  const metaTxt= document.getElementById('metaTxt');
+  const metaBar= document.getElementById('metaBar');
+  const reduce = matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+  const answers = {};                 // id -> {value, display}
+  const questionSteps = STEPS.filter(s => s.type !== 'summary');
+  const Q = questionSteps.length;     // five questions => five dots
+  let i = 0;
+
+  /* ---------- build the five-dot arc progress ---------- */
+  const R = 13, CIRC = 2 * Math.PI * R;
+  arcsEl.style.setProperty('--circ', CIRC.toFixed(2));
+  questionSteps.forEach((s, idx) => {
+    const b = document.createElement('button');
+    b.className = 'arc';
+    b.type = 'button';
+    b.setAttribute('aria-label', `Go to step ${idx+1}: ${s.head}`);
+    b.style.setProperty('--circ', CIRC.toFixed(2));
+    b.innerHTML = `
+      <svg width="30" height="30" viewBox="0 0 30 30">
+        <circle class="track" cx="15" cy="15" r="${R}"></circle>
+        <circle class="fill"  cx="15" cy="15" r="${R}"></circle>
+      </svg>
+      <span class="core">${idx+1}</span>`;
+    b.addEventListener('click', () => { if (idx <= maxReached) goTo(idx); });
+    arcsEl.appendChild(b);
+  });
+  const arcs = [...arcsEl.children];
+  let maxReached = 0;
+
+  /* ---------- render every step into the sliding track ---------- */
+  STEPS.forEach((s, idx) => {
+    const sec = document.createElement('section');
+    sec.className = 'step';
+    sec.dataset.idx = idx;
+    sec.setAttribute('role','group');
+    sec.setAttribute('aria-roledescription','slide');
+    sec.setAttribute('aria-label', `Step ${idx+1} of ${STEPS.length}`);
+    sec.innerHTML = renderStep(s, idx);
+    track.appendChild(sec);
+  });
+
+  function renderStep(s, idx){
+    const eb = `<div class="eyebrow reveal" style="--d:.02s"><span class="num">${s.type==='summary'?'✓':idx+1}</span>${s.eyebrow}</div>`;
+    const head = `<h1 class="q-head reveal" style="--d:.08s">${s.head}</h1>`;
+    const sub  = s.sub ? `<p class="q-sub reveal" style="--d:.13s">${s.sub}</p>` : '';
+
+    if (s.type === 'choice' || s.type === 'choice-media'){
+      const media = s.type === 'choice-media';
+      const grid  = media || s.options.length >= 4 ? ' two' : '';
+      const opts = s.options.map(o => {
+        if (media){
+          return `<button class="opt media reveal" style="--d:.18s" role="radio" aria-checked="false"
+                    aria-pressed="false" data-val="${o.label}" data-key="${o.key}">
+            <span class="thumb" style="background-image:url('${o.img}')"></span>
+            <span class="mbody">
+              <span class="key">${o.key}</span>
+              <span class="otxt"><b>${o.label}</b><span>${o.note||''}</span></span>
+              ${tick()}
+            </span>
+          </button>`;
+        }
+        return `<button class="opt reveal" style="--d:.18s" role="radio" aria-checked="false"
+                  aria-pressed="false" data-val="${o.label}" data-key="${o.key}">
+          <span class="key">${o.key}</span>
+          <span class="otxt"><b>${o.label}</b>${o.note?`<span>${o.note}</span>`:''}</span>
+          ${tick()}
+        </button>`;
+      }).join('');
+      return `<div class="inner">${eb}${head}${sub}
+        <div class="opts${grid}" role="radiogroup" aria-label="${s.head}">${opts}</div>
+        ${navRow(idx)}</div>`;
+    }
+
+    if (s.type === 'text'){
+      return `<div class="inner">${eb}${head}${sub}
+        <div class="field reveal" style="--d:.18s">
+          <input id="inp-${s.id}" type="text" autocomplete="off" placeholder="${s.placeholder||''}"
+                 aria-label="${s.head}" />
+          <div class="hint">${s.hint||''}</div>
+        </div>
+        ${navRow(idx)}</div>`;
+    }
+
+    /* summary */
+    return `<div class="inner reveal" style="--d:.1s">${eb}
+      <div class="summary">
+        <h2>${s.head}</h2>
+        <p class="lede">${s.sub||''}</p>
+        <div class="recap" id="recap"></div>
+        <div class="cta">
+          <button class="btn" id="finishBtn">Enter workspace
+            <svg viewBox="0 0 20 20" fill="none"><path d="M4 10h11M11 5l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="btn ghost" data-back>Back</button>
+          <span class="done-badge" id="doneBadge">
+            <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" fill="#2c6fad"/><path d="M7 12.5l3.2 3.2L17 9" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Workspace created
+          </span>
+        </div>
+      </div></div>`;
+  }
+
+  function tick(){
+    return `<svg class="tick" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11"/><path d="M7 12.5l3.2 3.2L17 9"/></svg>`;
+  }
+  function navRow(idx){
+    const last = idx === STEPS.length - 1;
+    const backBtn = idx > 0 ? `<button class="btn ghost" data-back>
+        <svg viewBox="0 0 20 20" fill="none"><path d="M16 10H5M9 5l-5 5 5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Back</button>` : '';
+    const nextLabel = idx === STEPS.length - 2 ? 'Review' : 'Continue';
+    const nextBtn = `<button class="btn" data-next disabled>${nextLabel}
+        <svg viewBox="0 0 20 20" fill="none"><path d="M4 10h11M11 5l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+    return `<div class="nav reveal" style="--d:.26s">${backBtn}${nextBtn}
+      <span class="enterhint"><kbd>Enter</kbd> to continue, <kbd>1 to 9</kbd> to pick</span></div>`;
+  }
+
+  const sections = [...track.children];
+
+  /* ---------- interaction wiring ---------- */
+  sections.forEach((sec, idx) => {
+    const s = STEPS[idx];
+
+    // option select
+    sec.querySelectorAll('.opt').forEach(btn => {
+      btn.addEventListener('click', () => selectOption(idx, btn));
+    });
+
+    // text input
+    const inp = sec.querySelector('input');
+    if (inp){
+      const sync = () => {
+        const v = inp.value.trim();
+        if (v){ answers[s.id] = {value:v, display:v}; }
+        else { delete answers[s.id]; }
+        updateNextEnabled(idx);
+      };
+      inp.addEventListener('input', sync);
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter'){ e.preventDefault(); if (answers[s.id]) next(); }
+      });
+    }
+
+    const nb = sec.querySelector('[data-next]');
+    if (nb) nb.addEventListener('click', () => next());
+    sec.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', () => prev()));
+
+    const fb = sec.querySelector('#finishBtn');
+    if (fb) fb.addEventListener('click', finish);
+  });
+
+  function selectOption(idx, btn){
+    const s = STEPS[idx];
+    const group = sections[idx].querySelectorAll('.opt');
+    group.forEach(b => { b.setAttribute('aria-pressed','false'); b.setAttribute('aria-checked','false'); });
+    btn.setAttribute('aria-pressed','true');
+    btn.setAttribute('aria-checked','true');
+    answers[s.id] = {value:btn.dataset.key, display:btn.dataset.val};
+    updateNextEnabled(idx);
+    // gentle auto-advance for single-select, but respect reduced motion timing
+    clearTimeout(selectOption._t);
+    selectOption._t = setTimeout(() => { if (i === idx) next(); }, reduce ? 0 : 320);
+  }
+
+  function updateNextEnabled(idx){
+    const s = STEPS[idx];
+    const nb = sections[idx].querySelector('[data-next]');
+    if (nb) nb.disabled = !answers[s.id];
+  }
+
+  /* ---------- navigation ---------- */
+  function goTo(n){
+    n = Math.max(0, Math.min(STEPS.length - 1, n));
+    i = n;
+    maxReached = Math.max(maxReached, n);
+    track.style.setProperty('--i', i);
+    sections.forEach((sec, idx) => sec.classList.toggle('is-active', idx === i));
+    updateArcs();
+    updateMeta();
+    if (STEPS[i].type === 'summary') buildRecap();
+    // focus management without scrolling the locked viewport
+    const sec = sections[i];
+    const inp = sec.querySelector('input');
+    const target = inp || sec.querySelector('.opt[aria-pressed="true"]') || sec.querySelector('.opt, #finishBtn, .q-head');
+    if (target) requestAnimationFrame(() => target.focus({preventScroll:true}));
+  }
+  function next(){ if (i < STEPS.length - 1) goTo(i + 1); }
+  function prev(){ if (i > 0) goTo(i - 1); }
+
+  function updateArcs(){
+    arcs.forEach((a, idx) => {
+      let state = 'todo';
+      if (idx < i) state = 'done';
+      else if (idx === i && i < Q) state = 'active';
+      else if (idx === i) state = 'active';
+      // mark answered earlier questions as done even when on summary
+      if (idx < Q && answers[questionSteps[idx].id] && idx !== i) state = 'done';
+      else if (idx === Q && i >= Q) {} // summary has no arc
+      a.dataset.state = state;
+    });
+    // when on summary (i === Q), every question dot is done
+    if (i >= Q) arcs.forEach(a => a.dataset.state = 'done');
+  }
+
+  function updateMeta(){
+    if (i < Q){
+      metaTxt.textContent = `Step ${i+1} of ${Q}`;
+      metaBar.style.setProperty('--pct', ((i+1)/Q*100).toFixed(0) + '%');
+    } else {
+      metaTxt.textContent = 'Review and confirm';
+      metaBar.style.setProperty('--pct', '100%');
+    }
+  }
+
+  function buildRecap(){
+    const recap = document.getElementById('recap');
+    if (!recap) return;
+    recap.innerHTML = questionSteps.map(s => {
+      const a = answers[s.id];
+      const val = a ? a.display : 'Not answered';
+      return `<div class="row">
+        <span class="lbl">${SUMMARY_LABELS[s.id] || s.id}</span>
+        <span class="val${a?'':' empty'}">${val}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function finish(){
+    const badge = document.getElementById('doneBadge');
+    if (badge) badge.classList.add('show');
+    const fb = document.getElementById('finishBtn');
+    if (fb){ fb.textContent = 'Welcome aboard'; fb.disabled = true; fb.style.opacity = '.7'; }
+  }
+
+  /* ---------- keyboard: number keys pick, enter advances ---------- */
+  window.addEventListener('keydown', e => {
+    if (e.target.matches('input, textarea')) return;
+    const sec = sections[i];
+    if (/^[1-9]$/.test(e.key)){
+      const opts = sec.querySelectorAll('.opt');
+      const n = parseInt(e.key,10) - 1;
+      if (opts[n]){ e.preventDefault(); selectOption(i, opts[n]); }
+      return;
+    }
+    if (e.key === 'Enter'){
+      if (STEPS[i].type === 'summary'){ e.preventDefault(); finish(); return; }
+      const nb = sec.querySelector('[data-next]');
+      if (nb && !nb.disabled){ e.preventDefault(); next(); }
+    }
+    if (e.key === 'ArrowDown' || e.key === 'PageDown'){
+      const nb = sec.querySelector('[data-next]');
+      if (nb ? !nb.disabled : true){ e.preventDefault(); next(); }
+    }
+    if (e.key === 'ArrowUp' || e.key === 'PageUp'){ e.preventDefault(); prev(); }
+  });
+
+  /* ---------- boot ---------- */
+  goTo(0);
+})();
+</script>
+</body>
+</html>

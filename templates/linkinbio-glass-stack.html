@@ -1,0 +1,538 @@
+<!-- TEMPLATE: Glass Stack Bio | ARCHETYPE: BIO CARD - link-in-bio glass stack | REF: Apple Liquid Glass (WWDC 2026), creator-economy link-in-bio 2026, Elva (Awwwards SOTD June 2026) | WHEN TO USE: a phone-first creator hub - oklch-ring avatar, display name, tagline, and 4-7 frosted-glass link tiles, each with a hover URL-preview card tethered via native CSS anchor positioning | SWAP: edit the BIO + LINKS data at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Glass Stack Bio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   GLASS STACK BIO  -  link-in-bio as a vertical glass stack
+   Signature (visible at scroll=0, desktop AND 390px phone):
+     spinning oklch hue ring around an avatar, display name,
+     tagline, then frosted-glass link tiles stacked below.
+   Behind it all: one slow-drifting conic aura on a rAF.
+   Hover a tile -> a real URL preview card (og image + domain)
+   tethers below it via native CSS anchor positioning.
+   PERF: no WebGL, no video autoplay; aura is a single rAF that
+   pauses off-tab and is fully disabled under reduced-motion.
+   ============================================================ */
+:root{
+  --void:#0d0d10;
+  --ice:#eef4ff;
+  --glass:rgba(238,244,255,0.055);
+  --glass-hi:rgba(238,244,255,0.11);
+  --hairline:rgba(238,244,255,0.12);
+  --hairline-hi:rgba(238,244,255,0.34);
+  --text-soft:rgba(238,244,255,0.66);
+  --text-dim:rgba(238,244,255,0.42);
+  /* avatar ring hue, advanced by rAF (or static under reduced-motion) */
+  --ring-hue:265;
+  --ease:cubic-bezier(.16,.84,.34,1);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{
+  background:var(--void);
+  color:var(--ice);
+  font-family:'Inter',system-ui,sans-serif;
+  font-weight:400;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+  min-height:100svh;
+  position:relative;
+}
+
+/* ---------- ambient conic aura (the only background "color") ---------- */
+.aura{
+  position:fixed; inset:-30vmax; z-index:0; pointer-events:none;
+  /* hue driven live by --ring-hue so aura + ring share one spinning palette */
+  background:
+    conic-gradient(from 0deg at 50% 42%,
+      oklch(0.62 0.21 var(--ring-hue) / 0.40),
+      oklch(0.60 0.20 calc(var(--ring-hue) + 70) / 0.20),
+      oklch(0.64 0.19 calc(var(--ring-hue) + 150) / 0.30),
+      oklch(0.58 0.21 calc(var(--ring-hue) + 240) / 0.16),
+      oklch(0.62 0.21 var(--ring-hue) / 0.40));
+  filter:blur(60px) saturate(1.15);
+  transform:rotate(var(--aura-rot,0deg));
+  will-change:transform;
+  opacity:.85;
+}
+.aura::after{ /* vignette so the glass has dark edges to refract against */
+  content:""; position:absolute; inset:0;
+  background:radial-gradient(125% 100% at 50% 12%, transparent 38%, rgba(0,0,0,.62) 100%);
+}
+.grain{
+  position:fixed; inset:0; z-index:1; pointer-events:none; opacity:.05;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.86' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ---------------- the stack (single phone-width column) ---------------- */
+.stack{
+  position:relative; z-index:2;
+  width:min(440px, 100% - 36px);
+  margin:0 auto;
+  padding:clamp(40px,8vh,84px) 0 64px;
+  display:flex; flex-direction:column; align-items:center;
+}
+
+/* ---- avatar with spinning oklch hue ring ---- */
+.avatar-wrap{
+  position:relative;
+  width:128px; height:128px;
+  margin-bottom:22px;
+  flex:none;
+  display:grid; place-items:center;
+}
+.ring{
+  position:absolute; inset:0; border-radius:50%;
+  /* conic spin in oklch, hue advanced by --ring-hue from rAF */
+  background:conic-gradient(from 0deg,
+    oklch(0.74 0.20 var(--ring-hue)),
+    oklch(0.72 0.20 calc(var(--ring-hue) + 90)),
+    oklch(0.70 0.20 calc(var(--ring-hue) + 180)),
+    oklch(0.72 0.20 calc(var(--ring-hue) + 270)),
+    oklch(0.74 0.20 var(--ring-hue)));
+  /* spinning is a transform animation; mask carves it into a ring */
+  -webkit-mask:radial-gradient(circle, transparent 54px, #000 55px);
+  mask:radial-gradient(circle, transparent 54px, #000 55px);
+  animation:spin 7s linear infinite;
+  filter:saturate(1.1);
+}
+.ring::after{ /* soft outer bloom of the same hue */
+  content:""; position:absolute; inset:-9px; border-radius:50%;
+  background:conic-gradient(from 0deg,
+    oklch(0.74 0.20 var(--ring-hue)),
+    oklch(0.70 0.20 calc(var(--ring-hue) + 180)),
+    oklch(0.74 0.20 var(--ring-hue)));
+  filter:blur(13px); opacity:.45; z-index:-1;
+}
+@keyframes spin{ to{ transform:rotate(360deg); } }
+.avatar{
+  position:relative; width:108px; height:108px; border-radius:50%;
+  object-fit:cover; object-position:center;
+  border:3px solid var(--void);
+  box-shadow:0 10px 34px rgba(0,0,0,.5);
+  background:#15151b;
+}
+.badge{ /* small verified-style dot, frosted */
+  position:absolute; right:4px; bottom:4px;
+  width:30px; height:30px; border-radius:50%;
+  display:grid; place-items:center;
+  background:oklch(0.66 0.18 var(--ring-hue) / 0.92);
+  border:2px solid var(--void);
+  box-shadow:0 4px 12px rgba(0,0,0,.4);
+}
+.badge svg{ width:15px; height:15px; stroke:#0d0d10; stroke-width:3; fill:none; }
+
+/* ---- name + tagline ---- */
+.name{
+  font-family:'Instrument Serif',Georgia,serif;
+  font-size:clamp(34px,8vw,44px);
+  font-weight:400; line-height:1.0;
+  letter-spacing:.2px; text-align:center;
+  margin-bottom:6px;
+}
+.handle{
+  font-size:13.5px; font-weight:500; letter-spacing:.4px;
+  color:oklch(0.78 0.14 var(--ring-hue));
+  margin-bottom:12px;
+}
+.tagline{
+  font-size:14.5px; line-height:1.5; font-weight:300;
+  color:var(--text-soft); text-align:center;
+  max-width:30ch; margin-bottom:26px;
+  text-wrap:balance;
+}
+
+/* ---- link tiles ---- */
+.links{
+  width:100%;
+  display:flex; flex-direction:column; gap:13px;
+}
+.tile{
+  --accent:265;            /* per-tile accent hue, set inline from data */
+  position:relative;
+  display:flex; align-items:center; gap:14px;
+  padding:15px 18px;
+  border-radius:18px;
+  text-decoration:none; color:var(--ice);
+  background:var(--glass);
+  border:1px solid var(--hairline);
+  -webkit-backdrop-filter:blur(16px) saturate(1.4);
+  backdrop-filter:blur(16px) saturate(1.4);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.08),
+    0 8px 24px rgba(0,0,0,.28);
+  transition:transform .4s var(--ease), border-color .4s var(--ease),
+             box-shadow .4s var(--ease), background .4s var(--ease);
+  will-change:transform;
+  anchor-name:var(--anchor);  /* tether target for the preview card */
+}
+.tile:hover, .tile:focus-visible{
+  transform:translateY(-3px);
+  border-color:oklch(0.72 0.16 var(--accent) / 0.6);
+  background:var(--glass-hi);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.12),
+    0 14px 38px rgba(0,0,0,.42),
+    0 0 0 1px oklch(0.72 0.16 var(--accent) / 0.35),
+    0 10px 40px oklch(0.66 0.18 var(--accent) / 0.30);
+  outline:none;
+}
+.tile:focus-visible{ outline:2px solid oklch(0.82 0.14 var(--accent)); outline-offset:3px; }
+
+.tile .ic{
+  flex:none; width:42px; height:42px; border-radius:12px;
+  display:grid; place-items:center;
+  background:oklch(0.66 0.17 var(--accent) / 0.18);
+  border:1px solid oklch(0.74 0.15 var(--accent) / 0.32);
+  color:oklch(0.86 0.13 var(--accent));
+}
+.tile .ic svg{ width:21px; height:21px; stroke:currentColor; stroke-width:1.7; fill:none; }
+.tile .meta{ flex:1 1 auto; min-width:0; }
+.tile .label{ font-size:15px; font-weight:600; letter-spacing:.1px; line-height:1.2; }
+.tile .sub{
+  font-size:12px; color:var(--text-dim); font-weight:400;
+  margin-top:2px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.tile .chev{ flex:none; color:var(--text-dim); transition:transform .4s var(--ease), color .4s var(--ease); }
+.tile:hover .chev, .tile:focus-visible .chev{ transform:translateX(3px); color:oklch(0.82 0.14 var(--accent)); }
+.tile .chev svg{ width:18px; height:18px; stroke:currentColor; stroke-width:2; fill:none; }
+
+/* ---- URL preview card: native CSS anchor positioning, tethered below tile ---- */
+.preview{
+  position:fixed;             /* anchored elements escape overflow; fixed is the anchor-positioning default ctx */
+  width:min(404px, 92vw);
+  z-index:40;
+  opacity:0; visibility:hidden;
+  transform:translateY(-6px) scale(.97);
+  transition:opacity .26s var(--ease), transform .26s var(--ease), visibility .26s;
+  pointer-events:none;
+  border-radius:16px; overflow:hidden;
+  background:rgba(18,18,24,.72);
+  border:1px solid var(--hairline-hi);
+  -webkit-backdrop-filter:blur(22px) saturate(1.5);
+  backdrop-filter:blur(22px) saturate(1.5);
+  box-shadow:0 20px 60px rgba(0,0,0,.6);
+}
+/* JS-fallback positioning (used when anchor-name is unsupported) */
+.preview.is-js{ position:fixed; }
+/* native anchor path: tether to the hovered tile, flip above if no room below */
+@supports (anchor-name: --x){
+  .preview{
+    position-anchor:var(--for);
+    top:anchor(bottom);
+    left:anchor(left);
+    right:anchor(right);
+    width:auto;
+    margin-top:10px;
+    position-try-order:normal;
+    position-try-fallbacks:--flip-above;
+  }
+  @position-try --flip-above{
+    bottom:anchor(top);
+    top:auto;
+    margin-top:0; margin-bottom:10px;
+  }
+}
+.preview.show{ opacity:1; visibility:visible; transform:translateY(0) scale(1); }
+.preview .pv-media{
+  position:relative; width:100%; aspect-ratio:16/9;
+  background:#101016 center/cover no-repeat;
+  border-bottom:1px solid var(--hairline);
+}
+.preview .pv-media::after{
+  content:""; position:absolute; inset:0;
+  background:linear-gradient(to top, rgba(12,12,16,.82), transparent 58%);
+}
+.preview .pv-body{ padding:12px 15px 14px; position:relative; }
+.preview .pv-domain{
+  display:flex; align-items:center; gap:7px;
+  font-size:11.5px; font-weight:600; letter-spacing:.3px; text-transform:uppercase;
+  color:oklch(0.80 0.13 var(--pv-accent,265)); margin-bottom:5px;
+}
+.preview .pv-domain .dot{ width:7px; height:7px; border-radius:50%; background:oklch(0.72 0.16 var(--pv-accent,265)); }
+.preview .pv-title{ font-size:14.5px; font-weight:600; line-height:1.3; }
+.preview .pv-desc{ font-size:12.5px; line-height:1.45; color:var(--text-soft); margin-top:4px; }
+
+/* ---- footer ---- */
+.foot{
+  margin-top:34px; text-align:center;
+  font-size:11.5px; letter-spacing:.4px; color:var(--text-dim);
+}
+.foot b{ color:var(--text-soft); font-weight:600; }
+.share{
+  margin-top:16px; display:inline-flex; gap:9px;
+}
+.share a{
+  width:38px; height:38px; border-radius:50%;
+  display:grid; place-items:center;
+  background:var(--glass); border:1px solid var(--hairline);
+  color:var(--text-soft); text-decoration:none;
+  -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
+  transition:transform .3s var(--ease), color .3s var(--ease), border-color .3s var(--ease);
+}
+.share a:hover, .share a:focus-visible{
+  transform:translateY(-2px);
+  color:var(--ice); border-color:var(--hairline-hi); outline:none;
+}
+.share a:focus-visible{ outline:2px solid oklch(0.80 0.14 var(--ring-hue)); outline-offset:2px; }
+.share svg{ width:17px; height:17px; stroke:currentColor; stroke-width:1.7; fill:none; }
+
+/* ---------------- responsive: phone is the primary viewport ---------------- */
+@media (max-width:640px){
+  .stack{ padding-top:clamp(28px,5vh,48px); }
+  .avatar-wrap{ width:116px; height:116px; }
+  .avatar{ width:98px; height:98px; }
+  .ring{ -webkit-mask:radial-gradient(circle, transparent 49px, #000 50px); mask:radial-gradient(circle, transparent 49px, #000 50px); }
+  .preview{ width:min(404px, calc(100vw - 28px)); }
+}
+
+/* ---------------- reduced motion: static ring + aura, full final state ---------------- */
+@media (prefers-reduced-motion: reduce){
+  .ring{ animation:none; }
+  .aura{ animation:none; transform:none; }
+  .tile, .chev, .preview{ transition:none; }
+}
+</style>
+</head>
+<body>
+<div class="aura" id="aura"></div>
+<div class="grain"></div>
+
+<main class="stack">
+  <div class="avatar-wrap">
+    <div class="ring"></div>
+    <img class="avatar" id="avatar" alt="" decoding="async">
+    <span class="badge" aria-label="Verified">
+      <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+    </span>
+  </div>
+
+  <h1 class="name" id="name"></h1>
+  <div class="handle" id="handle"></div>
+  <p class="tagline" id="tagline"></p>
+
+  <nav class="links" id="links" aria-label="Links"></nav>
+
+  <footer class="foot">
+    <div>Made with <b id="brand"></b></div>
+    <div class="share" id="share" aria-label="Share profiles"></div>
+  </footer>
+</main>
+
+<!-- single reusable preview card, repositioned per hovered tile -->
+<div class="preview" id="preview" role="status" aria-live="polite">
+  <div class="pv-media" id="pvMedia"></div>
+  <div class="pv-body">
+    <div class="pv-domain"><span class="dot"></span><span id="pvDomain"></span></div>
+    <div class="pv-title" id="pvTitle"></div>
+    <div class="pv-desc" id="pvDesc"></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   DATA  -  swap everything about the page here.
+   Each link's `accent` is an oklch hue (0-360); `preview` carries
+   the real og-style card (image reused from ../assets/, domain,
+   title, description). Icons are inline SVG path d-strings.
+   ============================================================ */
+const BIO = {
+  name:    "Nova Lindqvist",
+  handle:  "@novabuilds",
+  avatar:  "../assets/sdxl.png",        // painterly portrait stands in for a creator avatar
+  tagline: "Design engineer + motion tinkerer. Shipping calm interfaces and the occasional fast car render.",
+  brand:   "Glass Stack",
+  share: [
+    { name:"X",         href:"#", icon:"M4 4l16 16M20 4L4 20" },
+    { name:"Instagram", href:"#", icon:"M4 4h16v16H4zM12 8.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7zM17 6.8h.01" },
+    { name:"Email",     href:"#", icon:"M3 6h18v12H3zM3 7l9 6 9-6" }
+  ]
+};
+
+const LINKS = [
+  {
+    label:"Latest film: Midnight Coupe",
+    sub:"youtube.com / watch",
+    href:"#",
+    accent:28,                           // amber
+    icon:"M8 5v14l11-7z",                // play
+    preview:{
+      img:"../assets/flux-car-4k.png",
+      domain:"youtube.com",
+      title:"Midnight Coupe - a 4K matte-black render reel",
+      desc:"Wet neon streets, one slow dolly, zero CGI shortcuts. The full breakdown."
+    }
+  },
+  {
+    label:"Studio site",
+    sub:"novastudio.io",
+    href:"#",
+    accent:265,                          // violet
+    icon:"M3 12h18M12 3v18M5 5l14 14",   // globe-ish
+    preview:{
+      img:"../assets/flux-clinic-4k.png",
+      domain:"novastudio.io",
+      title:"Nova Studio - interface + motion for calm software",
+      desc:"Selected work, the manifesto, and how I think about restraint."
+    }
+  },
+  {
+    label:"Newsletter: Soft Edges",
+    sub:"softedges.substack.com",
+    href:"#",
+    accent:155,                          // green
+    icon:"M3 6h18v12H3zM3 7l9 6 9-6",    // envelope
+    preview:{
+      img:"../assets/hf-tinysd.png",
+      domain:"softedges.substack.com",
+      title:"Soft Edges - a fortnightly note on design + tools",
+      desc:"Short, image-led, occasionally opinionated. 6,200 readers and counting."
+    }
+  },
+  {
+    label:"Shop the print drop",
+    sub:"shop.nova.gallery",
+    href:"#",
+    accent:8,                            // red-orange
+    icon:"M6 7h12l-1 13H7zM9 7a3 3 0 016 0", // bag
+    preview:{
+      img:"../assets/sdxl.png",
+      domain:"shop.nova.gallery",
+      title:"Autumn Fox - limited giclee, 50 only",
+      desc:"Archival 300gsm, hand-numbered. Ships worldwide while stock lasts."
+    }
+  },
+  {
+    label:"Book a 1:1 design call",
+    sub:"cal.com / nova",
+    href:"#",
+    accent:200,                          // cyan
+    icon:"M7 3v4M17 3v4M3 9h18M5 5h14v16H5z", // calendar
+    preview:{
+      img:"../assets/flux-clinic-4k.png",
+      domain:"cal.com",
+      title:"30 min with Nova - portfolio + product reviews",
+      desc:"Pick a slot. Bring a Figma link or a live URL. Honest feedback, no upsell."
+    }
+  }
+];
+
+/* ---------------- render ---------------- */
+const $ = (id)=>document.getElementById(id);
+
+$("avatar").src = BIO.avatar;
+$("avatar").alt = BIO.name + " avatar";
+$("name").textContent = BIO.name;
+$("handle").textContent = BIO.handle;
+$("tagline").textContent = BIO.tagline;
+$("brand").textContent = BIO.brand;
+
+$("share").innerHTML = BIO.share.map(s =>
+  `<a href="${s.href}" aria-label="${s.name}"><svg viewBox="0 0 24 24"><path d="${s.icon}"/></svg></a>`
+).join("");
+
+const linksEl = $("links");
+linksEl.innerHTML = LINKS.map((l,i)=>`
+  <a class="tile" href="${l.href}"
+     style="--accent:${l.accent}; --anchor:--tile-${i};"
+     data-i="${i}">
+    <span class="ic"><svg viewBox="0 0 24 24"><path d="${l.icon}"/></svg></span>
+    <span class="meta">
+      <span class="label">${l.label}</span>
+      <span class="sub">${l.sub}</span>
+    </span>
+    <span class="chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span>
+  </a>`).join("");
+
+/* ---------------- URL preview card ---------------- */
+const supportsAnchor = CSS.supports("anchor-name", "--x");
+const preview = $("preview");
+const pvMedia = $("pvMedia");
+let hideTimer = null;
+
+function showPreview(tile, i){
+  clearTimeout(hideTimer);
+  const p = LINKS[i].preview;
+  pvMedia.style.backgroundImage = `url("${p.img}")`;
+  $("pvDomain").textContent = p.domain;
+  $("pvTitle").textContent  = p.title;
+  $("pvDesc").textContent   = p.desc;
+  preview.style.setProperty("--pv-accent", LINKS[i].accent);
+
+  if (supportsAnchor){
+    // native: point position-anchor at this tile; CSS handles placement + flip
+    preview.style.setProperty("--for", `--tile-${i}`);
+  } else {
+    // fallback: measure + place below, flip above near the bottom edge
+    preview.classList.add("is-js");
+    const r = tile.getBoundingClientRect();
+    const pw = Math.min(404, window.innerWidth - 28);
+    let left = r.left + r.width/2 - pw/2;
+    left = Math.max(14, Math.min(left, window.innerWidth - pw - 14));
+    preview.style.width = pw + "px";
+    preview.style.left  = left + "px";
+    const ph = 240; // approx card height
+    if (r.bottom + 10 + ph > window.innerHeight){
+      preview.style.top = "auto";
+      preview.style.bottom = (window.innerHeight - r.top + 10) + "px";
+    } else {
+      preview.style.bottom = "auto";
+      preview.style.top = (r.bottom + 10) + "px";
+    }
+  }
+  preview.classList.add("show");
+}
+function hidePreview(){
+  hideTimer = setTimeout(()=>preview.classList.remove("show"), 90);
+}
+
+linksEl.querySelectorAll(".tile").forEach(tile=>{
+  const i = +tile.dataset.i;
+  tile.addEventListener("pointerenter", e=>{ if(e.pointerType!=="touch") showPreview(tile,i); });
+  tile.addEventListener("pointerleave", e=>{ if(e.pointerType!=="touch") hidePreview(); });
+  tile.addEventListener("focus", ()=>showPreview(tile,i));
+  tile.addEventListener("blur", hidePreview);
+});
+// keep card alive while the pointer is on the card itself
+preview.addEventListener("pointerenter", ()=>clearTimeout(hideTimer));
+preview.addEventListener("pointerleave", hidePreview);
+
+/* ---------------- ambient conic aura: one slow rAF ----------------
+   Advances the shared hue (ring + aura) and rotates the aura.
+   Pauses when the tab is hidden; fully skipped under reduced-motion. */
+const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const root = document.documentElement;
+const aura = $("aura");
+
+if (!reduce){
+  let hue = 265, rot = 0, last = performance.now(), running = true;
+  function loop(now){
+    if (!running) return;
+    const dt = Math.min(now - last, 64); last = now;
+    hue = (hue + dt * 0.006) % 360;   // ~1 full hue cycle / minute
+    rot = (rot + dt * 0.0018) % 360;  // very slow aura drift
+    root.style.setProperty("--ring-hue", hue.toFixed(2));
+    aura.style.setProperty("--aura-rot", rot.toFixed(2) + "deg");
+    requestAnimationFrame(loop);
+  }
+  document.addEventListener("visibilitychange", ()=>{
+    if (document.hidden){ running = false; }
+    else { running = true; last = performance.now(); requestAnimationFrame(loop); }
+  });
+  requestAnimationFrame(loop);
+} else {
+  // reduced motion: a single pleasant static hue, ring + aura already static via CSS
+  root.style.setProperty("--ring-hue", "265");
+}
+</script>
+</body>
+</html>

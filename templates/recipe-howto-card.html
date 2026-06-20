@@ -1,0 +1,792 @@
+<!-- TEMPLATE: Recipe How-To Card | ARCHETYPE: method (recipe / how-to step layout) | REF: NYT Cooking visual recipes, Bon Appetit Test Kitchen, Serious Eats hierarchy, Cook Unity (Awwwards SOTD 2025) | WHEN TO USE: any sequential instructional content (recipe, tutorial, onboarding, assembly guide) where each step is a numbered full-width band with headline + detail + ingredient pills + optional media, tracked by a sticky 'step N of M' progress column | SWAP: edit the DATA array at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Test Kitchen - A Visual Method</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500;1,6..72,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     PALETTE
+     warm white #fefcf8 | ink #1a1614 | vermilion #c94a2e (step no)
+     timer badge #e8c547 | parchment line #e7e0d2
+     ============================================================ */
+  :root{
+    --paper:#fefcf8;
+    --ink:#1a1614;
+    --ink-soft:#534b44;
+    --ink-faint:#8c8175;
+    --vermilion:#c94a2e;
+    --vermilion-deep:#a93a22;
+    --timer:#e8c547;
+    --line:#e7e0d2;
+    --line-strong:#d8cfba;
+    --rail-w:300px;
+    --band-pad:clamp(28px,5vw,72px);
+    --maxw:1320px;
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto;} }
+
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Inter",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    overflow-x:hidden;
+  }
+
+  /* subtle paper grain so the warm white never looks flat */
+  body::before{
+    content:"";
+    position:fixed;inset:0;z-index:0;pointer-events:none;
+    opacity:.5;
+    background-image:
+      radial-gradient(circle at 18% 22%, rgba(201,74,46,.04), transparent 38%),
+      radial-gradient(circle at 82% 78%, rgba(232,197,71,.05), transparent 42%);
+  }
+
+  a{color:inherit;}
+
+  /* ============================================================
+     SHELL : sticky progress rail (left) + steps column (right)
+     ============================================================ */
+  .shell{
+    position:relative;z-index:1;
+    max-width:var(--maxw);
+    margin:0 auto;
+    display:grid;
+    grid-template-columns:var(--rail-w) 1fr;
+    align-items:start;
+    gap:0;
+  }
+
+  /* ---------- masthead band : sits across both columns ---------- */
+  .masthead{
+    grid-column:1 / -1;
+    padding:clamp(22px,3vw,34px) var(--band-pad) clamp(16px,2vw,22px);
+    border-bottom:1px solid var(--line);
+  }
+  .kicker{
+    display:inline-flex;align-items:center;gap:9px;
+    font-size:12px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--vermilion);
+  }
+  .kicker .dot{width:7px;height:7px;border-radius:50%;background:var(--vermilion);display:inline-block;}
+  .masthead h1{
+    font-family:"Newsreader",Georgia,serif;
+    font-style:italic;
+    font-weight:500;
+    font-size:clamp(36px,5.4vw,68px);
+    line-height:.98;
+    letter-spacing:-.018em;
+    margin:.22em 0 .22em;
+    max-width:15ch;
+  }
+  .masthead .lede{
+    font-family:"Newsreader",Georgia,serif;
+    font-size:clamp(16px,1.5vw,20px);
+    line-height:1.5;
+    color:var(--ink-soft);
+    max-width:54ch;
+    margin:0;
+  }
+  .meta-row{
+    display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center;
+    margin-top:20px;
+    font-size:13px;color:var(--ink-soft);
+  }
+  .meta-row .m{display:inline-flex;align-items:center;gap:8px;}
+  .meta-row .m b{font-weight:600;color:var(--ink);}
+  .timer-badge{
+    display:inline-flex;align-items:center;gap:7px;
+    background:var(--timer);color:#5a4a08;
+    font-weight:700;font-size:12px;letter-spacing:.04em;
+    padding:6px 12px;border-radius:999px;
+    box-shadow:0 1px 0 rgba(0,0,0,.08);
+  }
+  .timer-badge svg{width:13px;height:13px;}
+
+  /* ============================================================
+     LEFT RAIL : sticky 'step N of M' tracker
+     ============================================================ */
+  .rail-wrap{position:relative;}
+  .rail{
+    position:sticky;top:0;
+    padding:clamp(28px,3.4vw,46px) clamp(22px,2.4vw,34px) 40px var(--band-pad);
+    border-right:1px solid var(--line);
+    min-height:100vh;
+    display:flex;flex-direction:column;
+  }
+  .rail-label{
+    font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--ink-faint);margin:0 0 18px;
+  }
+  .rail-count{
+    font-family:"Newsreader",Georgia,serif;
+    line-height:1;margin-bottom:4px;
+    display:flex;align-items:baseline;gap:6px;
+  }
+  .rail-count .cur{
+    font-size:clamp(56px,5.6vw,80px);
+    font-weight:600;font-style:italic;
+    color:var(--vermilion);
+    font-variant-numeric:tabular-nums;
+    transition:color .3s ease;
+  }
+  .rail-count .of{font-size:20px;color:var(--ink-faint);font-style:italic;}
+  .rail-count .tot{font-size:26px;color:var(--ink-soft);font-weight:500;}
+
+  .rail-bar{
+    height:5px;border-radius:99px;background:var(--line-strong);
+    overflow:hidden;margin:14px 0 26px;
+  }
+  .rail-bar span{
+    display:block;height:100%;width:0%;
+    background:linear-gradient(90deg,var(--vermilion),var(--vermilion-deep));
+    border-radius:99px;
+    transition:width .45s cubic-bezier(.4,0,.2,1);
+  }
+  @media (prefers-reduced-motion: reduce){
+    .rail-bar span,.rail-count .cur{transition:none;}
+  }
+
+  /* vertical list of step dots on the rail */
+  .rail-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;}
+  .rail-list li{
+    display:flex;align-items:center;gap:12px;
+    padding:7px 0;
+    font-size:13.5px;color:var(--ink-faint);
+    cursor:pointer;
+    border:0;background:none;text-align:left;width:100%;
+    font-family:inherit;
+    transition:color .25s ease;
+  }
+  .rail-list li .pip{
+    width:11px;height:11px;border-radius:50%;
+    border:1.5px solid var(--line-strong);
+    background:var(--paper);flex:none;
+    transition:background .25s ease,border-color .25s ease,transform .25s ease;
+  }
+  .rail-list li .pip-num{
+    flex:none;width:18px;text-align:right;
+    font-variant-numeric:tabular-nums;font-weight:600;
+    color:var(--ink-faint);transition:color .25s ease;
+  }
+  .rail-list li:hover{color:var(--ink-soft);}
+  .rail-list li:focus-visible{outline:2px solid var(--vermilion);outline-offset:3px;border-radius:4px;}
+  .rail-list li.active{color:var(--ink);font-weight:600;}
+  .rail-list li.active .pip{background:var(--vermilion);border-color:var(--vermilion);transform:scale(1.25);}
+  .rail-list li.active .pip-num{color:var(--vermilion);}
+  .rail-list li.done .pip{background:var(--ink-faint);border-color:var(--ink-faint);}
+  .rail-list li.done .pip-num{color:var(--ink-soft);}
+  @media (prefers-reduced-motion: reduce){
+    .rail-list li,.rail-list li .pip,.rail-list li .pip-num{transition:none;}
+  }
+
+  .rail-foot{margin-top:auto;padding-top:26px;font-size:12px;color:var(--ink-faint);line-height:1.6;}
+  .rail-foot .sig{font-family:"Newsreader",serif;font-style:italic;font-size:14px;color:var(--ink-soft);}
+
+  /* ============================================================
+     STEPS COLUMN
+     ============================================================ */
+  .steps{padding:0;}
+
+  .step{
+    position:relative;
+    display:grid;
+    grid-template-columns:auto 1fr auto;
+    gap:clamp(20px,2.6vw,42px);
+    align-items:start;
+    padding:clamp(30px,3.4vw,50px) var(--band-pad);
+    border-bottom:1px solid var(--line);
+    opacity:.34;
+    transform:translateY(14px);
+    transition:opacity .6s ease, transform .6s ease;
+  }
+  .step.in{opacity:1;transform:none;}
+  .step.active{background:linear-gradient(90deg, rgba(201,74,46,.035), transparent 60%);}
+  @media (prefers-reduced-motion: reduce){
+    .step{opacity:1;transform:none;transition:none;}
+  }
+
+  /* big numbered circle on the left */
+  .numeral{
+    position:relative;flex:none;
+    width:clamp(64px,7vw,96px);
+    height:clamp(64px,7vw,96px);
+    border-radius:50%;
+    display:grid;place-items:center;
+    background:var(--paper);
+    border:2px solid var(--vermilion);
+    color:var(--vermilion);
+    font-family:"Newsreader",Georgia,serif;
+    font-style:italic;font-weight:600;
+    font-size:clamp(30px,3.4vw,46px);
+    line-height:1;
+    font-variant-numeric:lining-nums;
+    box-shadow:0 0 0 6px rgba(201,74,46,.06);
+    transition:background .3s ease,color .3s ease,box-shadow .3s ease;
+  }
+  .step.active .numeral{
+    background:var(--vermilion);color:var(--paper);
+    box-shadow:0 8px 26px rgba(201,74,46,.28),0 0 0 6px rgba(201,74,46,.1);
+  }
+  @media (prefers-reduced-motion: reduce){ .numeral{transition:none;} }
+
+  /* body of the step */
+  .step-body{min-width:0;}
+  .step-eyebrow{
+    font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--ink-faint);margin:4px 0 10px;
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  }
+  .step-eyebrow .mini-timer{
+    display:inline-flex;align-items:center;gap:6px;
+    background:var(--timer);color:#5a4a08;
+    padding:3px 9px;border-radius:999px;letter-spacing:.04em;
+    font-weight:700;font-size:10.5px;
+  }
+  .step-eyebrow .mini-timer svg{width:11px;height:11px;}
+  .step h2{
+    font-family:"Newsreader",Georgia,serif;
+    font-style:italic;font-weight:500;
+    font-size:clamp(26px,3.3vw,42px);
+    line-height:1.06;
+    letter-spacing:-.012em;
+    margin:0 0 .42em;
+    max-width:20ch;
+  }
+  .step h2 em{font-style:normal;color:var(--vermilion);}
+  .step p.detail{
+    font-family:"Newsreader",Georgia,serif;
+    font-size:clamp(15px,1.35vw,18.5px);
+    line-height:1.62;
+    color:var(--ink-soft);
+    margin:0;
+    max-width:56ch;
+  }
+
+  /* inline ingredient-badge cluster */
+  .pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px;}
+  .pill{
+    display:inline-flex;align-items:center;gap:7px;
+    background:#fff;
+    border:1px solid var(--line-strong);
+    border-radius:999px;
+    padding:6px 12px 6px 7px;
+    font-size:12.5px;font-weight:500;color:var(--ink);
+    box-shadow:0 1px 1px rgba(26,22,20,.03);
+  }
+  .pill .swatch{
+    width:18px;height:18px;border-radius:50%;flex:none;
+    display:grid;place-items:center;
+    font-size:10px;font-weight:700;color:#fff;
+    box-shadow:inset 0 -2px 4px rgba(0,0,0,.12);
+  }
+  .pill .amt{color:var(--ink-faint);font-variant-numeric:tabular-nums;}
+
+  /* media thumbnail clipped to step height on the right */
+  .step-media{
+    flex:none;
+    width:clamp(190px,20vw,288px);
+    align-self:stretch;
+    position:relative;
+    border-radius:14px;
+    overflow:hidden;
+    background:#efe8da;
+    border:1px solid var(--line-strong);
+    box-shadow:0 14px 34px -18px rgba(26,22,20,.45);
+    min-height:188px;
+  }
+  .step-media img,.step-media video{
+    position:absolute;inset:0;
+    width:100%;height:100%;
+    object-fit:cover;display:block;
+  }
+  .step-media video{opacity:0;transition:opacity .5s ease;}
+  .step-media.playing video{opacity:1;}
+  @media (prefers-reduced-motion: reduce){ .step-media video{transition:none;} }
+  .step-media .tag{
+    position:absolute;left:10px;bottom:10px;z-index:2;
+    background:rgba(26,22,20,.82);color:#fff;
+    font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+    padding:4px 9px;border-radius:6px;
+    backdrop-filter:blur(3px);
+  }
+  .step-media .play{
+    position:absolute;top:10px;right:10px;z-index:2;
+    width:30px;height:30px;border-radius:50%;
+    background:rgba(254,252,248,.92);
+    display:grid;place-items:center;
+    box-shadow:0 2px 8px rgba(0,0,0,.2);
+  }
+  .step-media .play svg{width:12px;height:12px;fill:var(--vermilion);margin-left:1px;}
+  .step-media.playing .play{display:none;}
+
+  /* ---------- finish band ---------- */
+  .finish{
+    grid-column:1 / -1;
+    padding:clamp(54px,8vw,110px) var(--band-pad);
+    text-align:center;
+    background:var(--ink);
+    color:var(--paper);
+  }
+  .finish .chk{
+    width:62px;height:62px;border-radius:50%;
+    background:var(--vermilion);
+    display:grid;place-items:center;margin:0 auto 22px;
+    box-shadow:0 0 0 8px rgba(201,74,46,.18);
+  }
+  .finish .chk svg{width:28px;height:28px;stroke:#fff;}
+  .finish h2{
+    font-family:"Newsreader",serif;font-style:italic;font-weight:500;
+    font-size:clamp(30px,5vw,58px);line-height:1.02;margin:0 0 .3em;
+    color:var(--paper);
+  }
+  .finish p{
+    font-family:"Newsreader",serif;font-size:clamp(15px,1.6vw,20px);
+    color:#cfc6ba;max-width:48ch;margin:0 auto 26px;line-height:1.55;
+  }
+  .finish .restart{
+    display:inline-flex;align-items:center;gap:9px;
+    background:var(--paper);color:var(--ink);
+    font-family:"Inter",sans-serif;font-weight:600;font-size:14px;
+    border:0;border-radius:999px;padding:13px 24px;cursor:pointer;
+    text-decoration:none;
+  }
+  .finish .restart:focus-visible{outline:2px solid var(--timer);outline-offset:3px;}
+  .finish .restart svg{width:14px;height:14px;}
+
+  /* ============================================================
+     MOBILE : media thumbnail collapses ABOVE each step, letterboxed.
+     Rail becomes a thin sticky progress strip at top.
+     ============================================================ */
+  @media (max-width:900px){
+    :root{--rail-w:230px;--band-pad:clamp(20px,5vw,40px);}
+    .step-media{width:clamp(150px,22vw,210px);}
+  }
+
+  @media (max-width:640px){
+    .shell{display:block;}
+    .rail-wrap{position:sticky;top:0;z-index:30;}
+    .rail{
+      position:static;min-height:0;
+      flex-direction:row;align-items:center;gap:14px;
+      padding:10px 18px;
+      border-right:0;border-bottom:1px solid var(--line);
+      background:rgba(254,252,248,.94);
+      backdrop-filter:blur(8px);
+    }
+    .rail-label,.rail-list,.rail-foot{display:none;}
+    .rail-count{margin:0;align-items:baseline;}
+    .rail-count .cur{font-size:34px;}
+    .rail-count .of{font-size:14px;}
+    .rail-count .tot{font-size:18px;}
+    .rail-bar{flex:1;margin:0;}
+
+    .masthead{padding:30px 22px 22px;}
+
+    .step{
+      grid-template-columns:auto 1fr;
+      grid-template-areas:
+        "media media"
+        "num   body";
+      gap:16px 16px;
+      padding:30px 22px;
+    }
+    /* media letterboxed above, never cover-cropped into a phone portrait */
+    .step-media{
+      grid-area:media;
+      width:100%;
+      align-self:auto;
+      min-height:0;
+      aspect-ratio:16/9;
+      background:#1a1614;
+    }
+    .step-media img,.step-media video{object-fit:contain;}
+    .numeral{grid-area:num;width:54px;height:54px;font-size:26px;}
+    .step-body{grid-area:body;}
+    .step.active{background:linear-gradient(180deg, rgba(201,74,46,.05), transparent 30%);}
+  }
+
+  /* steps with no media: keep two-column on desktop without an empty media slot */
+  .step.no-media{grid-template-columns:auto 1fr;}
+  @media (max-width:640px){
+    .step.no-media{grid-template-areas:"num body";grid-template-columns:auto 1fr;}
+  }
+
+  /* generic focus ring */
+  :focus-visible{outline:2px solid var(--vermilion);outline-offset:2px;}
+
+  .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
+</style>
+</head>
+<body>
+
+<main class="shell" aria-label="Visual method, step by step">
+
+  <!-- ============================ MASTHEAD ============================ -->
+  <header class="masthead">
+    <span class="kicker"><span class="dot"></span> Test Kitchen Method</span>
+    <h1 id="recipe-title"></h1>
+    <p class="lede" id="recipe-lede"></p>
+    <div class="meta-row" id="recipe-meta"></div>
+  </header>
+
+  <!-- ============================ LEFT RAIL ============================ -->
+  <div class="rail-wrap">
+    <aside class="rail" aria-label="Progress">
+      <p class="rail-label">You are on</p>
+      <div class="rail-count" aria-live="polite">
+        <span class="cur" id="rail-cur">1</span>
+        <span class="of">of</span>
+        <span class="tot" id="rail-tot">8</span>
+      </div>
+      <div class="rail-bar"><span id="rail-fill"></span></div>
+      <ul class="rail-list" id="rail-list" role="list"></ul>
+      <div class="rail-foot">
+        Read top to bottom.<br/>
+        <span class="sig">Mise en place, then heat.</span>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ============================ STEPS ============================ -->
+  <section class="steps" id="steps" aria-label="Steps"></section>
+
+  <!-- ============================ FINISH ============================ -->
+  <footer class="finish" id="finish">
+    <div class="chk" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 10 18.5 20 6.5"/></svg>
+    </div>
+    <h2>Plated and served.</h2>
+    <p>That is the whole method. Swap the steps, media, and ingredient pills in the DATA array to retell any recipe or tutorial as a numbered visual band.</p>
+    <a class="restart" href="#recipe-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+      Back to step one
+    </a>
+  </footer>
+
+</main>
+
+<script>
+/* ============================================================================
+   DATA  --  swap everything here. Each step is one full-width numbered band.
+   ----------------------------------------------------------------------------
+   recipe : title / lede / meta chips (one carries a yellow timer badge)
+   steps  : { eyebrow, timer?, title (use <em> for the vermilion accent word),
+              detail, pills:[{name, amt?, color}], media? }
+   media  : { type:'image'|'video', src, poster?, label }
+            videos play only when their step is the active/in-view one
+            (no simultaneous decode); images are static thumbnails.
+   ============================================================================ */
+const RECIPE = {
+  title: "Pan-Seared Method, in Eight Moves",
+  lede: "A test-kitchen walkthrough built as numbered bands. Each move is one full-width step: a circled numeral, an italic instruction, the why behind it, the ingredients in play, and the visual you are aiming for.",
+  meta: [
+    { label: "Serves", value: "2" },
+    { label: "Difficulty", value: "Intermediate" },
+    { label: "Active", value: "35 min", timer: true },
+  ],
+  steps: [
+    {
+      eyebrow: "Mise en place",
+      title: "Lay out <em>every</em> ingredient before the pan touches heat.",
+      detail: "A sear moves fast and forgives nothing. Measure, trim, and arrange so that once the oil shimmers your hands never leave the stove. This is the difference between confident cooking and a scramble.",
+      pills: [
+        { name: "Sea salt", amt: "2 tsp", color: "#9a8f7d" },
+        { name: "Black pepper", amt: "1 tsp", color: "#2a2520" },
+        { name: "Neutral oil", amt: "2 tbsp", color: "#e8c547" },
+        { name: "Thyme", amt: "4 sprigs", color: "#5d7a3a" },
+      ],
+      media: { type: "image", src: "../assets/flux-clinic-4k.png", label: "Station, ready" },
+    },
+    {
+      eyebrow: "Dry the surface",
+      timer: "10 min rest",
+      title: "Pat it bone-<em>dry</em>, then salt and let it sit.",
+      detail: "Surface moisture is the enemy of browning. Blot thoroughly, salt generously, and rest at room temperature so the seasoning draws in and the exterior tackifies. Wet protein steams instead of crusting.",
+      pills: [
+        { name: "Paper towel", color: "#d8cfba" },
+        { name: "Sea salt", amt: "flaky", color: "#9a8f7d" },
+      ],
+      media: { type: "image", src: "../assets/sdxl.png", label: "Dry surface" },
+    },
+    {
+      eyebrow: "Build the heat",
+      timer: "3 min preheat",
+      title: "Bring the pan to a real, <em>ripping</em> heat.",
+      detail: "Heavy cast iron over medium-high until a drop of water skates and vanishes. A cold pan gives you a grey, sad exterior; a screaming one gives you the crust. Add oil only once the pan is there.",
+      pills: [
+        { name: "Cast iron", color: "#2a2520" },
+        { name: "Neutral oil", amt: "2 tbsp", color: "#e8c547" },
+      ],
+      media: { type: "video", src: "../assets/fal-video.mp4", poster: "../assets/gen/poster-fal-video.png", label: "Oil shimmer" },
+    },
+    {
+      eyebrow: "The first contact",
+      title: "Lay it <em>away</em> from you and do not move it.",
+      detail: "Set the edge down first so the oil splashes away from your hand, then release. The instinct to nudge is the enemy. Leave it fully alone so the proteins bond to the metal and release on their own when the crust is set.",
+      pills: [
+        { name: "Tongs", color: "#534b44" },
+        { name: "Patience", color: "#c94a2e" },
+      ],
+      media: { type: "video", src: "../assets/flux-car-i2v.mp4", poster: "../assets/gen/poster-flux-car-i2v.png", label: "Sear in progress" },
+    },
+    {
+      eyebrow: "Read the crust",
+      timer: "4 min side one",
+      title: "Wait for the <em>amber</em> edge to climb the side.",
+      detail: "Do not flip on a timer alone, flip on color. When a deep golden band creeps a third of the way up the side and the piece lifts without sticking, it is ready to turn. That released edge is your green light.",
+      pills: [
+        { name: "Visual cue", color: "#c94a2e" },
+        { name: "Thermometer", amt: "optional", color: "#534b44" },
+      ],
+      media: { type: "image", src: "../assets/hf-tinysd.png", label: "Amber band" },
+    },
+    {
+      eyebrow: "Flip and baste",
+      timer: "3 min side two",
+      title: "Turn once, then spoon <em>foaming</em> butter over the top.",
+      detail: "One clean flip. Drop in butter, thyme, and a smashed clove, tilt the pan, and arc the foaming fat over the surface again and again. Basting carries aromatics and heat across the top without overcooking it through.",
+      pills: [
+        { name: "Butter", amt: "3 tbsp", color: "#e8c547" },
+        { name: "Garlic", amt: "1 clove", color: "#cdbfa0" },
+        { name: "Thyme", amt: "reserved", color: "#5d7a3a" },
+      ],
+      media: { type: "video", src: "../assets/kling-video.mp4", poster: "../assets/gen/poster-kling-video.png", label: "Butter baste" },
+    },
+    {
+      eyebrow: "Pull early",
+      timer: "8 min rest",
+      title: "Take it off <em>five degrees</em> short and let it rest.",
+      detail: "Carryover heat keeps cooking after the pan. Pull it just under target, tent loosely, and wait. Resting lets the juices redistribute so the first cut does not bleed the whole thing onto the board.",
+      pills: [
+        { name: "Resting rack", color: "#9a8f7d" },
+        { name: "Foil tent", amt: "loose", color: "#d8cfba" },
+      ],
+      // no media -> band renders as a clean two-column step
+    },
+    {
+      eyebrow: "Plate and finish",
+      title: "Slice against the grain and <em>spoon</em> the pan juices.",
+      detail: "Cut across the fibers for tenderness, fan the slices, and drag them through the browned butter and fond left in the pan. Flaky salt at the very end. That last seasoning is what makes it taste finished.",
+      pills: [
+        { name: "Flaky salt", color: "#9a8f7d" },
+        { name: "Pan jus", color: "#a93a22" },
+        { name: "Sharp knife", color: "#2a2520" },
+      ],
+      media: { type: "image", src: "../assets/flux-car-4k.png", label: "Plated" },
+    },
+  ],
+};
+
+/* ============================================================================
+   RENDER
+   ============================================================================ */
+(function(){
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const stepsEl   = document.getElementById("steps");
+  const railList  = document.getElementById("rail-list");
+  const railCur   = document.getElementById("rail-cur");
+  const railTot   = document.getElementById("rail-tot");
+  const railFill  = document.getElementById("rail-fill");
+  const total     = RECIPE.steps.length;
+
+  // ---- masthead ----
+  document.getElementById("recipe-title").innerHTML = RECIPE.title;
+  document.getElementById("recipe-lede").textContent = RECIPE.lede;
+  const metaEl = document.getElementById("recipe-meta");
+  RECIPE.meta.forEach(m=>{
+    if(m.timer){
+      const b=document.createElement("span");
+      b.className="timer-badge";
+      b.innerHTML = clockSvg() + `${m.label} ${m.value}`;
+      metaEl.appendChild(b);
+    } else {
+      const s=document.createElement("span");
+      s.className="m";
+      s.innerHTML = `${m.label} <b>${m.value}</b>`;
+      metaEl.appendChild(s);
+    }
+  });
+
+  railTot.textContent = total;
+
+  // ---- rail dot list ----
+  RECIPE.steps.forEach((s,i)=>{
+    const li=document.createElement("li");
+    li.setAttribute("role","listitem");
+    li.tabIndex=0;
+    li.dataset.idx=i;
+    li.innerHTML = `<span class="pip-num">${i+1}</span><span class="pip" aria-hidden="true"></span><span class="lbl">${plain(s.title)}</span>`;
+    const go=()=>document.getElementById("step-"+i)?.scrollIntoView({behavior: reduceMotion?"auto":"smooth", block:"center"});
+    li.addEventListener("click",go);
+    li.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); go(); }});
+    railList.appendChild(li);
+  });
+  const railItems=[...railList.children];
+
+  // ---- step bands ----
+  RECIPE.steps.forEach((s,i)=>{
+    const art=document.createElement("article");
+    art.className="step"+(s.media?"":" no-media");
+    art.id="step-"+i;
+    art.dataset.idx=i;
+    art.setAttribute("aria-label",`Step ${i+1} of ${total}`);
+
+    const num=document.createElement("div");
+    num.className="numeral";
+    num.setAttribute("aria-hidden","true");
+    num.textContent=i+1;
+
+    const body=document.createElement("div");
+    body.className="step-body";
+    let eb = `<div class="step-eyebrow"><span>Step ${i+1} of ${total}${s.eyebrow?" &middot; "+s.eyebrow:""}</span>`;
+    if(s.timer) eb += `<span class="mini-timer">${clockSvg()}${s.timer}</span>`;
+    eb += `</div>`;
+    body.innerHTML =
+      eb +
+      `<h2>${s.title}</h2>` +
+      `<p class="detail">${s.detail}</p>` +
+      (s.pills && s.pills.length ? pillsHtml(s.pills) : "");
+
+    art.appendChild(num);
+    art.appendChild(body);
+
+    if(s.media){
+      art.appendChild(mediaEl(s.media));
+    }
+    stepsEl.appendChild(art);
+  });
+
+  const stepEls=[...stepsEl.children];
+
+  function pillsHtml(pills){
+    return `<div class="pills">` + pills.map(p=>{
+      const initial=(p.name||"?").trim().charAt(0).toUpperCase();
+      return `<span class="pill"><span class="swatch" style="background:${p.color||'#8c8175'}">${initial}</span>${p.name}${p.amt?` <span class="amt">${p.amt}</span>`:""}</span>`;
+    }).join("") + `</div>`;
+  }
+
+  function mediaEl(m){
+    const wrap=document.createElement("div");
+    wrap.className="step-media";
+    if(m.type==="video"){
+      wrap.dataset.video="1";
+      const v=document.createElement("video");
+      v.muted=true; v.loop=true; v.playsInline=true; v.preload="none";
+      v.setAttribute("muted","");
+      if(m.poster) v.poster=m.poster;
+      v.dataset.src=m.src;
+      // poster as a static <img> underneath so something always shows
+      if(m.poster){
+        const img=document.createElement("img");
+        img.src=m.poster; img.alt=""; img.loading="lazy"; img.decoding="async";
+        img.setAttribute("aria-hidden","true");
+        wrap.appendChild(img);
+      }
+      wrap.appendChild(v);
+      const play=document.createElement("span");
+      play.className="play"; play.setAttribute("aria-hidden","true");
+      play.innerHTML=`<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
+      wrap.appendChild(play);
+    } else {
+      const img=document.createElement("img");
+      img.src=m.src; img.alt=m.label||""; img.loading="lazy"; img.decoding="async";
+      wrap.appendChild(img);
+    }
+    const tag=document.createElement("span");
+    tag.className="tag"; tag.textContent=m.label||"";
+    wrap.appendChild(tag);
+    return wrap;
+  }
+
+  function plain(html){ const d=document.createElement("div"); d.innerHTML=html; return d.textContent||""; }
+  function clockSvg(){
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`;
+  }
+
+  /* ----------------------------------------------------------------
+     INTERSECTION OBSERVER  (the only motion driver, per the brief)
+     - reveal each band as it enters
+     - track the band nearest the viewport center as "active"
+     - play ONLY the active video; pause + reset all others (no
+       simultaneous decode), respecting reduced-motion
+     ---------------------------------------------------------------- */
+  let activeIdx=0;
+
+  // reveal observer: fade/slide a band in once
+  if(!reduceMotion){
+    const revealIO=new IntersectionObserver((entries)=>{
+      entries.forEach(e=>{
+        if(e.isIntersecting){ e.target.classList.add("in"); revealIO.unobserve(e.target); }
+      });
+    },{ rootMargin:"0px 0px -12% 0px", threshold:0.18 });
+    stepEls.forEach(el=>revealIO.observe(el));
+  } else {
+    stepEls.forEach(el=>el.classList.add("in"));
+  }
+
+  // active observer: pick the most-visible band, drive rail + video
+  const ratios=new Map();
+  const activeIO=new IntersectionObserver((entries)=>{
+    entries.forEach(e=>ratios.set(e.target, e.isIntersecting ? e.intersectionRatio : 0));
+    let best=-1, bestEl=null;
+    ratios.forEach((r,el)=>{ if(r>best){ best=r; bestEl=el; }});
+    if(bestEl){
+      const idx=+bestEl.dataset.idx;
+      if(idx!==activeIdx){ setActive(idx); }
+    }
+  },{ threshold:[0,0.25,0.5,0.75,1], rootMargin:"-30% 0px -30% 0px" });
+  stepEls.forEach(el=>activeIO.observe(el));
+
+  function setActive(idx){
+    activeIdx=idx;
+    stepEls.forEach((el,i)=>el.classList.toggle("active", i===idx));
+    railItems.forEach((li,i)=>{
+      li.classList.toggle("active", i===idx);
+      li.classList.toggle("done", i<idx);
+    });
+    railCur.textContent=idx+1;
+    railFill.style.width=(((idx+1)/total)*100)+"%";
+    syncVideos(idx);
+  }
+
+  // play only the focused band's video; pause/reset every other
+  function syncVideos(idx){
+    stepEls.forEach((el,i)=>{
+      const wrap=el.querySelector('.step-media[data-video]');
+      if(!wrap) return;
+      const v=wrap.querySelector("video");
+      if(!v) return;
+      if(i===idx && !reduceMotion){
+        if(!v.src && v.dataset.src){ v.src=v.dataset.src; }   // lazy attach
+        wrap.classList.add("playing");
+        const p=v.play();
+        if(p&&p.catch) p.catch(()=>{ /* autoplay blocked: poster stays */ });
+      } else {
+        wrap.classList.remove("playing");
+        if(!v.paused) v.pause();
+      }
+    });
+  }
+
+  // initialise: first band active, fill bar, no video autoplay until in view
+  setActive(0);
+  if(reduceMotion){
+    // show final state of the bar/rail without relying on scroll motion
+    stepEls.forEach(el=>el.classList.add("in"));
+  }
+})();
+</script>
+</body>
+</html>

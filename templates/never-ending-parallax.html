@@ -185,11 +185,15 @@
   }
   .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 
-  /* ----- MOBILE: <=640px ----- */
+  /* ----- MOBILE: <=640px -----
+     Frames stay object-fit:contain (letterbox, no landscape cover-crop on
+     phones). The mid frame is sized so that, with the reduced mobile gaps
+     in the script, the centred focus panel keeps its neighbours peeking in
+     from both edges - the orbit still reads at scroll=0 on a 390px screen. */
   @media (max-width:640px){
-    .layer-mid .frame{width:78vw;aspect-ratio:16/11}
-    .layer-bg  .frame{width:60vw;aspect-ratio:16/10}
-    .layer-fg  .frame{width:42vw;aspect-ratio:1/1.1}
+    .layer-mid .frame{width:70vw;aspect-ratio:16/11}
+    .layer-bg  .frame{width:58vw;aspect-ratio:16/10}
+    .layer-fg  .frame{width:40vw;aspect-ratio:1/1.1}
     .layer-bg  .panel{top:34%}
     .layer-mid .panel{top:52%}
     .layer-fg  .panel{top:80%}
@@ -328,13 +332,15 @@ LAYERS.forEach(L=>{
     panels.push(p);
   });
 
-  built.push({ ...L, node:el, panels, widths:[], positions:[], tile:0 });
+  built.push({ ...L, gapDesk:L.gap, node:el, panels, widths:[], positions:[], tile:0 });
 });
 
 /* measure tile width per layer = sum(panelWidth+gap). Each panel's
    base position is cumulative. Re-measured on resize. */
 function measure(){
+  const phone = isPhone();
   built.forEach(L=>{
+    L.gap = phone ? L.gapPhone : L.gapDesk;   // active gap for this viewport
     let x = 0;
     L.positions = [];
     L.widths = [];
@@ -377,6 +383,24 @@ function place(L, basePos, offset){
   const lead = L.widths.length? L.widths[0]+L.gap : 320;
   x = ((x + lead) % W + W) % W - lead;
   return x;
+}
+
+/* seed pos so the nearest mid panel is centred at scroll=0. This makes
+   the signature mechanic - a lit focus panel mid-orbit with neighbours
+   peeking in on both edges across all three depth layers - the very
+   first thing on screen (the catalog thumb is a scroll=0 shot), on both
+   1440x900 and 390px. Runs at boot and for the reduced-motion still. */
+function seedCenter(){
+  const L = built[1]; // mid (factor 1.0, so a pos delta shifts it 1:1)
+  if(!L || !L.tile) return;
+  const cx = VW()/2;
+  let best = 1e9, seed = 0;
+  L.panels.forEach((p,i)=>{
+    const c = place(L, L.positions[i], 0) + (L.widths[i]||0)/2;
+    const d = c - cx;
+    if(Math.abs(d) < Math.abs(best)){ best = d; seed = d; }
+  });
+  pos = seed;
 }
 
 /* focus detection for mid layer: the panel whose centre is nearest
@@ -482,8 +506,20 @@ window.addEventListener("keydown", e=>{
   if(e.key==="ArrowLeft" ||e.key==="PageUp"){ nudge(-(built[1].widths[0]||340)); }
 });
 
+/* paint every layer at the current pos. Pulled out so boot can paint
+   the seeded (centred) frame BEFORE the rAF loop reads any rect, which
+   keeps the seed from being clobbered by the first computeSnap/setActive. */
+function renderLayers(){
+  built.forEach(L=>{
+    const off = pos * L.factor;
+    L.panels.forEach((p,i)=>{
+      const x = place(L, L.positions[i], off);
+      p.style.setProperty("--x", x.toFixed(2)+"px");
+    });
+  });
+}
+
 /* ---- the single rAF orbit loop ---- */
-let snapCooldown = 0;
 function frame(){
   // integrate input into velocity with smoothing
   vel += (target) * 0.12;
@@ -515,7 +551,15 @@ function frame(){
   const frac = ((pos % midTile)/midTile + 1) % 1;
   ringFg.style.strokeDashoffset = RING_C * (1 - frac);
 
-  // render every layer
+  renderLayers();
+  setActive(built[1]);
+  requestAnimationFrame(frame);
+}
+
+/* ---- reduced motion: static populated state, no rAF ---- */
+function staticState(){
+  measure();
+  seedCenter();                 // centre a focus panel, neighbours peeking in
   built.forEach(L=>{
     const off = pos * L.factor;
     L.panels.forEach((p,i)=>{
@@ -523,22 +567,7 @@ function frame(){
       p.style.setProperty("--x", x.toFixed(2)+"px");
     });
   });
-
-  setActive(built[1]);
-  requestAnimationFrame(frame);
-}
-
-/* ---- reduced motion: static populated final state, no rAF ---- */
-function staticState(){
-  measure();
-  pos = 0;
-  built.forEach(L=>{
-    L.panels.forEach((p,i)=>{
-      const x = place(L, L.positions[i], 0);
-      p.style.setProperty("--x", x.toFixed(2)+"px");
-    });
-  });
-  // light up the centre mid panel + its poster, no playback
+  // light up the centre mid panel + its poster, no playback (playVid gates REDUCED)
   setActive(built[1]);
   if(activePanel){ activePanel.classList.add("active"); }
   loopN.textContent="01";
@@ -550,8 +579,11 @@ function staticState(){
 function boot(){
   measure();
   if(REDUCED){ staticState(); return; }
-  // seed a gentle drift so the orbit reads as alive at scroll=0
-  vel = 0.0;
+  seedCenter();                          // centre a focus panel at scroll=0
+  renderLayers();                        // paint the seeded frame BEFORE any rect read
+  setActive(built[1]);                   // light the centred panel now, not after drift
+  lastMidCycle = Math.floor(pos / (built[1].tile || 1));
+  vel = 0; target = 0; snapTo = pos;     // pin snap to current centre = no first-frame pull
   requestAnimationFrame(frame);
   // auto-hint fade after a while
   setTimeout(()=>hint.classList.remove("gone"), 200);
@@ -560,7 +592,16 @@ function boot(){
 let rtid;
 window.addEventListener("resize", ()=>{
   clearTimeout(rtid);
-  rtid = setTimeout(()=>{ measure(); if(REDUCED) staticState(); }, 150);
+  rtid = setTimeout(()=>{
+    measure();
+    if(REDUCED){ staticState(); return; }
+    // re-centre for the new viewport; keep the loop counter consistent
+    seedCenter();
+    renderLayers();
+    setActive(built[1]);
+    lastMidCycle = Math.floor(pos / (built[1].tile || 1));
+    vel = 0; target = 0; snapTo = pos;
+  }, 150);
 });
 
 // wait for fonts + first images to lay out so measure() is correct

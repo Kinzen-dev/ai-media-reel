@@ -36,9 +36,10 @@ for his future-project library. He will review them all when he wakes.
 6. LAUNCH THE NEXT BATCH. Do not end the turn without the next Workflow launched.
 
 ## STATE (update each batch; _manifest.json is the source of truth)
-- 46 templates LIVE + cataloged (originals v2/v3/v4 + batches 1-8). Deploy = rsync showcase/templates/ -> /tmp/reel-deploy/templates/ then commit+push (Kinzen-dev).
-- Batch 9 IN FLIGHT (wf, build+verify): webtoon-panel-scroll, blind-mask-wipe, svgmap-journey, sticky-grid-unfold, scroll-velocity-mood.
-- Batch 10 fuel (from `_backlog-refresh.json`, NOT yet built): proximity-glyph-field, infinite-image-tube (WebGL), never-ending-parallax + soundscape-reactive held. That is only ~4, so run a backlog-refresh agent when batch 9 finishes to top up before batch 10.
+- 51 templates LIVE + cataloged (originals v2/v3/v4 + batches 1-9). Deploy = rsync showcase/templates/ -> /tmp/reel-deploy/templates/ then commit+push (Kinzen-dev).
+- Batch 10 IN FLIGHT (wf, build+verify): proximity-glyph-field, scroll-3d-rotation, never-ending-parallax, soundscape-reactive, infinite-image-tube (WebGL).
+- Batch 11 fuel (in `_backlog-refresh.json`, NOT built): fluid-xray-reveal (WebGL/three.js), corridor-walk (WebGL/three.js). Only 2 left, so run a backlog-refresh agent when batch 10 finishes.
+- SVG gotcha (cost 3 failed fixes on blind-mask-wipe, found by DOM probe): fill/stroke = var(--x) as an SVG presentation attribute does NOT resolve -> shape invisible; use hex or element.style. Lesson now in _batch-workflow verify prompt.
 - Recurring defect to watch: build agents make a title-only hero and hide the signature below the fold. Workflow now has a "FIRST-VIEWPORT SIGNATURE at scroll=0" rule (build + verify). Judge every thumbnail for it.
 - WebGL gotcha (cost me a long debug on dithered-lo-fi): GLSL ES 1.0 local float[] with dynamic index returns 0 on ANGLE -> all-paper; use a LUT texture + preserveDrawingBuffer:true for screenshot-stable thumbs. _batch-workflow verify prompt now warns about this.
 - Verify-only (no rebuild) workflow = `_verify-workflow.js` (for files that built but missed their verify pass, e.g. a rate-limited batch).

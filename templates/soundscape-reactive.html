@@ -492,8 +492,10 @@ const SMOOTH = 0.85;            // guardrail
 const BANDS = 22;               // bars per column
 const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const DPR = 1;                  // guardrail: canvas 2D bars at DPR 1
+const STATIC_T = 12.0;          // fixed seed time for reduced-motion (varied across bands, frozen in time)
 
 let ctx = null;
+let drawStaticFrame = null;     // reduced-motion: re-draw the single static frame after layout changes
 let masterGain = null;          // near-silent bed that feeds analysers, audible only when a card is locked
 let ambientNodes = [];          // default oscillator bank (drives bars before any user audio)
 let started = false;            // ctx running with sound enabled
@@ -920,10 +922,11 @@ function boot() {
   }
   updateCtxState();
 
-  // single rAF chain: read each analyser (or seeded fallback) and draw every column.
-  (function tick() {
-    const t = performance.now() / 1000;
-    const running = ctx && ctx.state === "running";
+  // draw one full frame (every card's column) at logical time t.
+  // REDUCED skips the live-analyser path: the ambient oscillator bank is LFO-modulated,
+  // so reading it would re-introduce motion. Reduced users get a static seeded shape only.
+  function renderFrame(t) {
+    const running = !REDUCED && ctx && ctx.state === "running";
     for (const rec of cards) {
       const { canvas, cctx } = rec;
       const W = canvas.width, H = canvas.height;
@@ -947,8 +950,20 @@ function boot() {
     }
     markActive();
     updateCtxState();
-    requestAnimationFrame(tick);
-  })();
+  }
+
+  if (REDUCED) {
+    // reduced-motion: draw ONE static frame at a fixed time, no rAF loop, no animation.
+    // re-render only on resize/orientation so layout stays correct (still no perceived motion).
+    drawStaticFrame = () => renderFrame(STATIC_T);
+    drawStaticFrame();
+  } else {
+    // single rAF chain: read each analyser (or seeded fallback) and draw every column.
+    (function tick() {
+      renderFrame(performance.now() / 1000);
+      requestAnimationFrame(tick);
+    })();
+  }
 
   animateBrand();
 
@@ -964,7 +979,11 @@ function boot() {
   let rt;
   window.addEventListener("resize", () => {
     clearTimeout(rt);
-    rt = setTimeout(() => { sizeCanvases(); cards.forEach(r => r.level.fill(0)); }, 120);
+    rt = setTimeout(() => {
+      sizeCanvases();
+      cards.forEach(r => r.level.fill(0));
+      if (REDUCED && drawStaticFrame) drawStaticFrame();  // re-paint the static frame at the new size
+    }, 120);
   });
 
   // pause heavy work when tab hidden

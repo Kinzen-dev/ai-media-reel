@@ -73,29 +73,76 @@ body{
 .wrap{position:relative; z-index:2; max-width:1180px; margin:0 auto; padding:0 28px}
 
 header.hero{
-  min-height:92vh;
-  display:flex; flex-direction:column; justify-content:center;
-  padding:120px 0 60px;
+  min-height:100vh;
+  display:grid;
+  grid-template-columns:minmax(0,0.82fr) minmax(0,1fr);
+  align-items:center; gap:40px;
+  padding:104px 0 48px;
   position:relative;
 }
+.hero .lead{position:relative; z-index:6}
 .eyebrow{
   font-size:12px; letter-spacing:.42em; text-transform:uppercase;
-  color:var(--text-dim); margin-bottom:26px; font-weight:500;
+  color:var(--text-dim); margin-bottom:24px; font-weight:500;
 }
 .hero h1{
   font-family:'Instrument Serif',serif; font-weight:400;
-  font-size:clamp(46px,8.5vw,108px); line-height:.96; letter-spacing:-.01em;
-  max-width:15ch;
+  font-size:clamp(42px,5.6vw,82px); line-height:.98; letter-spacing:-.01em;
+  max-width:14ch;
 }
 .hero h1 em{font-style:italic; color:#fff}
 .hero p{
-  margin-top:30px; max-width:48ch; font-size:clamp(15px,1.7vw,19px);
-  line-height:1.65; color:var(--text-soft);
+  margin-top:26px; max-width:42ch; font-size:clamp(15px,1.5vw,18px);
+  line-height:1.62; color:var(--text-soft);
 }
 .scrollcue{
-  margin-top:54px; display:flex; align-items:center; gap:12px;
+  margin-top:42px; display:flex; align-items:center; gap:12px;
   font-size:12px; letter-spacing:.2em; text-transform:uppercase; color:var(--text-dim);
 }
+
+/* ---------------- HERO GLASS STACK (signature in first viewport) ----------------
+   3 frosted panes overlapping at distinct z-depths + blur radii, each over real
+   media. This is the layered-depth mechanic, visible at scroll=0. The panes are
+   real .pane elements so the GPU blur budget, hover-clear, parallax and
+   reduced-motion rules already apply to them. */
+.herostack{
+  position:relative; z-index:5;
+  height:min(70vh,560px);
+  align-self:center;
+}
+.herostack .pane{
+  position:absolute;
+  border-radius:22px;
+  width:62%;
+}
+/* deepest pane: softest media, largest resting blur, sits back and left */
+.herostack .pane.h-far{
+  left:0; top:6%; width:60%; z-index:3;
+  transform:rotate(-2.5deg);
+}
+/* middle pane: overlaps the other two, mid blur */
+.herostack .pane.h-mid{
+  left:24%; top:30%; width:58%; z-index:4;
+  transform:rotate(1.5deg);
+}
+/* nearest pane: sharpest, strongest shadow, front-right, biggest */
+.herostack .pane.h-near{
+  right:0; top:0; width:64%; z-index:5;
+  transform:rotate(-0.5deg);
+}
+.herostack .pane .media{aspect-ratio:4/5}
+.herostack .pane .body{padding:18px 20px 20px}
+.herostack .pane .title{font-size:clamp(18px,1.5vw,22px)}
+.herostack .pane .desc{display:none}        /* keep the chips tight inside the small panes */
+.herostack .pane .meta{margin-top:4px}
+.herostack .pane .tag{font-size:10px; padding:4px 9px}
+/* hovering a hero pane lifts it above its neighbours so it can clear fully.
+   hero panes carry a resting rotate(), so re-state transform on hover to keep
+   the rotation while sliding the pane toward the viewer (the hover-clear feel). */
+.herostack .pane:hover,.herostack .pane:focus-within{z-index:9}
+.herostack .pane.h-far:hover,.herostack .pane.h-far:focus-within{transform:rotate(-2.5deg) translateY(-10px) scale(1.025)}
+.herostack .pane.h-mid:hover,.herostack .pane.h-mid:focus-within{transform:rotate(1.5deg) translateY(-10px) scale(1.025)}
+.herostack .pane.h-near:hover,.herostack .pane.h-near:focus-within{transform:rotate(-0.5deg) translateY(-10px) scale(1.025)}
 .scrollcue .line{width:46px; height:1px; background:var(--hairline-hi); position:relative; overflow:hidden}
 .scrollcue .line::after{content:"";position:absolute;inset:0;width:40%;background:var(--ice);animation:sweep 2.4s var(--ease) infinite}
 @keyframes sweep{0%{transform:translateX(-120%)}100%{transform:translateX(320%)}}
@@ -263,7 +310,23 @@ footer .glassline{
 .mobilebar{display:none}
 @media (max-width:760px){
   .wrap{padding:0 18px}
-  header.hero{min-height:86vh; padding:96px 0 40px}
+  /* hero collapses to a single column: lead text over a compact 3-pane stack,
+     still visible together in the first viewport */
+  header.hero{
+    min-height:100svh; padding:88px 0 28px;
+    grid-template-columns:1fr; gap:22px;
+    align-content:center;
+  }
+  .hero h1{font-size:clamp(38px,10vw,58px); max-width:16ch}
+  .hero p{max-width:46ch}
+  .scrollcue{margin-top:24px}
+  /* the hero stack stays layered but smaller; panes overlap within one column */
+  .herostack{height:min(52vh,420px)}
+  .herostack .pane.h-far{left:0; top:4%; width:64%}
+  .herostack .pane.h-mid{left:20%; top:26%; width:62%}
+  .herostack .pane.h-near{right:0; top:0; width:66%}
+  .herostack .pane .media{aspect-ratio:1/1}
+  .herostack .pane .desc{display:none}
   .stage{padding:18px 0 70px}
   /* collapse the depth grid into a horizontal swipe rail */
   .grid{
@@ -334,10 +397,13 @@ footer .glassline{
 
 <div class="wrap">
   <header class="hero">
-    <div class="eyebrow">Studio Selected Works / 2026</div>
-    <h1>Depth you can <em>feel</em>, built from light and blur.</h1>
-    <p>No fills. No borders. Every surface is a pane of liquid glass floating at its own distance, frosting the world behind it. Scroll to move through the stack. Hover a pane and it clears, brightens, and slides toward you.</p>
-    <div class="scrollcue"><span class="line"></span> Scroll into the stack</div>
+    <div class="lead">
+      <div class="eyebrow">Studio Selected Works / 2026</div>
+      <h1>Depth you can <em>feel</em>, built from light and blur.</h1>
+      <p>No fills. No borders. Every surface is a pane of liquid glass floating at its own distance, frosting the world behind it. Scroll to move through the stack. Hover a pane and it clears, brightens, and slides toward you.</p>
+      <div class="scrollcue"><span class="line"></span> Scroll into the stack</div>
+    </div>
+    <div class="herostack" id="herostack" aria-label="Three work panes floating at distinct depths"></div>
   </header>
 
   <div class="section-label"><span class="idx">01</span> Floating Work / drag or scroll</div>
@@ -436,18 +502,22 @@ const DATA = [
 
 /* ---------- render ---------- */
 const grid = document.getElementById('grid');
+const herostack = document.getElementById('herostack');
 const playSVG = '<svg viewBox="0 0 80 80" fill="none"><circle cx="40" cy="40" r="38" stroke="rgba(232,244,255,.85)" stroke-width="1.5"/><path d="M33 28l20 12-20 12V28z" fill="rgba(232,244,255,.92)"/></svg>';
 
-DATA.forEach((d,i)=>{
+/* build one frosted pane element from a DATA object.
+   depthOverride lets the hero stack force far/mid/near for the layered look. */
+function buildPane(d, i, opts={}){
+  const depth = opts.depthOverride || d.depth;
   const el = document.createElement('article');
-  el.className = 'pane';
+  el.className = 'pane' + (opts.extraClass ? ' '+opts.extraClass : '');
   el.setAttribute('role','listitem');
   el.setAttribute('tabindex','0');
-  el.dataset.depth = d.depth;
+  el.dataset.depth = depth;
   el.dataset.media = d.media;
   el.dataset.idx = i;
   // depth -> parallax speed factor (near moves most, far least)
-  el.dataset.speed = d.depth==='near' ? 0.16 : d.depth==='mid' ? 0.09 : 0.04;
+  el.dataset.speed = depth==='near' ? 0.16 : depth==='mid' ? 0.09 : 0.04;
 
   const mediaInner = d.media==='video'
     ? `<video muted loop playsinline preload="none" poster="${d.src}" data-src="${d.video}" aria-hidden="true"></video>`
@@ -467,10 +537,24 @@ DATA.forEach((d,i)=>{
       <p class="desc">${d.desc}</p>
       <div class="meta">${d.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
     </div>`;
-  grid.appendChild(el);
+  return el;
+}
+
+/* HERO STACK: first 3 works as overlapping panes at forced far/mid/near depths,
+   so the layered frosted-glass mechanic is unmistakable at scroll=0. */
+const heroDepths = ['far','mid','near'];
+const heroPos    = ['h-far','h-mid','h-near'];
+DATA.slice(0,3).forEach((d,i)=>{
+  herostack.appendChild(
+    buildPane(d, i, { depthOverride:heroDepths[i], extraClass:heroPos[i] })
+  );
 });
 
-const panes = [...grid.querySelectorAll('.pane')];
+/* MAIN GRID: full set, unchanged behaviour. */
+DATA.forEach((d,i)=> grid.appendChild(buildPane(d, i)) );
+
+// every pane on the page (hero + grid) participates in the blur budget + video logic
+const panes = [...document.querySelectorAll('.pane')];
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const coarse = matchMedia('(pointer: coarse)').matches;
 

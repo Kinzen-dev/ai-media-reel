@@ -1,0 +1,795 @@
+<!-- TEMPLATE: Bioluminescent Mesh | ARCHETYPE: bioluminescent-organic-mesh | REF: Microsoft.ai vegetal shaders (metabole 2026), Ylem.art tech-organic fusion | WHEN TO USE: a portfolio/lab/studio where dark frosted works float in a living deep-sea aurora that breathes and ripples to the cursor; the GLSL mesh is the whole identity | SWAP: edit the DATA array at the top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>BIOLUMINESCENT MESH - Organic Shader Gallery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* ============================== TOKENS ============================== */
+  :root{
+    --abyss:#030a12;          /* abyss black */
+    --abyss-2:#04101b;
+    --teal:#00f5a0;           /* bioluminescent teal accent */
+    --teal-dim:rgba(0,245,160,.62);
+    --violet:#8a2be2;         /* deep violet, mostly inside the shader */
+    --ink:#e7fbf3;            /* near-white text with a teal cast */
+    --muted:rgba(231,251,243,.58);
+    --faint:rgba(231,251,243,.34);
+    --line:rgba(0,245,160,.14);
+    --glass:rgba(5,16,24,.46);
+    --glass-edge:rgba(0,245,160,.22);
+    --maxw:1480px;
+    --ease:cubic-bezier(.16,1,.3,1);
+  }
+
+  *{box-sizing:border-box}
+  html{ -webkit-text-size-adjust:100%; scroll-behavior:smooth; }
+  body{
+    margin:0;
+    background:var(--abyss);
+    color:var(--ink);
+    font-family:"Space Grotesk",system-ui,sans-serif;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+  ::selection{ background:var(--teal); color:#04140f; }
+  a{color:inherit;text-decoration:none}
+  img,video,canvas{display:block;max-width:100%}
+  button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+
+  /* visible keyboard focus everywhere */
+  :focus-visible{
+    outline:2px solid var(--teal);
+    outline-offset:3px;
+    border-radius:6px;
+  }
+
+  .wrap{ max-width:var(--maxw); margin:0 auto; padding:0 clamp(18px,4vw,56px); }
+  .mono{ font-family:"Spline Sans Mono",ui-monospace,monospace; }
+
+  /* ============================== THE LIVING MESH ============================== */
+  /* WebGL canvas: the full-viewport breathing bioluminescent gradient.        */
+  /* Static CSS radial-gradient sits UNDER it as the mobile / no-WebGL fallback. */
+  #stage{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(120% 90% at 18% 12%, rgba(0,245,160,.20), transparent 55%),
+      radial-gradient(110% 120% at 86% 24%, rgba(138,43,226,.26), transparent 58%),
+      radial-gradient(120% 120% at 70% 96%, rgba(0,245,160,.16), transparent 60%),
+      radial-gradient(140% 140% at 30% 88%, rgba(138,43,226,.14), transparent 62%),
+      var(--abyss);
+  }
+  #mesh{
+    position:fixed; inset:0; width:100%; height:100%;
+    z-index:1; pointer-events:none; display:block;
+    opacity:0; transition:opacity 1.2s ease;
+  }
+  #mesh.lit{ opacity:1; }
+  /* faint static-fallback animation when WebGL is off but motion allowed */
+  #stage.breathe{ animation:abyssBreathe 18s ease-in-out infinite alternate; }
+  @keyframes abyssBreathe{
+    from{ filter:hue-rotate(0deg) saturate(1); }
+    to{ filter:hue-rotate(-14deg) saturate(1.18); }
+  }
+
+  /* vignette + grain above the mesh, below content */
+  #stage::after{
+    content:""; position:fixed; inset:0; z-index:2; pointer-events:none;
+    background:radial-gradient(130% 100% at 50% 38%, transparent 52%, rgba(3,10,18,.72) 100%);
+  }
+  body::after{
+    content:""; position:fixed; inset:0; z-index:3; pointer-events:none;
+    opacity:.05; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  main{ position:relative; z-index:5; }
+
+  /* ============================== TOP CHROME ============================== */
+  header.bar{
+    position:sticky; top:0; z-index:40;
+    display:flex; align-items:center; justify-content:space-between; gap:18px;
+    padding:16px clamp(18px,4vw,56px);
+    backdrop-filter:blur(8px) saturate(1.1);
+    -webkit-backdrop-filter:blur(8px) saturate(1.1);
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(3,10,18,.66), rgba(3,10,18,.18));
+  }
+  .brand{ display:flex; align-items:center; gap:11px; font-weight:700; letter-spacing:.02em; }
+  .orb{
+    width:13px; height:13px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #aeffe1, var(--teal) 45%, #047a52 100%);
+    box-shadow:0 0 14px var(--teal-dim), 0 0 30px rgba(0,245,160,.35);
+  }
+  @media (prefers-reduced-motion:no-preference){ .orb{ animation:pulse 3.4s ease-in-out infinite; } }
+  @keyframes pulse{ 0%,100%{ box-shadow:0 0 12px var(--teal-dim),0 0 26px rgba(0,245,160,.3);} 50%{ box-shadow:0 0 20px var(--teal-dim),0 0 44px rgba(0,245,160,.5);} }
+  nav.links{ display:flex; gap:22px; font-size:13.5px; color:var(--muted); }
+  nav.links a:hover{ color:var(--ink); }
+  .badge{
+    font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--teal); border:1px solid var(--glass-edge); border-radius:999px;
+    padding:5px 12px; background:rgba(0,245,160,.05);
+  }
+  @media (max-width:720px){ nav.links{ display:none; } }
+
+  /* ============================== HERO BAND (compact, over the mesh) ========= */
+  .hero{
+    padding:clamp(26px,5vw,52px) 0 clamp(14px,2.4vw,24px);
+  }
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:9px;
+    font-size:12px; letter-spacing:.22em; text-transform:uppercase; color:var(--teal-dim);
+    margin-bottom:16px;
+  }
+  .eyebrow::before{ content:""; width:26px; height:1px; background:var(--teal-dim); }
+  h1{
+    margin:0; font-weight:700; line-height:.98; letter-spacing:-.02em;
+    font-size:clamp(38px,7.4vw,92px);
+    text-wrap:balance;
+  }
+  h1 .glow{
+    background:linear-gradient(96deg, #aeffe1, var(--teal) 42%, #b07cf6 92%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    text-shadow:0 0 38px rgba(0,245,160,.18);
+  }
+  .lede{
+    margin:18px 0 0; max-width:60ch; color:var(--muted);
+    font-size:clamp(15px,1.6vw,18px); line-height:1.55;
+  }
+  .meta-row{
+    display:flex; flex-wrap:wrap; gap:10px 26px; margin-top:22px;
+    font-size:12.5px; color:var(--faint); letter-spacing:.04em;
+  }
+  .meta-row b{ color:var(--teal-dim); font-weight:500; }
+
+  /* ============================== THE GALLERY (signature, populated at scroll 0) */
+  .gallery{
+    padding:clamp(12px,2vw,22px) 0 clamp(60px,9vw,120px);
+  }
+  .grid{
+    display:grid; gap:clamp(16px,2vw,26px);
+    grid-template-columns:repeat(12,1fr);
+    grid-auto-flow:row dense;
+  }
+  /* Frosted dark card floating in the glow.                                 */
+  /* Sizing is driven by --col (12-grid span) + --ar (intrinsic ratio).      */
+  /* No row-span masonry: that multiplies the row-gap across spanned rows and */
+  /* blows the card height up. aspect-ratio is deterministic and bulletproof. */
+  .card{
+    position:relative; overflow:hidden; border-radius:18px;
+    aspect-ratio:var(--ar, 16/10);
+    grid-column:span var(--col,4);
+    background:var(--glass);
+    border:1px solid var(--glass-edge);
+    backdrop-filter:blur(14px) saturate(1.15);
+    -webkit-backdrop-filter:blur(14px) saturate(1.15);
+    box-shadow:
+      0 1px 0 rgba(0,245,160,.10) inset,
+      0 22px 60px -28px rgba(0,0,0,.85),
+      0 0 0 1px rgba(3,10,18,.4);
+    transition:transform .55s var(--ease), box-shadow .55s var(--ease), border-color .55s var(--ease);
+    will-change:transform;
+  }
+  .card:hover, .card:focus-within{
+    transform:translateY(-6px);
+    border-color:rgba(0,245,160,.46);
+    box-shadow:
+      0 1px 0 rgba(0,245,160,.22) inset,
+      0 30px 80px -30px rgba(0,0,0,.9),
+      0 0 34px -6px rgba(0,245,160,.30);
+  }
+  .card .media{
+    position:absolute; inset:0; width:100%; height:100%;
+  }
+  .card .media img, .card .media video{
+    position:absolute; inset:0; width:100%; height:100%;
+    object-fit:cover; object-position:center;
+  }
+  /* sheen tint so works read as mounted in the same teal light */
+  .card .media::after{
+    content:""; position:absolute; inset:0; pointer-events:none;
+    background:linear-gradient(180deg, rgba(3,10,18,.04) 0%, rgba(3,10,18,.10) 46%, rgba(3,10,18,.86) 100%);
+  }
+  .card .caption{
+    position:absolute; left:0; right:0; bottom:0; z-index:3;
+    padding:16px 18px 17px;
+    display:flex; flex-direction:column; gap:5px;
+  }
+  .tagline{ font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--teal-dim); }
+  .title{ font-size:clamp(16px,1.5vw,19px); font-weight:600; letter-spacing:-.01em; line-height:1.12; }
+  .sub{ font-size:12.5px; color:var(--muted); line-height:1.4; }
+  .tagrow{ display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .chip{
+    font-size:10.5px; letter-spacing:.06em; color:var(--faint);
+    border:1px solid var(--line); border-radius:999px; padding:3px 9px;
+    background:rgba(0,245,160,.04);
+  }
+
+  /* media-type corner glyph */
+  .kind{
+    position:absolute; top:12px; left:12px; z-index:3;
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:10.5px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--teal); background:rgba(3,10,18,.62);
+    border:1px solid var(--glass-edge); border-radius:999px; padding:4px 9px;
+    backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  }
+  .kind .dot{ width:6px; height:6px; border-radius:50%; background:var(--teal); box-shadow:0 0 8px var(--teal); }
+
+  /* play affordance for video cards */
+  .play{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:3;
+    width:54px; height:54px; border-radius:50%;
+    display:grid; place-items:center;
+    background:rgba(3,10,18,.5); border:1px solid var(--glass-edge);
+    backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+    transition:opacity .4s var(--ease), transform .4s var(--ease);
+    pointer-events:none;
+  }
+  .play svg{ width:18px; height:18px; fill:var(--teal); margin-left:2px; }
+  .card.playing .play{ opacity:0; transform:translate(-50%,-50%) scale(.7); }
+  .card.has-video.playing .media::after{ background:linear-gradient(180deg, transparent 60%, rgba(3,10,18,.8) 100%); }
+
+  /* audio cards: waveform + transport */
+  .card.audio .media{ background:linear-gradient(160deg, var(--abyss-2), #061a12); }
+  .card.audio .wave{
+    position:absolute; left:0; right:0; top:50%; transform:translateY(-50%);
+    height:46%; width:100%; object-fit:contain; opacity:.9;
+    filter:drop-shadow(0 0 10px rgba(0,245,160,.4));
+  }
+  .card.audio .media::after{ background:linear-gradient(180deg, rgba(3,10,18,.18), rgba(3,10,18,.9)); }
+  .aplay{
+    position:absolute; top:12px; right:12px; z-index:4;
+    width:38px; height:38px; border-radius:50%;
+    display:grid; place-items:center;
+    background:rgba(3,10,18,.55); border:1px solid var(--glass-edge);
+    backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+    pointer-events:auto;
+  }
+  .aplay svg{ width:14px; height:14px; fill:var(--teal); }
+  .card.audio.playing .aplay{ border-color:rgba(0,245,160,.55); box-shadow:0 0 16px -2px rgba(0,245,160,.5); }
+
+  /* ============================== FOOTER ============================== */
+  footer{
+    position:relative; z-index:5;
+    border-top:1px solid var(--line);
+    padding:34px 0 64px; color:var(--faint); font-size:13px;
+  }
+  footer .wrap{ display:flex; flex-wrap:wrap; gap:14px 30px; align-items:center; justify-content:space-between; }
+  footer a:hover{ color:var(--teal-dim); }
+
+  /* ============================== RESPONSIVE ============================== */
+  /* Tablet */
+  @media (max-width:980px){
+    .card{ grid-column:span 6 !important; }
+  }
+  /* Phone: single column, letterboxed landscape works (never cover-crop) */
+  @media (max-width:640px){
+    .grid{ grid-template-columns:1fr; gap:14px; }
+    .card{
+      grid-column:span 1 !important;
+      aspect-ratio:16/10;
+    }
+    /* square assets keep their own ratio so they are not stretched */
+    .card[data-ar="1"]{ aspect-ratio:1/1; }
+    .card[data-ar="wave"]{ aspect-ratio:16/9; }
+    .card .media img, .card .media video{ object-fit:cover; }
+    /* hero a touch tighter */
+    .hero{ padding-top:22px; }
+    .play{ width:46px; height:46px; }
+  }
+
+  /* ============================== REDUCED MOTION ============================== */
+  /* Freeze the mesh on a static frame; kill all decorative animation.          */
+  @media (prefers-reduced-motion:reduce){
+    *{ animation:none !important; transition:none !important; scroll-behavior:auto !important; }
+    #stage.breathe{ animation:none !important; }
+    .card{ will-change:auto; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===================== LIVING BIOLUMINESCENT MESH ===================== -->
+<div id="stage" aria-hidden="true"></div>
+<canvas id="mesh" aria-hidden="true"></canvas>
+
+<main>
+  <header class="bar">
+    <div class="brand"><span class="orb"></span> ABYSSAL<span style="color:var(--teal-dim)">/</span>LAB</div>
+    <nav class="links" aria-label="Primary">
+      <a href="#work">Work</a>
+      <a href="#process">Process</a>
+      <a href="#about">Studio</a>
+      <a href="#contact">Contact</a>
+    </nav>
+    <span class="badge">Generative Media</span>
+  </header>
+
+  <section class="hero wrap" id="work">
+    <span class="eyebrow">Deep-sea render lab</span>
+    <h1>Works that <span class="glow">breathe</span><br/>in the dark.</h1>
+    <p class="lede">A living mesh of light. Every piece is mounted on dark frosted glass and lit by a shader that morphs like a deep-sea organism. Move your cursor and the nearest node ripples like disturbed water.</p>
+    <div class="meta-row mono">
+      <span>Medium <b>image / video / audio / 3D</b></span>
+      <span>Render <b>GLSL fragment mesh</b></span>
+      <span>Status <b id="gpuStatus">initialising</b></span>
+    </div>
+  </section>
+
+  <section class="gallery wrap">
+    <div class="grid" id="grid"><!-- cards injected from DATA --></div>
+  </section>
+
+  <footer id="contact">
+    <div class="wrap">
+      <span>ABYSSAL/LAB - bioluminescent render studio</span>
+      <span class="mono">Move the cursor to disturb the water - all motion lives in shader uniforms.</span>
+      <a href="#work">Back to top</a>
+    </div>
+  </footer>
+</main>
+
+<script>
+/* =====================================================================
+   DATA  -  swap these objects to rebrand the gallery. Everything below
+   renders from this array. Paths are relative to /showcase/templates/.
+   kind: "image" | "video" | "audio" | "model"
+   ar:   phone ratio class -> "16" (landscape) | "1" (square) | "wave" (audio)
+   col:  desktop 12-grid column span (e.g. 7 = 7/12 wide)
+   dar:  desktop aspect-ratio "W/H" (drives card height deterministically)
+   ===================================================================== */
+const DATA = [
+  {
+    kind:"video", ar:"16", col:7, dar:"16/9",
+    src:"../assets/kling-video.mp4", poster:"../assets/gen/poster-kling-video.png",
+    tagline:"Kling 1.6 / i2v", title:"Neon Arterial", sub:"Wet-street tracking shot, generated motion",
+    tags:["video","cinematic","loop"]
+  },
+  {
+    kind:"image", ar:"16", col:5, dar:"5/4",
+    src:"../assets/flux-car-4k.png",
+    tagline:"FLUX.1 / 4K", title:"Matte Predator", sub:"Cinematic still, rain-lit boulevard",
+    tags:["image","4K","automotive"]
+  },
+  {
+    kind:"image", ar:"16", col:4, dar:"4/3",
+    src:"../assets/flux-clinic-4k.png",
+    tagline:"FLUX.1 / 4K", title:"Mint Theatre", sub:"Mint and wood interior, soft daylight",
+    tags:["image","interior"]
+  },
+  {
+    kind:"video", ar:"16", col:5, dar:"16/9",
+    src:"../assets/veo-video.mp4", poster:"../assets/gen/poster-veo-video.png",
+    tagline:"Veo / has audio", title:"Field Study", sub:"Photoreal motion clip with native sound",
+    tags:["video","audio","photoreal"], muted:false
+  },
+  {
+    kind:"image", ar:"1", col:3, dar:"1/1",
+    src:"../assets/sdxl.png",
+    tagline:"SDXL / painterly", title:"Vulpine", sub:"Autumn fox, brushwork render",
+    tags:["image","painterly"]
+  },
+  {
+    kind:"video", ar:"16", col:4, dar:"4/3",
+    src:"../assets/fal-video.mp4", poster:"../assets/gen/poster-fal-video.png",
+    tagline:"fal.ai / loop", title:"Drift Cell", sub:"Abstract organic motion, seamless",
+    tags:["video","abstract","loop"]
+  },
+  {
+    kind:"video", ar:"16", col:4, dar:"4/3",
+    src:"../assets/hyperframes.mp4", poster:"../assets/gen/poster-hyperframes.png",
+    tagline:"Hyperframes", title:"Frame Bloom", sub:"Interpolated frame study",
+    tags:["video","interp"]
+  },
+  {
+    kind:"audio", ar:"wave", col:4, dar:"4/3",
+    src:"../assets/elevenlabs-thai.mp3", wave:"../assets/gen/wave-elevenlabs.png",
+    tagline:"ElevenLabs / TTS", title:"Thai Voice", sub:"Synthesised narration, native phonetics",
+    tags:["audio","voice","th"]
+  },
+  {
+    kind:"video", ar:"16", col:5, dar:"4/3",
+    src:"../assets/heygen-avatar.mp4", poster:"../assets/gen/poster-heygen.png",
+    tagline:"HeyGen / avatar", title:"Spokesframe", sub:"Talking avatar, lip-synced delivery",
+    tags:["video","avatar","audio"], muted:false
+  },
+  {
+    kind:"image", ar:"1", col:3, dar:"1/1",
+    src:"../assets/hf-tinysd.png",
+    tagline:"TinySD / lo-fi", title:"Pomme Abstraite", sub:"Low-fi apple, generative texture",
+    tags:["image","lo-fi"]
+  },
+  {
+    kind:"video", ar:"16", col:4, dar:"4/3",
+    src:"../assets/did-talking-photo.mp4", poster:"../assets/gen/poster-did.png",
+    tagline:"D-ID / photo", title:"Still Speaks", sub:"Photo brought to motion, with audio",
+    tags:["video","portrait","audio"], muted:false
+  },
+];
+
+/* =====================================================================
+   RENDER  -  build cards from DATA
+   ===================================================================== */
+const PLAY_SVG = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+const grid = document.getElementById('grid');
+
+DATA.forEach((d, i) => {
+  const card = document.createElement('article');
+  card.className = 'card' + (d.kind === 'video' ? ' has-video' : '') + (d.kind === 'audio' ? ' audio' : '');
+  card.style.setProperty('--ar', (d.dar || '16/10').replace('/', ' / '));
+  card.style.setProperty('--col', d.col);
+  card.setAttribute('data-ar', d.ar);
+  card.setAttribute('tabindex', '0');
+  card.setAttribute('role', 'group');
+  card.setAttribute('aria-label', d.title + ' - ' + d.sub);
+
+  let mediaInner = '';
+  if (d.kind === 'image') {
+    mediaInner = `<img src="${d.src}" alt="${d.title} - ${d.sub}" loading="lazy" decoding="async" />`;
+  } else if (d.kind === 'video') {
+    // poster shown until focused/hovered; src set lazily by observer
+    mediaInner = `<video poster="${d.poster}" playsinline preload="none" loop ${d.muted === false ? '' : 'muted'} data-src="${d.src}" data-muted="${d.muted === false ? 'false' : 'true'}"></video>`;
+  } else if (d.kind === 'audio') {
+    mediaInner = `<img class="wave" src="${d.wave}" alt="Waveform for ${d.title}" loading="lazy" decoding="async" />`;
+  }
+
+  const kindLabel = d.kind === 'model' ? '3D' : d.kind;
+  let controls = '';
+  if (d.kind === 'video') controls = `<div class="play" aria-hidden="true">${PLAY_SVG}</div>`;
+  if (d.kind === 'audio') {
+    controls = `<button class="aplay" aria-label="Play audio: ${d.title}">${PLAY_SVG}</button>`;
+  }
+
+  card.innerHTML = `
+    <div class="kind"><span class="dot"></span>${kindLabel}</div>
+    ${controls}
+    <div class="media">${mediaInner}</div>
+    <div class="caption">
+      <span class="tagline">${d.tagline}</span>
+      <span class="title">${d.title}</span>
+      <span class="sub">${d.sub}</span>
+      <span class="tagrow">${d.tags.map(t => `<span class="chip">${t}</span>`).join('')}</span>
+    </div>`;
+  if (d.kind === 'audio') {
+    const a = document.createElement('audio');
+    a.src = d.src; a.preload = 'none'; a.loop = true;
+    card._audio = a;
+  }
+  grid.appendChild(card);
+});
+
+/* =====================================================================
+   MEDIA POLICY  -  never decode every clip at once.
+   - videos load their src + play ONLY when focused/hovered/locked
+   - only one video plays at a time (single focused stage)
+   - everything pauses + resets when it scrolls out of view
+   ===================================================================== */
+let activeCard = null;
+
+function lazyLoadVideo(v){
+  if (v && !v.src && v.dataset.src){ v.src = v.dataset.src; v.load(); }
+}
+function playCard(card){
+  if (card === activeCard) return;
+  if (activeCard) stopCard(activeCard);
+  const v = card.querySelector('video');
+  if (v){
+    lazyLoadVideo(v);
+    v.muted = (v.dataset.muted !== 'false');
+    const p = v.play();
+    if (p && p.catch) p.catch(()=>{});
+    card.classList.add('playing');
+  }
+  if (card.classList.contains('audio') && card._audio){
+    card._audio.play().catch(()=>{});
+    card.classList.add('playing');
+  }
+  activeCard = card;
+}
+function stopCard(card){
+  const v = card.querySelector('video');
+  if (v){ v.pause(); }
+  if (card.classList.contains('audio') && card._audio){ card._audio.pause(); }
+  card.classList.remove('playing');
+  if (activeCard === card) activeCard = null;
+}
+
+const reduceMotion = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+document.querySelectorAll('.card').forEach(card => {
+  const isAudio = card.classList.contains('audio');
+  const isVideo = card.classList.contains('has-video');
+  if (isVideo){
+    card.addEventListener('mouseenter', () => playCard(card));
+    card.addEventListener('mouseleave', () => stopCard(card));
+    card.addEventListener('focusin',   () => playCard(card));
+    card.addEventListener('focusout',  () => stopCard(card));
+  }
+  if (isAudio){
+    const btn = card.querySelector('.aplay');
+    btn && btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (card.classList.contains('playing')) stopCard(card);
+      else playCard(card);
+    });
+  }
+});
+
+// pause anything that leaves the viewport (decode hygiene)
+const vis = new IntersectionObserver((entries) => {
+  entries.forEach(en => {
+    if (!en.isIntersecting && en.target.classList.contains('playing')) stopCard(en.target);
+  });
+}, { threshold: 0.15 });
+document.querySelectorAll('.card').forEach(c => vis.observe(c));
+
+/* =====================================================================
+   THE MESH  -  GLSL fragment-shader bioluminescent gradient.
+   Robustness notes baked in:
+   - GLSL ES 1.0; NO local float array with dynamic indexing (returns 0 on
+     ANGLE). Noise is computed ARITHMETICALLY (value-noise via hash + fbm).
+   - canvas runs at devicePixelRatio 1; the browser upscales (cheap + sharp).
+   - we verify the canvas actually paints (readPixels probe) and only then
+     reveal it; otherwise we keep the CSS radial-gradient fallback.
+   - all motion is uniforms (u_time, u_mouse, u_ripple); zero per-frame DOM.
+   - reduced-motion: render ONE frame and stop the rAF loop entirely.
+   ===================================================================== */
+(function initMesh(){
+  const canvas = document.getElementById('mesh');
+  const stage  = document.getElementById('stage');
+  const statusEl = document.getElementById('gpuStatus');
+
+  function fallback(reason){
+    canvas.style.display = 'none';
+    if (!reduceMotion) stage.classList.add('breathe');
+    statusEl.textContent = 'css fallback';
+    statusEl.title = reason || '';
+  }
+
+  // Feature-detect WebGL up front.
+  let gl = null;
+  try{
+    if (!('getContext' in canvas)) return fallback('no getContext');
+    gl = canvas.getContext('webgl', { antialias:false, alpha:true, premultipliedAlpha:false, powerPreference:'low-power' })
+      || canvas.getContext('experimental-webgl');
+  }catch(e){ return fallback('context threw'); }
+  if (!gl) return fallback('no webgl');
+
+  const VERT = `
+    attribute vec2 a_pos;
+    void main(){ gl_Position = vec4(a_pos, 0.0, 1.0); }
+  `;
+
+  // Fragment shader: arithmetic value-noise + fbm, sine displacement,
+  // cursor ripple, mapped onto the abyss/teal/violet palette.
+  const FRAG = `
+    precision highp float;
+    uniform vec2  u_res;
+    uniform float u_time;
+    uniform vec2  u_mouse;     // 0..1, y up
+    uniform float u_ripple;    // decaying impulse strength
+    uniform vec2  u_rcenter;   // ripple origin, 0..1
+
+    // hash + value noise (NO arrays, ANGLE-safe)
+    float hash(vec2 p){
+      p = fract(p * vec2(123.34, 456.21));
+      p += dot(p, p + 45.32);
+      return fract(p.x * p.y);
+    }
+    float vnoise(vec2 p){
+      vec2 i = floor(p);
+      vec2 f = fract(p);
+      vec2 u = f * f * (3.0 - 2.0 * f);
+      float a = hash(i + vec2(0.0, 0.0));
+      float b = hash(i + vec2(1.0, 0.0));
+      float c = hash(i + vec2(0.0, 1.0));
+      float d = hash(i + vec2(1.0, 1.0));
+      return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+    }
+    float fbm(vec2 p){
+      float v = 0.0;
+      float amp = 0.55;
+      // unrolled, fixed iteration count - safe
+      v += amp * vnoise(p); p *= 2.02; amp *= 0.5;
+      v += amp * vnoise(p); p *= 2.03; amp *= 0.5;
+      v += amp * vnoise(p); p *= 2.01; amp *= 0.5;
+      v += amp * vnoise(p);
+      return v;
+    }
+
+    void main(){
+      vec2 uv = gl_FragCoord.xy / u_res.xy;
+      float aspect = u_res.x / u_res.y;
+      vec2 p = uv;
+      p.x *= aspect;
+
+      float t = u_time * 0.06;
+
+      // breathing sine-wave displacement of the sampling field
+      vec2 q = p;
+      q.x += 0.18 * sin(p.y * 2.4 + t * 1.7);
+      q.y += 0.18 * cos(p.x * 2.1 - t * 1.3);
+
+      // cursor ripple: push the field radially away from the disturbance
+      vec2 m = u_mouse; m.x *= aspect;
+      vec2 toM = q - m;
+      float dM = length(toM);
+      q += normalize(toM + 1e-4) * 0.14 * sin(dM * 9.0 - u_time * 3.0) * exp(-dM * 3.2) * (0.4 + u_mouse.y * 0.0 + 0.6);
+
+      // ripple impulse (click-free; driven by velocity in JS)
+      vec2 rc = u_rcenter; rc.x *= aspect;
+      float dR = length(q - rc);
+      q += normalize((q - rc) + 1e-4) * u_ripple * 0.22 * sin(dR * 16.0 - u_time * 6.0) * exp(-dR * 4.0);
+
+      // layered fbm -> organic flow
+      float n1 = fbm(q * 2.0 + vec2(t * 0.6, -t * 0.4));
+      float n2 = fbm(q * 3.4 - vec2(t * 0.5, t * 0.7) + n1);
+      float flow = mix(n1, n2, 0.55);
+
+      // palette: abyss -> teal -> violet, biased toward dark
+      vec3 abyss  = vec3(0.012, 0.039, 0.071);
+      vec3 teal   = vec3(0.000, 0.961, 0.627);
+      vec3 violet = vec3(0.541, 0.169, 0.886);
+
+      float glow = smoothstep(0.32, 0.86, flow);
+      float vmix = smoothstep(0.55, 0.95, n2);
+
+      vec3 col = abyss;
+      col = mix(col, teal * 0.9, glow * 0.62);
+      col = mix(col, violet, vmix * 0.34);
+
+      // bioluminescent hotspots: bright thin filaments
+      float fil = smoothstep(0.78, 0.94, flow);
+      col += teal * fil * 0.5;
+
+      // brighten near the cursor (the disturbed water catches light)
+      float lit = exp(-dM * 2.4) * 0.32;
+      col += teal * lit;
+
+      // gentle radial darkening to seat the cards
+      float vig = smoothstep(1.15, 0.25, length(uv - 0.5));
+      col *= 0.55 + 0.45 * vig;
+
+      // keep it deep
+      col = pow(col, vec3(1.06));
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `;
+
+  function compile(type, src){
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)){
+      console.warn('shader compile failed:', gl.getShaderInfoLog(s));
+      gl.deleteShader(s); return null;
+    }
+    return s;
+  }
+  const vs = compile(gl.VERTEX_SHADER, VERT);
+  const fs = compile(gl.FRAGMENT_SHADER, FRAG);
+  if (!vs || !fs) return fallback('shader compile');
+
+  const prog = gl.createProgram();
+  gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)){
+    console.warn('program link failed:', gl.getProgramInfoLog(prog));
+    return fallback('link');
+  }
+  gl.useProgram(prog);
+
+  // fullscreen triangle
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+  const aPos = gl.getAttribLocation(prog, 'a_pos');
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+  const U = {
+    res:     gl.getUniformLocation(prog, 'u_res'),
+    time:    gl.getUniformLocation(prog, 'u_time'),
+    mouse:   gl.getUniformLocation(prog, 'u_mouse'),
+    ripple:  gl.getUniformLocation(prog, 'u_ripple'),
+    rcenter: gl.getUniformLocation(prog, 'u_rcenter'),
+  };
+
+  // devicePixelRatio 1; browser upscales the canvas via CSS.
+  function resize(){
+    const w = Math.max(2, Math.floor(window.innerWidth));
+    const h = Math.max(2, Math.floor(window.innerHeight));
+    if (canvas.width !== w || canvas.height !== h){
+      canvas.width = w; canvas.height = h;
+      gl.viewport(0, 0, w, h);
+    }
+  }
+  resize();
+
+  // cursor -> mouse uniform (0..1, y up); velocity feeds the ripple impulse.
+  let mx = 0.5, my = 0.5, tmx = 0.5, tmy = 0.5;
+  let ripple = 0, rcx = 0.5, rcy = 0.5;
+  let lastX = 0.5, lastY = 0.5;
+  function onMove(cx, cy){
+    const nx = cx / window.innerWidth;
+    const ny = 1.0 - cy / window.innerHeight;
+    tmx = nx; tmy = ny;
+    const vel = Math.hypot(nx - lastX, ny - lastY);
+    if (vel > 0.004){ ripple = Math.min(1.0, ripple + vel * 3.2); rcx = nx; rcy = ny; }
+    lastX = nx; lastY = ny;
+  }
+  if (!reduceMotion){
+    window.addEventListener('pointermove', e => onMove(e.clientX, e.clientY), { passive:true });
+    window.addEventListener('touchmove', e => { if (e.touches[0]) onMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive:true });
+  }
+  window.addEventListener('resize', () => { resize(); if (reduceMotion) drawOnce(); }, { passive:true });
+
+  // PAINT PROBE: render one frame, read a center pixel; if it is the clear
+  // color (blank), treat WebGL as constrained and fall back.
+  function probePaint(){
+    const px = new Uint8Array(4);
+    const cx = Math.floor(canvas.width / 2);
+    const cy = Math.floor(canvas.height / 2);
+    gl.readPixels(cx, cy, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    return (px[0] + px[1] + px[2]) > 6; // some light made it onto the canvas
+  }
+
+  function renderFrame(timeSec){
+    resize();
+    gl.uniform2f(U.res, canvas.width, canvas.height);
+    gl.uniform1f(U.time, timeSec);
+    // ease the mouse toward target so the ripple feels like water, not a jump
+    mx += (tmx - mx) * 0.08; my += (tmy - my) * 0.08;
+    gl.uniform2f(U.mouse, mx, my);
+    gl.uniform1f(U.ripple, ripple);
+    gl.uniform2f(U.rcenter, rcx, rcy);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    ripple *= 0.94; // decay impulse
+  }
+
+  let startT = performance.now();
+  function drawOnce(){
+    renderFrame((performance.now() - startT) / 1000);
+  }
+
+  // first paint + verify
+  drawOnce();
+  if (!probePaint()){
+    // give it one more frame (some drivers paint lazily), then decide
+    drawOnce();
+    if (!probePaint()) return fallback('blank canvas');
+  }
+  canvas.classList.add('lit');
+  statusEl.textContent = reduceMotion ? 'frozen frame' : 'shader live';
+
+  if (reduceMotion){
+    // single static frame: no rAF loop at all.
+    return;
+  }
+
+  let running = true, raf = 0;
+  function loop(){
+    if (!running) return;
+    renderFrame((performance.now() - startT) / 1000);
+    raf = requestAnimationFrame(loop);
+  }
+  loop();
+
+  // pause the loop when the tab is hidden (battery + decode hygiene)
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden){ running = false; cancelAnimationFrame(raf); }
+    else if (!running){ running = true; startT = performance.now() - (startT ? 0 : 0); loop(); }
+  });
+
+  // context loss recovery -> graceful fallback
+  canvas.addEventListener('webglcontextlost', (e) => {
+    e.preventDefault(); running = false; cancelAnimationFrame(raf); fallback('context lost');
+  });
+})();
+</script>
+</body>
+</html>

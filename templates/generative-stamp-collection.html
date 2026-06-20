@@ -1,0 +1,986 @@
+<!-- TEMPLATE: Stamp Deck | ARCHETYPE: interactive postage-stamp inspection gallery | REF: Codrops Interactive Digital Stamp Collection with Shaders (2026), Terminal Industries wireframe-reveal | WHEN TO USE: present generated works as collectible postage stamps - perforated edges, denomination glyphs, cancellation postmarks, a WebGL magnifying loupe that follows the cursor, click to peel the stamp back and reveal the full-res work | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Stamp Deck - A Philatelic Catalogue of Generated Works</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,500;0,6..96,700;1,6..96,500&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   STAMP DECK
+   Palette: aged paper #faf6ee  ·  postal ink #2c1654
+   Accent : perforated stamp border + cancellation crimson
+   ============================================================ */
+:root{
+  --paper:#faf6ee;
+  --paper-2:#f1e9d7;
+  --paper-edge:#e7dcc4;
+  --ink:#2c1654;
+  --ink-2:#3d2470;
+  --ink-soft:#6b5a8f;
+  --gum:#cdbf9e;            /* the gummed-stamp paper tone */
+  --cancel:#a3243c;        /* cancellation crimson */
+  --gold:#b08a3e;
+  --line:rgba(44,22,84,.18);
+  --serif:'Bodoni Moda',Georgia,serif;
+  --mono:'Spline Sans Mono',ui-monospace,monospace;
+  --perf:9px;              /* perforation tooth radius driver */
+  --shadow:0 18px 44px -20px rgba(44,22,84,.55), 0 4px 14px -8px rgba(44,22,84,.4);
+}
+
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto;}}
+
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--mono);
+  font-size:16px;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+  /* engraved-paper grain + soft postal-ink vignette */
+  background-image:
+    radial-gradient(120% 80% at 50% -10%, rgba(44,22,84,.06), transparent 60%),
+    radial-gradient(circle at 18% 22%, rgba(44,22,84,.035) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 70% 64%, rgba(44,22,84,.03) 0 1px, transparent 1.5px);
+  background-size:auto, 7px 7px, 11px 11px;
+}
+::selection{background:var(--ink);color:var(--paper);}
+
+a{color:var(--ink);text-decoration:none;}
+:focus-visible{outline:2.5px solid var(--cancel);outline-offset:3px;border-radius:3px;}
+
+/* ---------------------------------------------------------- *
+   TOP BAND  (compact - mechanic stays in first viewport)
+ * ---------------------------------------------------------- */
+.masthead{
+  position:relative;
+  z-index:3;
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:24px;
+  flex-wrap:wrap;
+  padding:22px clamp(18px,4vw,54px) 16px;
+  border-bottom:1.5px solid var(--line);
+  background:linear-gradient(180deg,var(--paper) 0%, var(--paper) 60%, rgba(250,246,238,.4) 100%);
+}
+.brand{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.brand .kicker{
+  font-size:11px;letter-spacing:.42em;text-transform:uppercase;
+  color:var(--ink-soft);font-weight:500;
+}
+.brand h1{
+  margin:0;font-family:var(--serif);font-weight:700;font-style:italic;
+  font-size:clamp(28px,4.6vw,52px);line-height:.95;letter-spacing:-.01em;
+}
+.brand h1 em{font-style:normal;color:var(--cancel);}
+.masthead .meta{
+  text-align:right;font-size:11.5px;line-height:1.7;color:var(--ink-soft);
+  letter-spacing:.04em;
+}
+.masthead .meta b{color:var(--ink);font-weight:600;}
+.masthead .meta .roundel{
+  display:inline-grid;place-items:center;
+  width:54px;height:54px;border-radius:50%;
+  border:1.5px solid var(--ink);color:var(--ink);
+  font-family:var(--serif);font-style:italic;font-weight:700;font-size:13px;
+  margin-left:10px;transform:rotate(-9deg);
+  background:
+    repeating-conic-gradient(from 0deg, transparent 0 11deg, rgba(44,22,84,.0) 11deg 12deg);
+}
+
+/* ---------------------------------------------------------- *
+   COLLECTOR'S GRID
+ * ---------------------------------------------------------- */
+.album{
+  position:relative;z-index:2;
+  padding:clamp(22px,3.4vw,42px) clamp(16px,4vw,54px) 80px;
+}
+.album-rule{
+  display:flex;align-items:center;gap:14px;
+  font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--ink-soft);
+  margin:0 0 26px;
+}
+.album-rule::before,.album-rule::after{content:"";height:1px;background:var(--line);flex:1;}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(228px, 1fr));
+  gap:clamp(26px,3.2vw,46px);
+  align-items:start;
+}
+
+/* ---------------------------------------------------------- *
+   ONE STAMP
+   Two layers: .stamp (the printed face) over .reveal (full-res)
+ * ---------------------------------------------------------- */
+.stamp-cell{position:relative;}
+
+.stamp{
+  position:relative;
+  display:grid;                 /* lay the face into the padded content box */
+  width:100%;
+  aspect-ratio:var(--ar, 4 / 5);
+  background:transparent;
+  border:0;
+  border-radius:3px;
+  cursor:zoom-in;
+  transform-origin:50% 50%;
+  transform:rotate(var(--tilt,0deg));
+  transition:transform .5s cubic-bezier(.2,.8,.2,1), filter .35s ease;
+  /* perforated edge: a gummed paper ring whose border is bitten into
+     teeth by a radial mask. The mask cuts half-circles evenly along
+     all four edges. The picture (.face) sits ABOVE this ring. */
+  padding:var(--perf);
+  filter:drop-shadow(0 14px 30px rgba(44,22,84,.32));
+  -webkit-tap-highlight-color:transparent;
+  font:inherit;color:inherit;text-align:left;
+}
+.stamp::before{
+  /* the gummed border / perforation field */
+  content:"";
+  position:absolute;inset:0;border-radius:3px;
+  background:var(--gum);
+  -webkit-mask:
+     radial-gradient(circle var(--perf) at 0 0,#0000 98%,#000) ,
+     radial-gradient(circle var(--perf) at 0 0,#000 99%,#0000) ;
+  /* tooth mask: punch holes along the perimeter */
+  -webkit-mask:
+    radial-gradient(circle var(--perf) at top, #0000 99%, #000) 0 0 / calc(2*var(--perf)) 51% repeat-x,
+    radial-gradient(circle var(--perf) at bottom, #0000 99%, #000) 0 100% / calc(2*var(--perf)) 51% repeat-x,
+    radial-gradient(circle var(--perf) at left, #0000 99%, #000) 0 0 / 51% calc(2*var(--perf)) repeat-y,
+    radial-gradient(circle var(--perf) at right, #0000 99%, #000) 100% 0 / 51% calc(2*var(--perf)) repeat-y;
+  -webkit-mask-composite:source-over;
+          mask:
+    radial-gradient(circle var(--perf) at top, #0000 99%, #000) 0 0 / calc(2*var(--perf)) 51% repeat-x,
+    radial-gradient(circle var(--perf) at bottom, #0000 99%, #000) 0 100% / calc(2*var(--perf)) 51% repeat-x,
+    radial-gradient(circle var(--perf) at left, #0000 99%, #000) 0 0 / 51% calc(2*var(--perf)) repeat-y,
+    radial-gradient(circle var(--perf) at right, #0000 99%, #000) 100% 0 / 51% calc(2*var(--perf)) repeat-y;
+  pointer-events:none;
+}
+.stamp:hover,.stamp:focus-visible{
+  transform:rotate(0deg) translateY(-4px) scale(1.018);
+  filter:drop-shadow(0 24px 40px rgba(44,22,84,.4));
+  z-index:6;
+}
+
+/* the printed picture area inside the perforation */
+.face{
+  position:relative;
+  z-index:1;                    /* sit above the gummed perforation ring */
+  display:block;
+  grid-area:1 / 1;
+  width:100%;height:100%;
+  overflow:hidden;
+  border-radius:1px;
+  background:#1a0f30;
+  box-shadow:inset 0 0 0 1px rgba(44,22,84,.25), inset 0 0 26px rgba(44,22,84,.18);
+}
+.face img,.face video{
+  position:absolute;inset:0;
+  width:100%;height:100%;
+  object-fit:cover;            /* portrait stamps crop intentionally */
+  display:block;
+  filter:saturate(.92) contrast(1.04);
+}
+/* engraving ink-wash so every cell reads as a printed stamp, not a photo */
+.face::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:
+    linear-gradient(180deg, rgba(44,22,84,.0) 55%, rgba(44,22,84,.42) 100%),
+    repeating-linear-gradient(0deg, rgba(44,22,84,.05) 0 1px, transparent 1px 3px);
+  mix-blend-mode:multiply;
+}
+
+/* engraved frame line just inside the picture (classic stamp inner rule) */
+.face .innerframe{
+  position:absolute;inset:7px;border:1px solid rgba(250,246,238,.55);
+  border-radius:1px;pointer-events:none;
+  box-shadow:0 0 0 1px rgba(44,22,84,.35);
+}
+
+/* COUNTRY + TITLE engraved across the top of the stamp */
+.legend{
+  position:absolute;left:0;right:0;top:9px;z-index:3;
+  display:flex;justify-content:space-between;align-items:baseline;
+  padding:0 14px;pointer-events:none;
+  font-size:9.5px;letter-spacing:.26em;text-transform:uppercase;
+  color:var(--paper);text-shadow:0 1px 2px rgba(0,0,0,.5);
+}
+.legend .country{font-weight:600;}
+.title-plate{
+  position:absolute;left:10px;right:10px;bottom:11px;z-index:3;
+  pointer-events:none;color:var(--paper);text-shadow:0 1px 3px rgba(0,0,0,.6);
+}
+.title-plate .t{
+  font-family:var(--serif);font-style:italic;font-weight:700;
+  font-size:clamp(15px,2vw,19px);line-height:1.04;letter-spacing:-.01em;
+}
+.title-plate .m{
+  font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;opacity:.85;margin-top:3px;
+}
+
+/* DENOMINATION glyph - corner value, engraved roundel */
+.denom{
+  position:absolute;right:9px;top:8px;z-index:4;
+  width:38px;height:38px;border-radius:50%;
+  display:grid;place-items:center;
+  background:rgba(250,246,238,.92);
+  color:var(--ink);
+  font-family:var(--serif);font-weight:700;font-style:italic;
+  font-size:14px;line-height:.9;text-align:center;
+  box-shadow:0 0 0 1.5px var(--ink), 0 2px 6px rgba(0,0,0,.35);
+  pointer-events:none;
+}
+.denom small{display:block;font-family:var(--mono);font-style:normal;font-size:6.5px;letter-spacing:.12em;opacity:.7;}
+
+/* media-type chip (bottom-right) */
+.kind{
+  position:absolute;right:9px;bottom:11px;z-index:4;
+  font-size:8px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--paper);background:rgba(44,22,84,.6);
+  padding:3px 6px;border-radius:2px;border:1px solid rgba(250,246,238,.35);
+  pointer-events:none;
+}
+
+/* CANCELLATION MARK - the postmark stamped over the corner */
+.cancel{
+  position:absolute;z-index:5;left:-8px;top:-6px;
+  width:84px;height:84px;pointer-events:none;
+  opacity:.78;transform:rotate(var(--ctilt,-12deg));
+  mix-blend-mode:multiply;
+}
+.cancel svg{width:100%;height:100%;display:block;}
+.cancel text,.cancel circle,.cancel line,.cancel path{stroke:var(--cancel);fill:var(--cancel);}
+
+/* a play badge for video stamps (poster shown until focus) */
+.playmark{
+  position:absolute;z-index:4;left:50%;top:50%;
+  width:46px;height:46px;border-radius:50%;
+  transform:translate(-50%,-50%);
+  display:grid;place-items:center;
+  background:rgba(250,246,238,.86);
+  box-shadow:0 0 0 1.5px var(--ink);
+  color:var(--ink);pointer-events:none;
+  transition:opacity .3s ease,transform .3s ease;
+}
+.playmark::after{content:"";border-left:13px solid var(--ink);border-top:8px solid transparent;border-bottom:8px solid transparent;margin-left:3px;}
+.stamp[data-playing="1"] .playmark{opacity:0;transform:translate(-50%,-50%) scale(.6);}
+
+/* ---------------------------------------------------------- *
+   THE PEEL / REVEAL
+   When pinned, the stamp curls its top-right corner back and the
+   full-res work shows through underneath.
+ * ---------------------------------------------------------- */
+.reveal{
+  position:absolute;inset:0;border-radius:3px;overflow:hidden;
+  opacity:0;visibility:hidden;
+  background:#120a24;
+  box-shadow:var(--shadow);
+  transition:opacity .35s ease .12s, visibility 0s linear .5s;
+  z-index:1;
+}
+.reveal img,.reveal video{width:100%;height:100%;object-fit:contain;background:#0d0720;display:block;}
+.reveal .caption{
+  position:absolute;left:0;right:0;bottom:0;z-index:2;
+  padding:14px 16px;color:var(--paper);
+  background:linear-gradient(0deg, rgba(18,10,36,.92), rgba(18,10,36,0));
+  font-size:11.5px;letter-spacing:.03em;
+}
+.reveal .caption b{font-family:var(--serif);font-style:italic;font-size:16px;display:block;margin-bottom:3px;letter-spacing:0;}
+
+.stamp-cell.pinned .stamp{
+  cursor:zoom-out;
+  /* peel: rotate in 3D so the top-right corner lifts and curls away */
+  transform-origin:88% 12%;
+  animation:peel .85s cubic-bezier(.36,.66,.2,1) forwards;
+  z-index:8;
+}
+.stamp-cell.pinned .reveal{opacity:1;visibility:visible;transition:opacity .4s ease .25s;}
+.stamp-cell.pinned{z-index:10;}
+
+@keyframes peel{
+  0%   {transform:rotate(0) perspective(900px) rotateX(0) rotateY(0); filter:drop-shadow(0 14px 30px rgba(44,22,84,.32));}
+  55%  {transform:rotate(0) perspective(900px) rotateX(10deg) rotateY(-22deg) translate(6%,-3%);}
+  100% {transform:rotate(0) perspective(900px) rotateX(8deg) rotateY(-34deg) translate(11%,-5%) scale(.985);
+        filter:drop-shadow(-18px 22px 26px rgba(44,22,84,.45));}
+}
+/* a curl-shadow gradient appears on the peeling face */
+.stamp-cell.pinned .face::before{
+  content:"";position:absolute;inset:0;z-index:6;pointer-events:none;
+  background:linear-gradient(225deg, rgba(0,0,0,.5) 0%, rgba(0,0,0,0) 38%);
+  animation:curlshade .85s ease forwards;
+}
+@keyframes curlshade{from{opacity:0;}to{opacity:1;}}
+
+/* ---------------------------------------------------------- *
+   THE LOUPE  (single small WebGL overlay canvas)
+ * ---------------------------------------------------------- */
+#loupe{
+  position:fixed;left:0;top:0;z-index:60;
+  width:230px;height:230px;border-radius:50%;
+  pointer-events:none;
+  opacity:0;
+  transform:translate(-50%,-50%) scale(.7);
+  transition:opacity .18s ease, transform .18s ease;
+  box-shadow:
+    0 0 0 3px rgba(250,246,238,.9),
+    0 0 0 5px var(--ink),
+    0 16px 40px -8px rgba(44,22,84,.6),
+    inset 0 0 40px rgba(44,22,84,.25);
+  /* brass loupe rim feel */
+  background:#0d0720;
+  overflow:hidden;
+}
+#loupe.on{opacity:1;transform:translate(-50%,-50%) scale(1);}
+#loupe canvas{width:100%;height:100%;display:block;border-radius:50%;}
+#loupe .rim{
+  position:absolute;inset:0;border-radius:50%;pointer-events:none;
+  box-shadow:inset 0 0 30px rgba(0,0,0,.55), inset 0 0 0 1px rgba(250,246,238,.25);
+  background:radial-gradient(circle at 36% 30%, rgba(250,246,238,.18), transparent 40%);
+}
+
+/* ---------------------------------------------------------- *
+   FOOTER
+ * ---------------------------------------------------------- */
+.colophon{
+  border-top:1.5px solid var(--line);
+  padding:26px clamp(18px,4vw,54px) 60px;
+  display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;
+  font-size:11px;letter-spacing:.06em;color:var(--ink-soft);
+}
+.colophon b{color:var(--ink);font-weight:600;}
+.hint{
+  display:inline-flex;align-items:center;gap:7px;
+  font-size:11px;color:var(--ink-soft);letter-spacing:.04em;
+}
+.hint kbd{
+  font-family:var(--mono);font-size:10px;border:1px solid var(--line);
+  border-radius:3px;padding:1px 6px;background:var(--paper-2);color:var(--ink);
+}
+
+/* ---------------------------------------------------------- *
+   MOBILE  (<=640px): grid -> horizontal scroll strip
+   landscape assets are letterboxed (contain), never cover-cropped
+ * ---------------------------------------------------------- */
+@media (max-width:640px){
+  body{font-size:15px;}
+  .masthead{padding:16px 16px 12px;align-items:center;}
+  .masthead .meta .roundel{display:none;}
+  .album{padding:18px 0 56px;}
+  .album-rule{padding:0 16px;}
+  .grid{
+    display:flex;
+    gap:22px;
+    overflow-x:auto;
+    scroll-snap-type:x mandatory;
+    -webkit-overflow-scrolling:touch;
+    padding:6px 16px 22px;
+    scrollbar-width:none;
+  }
+  .grid::-webkit-scrollbar{display:none;}
+  .stamp-cell{flex:0 0 78vw;max-width:330px;scroll-snap-align:center;}
+  .stamp{aspect-ratio:4 / 5;}
+  .face img,.face video{object-fit:contain;background:#160c2c;}   /* letterbox landscape on phone */
+  .stamp:hover,.stamp:focus-visible{transform:none;}             /* no lift hover on touch */
+  /* pinch-zoom field becomes the inspection gesture; pinned reveal still works */
+  .stamp-cell.pinned .stamp{animation-duration:.6s;}
+  #loupe{display:none;}                                          /* loupe -> pinch gesture on mobile */
+  .colophon{padding:22px 16px 48px;}
+}
+
+/* ---------------------------------------------------------- *
+   REDUCED MOTION  - disable loupe, curl, hover transforms;
+   show final states only
+ * ---------------------------------------------------------- */
+@media (prefers-reduced-motion:reduce){
+  .stamp{transition:none;transform:rotate(0deg)!important;}
+  .stamp:hover,.stamp:focus-visible{transform:none;filter:drop-shadow(0 14px 30px rgba(44,22,84,.32));}
+  .stamp-cell.pinned .stamp{animation:none;transform:rotate(0)!important;opacity:0;}
+  .stamp-cell.pinned .reveal{transition:none;}
+  .stamp-cell.pinned .face::before{animation:none;display:none;}
+  #loupe{display:none!important;}
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     DATA  -  swap these entries to re-skin the whole catalogue.
+     Each work becomes one postage stamp.
+       title     : printed across the bottom of the stamp
+       country   : the issuing "nation" (engraved top-left)
+       denom     : denomination glyph value (corner roundel)
+       denomUnit : tiny unit under the glyph
+       year      : issue year (postmark + legend)
+       kind      : 'image' | 'video'
+       ar        : aspect ratio for the stamp face (CSS value)
+       src       : the printed stamp image (poster for video)
+       full      : full-res asset revealed on peel (the work itself)
+       video     : (video kind) the playable mp4, plays only when focused
+       muted     : whether the video has audio (false = unmute on focus)
+     ASSET PATHS are relative to /showcase/templates/.
+   ============================================================ -->
+<script>
+const DATA = [
+  {
+    title:"Night Sender",
+    country:"REPUBLIC OF FLUX",
+    denom:"40", denomUnit:"satang", year:"2026",
+    kind:"image", ar:"4 / 5",
+    src:"../assets/flux-car-4k.png",
+    full:"../assets/flux-car-4k.png",
+    note:"Matte-black coupe, wet neon arterial. Engraved from a 4K cinematic plate."
+  },
+  {
+    title:"The Clinic, Mint & Oak",
+    country:"POSTES DENTAIRES",
+    denom:"15", denomUnit:"baht", year:"2026",
+    kind:"image", ar:"4 / 5",
+    src:"../assets/flux-clinic-4k.png",
+    full:"../assets/flux-clinic-4k.png",
+    note:"Interior, daylight. A calm waiting room rendered as a definitive issue."
+  },
+  {
+    title:"Autumn Vulpine",
+    country:"SDXL TERRITORIES",
+    denom:"08", denomUnit:"units", year:"2026",
+    kind:"image", ar:"1 / 1",
+    src:"../assets/sdxl.png",
+    full:"../assets/sdxl.png",
+    note:"Painterly fox among falling leaves. Commemorative square format."
+  },
+  {
+    title:"Low-Fi Pomme",
+    country:"TINY-SD ISLES",
+    denom:"02", denomUnit:"units", year:"2026",
+    kind:"image", ar:"1 / 1",
+    src:"../assets/hf-tinysd.png",
+    full:"../assets/hf-tinysd.png",
+    note:"An abstract apple, lo-fi diffusion. Smallest denomination in the set."
+  },
+  {
+    title:"Coupe in Motion",
+    country:"FLUX I2V LINES",
+    denom:"60", denomUnit:"satang", year:"2026",
+    kind:"video", ar:"4 / 5", muted:true,
+    src:"../assets/gen/poster-flux-car-i2v.png",
+    video:"../assets/flux-car-i2v.mp4",
+    full:"../assets/gen/poster-flux-car-i2v.png",
+    note:"The car plate, animated. Peel to inspect; the stamp itself runs the loop."
+  },
+  {
+    title:"Kinetic Field No.3",
+    country:"KLING UNION",
+    denom:"75", denomUnit:"satang", year:"2026",
+    kind:"video", ar:"16 / 9", muted:true,
+    src:"../assets/gen/poster-kling-video.png",
+    video:"../assets/kling-video.mp4",
+    full:"../assets/gen/poster-kling-video.png",
+    note:"Generated motion study. Wide commemorative strip, letterboxed when peeled."
+  },
+  {
+    title:"Drift Study",
+    country:"FAL PROVINCE",
+    denom:"50", denomUnit:"satang", year:"2026",
+    kind:"video", ar:"16 / 9", muted:true,
+    src:"../assets/gen/poster-fal-video.png",
+    video:"../assets/fal-video.mp4",
+    full:"../assets/gen/poster-fal-video.png",
+    note:"Looping generative footage. Only the focused stamp decodes - the rest hold posters."
+  },
+  {
+    title:"The Envoy Speaks",
+    country:"VEO CONFEDERATION",
+    denom:"95", denomUnit:"baht", year:"2026",
+    kind:"video", ar:"16 / 9", muted:false,
+    src:"../assets/gen/poster-veo-video.png",
+    video:"../assets/veo-video.mp4",
+    full:"../assets/gen/poster-veo-video.png",
+    note:"A talking issue with sound. Audio enables only when this stamp is focused or pinned."
+  }
+];
+</script>
+
+<header class="masthead">
+  <div class="brand">
+    <span class="kicker">Philatelic Catalogue No. 26</span>
+    <h1>Stamp <em>Deck</em></h1>
+  </div>
+  <div class="meta">
+    <b>8</b> issues &nbsp;·&nbsp; series of <b>2026</b><br/>
+    hover to inspect with the loupe &nbsp;·&nbsp; click to peel
+    <span class="roundel" aria-hidden="true">PAR&nbsp;AVION</span>
+  </div>
+</header>
+
+<main class="album">
+  <p class="album-rule">The Collector's Grid &nbsp;//&nbsp; oversized definitives</p>
+  <div class="grid" id="grid" role="list" aria-label="Stamp collection"></div>
+</main>
+
+<footer class="colophon">
+  <div>
+    <b>Stamp Deck</b> &nbsp; a self-contained template. Swap the <b>DATA</b> array to re-issue the set.
+  </div>
+  <div class="hint">
+    <span><kbd>hover</kbd> loupe</span>
+    <span><kbd>click</kbd> peel</span>
+    <span><kbd>esc</kbd> close</span>
+  </div>
+</footer>
+
+<!-- the magnifying loupe overlay (WebGL) -->
+<div id="loupe" aria-hidden="true"><div class="rim"></div></div>
+
+<script>
+/* ============================================================
+   1.  BUILD THE STAMPS FROM DATA
+   ============================================================ */
+const grid = document.getElementById('grid');
+const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const isTouch = window.matchMedia('(hover: none), (pointer: coarse)').matches;
+
+// a small set of natural-looking tilts so the album reads hand-placed
+const TILTS  = [-2.4, 1.8, -1.2, 2.6, -2.0, 1.4, -1.6, 2.2];
+const CTILTS = [-14, -8, -18, -10, -12, -16, -9, -13];
+
+function postmarkSVG(country, year){
+  // a circular cancellation: ring of text + wavy "killer" bars
+  const top = country.length > 16 ? country.slice(0,16) : country;
+  return `
+  <svg viewBox="0 0 100 100" aria-hidden="true">
+    <defs>
+      <path id="pmTop" d="M18,50 A32,32 0 0,1 82,50"/>
+      <path id="pmBot" d="M82,52 A32,32 0 0,1 18,52"/>
+    </defs>
+    <circle cx="50" cy="50" r="34" fill="none" stroke-width="2.2"/>
+    <circle cx="50" cy="50" r="26" fill="none" stroke-width="1"/>
+    <text font-family="Spline Sans Mono, monospace" font-size="6.4" letter-spacing="0.6" stroke="none">
+      <textPath href="#pmTop" startOffset="50%" text-anchor="middle">${top}</textPath>
+    </text>
+    <text font-family="Spline Sans Mono, monospace" font-size="6.4" letter-spacing="0.8" stroke="none">
+      <textPath href="#pmBot" startOffset="50%" text-anchor="middle">★ ${year} ★</textPath>
+    </text>
+    <text x="50" y="54" text-anchor="middle" font-family="Bodoni Moda, serif" font-weight="700"
+          font-style="italic" font-size="13" stroke="none">REC'D</text>
+    <g stroke-width="1.4" fill="none">
+      <path d="M6,68 q6,-5 12,0 t12,0 t12,0 t12,0 t12,0 t12,0 t12,0"/>
+      <path d="M6,74 q6,-5 12,0 t12,0 t12,0 t12,0 t12,0 t12,0 t12,0"/>
+    </g>
+  </svg>`;
+}
+
+DATA.forEach((d, i) => {
+  const cell = document.createElement('article');
+  cell.className = 'stamp-cell';
+  cell.setAttribute('role','listitem');
+  cell.style.setProperty('--tilt',  (REDUCED?0:TILTS[i % TILTS.length]) + 'deg');
+  cell.style.setProperty('--ctilt', CTILTS[i % CTILTS.length] + 'deg');
+
+  const isVid = d.kind === 'video';
+  const faceMedia = `<img src="${d.src}" alt="${d.title}" loading="lazy" decoding="async" draggable="false"/>`;
+
+  // full-res reveal layer (image, or the playable video for video kinds)
+  const revealMedia = isVid
+    ? `<video src="${d.video}" poster="${d.src}" loop playsinline ${d.muted?'muted':''} preload="none"></video>`
+    : `<img src="${d.full}" alt="${d.title} - full resolution" loading="lazy" decoding="async" draggable="false"/>`;
+
+  cell.innerHTML = `
+    <div class="reveal" aria-hidden="true">
+      ${revealMedia}
+      <div class="caption"><b>${d.title}</b>${d.note || ''}</div>
+    </div>
+    <button class="stamp" style="--ar:${d.ar}" data-i="${i}" data-kind="${d.kind}"
+            aria-label="${d.title}, ${d.country}, denomination ${d.denom} ${d.denomUnit}. Activate to peel and inspect."
+            aria-pressed="false">
+      <span class="face">
+        ${faceMedia}
+        <span class="innerframe"></span>
+        <span class="legend"><span class="country">${d.country}</span><span class="yr">№ ${String(i+1).padStart(2,'0')}</span></span>
+        <span class="title-plate"><span class="t">${d.title}</span><span class="m">issue ${d.year}</span></span>
+        <span class="denom">${d.denom}<small>${d.denomUnit}</small></span>
+        <span class="kind">${isVid?'cine':'print'}</span>
+        ${isVid?'<span class="playmark" aria-hidden="true"></span>':''}
+      </span>
+      <span class="cancel">${postmarkSVG(d.country, d.year)}</span>
+    </button>
+  `;
+  grid.appendChild(cell);
+});
+
+const stamps = [...document.querySelectorAll('.stamp')];
+
+/* ============================================================
+   2.  VIDEO POLICY
+   Only the hovered / focused / pinned video stamp decodes.
+   All others hold their poster. Audio (veo) only on focus.
+   ============================================================ */
+function faceVideoOf(stamp){
+  // video stamps animate the FACE too, by swapping the face img for a video on activation
+  return stamp.querySelector('.face video');
+}
+function revealVideoOf(cell){ return cell.querySelector('.reveal video'); }
+
+function activateVideoFace(stamp, on){
+  const d = DATA[+stamp.dataset.i];
+  if (d.kind !== 'video') return;
+  let face = stamp.querySelector('.face');
+  let vid  = face.querySelector('video');
+  if (on){
+    if (!vid){
+      // lazily build the face video on first focus to keep idle cost ~zero
+      vid = document.createElement('video');
+      vid.src = d.video; vid.poster = d.src;
+      vid.loop = true; vid.playsInline = true; vid.muted = true; // face is always muted (audio plays in reveal)
+      vid.setAttribute('preload','none');
+      const img = face.querySelector('img');
+      face.insertBefore(vid, img.nextSibling);
+      img.style.opacity = '0';
+    }
+    vid.play().then(()=>stamp.setAttribute('data-playing','1')).catch(()=>{});
+  } else if (vid){
+    vid.pause(); stamp.removeAttribute('data-playing');
+  }
+}
+
+/* the reveal video (full-res) plays only while pinned; veo gets its audio there */
+function setRevealPlayback(cell, on){
+  const v = revealVideoOf(cell);
+  if (!v) return;
+  const d = DATA[+cell.querySelector('.stamp').dataset.i];
+  if (on){
+    v.muted = !!d.muted ? true : false;   // unmute only if the asset has audio
+    v.play().catch(()=>{});
+  } else { v.pause(); v.muted = true; }
+}
+
+/* an IntersectionObserver pauses everything that scrolls out of view */
+const io = new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{
+    if (e.isIntersecting) return;
+    const cell = e.target;
+    const stamp = cell.querySelector('.stamp');
+    activateVideoFace(stamp,false);
+    if (cell.classList.contains('pinned')) closeCell(cell);
+  });
+},{threshold:0.15});
+stamps.forEach(s=>io.observe(s.closest('.stamp-cell')));
+
+/* ============================================================
+   3.  PEEL / PIN  (click to reveal, click again / esc to close)
+   ============================================================ */
+let pinned = null;
+function closeCell(cell){
+  if (!cell) return;
+  cell.classList.remove('pinned');
+  const stamp = cell.querySelector('.stamp');
+  stamp.setAttribute('aria-pressed','false');
+  setRevealPlayback(cell,false);
+  if (pinned === cell) pinned = null;
+}
+function openCell(cell){
+  if (pinned && pinned !== cell) closeCell(pinned);
+  cell.classList.add('pinned');
+  const stamp = cell.querySelector('.stamp');
+  stamp.setAttribute('aria-pressed','true');
+  setRevealPlayback(cell,true);
+  pinned = cell;
+}
+
+stamps.forEach(stamp=>{
+  const cell = stamp.closest('.stamp-cell');
+  stamp.addEventListener('click',()=>{
+    if (cell.classList.contains('pinned')) closeCell(cell);
+    else openCell(cell);
+  });
+
+  // hover / focus: run the face video + start the loupe inspection
+  const enter = ()=>{ activateVideoFace(stamp,true); loupe.attach(stamp); };
+  const leave = ()=>{ if(!cell.classList.contains('pinned')) activateVideoFace(stamp,false); loupe.detach(stamp); };
+
+  stamp.addEventListener('pointerenter', enter);
+  stamp.addEventListener('pointerleave', leave);
+  stamp.addEventListener('focus', ()=>{ activateVideoFace(stamp,true); });
+  stamp.addEventListener('blur',  ()=>{ if(!cell.classList.contains('pinned')) activateVideoFace(stamp,false); });
+});
+
+document.addEventListener('keydown',e=>{ if(e.key==='Escape' && pinned) closeCell(pinned); });
+
+/* ============================================================
+   4.  THE LOUPE  -  a single small WebGL postprocessing pass.
+   Strategy: each hovered stamp has its OWN tiny texture (its face
+   image). The loupe canvas draws a fullscreen quad and samples that
+   texture with barrel distortion + chromatic aberration toward the
+   lens edge. No dynamic-indexed local arrays (ANGLE-safe).
+   Disabled entirely on touch + reduced-motion.
+   ============================================================ */
+const loupe = (function(){
+  const el = document.getElementById('loupe');
+  const SIZE = 230;
+  const DISABLED = REDUCED || isTouch;
+
+  if (DISABLED){
+    return { attach(){}, detach(){}, _ok:false };
+  }
+
+  // build canvas
+  const canvas = document.createElement('canvas');
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);   // cap DPR at 2
+  canvas.width = SIZE * dpr; canvas.height = SIZE * dpr;
+  el.insertBefore(canvas, el.firstChild);
+
+  let gl = canvas.getContext('webgl', {antialias:false, premultipliedAlpha:false, alpha:true})
+        || canvas.getContext('experimental-webgl');
+
+  // ---- graceful fallback: a CSS-magnifier loupe if WebGL is unavailable ----
+  let WEBGL_OK = !!gl;
+  let cssBg = null;
+  if (!WEBGL_OK){
+    cssBg = document.createElement('div');
+    cssBg.style.cssText = 'position:absolute;inset:0;border-radius:50%;background-repeat:no-repeat;';
+    el.insertBefore(cssBg, el.firstChild);
+  }
+
+  // ---------- GLSL ----------
+  const VERT = `
+    attribute vec2 a_pos;
+    varying vec2 v_uv;
+    void main(){
+      v_uv = a_pos * 0.5 + 0.5;
+      gl_Position = vec4(a_pos, 0.0, 1.0);
+    }`;
+  // barrel distortion + edge chromatic aberration. lens is centered at u_focus
+  // and shows a magnified window of the source texture.
+  const FRAG = `
+    precision highp float;
+    varying vec2 v_uv;
+    uniform sampler2D u_tex;
+    uniform vec2  u_focus;   // 0..1 point of the texture under the cursor
+    uniform vec2  u_window;  // half-extent of the magnified window in tex space
+    uniform float u_aspect;  // texture aspect (w/h) to keep circles round
+
+    void main(){
+      // centered lens coordinate, -1..1, circular
+      vec2 p = v_uv * 2.0 - 1.0;
+      float r = length(p);
+
+      // soft circular crop
+      float mask = 1.0 - smoothstep(0.97, 1.0, r);
+
+      // barrel distortion: push samples outward near the rim
+      float k = 0.18;
+      float bd = 1.0 + k * r * r;
+      vec2 pd = p * bd;
+
+      // map lens space into the source texture window around the focus
+      vec2 uv = u_focus + pd * u_window;
+
+      // chromatic aberration grows toward the lens edge
+      float ca = (0.004 + 0.012 * r * r);
+      vec2 dir = (r > 0.0001) ? p / r : vec2(0.0);
+      vec2 off = dir * ca;
+
+      float cr = texture2D(u_tex, uv + off).r;
+      float cg = texture2D(u_tex, uv).g;
+      float cb = texture2D(u_tex, uv - off).b;
+      vec3 col = vec3(cr, cg, cb);
+
+      // a faint brass tint + edge darkening for the glass feel
+      float edge = smoothstep(0.55, 1.0, r);
+      col *= mix(1.0, 0.82, edge);
+      col += vec3(0.04, 0.03, 0.0) * edge;
+
+      // outside the lens -> transparent
+      if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0){
+        col = mix(col, vec3(0.05,0.03,0.10), 0.85);
+      }
+
+      gl_FragColor = vec4(col, mask);
+    }`;
+
+  let prog, locFocus, locWindow, locAspect, tex, texReady = false, curStamp = null, curImg = null;
+  let raf = 0, mouse = {x:0,y:0,inside:false};
+
+  function compile(type, src){
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)){
+      console.warn('loupe shader:', gl.getShaderInfoLog(s)); WEBGL_OK = false;
+    }
+    return s;
+  }
+
+  if (WEBGL_OK){
+    prog = gl.createProgram();
+    gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
+    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)){
+      console.warn('loupe link:', gl.getProgramInfoLog(prog)); WEBGL_OK = false;
+    }
+  }
+
+  if (WEBGL_OK){
+    gl.useProgram(prog);
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+    const locPos = gl.getAttribLocation(prog,'a_pos');
+    gl.enableVertexAttribArray(locPos);
+    gl.vertexAttribPointer(locPos, 2, gl.FLOAT, false, 0, 0);
+
+    locFocus  = gl.getUniformLocation(prog,'u_focus');
+    locWindow = gl.getUniformLocation(prog,'u_window');
+    locAspect = gl.getUniformLocation(prog,'u_aspect');
+
+    tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.viewport(0,0,canvas.width,canvas.height);
+    gl.clearColor(0,0,0,0);
+
+    // confirm the loupe canvas actually paints (some headless/locked-down
+    // contexts link fine but never raster). Probe one pixel.
+    try{
+      const probe = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, probe);
+      gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([200,40,80,255]));
+      gl.uniform2f(locFocus,0.5,0.5); gl.uniform2f(locWindow,0.2,0.2); gl.uniform1f(locAspect,1.0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+      const px = new Uint8Array(4);
+      gl.readPixels(Math.floor(canvas.width/2),Math.floor(canvas.height/2),1,1,gl.RGBA,gl.UNSIGNED_BYTE,px);
+      if (px[3] === 0 && px[0] === 0){ WEBGL_OK = false; }   // never painted -> fall back
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+    }catch(err){ WEBGL_OK = false; }
+  }
+
+  // If the probe failed, drop to CSS magnifier.
+  if (!WEBGL_OK && !cssBg){
+    if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
+    cssBg = document.createElement('div');
+    cssBg.style.cssText = 'position:absolute;inset:0;border-radius:50%;background-repeat:no-repeat;';
+    el.insertBefore(cssBg, el.firstChild);
+  }
+
+  // when WebGL can't be used for the texture (e.g. tainted same-origin
+  // images under file://, or a lost context) we drop to a CSS magnifier
+  // that still reads as a loupe. Build its surface lazily, once.
+  function ensureCssBg(){
+    if (cssBg) return;
+    cssBg = document.createElement('div');
+    cssBg.style.cssText = 'position:absolute;inset:0;border-radius:50%;background-repeat:no-repeat;';
+    el.insertBefore(cssBg, el.firstChild);
+    if (canvas && canvas.parentNode) canvas.style.display = 'none';
+  }
+  function downgradeToCss(){
+    WEBGL_OK = false;
+    ensureCssBg();
+  }
+
+  // upload a stamp's face image into the texture
+  function useImage(img){
+    curImg = img;
+    if (WEBGL_OK){
+      texReady = false;
+      if (img.complete && img.naturalWidth){
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        // texImage2D throws on cross-origin / tainted sources (notably the
+        // whole page when opened via file://). Catch it and downgrade so the
+        // loupe never shows a stale probe colour.
+        try{ gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,img); texReady = true; }
+        catch(e){ downgradeToCss(); }
+      }
+    }
+    if (!WEBGL_OK){
+      ensureCssBg();
+      cssBg.style.backgroundImage = `url("${img.currentSrc||img.src}")`;
+    }
+  }
+
+  function attach(stamp){
+    if (DISABLED) return;
+    curStamp = stamp;
+    const img = stamp.querySelector('.face img');
+    if (img) useImage(img);
+    window.addEventListener('pointermove', onMove);
+    if (!raf) raf = requestAnimationFrame(loop);
+  }
+  function detach(stamp){
+    if (DISABLED) return;
+    if (stamp && stamp !== curStamp) return;
+    curStamp = null;
+    el.classList.remove('on');
+    window.removeEventListener('pointermove', onMove);
+    cancelAnimationFrame(raf); raf = 0;
+  }
+
+  function onMove(e){
+    mouse.x = e.clientX; mouse.y = e.clientY;
+    if (!curStamp){ mouse.inside = false; return; }
+    const face = curStamp.querySelector('.face');
+    const r = face.getBoundingClientRect();
+    const u = (e.clientX - r.left) / r.width;
+    const v = (e.clientY - r.top)  / r.height;
+    mouse.inside = (u>=0 && u<=1 && v>=0 && v<=1);
+    mouse.u = Math.min(1,Math.max(0,u));
+    mouse.v = Math.min(1,Math.max(0,v));
+    mouse.faceAR = r.width / r.height;
+  }
+
+  function loop(){
+    raf = requestAnimationFrame(loop);
+    if (!curStamp){ el.classList.remove('on'); return; }
+
+    // position the loupe at the cursor
+    el.style.left = mouse.x + 'px';
+    el.style.top  = mouse.y + 'px';
+
+    if (!mouse.inside){ el.classList.remove('on'); return; }
+    el.classList.add('on');
+
+    // magnification window (smaller window = stronger zoom)
+    const zoom = 0.16;  // half-extent in texture space -> ~3x magnification
+
+    if (WEBGL_OK){
+      if (!texReady && curImg) useImage(curImg);   // image may have finished loading
+      if (!texReady) return;
+      gl.useProgram(prog);
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.uniform2f(locFocus,  mouse.u, mouse.v);
+      // keep the magnified window proportional to the face aspect so it isn't stretched
+      const ar = mouse.faceAR || 1;
+      gl.uniform2f(locWindow, zoom, zoom * ar);
+      gl.uniform1f(locAspect, ar);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    } else if (cssBg && curImg){
+      // CSS-magnifier fallback: scale the bg and offset by focus point
+      const Z = 3.0;
+      cssBg.style.backgroundSize = (SIZE*Z) + 'px ' + (SIZE*Z*(mouse.faceAR||1)) + 'px';
+      const bx = -(mouse.u * SIZE*Z - SIZE/2);
+      const by = -(mouse.v * SIZE*Z*(mouse.faceAR||1) - SIZE/2);
+      cssBg.style.backgroundPosition = bx + 'px ' + by + 'px';
+    }
+  }
+
+  // lose-context resilience
+  canvas.addEventListener && canvas.addEventListener('webglcontextlost', e=>{ e.preventDefault(); WEBGL_OK=false; });
+
+  return { attach, detach, _ok:true };
+})();
+</script>
+</body>
+</html>

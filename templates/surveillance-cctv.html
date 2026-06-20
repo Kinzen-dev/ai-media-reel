@@ -1,0 +1,808 @@
+<!-- TEMPLATE: Control Room | ARCHETYPE: surveillance-cctv (grainy CCTV monitor grid) | REF: NGR.EV surveillance aesthetic (aigoodies 2026), security-UI event posters 2026 | WHEN TO USE: a media portfolio shown as a bank of analogue security monitors - uneven 2+3+2 grid, VHS timestamps, scanlines, one shared grain canvas, click to maximise with CRT-zoom flicker | SWAP: edit the FEEDS array at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>CONTROL ROOM // CH-01..07 // LIVE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     PALETTE - monitor black + phosphor green only.
+     The media supplies every other colour; chrome stays mono.
+     ============================================================ */
+  :root{
+    --black:#0c0c0c;          /* monitor black, page base */
+    --black2:#080808;
+    --rack:#060606;           /* the metal rack between monitors */
+    --rack-edge:#161616;
+    --bezel:#141414;          /* monitor bezel plastic */
+    --bezel-hi:#262626;
+    --phos:#39ff14;           /* phosphor green - the one accent */
+    --phos-dim:rgba(57,255,20,.62);
+    --phos-faint:rgba(57,255,20,.20);
+    --phos-ghost:rgba(57,255,20,.08);
+    --rec:#ff2d2d;            /* the single red REC dot */
+    --tube:#0a0d0a;           /* dark glass of a powered tube */
+    --ease:cubic-bezier(.2,.7,.25,1);
+    --bezel-r:6px;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{height:100%}
+  body{
+    min-height:100%;
+    background:
+      radial-gradient(120% 90% at 50% -10%, #131613 0%, var(--black) 46%, var(--black2) 100%);
+    color:var(--phos);
+    font-family:"Share Tech Mono","VT323",ui-monospace,monospace;
+    -webkit-font-smoothing:none;
+    overflow-x:hidden;
+    cursor:crosshair;
+  }
+  ::selection{background:var(--phos);color:#000}
+  a{color:inherit}
+
+  /* ---- one shared grain + scanline + vignette overlay over the whole page ---- */
+  #grain{
+    position:fixed;inset:0;z-index:60;pointer-events:none;
+    opacity:.18;mix-blend-mode:screen;
+    image-rendering:pixelated;
+  }
+  /* scanlines + a slow chroma vignette, static CSS, cheap */
+  #crt-overlay{
+    position:fixed;inset:0;z-index:61;pointer-events:none;
+    background:
+      repeating-linear-gradient(
+        to bottom,
+        rgba(0,0,0,0) 0px,
+        rgba(0,0,0,0) 2px,
+        rgba(0,0,0,.22) 3px,
+        rgba(0,0,0,.22) 4px);
+    mix-blend-mode:multiply;
+  }
+  #vignette{
+    position:fixed;inset:0;z-index:62;pointer-events:none;
+    background:radial-gradient(130% 100% at 50% 50%, transparent 56%, rgba(0,0,0,.55) 100%);
+  }
+
+  /* =========================================================
+     CHROME BAR - the only permanent UI: REC dot + rolling timecode
+     ========================================================= */
+  .chrome{
+    position:fixed;top:0;left:0;right:0;z-index:50;
+    display:flex;align-items:center;gap:14px;
+    padding:11px clamp(12px,3vw,26px);
+    font-size:clamp(12px,1.5vw,15px);
+    letter-spacing:.06em;
+    background:linear-gradient(to bottom, rgba(6,6,6,.92), rgba(6,6,6,.55) 70%, transparent);
+    text-shadow:0 0 7px var(--phos-faint);
+  }
+  .rec{display:flex;align-items:center;gap:8px;color:var(--rec);text-shadow:0 0 8px rgba(255,45,45,.7)}
+  .rec b{
+    width:11px;height:11px;border-radius:50%;background:var(--rec);
+    box-shadow:0 0 9px 1px var(--rec);
+    animation:blink 1.15s steps(1) infinite;
+  }
+  @keyframes blink{0%,49%{opacity:1}50%,100%{opacity:.12}}
+  .chrome .sys{color:var(--phos);opacity:.85}
+  .chrome .tc{margin-left:auto;color:var(--phos);font-variant-numeric:tabular-nums;text-shadow:0 0 8px var(--phos-faint)}
+  .chrome .tc b{color:#fff;text-shadow:0 0 9px var(--phos)}
+  .chrome .lbl{
+    border:1px solid var(--phos-faint);border-radius:3px;
+    padding:2px 7px;font-size:.82em;opacity:.7;
+  }
+
+  /* =========================================================
+     LAYOUT - title band (compact) sits ABOVE the wall, never hero-only
+     ========================================================= */
+  main{
+    position:relative;z-index:5;
+    padding:clamp(54px,8vh,72px) clamp(12px,3vw,30px) clamp(40px,8vh,72px);
+    max-width:1480px;margin:0 auto;
+  }
+  .band{
+    display:flex;align-items:flex-end;justify-content:space-between;
+    gap:18px;flex-wrap:wrap;
+    margin:0 2px 16px;
+    padding-bottom:12px;
+    border-bottom:1px dashed var(--phos-faint);
+  }
+  .band h1{
+    font-family:"VT323",monospace;
+    font-weight:400;line-height:.92;
+    font-size:clamp(30px,6vw,62px);
+    letter-spacing:.01em;
+    color:#dffbd6;
+    text-shadow:0 0 10px var(--phos-dim),0 0 26px var(--phos-ghost);
+  }
+  .band h1 span{color:var(--phos)}
+  .band .sub{
+    font-size:clamp(11px,1.4vw,13.5px);
+    opacity:.66;max-width:40ch;line-height:1.5;
+    color:#bfe9b6;
+  }
+  .band .meta{text-align:right;font-size:clamp(11px,1.4vw,13px);opacity:.7;white-space:nowrap}
+  .band .meta b{color:#fff}
+
+  /* ---- the monitor wall: uneven 2 + 3 + 2 bank ----
+     CSS grid, 6 columns; rows assigned per channel so the bank reads
+     as a real security room, not a uniform card grid. ---- */
+  .wall{
+    display:grid;
+    grid-template-columns:repeat(6,1fr);
+    grid-auto-rows:minmax(0,auto);
+    gap:clamp(8px,1.1vw,15px);
+    background:
+      linear-gradient(180deg, var(--rack) 0%, var(--rack-edge) 100%);
+    border:1px solid #1c1c1c;
+    border-radius:8px;
+    padding:clamp(8px,1.2vw,16px);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.04),
+      inset 0 0 60px rgba(0,0,0,.6),
+      0 24px 60px rgba(0,0,0,.5);
+  }
+  /* row 1 = two wide monitors, row 2 = three, row 3 = two */
+  .wall .mon[data-row="1"]{grid-column:span 3}
+  .wall .mon[data-row="2"]{grid-column:span 2}
+  .wall .mon[data-row="3"]{grid-column:span 3}
+
+  /* ---------- a single CCTV monitor ---------- */
+  .mon{
+    position:relative;
+    background:linear-gradient(160deg,var(--bezel-hi),var(--bezel) 30%,#0c0c0c);
+    border-radius:var(--bezel-r);
+    padding:9px 9px 24px;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.05),
+      inset 0 -2px 6px rgba(0,0,0,.7),
+      0 4px 14px rgba(0,0,0,.5);
+    cursor:pointer;
+    transition:transform .35s var(--ease), filter .35s var(--ease), box-shadow .35s var(--ease);
+    outline:none;
+  }
+  .mon:focus-visible{box-shadow:0 0 0 2px var(--phos),0 0 18px var(--phos-dim);}
+  .mon:hover{filter:brightness(1.08)}
+  /* screw heads on the bezel corners - small surveillance-hardware detail */
+  .mon::before,.mon::after{
+    content:"";position:absolute;width:5px;height:5px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%,#333,#000);
+    box-shadow:0 0 0 1px #000;
+    top:4px;
+  }
+  .mon::before{left:4px}
+  .mon::after{right:4px}
+
+  .tube{
+    position:relative;
+    width:100%;
+    aspect-ratio:4/3;            /* CCTV monitors are 4:3 */
+    overflow:hidden;
+    border-radius:4px;
+    background:var(--tube);
+    box-shadow:
+      inset 0 0 40px rgba(0,0,0,.85),
+      inset 0 0 0 1px rgba(0,0,0,.8);
+  }
+  /* the curved-glass sheen of a CRT */
+  .tube::after{
+    content:"";position:absolute;inset:0;pointer-events:none;z-index:4;
+    background:
+      radial-gradient(120% 90% at 28% 12%, rgba(255,255,255,.10), transparent 40%),
+      radial-gradient(140% 120% at 50% 120%, rgba(0,0,0,.55), transparent 55%);
+    border-radius:4px;
+  }
+  /* per-monitor extra grain shade, bumps when wall is in thumbnail mode */
+  .tube::before{
+    content:"";position:absolute;inset:0;pointer-events:none;z-index:3;
+    background:rgba(0,0,0,0);
+    transition:background .35s var(--ease);
+  }
+
+  .tube .media{
+    position:absolute;inset:0;width:100%;height:100%;
+    object-fit:cover;             /* landscape media in a 4:3 window, fine */
+    filter:grayscale(.28) contrast(1.18) brightness(.82) saturate(.8);
+    z-index:1;
+  }
+  /* phosphor wash so every feed reads as a green CCTV tube */
+  .tube .wash{
+    position:absolute;inset:0;z-index:2;pointer-events:none;
+    background:linear-gradient(rgba(57,255,20,.10),rgba(57,255,20,.05));
+    mix-blend-mode:overlay;
+    border-radius:4px;
+  }
+
+  /* ---- VHS timestamp overlay burned into each feed ---- */
+  .osd{
+    position:absolute;inset:0;z-index:5;pointer-events:none;
+    font-family:"VT323",monospace;
+    color:var(--phos);
+    text-shadow:0 0 1px #000,1px 1px 0 #000,0 0 8px var(--phos-faint);
+    letter-spacing:.04em;
+  }
+  .osd .ch{position:absolute;top:6px;left:8px;font-size:clamp(13px,1.7vw,19px);line-height:1}
+  .osd .live{position:absolute;top:7px;right:8px;font-size:clamp(11px,1.4vw,15px);color:var(--rec)}
+  .osd .live b{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--rec);
+    box-shadow:0 0 6px var(--rec);margin-right:4px;animation:blink 1.15s steps(1) infinite}
+  .osd .stamp{position:absolute;bottom:6px;left:8px;right:8px;
+    display:flex;justify-content:space-between;gap:8px;
+    font-size:clamp(11px,1.45vw,16px);line-height:1}
+  .osd .stamp .ts{font-variant-numeric:tabular-nums}
+
+  /* tracking / signal noise bar that drifts down the tube */
+  .tube .track{
+    position:absolute;left:0;right:0;height:18%;z-index:3;pointer-events:none;
+    background:linear-gradient(rgba(255,255,255,.06),rgba(255,255,255,0));
+    opacity:.5;
+    animation:roll 7s linear infinite;
+  }
+  @keyframes roll{0%{top:-20%}100%{top:120%}}
+
+  /* a small play glyph for video feeds, until focused */
+  .tube .glyph{
+    position:absolute;z-index:6;top:50%;left:50%;transform:translate(-50%,-50%);
+    width:clamp(30px,4vw,46px);height:clamp(30px,4vw,46px);
+    border:1.5px solid var(--phos-dim);border-radius:50%;
+    display:grid;place-items:center;opacity:.75;
+    background:rgba(8,12,8,.4);backdrop-filter:blur(1px);
+    transition:opacity .3s,transform .3s;
+  }
+  .tube .glyph::before{content:"";border-left:11px solid var(--phos);border-top:7px solid transparent;border-bottom:7px solid transparent;margin-left:3px}
+  .mon:hover .tube .glyph{opacity:1;transform:translate(-50%,-50%) scale(1.06)}
+
+  /* =========================================================
+     MAXIMISED STATE - one monitor takes over, CRT-zoom flicker,
+     others shrink to a thumbnail strip with bumped grain.
+     ========================================================= */
+  body.locked .wall{
+    grid-template-columns:repeat(6,1fr);
+  }
+  /* every monitor when something is locked: dim + extra grain shade */
+  body.locked .mon:not(.is-max) .tube::before{background:rgba(0,0,0,.42)}
+  body.locked .mon:not(.is-max){filter:brightness(.62) grayscale(.4)}
+
+  /* the maximised monitor floats over the wall */
+  .mon.is-max{
+    position:fixed;
+    z-index:70;
+    top:clamp(58px,9vh,84px);
+    left:clamp(10px,3vw,30px);
+    right:clamp(10px,3vw,30px);
+    bottom:clamp(94px,15vh,120px);
+    margin:0;padding:12px 12px 30px;
+    grid-column:auto !important;
+    background:linear-gradient(160deg,var(--bezel-hi),var(--bezel) 30%,#0a0a0a);
+    box-shadow:0 30px 90px rgba(0,0,0,.8),inset 0 1px 0 rgba(255,255,255,.06);
+    animation:crtzoom .42s var(--ease);
+  }
+  .mon.is-max .tube{height:100%;aspect-ratio:auto}
+  .mon.is-max .tube .media{filter:grayscale(.16) contrast(1.12) brightness(.92) saturate(.92)}
+  .mon.is-max .osd .ch{font-size:clamp(18px,2.4vw,28px)}
+  .mon.is-max .osd .stamp{font-size:clamp(14px,1.8vw,22px)}
+
+  /* the CRT power-on zoom flicker */
+  @keyframes crtzoom{
+    0%{transform:scale(.02);filter:brightness(7) blur(1px);opacity:.2}
+    8%{transform:scaleX(1) scaleY(.014);filter:brightness(6);opacity:1}
+    18%{transform:scale(1.012);filter:brightness(2.4)}
+    26%{filter:brightness(.6)}
+    36%{filter:brightness(1.7)}
+    50%{filter:brightness(.85)}
+    70%{transform:scale(1);filter:brightness(1.18)}
+    100%{transform:scale(1);filter:brightness(1)}
+  }
+  /* close hint + thumbnail caption when maximised */
+  .closehint{
+    position:fixed;z-index:71;bottom:clamp(58px,10vh,88px);left:50%;
+    transform:translateX(-50%);
+    font-size:13px;letter-spacing:.1em;opacity:0;pointer-events:none;
+    color:var(--phos-dim);text-shadow:0 0 8px var(--phos-faint);
+    transition:opacity .3s .2s;
+  }
+  body.locked .closehint{opacity:1}
+
+  /* the lower caption rail that names the locked feed */
+  .caption{
+    position:fixed;z-index:71;left:50%;bottom:clamp(28px,5vh,46px);
+    transform:translateX(-50%);
+    text-align:center;font-size:clamp(12px,1.6vw,15px);
+    opacity:0;transition:opacity .35s .15s;pointer-events:none;
+    max-width:90vw;
+  }
+  body.locked .caption{opacity:.9}
+  .caption b{color:#fff;text-shadow:0 0 8px var(--phos)}
+  .caption .desc{display:block;opacity:.62;font-size:.86em;margin-top:3px}
+
+  /* =========================================================
+     MOBILE  <=640px : single big monitor + strip of mini-monitors,
+     swipe to cycle. No uneven grid (would cover-crop on a phone).
+     ========================================================= */
+  .mobilebar{display:none}
+  @media (max-width:640px){
+    main{padding-top:50px}
+    .band{flex-direction:column;align-items:flex-start;gap:8px}
+    .band .meta{text-align:left}
+
+    .wall{
+      display:block;
+      padding:9px;
+    }
+    /* show only the active channel large; rest become the strip below */
+    .wall .mon{
+      display:none;
+      grid-column:auto !important;
+      margin:0;
+    }
+    .wall .mon.is-active{display:block}
+    .wall .mon.is-active .tube{aspect-ratio:4/3}
+
+    /* the strip of mini monitors */
+    .mobilebar{
+      display:flex;gap:7px;margin-top:10px;
+      overflow-x:auto;padding:3px 1px 8px;
+      scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;
+    }
+    .mobilebar::-webkit-scrollbar{height:0}
+    .mini{
+      flex:0 0 86px;scroll-snap-align:center;
+      position:relative;border-radius:4px;overflow:hidden;
+      border:1px solid #1d1d1d;background:#060606;cursor:pointer;
+      aspect-ratio:4/3;
+    }
+    .mini img{width:100%;height:100%;object-fit:cover;
+      filter:grayscale(.4) contrast(1.15) brightness(.7);opacity:.7}
+    .mini .wash{position:absolute;inset:0;background:linear-gradient(rgba(57,255,20,.12),rgba(57,255,20,.04));mix-blend-mode:overlay}
+    .mini .lab{position:absolute;top:2px;left:3px;font-family:"VT323",monospace;font-size:12px;color:var(--phos);text-shadow:0 0 4px #000}
+    .mini.on{border-color:var(--phos);box-shadow:0 0 0 1px var(--phos),0 0 12px var(--phos-faint)}
+    .mini.on img{opacity:1;filter:grayscale(.2) contrast(1.15) brightness(.85)}
+
+    .swipehint{display:block;margin-top:7px;text-align:center;font-size:11px;opacity:.5;letter-spacing:.12em}
+
+    /* on mobile, maximise = just fill more, no fixed takeover layout chaos */
+    .mon.is-max{
+      position:static;inset:auto;height:auto;
+      animation:crtzoom .42s var(--ease);
+    }
+    body.locked .mon:not(.is-max){filter:none}
+    .closehint,.caption{display:none}
+    .mon.is-max .tube{aspect-ratio:4/3}
+  }
+  .swipehint{display:none}
+
+  /* footer status strip */
+  .status{
+    margin:18px 4px 0;display:flex;flex-wrap:wrap;gap:8px 22px;
+    font-size:11.5px;opacity:.55;letter-spacing:.05em;
+  }
+  .status span b{color:var(--phos)}
+
+  /* =========================================================
+     REDUCED MOTION - kill grain rAF, blinks, rolls, zoom flicker;
+     show the final, static state.
+     ========================================================= */
+  @media (prefers-reduced-motion:reduce){
+    #grain{display:none}
+    .rec b,.osd .live b{animation:none;opacity:1}
+    .tube .track{animation:none;display:none}
+    .mon.is-max{animation:none}
+    .mon{transition:none}
+    *{scroll-behavior:auto}
+  }
+</style>
+</head>
+<body>
+
+  <!-- one shared grain canvas for the whole page -->
+  <canvas id="grain" aria-hidden="true"></canvas>
+  <div id="crt-overlay" aria-hidden="true"></div>
+  <div id="vignette" aria-hidden="true"></div>
+
+  <!-- permanent chrome: REC dot + system label + rolling timecode -->
+  <div class="chrome" role="banner">
+    <span class="rec"><b></b>REC</span>
+    <span class="sys">CONTROL ROOM</span>
+    <span class="lbl">SECTOR&nbsp;7</span>
+    <span class="tc">TC <b id="tc">00:00:00:00</b></span>
+  </div>
+
+  <main>
+    <header class="band">
+      <div>
+        <h1>SURVEILLANCE <span>WALL</span></h1>
+        <p class="sub">Seven live feeds across one rack. Click a monitor to maximise it - the tube fires a CRT-zoom and the rest fall back to grain.</p>
+      </div>
+      <div class="meta">
+        FEEDS <b id="feedcount">07</b><br>
+        UPLINK <b>STABLE</b><br>
+        GRAIN <b id="grainstate">ON</b>
+      </div>
+    </header>
+
+    <!-- the monitor bank: rows injected by JS into a 6-col grid -->
+    <section class="wall" id="wall" aria-label="Monitor wall"></section>
+
+    <!-- mobile-only strip of mini monitors (swipe to cycle) -->
+    <div class="mobilebar" id="mobilebar" aria-label="Channel selector"></div>
+    <div class="swipehint">SWIPE TO CYCLE CHANNELS</div>
+
+    <div class="status">
+      <span>SITE <b>VESPER-HQ</b></span>
+      <span>DVR <b>16CH / H.264</b></span>
+      <span>RETENTION <b>30D</b></span>
+      <span>OP <b>NIGHT SHIFT</b></span>
+    </div>
+  </main>
+
+  <div class="closehint">[ CLICK ANYWHERE OR PRESS ESC TO RETURN TO WALL ]</div>
+  <div class="caption" id="caption" aria-live="polite"></div>
+
+<script>
+/* ============================================================
+   FEEDS - swap this array to rebuild the wall. One entry = one CCTV
+   channel / monitor. `row` (1|2|3) places it in the uneven bank.
+   kind: "image" | "video".  video entries need a `poster`.
+   Landscape media is fine: it sits in a 4:3 tube window (object-fit cover).
+   ============================================================ */
+const FEEDS = [
+  // ---- ROW 1 : two wide monitors ----
+  { kind:"video", src:"../assets/flux-car-i2v.mp4", poster:"../assets/gen/poster-flux-car-i2v.png",
+    ch:"CH-01", zone:"LOT A // EAST GATE",
+    title:"Matte-black coupe, wet approach", desc:"FLUX image-to-video drive cycle", row:1 },
+  { kind:"image", src:"../assets/flux-clinic-4k.png",
+    ch:"CH-02", zone:"LOBBY // RECEPTION",
+    title:"Mint and wood interior", desc:"FLUX 4K still, dental clinic plate", row:1 },
+
+  // ---- ROW 2 : three monitors ----
+  { kind:"video", src:"../assets/kling-video.mp4", poster:"../assets/gen/poster-kling-video.png",
+    ch:"CH-03", zone:"CORRIDOR // L2",
+    title:"Kling motion plate", desc:"Kling text-to-video, slow pan", row:2 },
+  { kind:"video", src:"../assets/veo-video.mp4", poster:"../assets/gen/poster-veo-video.png",
+    ch:"CH-04", zone:"ATRIUM // WIDE",
+    title:"Veo establishing shot", desc:"Veo 3 cinematic feed, has audio", row:2 },
+  { kind:"image", src:"../assets/flux-car-4k.png",
+    ch:"CH-05", zone:"LOT A // BAY 4",
+    title:"Coupe on neon street", desc:"FLUX 4K still, parked unit", row:2 },
+
+  // ---- ROW 3 : two wide monitors ----
+  { kind:"video", src:"../assets/fal-video.mp4", poster:"../assets/gen/poster-fal-video.png",
+    ch:"CH-06", zone:"SERVICE // REAR",
+    title:"fal motion study", desc:"fal text-to-video, looped", row:3 },
+  { kind:"video", src:"../assets/heygen-avatar.mp4", poster:"../assets/gen/poster-heygen.png",
+    ch:"CH-07", zone:"DESK // INTERCOM",
+    title:"HeyGen presenter, sync take", desc:"HeyGen avatar feed, has audio", row:3 },
+];
+
+/* swap fallback stills for any extra channels here if you add image-only feeds */
+
+const PREFERS_REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---- build the wall ---------------------------------------------------- */
+const wall = document.getElementById('wall');
+const mobilebar = document.getElementById('mobilebar');
+document.getElementById('feedcount').textContent = String(FEEDS.length).padStart(2,'0');
+
+const monNodes = [];
+
+FEEDS.forEach((f, i) => {
+  const mon = document.createElement('article');
+  mon.className = 'mon';
+  mon.dataset.row = String(f.row);
+  mon.dataset.i = String(i);
+  mon.tabIndex = 0;
+  mon.setAttribute('role','button');
+  mon.setAttribute('aria-label', `${f.ch} ${f.zone}: ${f.title}. Activate to maximise.`);
+
+  const tube = document.createElement('div');
+  tube.className = 'tube';
+
+  // media element
+  let media;
+  if (f.kind === 'video') {
+    media = document.createElement('video');
+    media.className = 'media';
+    media.muted = true;
+    media.loop = true;
+    media.playsInline = true;
+    media.preload = 'none';
+    media.poster = f.poster;
+    // NOTE: do NOT set src yet - lazy-load + only the focused feed plays,
+    // so we never decode 5 videos at once (that tanks FPS).
+    media.dataset.src = f.src;
+  } else {
+    media = document.createElement('img');
+    media.className = 'media';
+    media.loading = 'lazy';
+    media.decoding = 'async';
+    media.src = f.src;
+    media.alt = f.title;
+  }
+  tube.appendChild(media);
+
+  // phosphor wash + tracking bar
+  const wash = document.createElement('div'); wash.className = 'wash'; tube.appendChild(wash);
+  const track = document.createElement('div'); track.className = 'track'; tube.appendChild(track);
+
+  // play glyph for videos
+  if (f.kind === 'video') {
+    const g = document.createElement('div'); g.className = 'glyph'; tube.appendChild(g);
+  }
+
+  // VHS on-screen-display
+  const osd = document.createElement('div');
+  osd.className = 'osd';
+  osd.innerHTML =
+    `<span class="ch">${f.ch}</span>` +
+    `<span class="live"><b></b>LIVE</span>` +
+    `<span class="stamp"><span class="zone">${f.zone}</span><span class="ts" data-ts>--/--/-- 00:00:00</span></span>`;
+  tube.appendChild(osd);
+
+  mon.appendChild(tube);
+  wall.appendChild(mon);
+  monNodes.push({ mon, media, kind:f.kind, data:f });
+
+  // ---- mobile mini-monitor ----
+  const mini = document.createElement('button');
+  mini.className = 'mini';
+  mini.dataset.i = String(i);
+  mini.setAttribute('aria-label', `${f.ch} ${f.zone}`);
+  mini.innerHTML =
+    `<img src="${f.kind==='video'? f.poster : f.src}" alt="${f.title}" loading="lazy" decoding="async">` +
+    `<span class="wash"></span><span class="lab">${f.ch.replace('CH-','')}</span>`;
+  mobilebar.appendChild(mini);
+});
+
+/* ---- interaction: maximise / restore ---------------------------------- */
+let maxedIndex = -1;
+const captionEl = document.getElementById('caption');
+const isMobile = () => window.matchMedia('(max-width:640px)').matches;
+
+function startVideo(node){
+  if (node.kind !== 'video') return;
+  const v = node.media;
+  if (!v.src && v.dataset.src) v.src = v.dataset.src;
+  if (PREFERS_REDUCED) return; // honour reduced motion: leave on poster
+  const p = v.play();
+  if (p && p.catch) p.catch(()=>{});
+}
+function stopVideo(node){
+  if (node.kind !== 'video') return;
+  try { node.media.pause(); } catch(e){}
+}
+
+function maximise(i){
+  if (maxedIndex === i) { restore(); return; }
+  // restore any previous
+  monNodes.forEach((n,idx)=>{ if(idx!==i){ n.mon.classList.remove('is-max'); stopVideo(n);} });
+  const node = monNodes[i];
+  node.mon.classList.add('is-max');
+  document.body.classList.add('locked');
+  maxedIndex = i;
+  // re-trigger the crt-zoom even if same node reselected on mobile strip
+  node.mon.style.animation = 'none'; void node.mon.offsetWidth; node.mon.style.animation = '';
+  startVideo(node);
+  captionEl.innerHTML = `<b>${node.data.ch} // ${node.data.zone}</b><span class="desc">${node.data.title} - ${node.data.desc}</span>`;
+}
+
+function restore(){
+  if (maxedIndex < 0) return;
+  const node = monNodes[maxedIndex];
+  node.mon.classList.remove('is-max');
+  document.body.classList.remove('locked');
+  // on a wall, only keep playing the hovered one; pause on restore
+  if (!isMobile()) stopVideo(node);
+  maxedIndex = -1;
+}
+
+monNodes.forEach((n,i)=>{
+  n.mon.addEventListener('click', (e)=>{ e.stopPropagation(); maximise(i); });
+  n.mon.addEventListener('keydown',(e)=>{
+    if (e.key==='Enter' || e.key===' '){ e.preventDefault(); maximise(i); }
+    if (e.key==='Escape'){ restore(); }
+  });
+  // hover preview on the wall (desktop): play only the hovered feed
+  n.mon.addEventListener('pointerenter', ()=>{
+    if (isMobile() || maxedIndex>=0) return;
+    startVideo(n);
+  });
+  n.mon.addEventListener('pointerleave', ()=>{
+    if (isMobile() || maxedIndex>=0) return;
+    stopVideo(n);
+  });
+});
+
+// click empty space / Esc closes the maximised view
+document.addEventListener('click', (e)=>{
+  if (maxedIndex>=0 && !e.target.closest('.mon.is-max')) restore();
+});
+document.addEventListener('keydown', (e)=>{ if (e.key==='Escape') restore(); });
+
+/* ---- MOBILE: single big monitor + mini strip, swipe to cycle ---------- */
+let mobileActive = 0;
+function setMobileActive(i){
+  mobileActive = (i + FEEDS.length) % FEEDS.length;
+  monNodes.forEach((n,idx)=>{
+    const on = idx===mobileActive;
+    n.mon.classList.toggle('is-active', on);
+    if (on) startVideo(n); else stopVideo(n);
+  });
+  [...mobilebar.children].forEach((m,idx)=> m.classList.toggle('on', idx===mobileActive));
+}
+[...mobilebar.children].forEach((m,idx)=>{
+  m.addEventListener('click', ()=>{
+    if (isMobile()){ setMobileActive(idx); }
+    else { maximise(idx); }
+    m.scrollIntoView({inline:'center',block:'nearest',behavior:PREFERS_REDUCED?'auto':'smooth'});
+  });
+});
+// swipe on the big monitor area
+let touchX = null;
+wall.addEventListener('touchstart', e=>{ touchX = e.touches[0].clientX; }, {passive:true});
+wall.addEventListener('touchend', e=>{
+  if (touchX===null || !isMobile()) return;
+  const dx = e.changedTouches[0].clientX - touchX;
+  if (Math.abs(dx) > 44) setMobileActive(mobileActive + (dx<0?1:-1));
+  touchX = null;
+});
+
+function syncResponsive(){
+  if (isMobile()){
+    if (maxedIndex>=0) restore();
+    setMobileActive(mobileActive);
+  } else {
+    // leave wall; pause all videos until hovered/maxed
+    monNodes.forEach(n=>{ n.mon.classList.remove('is-active'); if(maxedIndex<0) stopVideo(n); });
+  }
+}
+window.addEventListener('resize', syncResponsive);
+
+/* ---- IntersectionObserver: never play out-of-view videos -------------- */
+const io = new IntersectionObserver((entries)=>{
+  entries.forEach(en=>{
+    if (!en.isIntersecting){
+      const idx = +en.target.dataset.i;
+      const node = monNodes[idx];
+      if (node && maxedIndex!==idx) stopVideo(node);
+    }
+  });
+}, {threshold:0.01});
+monNodes.forEach(n=> io.observe(n.mon));
+
+/* ============================================================
+   TIMECODE + per-feed VHS timestamps. One interval, cheap.
+   Format: DD/MM/YY HH:MM:SS  +  the chrome timecode HH:MM:SS:FF
+   ============================================================ */
+const tcEl = document.getElementById('tc');
+const tsNodes = [...document.querySelectorAll('[data-ts]')];
+const pad = (n,l=2)=> String(n).padStart(l,'0');
+let frame = 0;
+function tick(){
+  const d = new Date();
+  // chrome timecode (with frame field)
+  frame = (frame+1) % 25;
+  tcEl.textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}:${pad(frame)}`;
+  // per-feed VHS stamp, each offset a few seconds so the wall feels alive
+  const base = d.getTime();
+  tsNodes.forEach((el,i)=>{
+    const t = new Date(base - i*1370); // slight per-channel drift
+    el.textContent =
+      `${pad(t.getDate())}/${pad(t.getMonth()+1)}/${pad(t.getFullYear()%100)} ` +
+      `${pad(t.getHours())}:${pad(t.getMinutes())}:${pad(t.getSeconds())}`;
+  });
+}
+tick();
+// frame field needs ~25fps; the date stamps only need 1Hz but cheap to share
+setInterval(tick, PREFERS_REDUCED ? 1000 : 1000/25);
+
+/* ============================================================
+   THE ONE SHARED GRAIN CANVAS - a single rAF loop for the whole page.
+   Renders a small noise tile, scaled up, so per-frame cost is tiny.
+   Fully gated behind prefers-reduced-motion.
+   ============================================================ */
+const grainCanvas = document.getElementById('grain');
+const grainState = document.getElementById('grainstate');
+
+if (PREFERS_REDUCED){
+  // reduced motion: no rAF, no canvas churn. Paint ONE static noise frame
+  // so the texture is still present, then stop.
+  grainState.textContent = 'STATIC';
+  paintStaticGrain();
+} else {
+  runGrainLoop();
+}
+
+function makeNoiseTile(size){
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  return c;
+}
+
+function paintStaticGrain(){
+  const size = 160;
+  const c = makeNoiseTile(size);
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(size,size);
+  for (let i=0;i<img.data.length;i+=4){
+    const v = (Math.random()*255)|0;
+    img.data[i]=img.data[i+1]=img.data[i+2]=v;
+    img.data[i+3]=255;
+  }
+  ctx.putImageData(img,0,0);
+  // blit once onto the visible canvas at full page size
+  fitGrainCanvas();
+  const g = grainCanvas.getContext('2d');
+  for (let y=0;y<grainCanvas.height;y+=size)
+    for (let x=0;x<grainCanvas.width;x+=size)
+      g.drawImage(c,x,y);
+}
+
+function fitGrainCanvas(){
+  // cap DPR at 2; grain is large-area, so render at a reduced internal
+  // resolution (the tile is upscaled anyway) to keep the loop cheap.
+  const dpr = Math.min(window.devicePixelRatio||1, 2);
+  grainCanvas.width  = Math.ceil(window.innerWidth  * 0.5 * dpr);
+  grainCanvas.height = Math.ceil(window.innerHeight * 0.5 * dpr);
+}
+
+function runGrainLoop(){
+  const TILE = 96;                 // tiny source tile of pure noise
+  const tiles = [];                // precompute a few frames, cycle them
+  const TILE_FRAMES = 6;
+  for (let k=0;k<TILE_FRAMES;k++){
+    const c = makeNoiseTile(TILE);
+    const ctx = c.getContext('2d');
+    const img = ctx.createImageData(TILE,TILE);
+    for (let i=0;i<img.data.length;i+=4){
+      const v = (Math.random()*255)|0;
+      img.data[i]=img.data[i+1]=img.data[i+2]=v;
+      img.data[i+3]=255;
+    }
+    ctx.putImageData(img,0,0);
+    tiles.push(c);
+  }
+
+  const g = grainCanvas.getContext('2d');
+  g.imageSmoothingEnabled = false;
+
+  let last = 0, f = 0, paused = false;
+  const FPS = 24;                  // grain doesn't need 60; 24 reads as analogue
+  const interval = 1000/FPS;
+
+  function draw(now){
+    if (paused){ requestAnimationFrame(draw); return; }
+    if (now - last >= interval){
+      last = now;
+      f = (f+1) % TILE_FRAMES;
+      const tile = tiles[f];
+      const w = grainCanvas.width, h = grainCanvas.height;
+      // draw the small tile scaled across the whole canvas in a few blits
+      const step = TILE * 4;       // upscale factor: cheap, large grain reads as VHS
+      for (let y=0;y<h;y+=step)
+        for (let x=0;x<w;x+=step)
+          g.drawImage(tile, 0,0,TILE,TILE, x,y, step,step);
+    }
+    requestAnimationFrame(draw);
+  }
+
+  fitGrainCanvas();
+  requestAnimationFrame(draw);
+
+  // pause the loop when the tab is hidden - no point burning frames offscreen
+  document.addEventListener('visibilitychange', ()=>{ paused = document.hidden; });
+
+  // refit on resize (debounced)
+  let rt;
+  window.addEventListener('resize', ()=>{
+    clearTimeout(rt);
+    rt = setTimeout(()=>{ fitGrainCanvas(); g.imageSmoothingEnabled=false; }, 150);
+  });
+}
+
+/* initial responsive sync */
+syncResponsive();
+</script>
+</body>
+</html>

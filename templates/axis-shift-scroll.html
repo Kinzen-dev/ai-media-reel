@@ -1,0 +1,841 @@
+<!-- TEMPLATE: Axis Shift | ARCHETYPE: axis-shift-scroll | REF: Nikola Radeski portfolio (scrollytelling 2026), Igloo.inc immersive navigation | WHEN TO USE: a works/reel index where vertical scroll pivots 90deg into a horizontal scroll-snap lane, with a CSS-only 3D tilt turning the corner | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Axis Shift</title>
+
+<!-- ============================================================= -->
+<!--  DATA  -  swap these entries to retheme the whole lane.        -->
+<!--  type:"video" plays only when it is the focused/in-view cell;  -->
+<!--  type:"image" is a static still. All assets in ../assets/.     -->
+<!-- ============================================================= -->
+<script id="data">
+const DATA = {
+  // Top vertical band, before the pivot.
+  intro: {
+    kicker: "Selected works / 2024 - 2026",
+    title: "Axis Shift",
+    lede: "Scroll down. At the threshold the floor turns ninety degrees and the works run sideways.",
+    pivotLabel: "the corner"
+  },
+  // The horizontal lane. Each cell snaps full-bleed on mobile.
+  works: [
+    {
+      type: "image",
+      src: "../assets/flux-car-4k.png",
+      no: "01",
+      kicker: "Flux / 4K still",
+      title: "Midnight Coupe",
+      desc: "Matte-black coupe on a rain-slick neon street. Cinematic key light, wet asphalt bokeh."
+    },
+    {
+      type: "video",
+      src: "../assets/kling-video.mp4",
+      poster: "../assets/gen/poster-kling-video.png",
+      muted: true,
+      no: "02",
+      kicker: "Kling / generative video",
+      title: "Long-Form Motion",
+      desc: "Coherent camera motion synthesized straight from a single text seed."
+    },
+    {
+      type: "image",
+      src: "../assets/flux-clinic-4k.png",
+      no: "03",
+      kicker: "Flux / 4K still",
+      title: "Mint and Wood",
+      desc: "A calm dental interior. Soft daylight, warm timber, surgical mint accents."
+    },
+    {
+      type: "video",
+      src: "../assets/fal-video.mp4",
+      poster: "../assets/gen/poster-fal-video.png",
+      muted: true,
+      no: "04",
+      kicker: "Fal / diffusion video",
+      title: "Drift Study",
+      desc: "Short looping motion render, color-graded to the warm-paper and vermilion key."
+    },
+    {
+      type: "image",
+      src: "../assets/sdxl.png",
+      no: "05",
+      kicker: "SDXL / painterly",
+      title: "Autumn Fox",
+      desc: "A painterly fox in turning leaves. Texture-forward, gallery-grade brushwork."
+    },
+    {
+      type: "video",
+      src: "../assets/flux-car-i2v.mp4",
+      poster: "../assets/gen/poster-flux-car-i2v.png",
+      muted: true,
+      no: "06",
+      kicker: "Flux / image-to-video",
+      title: "Coupe In Motion",
+      desc: "The still from 01 brought to life. Subtle parallax and a slow reflective sweep."
+    },
+    {
+      type: "image",
+      src: "../assets/hf-tinysd.png",
+      no: "07",
+      kicker: "TinySD / lo-fi",
+      title: "Apple, Abstracted",
+      desc: "A low-fi abstract apple. Coarse, honest, unmistakably hand-of-the-model."
+    }
+  ],
+  // Bottom vertical band, after the lane re-engages vertical scroll.
+  outro: {
+    kicker: "Axis restored",
+    title: "Back to vertical",
+    lede: "The lane ends, the floor rights itself, and ordinary scroll carries you out.",
+    cta: "Start a project"
+  }
+};
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+
+<style>
+  :root {
+    --paper: #f5f0e8;
+    --paper-deep: #ece4d6;
+    --ink: #1c1815;
+    --vermilion: #c0392b;
+    --vermilion-deep: #9c2a1f;
+    --hair: rgba(28, 24, 21, 0.16);
+    --lane-w: 7;            /* number of horizontal frames driving the sticky track */
+    --display: "Fraunces", Georgia, serif;
+    --mono: "Space Grotesk", "Helvetica Neue", Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--mono);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+
+  /* faint paper grain so the warm field is never dead-flat */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9;
+    opacity: 0.5;
+    mix-blend-mode: multiply;
+    background-image:
+      radial-gradient(rgba(28,24,21,0.05) 1px, transparent 1.4px);
+    background-size: 4px 4px;
+  }
+
+  a { color: inherit; }
+  ::selection { background: var(--vermilion); color: var(--paper); }
+
+  /* ---------- top progress rail ---------- */
+  .rail {
+    position: fixed;
+    left: 0; top: 0;
+    height: 3px; width: 100%;
+    background: transparent;
+    z-index: 30;
+  }
+  .rail__fill {
+    height: 100%;
+    width: 0%;
+    background: var(--vermilion);
+    transition: width 0.08s linear;
+  }
+
+  .corner-tag {
+    position: fixed;
+    top: 18px; left: 22px;
+    z-index: 30;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.34em;
+    text-transform: uppercase;
+    color: var(--ink);
+    mix-blend-mode: multiply;
+  }
+  .corner-tag b { color: var(--vermilion); font-weight: 700; }
+
+  /* ============================================================= */
+  /*  ACT 1  -  vertical intro band                                */
+  /* ============================================================= */
+  .intro {
+    min-height: 92vh;
+    padding: clamp(70px, 11vh, 130px) clamp(22px, 6vw, 90px) 4vh;
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: clamp(20px, 4vw, 60px);
+    align-items: end;
+    position: relative;
+  }
+  .intro__head { align-self: center; max-width: 640px; }
+  .intro__kicker {
+    font-size: 12px; letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--vermilion); margin: 0 0 18px;
+  }
+  .intro__title {
+    font-family: var(--display);
+    font-weight: 900;
+    font-size: clamp(54px, 11vw, 150px);
+    line-height: 0.88;
+    letter-spacing: -0.025em;
+    margin: 0 0 26px;
+  }
+  .intro__title .em { color: var(--vermilion); font-style: italic; }
+  .intro__lede {
+    font-size: clamp(15px, 1.5vw, 19px);
+    line-height: 1.55;
+    max-width: 44ch;
+    color: rgba(28,24,21,0.78);
+    margin: 0 0 30px;
+  }
+  .scrollcue {
+    display: inline-flex; align-items: center; gap: 12px;
+    font-size: 11px; letter-spacing: 0.28em; text-transform: uppercase;
+    color: var(--ink);
+  }
+  .scrollcue i {
+    width: 26px; height: 26px; border-radius: 50%;
+    border: 1.5px solid var(--ink);
+    display: inline-grid; place-items: center;
+    font-style: normal;
+    animation: bob 1.7s ease-in-out infinite;
+  }
+  @keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(4px)} }
+
+  /* a real preview of the lane sits inside the first viewport so the */
+  /* signature mechanic is populated at scroll=0 */
+  .intro__peek {
+    align-self: end;
+    border: 1.5px solid var(--ink);
+    background: var(--paper-deep);
+    padding: 14px 14px 16px;
+    transform: perspective(900px) rotateY(-14deg) rotateX(3deg);
+    transform-origin: right center;
+    box-shadow: -26px 26px 0 -8px rgba(28,24,21,0.1);
+    position: relative;
+  }
+  .intro__peek::after {
+    content: "the lane, turned";
+    position: absolute;
+    bottom: 8px; right: 14px;
+    font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase;
+    color: var(--vermilion);
+  }
+  .peekstrip {
+    display: flex; gap: 8px; overflow: hidden;
+  }
+  .peekcell {
+    position: relative;
+    flex: 0 0 auto;
+    width: 122px; height: 168px;
+    border: 1px solid var(--ink);
+    background-size: cover; background-position: center;
+    filter: saturate(1.02);
+  }
+  .peekcell:first-child { width: 168px; }
+  .peekcell b {
+    position: absolute; top: 6px; left: 7px;
+    font-size: 10px; letter-spacing: 0.18em;
+    color: var(--paper);
+    text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+    font-weight: 700;
+  }
+  .peekarrow {
+    flex: 0 0 auto; align-self: center;
+    color: var(--vermilion);
+    font-size: 22px; font-weight: 700;
+  }
+
+  /* ============================================================= */
+  /*  ACT 2  -  the pivot + horizontal lane                         */
+  /*  A tall sticky track. As you scroll the inner row slides X.    */
+  /*  scroll-driven animation does the work; JS is only a fallback. */
+  /* ============================================================= */
+  .pivotzone {
+    position: relative;
+    /* tall enough to give the horizontal travel room to breathe */
+    height: calc(var(--lane-w) * 78vh + 60vh);
+  }
+  .sticky {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow: hidden;
+    /* perspective for the 3D corner tilt */
+    perspective: 1400px;
+    perspective-origin: 50% 46%;
+  }
+
+  /* the floor label that announces the turn */
+  .floorlabel {
+    position: absolute;
+    left: 50%; top: 26px;
+    transform: translateX(-50%);
+    z-index: 6;
+    font-size: 11px; letter-spacing: 0.32em; text-transform: uppercase;
+    color: var(--ink);
+    mix-blend-mode: multiply;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .floorlabel s { width: 40px; height: 1px; background: var(--ink); display:inline-block; text-decoration:none; }
+  .floorlabel b { color: var(--vermilion); font-weight: 700; }
+
+  /* the moving rail of works */
+  .lane {
+    position: absolute;
+    top: 0; left: 0;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    gap: clamp(22px, 3.4vw, 60px);
+    padding: 0 max(7vw, 60px);
+    will-change: transform;
+    transform-style: preserve-3d;
+    /* animation-timeline drives translateX from the pivotzone scroll */
+    animation: laneSlide linear both;
+    animation-timeline: var(--vt, scroll());
+  }
+
+  @keyframes laneSlide {
+    from { transform: translate3d(0, 0, 0); }
+    /* slide left by total intrinsic width minus one viewport */
+    to   { transform: translate3d(calc(-1 * (100% - 100vw)), 0, 0); }
+  }
+
+  .work {
+    position: relative;
+    flex: 0 0 auto;
+    width: min(72vw, 980px);
+    height: min(78vh, 760px);
+    border: 1.5px solid var(--ink);
+    background: var(--paper-deep);
+    overflow: hidden;
+    box-shadow: 18px 22px 0 -6px rgba(28,24,21,0.12);
+    /* each card gets a faint per-card tilt that the corner moment exaggerates */
+    transform: rotateY(0deg);
+    transition: transform 0.5s ease;
+  }
+  .work__media {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+    background: var(--paper-deep);
+  }
+  .work__poster {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .work video.work__media { opacity: 0; transition: opacity 0.4s ease; }
+  .work.is-playing video.work__media { opacity: 1; }
+
+  .work__no {
+    position: absolute; top: 14px; left: 16px;
+    z-index: 3;
+    font-family: var(--display);
+    font-weight: 900;
+    font-size: clamp(40px, 5vw, 84px);
+    line-height: 1;
+    color: var(--paper);
+    mix-blend-mode: difference;
+  }
+  .work__meta {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    z-index: 3;
+    padding: 26px 24px 22px;
+    background: linear-gradient(to top, rgba(20,16,13,0.82), rgba(20,16,13,0.0));
+    color: var(--paper);
+  }
+  .work__kicker {
+    font-size: 11px; letter-spacing: 0.26em; text-transform: uppercase;
+    color: #f3c9c2; margin: 0 0 8px;
+  }
+  .work__title {
+    font-family: var(--display); font-weight: 600;
+    font-size: clamp(24px, 3vw, 44px);
+    line-height: 1.0; margin: 0 0 8px; letter-spacing: -0.01em;
+  }
+  .work__desc {
+    font-size: 13.5px; line-height: 1.5; max-width: 52ch;
+    color: rgba(245,240,232,0.85); margin: 0;
+  }
+
+  /* the FIRST card is the pivot card: it carries the 3D corner tilt. */
+  /* It is half-rotated in 3D so the viewer literally sees the floor turn. */
+  .work--pivot {
+    background:
+      linear-gradient(135deg, var(--vermilion) 0%, var(--vermilion-deep) 100%);
+    color: var(--paper);
+    border-color: var(--vermilion-deep);
+    display: grid; place-content: center; text-align: center;
+    padding: 40px;
+    width: min(56vw, 620px);
+    transform: rotateY(34deg);
+    transform-origin: left center;
+    box-shadow: 22px 26px 0 -6px rgba(156,42,31,0.45);
+  }
+  .work--pivot .pv-k {
+    font-size: 12px; letter-spacing: 0.34em; text-transform: uppercase;
+    opacity: 0.85; margin: 0 0 18px;
+  }
+  .work--pivot .pv-t {
+    font-family: var(--display); font-weight: 900; font-style: italic;
+    font-size: clamp(40px, 6vw, 92px); line-height: 0.9; margin: 0 0 16px;
+    letter-spacing: -0.02em;
+  }
+  .work--pivot .pv-s { font-size: 13.5px; line-height: 1.55; max-width: 30ch; margin: 0 auto; opacity: 0.92; }
+  .work--pivot .pv-rot {
+    margin-top: 24px; font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase;
+    display: inline-flex; align-items: center; gap: 10px;
+  }
+  .work--pivot .pv-rot i { font-style: normal; font-size: 20px; }
+
+  /* end-cap card that hands you back to vertical */
+  .work--end {
+    background: var(--paper);
+    color: var(--ink);
+    display: grid; place-content: center; text-align: center;
+    padding: 40px;
+    width: min(48vw, 520px);
+    border-style: dashed;
+    box-shadow: 18px 22px 0 -6px rgba(28,24,21,0.1);
+  }
+  .work--end .pv-k { color: var(--vermilion); font-size: 12px; letter-spacing: 0.3em; text-transform: uppercase; margin: 0 0 14px; }
+  .work--end .pv-t { font-family: var(--display); font-weight: 900; font-size: clamp(30px,4vw,58px); line-height:0.95; margin:0 0 12px; }
+  .work--end .pv-s { font-size: 14px; line-height: 1.5; max-width: 28ch; margin: 0 auto 4px; color: rgba(28,24,21,0.75); }
+  .work--end a {
+    display: inline-block; margin-top: 22px; text-decoration: none;
+    border: 1.5px solid var(--ink); padding: 12px 26px;
+    font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 700;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+  .work--end a:hover, .work--end a:focus-visible { background: var(--vermilion); color: var(--paper); border-color: var(--vermilion); }
+
+  /* ============================================================= */
+  /*  ACT 3  -  vertical outro band                                */
+  /* ============================================================= */
+  .outro {
+    min-height: 70vh;
+    padding: clamp(60px, 10vh, 120px) clamp(22px, 6vw, 90px);
+    display: grid; place-content: center; text-align: center;
+    gap: 8px;
+    border-top: 1.5px solid var(--ink);
+  }
+  .outro__k { color: var(--vermilion); font-size: 12px; letter-spacing: 0.3em; text-transform: uppercase; margin: 0 0 12px; }
+  .outro__t { font-family: var(--display); font-weight: 900; font-size: clamp(40px, 8vw, 110px); line-height: 0.9; margin: 0 0 18px; letter-spacing: -0.02em; }
+  .outro__s { font-size: 16px; line-height: 1.55; max-width: 46ch; margin: 0 auto 26px; color: rgba(28,24,21,0.78); }
+  .outro a {
+    display: inline-block; text-decoration: none;
+    background: var(--vermilion); color: var(--paper);
+    padding: 14px 32px; font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 700;
+    transition: background 0.2s ease;
+  }
+  .outro a:hover, .outro a:focus-visible { background: var(--vermilion-deep); }
+
+  :focus-visible { outline: 3px solid var(--vermilion); outline-offset: 3px; }
+
+  /* ============================================================= */
+  /*  MOBILE  -  lane collapses to a native swipeable snap track.   */
+  /*  No sticky pin, no 3D corner; full-width letterboxed cells.    */
+  /* ============================================================= */
+  @media (max-width: 760px) {
+    .intro {
+      grid-template-columns: 1fr;
+      min-height: auto;
+      padding: 92px 20px 26px;
+      gap: 26px;
+      align-items: start;
+    }
+    .intro__peek {
+      transform: none;
+      box-shadow: -14px 14px 0 -6px rgba(28,24,21,0.1);
+      overflow: hidden;
+      padding: 10px 10px 14px;
+    }
+    .peekcell { width: 96px; height: 130px; }
+    .peekcell:first-child { width: 130px; }
+    .peekstrip { gap: 6px; }
+
+    .pivotzone { height: auto; }
+    .sticky {
+      position: static;
+      height: auto;
+      perspective: none;
+      overflow: visible;
+    }
+    .floorlabel { position: static; transform: none; justify-content: center; padding: 18px 0 6px; }
+
+    .lane {
+      position: static;
+      height: auto;
+      animation: none;            /* drop scroll-driven X-slide on phones */
+      display: flex;
+      flex-direction: row;
+      gap: 0;
+      padding: 0;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      transform: none;
+      transform-style: flat;
+    }
+    .work {
+      width: 100vw;
+      height: auto;
+      min-height: 78vh;
+      flex: 0 0 100vw;
+      scroll-snap-align: center;
+      border-left: none; border-right: 1px solid var(--hair);
+      box-shadow: none;
+      transform: none !important;
+      /* letterbox: never cover-crop a landscape asset into a tall phone cell */
+      display: flex; align-items: center; justify-content: center;
+      background: var(--ink);
+    }
+    .work__media, .work__poster {
+      position: static;
+      width: 100%; height: auto;
+      max-height: 100%;
+      object-fit: contain;        /* letterbox, no crop */
+      background: var(--ink);
+    }
+    .work video.work__media { opacity: 1; }
+    .work__no { font-size: 40px; mix-blend-mode: difference; }
+    .work__meta { padding: 18px 16px 16px; }
+    .work__desc { font-size: 12.5px; }
+
+    .work--pivot, .work--end {
+      width: 100vw; flex: 0 0 100vw;
+      min-height: 70vh; padding: 30px 24px;
+      background: linear-gradient(135deg, var(--vermilion) 0%, var(--vermilion-deep) 100%);
+    }
+    .work--end { background: var(--paper); }
+
+    .corner-tag { font-size: 9px; top: 14px; left: 16px; }
+  }
+
+  /* phones 640px and under: re-assert the letterbox contract so a
+     landscape asset is NEVER cover-cropped into a tall portrait cell,
+     independent of the 760px phone-layout breakpoint above. */
+  @media (max-width: 640px) {
+    .work { background: var(--ink); }
+    .work__media, .work__poster {
+      width: 100%; height: auto;
+      max-height: 100%;
+      object-fit: contain;        /* letterbox, no crop */
+    }
+  }
+
+  /* very small phones: keep the title from overflowing */
+  @media (max-width: 400px) {
+    .intro__title { font-size: 52px; }
+  }
+
+  /* ============================================================= */
+  /*  REDUCED MOTION  -  drop the 3D tilt + the scroll-driven slide */
+  /*  The lane becomes a plain horizontal scroll-snap track; the    */
+  /*  pivot card sits flat. Final state, no rAF, no inline override.*/
+  /* ============================================================= */
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .scrollcue i { animation: none; }
+    .pivotzone { height: auto; }
+    .sticky {
+      position: static; height: auto; overflow: visible; perspective: none;
+    }
+    .lane {
+      position: static; height: auto;
+      animation: none !important;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      transform: none !important;
+      transform-style: flat;
+      padding: 30px max(5vw,30px);
+      gap: 28px;
+    }
+    .work { scroll-snap-align: center; transform: none !important; }
+    .work--pivot { transform: none !important; }
+    .work video.work__media { opacity: 1; }
+    .intro__peek { transform: none; }
+    .floorlabel { position: static; transform: none; justify-content: flex-start; padding: 16px 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="rail" aria-hidden="true"><div class="rail__fill" id="railFill"></div></div>
+<div class="corner-tag" aria-hidden="true">AXIS<b>/</b>SHIFT</div>
+
+<!-- ====================== ACT 1 : VERTICAL INTRO ====================== -->
+<header class="intro">
+  <div class="intro__head">
+    <p class="intro__kicker" id="introKicker"></p>
+    <h1 class="intro__title" id="introTitle"></h1>
+    <p class="intro__lede" id="introLede"></p>
+    <span class="scrollcue">Scroll <i aria-hidden="true">&#8595;</i></span>
+  </div>
+
+  <!-- populated lane preview, in-frame at scroll=0, already pivoted in 3D -->
+  <aside class="intro__peek" aria-label="Preview of the horizontal works lane">
+    <div class="peekstrip" id="peekStrip"></div>
+  </aside>
+</header>
+
+<!-- ====================== ACT 2 : PIVOT + HORIZONTAL LANE ====================== -->
+<section class="pivotzone" id="pivotzone" aria-label="Works, accessed by a turned horizontal lane">
+  <div class="sticky">
+    <div class="floorlabel" aria-hidden="true">
+      <s></s> turning <b>the corner</b> <s></s>
+    </div>
+    <div class="lane" id="lane">
+      <!-- pivot card (the 3D corner) is injected first, then works, then end-cap -->
+    </div>
+  </div>
+</section>
+
+<!-- ====================== ACT 3 : VERTICAL OUTRO ====================== -->
+<footer class="outro">
+  <p class="outro__k" id="outroKicker"></p>
+  <h2 class="outro__t" id="outroTitle"></h2>
+  <p class="outro__s" id="outroLede"></p>
+  <a href="#" id="outroCta"></a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  const D = DATA;
+  const prefersReduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const isMobile = window.matchMedia("(max-width: 760px)").matches;
+
+  /* ---------- fill ACT 1 ---------- */
+  document.getElementById("introKicker").textContent = D.intro.kicker;
+  document.getElementById("introTitle").innerHTML =
+    "Axis <span class='em'>Shift</span>";
+  document.getElementById("introLede").textContent = D.intro.lede;
+
+  /* ---------- peek strip preview (first 4 works) ---------- */
+  const peek = document.getElementById("peekStrip");
+  D.works.slice(0, 4).forEach(function (w, i) {
+    const cell = document.createElement("div");
+    cell.className = "peekcell";
+    const img = w.type === "video" ? (w.poster || w.src) : w.src;
+    cell.style.backgroundImage = "url('" + img + "')";
+    cell.innerHTML = "<b>" + w.no + "</b>";
+    peek.appendChild(cell);
+    if (i < 3) {
+      const arr = document.createElement("span");
+      arr.className = "peekarrow";
+      arr.setAttribute("aria-hidden", "true");
+      arr.textContent = "→";
+      peek.appendChild(arr);
+    }
+  });
+
+  /* ---------- fill ACT 3 ---------- */
+  document.getElementById("outroKicker").textContent = D.outro.kicker;
+  document.getElementById("outroTitle").textContent = D.outro.title;
+  document.getElementById("outroLede").textContent = D.outro.lede;
+  const cta = document.getElementById("outroCta");
+  cta.textContent = D.outro.cta;
+
+  /* ---------- build the lane ---------- */
+  const lane = document.getElementById("lane");
+
+  // pivot card first - this is the 3D corner moment
+  const pivot = document.createElement("article");
+  pivot.className = "work work--pivot";
+  pivot.innerHTML =
+    "<p class='pv-k'>" + D.intro.kicker + "</p>" +
+    "<p class='pv-t'>Turn the<br>corner</p>" +
+    "<p class='pv-s'>The floor pivots ninety degrees. From here the works run sideways.</p>" +
+    "<span class='pv-rot'><i aria-hidden='true'>&#8631;</i> axis 90&deg;</span>";
+  lane.appendChild(pivot);
+
+  // work cards
+  D.works.forEach(function (w) {
+    const card = document.createElement("article");
+    card.className = "work";
+    card.tabIndex = 0;
+    card.setAttribute("aria-label", w.title + " - " + w.kicker);
+
+    let mediaHTML = "";
+    if (w.type === "video") {
+      mediaHTML =
+        "<img class='work__poster' src='" + (w.poster || "") + "' alt='' aria-hidden='true' />" +
+        "<video class='work__media' " +
+          "src='" + w.src + "' " +
+          (w.poster ? "poster='" + w.poster + "' " : "") +
+          (w.muted !== false ? "muted " : "") +
+          "loop playsinline preload='none'></video>";
+    } else {
+      mediaHTML =
+        "<img class='work__media' src='" + w.src + "' " +
+        "alt='" + w.title + " - " + w.desc + "' loading='lazy' decoding='async' />";
+    }
+
+    card.innerHTML =
+      mediaHTML +
+      "<span class='work__no' aria-hidden='true'>" + w.no + "</span>" +
+      "<div class='work__meta'>" +
+        "<p class='work__kicker'>" + w.kicker + "</p>" +
+        "<h3 class='work__title'>" + w.title + "</h3>" +
+        "<p class='work__desc'>" + w.desc + "</p>" +
+      "</div>";
+    lane.appendChild(card);
+  });
+
+  // end-cap card
+  const endCard = document.createElement("article");
+  endCard.className = "work work--end";
+  endCard.innerHTML =
+    "<p class='pv-k'>" + D.outro.kicker + "</p>" +
+    "<p class='pv-t'>Lane ends</p>" +
+    "<p class='pv-s'>The floor rights itself. Vertical scroll resumes below.</p>" +
+    "<a href='#' onclick=\"document.querySelector('.outro').scrollIntoView();return false;\">Exit the lane &#8595;</a>";
+  lane.appendChild(endCard);
+
+  /* ---------- drive lane width var ---------- */
+  // lane-w == number of frames; used by the sticky-track tall height.
+  document.documentElement.style.setProperty("--lane-w", D.works.length);
+
+  /* ============================================================= */
+  /*  SCROLL-DRIVEN ANIMATION SUPPORT CHECK                         */
+  /*  Modern browsers: animation-timeline: scroll() ties the lane   */
+  /*  translateX to pivotzone scroll - zero JS per frame.           */
+  /*  If unsupported (and motion allowed, desktop) we fall back to  */
+  /*  a single rAF-throttled transform driven off the same scroll.  */
+  /* ============================================================= */
+  const supportsSDA =
+    CSS && CSS.supports && CSS.supports("animation-timeline", "scroll()");
+
+  const pivotzone = document.getElementById("pivotzone");
+
+  if (supportsSDA && !prefersReduce && !isMobile) {
+    // bind the lane animation timeline to the pivotzone's own scroll progress
+    // (named view-timeline keeps the X-slide locked to the sticky pin span)
+    pivotzone.style.setProperty("view-timeline-name", "--axis");
+    pivotzone.style.setProperty("view-timeline-axis", "block");
+    lane.style.setProperty("--vt", "--axis");
+    // animation-range so slide completes across the scrollable pin span
+    lane.style.animationTimeline = "--axis";
+    lane.style.animationRange = "contain 0% contain 100%";
+  }
+
+  /* ============================================================= */
+  /*  FALLBACK SLIDE (only when SDA missing, motion on, desktop)    */
+  /* ============================================================= */
+  let useFallback = !supportsSDA && !prefersReduce && !isMobile;
+  let ticking = false;
+
+  function fallbackSlide() {
+    const rect = pivotzone.getBoundingClientRect();
+    const total = rect.height - window.innerHeight;
+    let p = (-rect.top) / (total || 1);
+    p = Math.max(0, Math.min(1, p));
+    const dist = lane.scrollWidth - window.innerWidth;
+    lane.style.transform = "translate3d(" + (-p * dist) + "px,0,0)";
+    ticking = false;
+  }
+
+  /* ---------- progress rail (always) ---------- */
+  const railFill = document.getElementById("railFill");
+  function updateRail() {
+    const h = document.documentElement;
+    const max = h.scrollHeight - h.clientHeight;
+    const p = max > 0 ? (h.scrollTop || window.pageYOffset) / max : 0;
+    railFill.style.width = (p * 100).toFixed(2) + "%";
+  }
+
+  function onScroll() {
+    if (!ticking) {
+      ticking = true;
+      requestAnimationFrame(function () {
+        updateRail();
+        if (useFallback) fallbackSlide();
+        else ticking = false;
+      });
+    }
+  }
+  window.addEventListener("scroll", onScroll, { passive: true });
+  window.addEventListener("resize", function () {
+    if (useFallback) fallbackSlide();
+    updateRail();
+  });
+  updateRail();
+  if (useFallback) fallbackSlide();
+
+  /* ============================================================= */
+  /*  IN-VIEW VIDEO: play ONLY the focused cell. Never decode all.  */
+  /*  IntersectionObserver picks the most-centered video; others    */
+  /*  show their poster (opacity 0 video) and stay paused.          */
+  /* ============================================================= */
+  const videos = Array.prototype.slice.call(document.querySelectorAll("video.work__media"));
+
+  if (videos.length) {
+    if (prefersReduce) {
+      // reduced motion: do not autoplay anything; posters carry the meaning.
+      videos.forEach(function (v) {
+        v.closest(".work").classList.remove("is-playing");
+      });
+    } else {
+      const visMap = new Map();
+      const io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          visMap.set(e.target, e.isIntersecting ? e.intersectionRatio : 0);
+        });
+        // pick the single most-visible video to play; pause the rest
+        let best = null, bestRatio = 0;
+        visMap.forEach(function (ratio, vid) {
+          if (ratio > bestRatio) { bestRatio = ratio; best = vid; }
+        });
+        videos.forEach(function (v) {
+          const card = v.closest(".work");
+          if (v === best && bestRatio > 0.4) {
+            card.classList.add("is-playing");
+            if (v.readyState === 0) v.load();
+            const pr = v.play();
+            if (pr && pr.catch) pr.catch(function () {});
+          } else {
+            card.classList.remove("is-playing");
+            if (!v.paused) v.pause();
+          }
+        });
+      }, {
+        // observe within the lane viewport; on mobile this is the scroller
+        threshold: [0, 0.4, 0.6, 0.85, 1]
+      });
+      videos.forEach(function (v) { io.observe(v); });
+    }
+  }
+
+  /* ---------- keyboard: arrow nav inside the lane on mobile/RM ---------- */
+  lane.addEventListener("keydown", function (e) {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    const cards = Array.prototype.slice.call(lane.querySelectorAll(".work"));
+    const idx = cards.indexOf(document.activeElement);
+    if (idx === -1) return;
+    const next = e.key === "ArrowRight" ? cards[idx + 1] : cards[idx - 1];
+    if (next) { next.focus(); next.scrollIntoView({ block: "nearest", inline: "center" }); e.preventDefault(); }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,746 @@
+<!-- TEMPLATE: The Long Read | ARCHETYPE: chapter book - persistent sidebar chapter-jump with scroll-sync prose | REF: Adidas Annual Report persistent sidebar (scrollytelling 2026), SBS The Boat audio-visual sync | WHEN TO USE: long-form editorial case study where works appear inline as evidence inside the prose, not a gallery | SWAP: edit the CHAPTERS array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Long Read - Chapter Book</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Spectral:ital,wght@0,400;0,500;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   THE LONG READ - a chapter-book editorial scrollytelling shell.
+   All chapter motion is CSS scroll-driven (animation-timeline:view).
+   The sidebar is position:sticky -> zero layout shift, no JS scroll
+   hijack. JS only: chapter-jump smooth anchor, IntersectionObserver
+   for active-chapter state + reading-progress arc + in-view video.
+   ============================================================ */
+:root{
+  --navy:#1a1a2e;        /* deep editorial navy */
+  --navy-2:#141426;      /* a shade deeper */
+  --gold:#e8c547;        /* chapter gold */
+  --gold-dim:#a98f3a;
+  --paper:#f4f1ea;       /* warm off-white prose ink */
+  --ink:#e9e6dd;
+  --ink-soft:#b9b6ad;
+  --rule:rgba(233,230,221,.14);
+  --sidebar-w:260px;
+  --lane-max:680px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  background:var(--navy);
+  color:var(--ink);
+  font-family:"Spectral",Georgia,serif;
+  font-size:19px;
+  line-height:1.72;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+}
+/* subtle paper grain + vignette, fixed so it never reflows */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(120% 90% at 70% 0%, rgba(232,197,71,.06), transparent 55%),
+    radial-gradient(100% 80% at 0% 100%, rgba(232,197,71,.04), transparent 60%);
+}
+a{color:inherit}
+img,video{display:block;max-width:100%}
+
+/* ---------- LAYOUT SHELL ---------- */
+.shell{
+  display:grid;
+  grid-template-columns:var(--sidebar-w) 1fr;
+  max-width:1180px;
+  margin:0 auto;
+  position:relative;
+  z-index:1;
+}
+
+/* ---------- SIDEBAR (sticky, zero layout shift) ---------- */
+.rail{
+  position:sticky;
+  top:0;
+  align-self:start;
+  height:100vh;
+  height:100dvh;
+  padding:32px 22px 32px 30px;
+  display:flex;
+  flex-direction:column;
+  border-right:1px solid var(--rule);
+}
+.rail__brand{
+  font-family:"Space Mono",monospace;
+  font-size:11px;
+  letter-spacing:.28em;
+  text-transform:uppercase;
+  color:var(--gold);
+  margin-bottom:6px;
+}
+.rail__title{
+  font-family:"Fraunces",serif;
+  font-weight:600;
+  font-size:25px;
+  line-height:1.12;
+  letter-spacing:-.01em;
+  color:var(--paper);
+  margin:0 0 28px;
+}
+.rail__nav{
+  list-style:none;margin:0;padding:0;
+  display:flex;flex-direction:column;gap:2px;
+  flex:1;
+  overflow-y:auto;
+  scrollbar-width:thin;
+  scrollbar-color:var(--gold-dim) transparent;
+}
+.rail__nav::-webkit-scrollbar{width:5px}
+.rail__nav::-webkit-scrollbar-thumb{background:var(--gold-dim);border-radius:4px}
+.chaplink{
+  display:grid;
+  grid-template-columns:34px 1fr;
+  align-items:center;
+  gap:13px;
+  padding:9px 8px;
+  border-radius:9px;
+  text-decoration:none;
+  color:var(--ink-soft);
+  transition:color .35s ease, background .35s ease;
+  position:relative;
+}
+.chaplink:hover{color:var(--ink);background:rgba(255,255,255,.03)}
+.chaplink:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+/* the dot + reading-progress arc */
+.dotwrap{position:relative;width:34px;height:34px;display:grid;place-items:center}
+.dotwrap svg{position:absolute;inset:0;width:34px;height:34px;transform:rotate(-90deg)}
+.dotwrap .arc-track{stroke:var(--rule);}
+.dotwrap .arc-fill{
+  stroke:var(--gold);
+  stroke-linecap:round;
+  /* circumference of r=15 ~= 94.25 */
+  stroke-dasharray:94.25;
+  stroke-dashoffset:94.25;
+  transition:stroke-dashoffset .15s linear;
+}
+.dot{
+  width:9px;height:9px;border-radius:50%;
+  background:var(--ink-soft);
+  transition:background .35s ease, transform .35s ease, box-shadow .35s ease;
+}
+.chaplink__meta{display:flex;flex-direction:column;line-height:1.18;min-width:0}
+.chaplink__num{
+  font-family:"Space Mono",monospace;
+  font-size:10px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--gold-dim);
+  transition:color .35s ease;
+}
+.chaplink__label{
+  font-family:"Fraunces",serif;
+  font-size:14.5px;font-weight:500;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+/* active state */
+.chaplink.is-active{color:var(--paper)}
+.chaplink.is-active .dot{background:var(--gold);transform:scale(1.15);box-shadow:0 0 0 4px rgba(232,197,71,.14)}
+.chaplink.is-active .chaplink__num{color:var(--gold)}
+.rail__foot{
+  margin-top:18px;padding-top:14px;border-top:1px solid var(--rule);
+  font-family:"Space Mono",monospace;font-size:10px;letter-spacing:.12em;
+  color:var(--ink-soft);
+  display:flex;justify-content:space-between;align-items:baseline;
+}
+.rail__foot b{color:var(--gold);font-weight:700}
+
+/* ---------- READING LANE ---------- */
+.lane{
+  padding:0 clamp(20px,5vw,72px) 18vh;
+  min-width:0;
+}
+
+/* top band: compact masthead OVER a populated first-chapter view
+   so the signature (sidebar arc + inline evidence) is at scroll=0 */
+.masthead{
+  padding:46px 0 30px;
+  border-bottom:1px solid var(--rule);
+  margin-bottom:8px;
+}
+.masthead__kicker{
+  font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.3em;
+  text-transform:uppercase;color:var(--gold);margin:0 0 16px;
+}
+.masthead h1{
+  font-family:"Fraunces",serif;font-weight:600;
+  font-size:clamp(34px,5.4vw,58px);
+  line-height:1.02;letter-spacing:-.02em;
+  color:var(--paper);margin:0 0 18px;
+}
+.masthead p{
+  margin:0;color:var(--ink-soft);font-style:italic;
+  font-size:clamp(16px,2.4vw,21px);max-width:var(--lane-max);
+}
+.byline{
+  margin-top:22px;display:flex;gap:22px;flex-wrap:wrap;
+  font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-soft);
+}
+.byline b{color:var(--paper);font-weight:700}
+
+/* ---------- CHAPTER ---------- */
+.chapter{
+  padding:9vh 0 7vh;
+  scroll-margin-top:14px; /* anchor lands just below viewport top */
+  border-bottom:1px solid var(--rule);
+}
+.chapter:last-of-type{border-bottom:none}
+.chapter__head{margin:0 0 30px;max-width:var(--lane-max)}
+.chapter__num{
+  font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.3em;
+  text-transform:uppercase;color:var(--gold);display:block;margin-bottom:10px;
+}
+.chapter__title{
+  font-family:"Fraunces",serif;font-weight:600;
+  font-size:clamp(27px,4vw,40px);line-height:1.06;letter-spacing:-.015em;
+  color:var(--paper);margin:0;
+}
+.chapter p{max-width:var(--lane-max);margin:0 0 1.35em}
+.chapter p:first-of-type::first-letter{
+  font-family:"Fraunces",serif;font-weight:600;
+  float:left;font-size:3.1em;line-height:.78;padding:6px 12px 0 0;color:var(--gold);
+}
+.lede{font-size:1.06em;color:var(--paper)}
+.pull{
+  font-family:"Fraunces",serif;font-style:italic;font-weight:500;
+  font-size:clamp(22px,3.3vw,30px);line-height:1.22;color:var(--paper);
+  border-left:3px solid var(--gold);padding:4px 0 4px 22px;margin:1.6em 0;max-width:var(--lane-max);
+}
+.note{
+  font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.04em;
+  color:var(--ink-soft);margin-top:10px;
+}
+.note b{color:var(--gold)}
+
+/* ----- inline evidence (works are EVIDENCE, not gallery) ----- */
+.evidence{
+  margin:2.2em 0;
+  /* the only motion: scroll-driven reveal, one mechanic per chapter type */
+}
+.evidence figcaption{
+  font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.06em;
+  color:var(--ink-soft);margin-top:11px;display:flex;gap:10px;align-items:baseline;
+  flex-wrap:wrap;
+}
+.evidence figcaption .tag{color:var(--gold);text-transform:uppercase;letter-spacing:.14em}
+.frame{
+  position:relative;border-radius:12px;overflow:hidden;
+  background:var(--navy-2);
+  border:1px solid var(--rule);
+  box-shadow:0 24px 60px -28px rgba(0,0,0,.7);
+}
+/* letterbox/contain: NEVER cover-crop a landscape asset on a phone */
+.frame img,.frame video{width:100%;height:auto;display:block}
+.frame--ratio{aspect-ratio:16/9;background:#0d0d18}
+.frame--ratio img,.frame--ratio video{height:100%;object-fit:cover}
+.frame--square{max-width:380px}
+
+/* MECHANIC A: fade-in text/image (scroll-driven) */
+@keyframes revealUp{from{opacity:0;transform:translateY(34px)}to{opacity:1;transform:none}}
+.m-fade{
+  animation:revealUp linear both;
+  animation-timeline:view();
+  animation-range:entry 4% cover 28%;
+}
+
+/* MECHANIC B: image WIPE (gold curtain pulls back, scroll-driven) */
+.m-wipe{position:relative}
+.m-wipe .frame{
+  -webkit-mask-image:linear-gradient(90deg,#000 0,#000 100%);
+          mask-image:linear-gradient(90deg,#000 0,#000 100%);
+}
+.m-wipe .frame{
+  clip-path:inset(0 var(--wipe,100%) 0 0);
+  animation:wipeOpen linear both;
+  animation-timeline:view();
+  animation-range:entry 6% cover 38%;
+}
+@keyframes wipeOpen{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+.m-wipe .curtain{
+  position:absolute;top:0;bottom:0;right:0;width:3px;background:var(--gold);
+  box-shadow:0 0 22px 3px rgba(232,197,71,.6);
+  animation:curtainSlide linear both;
+  animation-timeline:view();
+  animation-range:entry 6% cover 38%;
+}
+@keyframes curtainSlide{from{right:100%;opacity:1}to{right:0;opacity:0}}
+
+/* MECHANIC C: counter TICK UP (CSS @property scroll-driven number) */
+@property --tick{syntax:"<integer>";inherits:false;initial-value:0}
+.counter{
+  --tick:0;
+  display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;
+  margin:1.8em 0;padding:26px 28px;border-radius:14px;
+  background:linear-gradient(180deg,rgba(232,197,71,.05),rgba(232,197,71,.01));
+  border:1px solid var(--rule);
+  animation:tickUp linear both;
+  animation-timeline:view();
+  animation-range:entry 10% cover 60%;
+}
+@keyframes tickUp{from{--tick:0}to{--tick:1598}}
+.counter__num{
+  font-family:"Fraunces",serif;font-weight:600;font-size:clamp(46px,8vw,82px);
+  line-height:.9;color:var(--gold);letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums;
+}
+.counter__num::before{counter-reset:n var(--tick);content:counter(n)}
+.counter__cap{max-width:300px}
+.counter__cap b{color:var(--paper);font-family:"Fraunces",serif;font-style:italic}
+
+/* MECHANIC D: diptych split-slide (two works slide in from edges) */
+.diptych{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:2.2em 0}
+.diptych>figure{margin:0}
+.diptych .d-l{animation:slideL linear both;animation-timeline:view();animation-range:entry 4% cover 30%}
+.diptych .d-r{animation:slideR linear both;animation-timeline:view();animation-range:entry 4% cover 30%}
+@keyframes slideL{from{opacity:0;transform:translateX(-40px)}to{opacity:1;transform:none}}
+@keyframes slideR{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:none}}
+
+/* MECHANIC E: audio waveform draw-on (clip reveal L->R while in view) */
+.waverow{display:flex;gap:16px;align-items:center;margin:1.6em 0;padding:18px 20px;
+  border:1px solid var(--rule);border-radius:12px;background:var(--navy-2)}
+.waverow__play{
+  flex:none;width:42px;height:42px;border-radius:50%;border:1px solid var(--gold);
+  background:transparent;color:var(--gold);cursor:pointer;display:grid;place-items:center;
+  font-size:15px;transition:background .25s,color .25s}
+.waverow__play:hover{background:var(--gold);color:var(--navy)}
+.waverow__play:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.waverow__body{flex:1;min-width:0}
+.waverow__meta{font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.06em;color:var(--ink-soft);margin-bottom:6px}
+.waverow__meta b{color:var(--gold)}
+.waveimg{
+  width:100%;height:46px;object-fit:cover;
+  filter:brightness(0) saturate(100%) invert(78%) sepia(46%) saturate(640%) hue-rotate(2deg) brightness(96%);
+  opacity:.85;
+  -webkit-mask-image:linear-gradient(90deg,#000 0,#000 100%);mask-image:linear-gradient(90deg,#000 0,#000 100%);
+  clip-path:inset(0 100% 0 0);
+  animation:waveDraw linear both;animation-timeline:view();animation-range:entry 8% cover 50%;
+}
+@keyframes waveDraw{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+
+/* video evidence: poster by default, play only when in view (JS) */
+.vfig{position:relative}
+.vfig .badge{
+  position:absolute;left:12px;top:12px;z-index:2;
+  font-family:"Space Mono",monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--navy);background:var(--gold);padding:4px 9px;border-radius:6px;font-weight:700;
+}
+
+/* closing colophon */
+.colophon{padding:10vh 0 4vh;text-align:left}
+.colophon h2{font-family:"Fraunces",serif;font-weight:600;font-size:clamp(24px,4vw,36px);color:var(--paper);margin:0 0 14px}
+.colophon p{color:var(--ink-soft);max-width:var(--lane-max)}
+
+/* ---------- MOBILE: rail collapses to floating dot-nav row ---------- */
+.dotnav{display:none}
+@media (max-width:860px){
+  .shell{grid-template-columns:1fr}
+  .rail{display:none}
+  .lane{padding:0 22px 22vh}
+  .masthead{padding-top:34px}
+  /* floating bottom dot-nav */
+  .dotnav{
+    display:flex;position:fixed;left:50%;bottom:14px;transform:translateX(-50%);
+    z-index:50;gap:0;align-items:center;
+    padding:9px 14px;border-radius:999px;
+    background:rgba(20,20,38,.86);backdrop-filter:blur(14px);
+    -webkit-backdrop-filter:blur(14px);
+    border:1px solid var(--rule);
+    box-shadow:0 14px 40px -10px rgba(0,0,0,.7);
+    max-width:calc(100vw - 28px);overflow-x:auto;scrollbar-width:none;
+  }
+  .dotnav::-webkit-scrollbar{display:none}
+  .dotnav a{
+    flex:none;width:30px;height:30px;display:grid;place-items:center;text-decoration:none;position:relative;
+  }
+  .dotnav a:focus-visible{outline:2px solid var(--gold);outline-offset:1px;border-radius:50%}
+  .dotnav .pd{width:8px;height:8px;border-radius:50%;background:var(--ink-soft);transition:background .3s,transform .3s}
+  .dotnav a.is-active .pd{background:var(--gold);transform:scale(1.4)}
+  .dotnav a.is-active::after{
+    content:attr(data-label);position:absolute;bottom:calc(100% + 9px);left:50%;transform:translateX(-50%);
+    font-family:"Space Mono",monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--navy);background:var(--gold);padding:3px 9px;border-radius:6px;white-space:nowrap;font-weight:700;
+  }
+  .dotnav__prog{
+    position:absolute;left:8px;right:8px;top:3px;height:2px;border-radius:2px;
+    background:var(--rule);overflow:hidden;
+  }
+  .dotnav__prog i{display:block;height:100%;width:0;background:var(--gold);transition:width .15s linear}
+}
+/* small phones: ensure landscape evidence letterboxes, never crops portrait */
+@media (max-width:640px){
+  body{font-size:17.5px}
+  .frame--ratio{aspect-ratio:auto}
+  .frame--ratio img,.frame--ratio video{height:auto;object-fit:contain}
+  .diptych{grid-template-columns:1fr}
+  .chapter p:first-of-type::first-letter{font-size:2.7em}
+  .counter{flex-direction:column;align-items:flex-start}
+}
+
+/* ---------- REDUCED MOTION: show final state, kill all motion ---------- */
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *{animation:none!important;transition:none!important}
+  .m-fade{opacity:1!important;transform:none!important}
+  .m-wipe .frame{clip-path:none!important}
+  .m-wipe .curtain{display:none}
+  .diptych .d-l,.diptych .d-r{opacity:1!important;transform:none!important}
+  .waveimg{clip-path:none!important}
+  .counter{--tick:1598}
+  .dotwrap .arc-fill{transition:none!important}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- ===================== STICKY SIDEBAR ===================== -->
+  <aside class="rail" aria-label="Chapters">
+    <div class="rail__brand">Vesperwerk Field Notes</div>
+    <h2 class="rail__title">The Long Read</h2>
+    <ul class="rail__nav" id="rail"></ul>
+    <div class="rail__foot">
+      <span>EST. CASE STUDY</span>
+      <span><b id="railPct">0%</b> read</span>
+    </div>
+  </aside>
+
+  <!-- ===================== READING LANE ===================== -->
+  <main class="lane">
+    <header class="masthead">
+      <p class="masthead__kicker">Issue 01 / Synthetic Media Practice</p>
+      <h1>How a voice agent learned to see, speak, and remember</h1>
+      <p>A field record of building one clinic's AI from scratch: the renders we shipped, the models we cut, and the 1,598 conversations that taught it Thai.</p>
+      <div class="byline">
+        <span>Words by <b>The Studio</b></span>
+        <span>14 min read</span>
+        <span><b id="chapCount">0</b> chapters</span>
+      </div>
+    </header>
+
+    <div id="chapters"></div>
+
+    <section class="colophon">
+      <h2>Colophon</h2>
+      <p>Every figure on this page is a real generated artifact - matte renders, talking avatars, synthesized Thai speech, a refined 3D mesh. They are set as evidence inside the argument, not as a gallery. To repurpose this shell for your own long read, edit the single <code>CHAPTERS</code> array at the top of the script and drop in your own media. The reading mechanics travel with the markup.</p>
+    </section>
+  </main>
+</div>
+
+<!-- ===================== MOBILE DOT-NAV ===================== -->
+<nav class="dotnav" id="dotnav" aria-label="Chapters">
+  <span class="dotnav__prog"><i id="dotnavProg"></i></span>
+</nav>
+
+<script>
+/* ============================================================
+   DATA - swap everything here. Each chapter declares:
+   - num, label (sidebar), title (in-lane), kicker
+   - body[]: prose blocks. type: 'p' | 'lede' | 'pull' | evidence types
+     evidence types use the real ../assets media as inline proof.
+   ============================================================ */
+const ASSETS = "../assets/";
+const GEN = ASSETS + "gen/";
+
+const CHAPTERS = [
+  {
+    id:"ch1", num:"Ch. 01", label:"The Brief", title:"A clinic that answers at 2 a.m.",
+    body:[
+      {t:"lede", html:"The ask was almost mundane: a dental clinic in Ayutthaya wanted its line never to ring out. What it actually required was a synthetic operator that could see a room, hold a conversation, and never forget a patient. We started, as we always do, with a picture of the place it would live."},
+      {t:"p", html:"Before a single prompt was written, we generated the world. Not the product - the <em>feeling</em> of the product. A mint-and-wood waiting room, warm enough that a nervous patient might exhale. This image set the entire palette for the build."},
+      {t:"fade", media:{kind:"img", src:ASSETS+"flux-clinic-4k.png", alt:"Mint and wood dental clinic interior, softly lit"}, tag:"FLUX . 2048x1152", cap:"Concept plate. The room the agent imagines it is standing in."},
+      {t:"p", html:"From that single frame we worked backwards into requirements. If the agent's house looks like this, it cannot sound like a call-center robot. Tone became a hard constraint, not a finishing touch."},
+      {t:"note", html:"<b>Decision 01.</b> Visual concept precedes voice design. The room dictates the register."}
+    ]
+  },
+  {
+    id:"ch2", num:"Ch. 02", label:"Casting a Face", title:"The render that became the demo.",
+    body:[
+      {t:"p", html:"Prospects do not buy architecture diagrams. They buy a moment where the thing feels alive. So the second artifact was a face: a presenter who could say the clinic's name back to camera before any backend existed."},
+      {t:"wipe", media:{kind:"video", src:ASSETS+"heygen-avatar.mp4", poster:GEN+"poster-heygen.png", alt:"Synthetic talking-head avatar presenter"}, tag:"HEYGEN . AVATAR", cap:"The demo face. It carried three sales calls before the API was real."},
+      {t:"pull", html:"A render with a voice closes a meeting that ten architecture slides cannot."},
+      {t:"p", html:"We learned to treat the avatar as a wedge, not the product. It bought us the trust to go build the unglamorous parts: retries, fallbacks, observability. The face opened the door; the plumbing kept it open."},
+      {t:"note", html:"<b>Watch.</b> Video evidence plays only while in view, then pauses - one decode at a time keeps the page at 60fps."}
+    ]
+  },
+  {
+    id:"ch3", num:"Ch. 03", label:"Teaching Thai", title:"1,598 conversations, last seen this spring.",
+    body:[
+      {t:"p", html:"You cannot fake fluency in a second language at 8 kHz over a phone line. The agent's Thai came from a corpus: real LINE OA threads, deduplicated and time-bounded to conversations still active this year. Nothing stale, nothing borrowed."},
+      {t:"counter", to:1598, cap:"unique conversations in the training corpus, every one last-active between January and May. The team's older batch overlapped zero percent - it filled a real gap."},
+      {t:"p", html:"With the text in place, the voice followed. We auditioned synthetic Thai speech until one read survived the human ear, not just a round-trip diff. The waveform below is that take."},
+      {t:"wave", src:GEN+"wave-elevenlabs.png", audio:ASSETS+"elevenlabs-thai.mp3", label:"ELEVENLABS . TH", cap:"Synthesized Thai greeting. Press play."},
+      {t:"note", html:"<b>Rule.</b> A better ASR diff is a triage signal, not an acceptance test. The ear decides."}
+    ]
+  },
+  {
+    id:"ch4", num:"Ch. 04", label:"The Object", title:"Giving the brand something to hold.",
+    body:[
+      {t:"p", html:"Software has no surface you can turn over in your hand. For the pitch deck we needed one, so we refined a 3D mesh: a small physical token of an abstract service, lit and posed like product photography."},
+      {t:"fade", media:{kind:"img", src:ASSETS+"meshy-refined-thumb.png", alt:"Refined 3D mesh rendered as a product object"}, tag:"MESHY . REFINED GLB", cap:"The studio object. A 2.6 MB mesh standing in for an intangible product."},
+      {t:"p", html:"It is a prop, and it knows it. But a prop with weight and shadow makes a service feel like a thing you already own. That is the whole job of this chapter's evidence."}
+    ]
+  },
+  {
+    id:"ch5", num:"Ch. 05", label:"Motion Tests", title:"Two takes, side by side.",
+    body:[
+      {t:"p", html:"Before committing to a hero clip we ran motion tests in parallel and judged them as a pair. The discipline: never decide a moving image from a still. Watch both, pick the one with the cleaner read."},
+      {t:"diptych", left:{src:GEN+"poster-kling-video.png", video:ASSETS+"kling-video.mp4", tag:"KLING", alt:"Generated motion test A"}, right:{src:GEN+"poster-veo-video.png", video:ASSETS+"veo-video.mp4", tag:"VEO", alt:"Generated motion test B"}, cap:"Posters by default. Hover or tap a panel to play just that one - never both at once."},
+      {t:"pull", html:"Two videos on one stage, both autoplaying, is how you turn a smooth page into a slideshow."},
+      {t:"p", html:"So neither plays until you choose it. The focused panel decodes; the other holds its poster. Simultaneous decode plus mix-blend is the fastest way to tank frame rate, and we refuse to pay it."}
+    ]
+  },
+  {
+    id:"ch6", num:"Ch. 06", label:"The Hero", title:"Where it all points: one clean drive.",
+    body:[
+      {t:"p", html:"Every artifact above was a rehearsal for a single shot the client could put at the top of their site. A matte-black car on a wet neon street - confident, unhurried, exactly the register the clinic room first promised."},
+      {t:"wipe", media:{kind:"img", src:ASSETS+"flux-car-4k.png", alt:"Cinematic matte-black Mercedes on a wet neon street"}, tag:"FLUX . 2048x1152", cap:"The hero plate. The gold curtain pulls back as you arrive on it."},
+      {t:"p", html:"The argument closes where it opened: with an image that sets a tone the rest of the system has to honor. The render is not decoration. It is the spec the build had to meet."},
+      {t:"note", html:"<b>Decision 06.</b> The hero is the contract. Everything downstream is graded against it."}
+    ]
+  }
+];
+
+/* ============================================================
+   RENDER - build the lane + both navs from CHAPTERS.
+   ============================================================ */
+const rail = document.getElementById('rail');
+const dotnav = document.getElementById('dotnav');
+const chaptersEl = document.getElementById('chapters');
+const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function esc(s){return s;}
+
+function evidence(b){
+  switch(b.t){
+    case 'p': return `<p>${b.html}</p>`;
+    case 'lede': return `<p class="lede">${b.html}</p>`;
+    case 'pull': return `<blockquote class="pull">${b.html}</blockquote>`;
+    case 'note': return `<p class="note">${b.html}</p>`;
+    case 'fade':{
+      const m=b.media, inner = m.kind==='video'
+        ? `<video muted loop playsinline preload="metadata" poster="${m.poster||''}"><source src="${m.src}" type="video/mp4"></video>`
+        : `<img loading="lazy" src="${m.src}" alt="${m.alt||''}">`;
+      return `<figure class="evidence m-fade"><div class="frame frame--square" style="max-width:none">${inner}</div>
+        <figcaption><span class="tag">${b.tag||''}</span><span>${b.cap||''}</span></figcaption></figure>`;
+    }
+    case 'wipe':{
+      const m=b.media;
+      const inner = m.kind==='video'
+        ? `<div class="vfig"><span class="badge">${b.tag||'VIDEO'}</span><video muted loop playsinline preload="metadata" poster="${m.poster||''}"><source src="${m.src}" type="video/mp4"></video></div>`
+        : `<img loading="lazy" src="${m.src}" alt="${m.alt||''}">`;
+      return `<figure class="evidence m-wipe"><div class="frame">${inner}</div><span class="curtain" aria-hidden="true"></span>
+        <figcaption><span class="tag">${b.tag||''}</span><span>${b.cap||''}</span></figcaption></figure>`;
+    }
+    case 'counter':
+      return `<div class="counter" role="figure" aria-label="${b.to} ${b.cap}">
+        <span class="counter__num" aria-hidden="true"></span>
+        <span class="counter__cap"><b>1,598</b> ${b.cap}</span></div>`;
+    case 'wave':
+      return `<div class="waverow">
+        <button class="waverow__play" data-audio="${b.audio}" aria-label="Play ${b.label} audio sample">&#9654;</button>
+        <div class="waverow__body">
+          <div class="waverow__meta"><b>${b.label}</b> &middot; ${b.cap}</div>
+          <img class="waveimg" loading="lazy" src="${b.src}" alt="Audio waveform for ${b.label}">
+        </div></div>`;
+    case 'diptych':{
+      const L=b.left,R=b.right;
+      return `<div class="diptych">
+        <figure class="d-l"><div class="frame vfig"><span class="badge">${L.tag}</span>
+          <video muted loop playsinline preload="none" data-src="${L.video}" poster="${L.src}"></video></div></figure>
+        <figure class="d-r"><div class="frame vfig"><span class="badge">${R.tag}</span>
+          <video muted loop playsinline preload="none" data-src="${R.video}" poster="${R.src}"></video></div></figure>
+      </div><p class="note">${b.cap}</p>`;
+    }
+    default: return '';
+  }
+}
+
+CHAPTERS.forEach((c,i)=>{
+  // lane section
+  const sec=document.createElement('section');
+  sec.className='chapter';
+  sec.id=c.id;
+  sec.setAttribute('data-i',i);
+  sec.innerHTML =
+    `<header class="chapter__head">
+       <span class="chapter__num">${c.num}</span>
+       <h2 class="chapter__title">${c.title}</h2>
+     </header>` + c.body.map(evidence).join('');
+  chaptersEl.appendChild(sec);
+
+  // sidebar link with reading-progress arc
+  const li=document.createElement('li');
+  li.innerHTML =
+    `<a class="chaplink" href="#${c.id}" data-i="${i}">
+       <span class="dotwrap">
+         <svg viewBox="0 0 34 34" aria-hidden="true">
+           <circle class="arc-track" cx="17" cy="17" r="15" fill="none" stroke-width="2"/>
+           <circle class="arc-fill"  cx="17" cy="17" r="15" fill="none" stroke-width="2"/>
+         </svg>
+         <span class="dot"></span>
+       </span>
+       <span class="chaplink__meta">
+         <span class="chaplink__num">${c.num}</span>
+         <span class="chaplink__label">${c.label}</span>
+       </span>
+     </a>`;
+  rail.appendChild(li);
+
+  // mobile dot-nav
+  const a=document.createElement('a');
+  a.href='#'+c.id; a.dataset.i=i; a.dataset.label=c.label;
+  a.setAttribute('aria-label', c.num+' '+c.label);
+  a.innerHTML='<span class="pd"></span>';
+  dotnav.appendChild(a);
+});
+
+document.getElementById('chapCount').textContent = CHAPTERS.length;
+
+/* ============================================================
+   SMOOTH ANCHOR JUMP (no scroll hijack) - native smooth scroll,
+   we only manage focus + reduced-motion fallback.
+   ============================================================ */
+document.querySelectorAll('.chaplink, .dotnav a').forEach(a=>{
+  a.addEventListener('click', e=>{
+    const id=a.getAttribute('href').slice(1);
+    const target=document.getElementById(id);
+    if(!target) return;
+    e.preventDefault();
+    target.scrollIntoView({behavior: reduce?'auto':'smooth', block:'start'});
+    history.replaceState(null,'','#'+id);
+    target.setAttribute('tabindex','-1');
+    target.focus({preventScroll:true});
+  });
+});
+
+/* ============================================================
+   ACTIVE CHAPTER + READING ARC + GLOBAL PROGRESS.
+   One rAF on scroll, throttled. Computes which chapter holds the
+   viewport mid-line, fills its arc by how far through it we are.
+   ============================================================ */
+const railLinks = [...document.querySelectorAll('.chaplink')];
+const dotLinks  = [...document.querySelectorAll('.dotnav a')];
+const sections  = [...document.querySelectorAll('.chapter')];
+const ARC_C = 94.25; // circumference r=15
+const railPct = document.getElementById('railPct');
+const dotnavProg = document.getElementById('dotnavProg');
+
+let ticking=false;
+function update(){
+  ticking=false;
+  const vh = window.innerHeight;
+  const mid = window.scrollY + vh*0.42; // reading focus line
+  let active=0;
+  for(let i=0;i<sections.length;i++){
+    const s=sections[i];
+    const top = s.offsetTop;
+    const bot = top + s.offsetHeight;
+    if(mid >= top) active=i;
+    // per-chapter reading fraction for the active one
+    if(mid>=top && mid<bot){
+      const frac = Math.min(1, Math.max(0,(mid-top)/(bot-top)));
+      setArc(i, frac);
+    } else if(mid>=bot){
+      setArc(i,1);
+    } else {
+      setArc(i,0);
+    }
+  }
+  railLinks.forEach((l,i)=>l.classList.toggle('is-active', i===active));
+  dotLinks.forEach((l,i)=>l.classList.toggle('is-active', i===active));
+
+  // global progress
+  const docH = document.documentElement.scrollHeight - vh;
+  const p = docH>0 ? Math.min(100, Math.round(window.scrollY/docH*100)) : 0;
+  railPct.textContent = p+'%';
+  if(dotnavProg) dotnavProg.style.width = p+'%';
+}
+function setArc(i, frac){
+  const link = railLinks[i];
+  if(!link) return;
+  const fill = link.querySelector('.arc-fill');
+  if(fill) fill.style.strokeDashoffset = (ARC_C*(1-frac)).toFixed(2);
+}
+function onScroll(){ if(!ticking){ ticking=true; requestAnimationFrame(update); } }
+window.addEventListener('scroll', onScroll, {passive:true});
+window.addEventListener('resize', onScroll, {passive:true});
+update();
+
+/* ============================================================
+   IN-VIEW VIDEO PLAYBACK - single decode discipline.
+   - 'wipe' hero videos: play when >55% visible, pause when out.
+   - diptych videos: NEVER autoplay; play only the focused panel
+     (hover desktop / tap mobile). Lazy-attach src on first play.
+   ============================================================ */
+if(!reduce){
+  // solo in-view videos (wipe figures only)
+  const soloVids = document.querySelectorAll('.m-wipe video');
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(en=>{
+      const v=en.target;
+      if(en.isIntersecting && en.intersectionRatio>0.55){
+        v.play().catch(()=>{});
+      } else { v.pause(); }
+    });
+  }, {threshold:[0,0.55,1]});
+  soloVids.forEach(v=>io.observe(v));
+}
+
+// diptych: lock playback to the focused/hovered panel only
+document.querySelectorAll('.diptych .vfig').forEach(fig=>{
+  const v=fig.querySelector('video');
+  if(!v) return;
+  let loaded=false;
+  const ensure=()=>{ if(!loaded){ v.src=v.dataset.src; loaded=true; } };
+  const play=()=>{
+    // pause the sibling first - single decode at a time
+    document.querySelectorAll('.diptych video').forEach(o=>{ if(o!==v) o.pause(); });
+    ensure(); if(!reduce) v.play().catch(()=>{});
+  };
+  const stop=()=>{ v.pause(); };
+  fig.addEventListener('mouseenter', play);
+  fig.addEventListener('mouseleave', stop);
+  // touch / keyboard
+  fig.tabIndex=0;
+  fig.setAttribute('role','button');
+  fig.setAttribute('aria-label','Play motion test');
+  fig.addEventListener('click', ()=> v.paused ? play() : stop());
+  fig.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); v.paused?play():stop(); } });
+});
+
+/* ============================================================
+   AUDIO - one player at a time. Toggle play/pause, swap glyph.
+   ============================================================ */
+let currentAudio=null, currentBtn=null;
+document.querySelectorAll('.waverow__play').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const src=btn.dataset.audio;
+    if(currentAudio && currentBtn===btn){
+      if(currentAudio.paused){ currentAudio.play(); btn.innerHTML='&#10073;&#10073;'; }
+      else { currentAudio.pause(); btn.innerHTML='&#9654;'; }
+      return;
+    }
+    if(currentAudio){ currentAudio.pause(); if(currentBtn) currentBtn.innerHTML='&#9654;'; }
+    currentAudio=new Audio(src);
+    currentBtn=btn;
+    currentAudio.play().catch(()=>{});
+    btn.innerHTML='&#10073;&#10073;';
+    currentAudio.addEventListener('ended', ()=>{ btn.innerHTML='&#9654;'; });
+  });
+});
+</script>
+</body>
+</html>

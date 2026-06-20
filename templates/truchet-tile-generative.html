@@ -1,0 +1,700 @@
+<!-- TEMPLATE: Truchet Tile Generative | ARCHETYPE: TRUCHET procedural tile brand pattern | REF: Sebastien Truchet quarter-circle tiling; generative SVG flow fields | WHEN TO USE: brand hero needing deliberate generative pattern art with zero media, capture-safe static SVG | SWAP: edit the DATA object at top (brand colors, tile size, copy) -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Meridian Loom - Generative Truchet Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+/* =========================================================================
+   DATA-DRIVEN THEME TOKENS - swap brand here, the SVG arcs read these via JS
+   ========================================================================= */
+:root{
+  --ink:#10131a;            /* deep ink ground */
+  --ink-2:#161b25;          /* panel ground */
+  --bone:#ece4d4;           /* bone / paper */
+  --bone-dim:#bdb4a2;
+  --brand:#e0653a;          /* primary brand arc */
+  --brand-2:#2fae8f;        /* secondary brand arc */
+  --line:rgba(236,228,212,.14);
+  --tile:clamp(46px, 7vw, 92px);   /* mobile keeps tiling: fewer, larger tiles */
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--ink);
+  color:var(--bone);
+  font-family:"Space Grotesk",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+}
+a{color:inherit;text-decoration:none}
+.mono{font-family:"Space Mono",ui-monospace,monospace}
+
+/* ---- focus visibility ---- */
+:focus-visible{outline:2px solid var(--brand);outline-offset:3px;border-radius:2px}
+
+/* =========================================================================
+   HERO STAGE - full-bleed Truchet field with wordmark overlay
+   ========================================================================= */
+.hero{
+  position:relative;
+  min-height:100svh;
+  width:100%;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+/* the generative tiling fills the whole hero */
+#truchet{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  display:block;
+  z-index:0;
+}
+#truchet path, #truchet line{shape-rendering:geometricPrecision}
+
+/* readability scrim so the wordmark sits with authority over the pattern */
+.hero::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:1;
+  pointer-events:none;
+  background:
+    radial-gradient(120% 90% at 50% 42%, rgba(16,19,26,.18) 0%, rgba(16,19,26,.62) 55%, rgba(16,19,26,.9) 100%),
+    linear-gradient(180deg, rgba(16,19,26,.55) 0%, rgba(16,19,26,0) 22%, rgba(16,19,26,0) 70%, rgba(16,19,26,.95) 100%);
+}
+
+/* ---- top utility band sits ABOVE the populated tiling ---- */
+.topband{
+  position:relative;
+  z-index:3;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:1rem;
+  padding:1.4rem clamp(1.1rem,4vw,3rem);
+  font-size:.72rem;
+  letter-spacing:.18em;
+  text-transform:uppercase;
+}
+.topband .brandmark{
+  display:flex;align-items:center;gap:.55rem;
+  font-weight:700;letter-spacing:.2em;
+}
+.topband .dot{
+  width:.7rem;height:.7rem;border-radius:50%;
+  background:var(--brand);
+  box-shadow:0 0 0 4px rgba(224,101,58,.18);
+}
+.topband nav{display:flex;gap:1.5rem;color:var(--bone-dim)}
+.topband nav a{transition:color .2s}
+.topband nav a:hover{color:var(--bone)}
+@media (max-width:640px){ .topband nav{display:none} }
+
+/* ---- center wordmark block, overlays the resolved channels ---- */
+.hero-core{
+  position:relative;
+  z-index:3;
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  padding:0 clamp(1.1rem,5vw,4rem) clamp(2rem,6vh,5rem);
+  max-width:1180px;
+}
+.eyebrow{
+  display:inline-flex;align-items:center;gap:.6rem;
+  font-size:.7rem;letter-spacing:.32em;text-transform:uppercase;
+  color:var(--bone-dim);
+  margin-bottom:1.4rem;
+}
+.eyebrow .seedchip{
+  font-family:"Space Mono",monospace;
+  color:var(--brand-2);
+  border:1px solid var(--line);
+  padding:.2rem .55rem;border-radius:99px;
+  letter-spacing:.1em;
+}
+.wordmark{
+  font-weight:700;
+  font-size:clamp(3.2rem, 12vw, 9.5rem);
+  line-height:.92;
+  letter-spacing:-.03em;
+  margin:0;
+  text-wrap:balance;
+}
+.wordmark .flow{
+  background:linear-gradient(100deg,var(--brand) 0%,#f2a07a 38%,var(--brand-2) 100%);
+  -webkit-background-clip:text;background-clip:text;
+  color:transparent;
+}
+.lede{
+  margin:1.6rem 0 0;
+  max-width:48ch;
+  font-size:clamp(1rem,1.6vw,1.22rem);
+  line-height:1.5;
+  color:var(--bone-dim);
+}
+.cta-row{
+  display:flex;flex-wrap:wrap;gap:.9rem;
+  margin-top:2.2rem;
+}
+.btn{
+  display:inline-flex;align-items:center;gap:.6rem;
+  padding:.85rem 1.5rem;
+  border-radius:99px;
+  font-weight:600;font-size:.92rem;
+  letter-spacing:.01em;
+  transition:transform .18s ease, background .2s, border-color .2s;
+}
+.btn-solid{background:var(--brand);color:#1a0c06}
+.btn-solid:hover{transform:translateY(-2px)}
+.btn-ghost{border:1px solid var(--line);color:var(--bone)}
+.btn-ghost:hover{border-color:var(--bone-dim);transform:translateY(-2px)}
+.btn .arrow{transition:transform .2s}
+.btn:hover .arrow{transform:translateX(3px)}
+
+/* seed re-roll control */
+.reroll{
+  position:absolute;
+  z-index:3;
+  right:clamp(1.1rem,4vw,3rem);
+  bottom:clamp(1.1rem,4vw,2.4rem);
+  display:flex;align-items:center;gap:.7rem;
+  font-family:"Space Mono",monospace;
+  font-size:.72rem;letter-spacing:.08em;
+  color:var(--bone-dim);
+}
+.reroll button{
+  cursor:pointer;
+  background:rgba(236,228,212,.06);
+  border:1px solid var(--line);
+  color:var(--bone);
+  font-family:"Space Mono",monospace;
+  font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;
+  padding:.55rem .9rem;border-radius:99px;
+  transition:background .2s,border-color .2s,transform .15s;
+}
+.reroll button:hover{background:rgba(224,101,58,.16);border-color:var(--brand);transform:translateY(-1px)}
+.reroll button:active{transform:translateY(0)}
+@media (max-width:640px){ .reroll{ font-size:.65rem } }
+
+/* fade-in reveal of the wordmark text only; gated by reduced-motion */
+.reveal{opacity:0;transform:translateY(14px)}
+.reveal.in{opacity:1;transform:none;transition:opacity .7s ease,transform .7s cubic-bezier(.2,.7,.2,1)}
+.reveal.d1{transition-delay:.05s}
+.reveal.d2{transition-delay:.16s}
+.reveal.d3{transition-delay:.28s}
+.reveal.d4{transition-delay:.4s}
+
+/* =========================================================================
+   CONTENT SECTIONS BELOW THE FOLD
+   ========================================================================= */
+section{position:relative}
+.wrap{max-width:1180px;margin:0 auto;padding:0 clamp(1.1rem,5vw,3rem)}
+.sec-head{
+  display:flex;align-items:baseline;justify-content:space-between;
+  gap:1rem;flex-wrap:wrap;
+  padding:5rem 0 2.2rem;
+}
+.sec-head h2{
+  font-size:clamp(1.7rem,4vw,2.8rem);
+  letter-spacing:-.02em;margin:0;line-height:1.05;
+}
+.sec-head .kicker{
+  font-family:"Space Mono",monospace;
+  font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--brand-2);
+}
+
+/* tile-anatomy explainer: each rotation drawn as its own mini SVG */
+.tilegrid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:1rem;
+  padding-bottom:2rem;
+}
+.tilecard{
+  background:var(--ink-2);
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:1.1rem;
+  text-align:center;
+}
+.tilecard svg{width:100%;height:auto;display:block;border-radius:10px;background:var(--ink)}
+.tilecard .tname{
+  margin-top:.9rem;
+  font-family:"Space Mono",monospace;
+  font-size:.74rem;letter-spacing:.1em;
+  color:var(--bone-dim);
+}
+.tilecard .tname b{color:var(--bone)}
+
+/* feature triad */
+.triad{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+  gap:1.2rem;padding-bottom:4rem;
+}
+.feat{
+  background:linear-gradient(180deg,var(--ink-2),rgba(22,27,37,.4));
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:1.6rem 1.5rem;
+}
+.feat .num{
+  font-family:"Space Mono",monospace;
+  font-size:.78rem;letter-spacing:.12em;
+  color:var(--brand);
+}
+.feat h3{margin:.7rem 0 .5rem;font-size:1.22rem;letter-spacing:-.01em}
+.feat p{margin:0;color:var(--bone-dim);font-size:.95rem;line-height:1.55}
+
+/* a compact secondary band of tiling to prove it composes anywhere */
+.band{
+  position:relative;
+  height:clamp(180px,30vw,300px);
+  border-radius:20px;
+  overflow:hidden;
+  border:1px solid var(--line);
+  margin-bottom:5rem;
+  background:var(--ink-2);
+}
+.band svg{position:absolute;inset:0;width:100%;height:100%}
+.band .band-label{
+  position:absolute;z-index:2;left:1.4rem;bottom:1.2rem;
+  font-family:"Space Mono",monospace;font-size:.72rem;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--bone);
+  background:rgba(16,19,26,.55);
+  backdrop-filter:blur(3px);
+  padding:.5rem .8rem;border-radius:99px;border:1px solid var(--line);
+}
+
+footer{
+  border-top:1px solid var(--line);
+  padding:2.6rem 0 3.2rem;
+  color:var(--bone-dim);
+  font-size:.85rem;
+}
+footer .wrap{display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;align-items:center}
+footer .mono{font-size:.72rem;letter-spacing:.12em}
+
+/* =========================================================================
+   MOBILE: stack + letterbox, never cover-crop
+   ========================================================================= */
+@media (max-width:640px){
+  .hero-core{justify-content:flex-end;padding-bottom:6.5rem}
+  .wordmark{font-size:clamp(2.8rem,15vw,4.4rem)}
+  .lede{font-size:1rem}
+  .reroll{bottom:1rem}
+}
+
+/* =========================================================================
+   REDUCED MOTION - tiling already static; disable the reveal transition
+   ========================================================================= */
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .reveal{opacity:1;transform:none;transition:none}
+  .btn:hover{transform:none}
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <!-- generative Truchet field, painted by JS as crisp static SVG -->
+  <svg id="truchet" aria-hidden="true" preserveAspectRatio="xMidYMid slice"></svg>
+
+  <div class="topband">
+    <div class="brandmark"><span class="dot"></span>MERIDIAN LOOM</div>
+    <nav>
+      <a href="#anatomy">Anatomy</a>
+      <a href="#system">System</a>
+      <a href="#studio">Studio</a>
+      <a href="#contact">Contact</a>
+    </nav>
+  </div>
+
+  <div class="hero-core">
+    <span class="eyebrow reveal d1">
+      Generative brand systems
+      <span class="seedchip" id="seedChip">seed 0x0000</span>
+    </span>
+    <h1 class="wordmark reveal d2">
+      Patterns that<br><span class="flow">never repeat</span>
+    </h1>
+    <p class="lede reveal d3">
+      A studio for procedural identity. Every surface is woven from a single Truchet rule:
+      quarter-circle arcs, rotated by a seeded engine, threading into flowing channels that
+      stay yours and only yours.
+    </p>
+    <div class="cta-row reveal d4">
+      <a class="btn btn-solid" href="#system">View the system <span class="arrow">-&gt;</span></a>
+      <a class="btn btn-ghost" href="#studio">Book the studio</a>
+    </div>
+  </div>
+
+  <div class="reroll">
+    <span id="seedReadout" class="mono">weave 0x0000</span>
+    <button id="rerollBtn" type="button" aria-label="Reweave the pattern with a new seed">Reweave</button>
+  </div>
+</header>
+
+<main>
+  <!-- ANATOMY: the rule made legible -->
+  <section id="anatomy">
+    <div class="wrap">
+      <div class="sec-head">
+        <div>
+          <div class="kicker reveal">01 / The rule</div>
+          <h2 class="reveal d1">One tile, four turns, infinite cloth</h2>
+        </div>
+      </div>
+      <div class="tilegrid" id="anatomyGrid"><!-- filled by JS --></div>
+    </div>
+  </section>
+
+  <!-- SYSTEM: feature triad + secondary tiling band -->
+  <section id="system">
+    <div class="wrap">
+      <div class="sec-head">
+        <div>
+          <div class="kicker reveal">02 / The system</div>
+          <h2 class="reveal d1">Deterministic, but never dull</h2>
+        </div>
+      </div>
+      <div class="triad" id="triad"><!-- filled by JS --></div>
+
+      <div class="band">
+        <svg id="band" aria-hidden="true" preserveAspectRatio="xMidYMid slice"></svg>
+        <span class="band-label">Same rule, denser weave, second brand arc</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- STUDIO -->
+  <section id="studio">
+    <div class="wrap">
+      <div class="sec-head">
+        <div>
+          <div class="kicker reveal">03 / The studio</div>
+          <h2 class="reveal d1">Bring us a brand. Leave with a loom.</h2>
+        </div>
+      </div>
+      <div class="triad" id="studioTriad"><!-- filled by JS --></div>
+    </div>
+  </section>
+</main>
+
+<footer id="contact">
+  <div class="wrap">
+    <div>
+      <strong>MERIDIAN LOOM</strong> - generative identity studio<br>
+      <span class="mono">hello@meridianloom.studio</span>
+    </div>
+    <div class="mono">SVG ARCS / SEEDED PRNG / NO DEPENDENCIES</div>
+  </div>
+</footer>
+
+<script>
+/* =========================================================================
+   DATA - swap content here. Pure data, no markup. Future swaps are trivial.
+   ========================================================================= */
+const DATA = {
+  brand: {
+    ink:   "#10131a",
+    arc1:  "#e0653a",   // primary brand arc (hex literal, never var())
+    arc2:  "#2fae8f",   // secondary brand arc
+    bone:  "#ece4d4",
+    line:  "#2a2f3a"
+  },
+  // hero tiling parameters
+  hero: { tile: 90, strokeRatio: 0.5, mix2: 0.22, seed: null /* null = random on load */ },
+  // four canonical Truchet rotations, labeled for the anatomy explainer
+  rotations: [
+    { name: "Rotation A", deg: "0deg",   note: "NW + SE arcs" },
+    { name: "Rotation B", deg: "90deg",  note: "NE + SW arcs" },
+    { name: "Rotation C", deg: "180deg", note: "NW + SE arcs" },
+    { name: "Rotation D", deg: "270deg", note: "NE + SW arcs" }
+  ],
+  features: [
+    { num: "F-01", title: "Seeded determinism", body: "A 32-bit seed reproduces any weave to the pixel. Lock a hero, hand off the number, regenerate it anywhere." },
+    { num: "F-02", title: "Resolution free", body: "Every channel is a vector arc. Export a favicon or a building wrap from the same rule with zero raster loss." },
+    { num: "F-03", title: "Two-tone discipline", body: "Ink ground, one or two brand arcs, bone accents. The constraint is the look. No gradient soup, no noise." }
+  ],
+  studio: [
+    { num: "S-01", title: "Identity audit", body: "We map your brand to a tile vocabulary: arc weight, palette pair, weave density. One afternoon, one rule." },
+    { num: "S-02", title: "Pattern library", body: "Hero, footer, loading state, social card. All driven by the same seeded engine, all on-brand by construction." },
+    { num: "S-03", title: "Self-serve looms", body: "A tiny script you embed. Designers reweave with a button, never break the system, never touch a raster tool." }
+  ]
+};
+
+/* =========================================================================
+   SEEDED PRNG - mulberry32, deterministic from a 32-bit seed
+   ========================================================================= */
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function seedHex(s){ return "0x" + (s >>> 0).toString(16).padStart(4,"0").slice(-4).toUpperCase(); }
+
+/* =========================================================================
+   TILE GEOMETRY
+   A Truchet "arc pair" tile: two quarter-circle arcs joining opposite
+   corner-midpoints. Two distinct connection states (the other two rotations
+   are visually identical to these two for a quarter-circle arc-pair tile,
+   so we pick between state 0 and state 1, optionally promote some cells to
+   the secondary arc colour). Arcs are centred on tile corners, radius = s/2,
+   so they meet edge midpoints and chain across neighbouring cells into
+   continuous flowing channels.
+   ========================================================================= */
+function tileArcs(state){
+  // returns two SVG path "d" strings for the arc pair at the given state
+  // edge midpoints: top(.5,0) right(1,.5) bottom(.5,1) left(0,.5) in unit coords
+  if(state === 0){
+    // arcs centred on top-left and bottom-right corners
+    return [
+      "M 0 .5 A .5 .5 0 0 1 .5 0",   // left -> top, quarter arc round TL corner
+      "M .5 1 A .5 .5 0 0 1 1 .5"    // bottom -> right, quarter arc round BR corner
+    ];
+  }
+  // arcs centred on top-right and bottom-left corners
+  return [
+    "M .5 0 A .5 .5 0 0 1 1 .5",     // top -> right, quarter arc round TR corner
+    "M 0 .5 A .5 .5 0 0 1 .5 1"      // left -> bottom, quarter arc round BL corner
+  ];
+}
+
+/* Build a full Truchet field into an <svg>.
+   opts: { cols, rows, stroke, rand, arc1, arc2, mix2, bg, guides } */
+function buildField(svg, opts){
+  const { cols, rows, stroke, rand, arc1, arc2, mix2, bg, ink, lineColor } = opts;
+  const W = cols, H = rows;            // we draw in tile-units, scale via viewBox
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  let out = "";
+
+  if(bg){
+    out += `<rect x="0" y="0" width="${W}" height="${H}" fill="${ink}"/>`;
+  }
+
+  // faint structural grid behind the arcs (bone hairlines), optional
+  if(opts.guides){
+    let g = "";
+    for(let x=1;x<W;x++) g += `<line x1="${x}" y1="0" x2="${x}" y2="${H}"/>`;
+    for(let y=1;y<H;y++) g += `<line x1="0" y1="${y}" x2="${W}" y2="${y}"/>`;
+    out += `<g stroke="${lineColor}" stroke-width="${0.012}" opacity="0.5">${g}</g>`;
+  }
+
+  // arc layers: secondary colour drawn first (under), primary on top
+  let p1 = "", p2 = "";
+  for(let y=0;y<H;y++){
+    for(let x=0;x<W;x++){
+      const r = rand();
+      const state = r < 0.5 ? 0 : 1;
+      const useSecondary = rand() < mix2;
+      const [a,b] = tileArcs(state);
+      // translate unit arcs into cell (x,y)
+      const seg = ` M ${x} ${y} m 0 0 ` ; // anchor (unused, kept for clarity)
+      const da = shiftPath(a, x, y);
+      const db = shiftPath(b, x, y);
+      if(useSecondary){ p2 += da + db; }
+      else            { p1 += da + db; }
+    }
+  }
+  // rounded caps make the channels read as continuous flowing cloth
+  out += `<path d="${p2}" fill="none" stroke="${arc2}" stroke-width="${stroke}" stroke-linecap="round"/>`;
+  out += `<path d="${p1}" fill="none" stroke="${arc1}" stroke-width="${stroke}" stroke-linecap="round"/>`;
+  svg.innerHTML = out;
+}
+
+/* shift a unit-square arc path "M x y A ..." into cell (cx,cy).
+   Our unit paths use absolute coords 0..1, so we add the cell origin. */
+function shiftPath(d, cx, cy){
+  // tokens: M ax ay A rx ry rot large sweep ex ey
+  const t = d.trim().split(/\s+/);
+  // t = [M, ax, ay, A, rx, ry, rot, large, sweep, ex, ey]
+  const ax = parseFloat(t[1]) + cx, ay = parseFloat(t[2]) + cy;
+  const rx = t[4], ry = t[5], rot = t[6], lg = t[7], sw = t[8];
+  const ex = parseFloat(t[9]) + cx, ey = parseFloat(t[10]) + cy;
+  return ` M ${ax} ${ay} A ${rx} ${ry} ${rot} ${lg} ${sw} ${ex} ${ey}`;
+}
+
+/* =========================================================================
+   HERO RENDER
+   ========================================================================= */
+const heroSvg = document.getElementById("truchet");
+const seedChip = document.getElementById("seedChip");
+const seedReadout = document.getElementById("seedReadout");
+
+let currentSeed = (DATA.hero.seed != null)
+  ? (DATA.hero.seed >>> 0)
+  : (Math.floor(Math.random() * 0xFFFFFFFF) >>> 0);
+
+function gridForViewport(){
+  const w = window.innerWidth, h = window.innerHeight;
+  const tile = DATA.hero.tile;
+  // fewer, larger tiles on small screens so the weave stays legible
+  const t = w <= 640 ? Math.max(tile, 64) : tile;
+  const cols = Math.max(6, Math.ceil(w / t) + 1);
+  const rows = Math.max(8, Math.ceil(h / t) + 1);
+  return { cols, rows };
+}
+
+function renderHero(seed){
+  currentSeed = seed >>> 0;
+  const { cols, rows } = gridForViewport();
+  buildField(heroSvg, {
+    cols, rows,
+    stroke: DATA.hero.strokeRatio,
+    rand: mulberry32(currentSeed),
+    arc1: DATA.brand.arc1,
+    arc2: DATA.brand.arc2,
+    mix2: DATA.hero.mix2,
+    bg: true,
+    ink: DATA.brand.ink,
+    lineColor: DATA.brand.line,
+    guides: false
+  });
+  const hx = seedHex(currentSeed);
+  seedChip.textContent = "seed " + hx;
+  seedReadout.textContent = "weave " + hx;
+}
+
+/* secondary band: denser weave, secondary arc dominant */
+function renderBand(seed){
+  const band = document.getElementById("band");
+  const w = window.innerWidth;
+  const cols = w <= 640 ? 12 : 22;
+  const rows = w <= 640 ? 5 : 7;
+  buildField(band, {
+    cols, rows,
+    stroke: 0.42,
+    rand: mulberry32((seed ^ 0x9E3779B9) >>> 0),
+    arc1: DATA.brand.arc2,   // swap roles: secondary becomes primary here
+    arc2: DATA.brand.arc1,
+    mix2: 0.3,
+    bg: true,
+    ink: "#12161f",
+    lineColor: DATA.brand.line,
+    guides: false
+  });
+}
+
+/* =========================================================================
+   ANATOMY MINI-TILES - one SVG per rotation, drawn crisp and large
+   ========================================================================= */
+function renderAnatomy(){
+  const host = document.getElementById("anatomyGrid");
+  // show the two real connection states plus a 2x2 patch so the chaining reads
+  const cards = [
+    { label:"State 0", note:"left-top / bottom-right", build:(s)=>oneTile(s, 0, DATA.brand.arc1) },
+    { label:"State 1", note:"top-right / left-bottom", build:(s)=>oneTile(s, 1, DATA.brand.arc1) },
+    { label:"Secondary", note:"same arc, second brand", build:(s)=>oneTile(s, 0, DATA.brand.arc2) },
+    { label:"2x2 weave", note:"channels chain across cells", build:(s)=>patch2x2(s) }
+  ];
+  host.innerHTML = cards.map(c => `
+    <div class="tilecard reveal">
+      ${c.build()}
+      <div class="tname"><b>${c.label}</b><br>${c.note}</div>
+    </div>`).join("");
+}
+function oneTile(_, state, color){
+  const [a,b] = tileArcs(state);
+  return `<svg viewBox="-.06 -.06 1.12 1.12" role="img" aria-label="Truchet tile">
+    <rect x="-.06" y="-.06" width="1.12" height="1.12" fill="${DATA.brand.ink}"/>
+    <g stroke="${DATA.brand.line}" stroke-width=".01">
+      <rect x="0" y="0" width="1" height="1" fill="none"/>
+    </g>
+    <path d="${a} ${b}" fill="none" stroke="${color}" stroke-width=".11" stroke-linecap="round"/>
+  </svg>`;
+}
+function patch2x2(){
+  const rand = mulberry32(0xC0FFEE);
+  let paths = "";
+  for(let y=0;y<2;y++) for(let x=0;x<2;x++){
+    const state = rand() < 0.5 ? 0 : 1;
+    const [a,b] = tileArcs(state);
+    paths += shiftPath(a, x, y) + shiftPath(b, x, y);
+  }
+  return `<svg viewBox="-.06 -.06 2.12 2.12" role="img" aria-label="Two by two Truchet weave">
+    <rect x="-.06" y="-.06" width="2.12" height="2.12" fill="${DATA.brand.ink}"/>
+    <path d="${paths}" fill="none" stroke="${DATA.brand.arc1}" stroke-width=".11" stroke-linecap="round"/>
+  </svg>`;
+}
+
+/* =========================================================================
+   FEATURE / STUDIO CARDS
+   ========================================================================= */
+function renderCards(){
+  document.getElementById("triad").innerHTML = DATA.features.map(f => `
+    <div class="feat reveal">
+      <div class="num">${f.num}</div>
+      <h3>${f.title}</h3>
+      <p>${f.body}</p>
+    </div>`).join("");
+  document.getElementById("studioTriad").innerHTML = DATA.studio.map(f => `
+    <div class="feat reveal">
+      <div class="num">${f.num}</div>
+      <h3>${f.title}</h3>
+      <p>${f.body}</p>
+    </div>`).join("");
+}
+
+/* =========================================================================
+   REVEAL (gated by reduced-motion) + INIT
+   ========================================================================= */
+const reduceMotion = window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+
+function setupReveal(){
+  const els = document.querySelectorAll(".reveal");
+  if(reduceMotion){ els.forEach(e => e.classList.add("in")); return; }
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(en=>{
+      if(en.isIntersecting){ en.target.classList.add("in"); io.unobserve(en.target); }
+    });
+  }, { threshold:0.12, rootMargin:"0px 0px -8% 0px" });
+  els.forEach(e => io.observe(e));
+}
+
+/* reweave control */
+document.getElementById("rerollBtn").addEventListener("click", ()=>{
+  const next = (Math.floor(Math.random() * 0xFFFFFFFF) >>> 0);
+  renderHero(next);
+  renderBand(next);
+});
+
+/* re-render the hero grid on resize (debounced) so tiling stays full-bleed */
+let rT;
+window.addEventListener("resize", ()=>{
+  clearTimeout(rT);
+  rT = setTimeout(()=>{ renderHero(currentSeed); renderBand(currentSeed); }, 160);
+});
+
+/* boot */
+renderHero(currentSeed);
+renderBand(currentSeed);
+renderAnatomy();
+renderCards();
+setupReveal();
+// ensure late-observed .reveal cards (cards injected after IO setup) still catch
+requestAnimationFrame(()=>{ if(!reduceMotion){
+  document.querySelectorAll(".reveal:not(.in)").forEach(e=>{
+    const r = e.getBoundingClientRect();
+    if(r.top < window.innerHeight) e.classList.add("in");
+  });
+}});
+</script>
+</body>
+</html>

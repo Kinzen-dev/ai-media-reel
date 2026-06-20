@@ -1,0 +1,607 @@
+<!-- TEMPLATE: Thermal Receipt Invoice | ARCHETYPE: receipt | REF: point-of-sale thermal receipts, B2B invoice printouts | WHEN TO USE: pricing pages, order confirmations, receipts, invoices, paid/transactional summaries that want a tactile printed-document feel | SWAP: edit the DATA object in the script at the bottom of the file -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Thermal Receipt Invoice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Libre+Barcode+39&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   DATA-DRIVEN THERMAL RECEIPT TEMPLATE
+   All swappable content lives in the JS DATA object at the
+   bottom of the file. Style tokens live here.
+   ============================================================ */
+:root {
+  --desk: #e8e6e0;        /* the counter / desk the receipt sits on */
+  --desk-shade: #d9d6cd;
+  --paper: #fbfaf7;       /* thermal paper stock */
+  --paper-edge: #f1efe8;
+  --ink: #1a1a1a;         /* faded thermal ink */
+  --ink-soft: #4a4a46;
+  --ink-faint: #8b887f;
+  --stamp: #c0392b;       /* PAID stamp red */
+  --rule: #1a1a1a;
+  --paper-w: 366px;       /* receipt column width */
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  background-color: var(--desk);
+  background-image:
+    /* soft desk vignette */
+    radial-gradient(120% 90% at 50% -10%, rgba(255,255,255,0.55), transparent 55%),
+    radial-gradient(140% 120% at 50% 120%, rgba(0,0,0,0.10), transparent 60%),
+    /* faint linen weave on the desk */
+    repeating-linear-gradient(0deg, rgba(0,0,0,0.018) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(0,0,0,0.018) 0 1px, transparent 1px 3px);
+  color: var(--ink);
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 30px 20px 64px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- top desk label / context band, kept compact ---- */
+.deskband {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  color: var(--ink-soft);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.deskband b { color: var(--ink); font-weight: 800; letter-spacing: 0.2em; }
+.deskband .dot { color: var(--ink-faint); }
+.deskband .right { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ============================================================
+   THE RECEIPT
+   ============================================================ */
+.receipt-wrap {
+  position: relative;
+  width: 100%;
+  max-width: var(--paper-w);
+  filter: drop-shadow(0 16px 28px rgba(0,0,0,0.22)) drop-shadow(0 3px 6px rgba(0,0,0,0.14));
+  /* gentle settle-in on load */
+  animation: drop 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes drop {
+  from { transform: translateY(-14px) rotate(-0.6deg); opacity: 0; }
+  to   { transform: translateY(0) rotate(0deg); opacity: 1; }
+}
+
+/* the paper itself, with torn top + zigzag bottom via mask */
+.receipt {
+  position: relative;
+  background-color: var(--paper);
+  background-image:
+    /* thermal speckle / faint print noise */
+    radial-gradient(rgba(0,0,0,0.020) 0.5px, transparent 0.6px),
+    /* faint horizontal thermal banding */
+    repeating-linear-gradient(0deg, rgba(0,0,0,0.012) 0 2px, transparent 2px 5px),
+    /* warm paper gradient */
+    linear-gradient(180deg, var(--paper) 0%, var(--paper-edge) 100%);
+  background-size: 7px 7px, 100% 100%, 100% 100%;
+  color: var(--ink);
+  padding: 26px 24px 34px;
+  /* torn top edge + perforated zigzag bottom edge */
+  -webkit-mask:
+    radial-gradient(7px 7px at 7px 0, transparent 0 6px, #000 6.5px) repeat-x top / 14px 14px,
+    radial-gradient(9px 9px at 9px 100%, transparent 0 8px, #000 8.5px) repeat-x bottom / 18px 18px,
+    linear-gradient(#000 0 0) center / 100% calc(100% - 24px) no-repeat;
+  mask:
+    radial-gradient(7px 7px at 7px 0, transparent 0 6px, #000 6.5px) repeat-x top / 14px 14px,
+    radial-gradient(9px 9px at 9px 100%, transparent 0 8px, #000 8.5px) repeat-x bottom / 18px 18px,
+    linear-gradient(#000 0 0) center / 100% calc(100% - 24px) no-repeat;
+}
+
+/* curl shadow at very bottom for a printed-strip feel */
+.receipt-wrap::after {
+  content: "";
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: -6px;
+  height: 18px;
+  background: radial-gradient(60% 100% at 50% 0, rgba(0,0,0,0.20), transparent 70%);
+  z-index: -1;
+}
+
+/* ---- merchant header ---- */
+.merchant { text-align: center; margin-bottom: 14px; }
+.merchant .logo {
+  font-weight: 800;
+  font-size: 26px;
+  letter-spacing: 0.06em;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+.merchant .tag {
+  margin-top: 6px;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.merchant .addr {
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+
+/* dotted / dashed rules */
+.rule {
+  border: none;
+  border-top: 1px dashed var(--ink);
+  opacity: 0.55;
+  margin: 11px 0;
+}
+.rule.dense { border-top-style: dotted; opacity: 0.7; }
+.rule.solid { border-top: 1px solid var(--ink); opacity: 0.85; }
+
+/* meta block: order no / date / cashier */
+.meta {
+  font-size: 11px;
+  color: var(--ink-soft);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+}
+.meta .k { letter-spacing: 0.06em; }
+.meta .v { text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* column header for the item table */
+.cols {
+  display: grid;
+  grid-template-columns: 1fr 38px 78px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding: 0 0 2px;
+}
+.cols .r { text-align: right; }
+
+/* ---- line items ---- */
+.items { list-style: none; }
+.item {
+  display: grid;
+  grid-template-columns: 1fr 38px 78px;
+  align-items: start;
+  font-size: 13px;
+  padding: 5px 0;
+  border-bottom: 1px dotted rgba(26,26,26,0.18);
+}
+.item:last-child { border-bottom: none; }
+.item .name { font-weight: 500; line-height: 1.3; }
+.item .sku {
+  display: block;
+  font-size: 10px;
+  color: var(--ink-faint);
+  letter-spacing: 0.04em;
+  margin-top: 1px;
+  font-weight: 400;
+}
+.item .qty { text-align: right; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.item .price { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ---- totals block ---- */
+.totals { font-size: 13px; }
+.trow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 3px 0;
+  color: var(--ink-soft);
+}
+.trow .num { font-variant-numeric: tabular-nums; }
+.trow.grand {
+  color: var(--ink);
+  font-weight: 800;
+  font-size: 17px;
+  padding-top: 8px;
+}
+.trow.grand .label { letter-spacing: 0.06em; text-transform: uppercase; }
+
+/* tender / change lines */
+.tender { font-size: 12px; color: var(--ink-soft); }
+.tender .trow { padding: 2px 0; }
+
+/* ---- footer: barcode + thanks + timestamp ---- */
+.footer { text-align: center; margin-top: 12px; }
+
+/* CSS-drawn barcode: repeating-linear-gradient bars of irregular width */
+.barcode {
+  height: 56px;
+  width: 100%;
+  margin: 4px auto 6px;
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--ink) 0, var(--ink) 2px, transparent 2px, transparent 4px,
+    var(--ink) 4px, var(--ink) 5px, transparent 5px, transparent 9px,
+    var(--ink) 9px, var(--ink) 12px, transparent 12px, transparent 14px,
+    var(--ink) 14px, var(--ink) 15px, transparent 15px, transparent 19px,
+    var(--ink) 19px, var(--ink) 22px, transparent 22px, transparent 24px,
+    var(--ink) 24px, var(--ink) 25px, transparent 25px, transparent 28px,
+    var(--ink) 28px, var(--ink) 31px, transparent 31px, transparent 33px
+  );
+  background-size: 33px 100%;
+  background-repeat: repeat-x;
+  opacity: 0.92;
+}
+.barcode-num {
+  font-family: "Libre Barcode 39", "JetBrains Mono", monospace;
+  font-size: 13px;
+  letter-spacing: 0.5em;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.footer .thanks {
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.footer .fine {
+  margin-top: 8px;
+  font-size: 10px;
+  color: var(--ink-faint);
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+}
+.footer .stamp-time {
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+/* ============================================================
+   PAID STAMP - angled red ink over the receipt
+   ============================================================ */
+.paid-stamp {
+  position: absolute;
+  top: 46%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-13deg) scale(1);
+  z-index: 5;
+  pointer-events: none;
+  border: 4px double var(--stamp);
+  border-radius: 10px;
+  padding: 9px 24px 11px;
+  color: var(--stamp);
+  text-align: center;
+  /* faded rubber-stamp ink: translucent + coarse grain via mask */
+  opacity: 0.9;
+  mix-blend-mode: multiply;
+  -webkit-mask-image: radial-gradient(rgba(0,0,0,1) 0.9px, transparent 1.0px);
+  mask-image: radial-gradient(rgba(0,0,0,1) 0.9px, transparent 1.0px);
+  -webkit-mask-size: 2.1px 2.1px;
+  mask-size: 2.1px 2.1px;
+  animation: stampdown 0.55s 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes stampdown {
+  0%   { opacity: 0; transform: translate(-50%, -50%) rotate(-14deg) scale(2.0); }
+  60%  { opacity: 0.95; transform: translate(-50%, -50%) rotate(-14deg) scale(0.92); }
+  100% { opacity: 0.86; transform: translate(-50%, -50%) rotate(-14deg) scale(1); }
+}
+.paid-stamp .word {
+  font-weight: 800;
+  font-size: 38px;
+  letter-spacing: 0.10em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.paid-stamp .sub {
+  font-size: 9px;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  margin-top: 3px;
+  font-weight: 700;
+}
+
+/* ---- bottom desk note: reprint button (real, swaps the data) ---- */
+.tray {
+  margin-top: 34px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.tray button {
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--ink);
+  border-radius: 4px;
+  padding: 9px 16px;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.12s ease, color 0.12s ease;
+  box-shadow: 0 2px 0 rgba(0,0,0,0.18);
+}
+.tray button:hover { transform: translateY(-1px); background: var(--ink); color: var(--paper); }
+.tray button:active { transform: translateY(1px); box-shadow: none; }
+.tray button:focus-visible {
+  outline: 3px solid var(--stamp);
+  outline-offset: 2px;
+}
+
+/* re-trigger drop/stamp animation on reprint */
+.receipt-wrap.reprint { animation: drop 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.receipt-wrap.reprint .paid-stamp { animation: stampdown 0.55s 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+/* ============================================================
+   RESPONSIVE - receipt stays narrow + centered (already narrow)
+   ============================================================ */
+@media (max-width: 640px) {
+  body { padding: 30px 14px 60px; }
+  :root { --paper-w: 100%; }
+  .receipt-wrap { max-width: 360px; }
+  .deskband { font-size: 10px; flex-direction: column; gap: 4px; }
+  .deskband .right { text-align: left; }
+  .merchant .logo { font-size: 23px; }
+  .paid-stamp .word { font-size: 32px; }
+}
+@media (max-width: 380px) {
+  .receipt { padding: 26px 18px 36px; }
+  .item { font-size: 12px; }
+  .paid-stamp .word { font-size: 28px; }
+  .paid-stamp { padding: 7px 16px 9px; }
+}
+
+/* ============================================================
+   ACCESSIBILITY - reduced motion: show final state, no anim
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .receipt-wrap,
+  .receipt-wrap.reprint,
+  .paid-stamp,
+  .receipt-wrap.reprint .paid-stamp,
+  .tray button {
+    animation: none !important;
+    transition: none !important;
+  }
+  .receipt-wrap { transform: none; opacity: 1; }
+  .paid-stamp { transform: translate(-50%, -50%) rotate(-14deg) scale(1); opacity: 0.86; }
+}
+</style>
+</head>
+<body>
+
+  <!-- compact context band on the desk above the paper -->
+  <div class="deskband">
+    <span><b>VESPERWERK POS</b> <span class="dot">//</span> terminal 04</span>
+    <span class="right" id="deskClock">register open</span>
+  </div>
+
+  <!-- THE RECEIPT (signature, fully populated at scroll=0) -->
+  <div class="receipt-wrap" id="receiptWrap">
+    <div class="paid-stamp" id="paidStamp" aria-hidden="true">
+      <div class="word">PAID</div>
+      <div class="sub" id="stampSub">settled in full</div>
+    </div>
+
+    <article class="receipt" id="receipt" aria-label="Itemized receipt">
+      <!-- content injected from DATA -->
+    </article>
+  </div>
+
+  <div class="tray">
+    <button id="reprintBtn" type="button">Reprint receipt</button>
+    <button id="swapBtn" type="button">Next order</button>
+  </div>
+
+<script>
+/* ============================================================
+   DATA - swap everything about the receipt here.
+   Two example orders so the "Next order" button is meaningful.
+   Prices are stored as numbers (minor unit handled in render).
+   No em/en dashes anywhere; use hyphen or colon in copy.
+   ============================================================ */
+const DATA = {
+  currency: "USD",
+  symbol: "$",
+  taxRate: 0.07,         // applied to taxable subtotal
+  orders: [
+    {
+      merchant: "VESPERWERK STUDIO",
+      tagline: "media + machine craft",
+      address: ["89/4 Ban Ko, Phra Nakhon Si Ayutthaya", "TAX ID 0125568XXXXXX  -  VAT registered"],
+      orderNo: "VW-2026-00417",
+      cashier: "K. KHONTHONG",
+      method: "VISA  **** 5318  -  APPROVED",
+      stampSub: "settled in full",
+      items: [
+        { name: "Generative film reel render", sku: "SKU FILM-4K-01", qty: 1, price: 240.00 },
+        { name: "Avatar lip-sync pass", sku: "SKU AVT-LS-02", qty: 2, price: 65.00 },
+        { name: "Thai voiceover (ElevenLabs)", sku: "SKU TTS-TH-09", qty: 1, price: 38.00 },
+        { name: "Cinematic car i2v sequence", sku: "SKU CAR-I2V-04", qty: 1, price: 180.00 },
+        { name: "Soundtrack stem (MusicGen)", sku: "SKU MUS-STEM-11", qty: 3, price: 22.50 },
+        { name: "3D mesh refine + export", sku: "SKU MSH-GLB-07", qty: 1, price: 95.00 }
+      ],
+      // optional non-taxable discount line
+      discount: { label: "Loyalty credit", amount: 40.00 }
+    },
+    {
+      merchant: "FLUX CLINIC SUPPLY",
+      tagline: "operatory provisioning",
+      address: ["Unit 12, Rama 9 Trade Center, Bangkok", "TAX ID 0105566YYYYYY  -  VAT registered"],
+      orderNo: "FC-2026-10982",
+      cashier: "P. WONGSA",
+      method: "PROMPTPAY QR  -  CONFIRMED",
+      stampSub: "paid via qr",
+      items: [
+        { name: "Mint composite cabinetry panel", sku: "SKU CAB-MNT-22", qty: 4, price: 58.00 },
+        { name: "Wood-grain trim length 2.4m", sku: "SKU TRM-WD-08", qty: 6, price: 14.00 },
+        { name: "Operatory LED ring", sku: "SKU LED-RNG-15", qty: 2, price: 120.00 },
+        { name: "Patient chair upholstery kit", sku: "SKU UPH-KIT-03", qty: 1, price: 310.00 },
+        { name: "Sterile tray liner (box 500)", sku: "SKU LNR-500-44", qty: 3, price: 19.90 }
+      ],
+      discount: null
+    }
+  ]
+};
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+const $ = (s, r = document) => r.querySelector(s);
+const receiptEl = $("#receipt");
+const stampSubEl = $("#stampSub");
+const clockEl = $("#deskClock");
+
+function money(n) {
+  return DATA.symbol + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/* deterministic-ish faux barcode digits from order number */
+function barcodeDigits(orderNo) {
+  let s = "";
+  for (const ch of orderNo) s += (ch.charCodeAt(0) % 10);
+  s = (s + "0000000000000").slice(0, 13);
+  return s.replace(/(\d{4})(\d{4})(\d{5})/, "$1 $2 $3");
+}
+
+function fmtStamp(d) {
+  const p = (x) => String(x).padStart(2, "0");
+  return p(d.getDate()) + "/" + p(d.getMonth() + 1) + "/" + d.getFullYear() +
+         "  " + p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
+}
+
+function render(order) {
+  // totals
+  let subtotal = 0;
+  order.items.forEach(it => { subtotal += it.qty * it.price; });
+  const discount = order.discount ? order.discount.amount : 0;
+  const taxable = Math.max(0, subtotal - discount);
+  const tax = taxable * DATA.taxRate;
+  const grand = taxable + tax;
+  const tendered = Math.ceil(grand / 10) * 10; // round up to nearest 10
+  const change = tendered - grand;
+
+  const itemRows = order.items.map(it => `
+    <li class="item">
+      <span class="name">${it.name}<span class="sku">${it.sku}  @ ${money(it.price)}</span></span>
+      <span class="qty">${it.qty}</span>
+      <span class="price">${money(it.qty * it.price)}</span>
+    </li>`).join("");
+
+  const discountRow = order.discount ? `
+    <div class="trow"><span class="label">${order.discount.label}</span><span class="num">- ${money(order.discount.amount)}</span></div>` : "";
+
+  const now = new Date();
+  stampSubEl.textContent = order.stampSub;
+
+  receiptEl.innerHTML = `
+    <header class="merchant">
+      <div class="logo">${order.merchant}</div>
+      <div class="tag">${order.tagline}</div>
+      <div class="addr">${order.address.join("<br>")}</div>
+    </header>
+
+    <hr class="rule dense" />
+
+    <div class="meta">
+      <span class="k">Order no</span><span class="v">${order.orderNo}</span>
+      <span class="k">Date</span><span class="v">${fmtStamp(now)}</span>
+      <span class="k">Served by</span><span class="v">${order.cashier}</span>
+      <span class="k">Terminal</span><span class="v">POS-04</span>
+    </div>
+
+    <hr class="rule" />
+
+    <div class="cols">
+      <span>Item</span><span class="r">Qty</span><span class="r">Amount</span>
+    </div>
+    <ul class="items">${itemRows}</ul>
+
+    <hr class="rule" />
+
+    <div class="totals">
+      <div class="trow"><span class="label">Subtotal</span><span class="num">${money(subtotal)}</span></div>
+      ${discountRow}
+      <div class="trow"><span class="label">VAT (${(DATA.taxRate * 100).toFixed(0)}%)</span><span class="num">${money(tax)}</span></div>
+      <hr class="rule solid" style="margin:8px 0;" />
+      <div class="trow grand"><span class="label">Total ${DATA.currency}</span><span class="num">${money(grand)}</span></div>
+    </div>
+
+    <hr class="rule dense" />
+
+    <div class="tender">
+      <div class="trow"><span class="label">Tendered</span><span class="num">${money(tendered)}</span></div>
+      <div class="trow"><span class="label">Change</span><span class="num">${money(change)}</span></div>
+      <div class="trow"><span class="label">Method</span><span class="num">${order.method}</span></div>
+    </div>
+
+    <hr class="rule" />
+
+    <footer class="footer">
+      <div class="barcode" role="img" aria-label="Barcode ${barcodeDigits(order.orderNo)}"></div>
+      <div class="barcode-num">${barcodeDigits(order.orderNo)}</div>
+      <div class="thanks">Thank you</div>
+      <div class="fine">Keep this receipt for returns within 14 days.<br>Goods sold are non-refundable after use.<br>No exchange without proof of purchase.</div>
+      <div class="stamp-time">Printed ${fmtStamp(now)}</div>
+    </footer>
+  `;
+}
+
+/* ============================================================
+   INTERACTION
+   ============================================================ */
+let current = 0;
+render(DATA.orders[current]);
+
+// live-ish register clock in the desk band
+function tickClock() {
+  const d = new Date();
+  const p = (x) => String(x).padStart(2, "0");
+  clockEl.textContent = "register " + p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
+}
+tickClock();
+const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+if (!prefersReduced) setInterval(tickClock, 1000);
+
+const wrap = $("#receiptWrap");
+
+function replayAnim() {
+  if (prefersReduced) return;
+  wrap.classList.remove("reprint");
+  // force reflow so the animation restarts
+  void wrap.offsetWidth;
+  wrap.classList.add("reprint");
+}
+
+$("#reprintBtn").addEventListener("click", () => {
+  render(DATA.orders[current]);
+  replayAnim();
+});
+
+$("#swapBtn").addEventListener("click", () => {
+  current = (current + 1) % DATA.orders.length;
+  render(DATA.orders[current]);
+  replayAnim();
+});
+</script>
+</body>
+</html>

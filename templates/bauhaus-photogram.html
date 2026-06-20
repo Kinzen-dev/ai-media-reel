@@ -1,0 +1,696 @@
+<!-- TEMPLATE: Photogram | ARCHETYPE: PHOTOGRAM - Moholy-Nagy cameraless abstraction | REF: Laszlo Moholy-Nagy, Man Ray rayographs, Bauhaus experimental photography 1920s | WHEN TO USE: a stark art-directed hero/studio landing where everyday objects float as white ghost-shadows on black like a darkroom rayograph, one red Bauhaus accent, spare geometric type | SWAP: edit the DATA object at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Photogram - Cameraless Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --black:#0c0c0c;
+    --bone:#efe9dc;
+    --red:#d4221f;
+    --ghost:rgba(239,233,220,0.92);
+    --ghost-soft:rgba(239,233,220,0.5);
+    --hair:rgba(239,233,220,0.16);
+  }
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  html,body{height:100%;}
+
+  body{
+    background:var(--black);
+    color:var(--bone);
+    font-family:'Jost', system-ui, sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+    line-height:1.5;
+  }
+
+  /* Faint darkroom grain / paper tooth on the black ground */
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    pointer-events:none;
+    z-index:50;
+    opacity:0.05;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    mix-blend-mode:screen;
+  }
+
+  a{color:inherit; text-decoration:none;}
+
+  /* ============================================================
+     TOP BAND - spare geometric title sits in a compact band so
+     the photogram plate below is already populated at scroll=0
+     ============================================================ */
+  .band{
+    position:relative;
+    z-index:6;
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:24px;
+    padding:clamp(18px,3vw,40px) clamp(20px,4vw,64px) clamp(14px,2vw,24px);
+    flex-wrap:wrap;
+  }
+  .mark{
+    display:flex; align-items:center; gap:14px;
+    font-weight:500;
+    letter-spacing:0.42em;
+    text-transform:uppercase;
+    font-size:clamp(11px,1vw,13px);
+    color:var(--ghost-soft);
+  }
+  /* the one red Bauhaus geometric accent in the mark */
+  .mark .chip{
+    width:14px; height:14px;
+    background:var(--red);
+    border-radius:50%;
+    flex:0 0 auto;
+    box-shadow:0 0 22px rgba(212,34,31,0.55);
+  }
+  .nav{
+    display:flex; gap:clamp(16px,2.4vw,34px);
+    font-size:clamp(11px,1vw,13px);
+    letter-spacing:0.28em;
+    text-transform:uppercase;
+    color:var(--ghost-soft);
+  }
+  .nav a{transition:color .25s;}
+  .nav a:hover{color:var(--bone);}
+
+  /* ============================================================
+     THE PLATE - the rayograph stage. A black sheet on which the
+     SVG object-shadows are exposed, white-on-black, with soft
+     blur and screen blending so overlaps lighten like real light
+     ============================================================ */
+  .plate-wrap{
+    position:relative;
+    z-index:4;
+    padding:0 clamp(16px,3vw,56px) clamp(20px,3vw,48px);
+  }
+  .plate{
+    position:relative;
+    width:100%;
+    /* sized so the full composition reads inside the first screen at 1440x900 */
+    height:min(72vh, 660px);
+    min-height:430px;
+    border:1px solid var(--hair);
+    background:
+      radial-gradient(120% 90% at 50% 42%, rgba(239,233,220,0.05), rgba(0,0,0,0) 60%),
+      #070707;
+    overflow:hidden;
+    box-shadow:inset 0 0 120px rgba(0,0,0,0.9);
+  }
+  /* corner registration ticks - darkroom plate framing */
+  .tick{position:absolute; width:18px; height:18px; border:1px solid var(--ghost-soft); opacity:.6; z-index:7;}
+  .tick.tl{top:12px; left:12px; border-right:none; border-bottom:none;}
+  .tick.tr{top:12px; right:12px; border-left:none; border-bottom:none;}
+  .tick.bl{bottom:12px; left:12px; border-right:none; border-top:none;}
+  .tick.br{bottom:12px; right:12px; border-left:none; border-top:none;}
+
+  /* the SVG photogram fills the plate */
+  .photogram{position:absolute; inset:0; width:100%; height:100%; display:block;}
+
+  /* each exposed object floats; screen blend = overlaps go brighter (cameraless lightening) */
+  .obj{
+    mix-blend-mode:screen;
+    transform-box:fill-box;
+    transform-origin:center;
+    animation:breathe 11s ease-in-out infinite;
+  }
+  .obj.o1{animation-delay:0s;}
+  .obj.o2{animation-delay:-2.2s;}
+  .obj.o3{animation-delay:-4.4s;}
+  .obj.o4{animation-delay:-6.6s;}
+  .obj.o5{animation-delay:-8.8s;}
+  .obj.o6{animation-delay:-1.4s;}
+
+  @keyframes breathe{
+    0%,100%{ opacity:.82; }
+    50%{ opacity:1; }
+  }
+
+  /* overlay title locked over the plate, top-left, spare and geometric */
+  .plate-title{
+    position:absolute;
+    left:clamp(20px,4vw,56px);
+    top:clamp(20px,4vw,52px);
+    z-index:8;
+    max-width:min(560px,72%);
+    mix-blend-mode:screen;
+    pointer-events:none;
+  }
+  .plate-title .kicker{
+    font-size:clamp(10px,1vw,12px);
+    letter-spacing:0.46em;
+    text-transform:uppercase;
+    color:var(--ghost-soft);
+    margin-bottom:14px;
+  }
+  .plate-title h1{
+    font-weight:300;
+    font-size:clamp(34px,7vw,86px);
+    line-height:0.96;
+    letter-spacing:-0.01em;
+    color:var(--bone);
+    text-shadow:0 2px 40px rgba(0,0,0,0.6);
+  }
+  .plate-title h1 b{
+    font-weight:600;
+    /* one red word - the Bauhaus accent in type */
+    color:var(--red);
+  }
+  .plate-cap{
+    position:absolute;
+    right:clamp(20px,4vw,40px);
+    bottom:clamp(18px,3vw,34px);
+    z-index:8;
+    text-align:right;
+    font-size:clamp(10px,0.95vw,12px);
+    letter-spacing:0.22em;
+    text-transform:uppercase;
+    color:var(--ghost-soft);
+    mix-blend-mode:screen;
+    max-width:50%;
+  }
+  .plate-cap .num{color:var(--red); font-weight:500;}
+
+  /* legend strip - names the exposed objects, draftsman style */
+  .legend{
+    position:relative;
+    z-index:5;
+    display:flex;
+    flex-wrap:wrap;
+    gap:clamp(10px,1.6vw,22px);
+    padding:0 clamp(20px,4vw,64px) clamp(40px,6vw,80px);
+    border-bottom:1px solid var(--hair);
+    margin-bottom:clamp(40px,6vw,90px);
+  }
+  .legend .li{
+    display:flex; align-items:center; gap:9px;
+    font-size:clamp(10px,0.92vw,12px);
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    color:var(--ghost-soft);
+    cursor:pointer;
+    transition:color .25s;
+    padding:6px 0;
+  }
+  .legend .li:hover{color:var(--bone);}
+  .legend .li .dot{
+    width:8px; height:8px; border-radius:50%;
+    background:var(--ghost-soft);
+    box-shadow:0 0 12px rgba(239,233,220,0.4);
+    flex:0 0 auto;
+    transition:background .25s, box-shadow .25s;
+  }
+  .legend .li:hover .dot{background:var(--red); box-shadow:0 0 16px rgba(212,34,31,0.7);}
+  .legend .li .n{color:var(--red); font-weight:500; margin-right:2px;}
+
+  /* highlight a single exposed object when its legend row is hovered */
+  .obj.dim{opacity:.18 !important; transition:opacity .4s;}
+  .obj.lit{opacity:1 !important; transition:opacity .4s;}
+
+  /* ============================================================
+     LOWER SECTIONS - kept spare, same darkroom language
+     ============================================================ */
+  .section{
+    padding:0 clamp(20px,4vw,64px);
+    max-width:1180px;
+    margin:0 auto clamp(70px,9vw,140px);
+  }
+  .sec-head{
+    display:flex; align-items:baseline; gap:18px;
+    margin-bottom:clamp(28px,4vw,52px);
+    border-top:1px solid var(--hair);
+    padding-top:22px;
+  }
+  .sec-head .idx{
+    color:var(--red); font-weight:500;
+    font-size:clamp(12px,1.1vw,14px);
+    letter-spacing:0.2em;
+  }
+  .sec-head h2{
+    font-weight:300;
+    font-size:clamp(24px,3.6vw,46px);
+    letter-spacing:-0.01em;
+    line-height:1.02;
+  }
+  .sec-head h2 b{font-weight:600; color:var(--bone);}
+  .lead{
+    max-width:62ch;
+    color:var(--ghost-soft);
+    font-weight:300;
+    font-size:clamp(15px,1.5vw,19px);
+    line-height:1.65;
+  }
+
+  /* exposures grid - small photogram plates, each a single object */
+  .exposures{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:clamp(12px,1.6vw,22px);
+    margin-top:clamp(34px,5vw,60px);
+  }
+  .ex{
+    position:relative;
+    aspect-ratio:4/5;
+    border:1px solid var(--hair);
+    background:#070707;
+    overflow:hidden;
+    box-shadow:inset 0 0 60px rgba(0,0,0,0.9);
+    transition:border-color .3s;
+  }
+  .ex:hover{border-color:var(--ghost-soft);}
+  .ex svg{position:absolute; inset:0; width:100%; height:100%;}
+  .ex .obj{animation-duration:13s;}
+  .ex .meta{
+    position:absolute; left:14px; bottom:13px; right:14px;
+    z-index:3;
+    display:flex; justify-content:space-between; align-items:flex-end; gap:10px;
+    font-size:11px; letter-spacing:0.18em; text-transform:uppercase;
+    color:var(--ghost-soft);
+    mix-blend-mode:screen;
+  }
+  .ex .meta .t{color:var(--bone); font-weight:500;}
+  .ex .meta .x{color:var(--red);}
+
+  /* process row - three captions, spare */
+  .process{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:clamp(18px,3vw,44px);
+    margin-top:clamp(30px,4vw,54px);
+  }
+  .proc h3{
+    font-weight:500;
+    font-size:clamp(13px,1.1vw,15px);
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    margin-bottom:12px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .proc h3 .s{
+    width:22px; height:22px; flex:0 0 auto;
+    display:grid; place-items:center;
+    border:1px solid var(--red);
+    color:var(--red);
+    font-size:11px; border-radius:50%;
+  }
+  .proc p{color:var(--ghost-soft); font-weight:300; font-size:clamp(14px,1.3vw,16px); line-height:1.6;}
+
+  /* footer plate */
+  .foot{
+    border-top:1px solid var(--hair);
+    padding:clamp(34px,5vw,60px) clamp(20px,4vw,64px) clamp(50px,7vw,90px);
+    display:flex; justify-content:space-between; align-items:flex-end; gap:24px;
+    flex-wrap:wrap;
+  }
+  .foot .big{
+    font-weight:300;
+    font-size:clamp(22px,4vw,52px);
+    line-height:1;
+    letter-spacing:-0.01em;
+  }
+  .foot .big b{font-weight:600;}
+  .foot .big .dotred{color:var(--red);}
+  .foot .legalrow{
+    font-size:11px; letter-spacing:0.22em; text-transform:uppercase; color:var(--ghost-soft);
+    text-align:right;
+  }
+
+  /* ---- responsive: never crop, stack and contain ---- */
+  @media (max-width:900px){
+    .exposures{grid-template-columns:repeat(2,1fr);}
+    .process{grid-template-columns:1fr;}
+  }
+  @media (max-width:640px){
+    .band{padding:16px 18px 12px;}
+    .nav{display:none;}
+    .plate-wrap{padding:0 14px 16px;}
+    .plate{height:auto; aspect-ratio:1/1; min-height:0;}
+    .plate-title{max-width:84%;}
+    .plate-cap{max-width:60%;}
+    .exposures{grid-template-columns:1fr 1fr;}
+    .foot{flex-direction:column; align-items:flex-start;}
+    .foot .legalrow{text-align:left;}
+  }
+  @media (max-width:380px){
+    .exposures{grid-template-columns:1fr;}
+  }
+
+  /* ---- reduced motion: freeze everything to the final exposed state ---- */
+  @media (prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto;}
+    .obj{animation:none !important; opacity:1 !important;}
+    body::before{display:none;}
+  }
+</style>
+</head>
+<body>
+
+  <!-- ================= TOP BAND (compact) ================= -->
+  <header class="band">
+    <div class="mark"><span class="chip" aria-hidden="true"></span> Studio Lichtbild</div>
+    <nav class="nav">
+      <a href="#exposures">Exposures</a>
+      <a href="#process">Process</a>
+      <a href="#contact">Contact</a>
+    </nav>
+  </header>
+
+  <!-- ================= THE PHOTOGRAM PLATE (scroll=0 signature) ================= -->
+  <section class="plate-wrap">
+    <div class="plate" id="plate">
+      <span class="tick tl"></span><span class="tick tr"></span>
+      <span class="tick bl"></span><span class="tick br"></span>
+
+      <!-- the cameraless composition: white ghost-shadows on black -->
+      <svg class="photogram" id="hero-svg" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid meet" role="img" aria-label="A cameraless photogram: white ghost shadows of a compass, a leaf, a hand, a spool, a coil and a feather exposed on black, with one red disc.">
+        <defs>
+          <!-- soft darkroom blur, applied per object via filter attr -->
+          <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur stdDeviation="2.4"/>
+          </filter>
+          <filter id="softer" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="5"/>
+          </filter>
+          <!-- radial falloff used as a gradient fill for ghostly edges -->
+          <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#efe9dc" stop-opacity="0.95"/>
+            <stop offset="62%" stop-color="#efe9dc" stop-opacity="0.78"/>
+            <stop offset="100%" stop-color="#efe9dc" stop-opacity="0"/>
+          </radialGradient>
+          <radialGradient id="haloRed" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#d4221f" stop-opacity="0.95"/>
+            <stop offset="70%" stop-color="#d4221f" stop-opacity="0.75"/>
+            <stop offset="100%" stop-color="#d4221f" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+
+        <!-- ambient exposure pools so the plate is never an empty black box -->
+        <ellipse cx="430" cy="330" rx="330" ry="300" fill="url(#halo)" opacity="0.10" filter="url(#softer)"/>
+        <ellipse cx="860" cy="380" rx="280" ry="260" fill="url(#halo)" opacity="0.08" filter="url(#softer)"/>
+
+        <!-- OBJECT 1: COMPASS (drafting compass open) -->
+        <g class="obj o1" data-obj="compass" filter="url(#soft)">
+          <g transform="translate(250 360) rotate(-12)">
+            <circle cx="0" cy="-150" r="18" fill="url(#halo)"/>
+            <!-- two legs -->
+            <path d="M -2 -150 L -64 130 L -48 132 L 6 -148 Z" fill="#efe9dc" opacity="0.86"/>
+            <path d="M 2 -150 L 70 110 L 86 104 L 8 -148 Z" fill="#efe9dc" opacity="0.86"/>
+            <!-- needle + pencil tips -->
+            <path d="M -64 130 L -56 156 L -52 130 Z" fill="#efe9dc"/>
+            <path d="M 70 110 L 80 138 L 90 100 Z" fill="#efe9dc"/>
+            <!-- hinge -->
+            <circle cx="0" cy="-148" r="9" fill="#070707"/>
+          </g>
+        </g>
+
+        <!-- OBJECT 2: LEAF (veined) -->
+        <g class="obj o2" data-obj="leaf" filter="url(#soft)">
+          <g transform="translate(560 250) rotate(28)">
+            <path d="M 0 -120 C 78 -78 84 60 0 130 C -84 60 -78 -78 0 -120 Z" fill="#efe9dc" opacity="0.8"/>
+            <!-- midrib + veins cut out (black) -->
+            <path d="M 0 -118 L 0 128" stroke="#070707" stroke-width="3" fill="none"/>
+            <path d="M 0 -70 L 46 -38 M 0 -20 L 56 14 M 0 30 L 44 60 M 0 -70 L -46 -38 M 0 -20 L -56 14 M 0 30 L -44 60" stroke="#070707" stroke-width="2" fill="none" opacity="0.85"/>
+          </g>
+        </g>
+
+        <!-- OBJECT 3: HAND (open, splayed) -->
+        <g class="obj o3" data-obj="hand" filter="url(#soft)">
+          <g transform="translate(880 410) rotate(8) scale(1.05)">
+            <path d="M -52 70
+                     C -64 40 -66 6 -58 -26
+                     L -50 -28 L -44 30
+                     L -40 -86 L -28 -88 L -26 18
+                     L -22 -112 L -10 -114 L -10 14
+                     L -2 -108 L 10 -110 L 8 18
+                     L 22 -70 L 34 -64 L 18 30
+                     C 30 22 46 22 52 38
+                     C 40 70 6 96 -22 96
+                     C -36 96 -46 86 -52 70 Z"
+                  fill="#efe9dc" opacity="0.82"/>
+          </g>
+        </g>
+
+        <!-- OBJECT 4: SPOOL (thread spool, side) -->
+        <g class="obj o4" data-obj="spool" filter="url(#soft)">
+          <g transform="translate(660 470) rotate(-6)">
+            <rect x="-58" y="-78" width="116" height="14" rx="6" fill="#efe9dc" opacity="0.84"/>
+            <rect x="-58" y="64" width="116" height="14" rx="6" fill="#efe9dc" opacity="0.84"/>
+            <rect x="-38" y="-66" width="76" height="130" fill="#efe9dc" opacity="0.7"/>
+            <!-- wound thread lines (cut) -->
+            <path d="M -38 -50 L 38 -42 M -38 -28 L 38 -20 M -38 -6 L 38 2 M -38 16 L 38 24 M -38 38 L 38 46" stroke="#070707" stroke-width="2.2" opacity="0.6"/>
+            <ellipse cx="0" cy="-71" rx="58" ry="9" fill="#efe9dc" opacity="0.9"/>
+          </g>
+        </g>
+
+        <!-- OBJECT 5: COIL / SPRING (helix) -->
+        <g class="obj o5" data-obj="coil" filter="url(#soft)">
+          <g transform="translate(370 470)">
+            <path d="M -90 0
+                     C -90 -34 -54 -34 -54 0 C -54 34 -18 34 -18 0
+                     C -18 -34 18 -34 18 0 C 18 34 54 34 54 0
+                     C 54 -34 90 -34 90 0"
+                  fill="none" stroke="#efe9dc" stroke-width="16" stroke-linecap="round" opacity="0.82"/>
+            <path d="M -90 0
+                     C -90 -34 -54 -34 -54 0 C -54 34 -18 34 -18 0
+                     C -18 -34 18 -34 18 0 C 18 34 54 34 54 0
+                     C 54 -34 90 -34 90 0"
+                  fill="none" stroke="#070707" stroke-width="5" stroke-linecap="round" opacity="0.5"/>
+          </g>
+        </g>
+
+        <!-- OBJECT 6: FEATHER -->
+        <g class="obj o6" data-obj="feather" filter="url(#soft)">
+          <g transform="translate(990 250) rotate(-22)">
+            <path d="M 0 -130 C 30 -60 30 60 -4 132 C -36 60 -34 -60 0 -130 Z" fill="#efe9dc" opacity="0.74"/>
+            <path d="M -2 -120 L -2 124" stroke="#070707" stroke-width="3"/>
+            <!-- barbs -->
+            <path d="M -2 -90 L 18 -98 M -2 -60 L 22 -70 M -2 -30 L 24 -42 M -2 0 L 24 -12 M -2 30 L 22 18 M -2 60 L 18 50
+                     M -2 -90 L -22 -82 M -2 -60 L -26 -50 M -2 -30 L -28 -18 M -2 0 L -28 12 M -2 30 L -26 42 M -2 60 L -22 70"
+                  stroke="#070707" stroke-width="1.6" opacity="0.7"/>
+          </g>
+        </g>
+
+        <!-- THE ONE RED BAUHAUS GEOMETRIC ACCENT: a pure disc, screen-lightened -->
+        <circle class="obj o3" data-obj="accent" cx="540" cy="430" r="64" fill="url(#haloRed)" filter="url(#soft)"/>
+
+      </svg>
+
+      <!-- overlay spare geometric title -->
+      <div class="plate-title">
+        <div class="kicker">Cameraless / Light Drawn</div>
+        <h1>Objects exposed as <b>light</b>.</h1>
+      </div>
+      <div class="plate-cap"><span class="num">No. 04</span> &middot; Gelatin silver photogram &middot; 2026</div>
+    </div>
+  </section>
+
+  <!-- ================= LEGEND (names the exposed objects) ================= -->
+  <div class="legend" id="legend" aria-label="Objects in the photogram">
+    <!-- populated from DATA -->
+  </div>
+
+  <!-- ================= EXPOSURES (small single-object plates) ================= -->
+  <section class="section" id="exposures">
+    <div class="sec-head">
+      <span class="idx">01</span>
+      <h2>The <b>exposures</b></h2>
+    </div>
+    <p class="lead">Each plate is a single object laid on photographic paper and bathed in raw light. No lens, no negative. The object's own shadow is the only mark. Where light grazes thin matter the paper barely darkens, so edges dissolve into ghost.</p>
+    <div class="exposures" id="exposures-grid">
+      <!-- populated from DATA -->
+    </div>
+  </section>
+
+  <!-- ================= PROCESS ================= -->
+  <section class="section" id="process">
+    <div class="sec-head">
+      <span class="idx">02</span>
+      <h2>The <b>process</b></h2>
+    </div>
+    <div class="process" id="process-grid">
+      <!-- populated from DATA -->
+    </div>
+  </section>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="foot" id="contact">
+    <div class="big">Make a <b>plate</b><span class="dotred">.</span></div>
+    <div class="legalrow">
+      Studio Lichtbild &middot; Dessau<br>
+      light@lichtbild.studio
+    </div>
+  </footer>
+
+<script>
+/* ============================================================
+   DATA - swap everything here. Objects are inline SVG path sets
+   so the photogram stays self-contained (no external images).
+   `assetPoster` is optional; left null to keep the pure-rayograph
+   look, set a path from ../assets/gen/ to ghost a real photo in.
+   ============================================================ */
+const DATA = {
+  studio: "Studio Lichtbild",
+  // the 6 objects exposed on the hero plate (order matches the SVG <g data-obj>)
+  objects: [
+    { id:"compass", n:"01", label:"Drafting compass" },
+    { id:"leaf",    n:"02", label:"Veined leaf" },
+    { id:"hand",    n:"03", label:"Open hand" },
+    { id:"spool",   n:"04", label:"Thread spool" },
+    { id:"coil",    n:"05", label:"Steel coil" },
+    { id:"feather", n:"06", label:"Feather" },
+  ],
+  // small exposure plates (each renders ONE object silhouette large + centered)
+  exposures: [
+    { obj:"compass", title:"Compass", ref:"PG-001" },
+    { obj:"leaf",    title:"Leaf",    ref:"PG-002" },
+    { obj:"hand",    title:"Hand",    ref:"PG-003" },
+    { obj:"spool",   title:"Spool",   ref:"PG-004" },
+    { obj:"coil",    title:"Coil",    ref:"PG-005" },
+    { obj:"feather", title:"Feather", ref:"PG-006" },
+  ],
+  process: [
+    { s:"A", h:"Place", p:"The object rests directly on sensitized paper in full dark. Position is the whole composition. There is no second take." },
+    { s:"B", h:"Expose", p:"A bare bulb burns for seconds. Solid matter blocks the light and stays bone white. Open paper turns black." },
+    { s:"C", h:"Fix", p:"The bath stops the reaction. What remains is a shadow with no source object, a drawing made of absence and light." },
+  ],
+  // optional: ghost a real generated photo behind the plate (set to a path or null)
+  assetPoster: null,
+};
+
+/* ---- inline SVG silhouette builders (reused by exposure plates) ----
+   We clone the matching <g data-obj="..."> from the hero SVG so a single
+   source of geometry drives every plate. Swapping a shape in the hero
+   markup updates the small plates automatically.                       */
+const heroSVG = document.getElementById('hero-svg');
+
+function objMarkup(objId){
+  const src = heroSVG.querySelector('g[data-obj="'+objId+'"]');
+  if(!src) return '';
+  // The hero markup nests the shapes inside an inner <g transform="translate(...)">
+  // that positions the object on the BIG plate. For a small single-object plate we
+  // must drop that hero-positioning transform, otherwise it compounds with the
+  // exposeTransform below and pushes the shape off-canvas. Clone, strip, return.
+  const clone = src.cloneNode(true);
+  const inner = clone.querySelector('g');
+  if(inner) inner.removeAttribute('transform');
+  return clone.innerHTML;
+}
+
+/* center each object at the small-plate centre (viewBox 220x275 -> 110,137.5)
+   with a scale that fits it inside the frame; objects are drawn around their
+   local origin once the hero transform is stripped, so a plain centre+scale works */
+const exposeTransform = {
+  compass: "translate(110 144) scale(0.70)",
+  leaf:    "translate(110 132) scale(0.92)",
+  hand:    "translate(115 146) scale(1.05)",
+  spool:   "translate(110 138) scale(1.45)",
+  coil:    "translate(110 138) scale(1.05)",
+  feather: "translate(112 136) scale(0.92)",
+};
+
+/* ---- build LEGEND ---- */
+(function buildLegend(){
+  const wrap = document.getElementById('legend');
+  DATA.objects.forEach(o=>{
+    const el = document.createElement('div');
+    el.className = 'li';
+    el.dataset.obj = o.id;
+    el.innerHTML = '<span class="dot" aria-hidden="true"></span><span class="n">'+o.n+'</span>'+o.label;
+    wrap.appendChild(el);
+  });
+})();
+
+/* ---- build EXPOSURE plates ---- */
+(function buildExposures(){
+  const grid = document.getElementById('exposures-grid');
+  const defs = heroSVG.querySelector('defs').outerHTML;
+  DATA.exposures.forEach(ex=>{
+    const card = document.createElement('div');
+    card.className = 'ex';
+    const inner = objMarkup(ex.obj);
+    const tf = exposeTransform[ex.obj] || "translate(110 150)";
+    card.innerHTML =
+      '<svg viewBox="0 0 220 275" preserveAspectRatio="xMidYMid meet" aria-label="Photogram exposure of a '+ex.title.toLowerCase()+'">'
+      + defs
+      + '<ellipse cx="110" cy="138" rx="96" ry="116" fill="url(#halo)" opacity="0.07" filter="url(#softer)"/>'
+      + '<g class="obj" data-obj="'+ex.obj+'" transform="'+tf+'" filter="url(#soft)">'+inner+'</g>'
+      + '</svg>'
+      + '<div class="meta"><span class="t">'+ex.title+'</span><span class="x">'+ex.ref+'</span></div>';
+    grid.appendChild(card);
+  });
+})();
+
+/* ---- build PROCESS ---- */
+(function buildProcess(){
+  const grid = document.getElementById('process-grid');
+  DATA.process.forEach(p=>{
+    const el = document.createElement('div');
+    el.className = 'proc';
+    el.innerHTML = '<h3><span class="s">'+p.s+'</span>'+p.h+'</h3><p>'+p.p+'</p>';
+    grid.appendChild(el);
+  });
+})();
+
+/* ---- optional: ghost a real generated photo behind the hero plate ---- */
+(function maybePoster(){
+  if(!DATA.assetPoster) return;
+  const plate = document.getElementById('plate');
+  const img = document.createElement('img');
+  img.src = DATA.assetPoster;
+  img.alt = "";
+  img.loading = "lazy";
+  Object.assign(img.style, {
+    position:'absolute', inset:'0', width:'100%', height:'100%',
+    objectFit:'cover', mixBlendMode:'screen', opacity:'0.16',
+    filter:'grayscale(1) contrast(1.2)', zIndex:'1', pointerEvents:'none'
+  });
+  plate.insertBefore(img, plate.firstChild.nextSibling);
+})();
+
+/* ---- legend hover: spotlight one exposed object on the hero plate ---- */
+(function wireLegend(){
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduce) return; // do not override the frozen final state
+  const heroObjs = Array.from(heroSVG.querySelectorAll('.obj'));
+  const rows = Array.from(document.querySelectorAll('#legend .li'));
+  rows.forEach(row=>{
+    const id = row.dataset.obj;
+    row.addEventListener('mouseenter', ()=>{
+      heroObjs.forEach(o=>{
+        if(o.dataset.obj === id || o.dataset.obj === 'accent') o.classList.add('lit');
+        else o.classList.add('dim');
+      });
+    });
+    row.addEventListener('mouseleave', ()=>{
+      heroObjs.forEach(o=>{ o.classList.remove('lit'); o.classList.remove('dim'); });
+    });
+  });
+})();
+
+/* ---- pause hero exposure breathing when the plate is off-screen (perf) ---- */
+(function pauseOffscreen(){
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduce) return;
+  const plate = document.getElementById('plate');
+  const objs = heroSVG.querySelectorAll('.obj');
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{
+      const state = e.isIntersecting ? 'running' : 'paused';
+      objs.forEach(o=>{ o.style.animationPlayState = state; });
+    });
+  }, { threshold:0 });
+  io.observe(plate);
+})();
+</script>
+</body>
+</html>

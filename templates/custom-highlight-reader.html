@@ -1,0 +1,721 @@
+<!-- TEMPLATE: Marginalia | ARCHETYPE: HIGHLIGHT - CSS Custom Highlight API annotation reader with 3 pre-applied ::highlight() layers (key-terms, citations, live-search) over a two-column long-form essay plus a working find-in-page box | REF: CSS Custom Highlight API (Highlight + ::highlight(), Baseline June 2025, MDN); web.dev live-search highlight; DOM Range API | WHEN TO USE: a long-form essay or documentation reader where named highlight layers are painted at load (terms amber, citations green) and a find box repaints a blue live-search layer in real time, no <mark> wrapping, native ranges only | SWAP: edit the DATA array at the very top of the first <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marginalia - Custom Highlight Reader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#faf8f3;
+    --ink:#161616;
+    --ink-soft:#3a3a38;
+    --ink-faint:#7c7a72;
+    --rule:#d8d3c6;
+    --rule-soft:#e7e2d6;
+    --hl-yellow:#ffe27a;
+    --hl-green:#b8e6a0;
+    --hl-blue:#a8c8f0;
+    --accent:#c2410c;
+    --paper-card:#f3efe5;
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto;} }
+
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Spectral",Georgia,serif;
+    font-size:18px;
+    line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    background-image:
+      linear-gradient(180deg, rgba(0,0,0,0.015) 0%, transparent 120px),
+      radial-gradient(120% 60% at 50% -10%, rgba(194,65,12,0.045), transparent 60%);
+  }
+
+  /* ---- mono UI primitives ---- */
+  .mono{font-family:"JetBrains Mono",ui-monospace,monospace;}
+
+  /* =========================================================
+     NATIVE CUSTOM HIGHLIGHT API PAINT LAYERS
+     painted on JS-built Range objects, NOT on wrapper elements
+     ========================================================= */
+  ::highlight(key-terms){
+    background-color:var(--hl-yellow);
+    color:#1a1300;
+    text-decoration:underline;
+    text-decoration-color:rgba(120,90,0,.45);
+    text-decoration-thickness:1px;
+    text-underline-offset:3px;
+  }
+  ::highlight(citations){
+    background-color:var(--hl-green);
+    color:#0f2407;
+    text-decoration:underline dotted;
+    text-decoration-color:rgba(40,100,20,.6);
+    text-underline-offset:3px;
+  }
+  ::highlight(live-search){
+    background-color:var(--hl-blue);
+    color:#06203f;
+    box-shadow:0 0 0 1px rgba(40,90,160,.5);
+    border-radius:1px;
+  }
+  ::highlight(active-hit){
+    background-color:var(--accent);
+    color:#fff;
+    border-radius:1px;
+  }
+
+  /* fallback paint for browsers without the Highlight API (mark wrappers) */
+  mark.fb-key{background:var(--hl-yellow);color:#1a1300;text-decoration:underline;text-decoration-color:rgba(120,90,0,.45);text-underline-offset:3px;}
+  mark.fb-cite{background:var(--hl-green);color:#0f2407;text-decoration:underline dotted;text-decoration-color:rgba(40,100,20,.6);text-underline-offset:3px;}
+  mark.fb-search{background:var(--hl-blue);color:#06203f;box-shadow:0 0 0 1px rgba(40,90,160,.5);}
+  mark.fb-active{background:var(--accent);color:#fff;}
+  mark{padding:0;}
+
+  /* =========================================================
+     PAGE FRAME
+     ========================================================= */
+  .frame{max-width:1180px;margin:0 auto;padding:0 28px;}
+
+  /* sticky control bar holding the find box + legend (signature visible at scroll=0) */
+  .topbar{
+    position:sticky;top:0;z-index:40;
+    background:rgba(250,248,243,0.92);
+    backdrop-filter:blur(8px);
+    -webkit-backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--rule);
+  }
+  .topbar-inner{
+    max-width:1180px;margin:0 auto;padding:11px 28px;
+    display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  }
+  .brand{
+    font-family:"JetBrains Mono",monospace;
+    font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--ink);white-space:nowrap;
+    display:flex;align-items:center;gap:9px;
+  }
+  .brand .dot{width:9px;height:9px;border-radius:2px;background:var(--accent);display:inline-block;}
+
+  /* find-in-page search box */
+  .find{
+    display:flex;align-items:center;gap:8px;
+    background:#fff;border:1px solid var(--rule);border-radius:7px;
+    padding:6px 10px;flex:1 1 280px;min-width:200px;max-width:520px;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .find:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(194,65,12,.14);}
+  .find svg{flex:0 0 auto;opacity:.55;}
+  .find input{
+    border:0;outline:0;background:transparent;flex:1;
+    font-family:"JetBrains Mono",monospace;font-size:13px;color:var(--ink);
+    letter-spacing:.01em;
+  }
+  .find input::placeholder{color:var(--ink-faint);}
+  .find-count{
+    font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--ink-faint);
+    white-space:nowrap;min-width:46px;text-align:right;font-variant-numeric:tabular-nums;
+  }
+  .find-nav{display:flex;gap:3px;}
+  .find-nav button{
+    font-family:"JetBrains Mono",monospace;font-size:13px;line-height:1;
+    width:24px;height:24px;border:1px solid var(--rule);background:#fff;border-radius:5px;
+    color:var(--ink-soft);cursor:pointer;display:flex;align-items:center;justify-content:center;
+    transition:background .12s ease,border-color .12s ease;
+  }
+  .find-nav button:hover{background:var(--paper-card);}
+  .find-nav button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+  /* legend chips */
+  .legend{display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+  .chip{
+    display:inline-flex;align-items:center;gap:6px;
+    font-family:"JetBrains Mono",monospace;font-size:10.5px;letter-spacing:.05em;
+    color:var(--ink-soft);text-transform:uppercase;white-space:nowrap;
+    border:1px solid var(--rule);border-radius:20px;padding:3px 9px 3px 7px;
+    background:#fff;cursor:pointer;user-select:none;
+    transition:filter .12s ease, opacity .12s ease, background .12s ease;
+  }
+  .chip[aria-pressed="false"]{opacity:.42;filter:saturate(.3);}
+  .chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  .chip .sw{width:13px;height:13px;border-radius:3px;border:1px solid rgba(0,0,0,.12);}
+  .chip[data-layer="key-terms"] .sw{background:var(--hl-yellow);}
+  .chip[data-layer="citations"] .sw{background:var(--hl-green);}
+  .chip[data-layer="live-search"] .sw{background:var(--hl-blue);}
+
+  /* =========================================================
+     COMPACT HEADER BAND (title sits ABOVE the populated essay,
+     never a full-screen hero)
+     ========================================================= */
+  header.masthead{padding:30px 0 18px;border-bottom:1px solid var(--rule);}
+  .eyebrow{
+    font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.2em;
+    text-transform:uppercase;color:var(--accent);margin:0 0 12px;
+  }
+  h1.title{
+    font-family:"Spectral",serif;font-weight:600;
+    font-size:clamp(30px,4.6vw,52px);line-height:1.05;letter-spacing:-.015em;
+    margin:0 0 14px;max-width:18ch;
+  }
+  .deck{
+    font-style:italic;color:var(--ink-soft);font-size:clamp(16px,1.6vw,20px);
+    line-height:1.5;margin:0;max-width:62ch;
+  }
+  .byline{
+    margin-top:16px;font-family:"JetBrains Mono",monospace;font-size:11.5px;
+    color:var(--ink-faint);letter-spacing:.04em;
+    display:flex;gap:16px;flex-wrap:wrap;
+  }
+  .byline b{color:var(--ink-soft);font-weight:600;}
+
+  /* =========================================================
+     TWO-COLUMN ESSAY BODY  (the long-form reader)
+     ========================================================= */
+  main.essay{
+    columns:2;
+    column-gap:46px;
+    column-rule:1px solid var(--rule-soft);
+    padding:28px 0 90px;
+    max-width:1180px;margin:0 auto;
+  }
+  main.essay > *{break-inside:avoid-column;}
+  main.essay p{margin:0 0 1.05em;text-align:justify;hyphens:auto;}
+  main.essay p.lead::first-letter{
+    font-size:3.4em;line-height:.82;float:left;
+    padding:6px 10px 0 0;font-weight:600;color:var(--accent);
+    font-family:"Spectral",serif;
+  }
+  h2.sec{
+    column-span:all;
+    font-family:"JetBrains Mono",monospace;font-weight:600;
+    font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);
+    margin:18px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--rule);
+    display:flex;align-items:baseline;gap:10px;
+  }
+  h2.sec .num{color:var(--accent);}
+  blockquote.pull{
+    margin:6px 0 18px;padding:14px 0 14px 18px;
+    border-left:3px solid var(--accent);
+    font-style:italic;font-size:1.12em;line-height:1.4;color:var(--ink-soft);
+    break-inside:avoid;
+  }
+  figure.plate{margin:8px 0 16px;break-inside:avoid;}
+  figure.plate img{
+    width:100%;height:auto;display:block;border-radius:4px;
+    border:1px solid var(--rule);filter:saturate(.96) contrast(1.02);
+  }
+  figure.plate figcaption{
+    margin-top:7px;font-family:"JetBrains Mono",monospace;font-size:10.5px;
+    color:var(--ink-faint);letter-spacing:.03em;line-height:1.4;
+  }
+  .refs{
+    column-span:all;margin-top:30px;padding-top:18px;border-top:1px solid var(--rule);
+    font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--ink-soft);
+    line-height:1.7;
+  }
+  .refs h3{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 10px;}
+  .refs ol{margin:0;padding-left:1.5em;columns:2;column-gap:46px;}
+  .refs li{margin-bottom:6px;break-inside:avoid;}
+
+  .nohl-note{
+    column-span:all;font-family:"JetBrains Mono",monospace;font-size:11px;
+    color:var(--accent);margin:0 0 16px;display:none;
+  }
+  body.fallback .nohl-note{display:block;}
+
+  footer.foot{
+    max-width:1180px;margin:0 auto;padding:22px 28px 40px;
+    border-top:1px solid var(--rule);
+    font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--ink-faint);
+    display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;letter-spacing:.04em;
+  }
+
+  /* keyboard hint */
+  kbd{
+    font-family:"JetBrains Mono",monospace;font-size:10px;
+    background:#fff;border:1px solid var(--rule);border-bottom-width:2px;border-radius:4px;
+    padding:1px 5px;color:var(--ink-soft);
+  }
+
+  /* =========================================================
+     MOBILE  -> single column, highlights preserved
+     ========================================================= */
+  @media (max-width: 860px){
+    main.essay{columns:1;column-rule:none;}
+    .refs ol{columns:1;}
+  }
+  @media (max-width: 640px){
+    body{font-size:17px;}
+    .frame,.topbar-inner,.essay,footer.foot{padding-left:18px;padding-right:18px;}
+    .topbar-inner{gap:10px;padding-top:9px;padding-bottom:9px;}
+    .brand{font-size:11px;flex-basis:100%;}
+    .find{flex-basis:100%;max-width:none;order:2;}
+    .legend{order:3;flex-basis:100%;}
+    h1.title{font-size:clamp(26px,8vw,38px);}
+    main.essay p.lead::first-letter{font-size:3em;}
+    footer.foot{flex-direction:column;gap:8px;}
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important;}
+  }
+</style>
+</head>
+<body>
+<script>
+/* =====================================================================
+   DATA  -  swap everything here. The essay body, the two annotation
+   layers (key-terms, citations), and the find box all read from this.
+   ===================================================================== */
+const DATA = {
+  brand: "MARGINALIA",
+  eyebrow: "Reader / Native CSS Custom Highlight API",
+  title: "Painting Text Without Touching the DOM",
+  deck: "Three highlight layers live over this essay before you scroll a pixel: key terms in amber, citations in green, and a blue layer that repaints as you type in the find box. None of them wrap a single element.",
+  byline: [
+    {k:"Layers", v:"key-terms / citations / live-search"},
+    {k:"API", v:"Highlight + ::highlight()"},
+    {k:"Baseline", v:"June 2025"}
+  ],
+
+  // exact substrings to pre-paint as the amber KEY-TERMS layer
+  keyTerms: [
+    "Custom Highlight API","Range","StaticRange","Highlight","::highlight()",
+    "registry","CSS.highlights","getRangeAt","paint","abstract range",
+    "Selection","find-in-page","Baseline","z-index","stacking"
+  ],
+
+  // exact substrings to pre-paint as the green CITATIONS layer
+  citations: [
+    "(MDN, 2025)","(web.dev, 2025)","(CSSWG, 2024)","(WHATWG DOM)","(Chrome 105)","(Safari 17.2)"
+  ],
+
+  plate: {
+    src:"../assets/sdxl.png",
+    cap:"Plate I. A reader annotated by hand. The native API does the same thing in software: ranges as ink, never as markup."
+  },
+
+  // the long-form essay. {sec} starts a labelled section.
+  sections: [
+    { n:"00", t:"The problem with marks",
+      body:[
+        "For two decades the only honest way to highlight running text on the web was to wrap it. You found the words, you split the text node, you inserted a span or a Highlight element, and you accepted the damage: the DOM grew, your serialized markup no longer matched your source, and any layout that depended on element boundaries quietly broke. Worse, wrapping fights itself the moment a highlight crosses a paragraph or an inline tag, because a single element cannot straddle two parents. Every find-in-page feature ever shipped in userland carried this tax.",
+        "The Custom Highlight API removes the wrapping entirely. You describe what to paint as a set of abstract range objects and hand them to the browser, which paints them during its own text rendering pass. The source tree is untouched. Copy the page and you copy clean text. Diff the DOM before and after a search and nothing has moved (MDN, 2025)."
+      ]},
+    { n:"01", t:"Ranges as ink",
+      body:[
+        "The unit of work is the Range, or its lighter cousin the StaticRange. A range is just a start container and offset plus an end container and offset: a region of the document, defined positionally, that owns no nodes of its own. You can build hundreds of them over the same paragraph and they will never collide, because they are coordinates, not elements (WHATWG DOM).",
+        "To find the words you walk the text. A TreeWalker over NODE_TEXT visits every text node; for each match you set a Range to the exact character offsets. This is the whole mechanism: no innerHTML, no split, no insert. The range is the ink and the text node is the page, and the two never merge."
+      ]},
+    { n:"02", t:"The named registry",
+      body:[
+        "Ranges alone paint nothing. You collect them into a Highlight object, which is a set, and you register that set under a name in the global CSS.highlights registry. The name is the bridge to CSS: register a Highlight as key-terms and the rule ::highlight(key-terms) styles every range inside it at once (web.dev, 2025).",
+        "Because the registry is a map keyed by name, layers are independent. A term layer, a citation layer, and a live find layer coexist over the same prose, each its own Highlight, each its own ::highlight() rule. Clearing one is a single delete on the registry; the others are undisturbed (CSSWG, 2024)."
+      ]},
+    { n:"03", t:"Stacking and conflict",
+      body:[
+        "When two highlights cover the same character the browser must choose a paint order. The resolved style follows a priority you set on each Highlight object plus the registration order, so an active search hit can be made to win over a passive key term without any change to the underlying ranges. Think of it as z-index for text paint rather than for boxes: the same character, two inks, a deterministic winner (Chrome 105).",
+        "This is what makes a real find-in-page possible in userland. The passive layers stay lit while the search layer floods in on top as you type, and the single active hit burns brighter still. Three priorities, one paragraph, no markup touched (Safari 17.2)."
+      ]},
+    { n:"04", t:"What you are reading now",
+      body:[
+        "Everything amber on this page is the key-terms layer, painted at load from a list of exact substrings. Everything green is the citations layer. Type in the find box at the top and a third blue layer, live-search, is rebuilt on every keystroke and repainted instantly; the up and down controls promote one match to the orange active-hit layer and scroll it into view. Nothing in this paragraph is wrapped in a Highlight or a span. Select it, copy it, inspect it: the text is exactly what the author wrote."
+      ]}
+  ],
+
+  refs: [
+    "MDN Web Docs. CSS Custom Highlight API. 2025.",
+    "web.dev. Highlight text with the CSS Custom Highlight API. 2025.",
+    "CSSWG. CSS Custom Highlight API Module Level 1. 2024.",
+    "WHATWG. DOM Living Standard, Range interface.",
+    "Chromium. Intent to Ship: Highlight registry. Chrome 105.",
+    "WebKit. CSS Custom Highlight API. Safari 17.2."
+  ]
+};
+window.__DATA = DATA;
+</script>
+
+<!-- ===== TOP CONTROL BAR (signature visible at scroll=0) ===== -->
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand"><span class="dot"></span><span id="brandName">MARGINALIA</span></div>
+    <label class="find" aria-label="Find in page">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.5" y2="16.5"></line></svg>
+      <input id="findInput" type="text" placeholder="find in page (live-search layer)" autocomplete="off" spellcheck="false">
+      <span class="find-count mono" id="findCount">0 / 0</span>
+      <span class="find-nav">
+        <button id="findPrev" title="Previous match" aria-label="Previous match">&#8593;</button>
+        <button id="findNext" title="Next match" aria-label="Next match">&#8595;</button>
+      </span>
+    </label>
+    <div class="legend" id="legend">
+      <button class="chip" data-layer="key-terms" aria-pressed="true"><span class="sw"></span>key terms</button>
+      <button class="chip" data-layer="citations" aria-pressed="true"><span class="sw"></span>citations</button>
+      <button class="chip" data-layer="live-search" aria-pressed="true"><span class="sw"></span>search</button>
+    </div>
+  </div>
+</div>
+
+<div class="frame">
+  <header class="masthead">
+    <p class="eyebrow" id="eyebrow"></p>
+    <h1 class="title" id="title"></h1>
+    <p class="deck" id="deck"></p>
+    <div class="byline" id="byline"></div>
+  </header>
+</div>
+
+<main class="essay" id="essay">
+  <p class="nohl-note">Note: this browser lacks the CSS Custom Highlight API. Annotations are rendered with fallback &lt;mark&gt; elements, so highlighting still works.</p>
+  <!-- essay rendered by JS from DATA -->
+</main>
+
+<footer class="foot">
+  <span>NATIVE ::highlight() PAINT &middot; NO DOM WRAPPING</span>
+  <span id="footEngine">Highlight API: detecting...</span>
+  <span>SWAP THE DATA ARRAY UP TOP</span>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+  const D = window.__DATA;
+  const supportsHL = (typeof CSS !== "undefined") && ("highlights" in CSS) && (typeof Highlight !== "undefined");
+
+  /* ---------- render static chrome from DATA ---------- */
+  document.getElementById("brandName").textContent = D.brand;
+  document.getElementById("eyebrow").textContent = D.eyebrow;
+  document.getElementById("title").textContent = D.title;
+  document.getElementById("deck").textContent = D.deck;
+  document.title = D.title + " - " + D.brand;
+  const bl = document.getElementById("byline");
+  D.byline.forEach(b=>{
+    const s=document.createElement("span");
+    s.innerHTML = '<b>'+b.k+'</b> '+b.v;
+    bl.appendChild(s);
+  });
+
+  /* ---------- build the essay body ---------- */
+  const essay = document.getElementById("essay");
+  const frag = document.createDocumentFragment();
+  let plateInserted = false;
+  let leadAssigned = false;
+  D.sections.forEach((sec, si)=>{
+    const h = document.createElement("h2");
+    h.className="sec";
+    h.innerHTML = '<span class="num mono">'+sec.n+'</span> '+sec.t;
+    frag.appendChild(h);
+    sec.body.forEach((para)=>{
+      const p=document.createElement("p");
+      // first prose paragraph gets the dropcap (the hidden .nohl-note must never receive it)
+      if(!leadAssigned){ p.className="lead"; leadAssigned=true; }
+      p.textContent = para;
+      frag.appendChild(p);
+    });
+    // drop the plate after the second section for visual balance
+    if(si===1 && !plateInserted){
+      const fig=document.createElement("figure");
+      fig.className="plate";
+      fig.innerHTML = '<img src="'+D.plate.src+'" alt="" loading="lazy" decoding="async">'+
+                      '<figcaption>'+D.plate.cap+'</figcaption>';
+      frag.appendChild(fig);
+      // a pull quote too
+      const bq=document.createElement("blockquote");
+      bq.className="pull";
+      bq.textContent = "The range is the ink and the text node is the page, and the two never merge.";
+      frag.appendChild(bq);
+      plateInserted=true;
+    }
+  });
+  // references
+  const refs=document.createElement("div");
+  refs.className="refs";
+  let ol='<h3>References</h3><ol>';
+  D.refs.forEach(r=>{ ol+='<li>'+r+'</li>'; });
+  ol+='</ol>';
+  refs.innerHTML=ol;
+  frag.appendChild(refs);
+  essay.appendChild(frag);
+
+  /* =====================================================================
+     COLLECT TEXT NODES (the "page" we paint ranges over)
+     ===================================================================== */
+  function collectTextNodes(root){
+    const out=[];
+    const walker=document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode(n){
+        if(!n.nodeValue || !n.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+        const pe=n.parentElement;
+        if(!pe) return NodeFilter.FILTER_REJECT;
+        // skip the mono section labels and captions so highlights live in prose only
+        const tag=pe.tagName;
+        if(tag==="H2"||tag==="FIGCAPTION"||tag==="SCRIPT"||tag==="STYLE") return NodeFilter.FILTER_REJECT;
+        if(pe.closest(".refs")) return NodeFilter.FILTER_REJECT;
+        // the no-API note is hidden in native mode; never paint or count its text
+        if(pe.closest(".nohl-note")) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    let node; while((node=walker.nextNode())) out.push(node);
+    return out;
+  }
+
+  /* build Range objects for every occurrence of each phrase, case-insensitive,
+     ordered by document position (used for find navigation) */
+  function buildRanges(phrases){
+    const nodes = collectTextNodes(essay);
+    const ranges=[];
+    const lowered = phrases.map(p=>p.toLowerCase()).filter(Boolean);
+    if(!lowered.length) return ranges;
+    nodes.forEach(node=>{
+      const text=node.nodeValue;
+      const low=text.toLowerCase();
+      lowered.forEach(ph=>{
+        let from=0, idx;
+        while((idx=low.indexOf(ph, from))!==-1){
+          const r=document.createRange();
+          r.setStart(node, idx);
+          r.setEnd(node, idx+ph.length);
+          ranges.push(r);
+          from = idx + ph.length;
+        }
+      });
+    });
+    // document order so prev/next feel natural
+    ranges.sort((a,b)=>{
+      const c=a.compareBoundaryPoints(Range.START_TO_START, b);
+      return c;
+    });
+    return ranges;
+  }
+
+  const footEngine=document.getElementById("footEngine");
+
+  /* =====================================================================
+     PAINT PATH A : native Custom Highlight API
+     ===================================================================== */
+  let hlKey, hlCite, hlSearch, hlActive;
+  const layerState={ "key-terms":true, "citations":true, "live-search":true };
+
+  function paintNative(){
+    document.body.classList.remove("fallback");
+    footEngine.textContent = "Highlight API: native ::highlight()";
+
+    hlKey   = new Highlight(...buildRanges(D.keyTerms));
+    hlCite  = new Highlight(...buildRanges(D.citations));
+    hlSearch= new Highlight();
+    hlActive= new Highlight();
+
+    // priority: search > citations > key-terms ; active hit wins all
+    hlKey.priority   = 1;
+    hlCite.priority  = 2;
+    hlSearch.priority= 3;
+    hlActive.priority= 4;
+
+    applyRegistry();
+  }
+
+  function applyRegistry(){
+    CSS.highlights.clear();
+    if(layerState["key-terms"])   CSS.highlights.set("key-terms", hlKey);
+    if(layerState["citations"])   CSS.highlights.set("citations", hlCite);
+    if(layerState["live-search"]) CSS.highlights.set("live-search", hlSearch);
+    CSS.highlights.set("active-hit", hlActive);
+  }
+
+  /* =====================================================================
+     PAINT PATH B : fallback <mark> wrapping for no-API browsers
+     ===================================================================== */
+  function wrapMatches(className, phrases){
+    const nodes=collectTextNodes(essay);
+    const lowered=phrases.map(p=>p.toLowerCase()).filter(Boolean);
+    nodes.forEach(node=>{
+      const text=node.nodeValue, low=text.toLowerCase();
+      const hits=[];
+      lowered.forEach(ph=>{
+        let from=0,idx;
+        while((idx=low.indexOf(ph,from))!==-1){ hits.push([idx,idx+ph.length]); from=idx+ph.length; }
+      });
+      if(!hits.length) return;
+      hits.sort((a,b)=>a[0]-b[0]);
+      // merge overlaps
+      const merged=[]; hits.forEach(h=>{ const last=merged[merged.length-1]; if(last&&h[0]<=last[1]){last[1]=Math.max(last[1],h[1]);} else merged.push(h.slice()); });
+      const parent=node.parentNode; let cursor=0; const fragm=document.createDocumentFragment();
+      merged.forEach(([s,e])=>{
+        if(s>cursor) fragm.appendChild(document.createTextNode(text.slice(cursor,s)));
+        const m=document.createElement("mark"); m.className=className; m.textContent=text.slice(s,e); fragm.appendChild(m); cursor=e;
+      });
+      if(cursor<text.length) fragm.appendChild(document.createTextNode(text.slice(cursor)));
+      parent.replaceChild(fragm,node);
+    });
+  }
+
+  function paintFallback(){
+    document.body.classList.add("fallback");
+    footEngine.textContent = "Highlight API: fallback <mark>";
+    // order matters: paint citations first so key-terms can still layer; both are static
+    wrapMatches("fb-cite", D.citations);
+    wrapMatches("fb-key", D.keyTerms);
+  }
+
+  /* =====================================================================
+     FIND-IN-PAGE  (repaints the live-search layer)
+     ===================================================================== */
+  const findInput=document.getElementById("findInput");
+  const findCount=document.getElementById("findCount");
+  const findPrev=document.getElementById("findPrev");
+  const findNext=document.getElementById("findNext");
+  let searchRanges=[]; let activeIdx=-1;
+  let fbMarks=[];
+
+  function clearFallbackSearch(){
+    fbMarks.forEach(m=>{
+      const t=document.createTextNode(m.textContent);
+      m.parentNode.replaceChild(t,m);
+    });
+    fbMarks=[];
+    // normalize merged text nodes
+    essay.querySelectorAll("p").forEach(p=>p.normalize());
+  }
+
+  function runSearch(q){
+    q=(q||"").trim();
+    if(supportsHL){
+      searchRanges = q.length>=2 ? buildRanges([q]) : [];
+      hlSearch.clear();
+      searchRanges.forEach(r=>hlSearch.add(r));
+      activeIdx = searchRanges.length ? 0 : -1;
+      updateActive();
+    } else {
+      clearFallbackSearch();
+      searchRanges=[];
+      if(q.length>=2){
+        // wrap in a temporary search class, collect them ordered
+        wrapMatches("fb-search", [q]);
+        fbMarks = Array.from(essay.querySelectorAll("mark.fb-search"));
+        searchRanges = fbMarks; // proxy list for counting/nav
+        activeIdx = fbMarks.length ? 0 : -1;
+      }
+      updateActiveFallback();
+    }
+    updateCount();
+  }
+
+  function updateCount(){
+    const n=searchRanges.length;
+    findCount.textContent = (n? (activeIdx+1):0) + " / " + n;
+  }
+
+  function updateActive(){
+    if(!supportsHL) return;
+    hlActive.clear();
+    if(activeIdx>=0 && searchRanges[activeIdx]){
+      const r=searchRanges[activeIdx];
+      hlActive.add(r);
+      scrollRangeIntoView(r);
+    }
+    updateCount();
+  }
+  function updateActiveFallback(){
+    fbMarks.forEach(m=>m.classList.remove("fb-active"));
+    if(activeIdx>=0 && fbMarks[activeIdx]){
+      fbMarks[activeIdx].classList.add("fb-active");
+      fbMarks[activeIdx].scrollIntoView({block:"center", behavior: prefersReduced()? "auto":"smooth"});
+    }
+    updateCount();
+  }
+
+  function prefersReduced(){
+    return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  function scrollRangeIntoView(range){
+    const rect=range.getBoundingClientRect();
+    if(!rect || (rect.top===0 && rect.bottom===0)) return;
+    const vh=window.innerHeight||document.documentElement.clientHeight;
+    if(rect.top < 90 || rect.bottom > vh-40){
+      const y=window.scrollY + rect.top - vh*0.4;
+      window.scrollTo({top:y, behavior: prefersReduced()? "auto":"smooth"});
+    }
+  }
+
+  function step(dir){
+    if(!searchRanges.length) return;
+    activeIdx = (activeIdx + dir + searchRanges.length) % searchRanges.length;
+    if(supportsHL) updateActive(); else updateActiveFallback();
+  }
+
+  let debounce;
+  findInput.addEventListener("input", ()=>{
+    clearTimeout(debounce);
+    debounce=setTimeout(()=>runSearch(findInput.value), 80);
+  });
+  findInput.addEventListener("keydown",(e)=>{
+    if(e.key==="Enter"){ e.preventDefault(); step(e.shiftKey?-1:1); }
+  });
+  findPrev.addEventListener("click",()=>step(-1));
+  findNext.addEventListener("click",()=>step(1));
+
+  // global Cmd/Ctrl+F focuses our box instead of native find
+  document.addEventListener("keydown",(e)=>{
+    if((e.metaKey||e.ctrlKey) && (e.key==="f"||e.key==="F")){
+      e.preventDefault(); findInput.focus(); findInput.select();
+    }
+  });
+
+  /* =====================================================================
+     LEGEND TOGGLES  (mutate the registry, not the ranges)
+     ===================================================================== */
+  document.getElementById("legend").addEventListener("click",(e)=>{
+    const chip=e.target.closest(".chip"); if(!chip) return;
+    const layer=chip.dataset.layer;
+    const on = chip.getAttribute("aria-pressed")==="true";
+    chip.setAttribute("aria-pressed", String(!on));
+    layerState[layer]=!on;
+    if(supportsHL){
+      applyRegistry();
+      // re-add current search ranges if search layer toggled back on
+      if(layer==="live-search" && layerState[layer]){
+        hlSearch.clear(); searchRanges.forEach(r=>{ if(r instanceof Range) hlSearch.add(r); });
+      }
+    } else {
+      // fallback: toggle visibility via CSS class on body
+      const cls = layer==="key-terms"?"hide-key":layer==="citations"?"hide-cite":"hide-search";
+      document.body.classList.toggle(cls, !layerState[layer]);
+    }
+  });
+
+  // fallback visibility styles injected (only matter without API)
+  if(!supportsHL){
+    const st=document.createElement("style");
+    st.textContent=".hide-key mark.fb-key{background:transparent;color:inherit;text-decoration:none;}"+
+                   ".hide-cite mark.fb-cite{background:transparent;color:inherit;text-decoration:none;}"+
+                   ".hide-search mark.fb-search{background:transparent;color:inherit;box-shadow:none;}";
+    document.head.appendChild(st);
+  }
+
+  /* =====================================================================
+     BOOT
+     ===================================================================== */
+  if(supportsHL){ paintNative(); }
+  else { paintFallback(); }
+
+  // re-measure ranges after fonts load (offsets are robust, but the dropcap
+  // and reflow can shift line boxes; native ranges follow text automatically)
+  if(document.fonts && document.fonts.ready){
+    document.fonts.ready.then(()=>{ if(supportsHL && searchRanges.length) updateActive(); });
+  }
+})();
+</script>
+</body>
+</html>

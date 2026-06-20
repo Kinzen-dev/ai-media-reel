@@ -1,0 +1,823 @@
+<!-- TEMPLATE: Bisect | ARCHETYPE: bisect (live cursor-bisected dual composition, two simultaneous worlds) | REF: Resn cursor-split viewport compositions, Codrops Cursor-Driven Split-Screen Compositions 2026 | WHEN TO USE: show two entirely different scenes at once (studio process vs finished work, day vs night, raw vs hosted), revealed by where the cursor sits | SWAP: edit the DATA object at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bisect - Two Worlds, One Cursor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* =========================================================================
+   BISECT ENGINE
+   Two overlapping full-viewport layers. ONE pointermove listener writes the
+   cursor X (as a 0..1 fraction) into the --x custom property, batched once per
+   frame via rAF. Both layers read --x in a clip-path:polygon(). The NIGHT
+   layer is clipped from 0..x; the DAY layer from x..1. No canvas, no WebGL.
+   To swap content: edit the DATA object below. Everything else is the engine.
+   ========================================================================= */
+
+:root{
+  /* ---- palette: the two worlds ---- */
+  --night:#0a0a0a;          /* night side base */
+  --day:#f4f0e8;            /* day side base */
+  --night-ink:#f4f0e8;      /* text on the night side */
+  --day-ink:#0a0a0a;        /* text on the day side */
+  --night-dim:#8c8a86;
+  --day-dim:#6b675f;
+  --accent:#e7553b;         /* one shared accent, reads on both */
+
+  /* ---- the bisect ---- */
+  --x:0.5;                  /* cursor fraction, 0 (left) .. 1 (right). Updated by JS. */
+  --edge:1.5px;             /* width of the seam light */
+
+  --serif:'Fraunces',Georgia,serif;
+  --sans:'Space Grotesk',system-ui,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:var(--sans);
+  background:var(--night);
+  color:var(--night-ink);
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+img,video{display:block;max-width:100%}
+a{color:inherit}
+
+/* =========================================================================
+   STAGE - the bisected first viewport. Pinned, fills the screen.
+   ========================================================================= */
+.stage{
+  position:relative;
+  height:100svh;
+  min-height:560px;
+  width:100%;
+  overflow:hidden;
+  cursor:none;             /* custom seam-cursor takes over (mouse only) */
+  background:var(--night);
+  isolation:isolate;
+}
+@media (hover:none){ .stage{cursor:auto} }
+
+/* a world fills the whole stage; clip-path carves out its visible half */
+.world{
+  position:absolute;
+  inset:0;
+  overflow:hidden;
+  will-change:clip-path;
+}
+.world__bg{
+  position:absolute;
+  inset:0;
+  width:100%;height:100%;
+  object-fit:cover;
+  object-position:center;
+}
+.world__scrim{ position:absolute;inset:0; pointer-events:none; }
+
+/* NIGHT world: visible from left edge (0) to the cursor (--x) */
+.world--night{
+  background:var(--night);
+  /* polygon: top-left, top at x, bottom at x, bottom-left */
+  clip-path:polygon(0 0, calc(var(--x) * 100%) 0, calc(var(--x) * 100%) 100%, 0 100%);
+}
+.world--night .world__scrim{
+  background:
+    radial-gradient(120% 90% at 18% 30%, transparent 30%, rgba(10,10,10,.55) 100%),
+    linear-gradient(180deg, rgba(10,10,10,.30) 0%, transparent 28%, transparent 60%, rgba(10,10,10,.78) 100%);
+}
+
+/* DAY world: visible from the cursor (--x) to the right edge (1) */
+.world--day{
+  background:var(--day);
+  clip-path:polygon(calc(var(--x) * 100%) 0, 100% 0, 100% 100%, calc(var(--x) * 100%) 100%);
+}
+.world--day .world__bg{ filter:saturate(1.02) contrast(1.02); }
+.world--day .world__scrim{
+  background:
+    radial-gradient(120% 90% at 82% 28%, transparent 32%, rgba(244,240,232,.50) 100%),
+    linear-gradient(180deg, rgba(244,240,232,.40) 0%, transparent 26%, transparent 58%, rgba(244,240,232,.86) 100%);
+}
+
+/* the secondary media tiles inside each world (posters; play on focus only) */
+.world__tiles{
+  position:absolute;
+  left:0;right:0;bottom:0;
+  display:flex;
+  gap:14px;
+  padding:18px 5.2vw 5.4vh;
+  pointer-events:auto;
+}
+.world--day .world__tiles{ justify-content:flex-end; }
+.tile{
+  position:relative;
+  width:148px;
+  flex:0 0 auto;
+  aspect-ratio:4/3;
+  border-radius:10px;
+  overflow:hidden;
+  background:#000;
+  box-shadow:0 18px 40px -22px rgba(0,0,0,.85);
+  transform:translateY(0);
+  transition:transform .45s cubic-bezier(.2,.8,.2,1), box-shadow .45s;
+}
+.world--day .tile{ box-shadow:0 18px 40px -22px rgba(60,52,40,.55); }
+.tile:hover,.tile:focus-visible{ transform:translateY(-8px) scale(1.02); outline:none; }
+.tile:focus-visible{ box-shadow:0 0 0 2px var(--accent), 0 18px 40px -16px rgba(0,0,0,.85); }
+.tile img,.tile video{ width:100%;height:100%;object-fit:cover; }
+.tile__tag{
+  position:absolute; left:8px; bottom:7px;
+  font-family:var(--mono);
+  font-size:9.5px; letter-spacing:.06em;
+  padding:3px 6px; border-radius:5px;
+  background:rgba(10,10,10,.62); color:#f4f0e8;
+  backdrop-filter:blur(3px);
+}
+.tile__play{
+  position:absolute; inset:0; margin:auto;
+  width:34px;height:34px; border-radius:50%;
+  display:grid;place-items:center;
+  background:rgba(231,85,59,.92);
+  pointer-events:none;
+  transition:opacity .3s, transform .3s;
+}
+.tile__play::after{ content:""; width:0;height:0; border-left:9px solid #fff; border-top:6px solid transparent; border-bottom:6px solid transparent; transform:translateX(1px); }
+.tile.is-playing .tile__play{ opacity:0; transform:scale(.6); }
+
+/* =========================================================================
+   TYPE OVERLAY - mirrored copy. Each side prints its own label in the
+   opposite world's ink color, so it is legible whichever way the split sits.
+   The two label stacks live one over the other and clip to their world.
+   ========================================================================= */
+.copy{
+  position:absolute; inset:0;
+  pointer-events:none;
+  z-index:4;
+}
+.copy__band{
+  position:absolute; inset:0;
+  overflow:hidden;
+  padding:clamp(20px,5vw,64px) 5.2vw 0;
+  display:flex; flex-direction:column;
+}
+.copy--night{
+  color:var(--night-ink);
+  clip-path:polygon(0 0, calc(var(--x) * 100%) 0, calc(var(--x) * 100%) 100%, 0 100%);
+}
+.copy--day{
+  color:var(--day-ink);
+  align-items:flex-end; text-align:right;
+  clip-path:polygon(calc(var(--x) * 100%) 0, 100% 0, 100% 100%, calc(var(--x) * 100%) 100%);
+}
+.eyebrow{
+  font-family:var(--mono);
+  font-size:clamp(10px,1.1vw,12.5px);
+  letter-spacing:.34em; text-transform:uppercase;
+  opacity:.82;
+  display:flex; align-items:center; gap:10px;
+}
+.eyebrow .dot{ width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px rgba(231,85,59,.16); }
+.headline{
+  font-family:var(--serif);
+  font-weight:300;
+  font-size:clamp(38px,7.4vw,118px);
+  line-height:.94;
+  letter-spacing:-.02em;
+  margin-top:clamp(10px,2vh,22px);
+  max-width:8ch;            /* keep each headline clear of the centerline at 50/50 */
+}
+.headline em{ font-style:italic; font-weight:500; }
+.copy--day .headline{ max-width:8ch; }
+.sub{
+  font-family:var(--sans);
+  font-weight:400;
+  font-size:clamp(13px,1.5vw,17px);
+  line-height:1.5;
+  max-width:34ch;
+  margin-top:clamp(12px,2.2vh,24px);
+  opacity:.86;
+}
+.copy--night .sub{ color:var(--night-dim); }
+.copy--day .sub{ color:var(--day-dim); }
+
+/* world signature (top-right of night / top-left of day) */
+.sig{
+  position:absolute; top:clamp(20px,5vw,64px);
+  font-family:var(--mono); font-size:11px; letter-spacing:.14em;
+  text-transform:uppercase; opacity:.7;
+}
+.copy--night .sig{ right:5.2vw; text-align:right; }
+.copy--day .sig{ left:5.2vw; }
+
+/* =========================================================================
+   THE SEAM - the only edge between the two worlds. A 1.5px luminous line at
+   --x. No border glyph, no handle chrome beyond a thin grip + ratio readout.
+   ========================================================================= */
+.seam{
+  position:absolute; top:0; bottom:0;
+  left:calc(var(--x) * 100%);
+  width:var(--edge);
+  transform:translateX(-50%);
+  z-index:6;
+  pointer-events:none;
+  background:linear-gradient(180deg,
+    rgba(231,85,59,0) 0%,
+    rgba(231,85,59,.9) 12%,
+    rgba(255,255,255,.95) 50%,
+    rgba(231,85,59,.9) 88%,
+    rgba(231,85,59,0) 100%);
+  box-shadow:0 0 22px 2px rgba(231,85,59,.40);
+  mix-blend-mode:screen;
+}
+.seam__grip{
+  position:absolute; top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  width:48px;height:48px;border-radius:50%;
+  background:rgba(10,10,10,.30);
+  border:1px solid rgba(255,255,255,.45);
+  backdrop-filter:blur(6px);
+  mix-blend-mode:normal;
+  display:grid;place-items:center;
+}
+.seam__grip::before,.seam__grip::after{
+  content:""; position:absolute; top:50%; width:0;height:0;
+  border-top:5px solid transparent; border-bottom:5px solid transparent;
+}
+.seam__grip::before{ left:11px; border-right:7px solid #fff; }
+.seam__grip::after{ right:11px; border-left:7px solid #fff; }
+.seam__readout{
+  position:absolute; top:50%; left:50%;
+  transform:translate(-50%,-50%) translateY(46px);
+  font-family:var(--mono); font-size:10px; letter-spacing:.08em;
+  color:#fff; white-space:nowrap;
+  text-shadow:0 1px 6px rgba(0,0,0,.7);
+}
+
+/* the custom cursor that rides the seam light (mouse only) */
+.cursorHint{
+  position:absolute; top:0; left:0;
+  z-index:7; pointer-events:none;
+  font-family:var(--mono); font-size:10px; letter-spacing:.12em;
+  color:#fff; opacity:0; transition:opacity .4s;
+  text-shadow:0 1px 6px rgba(0,0,0,.8);
+}
+.stage:hover .cursorHint{ opacity:.0; }
+
+/* scroll cue */
+.scrollcue{
+  position:absolute; left:50%; bottom:18px;
+  transform:translateX(-50%);
+  z-index:6; pointer-events:none;
+  font-family:var(--mono); font-size:10px; letter-spacing:.28em;
+  text-transform:uppercase; color:#fff; opacity:.55;
+  display:flex; flex-direction:column; align-items:center; gap:7px;
+  mix-blend-mode:difference;
+}
+.scrollcue .bar{ width:1px; height:30px; background:#fff; animation:drop 2.1s ease-in-out infinite; transform-origin:top; }
+@keyframes drop{ 0%,100%{transform:scaleY(.25);opacity:.4} 50%{transform:scaleY(1);opacity:1} }
+
+/* hint pill telling the user the mechanic, fades after first move */
+.howto{
+  position:absolute; top:18px; left:50%;
+  transform:translateX(-50%);
+  z-index:7; pointer-events:none;
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.1em;
+  color:#fff; padding:7px 14px; border-radius:999px;
+  background:rgba(10,10,10,.42); border:1px solid rgba(255,255,255,.22);
+  backdrop-filter:blur(6px);
+  transition:opacity .6s; mix-blend-mode:normal;
+}
+.howto.is-hidden{ opacity:0; }
+
+/* =========================================================================
+   BELOW THE FOLD - a short scrolling section so the template is a real page,
+   not just a hero. Two stacked panels echoing the two worlds.
+   ========================================================================= */
+.scroll{ position:relative; background:var(--night); }
+.split-row{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  min-height:78vh;
+}
+.panel{ position:relative; overflow:hidden; padding:clamp(28px,5vw,72px); display:flex; flex-direction:column; justify-content:flex-end; }
+.panel--night{ background:var(--night); color:var(--night-ink); }
+.panel--day{ background:var(--day); color:var(--day-ink); }
+.panel__media{ position:absolute; inset:0; }
+.panel__media img,.panel__media video{ width:100%;height:100%;object-fit:cover; opacity:.9; }
+.panel--night .panel__media::after,.panel--day .panel__media::after{
+  content:""; position:absolute; inset:0;
+}
+.panel--night .panel__media::after{ background:linear-gradient(0deg, rgba(10,10,10,.92), rgba(10,10,10,.25)); }
+.panel--day .panel__media::after{ background:linear-gradient(0deg, rgba(244,240,232,.92), rgba(244,240,232,.18)); }
+.panel__body{ position:relative; z-index:2; }
+.panel__k{ font-family:var(--mono); font-size:11px; letter-spacing:.2em; text-transform:uppercase; opacity:.7; }
+.panel__h{ font-family:var(--serif); font-weight:300; font-size:clamp(26px,3.4vw,46px); line-height:1.02; margin:10px 0; letter-spacing:-.01em; }
+.panel__h em{ font-style:italic; font-weight:500; }
+.panel__p{ font-size:clamp(13px,1.3vw,15.5px); line-height:1.55; max-width:40ch; }
+.panel--night .panel__p{ color:var(--night-dim); }
+.panel--day .panel__p{ color:var(--day-dim); }
+
+.process{
+  background:var(--night); color:var(--night-ink);
+  padding:clamp(48px,9vw,120px) 5.2vw clamp(60px,10vw,140px);
+}
+.process__head{ display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:16px; border-bottom:1px solid rgba(255,255,255,.12); padding-bottom:20px; }
+.process__title{ font-family:var(--serif); font-weight:300; font-size:clamp(24px,3vw,40px); }
+.process__title em{ font-style:italic; font-weight:500; color:var(--accent); }
+.process__meta{ font-family:var(--mono); font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--night-dim); }
+.strip{ display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:14px; margin-top:30px; }
+.strip__cell{ position:relative; aspect-ratio:4/3; border-radius:12px; overflow:hidden; background:#000; }
+.strip__cell img,.strip__cell video{ width:100%;height:100%;object-fit:cover; }
+.strip__cell figcaption{ position:absolute; left:10px; bottom:9px; font-family:var(--mono); font-size:10px; letter-spacing:.05em; padding:3px 7px; border-radius:5px; background:rgba(10,10,10,.6); color:#f4f0e8; }
+.strip__cell .tile__play{ width:30px;height:30px; }
+.strip__cell .tile__play::after{ border-left:8px solid #fff; border-top:5px solid transparent; border-bottom:5px solid transparent; }
+
+footer{ background:var(--night); color:var(--night-dim); padding:40px 5.2vw 56px; font-family:var(--mono); font-size:11px; letter-spacing:.1em; display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; border-top:1px solid rgba(255,255,255,.1); }
+footer .accent{ color:var(--accent); }
+
+/* =========================================================================
+   MOBILE - bisect goes HORIZONTAL (top night / bottom day). Touch-drag up or
+   down to move the seam. Media is letterboxed (contain) so a 16:9 asset is
+   never cropped into the phone's portrait stage.
+   ========================================================================= */
+@media (max-width:640px){
+  .stage{ cursor:auto; }
+  /* hero is 16:9; a portrait phone would crop it to a sliver under cover.
+     Letterbox it (contain) on the world's own base color as the mat, so the
+     full generated frame is always visible inside each horizontal half. */
+  .world--night .world__bg{ object-fit:contain; background:var(--night); object-position:center; }
+  .world--day .world__bg{ object-fit:contain; background:var(--day); object-position:center; }
+
+  /* NIGHT visible from top (0) to seam (--x); DAY from seam to bottom */
+  .world--night{ clip-path:polygon(0 0, 100% 0, 100% calc(var(--x) * 100%), 0 calc(var(--x) * 100%)); }
+  .world--day{ clip-path:polygon(0 calc(var(--x) * 100%), 100% calc(var(--x) * 100%), 100% 100%, 0 100%); }
+
+  .copy--night{ clip-path:polygon(0 0, 100% 0, 100% calc(var(--x) * 100%), 0 calc(var(--x) * 100%)); }
+  .copy--day{
+    clip-path:polygon(0 calc(var(--x) * 100%), 100% calc(var(--x) * 100%), 100% 100%, 0 100%);
+    align-items:flex-start; text-align:left;
+  }
+  .copy__band.copy--night{ padding-top:clamp(54px,8vh,84px); justify-content:flex-start; }
+  /* day copy sits just under the seam, not pinned to the bottom (keeps it on-screen) */
+  .copy__band.copy--day{
+    justify-content:flex-start; align-items:flex-start; text-align:left;
+    padding-top:calc(var(--x) * 100svh + 16px); padding-bottom:0;
+  }
+  .headline{ font-size:clamp(30px,9vw,52px); max-width:14ch; }
+  .copy--day .headline{ max-width:14ch; }
+  .copy--day .sub{ display:none; }   /* keep the bottom world's headline above the tiles on small screens */
+  .sub{ font-size:13px; max-width:30ch; }
+  .sig{ display:none; }
+
+  /* horizontal seam */
+  .seam{
+    left:0; right:0; top:calc(var(--x) * 100%); bottom:auto;
+    width:auto; height:var(--edge);
+    transform:translateY(-50%);
+    background:linear-gradient(90deg,
+      rgba(231,85,59,0) 0%, rgba(231,85,59,.9) 12%,
+      rgba(255,255,255,.95) 50%, rgba(231,85,59,.9) 88%, rgba(231,85,59,0) 100%);
+  }
+  .seam__grip{ left:50%; top:50%; }
+  .seam__grip::before,.seam__grip::after{ top:auto; left:50%; transform:translateX(-50%); border:0; width:0;height:0; }
+  .seam__grip::before{ top:11px; border-left:5px solid transparent; border-right:5px solid transparent; border-bottom:7px solid #fff; }
+  .seam__grip::after{ bottom:11px; border-left:5px solid transparent; border-right:5px solid transparent; border-top:7px solid #fff; }
+  .seam__readout{ transform:translate(-50%,-50%) translateX(0) translateY(0); top:50%; left:calc(50% + 44px); }
+
+  /* tiles: letterbox (contain) so landscape art is never cropped on portrait */
+  .world__tiles{ padding:14px 4vw 14vh; gap:10px; }
+  .world--day .world__tiles{ justify-content:flex-start; }
+  .tile{ width:34vw; max-width:150px; }
+  .tile img,.tile video{ object-fit:contain; background:#111; }
+  .world--day .tile img,.world--day .tile video{ background:#e7e2d8; }
+
+  .split-row{ grid-template-columns:1fr; }
+  .panel{ min-height:56vh; }
+  .panel__media img,.panel__media video{ object-fit:cover; }
+  .strip{ grid-template-columns:1fr 1fr; }
+  .howto{ font-size:9.5px; padding:6px 11px; }
+}
+
+/* =========================================================================
+   REDUCED MOTION - freeze the split at 50/50, no rAF override, no drop anim,
+   no autoplay. Everything renders as a static final state.
+   ========================================================================= */
+@media (prefers-reduced-motion:reduce){
+  :root{ --x:0.5; }
+  .scrollcue .bar{ animation:none; transform:scaleY(.6); }
+  .stage{ cursor:auto; }
+  .howto{ opacity:0; }
+  *{ scroll-behavior:auto; }
+}
+
+:focus-visible{ outline:2px solid var(--accent); outline-offset:3px; border-radius:4px; }
+.skip{ position:absolute; left:-9999px; top:0; z-index:50; background:#000; color:#fff; padding:10px 14px; }
+.skip:focus{ left:8px; top:8px; }
+
+/* keyboard seam control: near-invisible until focused, then a real visible
+   pill so keyboard users get a perceivable focus target and know its purpose */
+.seamSlider{
+  position:absolute; left:8px; bottom:8px; z-index:8; width:180px;
+  height:26px; cursor:pointer; opacity:.001;
+  transition:opacity .2s;
+}
+.seamSlider:focus-visible{
+  opacity:1;
+  background:rgba(10,10,10,.55);
+  border:1px solid rgba(255,255,255,.35);
+  border-radius:999px; padding:0 10px;
+  backdrop-filter:blur(6px);
+  outline:2px solid var(--accent); outline-offset:3px;
+  accent-color:var(--accent);
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#process">Skip to studio process</a>
+
+<!-- =========================================================================
+     THE BISECT STAGE
+     ========================================================================= -->
+<main>
+<section class="stage" id="stage" aria-label="Cursor-bisected dual composition. Two worlds split at the cursor.">
+
+  <!-- NIGHT world (left / top on mobile) -->
+  <div class="world world--night" id="worldNight">
+    <img class="world__bg" id="nightBg" alt="" decoding="async" fetchpriority="high">
+    <div class="world__scrim"></div>
+    <div class="world__tiles" id="nightTiles"></div>
+  </div>
+
+  <!-- DAY world (right / bottom on mobile) -->
+  <div class="world world--day" id="worldDay">
+    <img class="world__bg" id="dayBg" alt="" decoding="async" fetchpriority="high">
+    <div class="world__scrim"></div>
+    <div class="world__tiles" id="dayTiles"></div>
+  </div>
+
+  <!-- mirrored type, one stack per world -->
+  <div class="copy" aria-hidden="false">
+    <div class="copy__band copy--night">
+      <div class="sig" id="nightSig"></div>
+      <p class="eyebrow"><span class="dot"></span><span id="nightEyebrow"></span></p>
+      <h1 class="headline" id="nightHead"></h1>
+      <p class="sub" id="nightSub"></p>
+    </div>
+    <div class="copy__band copy--day">
+      <div class="sig" id="daySig"></div>
+      <p class="eyebrow"><span class="dot"></span><span id="dayEyebrow"></span></p>
+      <h2 class="headline" id="dayHead"></h2>
+      <p class="sub" id="daySub"></p>
+    </div>
+  </div>
+
+  <!-- the only edge: the luminous seam -->
+  <div class="seam" id="seam" aria-hidden="true">
+    <div class="seam__grip"></div>
+    <div class="seam__readout" id="readout">50 / 50</div>
+  </div>
+
+  <div class="howto" id="howto">move to bisect the two worlds</div>
+  <div class="scrollcue"><span>scroll</span><span class="bar"></span></div>
+
+  <!-- a11y: a real slider so keyboard users can move the seam -->
+  <input id="seamSlider" class="seamSlider" type="range" min="2" max="98" value="50" step="1"
+         aria-label="Bisect position between night studio and day delivery">
+</section>
+
+<!-- =========================================================================
+     BELOW THE FOLD
+     ========================================================================= -->
+<div class="scroll" id="scroll">
+  <div class="split-row">
+    <div class="panel panel--night">
+      <div class="panel__media" id="rowNightMedia"></div>
+      <div class="panel__body">
+        <p class="panel__k" id="rowNightK"></p>
+        <h3 class="panel__h" id="rowNightH"></h3>
+        <p class="panel__p" id="rowNightP"></p>
+      </div>
+    </div>
+    <div class="panel panel--day">
+      <div class="panel__media" id="rowDayMedia"></div>
+      <div class="panel__body">
+        <p class="panel__k" id="rowDayK"></p>
+        <h3 class="panel__h" id="rowDayH"></h3>
+        <p class="panel__p" id="rowDayP"></p>
+      </div>
+    </div>
+  </div>
+
+  <section class="process" id="process">
+    <div class="process__head">
+      <h2 class="process__title" id="procTitle"></h2>
+      <span class="process__meta" id="procMeta"></span>
+    </div>
+    <div class="strip" id="strip"></div>
+  </section>
+
+  <footer>
+    <span id="footL"></span>
+    <span>BISECT <span class="accent">/</span> cursor-split dual composition</span>
+  </footer>
+</div>
+</main>
+
+<script>
+/* =========================================================================
+   DATA - swap everything here. Two worlds + below-fold rows + process strip.
+   Media paths are relative to /showcase/templates/  ->  ../assets/
+   ========================================================================= */
+const DATA = {
+  brand: "VESPER STUDIO",
+  // LEFT / TOP world: the night, the making, the studio
+  night: {
+    sig: "01 / studio",
+    eyebrow: "after dark, the process",
+    head: ["Built in the", "<em>dark</em>."],
+    sub: "Night side: the rig, the takes, the rendered-but-not-yet-graded. The work as it actually gets made.",
+    bg: "../assets/flux-car-4k.png",
+    bgAlt: "Matte-black Mercedes on a wet neon street at night",
+    tiles: [
+      { type:"video", src:"../assets/flux-car-i2v.mp4",  poster:"../assets/gen/poster-flux-car-i2v.png", tag:"i2v / rig take" },
+      { type:"video", src:"../assets/kling-video.mp4",   poster:"../assets/gen/poster-kling-video.png",   tag:"kling / motion" },
+      { type:"img",   src:"../assets/hf-tinysd.png",     tag:"lo-fi pass" }
+    ]
+  },
+  // RIGHT / BOTTOM world: the day, the delivery, the finished room
+  day: {
+    sig: "02 / delivered",
+    eyebrow: "in daylight, the result",
+    head: ["Handed back in", "<em>light</em>."],
+    sub: "Day side: the clean clinic, the graded plate, the avatar that talks. The work as the client receives it.",
+    bg: "../assets/flux-clinic-4k.png",
+    bgAlt: "Bright mint and wood dental clinic interior",
+    tiles: [
+      { type:"video", src:"../assets/veo-video.mp4",        poster:"../assets/gen/poster-veo-video.png",   tag:"veo / final" },
+      { type:"video", src:"../assets/heygen-avatar.mp4",    poster:"../assets/gen/poster-heygen.png",       tag:"avatar / VO" },
+      { type:"img",   src:"../assets/sdxl.png",             tag:"key art" }
+    ]
+  },
+  // below the fold: two echoing panels
+  rows: {
+    night: {
+      k: "the night room",
+      h: ["Render farm hums,", "<em>nobody</em> sleeps."],
+      p: "Every frame in this template is a real generated asset. The night panel runs its hero video; the day panel runs the finished cut.",
+      media: { type:"video", src:"../assets/fal-video.mp4", poster:"../assets/gen/poster-fal-video.png" }
+    },
+    day: {
+      k: "the day room",
+      h: ["Client opens it", "and it just <em>works</em>."],
+      p: "Same pipeline, two faces. Swap the DATA object to point both worlds at your own studio-vs-delivery story.",
+      media: { type:"img", src:"../assets/flux-clinic-4k.png" }
+    }
+  },
+  // process strip (night-themed, poster-first, plays on hover/focus only)
+  process: {
+    title: ["From rig to ", "<em>delivery</em>"],
+    meta: "6 assets / one pipeline",
+    cells: [
+      { type:"video", src:"../assets/hyperframes.mp4",      poster:"../assets/gen/poster-hyperframes.png", cap:"hyperframes" },
+      { type:"video", src:"../assets/did-talking-photo.mp4",poster:"../assets/gen/poster-did.png",         cap:"d-id / talking" },
+      { type:"img",   src:"../assets/flux-car-4k.png",                                                     cap:"flux car 4k" },
+      { type:"img",   src:"../assets/flux-clinic-4k.png",                                                  cap:"flux clinic 4k" },
+      { type:"video", src:"../assets/kling-video.mp4",      poster:"../assets/gen/poster-kling-video.png", cap:"kling" },
+      { type:"img",   src:"../assets/sdxl.png",                                                            cap:"sdxl fox" }
+    ]
+  },
+  footer: "VESPER STUDIO / media pipeline / 2026"
+};
+
+/* ---------------------------------------------------------------------- */
+const $  = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>[...r.querySelectorAll(s)];
+const REDUCED = matchMedia("(prefers-reduced-motion:reduce)").matches;
+const isMobile = ()=> matchMedia("(max-width:640px)").matches;
+
+/* ---- paint the static text + backgrounds ----------------------------- */
+function paintText(){
+  $("#nightSig").textContent     = DATA.night.sig;
+  $("#nightEyebrow").textContent = DATA.night.eyebrow;
+  $("#nightHead").innerHTML      = DATA.night.head.join("<br>");
+  $("#nightSub").textContent     = DATA.night.sub;
+
+  $("#daySig").textContent       = DATA.day.sig;
+  $("#dayEyebrow").textContent   = DATA.day.eyebrow;
+  $("#dayHead").innerHTML        = DATA.day.head.join("<br>");
+  $("#daySub").textContent       = DATA.day.sub;
+
+  const nb = $("#nightBg"); nb.src = DATA.night.bg; nb.alt = DATA.night.bgAlt;
+  const db = $("#dayBg");   db.src = DATA.day.bg;   db.alt = DATA.day.bgAlt;
+
+  $("#footL").textContent = DATA.footer;
+}
+
+/* ---- secondary tiles: poster-first, ONE plays at a time -------------- */
+let activeVid = null;
+
+/* a single observer that pauses whichever video is currently playing the
+   moment it scrolls out of view, no matter which section it lives in. This
+   guarantees no off-screen video keeps decoding, and combined with stopActive()
+   guarantees at most one playing video on the whole page at any time. */
+const playGate = new IntersectionObserver((ents)=>{
+  ents.forEach(en=>{
+    if(!en.isIntersecting && en.target === activeVid){ stopActive(); }
+  });
+},{ threshold:0.25 });
+
+function stopActive(){
+  if(activeVid){
+    activeVid.pause();
+    activeVid.closest(".tile,.strip__cell")?.classList.remove("is-playing");
+    playGate.unobserve(activeVid);
+    activeVid = null;
+  }
+}
+function startVid(v, fig){
+  if(REDUCED) return;
+  stopActive();
+  v.play().then(()=>{ activeVid = v; fig.classList.add("is-playing"); playGate.observe(v); }).catch(()=>{});
+}
+function tileEl(t){
+  const fig = document.createElement("figure");
+  fig.className = "tile";
+  fig.tabIndex = 0;
+  if(t.type === "video"){
+    const v = document.createElement("video");
+    v.muted = true; v.loop = true; v.playsInline = true; v.preload = "none";
+    v.poster = t.poster || ""; v.src = t.src;
+    fig.appendChild(v);
+    const play = document.createElement("div"); play.className = "tile__play"; fig.appendChild(play);
+    const focusPlay = ()=>{ startVid(v, fig); };
+    const blurStop  = ()=>{ if(activeVid===v) stopActive(); };
+    fig.addEventListener("mouseenter", focusPlay);
+    fig.addEventListener("mouseleave", blurStop);
+    fig.addEventListener("focus", focusPlay);
+    fig.addEventListener("blur", blurStop);
+    fig.addEventListener("click", focusPlay);
+  } else {
+    const img = document.createElement("img");
+    img.src = t.src; img.alt = t.tag || ""; img.loading = "lazy"; img.decoding = "async";
+    fig.appendChild(img);
+  }
+  if(t.tag){ const tag = document.createElement("figcaption"); tag.className = "tile__tag"; tag.textContent = t.tag; fig.appendChild(tag); }
+  return fig;
+}
+function paintTiles(){
+  const nt = $("#nightTiles"), dt = $("#dayTiles");
+  DATA.night.tiles.forEach(t=> nt.appendChild(tileEl(t)));
+  DATA.day.tiles.forEach(t=> dt.appendChild(tileEl(t)));
+}
+
+/* ---- below-the-fold rows + process strip ----------------------------- */
+function mediaInto(host, m, cover=true){
+  if(m.type === "video"){
+    const v = document.createElement("video");
+    v.muted=true; v.loop=true; v.playsInline=true; v.preload="none";
+    v.poster=m.poster||""; v.dataset.src=m.src;
+    host.appendChild(v);
+  } else {
+    const img = document.createElement("img");
+    img.src=m.src; img.alt=""; img.loading="lazy"; img.decoding="async";
+    host.appendChild(img);
+  }
+}
+function paintRows(){
+  const R = DATA.rows;
+  $("#rowNightK").textContent = R.night.k;
+  $("#rowNightH").innerHTML   = R.night.h.join(" ");
+  $("#rowNightP").textContent = R.night.p;
+  $("#rowDayK").textContent   = R.day.k;
+  $("#rowDayH").innerHTML     = R.day.h.join(" ");
+  $("#rowDayP").textContent   = R.day.p;
+  mediaInto($("#rowNightMedia"), R.night.media);
+  mediaInto($("#rowDayMedia"),   R.day.media);
+
+  $("#procTitle").innerHTML = DATA.process.title.join("");
+  $("#procMeta").textContent = DATA.process.meta;
+  const strip = $("#strip");
+  DATA.process.cells.forEach(c=>{
+    const fig = document.createElement("figure");
+    fig.className = "strip__cell"; fig.tabIndex = 0;
+    if(c.type === "video"){
+      const v = document.createElement("video");
+      v.muted=true; v.loop=true; v.playsInline=true; v.preload="none"; v.poster=c.poster||""; v.src=c.src;
+      fig.appendChild(v);
+      const play=document.createElement("div"); play.className="tile__play"; fig.appendChild(play);
+      const on=()=>{ startVid(v, fig); };
+      const off=()=>{ if(activeVid===v) stopActive(); };
+      fig.addEventListener("mouseenter",on); fig.addEventListener("mouseleave",off);
+      fig.addEventListener("focus",on); fig.addEventListener("blur",off); fig.addEventListener("click",on);
+    } else {
+      const img=document.createElement("img"); img.src=c.src; img.alt=c.cap||""; img.loading="lazy"; img.decoding="async";
+      fig.appendChild(img);
+    }
+    if(c.cap){ const cap=document.createElement("figcaption"); cap.textContent=c.cap; fig.appendChild(cap); }
+    strip.appendChild(fig);
+  });
+}
+
+/* =========================================================================
+   THE BISECT - one pointermove listener, rAF-batched write to --x.
+   Desktop: horizontal (cursor X). Mobile: vertical touch-drag (cursor Y).
+   ========================================================================= */
+const root   = document.documentElement;
+const stage  = $("#stage");
+const seam   = $("#seam");
+const readout= $("#readout");
+const howto  = $("#howto");
+const slider = $("#seamSlider");
+
+let targetFrac = 0.5;     // where the seam wants to be (0..1)
+let frac       = 0.5;     // smoothed current value
+let raf = null;
+let moved = false;
+
+function setFracFromEvent(e){
+  const r = stage.getBoundingClientRect();
+  if(isMobile()){
+    const y = (e.clientY ?? (e.touches && e.touches[0]?.clientY)) - r.top;
+    targetFrac = Math.min(0.92, Math.max(0.08, y / r.height));
+  } else {
+    const x = (e.clientX ?? (e.touches && e.touches[0]?.clientX)) - r.left;
+    targetFrac = Math.min(0.98, Math.max(0.02, x / r.width));
+  }
+  if(!moved){ moved = true; howto.classList.add("is-hidden"); }
+  schedule();
+}
+
+function schedule(){ if(raf == null) raf = requestAnimationFrame(tick); }
+
+function tick(){
+  raf = null;
+  // light easing toward target so the seam glides instead of snapping
+  frac += (targetFrac - frac) * (REDUCED ? 1 : 0.22);
+  if(Math.abs(targetFrac - frac) < 0.0008) frac = targetFrac;
+  root.style.setProperty("--x", frac.toFixed(4));
+  const pct = Math.round(frac * 100);
+  readout.textContent = isMobile() ? `${pct} / ${100-pct} (v)` : `${pct} / ${100-pct}`;
+  if(slider) slider.value = pct;
+  if(Math.abs(targetFrac - frac) > 0.0006 && !REDUCED) schedule();
+}
+
+if(!REDUCED){
+  // desktop pointer
+  stage.addEventListener("pointermove", setFracFromEvent, { passive:true });
+  // mobile: only react to active touch-drag (so the page can still scroll)
+  let dragging = false;
+  stage.addEventListener("touchstart", (e)=>{ dragging = true; setFracFromEvent(e); }, { passive:true });
+  stage.addEventListener("touchmove",  (e)=>{ if(dragging){ setFracFromEvent(e); } }, { passive:true });
+  stage.addEventListener("touchend",   ()=>{ dragging = false; });
+} else {
+  root.style.setProperty("--x", "0.5");
+  readout.textContent = "50 / 50";
+}
+
+// keyboard a11y: the (near-invisible) range slider moves the seam
+slider.addEventListener("input", ()=>{
+  targetFrac = Math.min(0.98, Math.max(0.02, slider.value/100));
+  howto.classList.add("is-hidden"); moved = true;
+  schedule();
+});
+
+/* ---- in-view gating: pause every video when the stage scrolls away ---- */
+const io = new IntersectionObserver((ents)=>{
+  ents.forEach(en=>{
+    if(!en.isIntersecting && activeVid){ stopActive(); }
+  });
+},{ threshold:0.05 });
+io.observe(stage);
+
+// lazy-attach below-fold video sources only when their row scrolls in
+const lazyIO = new IntersectionObserver((ents)=>{
+  ents.forEach(en=>{
+    if(en.isIntersecting){
+      const v = en.target;
+      if(v.dataset.src && !v.src){ v.src = v.dataset.src; }
+      en.target.removeAttribute("data-pending");
+      lazyIO.unobserve(v);
+    }
+  });
+},{ rootMargin:"200px" });
+
+/* ---- boot ------------------------------------------------------------ */
+paintText();
+paintTiles();
+paintRows();
+$$("video[data-src]").forEach(v=> lazyIO.observe(v));
+root.style.setProperty("--x", "0.5");   // start exactly 50/50, both worlds full
+readout.textContent = "50 / 50";
+
+// re-evaluate readout orientation if the viewport crosses the mobile breakpoint
+matchMedia("(max-width:640px)").addEventListener?.("change", ()=>{ targetFrac=0.5; frac=0.5; schedule(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,701 @@
+<!-- TEMPLATE: Paper Trail (0 kB JS) | ARCHETYPE: pure-scroll CSS scroll-timeline gallery | REF: CSS Scroll-Driven Animations spec (Baseline 2024), Codrops Creative Uses of Scroll-Driven Animations | WHEN TO USE: zero-JS portfolio/editorial gallery where the scroll choreography IS the brand and you want no runtime cost | SWAP: edit the inline <article> works below (no JS DATA array on purpose - this template ships zero JavaScript) -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Paper Trail - a gallery built with 0 kB of JavaScript</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     PAPER TRAIL  -  zero JavaScript, pure CSS scroll-driven gallery
+     Mechanic: animation-timeline: scroll(root) + view() bound to
+     @keyframes, with @property animated custom properties. Each
+     <article> declares its own entrance choreography in CSS.
+     ============================================================ */
+
+  /* ---- animated custom properties (needed for smooth color/transform tweens) ---- */
+  @property --reveal {
+    syntax: "<number>"; inherits: false; initial-value: 0;
+  }
+  @property --tint {
+    syntax: "<number>"; inherits: false; initial-value: 0;
+  }
+
+  :root {
+    --paper: #f8f5f0;
+    --paper-2: #f1ece3;
+    --ink: #111111;
+    --ink-60: rgba(17, 17, 17, 0.6);
+    --ink-30: rgba(17, 17, 17, 0.3);
+    --line: rgba(17, 17, 17, 0.14);
+    --serif: "Fraunces", Georgia, "Times New Roman", serif;
+    --mono: "Space Grotesk", ui-monospace, "SFMono-Regular", monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--mono);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    /* faint paper grain via layered radial dots, still 0 JS */
+    background-image:
+      radial-gradient(rgba(17,17,17,0.025) 1px, transparent 1px);
+    background-size: 4px 4px;
+  }
+
+  ::selection { background: var(--ink); color: var(--paper); }
+
+  a { color: inherit; }
+
+  /* ====================  FIXED HEADER + PROGRESS  ==================== */
+  header.chrome {
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.85rem clamp(1rem, 4vw, 2.4rem);
+    background: color-mix(in srgb, var(--paper) 86%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .wordmark {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: clamp(1rem, 2.4vw, 1.25rem);
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+  .wordmark span { font-style: italic; color: var(--ink-60); }
+
+  .badge {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.4rem 0.7rem 0.4rem 0.5rem;
+    border: 1.5px solid var(--ink);
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .badge svg { display: block; width: 16px; height: 16px; flex: none; }
+  .badge .pulse {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--ink);
+    animation: blink 2.4s steps(1, end) infinite;
+  }
+  @keyframes blink { 0%, 70% { opacity: 1; } 71%, 100% { opacity: 0.25; } }
+
+  /* CSS-only reading-progress bar - driven by document scroll, no JS */
+  .progress {
+    position: fixed;
+    inset: auto 0 auto 0;
+    top: calc(0.85rem + 1.25rem + 0.85rem); /* sits just under the header bar */
+    height: 2px;
+    z-index: 49;
+    transform-origin: 0 50%;
+    background: var(--ink);
+    transform: scaleX(0);
+  }
+
+  /* ====================  HERO BAND (compact top band; mechanic stays visible below)  ==================== */
+  .hero {
+    padding: clamp(4.4rem, 6.5vw, 5.2rem) clamp(1rem, 4vw, 2.4rem) clamp(1.1rem, 2vw, 1.5rem);
+    max-width: 1320px;
+    margin: 0 auto;
+  }
+  /* on tall desktop viewports keep the hero a true band, never a full screen */
+  @media (min-width: 861px) {
+    .hero { display: grid; grid-template-columns: 1.35fr 1fr; gap: clamp(1.4rem, 4vw, 3rem); align-items: end; }
+    .hero .lede-wrap { grid-column: 2; align-self: end; }
+    .hero h1 { grid-column: 1; grid-row: 1 / span 2; }
+    .hero .kicker { grid-column: 1; }
+  }
+  .kicker {
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-60);
+    margin: 0 0 0.6rem;
+  }
+  .hero h1 {
+    font-family: var(--serif);
+    font-weight: 300;
+    font-size: clamp(2.1rem, 5.6vw, 4rem);
+    line-height: 0.98;
+    letter-spacing: -0.025em;
+    margin: 0 0 0.6rem;
+    max-width: 15ch;
+  }
+  .hero h1 em { font-style: italic; }
+  .hero p.lede {
+    font-family: var(--mono);
+    font-size: clamp(0.86rem, 1.4vw, 0.96rem);
+    line-height: 1.5;
+    color: var(--ink-60);
+    max-width: 46ch;
+    margin: 0;
+  }
+  .hero .scroll-hint {
+    margin-top: 1rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.74rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-60);
+  }
+  .hero .scroll-hint .arrow {
+    width: 1px; height: 26px; background: var(--ink-30);
+    position: relative;
+  }
+  .hero .scroll-hint .arrow::after {
+    content: ""; position: absolute; left: -3px; bottom: 0;
+    width: 7px; height: 7px;
+    border-right: 1px solid var(--ink-60);
+    border-bottom: 1px solid var(--ink-60);
+    transform: rotate(45deg);
+    animation: nudge 1.8s ease-in-out infinite;
+  }
+  @keyframes nudge { 0%,100% { transform: translateY(-3px) rotate(45deg); opacity:0.4; } 50% { transform: translateY(2px) rotate(45deg); opacity:1; } }
+
+  /* ====================  GALLERY  ==================== */
+  .gallery {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 0 clamp(1rem, 4vw, 2.4rem) clamp(4rem, 10vw, 7rem);
+  }
+
+  /* a work = label column + framed media. Default static state (fallback). */
+  .work {
+    --tint: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.55fr);
+    gap: clamp(1.4rem, 4vw, 3.2rem);
+    align-items: center;
+    padding: clamp(2.6rem, 7vw, 5.5rem) 0;
+    border-top: 1px solid var(--line);
+    opacity: 1; /* <-- static fallback baseline; enhanced layer overrides */
+  }
+  .work:first-of-type { border-top: 0; }
+
+  .work .meta { min-width: 0; }
+  .work .idx {
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.18em;
+    color: var(--ink-30);
+    margin: 0 0 0.7rem;
+  }
+  .work h2 {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: clamp(1.7rem, 4.4vw, 3rem);
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+    margin: 0 0 0.7rem;
+  }
+  .work h2 em { font-style: italic; color: var(--ink-60); }
+  .work .desc {
+    font-family: var(--mono);
+    font-size: clamp(0.86rem, 1.5vw, 0.98rem);
+    line-height: 1.55;
+    color: var(--ink-60);
+    margin: 0 0 1.1rem;
+    max-width: 40ch;
+  }
+  .work .tags {
+    display: flex; flex-wrap: wrap; gap: 0.4rem;
+    list-style: none; margin: 0; padding: 0;
+  }
+  .work .tags li {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.28rem 0.6rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--ink-60);
+  }
+
+  /* the framed media - the "tint" custom prop tints the frame toward the work's accent */
+  .frame {
+    position: relative;
+    margin: 0;
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--paper-2);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.6) inset,
+      0 18px 40px -28px rgba(17,17,17,0.5);
+    /* accent ring fades in as the work tints */
+    outline: 1px solid color-mix(in srgb, var(--accent, #111) calc(var(--tint) * 100%), var(--line));
+    outline-offset: -1px;
+  }
+  /* letterbox: media is contained inside a fixed-ratio stage, never cover-cropped */
+  .stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: var(--ar, 16 / 9);
+    background:
+      linear-gradient(180deg,
+        color-mix(in srgb, var(--accent, #111) calc(var(--tint) * 9%), var(--paper-2)),
+        var(--paper-2));
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+  }
+  .stage img,
+  .stage video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* letterbox, do NOT cover-crop */
+    display: block;
+    /* subtle desaturate -> full color as the work tints in */
+    filter: saturate(calc(0.55 + var(--tint) * 0.45)) contrast(1.02);
+  }
+  /* square assets letterbox against a tinted matte instead of stretching */
+  .stage.square img { width: auto; height: 100%; max-width: 100%; }
+
+  figcaption {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 0.7rem 0.9rem;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    color: var(--ink-60);
+    border-top: 1px solid var(--line);
+  }
+  figcaption .accent-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent, var(--ink));
+    flex: none;
+    transform: scale(calc(0.4 + var(--tint) * 0.6));
+  }
+  figcaption .right { white-space: nowrap; }
+
+  /* media credit corner ribbon */
+  .stage .corner {
+    position: absolute;
+    top: 0.7rem; left: 0.7rem;
+    z-index: 2;
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.24rem 0.5rem;
+    background: color-mix(in srgb, var(--paper) 80%, transparent);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--ink-60);
+    backdrop-filter: blur(4px);
+  }
+
+  /* ====================  FOOTER  ==================== */
+  footer.outro {
+    border-top: 1px solid var(--line);
+    padding: clamp(3rem, 8vw, 6rem) clamp(1rem, 4vw, 2.4rem) clamp(2.4rem, 6vw, 4rem);
+    max-width: 1320px;
+    margin: 0 auto;
+  }
+  footer.outro h2 {
+    font-family: var(--serif);
+    font-weight: 300;
+    font-size: clamp(1.8rem, 5vw, 3.4rem);
+    letter-spacing: -0.02em;
+    line-height: 1.04;
+    margin: 0 0 1rem;
+    max-width: 18ch;
+  }
+  footer.outro h2 em { font-style: italic; }
+  footer.outro p {
+    font-family: var(--mono);
+    color: var(--ink-60);
+    font-size: 0.92rem;
+    line-height: 1.6;
+    max-width: 52ch;
+    margin: 0 0 1.6rem;
+  }
+  footer.outro .specsheet {
+    display: flex; flex-wrap: wrap; gap: 0.5rem 0.6rem;
+    list-style: none; padding: 0; margin: 0;
+  }
+  footer.outro .specsheet li {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    padding: 0.4rem 0.7rem;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    color: var(--ink-60);
+  }
+  footer.outro .specsheet li b { color: var(--ink); font-weight: 700; }
+
+  /* focus visibility for keyboard users */
+  a:focus-visible,
+  .badge:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  /* ============================================================
+     ENHANCED LAYER  -  only applies where scroll timelines work.
+     @supports gates the whole choreography. Unsupported browsers
+     keep the static opacity:1 baseline above (graceful fallback).
+     ============================================================ */
+  @supports (animation-timeline: scroll(root)) {
+
+    /* -- 1. reading progress bar, driven by the root scroller -- */
+    .progress {
+      animation: grow-progress linear forwards;
+      animation-timeline: scroll(root);
+    }
+    @keyframes grow-progress {
+      from { transform: scaleX(0); }
+      to   { transform: scaleX(1); }
+    }
+
+    /* -- 2. shared "tint" sweep: each work colorizes as it enters view -- */
+    .work {
+      animation: tint-in linear both;
+      animation-timeline: view();
+      animation-range: entry 5% cover 42%;
+    }
+    @keyframes tint-in {
+      from { --tint: 0; }
+      to   { --tint: 1; }
+    }
+
+    /* -- 3. per-work DISTINCT entrance choreographies -- */
+    /* the gallery wrapper is the named view-timeline source for the media frames */
+    .frame {
+      animation: linear both;
+      animation-timeline: view();
+    }
+
+    /* card 1: FADE + lift. Range starts BEFORE the element's natural entry,
+       so at scroll=0 the first card is already mid-entrance (proves CSS is live). */
+    .work:nth-of-type(1) .frame {
+      animation-name: enter-fade;
+      animation-range: cover 0% cover 34%;
+    }
+    @keyframes enter-fade {
+      from { opacity: 0.15; transform: translateY(26px) scale(0.985); }
+      to   { opacity: 1;    transform: translateY(0)    scale(1); }
+    }
+
+    /* card 2: SLIDE in from the left, de-skew */
+    .work:nth-of-type(2) .frame {
+      animation-name: enter-left;
+      animation-range: entry 8% cover 40%;
+    }
+    @keyframes enter-left {
+      from { opacity: 0; transform: translateX(-9%) skewX(-3deg); }
+      to   { opacity: 1; transform: translateX(0)   skewX(0); }
+    }
+
+    /* card 3: ROTATE up from below the baseline */
+    .work:nth-of-type(3) .frame {
+      animation-name: enter-rotate;
+      transform-origin: 100% 100%;
+      animation-range: entry 6% cover 44%;
+    }
+    @keyframes enter-rotate {
+      from { opacity: 0; transform: rotate(7deg) translateY(40px); }
+      to   { opacity: 1; transform: rotate(0)    translateY(0); }
+    }
+
+    /* card 4: SCALE / iris open */
+    .work:nth-of-type(4) .frame {
+      animation-name: enter-scale;
+      animation-range: entry 8% cover 42%;
+    }
+    @keyframes enter-scale {
+      from { opacity: 0; transform: scale(1.08); clip-path: inset(8% 8% 8% 8% round 4px); }
+      to   { opacity: 1; transform: scale(1);    clip-path: inset(0 0 0 0 round 4px); }
+    }
+
+    /* card 5: SLIDE from the right, with a counter-drift on the meta */
+    .work:nth-of-type(5) .frame {
+      animation-name: enter-right;
+      animation-range: entry 8% cover 40%;
+    }
+    @keyframes enter-right {
+      from { opacity: 0; transform: translateX(9%) translateY(18px); }
+      to   { opacity: 1; transform: translateX(0)  translateY(0); }
+    }
+
+    /* card 6: blur-to-sharp focus pull */
+    .work:nth-of-type(6) .frame {
+      animation-name: enter-focus;
+      animation-range: entry 8% cover 44%;
+    }
+    @keyframes enter-focus {
+      from { opacity: 0; filter: blur(10px); transform: translateY(22px) scale(0.97); }
+      to   { opacity: 1; filter: blur(0);    transform: translateY(0)    scale(1); }
+    }
+
+    /* meta text drifts up softly per work (cheap parallax, all CSS) */
+    .work .meta {
+      animation: meta-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 40%;
+    }
+    @keyframes meta-rise {
+      from { opacity: 0.2; transform: translateY(22px); }
+      to   { opacity: 1;   transform: translateY(0); }
+    }
+  }
+
+  /* ====================  REDUCED MOTION  ====================
+     Kill every scroll-bound animation, blink, nudge and tint sweep.
+     Lock everything to its final, fully-visible state. */
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      animation: none !important;
+      transition: none !important;
+    }
+    .work { --tint: 1; opacity: 1 !important; }
+    .frame {
+      opacity: 1 !important;
+      transform: none !important;
+      filter: none !important;
+      clip-path: none !important;
+    }
+    .stage img, .stage video { filter: none !important; }
+    .work .meta { opacity: 1 !important; transform: none !important; }
+    .progress { transform: scaleX(1); } /* show as full, static rule under header */
+  }
+
+  /* ====================  MOBILE  ====================
+     Stack to a single column; media stays letterboxed (object-fit:contain),
+     so a 16:9 asset never cover-crops into a portrait phone viewport. */
+  @media (max-width: 860px) {
+    .work { grid-template-columns: 1fr; gap: 1.4rem; }
+    .work .meta { order: 1; }
+    .frame { order: 2; }
+  }
+  @media (max-width: 640px) {
+    .progress { top: calc(0.78rem + 1.1rem + 0.78rem); }
+    .hero { padding-top: clamp(4.6rem, 16vw, 6rem); }
+    .hero h1 { font-size: clamp(2.1rem, 11vw, 3.4rem); }
+    .work { padding: 2.4rem 0; }
+    /* on phones, give every stage a comfortable, identical letterbox window */
+    .stage { aspect-ratio: 4 / 3; }
+    .stage.square { aspect-ratio: 1 / 1; }
+    .badge { font-size: 0.62rem; padding: 0.35rem 0.55rem; }
+  }
+  @media (max-width: 420px) {
+    .wordmark span { display: none; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- ====================  FIXED CHROME (stays ink-on-paper)  ==================== -->
+  <header class="chrome">
+    <div class="wordmark">Paper Trail <span>/ a no-script gallery</span></div>
+    <span class="badge" tabindex="0" aria-label="This page ships zero kilobytes of JavaScript">
+      <!-- inline SVG: fills are HEX literals, never var() in presentation attrs -->
+      <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+        <rect x="2" y="2" width="20" height="20" rx="5" fill="none" stroke="#111111" stroke-width="2"/>
+        <path d="M8 9 L5 12 L8 15 M16 9 L19 12 L16 15" fill="none" stroke="#111111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="pulse" aria-hidden="true"></span>
+      0&nbsp;kB&nbsp;JS
+    </span>
+  </header>
+
+  <!-- CSS-only reading progress; grows with scroll, no listeners -->
+  <div class="progress" role="presentation" aria-hidden="true"></div>
+
+  <!-- ====================  HERO (compact band, gallery starts on screen)  ==================== -->
+  <section class="hero">
+    <p class="kicker">Scroll-driven / CSS only / Baseline 2024</p>
+    <h1>The whole gallery <em>moves</em>, and not one byte is JavaScript.</h1>
+    <div class="lede-wrap">
+      <p class="lede">
+        Every reveal below runs on <code>animation-timeline: scroll()</code> and
+        <code>view()</code> bound to pure CSS keyframes. The first work is already
+        mid-entrance right now, before you touch the wheel - proof the animation is
+        live on load.
+      </p>
+      <span class="scroll-hint">Scroll to develop the film <span class="arrow" aria-hidden="true"></span></span>
+    </div>
+  </section>
+
+  <!-- ====================  GALLERY  ====================
+       NOTE: content is inlined as plain HTML on purpose. This template's whole
+       claim is ZERO JavaScript, so there is no JS DATA array. To swap a work,
+       edit its <article class="work"> block: change --accent, the <h2>, the
+       media source, and the figcaption. Order = entrance choreography
+       (1 fade, 2 slide-left, 3 rotate, 4 iris, 5 slide-right, 6 focus-pull). -->
+  <main class="gallery" id="works">
+
+    <!-- WORK 01 - FADE  (image, 16:9) -->
+    <article class="work" style="--accent:#c9472b;">
+      <div class="meta">
+        <p class="idx">Work 01 / Entrance: fade + lift</p>
+        <h2>Nocturne, <em>wet asphalt</em></h2>
+        <p class="desc">A matte-black coupe parked under sodium and neon. Generated still, graded toward the work's own ember accent as it crosses the fold.</p>
+        <ul class="tags"><li>FLUX</li><li>4K still</li><li>cinematic</li></ul>
+      </div>
+      <figure class="frame">
+        <div class="stage" style="--ar:16/9;">
+          <span class="corner">FLUX / image</span>
+          <img src="../assets/flux-car-4k.png" alt="A matte-black Mercedes coupe on a wet, neon-lit street at night" width="2048" height="1152" loading="eager" decoding="async" />
+        </div>
+        <figcaption><span><span class="accent-dot"></span> flux-car-4k.png</span><span class="right">2048 x 1152</span></figcaption>
+      </figure>
+    </article>
+
+    <!-- WORK 02 - SLIDE FROM LEFT  (video, 16:9) -->
+    <article class="work" style="--accent:#2f6f4f;">
+      <div class="meta">
+        <p class="idx">Work 02 / Entrance: slide from left</p>
+        <h2>Motion test, <em>in loop</em></h2>
+        <p class="desc">A short generated clip that slides in from the margin and de-skews onto the page. It rests on a poster and plays only when you press it - zero JS means no autoplay storm and no off-screen decode tax.</p>
+        <ul class="tags"><li>Kling</li><li>video loop</li><li>silent</li></ul>
+      </div>
+      <figure class="frame">
+        <div class="stage" style="--ar:16/9;">
+          <span class="corner">Kling / video</span>
+          <!-- zero JS, so NO autoplay: with no script there is no IntersectionObserver
+               to play only the in-view clip, and HTML autoplay would force BOTH videos
+               to decode at once on load (off-screen included). Instead each video rests
+               on its poster and plays only on the user's deliberate press of native
+               controls - never more than one decoding, never a decode storm, and
+               motion-safe under prefers-reduced-motion by construction. -->
+          <video
+            src="../assets/kling-video.mp4"
+            poster="../assets/gen/poster-kling-video.png"
+            muted loop playsinline controls preload="none"
+            width="1920" height="1080"
+            aria-label="Generated Kling motion clip, silent loop, press play"></video>
+        </div>
+        <figcaption><span><span class="accent-dot"></span> kling-video.mp4</span><span class="right">silent loop</span></figcaption>
+      </figure>
+    </article>
+
+    <!-- WORK 03 - ROTATE FROM BELOW  (square image, 1:1) -->
+    <article class="work" style="--accent:#b5651d;">
+      <div class="meta">
+        <p class="idx">Work 03 / Entrance: rotate up</p>
+        <h2>Vixen, <em>autumn palette</em></h2>
+        <p class="desc">A painterly square. It hinges up from its bottom-right corner as it scrolls in, then settles flat. Letterboxed against a tinted matte so the 1:1 frame never stretches.</p>
+        <ul class="tags"><li>SDXL</li><li>painterly</li><li>1:1</li></ul>
+      </div>
+      <figure class="frame">
+        <div class="stage square" style="--ar:1/1;">
+          <span class="corner">SDXL / image</span>
+          <img src="../assets/sdxl.png" alt="A painterly illustration of an autumn fox" width="512" height="512" loading="lazy" decoding="async" />
+        </div>
+        <figcaption><span><span class="accent-dot"></span> sdxl.png</span><span class="right">512 x 512</span></figcaption>
+      </figure>
+    </article>
+
+    <!-- WORK 04 - IRIS / SCALE  (video, 16:9) -->
+    <article class="work" style="--accent:#3a5fa0;">
+      <div class="meta">
+        <p class="idx">Work 04 / Entrance: iris open</p>
+        <h2>Veo render, <em>opened</em></h2>
+        <p class="desc">A clip that irises open from an inset crop to its full frame as it enters, scaling down from slightly over-size. The poster holds until you press play - no autoplay, no off-screen decode.</p>
+        <ul class="tags"><li>Veo</li><li>video loop</li><li>clip</li></ul>
+      </div>
+      <figure class="frame">
+        <div class="stage" style="--ar:16/9;">
+          <span class="corner">Veo / video</span>
+          <!-- zero JS, so NO autoplay (see Work 02): rests on its poster, plays only
+               on a deliberate press of native controls. preload="none" keeps it from
+               touching the network until then. -->
+          <video
+            src="../assets/veo-video.mp4"
+            poster="../assets/gen/poster-veo-video.png"
+            muted loop playsinline controls preload="none"
+            width="1280" height="720"
+            aria-label="Generated Veo clip, silent loop, press play"></video>
+        </div>
+        <figcaption><span><span class="accent-dot"></span> veo-video.mp4</span><span class="right">silent loop</span></figcaption>
+      </figure>
+    </article>
+
+    <!-- WORK 05 - SLIDE FROM RIGHT  (image, 16:9) -->
+    <article class="work" style="--accent:#1f8a8a;">
+      <div class="meta">
+        <p class="idx">Work 05 / Entrance: slide from right</p>
+        <h2>Clinic, <em>mint and wood</em></h2>
+        <p class="desc">A bright interior still that enters from the right margin and lifts into place. The frame ring and matte both warm toward the work's teal accent on the way in.</p>
+        <ul class="tags"><li>FLUX</li><li>4K still</li><li>interior</li></ul>
+      </div>
+      <figure class="frame">
+        <div class="stage" style="--ar:16/9;">
+          <span class="corner">FLUX / image</span>
+          <img src="../assets/flux-clinic-4k.png" alt="A mint and wood dental clinic interior, brightly lit" width="2048" height="1152" loading="lazy" decoding="async" />
+        </div>
+        <figcaption><span><span class="accent-dot"></span> flux-clinic-4k.png</span><span class="right">2048 x 1152</span></figcaption>
+      </figure>
+    </article>
+
+    <!-- WORK 06 - FOCUS PULL  (square image, 1:1) -->
+    <article class="work" style="--accent:#8a4fbf;">
+      <div class="meta">
+        <p class="idx">Work 06 / Entrance: focus pull</p>
+        <h2>Still life, <em>low-fi apple</em></h2>
+        <p class="desc">The last work arrives out of focus and racks sharp as it settles - a pure CSS blur-to-clear, no script, no library. Closes the reel on a square matte.</p>
+        <ul class="tags"><li>TinySD</li><li>abstract</li><li>1:1</li></ul>
+      </div>
+      <figure class="frame">
+        <div class="stage square" style="--ar:1/1;">
+          <span class="corner">TinySD / image</span>
+          <img src="../assets/hf-tinysd.png" alt="An abstract, low-fidelity rendering of an apple" width="512" height="512" loading="lazy" decoding="async" />
+        </div>
+        <figcaption><span><span class="accent-dot"></span> hf-tinysd.png</span><span class="right">512 x 512</span></figcaption>
+      </figure>
+    </article>
+
+  </main>
+
+  <!-- ====================  OUTRO  ==================== -->
+  <footer class="outro">
+    <h2>Built with the platform, <em>not on top of it.</em></h2>
+    <p>
+      Six works, six distinct entrances, a live reading-progress bar, and color that
+      develops as you scroll - all of it CSS. No bundler, no framework, no hydration,
+      nothing to wait for. Drop in your own media, keep the choreography.
+    </p>
+    <ul class="specsheet">
+      <li><b>0 kB</b> JavaScript</li>
+      <li><b>scroll()</b> progress bar</li>
+      <li><b>view()</b> per-work reveals</li>
+      <li><b>@property</b> animated tint</li>
+      <li><b>@supports</b> graceful fallback</li>
+      <li><b>contain</b> letterbox, no crop</li>
+      <li>honors <b>reduced-motion</b></li>
+    </ul>
+  </footer>
+
+</body>
+</html>

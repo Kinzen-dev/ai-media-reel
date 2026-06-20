@@ -1,0 +1,656 @@
+<!-- TEMPLATE: Lenticular Print | ARCHETYPE: lenticular-flip | REF: lenticular collectible-card revival (Awwwards SOTD nominees 2026), Codrops "Recreating Lenticular Effects with CSS Perspective" 2026 | WHEN TO USE: showcase paired works where each card has a finished face and a prompt/draft face that you reveal by tilting, not clicking - a print-flip catalog | SWAP: edit the DATA array at the top of <body> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Lenticular Print // Tilt-to-Flip Catalog</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+/* ===================================================================
+   LENTICULAR PRINT  -  tilt-to-flip catalog
+   Pure CSS preserve-3d. Each card is a 3D element with two faces:
+     FRONT  = the finished work
+     BACK   = the prompt / raw draft (mirrored, revealed past zero)
+   One passive pointermove listener per card writes --mx (cursor X
+   normalized -1..1 over the card bounds). --mx maps to rotateY in a
+   -22deg..+22deg sweep. Crossing rotateY=0 swaps faces via
+   backface-visibility:hidden. The tilt IS the interaction:
+   no scroll, no click required on desktop.
+   Mobile: DeviceOrientation gamma (left/right tilt) modulates around each
+   card's pre-tilt; tap locks a card face-forward with a detail overlay.
+   Reduced-motion: static, no tilt.
+   No WebGL, no canvas, no animation library.
+   =================================================================== */
+
+:root{
+  --graphite:#1c1c1e;      /* deep graphite card backing */
+  --graphite-2:#141416;
+  --bone:#f0ede8;          /* bone reverse face */
+  --bone-2:#e4dfd6;
+  --ink:#f4f2ee;
+  --ink-dim:#9a968e;
+  --hair:rgba(255,255,255,.10);
+  --hair-dark:rgba(0,0,0,.12);
+  --accent:#c8a877;        /* warm chrome-neutral foil hint */
+  --sweep:22deg;           /* max rotateY each way */
+  --ease:cubic-bezier(.2,.8,.2,1);
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;height:100%;}
+body{
+  background:
+    radial-gradient(125% 90% at 50% -8%, #26262a 0%, var(--graphite) 42%, var(--graphite-2) 100%);
+  color:var(--ink);
+  font-family:'Space Mono', ui-monospace, monospace;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+  min-height:100svh;
+}
+
+/* faint lenticular ridge texture over the whole page (the print "lens") */
+body::before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:repeating-linear-gradient(90deg,
+    rgba(255,255,255,.018) 0 1px, transparent 1px 4px);
+  mix-blend-mode:screen;opacity:.6;
+}
+
+a{color:inherit;}
+
+/* ---------- top band: headline overlays the grid, compact ---------- */
+.wrap{position:relative;z-index:1;max-width:1320px;margin:0 auto;padding:0 24px 80px;}
+
+header.band{
+  padding:30px 0 18px;
+  display:flex;flex-wrap:wrap;align-items:flex-end;
+  gap:14px 28px;border-bottom:1px solid var(--hair);
+  margin-bottom:30px;
+}
+.brand{display:flex;align-items:baseline;gap:14px;flex:1 1 auto;min-width:260px;}
+.brand h1{
+  font-family:'Fraunces',serif;font-weight:900;
+  font-size:clamp(30px,5.4vw,62px);line-height:.92;letter-spacing:-.02em;
+  margin:0;
+}
+.brand h1 em{font-style:italic;color:var(--accent);}
+.brand .sub{
+  font-size:11px;letter-spacing:.26em;text-transform:uppercase;
+  color:var(--ink-dim);white-space:nowrap;padding-bottom:6px;
+}
+.hint{
+  font-size:11px;letter-spacing:.05em;color:var(--ink-dim);
+  max-width:430px;line-height:1.55;
+}
+.hint b{color:var(--accent);font-weight:700;letter-spacing:.02em;}
+kbd{
+  font-family:'Space Mono',monospace;font-size:10px;
+  border:1px solid var(--hair);border-radius:4px;padding:1px 6px;
+  background:rgba(255,255,255,.04);color:var(--ink);
+}
+
+/* ----------------------------- grid ----------------------------- */
+.grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:34px 30px;
+}
+
+/* perspective lives on the stage wrapper so each card tilts in depth */
+.stage{
+  perspective:1100px;
+  perspective-origin:50% 42%;
+}
+
+/* the rotating element. --mx is written by JS (cursor / orientation). */
+.card{
+  position:relative;
+  aspect-ratio:5 / 7;                 /* collectible-card ratio */
+  transform-style:preserve-3d;
+  --mx:0;                             /* -1 .. +1 */
+  transform:
+    rotateY(calc(var(--mx) * var(--sweep)))
+    translateZ(0);
+  transition:transform .5s var(--ease);
+  cursor:pointer;
+  border-radius:14px;
+  /* idle pre-tilt sits in --mx (set inline per card) so the lenticular
+     mechanic is legible at scroll=0 before any pointer enters */
+}
+/* while the pointer is actively over a card, follow it 1:1 (no lag) */
+.card.live{transition:none;}
+
+/* shared face styling */
+.face{
+  position:absolute;inset:0;
+  border-radius:14px;
+  overflow:hidden;
+  -webkit-backface-visibility:hidden;
+  backface-visibility:hidden;        /* the heart of the flip */
+  border:1px solid var(--hair-dark);
+  box-shadow:
+    0 30px 60px -30px rgba(0,0,0,.7),
+    0 2px 0 rgba(255,255,255,.04) inset;
+}
+
+/* FRONT = finished work */
+.front{
+  background:var(--graphite);
+  transform:rotateY(0deg);
+}
+.front .media{position:absolute;inset:0;}
+.front img,.front video{
+  width:100%;height:100%;object-fit:cover;display:block;
+}
+/* graphite vignette + caption plate over the work */
+.front .plate{
+  position:absolute;inset:auto 0 0 0;z-index:2;
+  padding:34px 16px 14px;
+  background:linear-gradient(to top,
+    rgba(20,20,22,.92) 0%, rgba(20,20,22,.7) 45%, transparent 100%);
+}
+.front .kicker{
+  font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--accent);margin:0 0 5px;
+}
+.front .ttl{
+  font-family:'Fraunces',serif;font-weight:600;font-size:19px;
+  line-height:1.05;margin:0;letter-spacing:-.01em;color:#fff;
+}
+/* lens ridge shimmer that rakes the front as it tilts */
+.front::after{
+  content:"";position:absolute;inset:0;z-index:3;pointer-events:none;
+  background:linear-gradient(105deg,
+    transparent 38%,
+    rgba(255,255,255,.16) 49%,
+    rgba(200,168,119,.12) 52%,
+    transparent 62%);
+  background-size:240% 100%;
+  background-position:calc((var(--mx) * -50% ) + 50%) 0;
+  mix-blend-mode:screen;opacity:.9;
+}
+/* corner foil tab */
+.front .foil{
+  position:absolute;top:10px;right:10px;z-index:3;
+  width:30px;height:30px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, #f4e6cf, var(--accent) 60%, #7c6238);
+  box-shadow:0 0 0 1px rgba(255,255,255,.25) inset, 0 4px 10px -3px rgba(0,0,0,.6);
+  opacity:.92;
+}
+
+/* BACK = prompt / raw draft. pre-rotated 180 so it reads correctly */
+.back{
+  transform:rotateY(180deg);
+  background:
+    linear-gradient(180deg, var(--bone) 0%, var(--bone-2) 100%);
+  color:var(--graphite);
+  padding:20px 18px;
+  display:flex;flex-direction:column;
+}
+/* decorative registration marks behind the prompt text.
+   NOTE: presentation-attr fills MUST be hex, never var() (guardrail). */
+.back .reg{
+  position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.5;
+}
+.back .body{position:relative;z-index:1;display:flex;flex-direction:column;height:100%;}
+.back .tag{
+  font-size:9px;letter-spacing:.22em;text-transform:uppercase;
+  color:#8a7d63;margin:0 0 10px;
+  display:flex;justify-content:space-between;
+  border-bottom:1px solid rgba(0,0,0,.16);padding-bottom:8px;
+}
+.back .promptlabel{
+  font-size:9px;letter-spacing:.18em;text-transform:uppercase;
+  color:#a08b5e;margin:0 0 4px;
+}
+.back .prompt{
+  font-family:'Space Mono',monospace;
+  font-size:11.5px;line-height:1.55;color:#33312c;
+  margin:0 0 auto;
+}
+.back .prompt .hi{background:rgba(200,168,119,.32);padding:0 2px;}
+.back .meta{
+  margin-top:14px;padding-top:10px;border-top:1px solid rgba(0,0,0,.16);
+  font-size:9.5px;line-height:1.7;color:#6f6553;
+  display:grid;grid-template-columns:auto 1fr;gap:2px 10px;
+}
+.back .meta dt{color:#9a8c6c;letter-spacing:.06em;}
+.back .meta dd{margin:0;text-align:right;}
+
+/* hint chip that sits under each card */
+.cardfoot{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:8px 4px 0;font-size:9.5px;letter-spacing:.1em;
+  color:var(--ink-dim);text-transform:uppercase;
+}
+.cardfoot .flipnote{color:var(--accent);}
+
+/* focus ring for keyboard users */
+.card:focus-visible{outline:none;}
+.card:focus-visible .front,
+.card:focus-visible .back{
+  outline:2px solid var(--accent);outline-offset:3px;
+}
+
+/* -------------------- locked / detail overlay -------------------- */
+.overlay{
+  position:fixed;inset:0;z-index:50;display:none;
+  align-items:center;justify-content:center;
+  background:rgba(10,10,12,.86);backdrop-filter:blur(6px);
+  padding:24px;
+}
+.overlay.open{display:flex;}
+.detail{
+  position:relative;width:min(720px,94vw);max-height:88vh;overflow:auto;
+  background:var(--graphite);border:1px solid var(--hair);
+  border-radius:16px;box-shadow:0 40px 90px -30px rgba(0,0,0,.8);
+}
+.detail .dmedia{position:relative;width:100%;aspect-ratio:16/9;background:#000;}
+.detail .dmedia img,.detail .dmedia video{width:100%;height:100%;object-fit:cover;display:block;}
+.detail .dbody{padding:22px 24px 26px;}
+.detail .dkick{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent);margin:0 0 8px;}
+.detail h2{font-family:'Fraunces',serif;font-weight:600;font-size:26px;margin:0 0 14px;letter-spacing:-.01em;}
+.detail .dprompt{
+  background:var(--bone);color:#33312c;border-radius:10px;padding:14px 16px;
+  font-size:13px;line-height:1.6;margin:0 0 16px;
+}
+.detail .dprompt .hi{background:rgba(200,168,119,.4);padding:0 3px;}
+.detail .dmeta{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:11px;color:var(--ink-dim);}
+.detail .dmeta span b{color:var(--ink);font-weight:400;}
+.detail .close{
+  position:absolute;top:12px;right:12px;z-index:3;
+  width:38px;height:38px;border-radius:50%;border:1px solid var(--hair);
+  background:rgba(20,20,22,.7);color:#fff;font-size:18px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+.detail .close:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+/* mobile permission button for DeviceOrientation (iOS gate) */
+.tiltperm{
+  display:none;margin:0 auto 26px;padding:11px 20px;
+  background:transparent;border:1px solid var(--accent);border-radius:30px;
+  color:var(--accent);font-family:'Space Mono',monospace;font-size:11px;
+  letter-spacing:.12em;text-transform:uppercase;cursor:pointer;
+}
+.tiltperm:focus-visible{outline:2px solid var(--accent);outline-offset:3px;}
+
+footer.foot{
+  margin-top:54px;padding-top:20px;border-top:1px solid var(--hair);
+  display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;
+  font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim);
+}
+
+/* ------------------------- responsive --------------------------- */
+@media (max-width:1040px){
+  .grid{grid-template-columns:repeat(2,1fr);gap:30px 24px;}
+}
+@media (max-width:640px){
+  .wrap{padding:0 16px 60px;}
+  /* stack to a single column; never cover-crop is moot here (5:7 portrait
+     cards in a portrait phone read fine), but media inside the detail
+     overlay is letterboxed so landscape work is not cropped. */
+  .grid{grid-template-columns:1fr;gap:26px;}
+  .card{aspect-ratio:5 / 6.4;}
+  header.band{padding:22px 0 14px;}
+  .tiltperm{display:block;}
+  .detail .dmedia{aspect-ratio:auto;}
+  .detail .dmedia img,.detail .dmedia video{
+    object-fit:contain;background:#000;max-height:52vh;height:auto;width:100%;
+  }
+}
+
+/* ----------------------- reduced motion ------------------------- */
+@media (prefers-reduced-motion:reduce){
+  .card{transform:none !important;transition:none !important;}
+  .front::after{display:none;}
+  /* show the front face only, static; back is reachable via tap/Enter */
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================= -->
+<!--  DATA  -  swap these entries to retheme the whole catalog.    -->
+<!--  Each card has a FRONT (finished work) and a BACK (the prompt -->
+<!--  / raw draft). type "video" lazy-plays only when focused or   -->
+<!--  hovered; "image" is static. Assets live in ../assets/.       -->
+<!-- ============================================================= -->
+<script id="data">
+const DATA = [
+  {
+    type:"image",
+    src:"../assets/flux-car-4k.png",
+    kicker:"Flux . 4K Still",
+    title:"Midnight Coupe",
+    prompt:"cinematic matte-black Mercedes coupe parked on a <span class='hi'>wet neon street</span>, night, rain-slick asphalt, reflected signage, shallow depth of field, key light from the left, <span class='hi'>anamorphic bokeh</span>, 35mm",
+    meta:{Model:"FLUX.1 pro", Steps:"28", Guidance:"3.5", Seed:"81204"}
+  },
+  {
+    type:"video",
+    src:"../assets/kling-video.mp4",
+    poster:"../assets/gen/poster-kling-video.png",
+    kicker:"Kling . Video",
+    title:"Coherent Drift",
+    prompt:"long-form <span class='hi'>coherent motion</span> synthesis from a single seed, slow dolly, volumetric haze, no morphing artifacts across the loop, <span class='hi'>5 second</span> seamless cycle",
+    meta:{Model:"Kling 1.6", Length:"5s", FPS:"24", Audio:"none"}
+  },
+  {
+    type:"image",
+    src:"../assets/flux-clinic-4k.png",
+    kicker:"Flux . 4K Still",
+    title:"Mint Clinic",
+    prompt:"modern dental clinic interior, <span class='hi'>mint green</span> and warm <span class='hi'>oak wood</span> palette, soft daylight, clean minimal Scandinavian fixtures, wide architectural shot, photoreal",
+    meta:{Model:"FLUX.1 pro", Steps:"30", Guidance:"3.2", Seed:"44913"}
+  },
+  {
+    type:"video",
+    src:"../assets/veo-video.mp4",
+    poster:"../assets/gen/poster-veo-video.png",
+    kicker:"Veo . Sound",
+    title:"Veo Sequence",
+    prompt:"film-grade camera move with <span class='hi'>native synced audio</span>, dusk exterior, parallax through foreground foliage, graded teal-and-amber, cinematic 2.39:1",
+    meta:{Model:"Veo 3", Length:"8s", Audio:"native", Grade:"teal/amber"}
+  },
+  {
+    type:"image",
+    src:"../assets/sdxl.png",
+    kicker:"SDXL . Painterly",
+    title:"Autumn Fox",
+    prompt:"a <span class='hi'>painterly autumn fox</span> curled among falling maple leaves, golden hour, loose impressionist brushwork, warm ochre and rust, storybook illustration",
+    meta:{Model:"SDXL 1.0", Steps:"40", Sampler:"DPM++ 2M", Seed:"7720"}
+  },
+  {
+    type:"video",
+    src:"../assets/fal-video.mp4",
+    poster:"../assets/gen/poster-fal-video.png",
+    kicker:"fal . Video",
+    title:"Generated Loop",
+    prompt:"abstract <span class='hi'>fluid motion</span> study, iridescent surface, slow undulation, render-to-loop with no visible seam, soft studio lighting",
+    meta:{Model:"fal pipeline", Length:"4s", FPS:"24", Audio:"none"}
+  }
+];
+</script>
+
+<div class="wrap">
+  <header class="band">
+    <div class="brand">
+      <h1>Lenticular <em>Print</em></h1>
+      <span class="sub">Tilt to flip</span>
+    </div>
+    <p class="hint">
+      Move the cursor <b>across</b> a card to tilt it. Past center the print flips to its
+      <b>prompt face</b>. Tap or press <kbd>Enter</kbd> to lock a card open.
+      No scroll, no click needed - the parallax flip is the interaction.
+    </p>
+  </header>
+
+  <button class="tiltperm" id="tiltperm" type="button">Enable tilt-to-flip</button>
+
+  <section class="grid" id="grid" aria-label="Lenticular work catalog"></section>
+
+  <footer class="foot">
+    <span>Lenticular Print . CSS preserve-3d</span>
+    <span>Front: work / Back: prompt</span>
+  </footer>
+</div>
+
+<!-- locked detail overlay -->
+<div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-label="Work detail" aria-hidden="true">
+  <div class="detail" id="detail">
+    <button class="close" id="closeBtn" type="button" aria-label="Close detail">&times;</button>
+    <div class="dmedia" id="dmedia"></div>
+    <div class="dbody">
+      <p class="dkick" id="dkick"></p>
+      <h2 id="dtitle"></h2>
+      <p class="dprompt" id="dprompt"></p>
+      <div class="dmeta" id="dmeta"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const REDUCED = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const grid = document.getElementById('grid');
+
+  // decorative SVG registration marks for the back face.
+  // Guardrail: fills are literal hex, NOT var() in presentation attrs.
+  const REG_SVG =
+    '<svg class="reg" viewBox="0 0 100 140" preserveAspectRatio="none" aria-hidden="true">' +
+      '<g fill="none" stroke="#c8a877" stroke-width="0.6">' +
+        '<circle cx="14" cy="16" r="5"/><path d="M14 8v16M6 16h16"/>' +
+        '<circle cx="86" cy="16" r="5"/><path d="M86 8v16M78 16h16"/>' +
+        '<circle cx="14" cy="124" r="5"/><path d="M14 116v16M6 124h16"/>' +
+        '<circle cx="86" cy="124" r="5"/><path d="M86 116v16M78 124h16"/>' +
+      '</g>' +
+      '<g fill="#1c1c1e" opacity="0.05">' +
+        '<rect x="30" y="70" width="40" height="2"/><rect x="30" y="76" width="40" height="2"/>' +
+        '<rect x="30" y="82" width="26" height="2"/>' +
+      '</g>' +
+    '</svg>';
+
+  function metaRows(meta){
+    return Object.entries(meta)
+      .map(([k,v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
+  }
+
+  // pre-tilt pattern so cards read as lenticular at scroll=0
+  const PRETILT = [0.42, -0.34, 0.30, -0.40, 0.36, -0.30];
+
+  DATA.forEach((d, i) => {
+    const stage = document.createElement('div');
+    stage.className = 'stage';
+
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.tabIndex = 0;
+    card.setAttribute('role','button');
+    card.setAttribute('aria-label', d.title + '. Tilt or activate to see the prompt.');
+    const pre = REDUCED ? 0 : (PRETILT[i % PRETILT.length] || 0);
+    card.style.setProperty('--mx', pre.toFixed(2));
+    card._base = pre;          // resting tilt to return to
+    card._idx = i;
+
+    // FRONT face
+    let frontMedia;
+    if (d.type === 'video'){
+      frontMedia =
+        `<video class="vid" muted loop playsinline preload="none" poster="${d.poster}">` +
+        `<source src="${d.src}" type="video/mp4"></video>`;
+    } else {
+      frontMedia = `<img loading="lazy" src="${d.src}" alt="${d.title}">`;
+    }
+    const front = document.createElement('div');
+    front.className = 'face front';
+    front.innerHTML =
+      `<div class="media">${frontMedia}</div>` +
+      `<div class="foil"></div>` +
+      `<div class="plate"><p class="kicker">${d.kicker}</p><h3 class="ttl">${d.title}</h3></div>`;
+
+    // BACK face
+    const back = document.createElement('div');
+    back.className = 'face back';
+    back.innerHTML =
+      REG_SVG +
+      `<div class="body">` +
+        `<p class="tag"><span>Reverse</span><span>No. ${String(i+1).padStart(2,'0')}</span></p>` +
+        `<p class="promptlabel">Prompt</p>` +
+        `<p class="prompt">${d.prompt}</p>` +
+        `<dl class="meta">${metaRows(d.meta)}</dl>` +
+      `</div>`;
+
+    card.appendChild(front);
+    card.appendChild(back);
+    stage.appendChild(card);
+
+    const foot = document.createElement('div');
+    foot.className = 'cardfoot';
+    foot.innerHTML = `<span>${d.kicker}</span><span class="flipnote">tilt to flip</span>`;
+
+    const cell = document.createElement('div');
+    cell.appendChild(stage);
+    cell.appendChild(foot);
+    grid.appendChild(cell);
+
+    wireCard(card, front.querySelector('video'));
+  });
+
+  // ---- per-card cursor interaction: ONE passive pointermove listener ----
+  function wireCard(card, video){
+    let raf = 0, pending = 0;
+
+    function commit(){ raf = 0; card.style.setProperty('--mx', pending.toFixed(3)); }
+
+    if (!REDUCED){
+      card.addEventListener('pointermove', (e) => {
+        const r = card.getBoundingClientRect();
+        // normalize cursor X to -1..+1 across the card bounds
+        let nx = ((e.clientX - r.left) / r.width) * 2 - 1;
+        nx = Math.max(-1, Math.min(1, nx));
+        pending = nx;
+        card.classList.add('live');           // 1:1 follow, no transition lag
+        if (!raf) raf = requestAnimationFrame(commit);
+      }, {passive:true});
+
+      card.addEventListener('pointerenter', () => { playVid(video); });
+
+      card.addEventListener('pointerleave', () => {
+        card.classList.remove('live');         // ease back to resting tilt
+        if (raf){ cancelAnimationFrame(raf); raf = 0; }
+        card.style.setProperty('--mx', card._base.toFixed(2));
+        pauseVid(video);
+      });
+    }
+
+    // keyboard + tap: lock the card open in the detail overlay
+    card.addEventListener('click', () => openDetail(card._idx, video));
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openDetail(card._idx, video); }
+    });
+  }
+
+  // ---- video play discipline: only the focused/hovered card plays ----
+  let activeVid = null;
+  function playVid(v){
+    if (!v || REDUCED) return;
+    if (activeVid && activeVid !== v){ activeVid.pause(); }
+    activeVid = v;
+    const p = v.play(); if (p && p.catch) p.catch(()=>{});
+  }
+  function pauseVid(v){
+    if (!v) return; v.pause();
+    if (activeVid === v) activeVid = null;
+  }
+  // pause any in-view video that scrolls out (covers touch scroll)
+  const io = ('IntersectionObserver' in window) ? new IntersectionObserver((ents) => {
+    ents.forEach(en => { if (!en.isIntersecting){ const v = en.target.querySelector('video'); if (v) pauseVid(v); } });
+  }, {threshold:0.1}) : null;
+  if (io) document.querySelectorAll('.card').forEach(c => io.observe(c));
+
+  // ---------------- DeviceOrientation tilt (mobile) ----------------
+  const isCoarse = window.matchMedia('(pointer:coarse)').matches;
+  const permBtn = document.getElementById('tiltperm');
+  let cards = Array.from(document.querySelectorAll('.card'));
+
+  function onOrient(e){
+    if (REDUCED) return;
+    // gamma = left/right tilt of the device (-90..90). map to a -1..1 offset.
+    // CRITICAL: modulate AROUND each card's pre-tilt (_base), never overwrite to
+    // an absolute value. At gamma=0 (phone flat, or the scroll=0 catalog thumb
+    // before any motion) the card must stay at its pre-tilt so the lenticular
+    // mechanic is still visible in the first viewport instead of flattening out.
+    let g = e.gamma == null ? 0 : e.gamma;
+    let off = Math.max(-1, Math.min(1, g / 35));
+    cards.forEach(c => {
+      if (c._locked) return;                 // don't fight a tapped-open card
+      let nx = Math.max(-1, Math.min(1, c._base + off));
+      c.style.setProperty('--mx', nx.toFixed(3));
+    });
+  }
+  function startOrient(){
+    window.addEventListener('deviceorientation', onOrient, {passive:true});
+    permBtn.style.display = 'none';
+  }
+  // iOS 13+ needs an explicit user-gesture permission grant
+  function needsPerm(){
+    return typeof DeviceOrientationEvent !== 'undefined' &&
+           typeof DeviceOrientationEvent.requestPermission === 'function';
+  }
+  if (isCoarse && !REDUCED){
+    if (needsPerm()){
+      permBtn.style.display = 'block';
+      permBtn.addEventListener('click', async () => {
+        try{
+          const res = await DeviceOrientationEvent.requestPermission();
+          if (res === 'granted') startOrient();
+          else permBtn.textContent = 'Tilt blocked - tap cards instead';
+        }catch(_){ permBtn.textContent = 'Tilt unavailable - tap cards instead'; }
+      });
+    } else {
+      startOrient();              // android / older ios: just listen
+    }
+  }
+
+  // ----------------------- detail overlay -------------------------
+  const overlay = document.getElementById('overlay');
+  const dmedia  = document.getElementById('dmedia');
+  const dkick   = document.getElementById('dkick');
+  const dtitle  = document.getElementById('dtitle');
+  const dprompt = document.getElementById('dprompt');
+  const dmeta   = document.getElementById('dmeta');
+  const closeBtn= document.getElementById('closeBtn');
+  let lastFocus = null, overlayVid = null, lockedCard = null;
+
+  function openDetail(idx, srcVid){
+    const d = DATA[idx];
+    lastFocus = document.activeElement;
+    lockedCard = cards[idx];
+    if (lockedCard){ lockedCard._locked = true; lockedCard.style.setProperty('--mx','0'); }
+    if (srcVid) pauseVid(srcVid);
+
+    dkick.textContent  = d.kicker;
+    dtitle.textContent = d.title;
+    dprompt.innerHTML  = d.prompt;
+    dmeta.innerHTML = Object.entries(d.meta)
+      .map(([k,v]) => `<span><b>${k}:</b> ${v}</span>`).join('');
+
+    if (d.type === 'video'){
+      dmedia.innerHTML =
+        `<video controls muted loop playsinline preload="metadata" poster="${d.poster}">` +
+        `<source src="${d.src}" type="video/mp4"></video>`;
+      overlayVid = dmedia.querySelector('video');
+      // honor reduced-motion: no autoplay, settle on the poster with controls.
+      if (!REDUCED){ const p = overlayVid.play(); if (p && p.catch) p.catch(()=>{}); }
+    } else {
+      dmedia.innerHTML = `<img src="${d.src}" alt="${d.title}">`;
+      overlayVid = null;
+    }
+    overlay.classList.add('open');
+    overlay.setAttribute('aria-hidden','false');
+    closeBtn.focus();
+    document.addEventListener('keydown', onEsc);
+  }
+  function closeDetail(){
+    overlay.classList.remove('open');
+    overlay.setAttribute('aria-hidden','true');
+    if (overlayVid){ overlayVid.pause(); overlayVid = null; }
+    dmedia.innerHTML = '';
+    if (lockedCard){
+      lockedCard._locked = false;
+      lockedCard.style.setProperty('--mx', lockedCard._base.toFixed(2));
+      lockedCard = null;
+    }
+    document.removeEventListener('keydown', onEsc);
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+  function onEsc(e){ if (e.key === 'Escape') closeDetail(); }
+  closeBtn.addEventListener('click', closeDetail);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeDetail(); });
+})();
+</script>
+</body>
+</html>

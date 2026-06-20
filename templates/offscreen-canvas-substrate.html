@@ -1,0 +1,817 @@
+<!-- TEMPLATE: Offscreen Substrate | ARCHETYPE: offscreen-canvas-substrate | REF: Codrops OffscreenCanvas + Web Workers for Smooth Generative Backgrounds 2026, Godly.website generative-substrate galleries 2026 | WHEN TO USE: a living procedural noise field behind floating work cards that recolors to whatever card is in focus | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Offscreen Substrate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* =========================================================================
+     OFFSCREEN SUBSTRATE
+     A live procedural Canvas 2D noise field painted inside an OffscreenCanvas
+     handed to an INLINE blob Worker. The substrate slowly evolves on its own
+     at scroll=0; focusing or hovering a work card drifts the field's hue
+     toward that card's dominant color, then it relaxes back to void.
+     ========================================================================= */
+
+  :root {
+    --void: #0c0c0c;
+    --ochre: #8a6a3a;
+    --slate: #4a5a6a;
+    --bone: #d8ccbc;
+    --ink: #e9e3d8;
+    --ink-dim: #9a958c;
+    --hair: rgba(216, 204, 188, 0.14);
+    --pane: rgba(20, 19, 17, 0.46);
+    --pane-edge: rgba(216, 204, 188, 0.10);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { margin: 0; padding: 0; }
+
+  body {
+    background: var(--void);
+    color: var(--ink);
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 300;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+
+  /* The substrate canvas sits fixed behind everything. No CSS animation on it. */
+  #substrate {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    display: block;
+    z-index: 0;
+    /* a touch of contrast lift so the arithmetic noise reads as cloud + grain */
+    filter: saturate(1.04) contrast(1.02);
+  }
+
+  /* A void-to-transparent vignette so cards and text always stay legible
+     over the brightest noise peaks. Pure CSS, cheap, no per-frame cost. */
+  #veil {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background:
+      radial-gradient(120% 90% at 50% -10%, rgba(12,12,12,0) 30%, rgba(12,12,12,0.55) 100%),
+      linear-gradient(180deg, rgba(12,12,12,0.30) 0%, rgba(12,12,12,0) 22%, rgba(12,12,12,0) 70%, rgba(12,12,12,0.62) 100%);
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 2;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 clamp(18px, 4vw, 56px);
+  }
+
+  /* ---- compact top band: headline sits ABOVE the populated grid, both in vp1 */
+  header.band {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 24px;
+    padding: clamp(22px, 4vh, 40px) 0 clamp(16px, 2.4vh, 26px);
+    border-bottom: 1px solid var(--hair);
+  }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-weight: 500;
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin: 0 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .eyebrow .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--ochre);
+    box-shadow: 0 0 0 3px rgba(138,106,58,0.18);
+  }
+
+  h1 {
+    margin: 0;
+    font-weight: 500;
+    font-size: clamp(34px, 5.6vw, 68px);
+    line-height: 0.98;
+    letter-spacing: -0.02em;
+  }
+  h1 em {
+    font-style: italic;
+    font-weight: 300;
+    color: var(--bone);
+  }
+
+  .lede {
+    max-width: 30ch;
+    margin: 0;
+    text-align: right;
+    color: var(--ink-dim);
+    font-size: clamp(13px, 1.3vw, 15.5px);
+    line-height: 1.5;
+    font-weight: 300;
+  }
+  .lede b {
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  /* a tiny live readout of what color the substrate is currently chasing */
+  .statusrow {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 14px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  .swatch {
+    width: 34px; height: 12px; border-radius: 2px;
+    background: var(--void);
+    transition: background 600ms ease;
+    box-shadow: inset 0 0 0 1px rgba(216,204,188,0.2);
+  }
+  #engineTag { color: var(--ochre); }
+
+  /* ---- the floating work cards ---- */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: clamp(14px, 1.6vw, 22px);
+    padding: clamp(20px, 3vh, 34px) 0 80px;
+  }
+
+  .card {
+    position: relative;
+    grid-column: span 4;
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--pane);
+    border: 1px solid var(--pane-edge);
+    backdrop-filter: blur(7px) saturate(1.1);
+    -webkit-backdrop-filter: blur(7px) saturate(1.1);
+    box-shadow:
+      0 1px 0 rgba(216,204,188,0.06) inset,
+      0 18px 40px -22px rgba(0,0,0,0.9),
+      0 4px 14px -8px rgba(0,0,0,0.7);
+    cursor: pointer;
+    transition:
+      transform 420ms cubic-bezier(.16,.84,.34,1),
+      box-shadow 420ms ease,
+      border-color 420ms ease;
+    will-change: transform;
+    text-decoration: none;
+    color: inherit;
+    isolation: isolate;
+  }
+  /* span pattern keeps a rich, varied float instead of a flat 3-wide grid */
+  .card:nth-child(1) { grid-column: span 5; }
+  .card:nth-child(2) { grid-column: span 4; }
+  .card:nth-child(3) { grid-column: span 3; }
+  .card:nth-child(4) { grid-column: span 4; }
+  .card:nth-child(5) { grid-column: span 4; }
+  .card:nth-child(6) { grid-column: span 4; }
+
+  .card:hover,
+  .card:focus-visible {
+    transform: translateY(-8px);
+    border-color: rgba(216,204,188,0.26);
+    box-shadow:
+      0 1px 0 rgba(216,204,188,0.10) inset,
+      0 34px 70px -26px rgba(0,0,0,0.95),
+      0 0 0 1px var(--card-glow, rgba(216,204,188,0.0)),
+      0 10px 50px -16px var(--card-glow, rgba(0,0,0,0.6));
+    outline: none;
+  }
+  .card:focus-visible {
+    box-shadow:
+      0 0 0 2px var(--void),
+      0 0 0 4px var(--ochre),
+      0 34px 70px -26px rgba(0,0,0,0.95);
+  }
+
+  .media {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    background: #111;
+  }
+  .media img,
+  .media video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .media img {
+    transition: transform 700ms cubic-bezier(.16,.84,.34,1), opacity 500ms ease;
+  }
+  .media video {
+    opacity: 0;
+    transition: opacity 460ms ease;
+    z-index: 1;
+  }
+  .card.playing .media video { opacity: 1; }
+  .card.playing .media img { opacity: 0; }
+  .card:hover .media img { transform: scale(1.045); }
+
+  /* film-grade gradient floor on each media so the white caption text reads */
+  .media::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(12,12,12,0) 38%, rgba(12,12,12,0.82) 100%);
+  }
+
+  .badge {
+    position: absolute;
+    top: 11px; left: 11px;
+    z-index: 3;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 5px 9px;
+    border-radius: 100px;
+    background: rgba(12,12,12,0.6);
+    border: 1px solid rgba(216,204,188,0.2);
+    color: var(--bone);
+    backdrop-filter: blur(4px);
+  }
+
+  .meta {
+    position: relative;
+    z-index: 3;
+    padding: 14px 16px 16px;
+  }
+  /* lift the meta over the media floor on taller media-forward cards */
+  .meta .kicker {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin: 0 0 6px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .meta .kicker .tintchip {
+    width: 9px; height: 9px; border-radius: 2px;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.3);
+  }
+  .meta h3 {
+    margin: 0 0 5px;
+    font-weight: 500;
+    font-size: 19px;
+    line-height: 1.08;
+    letter-spacing: -0.01em;
+  }
+  .meta p {
+    margin: 0;
+    color: var(--ink-dim);
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  /* ---- footer note ---- */
+  footer {
+    position: relative;
+    z-index: 2;
+    max-width: 1280px;
+    margin: 0 auto 40px;
+    padding: 22px clamp(18px, 4vw, 56px) 0;
+    border-top: 1px solid var(--hair);
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  footer a { color: var(--bone); text-decoration: none; border-bottom: 1px solid var(--hair); }
+
+  /* ---------- mobile: never cover-crop landscape into portrait ---------- */
+  @media (max-width: 980px) {
+    .card:nth-child(n) { grid-column: span 6; }
+  }
+  @media (max-width: 640px) {
+    header.band {
+      grid-template-columns: 1fr;
+      align-items: start;
+      gap: 14px;
+    }
+    .lede { text-align: left; max-width: 38ch; }
+    .grid { grid-template-columns: 1fr; gap: 16px; padding-bottom: 56px; }
+    .card:nth-child(n) { grid-column: 1 / -1; }
+    /* phones: letterbox onto a dark mat instead of cover-cropping a landscape
+       still/clip into a portrait box. The media becomes a "mat" and the
+       img/video is contained, so nothing is sliced off either edge. */
+    .media {
+      aspect-ratio: 16 / 9;
+      background: #0a0a0a;        /* the mat the artwork letterboxes onto */
+    }
+    .media img,
+    .media video { object-fit: contain; }
+    h1 { font-size: clamp(30px, 9vw, 46px); }
+    #substrate { filter: saturate(1.02) contrast(1.0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card, .media img, .media video { transition: none !important; }
+    /* show the settled final state: no lift, no zoom on hover/focus */
+    .card:hover,
+    .card:focus-visible { transform: none !important; }
+    .card:hover .media img { transform: none !important; }
+  }
+</style>
+</head>
+<body>
+  <canvas id="substrate" aria-hidden="true"></canvas>
+  <div id="veil" aria-hidden="true"></div>
+
+  <main class="wrap">
+    <header class="band">
+      <div>
+        <p class="eyebrow"><span class="dot"></span> Generative Substrate / Worker Thread</p>
+        <h1>Color is a <em>field</em>,<br />not a fill.</h1>
+        <div class="statusrow">
+          <span>Substrate chasing</span>
+          <span class="swatch" id="liveSwatch"></span>
+          <span id="liveName">VOID</span>
+          <span aria-hidden="true">/</span>
+          <span id="engineTag">worker</span>
+        </div>
+      </div>
+      <p class="lede">
+        A live arithmetic noise field is painted in an <b>OffscreenCanvas</b> on a
+        <b>worker thread</b>. Focus any work below and the grain drifts toward its
+        dominant hue, then relaxes back to void.
+      </p>
+    </header>
+
+    <section class="grid" id="grid" aria-label="Selected work"></section>
+  </main>
+
+  <footer>
+    <span>Offscreen Substrate / template</span>
+    <span>One putImageData per frame / DPR capped at 1 / no WebGL</span>
+    <span>Swap the <a href="#" onclick="return false">DATA</a> array up top</span>
+  </footer>
+
+<script>
+/* =============================================================================
+   DATA  -  edit this array to reskin the whole template.
+   Each card carries the dominant `tint` the substrate drifts toward on focus.
+   `rgb` is the same color the worker uses to recolor the noise.
+   `poster` is shown immediately; `video` (optional) plays only when this card
+   is the single focused/hovered card (no simultaneous decode = no FPS tank).
+   ============================================================================= */
+const DATA = [
+  {
+    id: "car",
+    kicker: "Image / Flux",
+    title: "Nocturne, wet asphalt",
+    blurb: "A matte-black coupe held in sodium light, reflections doing the heavy lifting.",
+    badge: "4K STILL",
+    poster: "../assets/flux-car-4k.png",
+    video:  "../assets/flux-car-i2v.mp4",
+    tint:   "#8a6a3a",            // ochre - warm sodium street
+    rgb:    [138, 106, 58],
+    name:   "OCHRE"
+  },
+  {
+    id: "fox",
+    kicker: "Image / SDXL",
+    title: "Autumn vulpine",
+    blurb: "Painterly fur and falling leaves, rendered like a plate from an old field guide.",
+    badge: "STILL",
+    poster: "../assets/sdxl.png",
+    video:  null,
+    tint:   "#a4632e",
+    rgb:    [164, 99, 46],
+    name:   "RUST"
+  },
+  {
+    id: "clinic",
+    kicker: "Image / Flux",
+    title: "Mint + wood interior",
+    blurb: "A calm dental clinic, soft mint walls against warm timber.",
+    badge: "4K STILL",
+    poster: "../assets/flux-clinic-4k.png",
+    video:  null,
+    tint:   "#4a7a6a",
+    rgb:    [74, 122, 106],
+    name:   "VERDIGRIS"
+  },
+  {
+    id: "kling",
+    kicker: "Video / Kling",
+    title: "Atmospheric loop",
+    blurb: "A slow generative clip. Plays only while focused, so the field stays smooth.",
+    badge: "LOOP",
+    poster: "../assets/gen/poster-kling-video.png",
+    video:  "../assets/kling-video.mp4",
+    tint:   "#4a5a6a",            // slate
+    rgb:    [74, 90, 106],
+    name:   "SLATE"
+  },
+  {
+    id: "veo",
+    kicker: "Video / Veo",
+    title: "Motion study",
+    blurb: "Camera-grade synthetic footage. Cool blue grade, single-stream playback.",
+    badge: "LOOP",
+    poster: "../assets/gen/poster-veo-video.png",
+    video:  "../assets/veo-video.mp4",
+    tint:   "#3f5a7a",
+    rgb:    [63, 90, 122],
+    name:   "AZURE"
+  },
+  {
+    id: "apple",
+    kicker: "Image / TinySD",
+    title: "Low-fi apple",
+    blurb: "An abstract still from a tiny model, leaning warm and bony like aged paper.",
+    badge: "STILL",
+    poster: "../assets/hf-tinysd.png",
+    video:  null,
+    tint:   "#d8ccbc",           // bone
+    rgb:    [216, 204, 188],
+    name:   "BONE"
+  }
+];
+
+/* =============================================================================
+   The WORKER SOURCE.  Kept as a template string so the whole page stays a
+   single self-contained file: we wrap it in a Blob + createObjectURL below.
+   The SAME function is also imported onto the main thread as a fallback when
+   OffscreenCanvas / Worker is unavailable.
+   ============================================================================= */
+const SUBSTRATE_SRC = `
+(function(scope){
+  // ---- shared field state --------------------------------------------------
+  var ctx = null, W = 0, H = 0, img = null, buf = null;
+  var t = 0;                 // evolving time seed for the noise
+  var paused = false;        // reduced-motion -> freeze the time tick
+  // current vs target color the field drifts toward (eased every frame)
+  var cur = [12, 12, 12];
+  var tgt = [12, 12, 12];
+  var base = [12, 12, 12];   // resting void
+  var intensity = 0.0;       // 0 = pure void, 1 = full focus color
+  var tgtIntensity = 0.0;
+  var STEP = 4;              // paint at 1/STEP resolution then it reads as cloud+grain at full canvas via the gradient veil; keeps one putImageData cheap
+
+  // value-noise: hash + smooth interpolation, multi-octave (arithmetic only)
+  function hash(x, y){
+    var n = x * 374761393 + y * 668265263;
+    n = (n ^ (n >> 13)) * 1274126177;
+    n = (n ^ (n >> 16)) >>> 0;
+    return (n & 0xffff) / 0xffff;     // 0..1
+  }
+  function smooth(a, b, w){
+    var s = w * w * (3 - 2 * w);
+    return a + (b - a) * s;
+  }
+  function vnoise(x, y){
+    var xi = Math.floor(x), yi = Math.floor(y);
+    var xf = x - xi, yf = y - yi;
+    var a = hash(xi, yi),     b = hash(xi + 1, yi);
+    var c = hash(xi, yi + 1), d = hash(xi + 1, yi + 1);
+    var ab = smooth(a, b, xf), cd = smooth(c, d, xf);
+    return smooth(ab, cd, yf);
+  }
+
+  function alloc(w, h){
+    W = w; H = h;
+    if (!ctx) return;
+    img = ctx.createImageData(w, h);
+    buf = img.data;
+  }
+
+  function paint(){
+    if (!ctx || !img) return;
+    // ease current color + intensity toward target (a soft chase)
+    for (var k = 0; k < 3; k++){
+      var aim = base[k] + (tgt[k] - base[k]) * tgtIntensity;
+      cur[k] += (aim - cur[k]) * 0.045;
+    }
+    intensity += (tgtIntensity - intensity) * 0.05;
+
+    var ox = t * 0.06, oy = t * 0.035;
+    var d = buf;
+    // octave constants
+    var f1 = 0.012, f2 = 0.028, f3 = 0.061;
+    var i = 0;
+    for (var y = 0; y < H; y++){
+      var yy = y;
+      for (var x = 0; x < W; x++){
+        // 3-octave fractal value noise -> 0..1 cloud
+        var n =
+            vnoise(x * f1 + ox, yy * f1 + oy) * 0.58 +
+            vnoise(x * f2 - ox * 1.7, yy * f2 + oy * 1.3) * 0.30 +
+            vnoise(x * f3 + oy, yy * f3 - ox) * 0.12;
+        // grain: a cheap per-pixel hash shimmer
+        var g = hash(x + (t|0), yy - (t|0)) * 0.10 - 0.05;
+        var v = n + g;                       // ~ -0.05 .. 1.05
+        if (v < 0) v = 0; else if (v > 1) v = 1;
+
+        // map cloud value onto the chased color, biased dark for the void base
+        var lift = 0.30 + v * 0.92;          // brightness envelope
+        var r = cur[0] * lift;
+        var gg = cur[1] * lift;
+        var bb = cur[2] * lift;
+        // pull troughs back toward true void so it never washes out
+        var floor = (1 - v) * (1 - v);
+        r  = r  * (1 - floor) + 12 * floor;
+        gg = gg * (1 - floor) + 12 * floor;
+        bb = bb * (1 - floor) + 12 * floor;
+
+        d[i]   = r > 255 ? 255 : r;
+        d[i+1] = gg > 255 ? 255 : gg;
+        d[i+2] = bb > 255 ? 255 : bb;
+        d[i+3] = 255;
+        i += 4;
+      }
+    }
+    ctx.putImageData(img, 0, 0);             // ONE putImageData per frame
+  }
+
+  var raf = 0;
+  function stopLoop(){
+    if (!raf) return;
+    (scope.cancelAnimationFrame || scope.clearTimeout || clearTimeout)(raf);
+    raf = 0;
+  }
+  function tick(){
+    // reduced-motion: paint exactly ONE static frame, then DO NOT schedule
+    // another rAF. The field freezes with zero per-frame cost (no idle loop
+    // repainting an identical image). startLoop() resumes if the user toggles.
+    if (paused){ paint(); raf = 0; return; }
+    t += 1;
+    paint();
+    raf = scope.requestAnimationFrame ? scope.requestAnimationFrame(tick) : setTimeout(tick, 33);
+  }
+  function startLoop(){
+    if (raf || paused) return;
+    tick();
+  }
+
+  // ---- message handling (works for both Worker and main-thread shim) -------
+  scope.__substrate = {
+    init: function(canvas, w, h, reduce){
+      ctx = canvas.getContext("2d", { alpha: false });
+      paused = !!reduce;
+      // low internal resolution: canvas is sized small, CSS stretches it.
+      var iw = Math.max(2, Math.round(w / STEP));
+      var ih = Math.max(2, Math.round(h / STEP));
+      canvas.width = iw; canvas.height = ih;
+      alloc(iw, ih);
+      if (raf) { (scope.cancelAnimationFrame||clearTimeout)(raf); }
+      tick();
+      if (paused) paint();   // ensure one rendered static frame
+    },
+    resize: function(w, h){
+      var iw = Math.max(2, Math.round(w / STEP));
+      var ih = Math.max(2, Math.round(h / STEP));
+      if (ctx && ctx.canvas){ ctx.canvas.width = iw; ctx.canvas.height = ih; }
+      alloc(iw, ih);
+    },
+    target: function(rgb, on){
+      if (rgb){ tgt = rgb; }
+      tgtIntensity = on ? 1.0 : 0.0;
+    },
+    reduce: function(r){ paused = !!r; if (paused) paint(); }
+  };
+
+  // Worker wiring (only runs when this is an actual Worker scope)
+  if (typeof onmessage !== "undefined" || (scope.self && scope.postMessage)){
+    scope.onmessage = function(e){
+      var m = e.data || {};
+      if (m.type === "init"){ scope.__substrate.init(m.canvas, m.w, m.h, m.reduce); }
+      else if (m.type === "resize"){ scope.__substrate.resize(m.w, m.h); }
+      else if (m.type === "target"){ scope.__substrate.target(m.rgb, m.on); }
+      else if (m.type === "reduce"){ scope.__substrate.reduce(m.reduce); }
+    };
+  }
+})(self);
+`;
+
+/* =============================================================================
+   BOOT  -  try OffscreenCanvas + inline blob Worker; otherwise main-thread.
+   ============================================================================= */
+(function boot(){
+  const canvas = document.getElementById("substrate");
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const dpr = 1; // GUARDRAIL: DPR capped at 1 by design.
+
+  let driver = null;     // { target(rgb,on), resize(w,h), reduce(r) }
+  let mode = "worker";
+
+  const canOffscreen =
+    "transferControlToOffscreen" in canvas &&
+    typeof Worker !== "undefined" &&
+    typeof OffscreenCanvas !== "undefined";
+
+  function startWorker(){
+    const blob = new Blob([SUBSTRATE_SRC], { type: "application/javascript" });
+    const url = URL.createObjectURL(blob);
+    const worker = new Worker(url);
+    URL.revokeObjectURL(url);
+
+    const off = canvas.transferControlToOffscreen(); // GUARDRAIL: called ONCE
+    const w = window.innerWidth, h = window.innerHeight;
+    worker.postMessage(
+      { type: "init", canvas: off, w, h, reduce: reduceMotion },
+      [off]
+    );
+    driver = {
+      target: (rgb, on) => worker.postMessage({ type: "target", rgb, on }),
+      resize: (w, h) => worker.postMessage({ type: "resize", w, h }),
+      reduce: (r) => worker.postMessage({ type: "reduce", reduce: r })
+    };
+  }
+
+  function startMain(){
+    mode = "main";
+    // Evaluate the same source in the main-thread scope. It attaches
+    // self.__substrate without auto-wiring onmessage (no postMessage on window
+    // in the way the guard checks), so we call its API directly.
+    try {
+      // eslint-disable-next-line no-new-func
+      (new Function(SUBSTRATE_SRC))();
+    } catch (e) {
+      (0, eval)(SUBSTRATE_SRC);
+    }
+    const api = self.__substrate;
+    api.init(canvas, window.innerWidth, window.innerHeight, reduceMotion);
+    driver = {
+      target: (rgb, on) => api.target(rgb, on),
+      resize: (w, h) => api.resize(w, h),
+      reduce: (r) => api.reduce(r)
+    };
+  }
+
+  try {
+    if (canOffscreen) { startWorker(); }
+    else { startMain(); }
+  } catch (e) {
+    // transfer can throw on some engines; fall back cleanly.
+    startMain();
+  }
+
+  // reflect engine in the UI
+  const tag = document.getElementById("engineTag");
+  if (tag) tag.textContent = (mode === "worker") ? "worker" : "main-thread";
+
+  // resize (debounced) - keep field full-viewport
+  let rt = 0;
+  window.addEventListener("resize", () => {
+    clearTimeout(rt);
+    rt = setTimeout(() => driver && driver.resize(window.innerWidth, window.innerHeight), 160);
+  });
+
+  // react to reduced-motion toggles live
+  const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+  (mq.addEventListener ? mq.addEventListener.bind(mq, "change") : mq.addListener.bind(mq))(
+    (ev) => driver && driver.reduce(ev.matches)
+  );
+
+  // expose for the card layer
+  window.__substrateDriver = () => driver;
+})();
+
+/* =============================================================================
+   CARD LAYER  -  render DATA, wire focus/hover to recolor the substrate,
+   and play at most ONE video at a time.
+   ============================================================================= */
+(function cards(){
+  const grid = document.getElementById("grid");
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const liveSwatch = document.getElementById("liveSwatch");
+  const liveName   = document.getElementById("liveName");
+
+  let activeVideoCard = null;
+
+  function setLive(d){
+    if (d){
+      liveSwatch.style.background = d.tint;
+      liveName.textContent = d.name;
+    } else {
+      liveSwatch.style.background = "var(--void)";
+      liveName.textContent = "VOID";
+    }
+  }
+
+  function stopActiveVideo(){
+    if (activeVideoCard){
+      const v = activeVideoCard.querySelector("video");
+      if (v){ try { v.pause(); } catch(e){} }
+      activeVideoCard.classList.remove("playing");
+      activeVideoCard = null;
+    }
+  }
+
+  function focusCard(card, d){
+    // recolor substrate toward this card
+    const drv = window.__substrateDriver && window.__substrateDriver();
+    if (drv) drv.target(d.rgb, true);
+    setLive(d);
+
+    // single-stream video: stop any other, play this one if it has video
+    if (d.video){
+      if (activeVideoCard && activeVideoCard !== card) stopActiveVideo();
+      const v = card.querySelector("video");
+      if (v){
+        if (!v.dataset.loaded){
+          v.src = d.video;
+          v.dataset.loaded = "1";
+        }
+        if (!reduceMotion){
+          const p = v.play();
+          if (p && p.catch) p.catch(()=>{});
+          card.classList.add("playing");
+          activeVideoCard = card;
+        }
+      }
+    }
+  }
+
+  function blurCard(card, d){
+    const drv = window.__substrateDriver && window.__substrateDriver();
+    if (drv) drv.target(d.rgb, false); // drift back to void
+    setLive(null);
+    if (d.video && activeVideoCard === card) stopActiveVideo();
+  }
+
+  DATA.forEach((d) => {
+    const card = document.createElement("a");
+    card.className = "card";
+    card.href = "#" + d.id;
+    card.setAttribute("aria-label", d.title + " - " + d.kicker);
+    card.style.setProperty("--card-glow", d.tint + "66");
+
+    const hasVideo = !!d.video;
+    card.innerHTML = `
+      <div class="media">
+        <span class="badge">${d.badge}</span>
+        <img src="${d.poster}" alt="${d.title}" loading="lazy" decoding="async" />
+        ${hasVideo ? `<video muted loop playsinline preload="none" poster="${d.poster}"></video>` : ``}
+      </div>
+      <div class="meta">
+        <p class="kicker"><span class="tintchip" style="background:${d.tint}"></span>${d.kicker}</p>
+        <h3>${d.title}</h3>
+        <p>${d.blurb}</p>
+      </div>`;
+
+    // pointer
+    card.addEventListener("pointerenter", () => focusCard(card, d));
+    card.addEventListener("pointerleave", () => blurCard(card, d));
+    // keyboard / accessibility - focus also drives the field
+    card.addEventListener("focus", () => focusCard(card, d));
+    card.addEventListener("blur", () => blurCard(card, d));
+    // prevent the placeholder hash links from jumping the page
+    card.addEventListener("click", (e) => { e.preventDefault(); });
+
+    grid.appendChild(card);
+  });
+
+  // tidy up: pause video if the focused card scrolls fully out of view
+  if ("IntersectionObserver" in window){
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((en) => {
+        if (!en.isIntersecting && en.target === activeVideoCard){
+          stopActiveVideo();
+        }
+      });
+    }, { threshold: 0.15 });
+    grid.querySelectorAll(".card").forEach((c) => io.observe(c));
+  }
+})();
+</script>
+</body>
+</html>

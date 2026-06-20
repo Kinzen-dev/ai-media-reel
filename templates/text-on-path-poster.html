@@ -1,0 +1,559 @@
+<!-- TEMPLATE: Curved Type Festival | ARCHETYPE: CURVED TYPE - expressive SVG text-on-path festival poster with scroll-draw | REF: Codrops SVG Text on a Path Advanced Techniques (2026), Awwwards music-festival poster category 2026 | WHEN TO USE: a festival/event/release poster set where display titles arc on organic SVG curves over full-bleed art, each path drawing itself via stroke-dashoffset on scroll | SWAP: edit the POSTERS array at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Curved Type Festival - Text-on-Path Poster Series</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<!-- Anton = condensed festival display title on arcs; Archivo = credits/URL on curves + UI -->
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ink:#0a0e14;          /* night ink ground */
+    --ink-2:#11161f;        /* raised panel ground */
+    --yellow:#f5d94e;       /* electric yellow primary text */
+    --vermilion:#e03c2c;    /* vermilion accent / hover */
+    --paper:#f3ead4;        /* warm off-white for fine print */
+    --hair: rgba(245,217,78,.16);
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html{ scroll-behavior:smooth; -webkit-text-size-adjust:100%; }
+  body{
+    background:var(--ink);
+    color:var(--yellow);
+    font-family:'Archivo',system-ui,sans-serif;
+    overflow-x:hidden;
+    line-height:1.4;
+    /* festival-print grain: subtle dot screen over the ink */
+    background-image:
+      radial-gradient(rgba(245,217,78,.05) 1px, transparent 1.4px);
+    background-size:7px 7px;
+  }
+
+  ::selection{ background:var(--vermilion); color:var(--ink); }
+
+  a{ color:inherit; }
+
+  /* ---------- top band: masthead sits ABOVE the first poster, mechanic visible at scroll=0 ---------- */
+  .masthead{
+    position:sticky; top:0; z-index:40;
+    display:flex; align-items:center; justify-content:space-between;
+    gap:16px; flex-wrap:wrap;
+    padding:14px clamp(16px,4vw,40px);
+    background:linear-gradient(180deg, var(--ink) 70%, rgba(10,14,20,0));
+    pointer-events:none;
+  }
+  .masthead > *{ pointer-events:auto; }
+  .brand{
+    font-family:'Anton',sans-serif;
+    font-size:clamp(20px,2.6vw,30px);
+    letter-spacing:.04em;
+    text-transform:uppercase;
+    line-height:1;
+    color:var(--yellow);
+    text-decoration:none;
+    display:inline-block;
+  }
+  .brand b{ color:var(--vermilion); font-weight:400; }
+  .masthead .meta{
+    font-size:11px; letter-spacing:.22em; text-transform:uppercase;
+    color:var(--paper); opacity:.72;
+    text-align:right;
+  }
+  .masthead .meta .live{ color:var(--vermilion); }
+
+  /* ---------- poster strip ---------- */
+  .series{
+    display:flex;
+    flex-direction:column;
+    gap:clamp(40px,7vw,96px);
+    padding:clamp(20px,4vw,48px) clamp(14px,4vw,48px) 14vh;
+  }
+
+  .poster{
+    position:relative;
+    width:100%;
+    max-width:1180px;
+    margin:0 auto;
+    aspect-ratio:16/10;
+    border-radius:6px;
+    overflow:hidden;
+    background:var(--ink-2);
+    box-shadow:0 30px 80px -40px #000, 0 0 0 1px var(--hair);
+    isolation:isolate;
+  }
+  /* first poster gets a vermilion registration tick to signal it is the "now drawing" one */
+  .poster.lead{ box-shadow:0 30px 90px -36px #000, 0 0 0 1px rgba(224,60,44,.45); }
+
+  .poster .art{
+    position:absolute; inset:0;
+    width:100%; height:100%;
+    object-fit:cover;
+    display:block;
+    /* duotone-ish print treatment so the art never fights the type */
+    filter:saturate(.78) contrast(1.06) brightness(.62);
+  }
+  .poster .scrim{
+    position:absolute; inset:0;
+    background:
+      radial-gradient(120% 80% at 50% 0%, rgba(10,14,20,.62), transparent 55%),
+      radial-gradient(120% 90% at 50% 100%, rgba(10,14,20,.74), transparent 58%),
+      linear-gradient(180deg, rgba(10,14,20,.28), rgba(10,14,20,.34));
+    mix-blend-mode:multiply;
+    pointer-events:none;
+  }
+
+  /* the SVG overlay carries ALL the type, on organic curves */
+  .poster .type{
+    position:absolute; inset:0;
+    width:100%; height:100%;
+    overflow:visible;
+  }
+
+  /* visible guide curve under each text run, drawn on scroll */
+  .guide{
+    fill:none;
+    stroke:#f5d94e;            /* literal hex - var() does not resolve in SVG presentation attrs */
+    stroke-width:1.4;
+    stroke-linecap:round;
+    opacity:.30;
+  }
+  .guide.accent{ stroke:#e03c2c; opacity:.5; }
+
+  /* text-on-path runs - fill is literal hex per guardrail (no var() in SVG fill) */
+  text.run{
+    font-family:'Anton',sans-serif;
+    fill:#f5d94e;
+    letter-spacing:.5px;
+    transition:fill .25s ease;
+  }
+  text.run.credit{
+    font-family:'Archivo',sans-serif;
+    font-weight:800;
+    fill:#f3ead4;
+  }
+  text.run.url{
+    font-family:'Archivo',sans-serif;
+    font-weight:700;
+    fill:#e03c2c;
+    letter-spacing:1.5px;
+  }
+
+  /* hover a path-run group -> highlight in vermilion + lift its guide.
+     Groups are decorative (inside an aria-hidden svg) so they are not
+     focusable; real keyboard focus lives on the buttons + links below. */
+  .runGroup{ cursor:pointer; }
+  .runGroup:hover text.run{ fill:#e03c2c; }
+  .runGroup:hover .guide{ opacity:.85; stroke:#e03c2c; }
+
+  /* index badge / dates per poster, bottom-left corner, real text */
+  .corner{
+    position:absolute; left:16px; bottom:14px; z-index:3;
+    display:flex; align-items:baseline; gap:10px;
+    font-size:11px; letter-spacing:.18em; text-transform:uppercase;
+    color:var(--paper); text-shadow:0 1px 8px rgba(0,0,0,.8);
+  }
+  .corner .num{
+    font-family:'Anton',sans-serif;
+    font-size:26px; letter-spacing:.02em;
+    color:var(--vermilion); line-height:.8;
+  }
+  .corner .stage{ opacity:.85; }
+  .corner .ticket{
+    color:var(--vermilion); text-decoration:none; font-weight:700;
+    border-bottom:1px solid rgba(224,60,44,.55);
+    padding-bottom:1px; transition:color .2s ease, border-color .2s ease;
+  }
+  .corner .ticket:hover{ color:var(--yellow); border-color:var(--yellow); }
+
+  /* screen-reader-only copy (visually hidden, still in the a11y tree) */
+  .sr{
+    position:absolute; width:1px; height:1px;
+    padding:0; margin:-1px; overflow:hidden;
+    clip:rect(0 0 0 0); white-space:nowrap; border:0;
+  }
+
+  /* one global, high-contrast keyboard focus ring for every real control */
+  a:focus-visible,
+  button:focus-visible{
+    outline:2px solid var(--yellow);
+    outline-offset:3px;
+    border-radius:3px;
+  }
+
+  /* media-cell control: only the in-view poster's video plays */
+  .mediaToggle{
+    position:absolute; right:14px; bottom:14px; z-index:4;
+    display:none; align-items:center; gap:7px;
+    padding:7px 12px;
+    background:rgba(10,14,20,.7);
+    border:1px solid rgba(245,217,78,.4);
+    border-radius:999px;
+    color:var(--yellow);
+    font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    cursor:pointer;
+  }
+  .poster.hasVideo .mediaToggle{ display:inline-flex; }
+  .mediaToggle .dot{
+    width:8px; height:8px; border-radius:50%;
+    background:var(--vermilion);
+    box-shadow:0 0 0 0 rgba(224,60,44,.6);
+  }
+  .poster.playing .mediaToggle .dot{ animation:pulse 1.6s infinite; }
+  @keyframes pulse{
+    0%{ box-shadow:0 0 0 0 rgba(224,60,44,.55); }
+    70%{ box-shadow:0 0 0 9px rgba(224,60,44,0); }
+    100%{ box-shadow:0 0 0 0 rgba(224,60,44,0); }
+  }
+  .mediaToggle:focus-visible{ outline:2px solid var(--yellow); outline-offset:2px; }
+
+  /* footer */
+  .colophon{
+    max-width:1180px; margin:0 auto;
+    padding:0 clamp(14px,4vw,48px) 10vh;
+    display:flex; justify-content:space-between; gap:24px; flex-wrap:wrap;
+    font-size:12px; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--paper); opacity:.6;
+  }
+  .colophon b{ color:var(--yellow); }
+
+  /* ---------- mobile: never cover-crop landscape art into a portrait phone ---------- */
+  @media (max-width:640px){
+    .series{ gap:36px; padding:14px 12px 12vh; }
+    .poster{ aspect-ratio:4/5; }           /* taller frame for phones... */
+    .poster .art{ object-fit:contain; background:var(--ink); }  /* ...and letterbox, do not crop */
+    .poster .scrim{
+      background:
+        radial-gradient(130% 70% at 50% 0%, rgba(10,14,20,.7), transparent 50%),
+        radial-gradient(130% 70% at 50% 100%, rgba(10,14,20,.78), transparent 50%);
+    }
+    .corner{ left:12px; bottom:12px; }
+    .masthead .meta{ display:none; }
+  }
+
+  /* ---------- reduced motion: paths fully drawn, no rAF/observer draw, no pulse ----------
+     CSS gates the visual motion; the JS scroll-draw + autoplay are gated by the
+     reduceMotion flag, so the settled final state is every curve fully drawn. */
+  @media (prefers-reduced-motion:reduce){
+    html{ scroll-behavior:auto; }
+    *{ animation:none !important; transition:none !important; }
+    .guide{ stroke-dashoffset:0 !important; }
+  }
+</style>
+</head>
+<body>
+
+  <header class="masthead">
+    <a class="brand" href="#series">CURVED<b>/</b>TYPE</a>
+    <div class="meta">
+      Festival Poster Series &middot; Text-on-Path<br />
+      <span class="live">&#9679; drawing now</span> &middot; scroll to reveal
+    </div>
+  </header>
+
+  <main class="series" id="series" aria-label="Festival poster series"></main>
+
+  <footer class="colophon">
+    <span>Set in <b>Anton</b> on organic SVG curves &middot; inline &lt;textPath&gt;</span>
+    <span>Night ink &middot; <b>electric yellow</b> &middot; vermilion</span>
+  </footer>
+
+  <script>
+  /* =======================================================================
+     DATA - swap posters here. Each entry is one full-bleed festival poster.
+     art      : background image OR video poster (used as <img> still)
+     video    : optional mp4 loop (plays only when this poster is in view)
+     muted    : whether the video is muted (audio assets default false)
+     num      : printed index
+     stage    : printed sub-label / dates
+     title    : the big arced display line (top curve)
+     credit   : the spiral/side credit line
+     url      : the curved URL beneath
+     ======================================================================= */
+  const POSTERS = [
+    {
+      art:   '../assets/flux-car-4k.png',
+      video: '../assets/flux-car-i2v.mp4',
+      poster:'../assets/gen/poster-flux-car-i2v.png',
+      muted: true,
+      num:   '01',
+      stage: 'Main Stage / Night One',
+      title: 'NEON MIDNIGHT DRIVE',
+      credit:'live set by AUTOBAHN COLLECTIVE + guests',
+      url:   'curvedtype.fm/midnight'
+    },
+    {
+      art:   '../assets/flux-clinic-4k.png',
+      num:   '02',
+      stage: 'Pavilion / Afternoon',
+      title: 'MINT ROOM SESSIONS',
+      credit:'ambient & wood-grain dub all day long',
+      url:   'curvedtype.fm/mint'
+    },
+    {
+      art:   '../assets/sdxl.png',
+      num:   '03',
+      stage: 'Forest Stage / Dusk',
+      title: 'AUTUMN FOX REVUE',
+      credit:'painted folk and warm analog tape loops',
+      url:   'curvedtype.fm/fox'
+    },
+    {
+      art:   '../assets/gen/poster-kling-video.png',
+      video: '../assets/kling-video.mp4',
+      poster:'../assets/gen/poster-kling-video.png',
+      muted: true,
+      num:   '04',
+      stage: 'Closing / Late Night',
+      title: 'MOTION AFTERHOURS',
+      credit:'generative visuals by THE KLING ENSEMBLE',
+      url:   'curvedtype.fm/afterhours'
+    },
+    {
+      art:   '../assets/hf-tinysd.png',
+      num:   '05',
+      stage: 'Lo-Fi Tent / Anytime',
+      title: 'ABSTRACT APPLE LAB',
+      credit:'low-fidelity experiments and open decks',
+      url:   'curvedtype.fm/labs'
+    }
+  ];
+
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+  /* ---- viewBox geometry (shared by every poster's <svg>) ---- */
+  const VB_W = 1000, VB_H = 625;   // 16:10 working space
+
+  /* organic curves: gentle smile-arc title up top, a sweeping side credit,
+     a relaxed reverse-arc URL beneath. id-suffix per poster keeps hrefs unique. */
+  // Three well-separated curves so no two runs ever overlap:
+  // title smiles across the top; credit rides a gentle upper-lower sweep;
+  // the url sits on its own reverse-arc near the floor with clear air between.
+  function pathDefs(i){
+    return {
+      title:  `M 70 195 C 270 92, 730 92, 930 195`,                 // top smile arc
+      credit: `M 110 452 C 270 512, 730 512, 905 452`,              // mid-lower gentle sweep
+      url:    `M 250 585 C 380 558, 620 558, 770 585`               // floor reverse arc, clear of credit
+    };
+  }
+
+  const series = document.getElementById('series');
+
+  POSTERS.forEach((p, i) => {
+    const lead = i === 0;
+    const paths = pathDefs(i);
+    const pid = (k) => `p${i}-${k}`;          // unique path id
+    const hasVideo = !!p.video;
+
+    const fig = document.createElement('figure');
+    fig.className = 'poster' + (lead ? ' lead' : '') + (hasVideo ? ' hasVideo' : '');
+    fig.setAttribute('aria-label', `Poster ${p.num}: ${p.title}`);
+
+    // ---- background art (img still) ----
+    const img = document.createElement('img');
+    img.className = 'art';
+    img.src = p.art;
+    img.alt = '';
+    img.loading = lead ? 'eager' : 'lazy';
+    img.decoding = 'async';
+    fig.appendChild(img);
+
+    // ---- optional video (only plays in-view / focused) ----
+    let vid = null;
+    if (hasVideo){
+      vid = document.createElement('video');
+      vid.className = 'art';
+      vid.style.opacity = '0';
+      vid.muted = p.muted !== false;
+      vid.loop = true;
+      vid.playsInline = true;
+      vid.preload = 'none';
+      vid.poster = p.poster || p.art;
+      vid.setAttribute('aria-hidden', 'true');
+      const src = document.createElement('source');
+      src.src = p.video; src.type = 'video/mp4';
+      vid.appendChild(src);
+      fig.appendChild(vid);
+    }
+
+    const scrim = document.createElement('div');
+    scrim.className = 'scrim';
+    fig.appendChild(scrim);
+
+    // ---- SVG type overlay (all type is inline SVG text-on-path) ----
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('class', 'type');
+    svg.setAttribute('viewBox', `0 0 ${VB_W} ${VB_H}`);
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    svg.setAttribute('aria-hidden', 'true');   // visible text duplicated for a11y via figcaption below
+
+    const defs = document.createElementNS(NS, 'defs');
+    ['title','credit','url'].forEach(k => {
+      const path = document.createElementNS(NS, 'path');
+      path.setAttribute('id', pid(k));
+      path.setAttribute('d', paths[k]);
+      defs.appendChild(path);
+    });
+    svg.appendChild(defs);
+
+    // helper: build one run group = visible guide stroke + textPath text.
+    // The SVG is decorative (aria-hidden); the same copy is exposed to AT via
+    // the .sr figcaption text below, so these groups stay non-focusable
+    // (a focusable node inside aria-hidden is an a11y violation). Hover-only.
+    function run(kind, txt, opts){
+      opts = opts || {};
+      const g = document.createElementNS(NS, 'g');
+      g.setAttribute('class', 'runGroup');
+
+      // visible guide (clone of the same path, animated via stroke-dashoffset)
+      const guide = document.createElementNS(NS, 'use');
+      guide.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '#' + pid(kind));
+      guide.setAttribute('href', '#' + pid(kind));
+      guide.setAttribute('class', 'guide' + (opts.accent ? ' accent' : ''));
+      // stroke-dasharray / stroke-dashoffset as INLINE svg attributes (guardrail)
+      const L = 1200;  // generous, longer than any path; offset hides it fully
+      guide.setAttribute('stroke-dasharray', L);
+      guide.setAttribute('stroke-dashoffset', reduceMotion ? 0 : (lead ? Math.round(L * 0.45) : L));
+      guide.setAttribute('pathLength', L);
+      g.appendChild(guide);
+
+      // the text-on-path itself
+      const text = document.createElementNS(NS, 'text');
+      text.setAttribute('class', 'run' + (opts.cls ? ' ' + opts.cls : ''));
+      text.setAttribute('font-size', opts.size);
+      const tp = document.createElementNS(NS, 'textPath');
+      tp.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '#' + pid(kind));
+      tp.setAttribute('href', '#' + pid(kind));
+      tp.setAttribute('startOffset', opts.start || '50%');
+      tp.setAttribute('text-anchor', opts.anchor || 'middle');
+      tp.textContent = txt;
+      text.appendChild(tp);
+      g.appendChild(text);
+
+      return g;
+    }
+
+    // title arc (big), credit sweep, url reverse-arc
+    svg.appendChild(run('title',  p.title,  { size: 72, cls: '', accent: false }));
+    svg.appendChild(run('credit', p.credit, { size: 30, cls: 'credit', accent: true }));
+    svg.appendChild(run('url',    p.url,    { size: 26, cls: 'url',    accent: false }));
+
+    fig.appendChild(svg);
+
+    // ---- printed corner index (real text, not in svg) ----
+    const corner = document.createElement('figcaption');
+    corner.className = 'corner';
+    // Real, selectable, keyboard-focusable link per poster (the SVG type is
+    // decorative); the .sr span carries the full title/credit/url for AT.
+    corner.innerHTML =
+      `<span class="num">${p.num}</span>` +
+      `<span class="stage">${p.stage}</span>` +
+      `<a class="ticket" href="https://${p.url}">Tickets</a>` +
+      `<span class="sr">${p.title}. ${p.credit}. ${p.url}</span>`;
+    fig.appendChild(corner);
+
+    // ---- media toggle (lock playback to this poster) ----
+    if (hasVideo){
+      const btn = document.createElement('button');
+      btn.className = 'mediaToggle';
+      btn.type = 'button';
+      btn.innerHTML = `<span class="dot"></span><span class="lbl">Play loop</span>`;
+      btn.addEventListener('click', () => toggleVideo(fig, true));
+      fig.appendChild(btn);
+    }
+
+    series.appendChild(fig);
+  });
+
+  /* =========================================================
+     SCROLL-DRAW: IntersectionObserver triggers each guide's
+     stroke-dashoffset -> 0, drawing the curve. Title runs draw
+     first, then credit, then url (staggered).
+     ========================================================= */
+  if (!reduceMotion){
+    const drawObs = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (!e.isIntersecting) return;
+        const fig = e.target;
+        const guides = fig.querySelectorAll('.guide');
+        guides.forEach((g, gi) => {
+          // animate dashoffset to 0 with a per-run delay
+          g.style.transition = `stroke-dashoffset 1100ms cubic-bezier(.22,.61,.36,1) ${gi * 220}ms`;
+          // setting via attribute keeps it an inline SVG attr; transition still applies
+          requestAnimationFrame(() => g.setAttribute('stroke-dashoffset', '0'));
+        });
+        drawObs.unobserve(fig);
+      });
+    }, { threshold: 0.28 });
+
+    document.querySelectorAll('.poster').forEach(fig => drawObs.observe(fig));
+
+    // lead poster: it starts mid-draw (0.45 offset) at scroll=0, then completes
+    // shortly after load so the mechanic reads immediately without scrolling.
+    const lead = document.querySelector('.poster.lead');
+    if (lead){
+      window.addEventListener('load', () => {
+        setTimeout(() => {
+          lead.querySelectorAll('.guide').forEach((g, gi) => {
+            g.style.transition = `stroke-dashoffset 1300ms cubic-bezier(.22,.61,.36,1) ${gi * 220}ms`;
+            requestAnimationFrame(() => g.setAttribute('stroke-dashoffset', '0'));
+          });
+        }, 600);
+      });
+    }
+  }
+
+  /* =========================================================
+     VIDEO PLAYBACK: only one video plays at a time, and only
+     when its poster is in view. Avoids simultaneous decode.
+     ========================================================= */
+  let activeFig = null;
+  function toggleVideo(fig, lock){
+    const vid = fig.querySelector('video');
+    if (!vid) return;
+    if (activeFig && activeFig !== fig){
+      const av = activeFig.querySelector('video');
+      if (av){ av.pause(); av.style.opacity = '0'; }
+      activeFig.classList.remove('playing');
+      const albl = activeFig.querySelector('.mediaToggle .lbl');
+      if (albl) albl.textContent = 'Play loop';
+    }
+    const lbl = fig.querySelector('.mediaToggle .lbl');
+    if (fig.classList.contains('playing')){
+      vid.pause(); vid.style.opacity = '0';
+      fig.classList.remove('playing');
+      if (lbl) lbl.textContent = 'Play loop';
+      if (activeFig === fig) activeFig = null;
+    } else {
+      vid.style.opacity = '1';
+      const pr = vid.play();
+      if (pr && pr.catch) pr.catch(()=>{});
+      fig.classList.add('playing');
+      if (lbl) lbl.textContent = 'Pause loop';
+      activeFig = fig;
+    }
+  }
+
+  // pause any playing video that scrolls out of view (free the decoder)
+  if (!reduceMotion){
+    const playObs = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (!e.isIntersecting && e.target.classList.contains('playing')){
+          const vid = e.target.querySelector('video');
+          if (vid){ vid.pause(); vid.style.opacity = '0'; }
+          e.target.classList.remove('playing');
+          const lbl = e.target.querySelector('.mediaToggle .lbl');
+          if (lbl) lbl.textContent = 'Play loop';
+          if (activeFig === e.target) activeFig = null;
+        }
+      });
+    }, { threshold: 0.5 });
+    document.querySelectorAll('.poster.hasVideo').forEach(f => playObs.observe(f));
+  }
+  </script>
+</body>
+</html>

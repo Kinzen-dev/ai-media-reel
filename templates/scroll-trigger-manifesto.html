@@ -1,0 +1,597 @@
+<!-- TEMPLATE: Cross Manifesto | ARCHETYPE: REVEAL | REF: CSS scroll-driven animations animation-timeline:view() (MDN 2025, Chrome 2024-2025 Baseline), Codrops SDA demos | WHEN TO USE: a long editorial manifesto / statement page where every line and image panel must reveal itself the instant it crosses the viewport, zero scroll JS | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cross Manifesto - native CSS scroll-driven reveals</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,900&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   REVEAL - native CSS scroll-driven viewport-CROSSING reveals
+   Palette: #0e0e12 ink | #ece6d8 bone | #b6f84a acid accent
+   ------------------------------------------------------------
+   THE MECHANIC (and what it is NOT)
+   Every .reveal element carries its own animation whose timeline is
+   `view()` - a per-element progress timeline that runs from when the
+   element ENTERS the scrollport to when it LEAVES. We scrub only a
+   slice of that range (`animation-range`) near the entry edge, so each
+   block snaps from a dim, offset, clipped state to its settled state
+   the moment it CROSSES into view. There is ZERO scroll-position JS:
+   no scroll listeners, no IntersectionObserver, no rAF - the browser
+   compositor drives it natively (Chrome/Edge 2024+, Safari/Firefox via
+   the fallback below).
+   This is NOT parallax. Parallax maps scroll position 1:1 to transform
+   for the whole page. Here each element has an INDIVIDUAL trigger keyed
+   to its own crossing of the viewport edge, then it stays put.
+   ------------------------------------------------------------
+   scroll=0 COMPOSITION
+   The hero is authored as a SETTLED in-view state, not a mid-flight
+   frame: its headline, lede, and a populated 4-cell media strip are all
+   fully present at scroll=0 so the catalog thumbnail reads as a bold,
+   complete editorial statement. The hero block has NO reveal animation;
+   only the downpage blocks animate on crossing.
+   ------------------------------------------------------------
+   FALLBACK + REDUCED MOTION
+   - @supports not (animation-timeline: view()): every .reveal is shown
+     at its final settled state (opacity 1, no transform, no clip).
+   - prefers-reduced-motion: same - the view() animations are disabled
+     and the settled state is shown, because these reveals ARE motion.
+   ============================================================ */
+
+:root{
+  --ink:#0e0e12;
+  --ink-2:#15151c;
+  --bone:#ece6d8;
+  --bone-dim:#9d978a;
+  --acid:#b6f84a;
+  --line:rgba(236,230,216,.14);
+  --maxw:1180px;
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  background:var(--ink);
+  color:var(--bone);
+  font-family:"Space Grotesk",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+}
+a{color:inherit}
+img,video{display:block;max-width:100%}
+
+/* film-grain + vignette so the dark field is never flat */
+body::before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(120% 90% at 50% -10%, rgba(182,248,74,.07), transparent 55%),
+    radial-gradient(140% 120% at 50% 120%, rgba(0,0,0,.55), transparent 60%);
+}
+.wrap{position:relative;z-index:1;max-width:var(--maxw);margin:0 auto;padding:0 28px}
+
+/* ---------- reusable kicker / labels ---------- */
+.kicker{
+  font-size:12px;letter-spacing:.34em;text-transform:uppercase;
+  color:var(--acid);font-weight:700;display:inline-flex;gap:10px;align-items:center;
+}
+.kicker::before{content:"";width:26px;height:1px;background:var(--acid)}
+.muted{color:var(--bone-dim)}
+
+/* ============================================================
+   HERO  - SETTLED at scroll=0. No reveal animation here.
+   ============================================================ */
+.hero{
+  min-height:96vh;
+  padding:84px 0 56px;
+  display:grid;
+  grid-template-rows:auto 1fr auto;
+  gap:34px;
+}
+.hero-top{display:flex;justify-content:space-between;align-items:baseline;gap:20px;flex-wrap:wrap}
+.brand{font-family:"Fraunces",serif;font-weight:900;font-size:20px;letter-spacing:-.01em}
+.brand b{color:var(--acid)}
+.hero-meta{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--bone-dim)}
+
+.hero-head h1{
+  font-family:"Fraunces",serif;
+  font-weight:900;
+  font-size:clamp(44px,9.2vw,148px);
+  line-height:.92;
+  letter-spacing:-.02em;
+  margin:0;
+}
+.hero-head h1 .em{color:var(--acid);font-style:italic}
+.hero-head .lede{
+  margin:26px 0 0;
+  max-width:60ch;
+  font-size:clamp(15px,1.6vw,20px);
+  line-height:1.55;
+  color:var(--bone-dim);
+}
+.hero-head .lede b{color:var(--bone);font-weight:500}
+
+/* the populated media strip that makes scroll=0 look full and bold */
+.strip{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:14px;
+}
+.cell{
+  position:relative;
+  aspect-ratio:4/5;
+  border:1px solid var(--line);
+  border-radius:14px;
+  overflow:hidden;
+  background:var(--ink-2);
+}
+.cell img,.cell video{
+  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+}
+.cell .tag{
+  position:absolute;left:10px;bottom:10px;z-index:2;
+  font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;
+  padding:5px 9px;border-radius:999px;
+  background:rgba(14,14,18,.62);backdrop-filter:blur(6px);
+  border:1px solid var(--line);color:var(--bone);
+}
+.cell::after{ /* readability scrim */
+  content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:linear-gradient(180deg,transparent 52%,rgba(14,14,18,.5));
+}
+.scroll-cue{
+  display:inline-flex;align-items:center;gap:10px;
+  font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--bone-dim);
+}
+.scroll-cue .dot{
+  width:9px;height:9px;border-radius:50%;background:var(--acid);
+  box-shadow:0 0 0 0 rgba(182,248,74,.6);
+  animation:pulse 2.4s ease-out infinite;
+}
+@keyframes pulse{
+  0%{box-shadow:0 0 0 0 rgba(182,248,74,.55)}
+  70%{box-shadow:0 0 0 12px rgba(182,248,74,0)}
+  100%{box-shadow:0 0 0 0 rgba(182,248,74,0)}
+}
+
+/* ============================================================
+   REVEAL ENGINE  - the signature, declarative, no JS
+   ============================================================ */
+.reveal{
+  opacity:.001;
+  will-change:opacity,transform,clip-path;
+  animation:reveal-up both linear;
+  animation-timeline:view();
+  /* fire as the element crosses the lower edge into view, finish
+     well before center - so it is settled by the time it is read */
+  animation-range:entry 8% cover 34%;
+}
+@keyframes reveal-up{
+  from{opacity:.001;transform:translateY(46px) scale(.985);clip-path:inset(0 0 100% 0)}
+  60% {opacity:1}
+  to  {opacity:1;transform:none;clip-path:inset(0 0 0 0)}
+}
+/* horizontal variant for paired panels */
+.reveal-x{animation-name:reveal-x}
+@keyframes reveal-x{
+  from{opacity:.001;transform:translateX(-44px);clip-path:inset(0 100% 0 0)}
+  60% {opacity:1}
+  to  {opacity:1;transform:none;clip-path:inset(0 0 0 0)}
+}
+.reveal-x.right{animation-name:reveal-x-r}
+@keyframes reveal-x-r{
+  from{opacity:.001;transform:translateX(44px);clip-path:inset(0 0 0 100%)}
+  60% {opacity:1}
+  to  {opacity:1;transform:none;clip-path:inset(0 0 0 0)}
+}
+/* per-word stagger inside a headline */
+.word{
+  display:inline-block;
+  opacity:.001;
+  animation:word-in both linear;
+  animation-timeline:view();
+  animation-range:entry 6% cover 28%;
+}
+@keyframes word-in{
+  from{opacity:.001;transform:translateY(.5em) rotate(2deg)}
+  to  {opacity:1;transform:none}
+}
+
+/* ============================================================
+   STATEMENT BLOCKS  (big editorial type lines)
+   ============================================================ */
+.statement{
+  border-top:1px solid var(--line);
+  padding:9vh 0;
+}
+.statement .n{
+  font-family:"Space Grotesk";font-size:13px;letter-spacing:.3em;
+  color:var(--acid);font-weight:700;margin-bottom:18px;display:block;
+}
+.statement h2{
+  font-family:"Fraunces",serif;font-weight:900;
+  font-size:clamp(32px,6.4vw,86px);line-height:1.02;letter-spacing:-.02em;margin:0;
+}
+.statement h2 em{font-style:italic;color:var(--acid)}
+.statement p{
+  margin:26px 0 0;max-width:58ch;font-size:clamp(15px,1.5vw,19px);
+  line-height:1.6;color:var(--bone-dim);
+}
+
+/* ============================================================
+   MEDIA PANELS  - full-bleed reveal frames
+   landscape assets MUST NOT cover-crop a phone portrait viewport;
+   handled in @media below by switching object-fit to contain.
+   ============================================================ */
+.panel{
+  border-top:1px solid var(--line);
+  padding:8vh 0;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:42px;
+  align-items:center;
+}
+.panel.flip .panel-media{order:2}
+.panel-media{
+  position:relative;
+  border:1px solid var(--line);
+  border-radius:18px;
+  overflow:hidden;
+  background:var(--ink-2);
+  aspect-ratio:16/10;
+}
+.panel-media img,
+.panel-media video{
+  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+}
+.panel-media .ribbon{
+  position:absolute;top:14px;left:14px;z-index:2;
+  font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;
+  padding:6px 11px;border-radius:999px;color:var(--ink);background:var(--acid);
+}
+.panel-text .kicker{margin-bottom:18px}
+.panel-text h3{
+  font-family:"Fraunces",serif;font-weight:900;
+  font-size:clamp(26px,4.2vw,52px);line-height:1.05;margin:0;letter-spacing:-.01em;
+}
+.panel-text p{margin:18px 0 0;font-size:16px;line-height:1.62;color:var(--bone-dim);max-width:46ch}
+.panel-text .meta{
+  margin-top:22px;display:flex;gap:22px;flex-wrap:wrap;
+  font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--bone-dim);
+}
+.panel-text .meta b{color:var(--bone);font-weight:700;display:block;font-size:15px;letter-spacing:.02em}
+
+/* play/pause poster overlay button for in-view video control */
+.play-btn{
+  position:absolute;z-index:3;inset:auto auto 14px 14px;
+  width:46px;height:46px;border-radius:50%;border:1px solid var(--line);
+  background:rgba(14,14,18,.6);backdrop-filter:blur(6px);color:var(--bone);
+  display:grid;place-items:center;cursor:pointer;
+}
+.play-btn:focus-visible{outline:3px solid var(--acid);outline-offset:3px}
+.play-btn svg{width:18px;height:18px;fill:currentColor}
+
+/* ============================================================
+   PULL-QUOTE (acid field break)
+   ============================================================ */
+.break{
+  margin:0;padding:14vh 0;border-top:1px solid var(--line);
+}
+.break blockquote{
+  margin:0;font-family:"Fraunces",serif;font-weight:900;font-style:italic;
+  font-size:clamp(30px,5.6vw,76px);line-height:1.04;letter-spacing:-.02em;
+}
+.break blockquote .hl{
+  background:var(--acid);color:var(--ink);padding:0 .12em;border-radius:4px;
+  box-decoration-break:clone;-webkit-box-decoration-break:clone;
+}
+.break cite{display:block;margin-top:24px;font-style:normal;font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:var(--bone-dim)}
+
+/* ============================================================
+   CLOSER
+   ============================================================ */
+.closer{
+  border-top:1px solid var(--line);
+  padding:16vh 0 10vh;text-align:center;
+}
+.closer h2{
+  font-family:"Fraunces",serif;font-weight:900;
+  font-size:clamp(40px,8vw,116px);line-height:.95;letter-spacing:-.02em;margin:0;
+}
+.closer h2 em{font-style:italic;color:var(--acid)}
+.closer .cta{
+  display:inline-flex;align-items:center;gap:12px;margin-top:38px;
+  padding:16px 28px;border-radius:999px;background:var(--acid);color:var(--ink);
+  font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:13px;
+  text-decoration:none;transition:transform .2s ease;
+}
+.closer .cta:hover{transform:translateY(-2px)}
+.closer .cta:focus-visible{outline:3px solid var(--bone);outline-offset:4px}
+footer.foot{
+  border-top:1px solid var(--line);
+  padding:30px 0;display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--bone-dim);
+}
+
+/* ============================================================
+   MOBILE  (<=640px): identical mechanic, but landscape media is
+   letterboxed (contain) so nothing cover-crops a portrait phone.
+   ============================================================ */
+@media (max-width:900px){
+  .panel{grid-template-columns:1fr;gap:24px}
+  .panel.flip .panel-media{order:0}
+  .hero-head .lede{margin-top:20px}
+}
+@media (max-width:640px){
+  .wrap{padding:0 18px}
+  .hero{padding:64px 0 44px;min-height:92vh;gap:26px}
+  .strip{grid-template-columns:repeat(2,1fr);gap:10px}
+  .panel-media{aspect-ratio:16/11;background:#0a0a0e}
+  .panel-media img,
+  .panel-media video{object-fit:contain} /* letterbox, never crop */
+  .statement{padding:7vh 0}
+  .break{padding:10vh 0}
+}
+
+/* ============================================================
+   ACCESSIBILITY + FALLBACK  - both collapse to the settled state
+   ============================================================ */
+.skip{
+  position:absolute;left:-9999px;top:0;z-index:50;background:var(--acid);color:var(--ink);
+  padding:10px 16px;border-radius:0 0 8px 0;font-weight:700;
+}
+.skip:focus{left:0}
+:focus-visible{outline:3px solid var(--acid);outline-offset:3px;border-radius:2px}
+
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .reveal,.reveal-x,.word{
+    animation:none !important;
+    opacity:1 !important;
+    transform:none !important;
+    clip-path:none !important;
+  }
+  .scroll-cue .dot{animation:none}
+}
+/* browsers without scroll-driven animations: show the settled state */
+@supports not (animation-timeline:view()){
+  .reveal,.reveal-x,.word{
+    animation:none !important;
+    opacity:1 !important;
+    transform:none !important;
+    clip-path:none !important;
+  }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<script>
+/* ============================================================
+   DATA  - swap the whole page by editing this object.
+   All media paths are relative to this file in /templates/.
+   ============================================================ */
+const ASSETS = "../assets";
+const GEN = "../assets/gen";
+
+const DATA = {
+  brand:      "STUDIO / <b>WERK</b>",
+  meta:       "Manifesto No. 04 / 2026",
+  headline:   { lead:"We reveal", em:"on the cross.", tail:"" },
+  lede:       "A page that proves its own thesis. Nothing fades in on a timer and nothing tracks the scrollbar. Every line and every frame fires the instant it <b>crosses the viewport edge</b> - declared in CSS, driven by the compositor, zero scroll JavaScript.",
+
+  // populated at scroll=0 so the hero thumbnail reads full + bold
+  strip: [
+    { type:"img",   src:`${ASSETS}/flux-car-4k.png`,             tag:"Plate 01" },
+    { type:"img",   src:`${ASSETS}/flux-clinic-4k.png`,          tag:"Plate 02" },
+    { type:"img",   src:`${ASSETS}/sdxl.png`,                    tag:"Plate 03" },
+    { type:"img",   src:`${ASSETS}/hf-tinysd.png`,               tag:"Plate 04" }
+  ],
+
+  // statement lines reveal on crossing
+  statements: [
+    { n:"01 / Thesis",   h:["A reveal is a ", {em:"trigger"}, ", not a track."],
+      p:"Parallax binds the whole page to the scrollbar in a 1:1 map. This binds each element to its own crossing of the viewport, then lets it rest. The difference is the difference between a slide and a statement." },
+    { n:"02 / Engine",   h:["Declared once. ", {em:"Run natively."}],
+      p:"animation-timeline: view() gives every block a private progress clock that starts when it enters the scrollport. We scrub a slice near the entry edge with animation-range, so the block snaps to its settled state before it is ever read." }
+  ],
+
+  // full-bleed media panels reveal as they cross
+  panels: [
+    {
+      ribbon:"Still", kicker:"Crossing 01", flip:false,
+      media:{ type:"img", src:`${ASSETS}/flux-car-4k.png` },
+      h:"The frame arrives already composed.",
+      p:"This plate enters clipped from the bottom and lands flush. No mid-flight blur, no half-empty thumbnail - the reveal resolves to a settled image you can actually look at.",
+      meta:[["Asset","flux-car-4k"],["Range","entry 8% -> cover 34%"]]
+    },
+    {
+      ribbon:"Motion", kicker:"Crossing 02", flip:true,
+      media:{ type:"video", src:`${ASSETS}/kling-video.mp4`, poster:`${GEN}/poster-kling-video.png` },
+      h:"Video wakes only when it is watched.",
+      p:"The clip stays a poster until its panel crosses into view, then plays muted and loops. Scroll past and it pauses again, so a long page never decodes ten streams at once.",
+      meta:[["Asset","kling-video"],["Decode","in-view only"]]
+    },
+    {
+      ribbon:"Still", kicker:"Crossing 03", flip:false,
+      media:{ type:"img", src:`${ASSETS}/flux-clinic-4k.png` },
+      h:"The same declaration scales every breakpoint.",
+      p:"One CSS rule drives 1440 desktop and 390 phone. On phones the landscape plate letterboxes instead of cropping, so the composition survives the portrait viewport intact.",
+      meta:[["Asset","flux-clinic-4k"],["Mobile","letterbox, no crop"]]
+    },
+    {
+      ribbon:"Motion", kicker:"Crossing 04", flip:true,
+      media:{ type:"video", src:`${ASSETS}/fal-video.mp4`, poster:`${GEN}/poster-fal-video.png` },
+      h:"Reduced motion gets the destination, not the journey.",
+      p:"These reveals are motion, so prefers-reduced-motion turns them off entirely and shows the final settled state. No flash of empty, no animation, just the page as it ends up.",
+      meta:[["Asset","fal-video"],["A11y","settled on reduce"]]
+    }
+  ],
+
+  quote:{ pre:"The browser ", hl:"already knows", post:" where the viewport edge is. Stop teaching it with JavaScript." , cite:"On native scroll-driven animation" },
+
+  closer:{ h:["Reveal ", {em:"on the cross."}], cta:"Read the source", note:"Native CSS / animation-timeline: view()", side:"No scroll listeners. No observers. No rAF." }
+};
+
+/* ---------- tiny render layer (build-once, no runtime scroll logic) ---------- */
+function el(tag, cls, html){ const e=document.createElement(tag); if(cls)e.className=cls; if(html!=null)e.innerHTML=html; return e; }
+function headWords(parts){
+  // parts: array of strings or {em:"..."} -> wrap each word in .word for staggered reveal
+  return parts.map(p=>{
+    const txt = typeof p==="string" ? p : p.em;
+    const emClass = typeof p==="string" ? "" : "em";
+    return txt.split(/(\s+)/).map(tok=>{
+      if(/^\s+$/.test(tok)) return tok;
+      return `<span class="word${emClass?' '+emClass:''}"${emClass?' style="color:var(--acid)"':''}>${tok}</span>`;
+    }).join("");
+  }).join("");
+}
+function emHead(parts){
+  return parts.map(p=> typeof p==="string" ? p : `<em>${p.em}</em>`).join("");
+}
+
+function build(){
+  const root = document.getElementById("main");
+
+  /* ----- HERO (settled at scroll=0, no reveal animation) ----- */
+  const hero = el("header","hero");
+  const top = el("div","hero-top");
+  top.appendChild(el("div","brand", DATA.brand));
+  top.appendChild(el("div","hero-meta", DATA.meta));
+  hero.appendChild(top);
+
+  const head = el("div","hero-head");
+  head.appendChild(el("h1", null, `${DATA.headline.lead} <span class="em">${DATA.headline.em}</span> ${DATA.headline.tail}`));
+  head.appendChild(el("p","lede", DATA.lede));
+  hero.appendChild(head);
+
+  const bottom = el("div");
+  const strip = el("div","strip");
+  DATA.strip.forEach(c=>{
+    const cell = el("div","cell");
+    const img = el("img");
+    img.src=c.src; img.alt=""; img.loading="eager"; img.decoding="async";
+    cell.appendChild(img);
+    cell.appendChild(el("span","tag", c.tag));
+    strip.appendChild(cell);
+  });
+  bottom.appendChild(el("div","kicker", "Scroll to reveal"));
+  bottom.appendChild(strip);
+  const cue = el("div","scroll-cue", `<span class="dot"></span> Every block fires as it crosses`);
+  cue.style.marginTop="16px";
+  bottom.appendChild(cue);
+  hero.appendChild(bottom);
+  root.appendChild(hero);
+
+  /* ----- STATEMENTS ----- */
+  DATA.statements.forEach(s=>{
+    const sec = el("section","statement reveal");
+    const w = el("div","wrap");
+    w.appendChild(el("span","n", s.n));
+    w.appendChild(el("h2", null, emHead(s.h)));
+    if(s.p) w.appendChild(el("p", null, s.p));
+    sec.appendChild(w);
+    root.appendChild(sec);
+  });
+
+  /* ----- PANELS ----- */
+  DATA.panels.forEach((p,i)=>{
+    const sec = el("section", "panel reveal" + (p.flip?" flip":""));
+    sec.classList.add("wrap");
+    const mediaWrap = el("div","panel-media");
+    mediaWrap.appendChild(el("span","ribbon", p.ribbon));
+    if(p.media.type==="img"){
+      const img=el("img"); img.src=p.media.src; img.alt=""; img.loading="lazy"; img.decoding="async";
+      mediaWrap.appendChild(img);
+    } else {
+      const v=document.createElement("video");
+      v.src=p.media.src; v.poster=p.media.poster;
+      v.muted=true; v.loop=true; v.playsInline=true; v.preload="none";
+      v.setAttribute("muted",""); v.setAttribute("playsinline","");
+      mediaWrap.appendChild(v);
+      // in-view play/pause button (also an accessible manual control)
+      const btn=el("button","play-btn");
+      btn.type="button"; btn.setAttribute("aria-label","Play or pause clip");
+      btn.innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true"><path class="ic" d="M8 5v14l11-7z"/></svg>`;
+      btn.addEventListener("click",()=>{ v.paused ? v.play() : v.pause(); });
+      v.addEventListener("play",()=>btn.querySelector(".ic").setAttribute("d","M6 5h4v14H6zM14 5h4v14h-4z"));
+      v.addEventListener("pause",()=>btn.querySelector(".ic").setAttribute("d","M8 5v14l11-7z"));
+      mediaWrap.appendChild(btn);
+    }
+    const text = el("div","panel-text");
+    text.appendChild(el("div","kicker", p.kicker));
+    text.appendChild(el("h3", null, p.h));
+    text.appendChild(el("p", null, p.p));
+    if(p.meta){
+      const m=el("div","meta");
+      p.meta.forEach(([k,val])=> m.appendChild(el("div", null, `${k}<b>${val}</b>`)));
+      text.appendChild(m);
+    }
+    sec.appendChild(mediaWrap);
+    sec.appendChild(text);
+    root.appendChild(sec);
+  });
+
+  /* ----- PULL QUOTE ----- */
+  const brk = el("section","break reveal");
+  const bw = el("div","wrap");
+  bw.appendChild(el("blockquote", null, `${DATA.quote.pre}<span class="hl">${DATA.quote.hl}</span>${DATA.quote.post}<cite>${DATA.quote.cite}</cite>`));
+  brk.appendChild(bw);
+  root.appendChild(brk);
+
+  /* ----- CLOSER ----- */
+  const close = el("section","closer reveal");
+  const cw = el("div","wrap");
+  cw.appendChild(el("h2", null, emHead(DATA.closer.h)));
+  const a=el("a","cta", DATA.closer.cta + ` <span aria-hidden="true">-&gt;</span>`);
+  a.href="#main";
+  cw.appendChild(a);
+  close.appendChild(cw);
+  root.appendChild(close);
+
+  const foot = el("footer","foot");
+  const fw = el("div","wrap");
+  fw.style.display="flex"; fw.style.justifyContent="space-between"; fw.style.gap="14px"; fw.style.flexWrap="wrap"; fw.style.width="100%";
+  fw.appendChild(el("span", null, DATA.closer.note));
+  fw.appendChild(el("span", null, DATA.closer.side));
+  foot.appendChild(fw);
+  root.appendChild(foot);
+
+  initVideos();
+}
+
+/* ----------------------------------------------------------------
+   VIDEO POLICY (the ONLY runtime logic; not the reveal mechanic):
+   play a clip only while its panel is in view, and never decode all
+   clips at once. Uses IntersectionObserver purely for media policy,
+   NOT for the reveals (those are 100% CSS view()).
+   prefers-reduced-motion: videos stay paused on their poster.
+---------------------------------------------------------------- */
+function initVideos(){
+  const reduce = window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+  const vids = Array.from(document.querySelectorAll("video"));
+  if(reduce || !("IntersectionObserver" in window)) return; // posters remain, no autoplay
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{
+      const v=e.target;
+      if(e.isIntersecting && e.intersectionRatio>0.55){
+        v.play().catch(()=>{});
+      } else {
+        v.pause();
+      }
+    });
+  }, { threshold:[0,0.55,1] });
+  vids.forEach(v=>io.observe(v));
+}
+
+document.addEventListener("DOMContentLoaded", build);
+</script>
+
+<main id="main" class="wrap"></main>
+</body>
+</html>

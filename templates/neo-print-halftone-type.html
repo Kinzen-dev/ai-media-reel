@@ -1,0 +1,388 @@
+<!-- TEMPLATE: Neo-Print Halftone Type | ARCHETYPE: HALFTONE dot-matrix display type | REF: 2026 neo-print halftone revival, CMYK dot screens, oversized halftone headlines | WHEN TO USE: a printed-stock poster/landing whose giant headline reads as a visible CMYK dot screen | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Neo-Print Halftone Type</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<script>
+/* ============================================================
+   DATA - swap everything here. Nothing below needs editing.
+   ============================================================ */
+const DATA = {
+  // The halftone headline. Keep words SHORT and BIG. lineMobile = fewer words for <=640px.
+  headline:        ["HALF", "TONE"],
+  headlineMobile:  ["HALF", "TONE"],
+  // Ink mode: "mono" = stock + single ink. "duo" = two-ink CMYK-ish duotone overprint.
+  inkMode: "duo",
+  // print-shop spec line (the small typeset metadata strip)
+  spec: {
+    job:    "JOB No. 0426",
+    screen: "85 LPI / 45deg",
+    stock:  "UNCOATED 120gsm",
+    inks:   "PANTONE 485 + 285",
+    run:    "EDITION OF 250",
+  },
+  kicker: "DOT-MATRIX DISPLAY / NEO-PRINT REVIVAL 2026",
+  // subhead under the headline
+  subhead: "Letterforms screened from coarse halftone dots. Solid stock, one pass of ink, the screen left visible on purpose.",
+  // small inked plate (reuses a real asset, printed through the same screen)
+  plate: { src: "../assets/flux-car-4k.png", caption: "PLATE B / 4C SEPARATION PROOF" },
+  // registration ticks / colophon footer
+  colophon: "PRINTED BY NEO-PRINT WORKS . AYUTTHAYA . SET IN ARCHIVO BLACK . SCREENED AT 85 LINES",
+};
+
+/* Palette (edit to retheme) */
+const STOCK  = "#f2ede3";  // paper stock
+const INK    = "#1a1a1a";  // single ink (mono mode)
+const INK_R  = "#e2231a";  // duotone warm ink
+const INK_B  = "#1356a8";  // duotone cool ink
+</script>
+<style>
+:root{
+  --stock:#f2ede3;
+  --ink:#1a1a1a;
+  --ink-r:#e2231a;
+  --ink-b:#1356a8;
+  --paper-edge:#e7e0d2;
+  --line:#1a1a1a;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--stock);
+  color:var(--ink);
+  font-family:"Archivo",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+  /* faint paper tooth */
+  background-image:
+    radial-gradient(circle at 20% 10%, rgba(0,0,0,.018) 0 1px, transparent 1px),
+    radial-gradient(circle at 70% 60%, rgba(0,0,0,.015) 0 1px, transparent 1px);
+  background-size:7px 7px, 11px 11px;
+}
+.mono{font-family:"Space Mono",ui-monospace,monospace}
+
+/* ---- page frame: a printed sheet with crop marks ---- */
+.sheet{
+  position:relative;
+  max-width:1320px;
+  margin:0 auto;
+  min-height:100svh;
+  padding:clamp(20px,3.4vw,46px);
+  display:flex;
+  flex-direction:column;
+}
+/* crop / registration marks at the four corners */
+.crop{position:fixed;width:26px;height:26px;z-index:40;pointer-events:none;mix-blend-mode:multiply}
+.crop::before,.crop::after{content:"";position:absolute;background:var(--ink)}
+.crop::before{width:26px;height:1.5px;top:12px}
+.crop::after{height:26px;width:1.5px;left:12px}
+.crop.tl{top:14px;left:14px}
+.crop.tr{top:14px;right:14px}
+.crop.bl{bottom:14px;left:14px}
+.crop.br{bottom:14px;right:14px}
+
+/* ---- top band: kicker + spec strip (populates the first viewport) ---- */
+.topband{
+  display:flex;justify-content:space-between;align-items:flex-start;gap:18px;
+  border-bottom:2px solid var(--ink);
+  padding-bottom:12px;
+  flex-wrap:wrap;
+}
+.kicker{
+  font-size:clamp(10px,1.1vw,13px);
+  font-weight:700;letter-spacing:.26em;text-transform:uppercase;
+}
+.regdot{display:inline-flex;gap:5px;align-items:center;vertical-align:middle;margin-right:9px}
+.regdot i{width:11px;height:11px;border-radius:50%;display:block;mix-blend-mode:multiply}
+.regdot i.r{background:var(--ink-r)}
+.regdot i.b{background:var(--ink-b)}
+.regdot i.k{background:var(--ink)}
+.specstrip{
+  display:grid;grid-template-columns:repeat(2,auto);gap:2px 22px;
+  font-size:clamp(9px,.85vw,11px);letter-spacing:.08em;text-align:right;
+}
+.specstrip b{font-weight:700}
+.specstrip span{opacity:.62;display:block;font-size:.82em;letter-spacing:.16em;text-transform:uppercase}
+
+/* ---- the halftone headline ---- */
+.headwrap{
+  flex:1;
+  display:flex;flex-direction:column;justify-content:center;
+  padding:clamp(14px,3vw,40px) 0 clamp(8px,2vw,22px);
+  position:relative;
+}
+.headline{
+  line-height:.82;
+  margin-left:-.02em;
+}
+.headline .hl-row{display:block;position:relative}
+/* the halftone text itself: huge Archivo Black, fill painted by SVG pattern via background-clip */
+.hl-fill{
+  position:relative; /* anchor the ::after overprint + ::before keyline to the glyph box, not the row */
+  font-family:"Archivo Black",sans-serif;
+  font-weight:900;
+  text-transform:uppercase;
+  font-size:clamp(74px,21vw,250px);
+  letter-spacing:-.012em;
+  display:inline-block;
+  /* the dot screen lives in --screen, applied as a background image clipped to the glyphs */
+  background-repeat:repeat;
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent;
+  -webkit-text-fill-color:transparent;
+}
+/* MONO: single ink dot screen */
+body[data-ink="mono"] .hl-fill{
+  background-image:var(--screen-k);
+  background-size:var(--cell) var(--cell);
+}
+/* DUO: two offset color screens stacked with a real ::after second pass (overprint look) */
+body[data-ink="duo"] .hl-row{isolation:isolate}
+body[data-ink="duo"] .hl-fill{
+  background-image:var(--screen-b);
+  background-size:var(--cell) var(--cell);
+  background-position:0 0;
+}
+body[data-ink="duo"] .hl-fill::after{
+  content:attr(data-word);
+  position:absolute;inset:0;
+  font:inherit;letter-spacing:inherit;
+  background-image:var(--screen-r);
+  background-size:var(--cell) var(--cell);
+  /* offset the second screen by half a cell for the classic mis-registered overprint */
+  background-position:calc(var(--cell) / 2) calc(var(--cell) / 2);
+  -webkit-background-clip:text;background-clip:text;
+  color:transparent;-webkit-text-fill-color:transparent;
+  mix-blend-mode:multiply;
+}
+/* thin keyline ghost behind the dots so glyph shape reads even where dots thin out */
+.hl-fill::before{
+  content:attr(data-word);
+  position:absolute;inset:0;z-index:-1;
+  font:inherit;letter-spacing:inherit;
+  -webkit-text-stroke:1px rgba(26,26,26,.10);
+  color:transparent;-webkit-text-fill-color:transparent;
+}
+
+/* subhead + plate row below headline (stays in/near first viewport on desktop) */
+.lower{
+  display:grid;grid-template-columns:1fr auto;gap:22px;align-items:end;
+  border-top:2px solid var(--ink);padding-top:14px;
+}
+.subhead{
+  max-width:52ch;font-size:clamp(13px,1.25vw,17px);font-weight:500;line-height:1.45;
+}
+.subhead .tag{
+  display:inline-block;font-weight:700;letter-spacing:.04em;
+  border-bottom:2px solid var(--ink-r);
+}
+/* inked plate: a real image printed through the same halftone screen via SVG filter */
+.plate{
+  width:clamp(118px,15vw,188px);flex:0 0 auto;text-align:right;
+}
+.plate figure{position:relative;border:1.5px solid var(--ink);background:var(--paper-edge);overflow:hidden;aspect-ratio:4/3}
+.plate img{
+  width:100%;height:100%;object-fit:cover;display:block;
+  /* push to a high-contrast 1-bit-ish plate so the dot screen reads as a printed halftone */
+  filter:grayscale(1) contrast(2.1) brightness(1.08);
+  mix-blend-mode:multiply;
+}
+/* coarse dot screen laid OVER the image via blend = robust CSS halftone (no SVG filter) */
+.plate figure::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background-image:radial-gradient(circle at center, var(--ink) 0 2.4px, transparent 2.9px);
+  background-size:7px 7px;
+  mix-blend-mode:screen;     /* lighten the gaps so only inked dots remain dark = halftone */
+  opacity:.92;
+}
+/* duotone plate picks up the warm ink */
+body[data-ink="duo"] .plate img{filter:grayscale(1) contrast(2.1) brightness(1.1)}
+body[data-ink="duo"] .plate figure::after{
+  background-image:radial-gradient(circle at center, var(--ink-r) 0 2.4px, transparent 2.9px);
+}
+.plate figcaption{font-size:9px;letter-spacing:.16em;margin-top:5px;opacity:.7;text-transform:uppercase}
+
+/* colophon / footer registration line */
+.colophon{
+  font-size:clamp(8px,.8vw,10px);letter-spacing:.22em;text-transform:uppercase;
+  opacity:.6;padding-top:14px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
+}
+
+/* ---- ink mode toggle (real control, top-right floating) ---- */
+.toggle{
+  position:fixed;z-index:50;top:16px;left:50%;transform:translateX(-50%);
+  display:flex;gap:0;border:1.5px solid var(--ink);background:var(--stock);
+  font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.1em;
+  box-shadow:3px 3px 0 rgba(26,26,26,.18);
+}
+.toggle button{
+  background:transparent;border:0;cursor:pointer;color:var(--ink);
+  padding:7px 14px;font:inherit;text-transform:uppercase;
+}
+.toggle button[aria-pressed="true"]{background:var(--ink);color:var(--stock)}
+.toggle button:focus-visible{outline:3px solid var(--ink-b);outline-offset:2px}
+.toggle button + button{border-left:1.5px solid var(--ink)}
+
+/* faint live dot drift across the headline (disabled for reduced-motion) */
+@keyframes screendrift{to{background-position:var(--cell) 0}}
+@media (prefers-reduced-motion: no-preference){
+  body[data-ink="mono"] .hl-fill{animation:screendrift 9s linear infinite}
+}
+
+/* ---- responsive: phone keeps headline dominant, stacks the lower row ---- */
+@media (max-width:640px){
+  .toggle{top:10px}
+  .topband{flex-direction:column;gap:10px;padding-top:44px}
+  .crop.tl,.crop.tr{top:8px}
+  .specstrip{grid-template-columns:repeat(2,1fr);text-align:left;gap:2px 14px}
+  .hl-fill{font-size:clamp(66px,27vw,150px)}
+  .lower{grid-template-columns:1fr;gap:16px}
+  .plate{width:46%;max-width:200px;text-align:left}
+  .plate figcaption{text-align:left}
+  .colophon{font-size:8px;letter-spacing:.14em}
+}
+@media (max-width:380px){
+  .hl-fill{font-size:23vw}
+}
+
+:focus-visible{outline:3px solid var(--ink-b);outline-offset:3px}
+.skip{position:absolute;left:-9999px}
+.skip:focus{left:12px;top:12px;z-index:99;background:var(--ink);color:var(--stock);padding:8px 12px}
+</style>
+</head>
+<body data-ink="duo">
+<a class="skip" href="#headline">Skip to headline</a>
+
+<!-- crop marks -->
+<span class="crop tl"></span><span class="crop tr"></span>
+<span class="crop bl"></span><span class="crop br"></span>
+
+<!-- ink mode toggle -->
+<div class="toggle" role="group" aria-label="Ink mode">
+  <button id="btn-duo"  aria-pressed="true">DUOTONE</button>
+  <button id="btn-mono" aria-pressed="false">1 INK</button>
+</div>
+
+<main class="sheet">
+
+  <!-- TOP BAND: kicker + spec strip (first-viewport content) -->
+  <header class="topband">
+    <div class="kicker mono">
+      <span class="regdot"><i class="r"></i><i class="b"></i><i class="k"></i></span>
+      <span id="kicker"></span>
+    </div>
+    <div class="specstrip mono" id="spec"></div>
+  </header>
+
+  <!-- HALFTONE HEADLINE -->
+  <section class="headwrap" id="headline">
+    <h1 class="headline" id="headEl" aria-label=""></h1>
+  </section>
+
+  <!-- LOWER: subhead + inked plate -->
+  <section class="lower">
+    <p class="subhead" id="subhead"></p>
+    <div class="plate">
+      <figure>
+        <img id="plateImg" alt="" loading="lazy" decoding="async" />
+      </figure>
+      <figcaption class="mono" id="plateCap"></figcaption>
+    </div>
+  </section>
+
+  <p class="colophon mono" id="colophon"></p>
+</main>
+
+<script>
+/* ============================================================
+   RENDER from DATA. Pure CSS/SVG/JS, no libraries.
+   ============================================================ */
+(function(){
+  const $ = (s)=>document.querySelector(s);
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const mobile = ()=> window.matchMedia("(max-width:640px)").matches;
+
+  // apply palette from JS constants -> CSS vars (single source of truth)
+  const root = document.documentElement.style;
+  root.setProperty("--stock", STOCK);
+  root.setProperty("--ink", INK);
+  root.setProperty("--ink-r", INK_R);
+  root.setProperty("--ink-b", INK_B);
+
+  // The dot screen is a radial-gradient, NOT the inline SVG pattern: background-clip:text
+  // cannot clip to a url(#pattern) fill, only to a raster/gradient. So we build coarse
+  // radial-gradient screens here. (The SVG <pattern> defs are kept for the print-furniture look only.)
+  const CELL = 17; // px tile - COARSE, survives downscale
+  root.setProperty("--cell", CELL + "px");
+
+  // radial-gradient dot screens (work with background-clip:text where SVG url() does not)
+  const dot = (color, r)=> `radial-gradient(circle at center, ${color} 0, ${color} ${r}px, transparent ${r+0.7}px)`;
+  root.setProperty("--screen-k", dot(INK, 6));
+  root.setProperty("--screen-b", dot(INK_B, 6));
+  root.setProperty("--screen-r", dot(INK_R, 6));
+
+  // ---- kicker / spec / subhead / colophon ----
+  $("#kicker").textContent = DATA.kicker;
+  const s = DATA.spec;
+  $("#spec").innerHTML = [
+    ["JOB", s.job],["SCREEN", s.screen],["STOCK", s.stock],["INKS", s.inks],["RUN", s.run]
+  ].map(([k,v])=>`<div><span>${k}</span><b>${v}</b></div>`).join("");
+
+  $("#subhead").innerHTML = DATA.subhead.replace(/^(\S+)/, '<span class="tag">$1</span>');
+  $("#colophon").textContent = DATA.colophon;
+  $("#plateImg").src = DATA.plate.src;
+  $("#plateImg").alt = DATA.plate.caption;
+  $("#plateCap").textContent = DATA.plate.caption;
+
+  // ---- the halftone headline rows ----
+  function buildHead(){
+    const words = mobile() ? DATA.headlineMobile : DATA.headline;
+    const el = $("#headEl");
+    el.setAttribute("aria-label", words.join(" "));
+    el.innerHTML = words.map(w=>{
+      const safe = String(w).toUpperCase();
+      return `<span class="hl-row"><span class="hl-fill" data-word="${safe}">${safe}</span></span>`;
+    }).join("");
+  }
+  buildHead();
+
+  // rebuild on cross-breakpoint resize (mobile uses fewer words)
+  let lastMobile = mobile();
+  let rt;
+  window.addEventListener("resize", ()=>{
+    clearTimeout(rt);
+    rt = setTimeout(()=>{ if(mobile()!==lastMobile){ lastMobile=mobile(); buildHead(); } }, 160);
+  });
+
+  // ---- ink mode toggle ----
+  function setInk(mode){
+    document.body.dataset.ink = mode;
+    $("#btn-duo").setAttribute("aria-pressed", String(mode==="duo"));
+    $("#btn-mono").setAttribute("aria-pressed", String(mode==="mono"));
+  }
+  setInk(DATA.inkMode === "mono" ? "mono" : "duo");
+  $("#btn-duo").addEventListener("click", ()=>setInk("duo"));
+  $("#btn-mono").addEventListener("click", ()=>setInk("mono"));
+
+  // ---- in-view pause for the headline drift (perf + a11y already gated by media query) ----
+  if(!reduce){
+    const head = $("#headline");
+    const io = new IntersectionObserver((ents)=>{
+      ents.forEach(e=>{
+        document.querySelectorAll(".hl-fill").forEach(f=>{
+          f.style.animationPlayState = e.isIntersecting ? "running" : "paused";
+        });
+      });
+    }, {threshold:0.05});
+    io.observe(head);
+  }
+})();
+</script>
+</body>
+</html>

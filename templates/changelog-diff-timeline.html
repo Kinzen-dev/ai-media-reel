@@ -1,0 +1,676 @@
+<!-- TEMPLATE: Diff Log | ARCHETYPE: changelog release-notes feed | REF: Linear changelog (Mar 2026), Linear Now page, saasframe.io changelog UI 2026 | WHEN TO USE: product release notes / version changelog / API diff feed where the unit is a time-ordered SemVer entry with category pills and optional CSS code diffs | SWAP: edit the RELEASES and MONTH_TREE arrays at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Diff Log // Changelog</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   DIFF LOG - changelog / release-notes feed
+   Structural unit = a time-ordered VERSION ENTRY.
+   Palette: #0D0D10 void / #F0ECE4 bone type
+   pills: feature cobalt #2C6FAD / fix amber #E8C547 / breaking vermilion #C0392B
+   accent pulse: lime #B6F84A
+   ============================================================ */
+:root{
+  --void:#0D0D10;
+  --void-2:#131318;
+  --panel:#16161c;
+  --panel-2:#1b1b22;
+  --line:#2a2a33;
+  --line-soft:#222229;
+  --bone:#F0ECE4;
+  --bone-dim:#9c988f;
+  --bone-faint:#6b6862;
+  --cobalt:#2C6FAD;
+  --amber:#E8C547;
+  --vermilion:#C0392B;
+  --lime:#B6F84A;
+  --mono:'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans:'Inter', system-ui, -apple-system, sans-serif;
+  --rail:300px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  /* fully honor: kill every animation + transition, not just the named keyframes */
+  *,*::before,*::after{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important;scroll-behavior:auto !important}
+}
+body{
+  background:var(--void);
+  color:var(--bone);
+  font-family:var(--sans);
+  font-size:16px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+}
+/* subtle grain + grid wash on the void */
+body::before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(1100px 600px at 78% -8%, rgba(44,111,173,.10), transparent 60%),
+    linear-gradient(transparent 0 31px, var(--line-soft) 31px 32px) 0 0/100% 32px,
+    linear-gradient(90deg, transparent 0 31px, var(--line-soft) 31px 32px) 0 0/32px 100%;
+  opacity:.5;mask-image:radial-gradient(120% 80% at 50% 0,#000 30%,transparent 100%);
+}
+a{color:inherit}
+::selection{background:var(--lime);color:#0a0a0c}
+
+/* ---------- shell layout: sticky rail + feed ---------- */
+.shell{
+  position:relative;z-index:1;
+  max-width:1320px;margin:0 auto;
+  padding:0 28px 120px;
+  display:grid;
+  grid-template-columns:var(--rail) minmax(0,1fr);
+  gap:48px;
+  align-items:start;
+}
+
+/* ---------- top band (compact, mechanic sits right below) ---------- */
+.topband{
+  grid-column:1 / -1;
+  display:flex;align-items:flex-end;justify-content:space-between;
+  gap:24px;flex-wrap:wrap;
+  padding:26px 0 18px;
+  border-bottom:1px solid var(--line);
+  margin-bottom:34px;
+}
+.brand{display:flex;align-items:center;gap:14px}
+.brand .glyph{
+  width:38px;height:38px;border:1px solid var(--line);border-radius:9px;
+  display:grid;place-items:center;background:var(--panel);
+  font-family:var(--mono);font-weight:700;color:var(--lime);font-size:18px;
+  box-shadow:0 0 0 1px rgba(182,248,74,.08), inset 0 0 18px rgba(182,248,74,.05);
+}
+.brand h1{font-size:18px;font-weight:700;letter-spacing:-.01em;line-height:1}
+.brand .sub{font-family:var(--mono);font-size:11px;color:var(--bone-faint);letter-spacing:.04em;margin-top:5px;text-transform:uppercase}
+.topmeta{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:11.5px;color:var(--bone-dim);letter-spacing:.03em}
+.topmeta .dot{width:7px;height:7px;border-radius:50%;background:var(--lime);box-shadow:0 0 9px var(--lime);animation:beat 2.4s ease-in-out infinite}
+@keyframes beat{0%,100%{opacity:1}50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.topmeta .dot{animation:none}}
+.topmeta .subscribe{
+  font-family:var(--sans);font-weight:600;font-size:12px;color:var(--bone);
+  padding:7px 13px;border:1px solid var(--line);border-radius:7px;background:var(--panel);
+  text-decoration:none;transition:border-color .18s, color .18s;
+}
+.topmeta .subscribe:hover{border-color:var(--lime);color:var(--lime)}
+.topmeta .subscribe:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+
+/* ---------- left rail: year / month tree ---------- */
+.rail{
+  position:sticky;top:24px;
+  align-self:start;
+}
+.rail .rail-label{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;color:var(--bone-faint);
+  text-transform:uppercase;margin-bottom:16px;padding-left:2px;
+}
+.tree{list-style:none;position:relative}
+.tree::before{
+  content:"";position:absolute;left:5px;top:6px;bottom:6px;width:1px;background:var(--line);
+}
+.tree .year{
+  font-family:var(--mono);font-weight:700;font-size:13px;color:var(--bone);
+  letter-spacing:.04em;margin:18px 0 9px;padding-left:22px;position:relative;
+}
+.tree .year:first-child{margin-top:0}
+.tree .year::before{
+  content:"";position:absolute;left:2px;top:7px;width:7px;height:7px;border-radius:2px;
+  background:var(--void);border:1px solid var(--bone-dim);
+}
+.tree .month{
+  display:block;padding:5px 0 5px 22px;position:relative;
+  font-size:13px;color:var(--bone-dim);text-decoration:none;
+  border-left:1px solid transparent;transition:color .16s;
+}
+.tree .month::before{
+  content:"";position:absolute;left:2px;top:13px;width:7px;height:1px;background:var(--line);
+}
+.tree .month .v{font-family:var(--mono);font-size:11px;color:var(--bone-faint);margin-left:8px}
+.tree .month:hover{color:var(--bone)}
+.tree .month:focus-visible{outline:2px solid var(--lime);outline-offset:2px;border-radius:4px}
+.tree .month.is-active{color:var(--lime)}
+.tree .month.is-active::before{background:var(--lime);box-shadow:0 0 7px var(--lime)}
+.tree .month.is-active .v{color:var(--lime)}
+
+.rail .rail-foot{
+  margin-top:30px;padding-top:18px;border-top:1px solid var(--line-soft);
+  font-family:var(--mono);font-size:10.5px;color:var(--bone-faint);line-height:1.7;letter-spacing:.02em;
+}
+.rail .rail-foot b{color:var(--bone-dim)}
+
+/* ---------- feed column ---------- */
+.feed{min-width:0}
+
+/* ===== SPOTLIGHT (latest release, oversized) ===== */
+.spotlight{
+  position:relative;
+  border:1px solid var(--line);
+  border-radius:18px;
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(182,248,74,.07), transparent 42%),
+    linear-gradient(180deg, var(--panel-2), var(--panel));
+  padding:34px 36px 32px;
+  margin-bottom:14px;
+  overflow:hidden;
+}
+.spotlight::after{
+  content:"LATEST";position:absolute;top:18px;right:-34px;
+  transform:rotate(38deg);transform-origin:center;
+  font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.3em;
+  color:#0a0a0c;background:var(--lime);padding:5px 44px;
+  box-shadow:0 6px 20px rgba(182,248,74,.25);
+}
+.sl-top{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.badge{
+  display:inline-flex;align-items:baseline;gap:8px;
+  font-family:var(--mono);font-weight:700;
+  border-radius:11px;padding:11px 16px;line-height:1;
+  border:1px solid var(--line);background:var(--void);position:relative;
+}
+.badge .vtag{font-size:10px;color:var(--bone-faint);letter-spacing:.12em;align-self:flex-start;margin-top:1px}
+.badge .vnum{font-size:28px;color:var(--bone);letter-spacing:-.01em}
+.badge.pulse{
+  border-color:rgba(182,248,74,.45);
+  box-shadow:0 0 0 0 rgba(182,248,74,.42);
+  animation:pulse 2.6s ease-out infinite;
+}
+.badge.pulse .vnum{color:var(--lime)}
+@keyframes pulse{
+  0%{box-shadow:0 0 0 0 rgba(182,248,74,.42)}
+  70%{box-shadow:0 0 0 16px rgba(182,248,74,0)}
+  100%{box-shadow:0 0 0 0 rgba(182,248,74,0)}
+}
+@media (prefers-reduced-motion:reduce){
+  .badge.pulse{animation:none;border-color:rgba(182,248,74,.55);box-shadow:0 0 0 1px rgba(182,248,74,.25)}
+}
+.sl-date{font-family:var(--mono);font-size:12.5px;color:var(--bone-dim);letter-spacing:.03em}
+.sl-date .rel{color:var(--lime);margin-left:8px}
+
+/* category pills */
+.pills{display:flex;gap:8px;flex-wrap:wrap}
+.pill{
+  font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  padding:5px 11px;border-radius:999px;line-height:1;white-space:nowrap;
+  border:1px solid transparent;
+}
+.pill.feature{color:#bcd9f4;background:rgba(44,111,173,.16);border-color:rgba(44,111,173,.5)}
+.pill.fix{color:#f3e3a0;background:rgba(232,197,71,.13);border-color:rgba(232,197,71,.45)}
+.pill.breaking{color:#f0b3ab;background:rgba(192,57,43,.15);border-color:rgba(192,57,43,.55)}
+.pill .d{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.pill.feature .d{background:var(--cobalt)}
+.pill.fix .d{background:var(--amber)}
+.pill.breaking .d{background:var(--vermilion)}
+
+.sl-headline{
+  font-size:clamp(26px,3.4vw,42px);font-weight:700;letter-spacing:-.022em;line-height:1.06;
+  margin:22px 0 14px;max-width:18ch;
+}
+.sl-body{font-size:16.5px;color:var(--bone-dim);max-width:62ch;line-height:1.65}
+.sl-body strong{color:var(--bone);font-weight:600}
+
+/* ===== standard entry card ===== */
+.entry{
+  position:relative;
+  border:1px solid var(--line-soft);
+  border-radius:14px;
+  background:linear-gradient(180deg, var(--panel), var(--void-2));
+  padding:26px 30px;
+  margin-top:16px;
+  transition:border-color .2s, transform .2s;
+}
+.entry:hover{border-color:var(--line)}
+.entry .e-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.entry .badge{padding:8px 12px;border-radius:9px}
+.entry .badge .vnum{font-size:18px}
+.entry .e-date{font-family:var(--mono);font-size:11.5px;color:var(--bone-faint);letter-spacing:.03em;margin-left:auto}
+.entry .e-headline{font-size:21px;font-weight:600;letter-spacing:-.015em;line-height:1.2;margin:4px 0 10px}
+.entry .e-body{font-size:15px;color:var(--bone-dim);max-width:64ch;line-height:1.62}
+.entry .e-body strong{color:var(--bone);font-weight:600}
+
+/* ===== CSS-only syntax-highlighted diff block ===== */
+.diff{
+  margin-top:18px;border:1px solid var(--line);border-radius:11px;overflow:hidden;
+  background:#0a0a0d;font-family:var(--mono);font-size:12.5px;line-height:1.75;
+}
+.diff-bar{
+  display:flex;align-items:center;gap:9px;
+  padding:9px 14px;border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,#111116,#0d0d11);
+  font-size:11px;color:var(--bone-faint);letter-spacing:.04em;
+}
+.diff-bar .fname{color:var(--bone-dim)}
+.diff-bar .lights{display:flex;gap:6px;margin-right:4px}
+.diff-bar .lights i{width:9px;height:9px;border-radius:50%;display:block;opacity:.85}
+.diff-bar .lights i:nth-child(1){background:#c0392b}
+.diff-bar .lights i:nth-child(2){background:#e8c547}
+.diff-bar .lights i:nth-child(3){background:#4caf6f}
+.diff-bar .stat{margin-left:auto;display:flex;gap:10px;font-weight:700}
+.diff-bar .stat .add{color:#5bd17e}
+.diff-bar .stat .rem{color:#e06b5f}
+.diff-body{padding:10px 0;overflow-x:auto}
+.diff-body pre{margin:0;white-space:pre}
+.dl{display:block;padding:0 16px 0 0;white-space:pre}
+.dl .ln{display:inline-block;width:34px;text-align:right;color:#3f3f49;user-select:none;margin-right:14px;padding-left:10px}
+.dl.add{background:rgba(76,175,111,.10)}
+.dl.add .ln{color:#4caf6f}
+.dl.add .sign{color:#4caf6f}
+.dl.rem{background:rgba(192,57,43,.12)}
+.dl.rem .ln{color:#c0392b}
+.dl.rem .sign{color:#e06b5f}
+.dl .sign{display:inline-block;width:10px;color:#3f3f49}
+/* token colors */
+.t-kw{color:#c98bdb}    /* keyword */
+.t-fn{color:#62b6e8}    /* function / method */
+.t-str{color:#b6d97a}   /* string */
+.t-num{color:#e8b059}   /* number */
+.t-prop{color:#7fd1c4}  /* property */
+.t-com{color:#5a5a64;font-style:italic} /* comment */
+.t-pun{color:#7a7a86}   /* punctuation */
+.t-tag{color:#e0796f}   /* breaking / removed api */
+
+/* ===== media entry (letterboxed, never cover-crops) ===== */
+.media{
+  margin-top:18px;border:1px solid var(--line);border-radius:11px;overflow:hidden;
+  background:#08080b;
+}
+.media .frame{
+  width:100%;aspect-ratio:16/9;background:#000;
+  display:grid;place-items:center;position:relative;
+}
+.media .frame img,.media .frame video{
+  max-width:100%;max-height:100%;width:auto;height:auto;display:block;object-fit:contain;
+}
+.media .cap{
+  font-family:var(--mono);font-size:11px;color:var(--bone-faint);
+  padding:9px 14px;border-top:1px solid var(--line);letter-spacing:.03em;
+  display:flex;align-items:center;gap:8px;
+}
+.media .cap .tag{color:var(--cobalt)}
+
+/* month section heading anchor */
+.month-mark{
+  display:flex;align-items:center;gap:14px;
+  margin:46px 0 6px;padding-top:8px;scroll-margin-top:20px;
+}
+.month-mark .mtext{font-family:var(--mono);font-size:12px;letter-spacing:.2em;color:var(--bone-faint);text-transform:uppercase}
+.month-mark .mline{flex:1;height:1px;background:var(--line-soft)}
+
+footer.feet{
+  grid-column:1 / -1;
+  margin-top:64px;padding-top:24px;border-top:1px solid var(--line);
+  display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;
+  font-family:var(--mono);font-size:11px;color:var(--bone-faint);letter-spacing:.04em;
+}
+footer.feet a{color:var(--bone-dim);text-decoration:none}
+footer.feet a:hover{color:var(--lime)}
+
+/* ---------- PHONE: guarantee media letterboxes, never cover-crops ---------- */
+@media (max-width:640px){
+  /* a landscape (16:9) asset stays whole inside the frame: contain + centered = letterbox bars,
+     never object-fit:cover. Cap frame height so a portrait asset cannot blow past the viewport. */
+  .media .frame{aspect-ratio:16/9;max-height:62vh;background:#000}
+  .media .frame img,.media .frame video{
+    max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;
+  }
+}
+
+/* ---------- MOBILE: hide rail, compact pill-only date header ---------- */
+.mobile-datebar{display:none}
+@media (max-width:900px){
+  :root{--rail:0px}
+  .shell{grid-template-columns:1fr;gap:0;padding:0 16px 90px}
+  .rail{display:none}
+  .topband{margin-bottom:18px;padding:18px 0 14px}
+  .mobile-datebar{
+    display:flex;position:sticky;top:0;z-index:5;
+    grid-column:1 / -1;margin:0 -16px 18px;padding:10px 16px;
+    gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+    background:rgba(13,13,16,.92);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);scrollbar-width:none;
+  }
+  .mobile-datebar::-webkit-scrollbar{display:none}
+  .mobile-datebar a{
+    flex:0 0 auto;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.05em;
+    padding:6px 12px;border:1px solid var(--line);border-radius:999px;color:var(--bone-dim);
+    text-decoration:none;white-space:nowrap;
+  }
+  .mobile-datebar a.is-active{color:var(--lime);border-color:rgba(182,248,74,.5);background:rgba(182,248,74,.08)}
+  .mobile-datebar a:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+  .spotlight{padding:26px 20px 24px;border-radius:14px}
+  .spotlight::after{font-size:9px;padding:5px 40px;right:-36px}
+  .sl-headline{font-size:clamp(23px,7vw,32px);max-width:none}
+  .entry{padding:20px 16px}
+  .entry .e-date{margin-left:0;width:100%;order:5}
+  .diff-body{font-size:11px}
+  .dl .ln{width:24px;margin-right:8px}
+}
+@media (max-width:390px){
+  .sl-top{gap:10px}
+  .badge .vnum{font-size:24px}
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     DATA: edit RELEASES to swap content. Newest entry first.
+     Each release: { v, vtag, date, rel, cats[], headline, body,
+       optional diff{file,add,rem,lines[]}, optional media{type,src,poster,cap} }
+     ============================================================ -->
+<script>
+const RELEASES = [
+  {
+    v:"2.7.0", vtag:"v", date:"June 19, 2026", rel:"2 days ago", latest:true,
+    cats:["feature","breaking"],
+    headline:"Streaming diffs land in the public API",
+    body:"The <strong>/v2/changes</strong> endpoint now streams release entries over SSE, so dashboards render the latest version the instant it ships. We also collapsed the legacy <strong>category</strong> enum into typed pills, which is a <strong>breaking change</strong> for anyone parsing the old string field.",
+    diff:{
+      file:"api/changes.stream.ts", add:6, rem:2,
+      lines:[
+        {t:"ctx", ln:41, code:[{c:"t-kw",x:"export"},{c:"",x:" "},{c:"t-kw",x:"async"},{c:"",x:" "},{c:"t-kw",x:"function"},{c:"",x:" "},{c:"t-fn",x:"streamChanges"},{c:"t-pun",x:"("},{c:"t-prop",x:"req"},{c:"t-pun",x:") {"}]},
+        {t:"rem", ln:42, code:[{c:"t-com",x:"// poll the table every 5s"}]},
+        {t:"rem", ln:43, code:[{c:"t-kw",x:"const"},{c:"",x:" "},{c:"t-prop",x:"rows"},{c:"",x:" = "},{c:"t-kw",x:"await"},{c:"",x:" "},{c:"t-fn",x:"poll"},{c:"t-pun",x:"("},{c:"t-num",x:"5000"},{c:"t-pun",x:");"}]},
+        {t:"add", ln:42, code:[{c:"t-kw",x:"const"},{c:"",x:" "},{c:"t-prop",x:"sse"},{c:"",x:" = "},{c:"t-kw",x:"new"},{c:"",x:" "},{c:"t-fn",x:"EventStream"},{c:"t-pun",x:"("},{c:"t-prop",x:"req"},{c:"t-pun",x:");"}]},
+        {t:"add", ln:43, code:[{c:"t-prop",x:"db"},{c:"t-pun",x:"."},{c:"t-fn",x:"on"},{c:"t-pun",x:"("},{c:"t-str",x:"'release'"},{c:"t-pun",x:", (r) => "},{c:"t-prop",x:"sse"},{c:"t-pun",x:"."},{c:"t-fn",x:"push"},{c:"t-pun",x:"(r));"}]},
+        {t:"add", ln:44, code:[{c:"t-kw",x:"return"},{c:"",x:" "},{c:"t-prop",x:"sse"},{c:"t-pun",x:"."},{c:"t-fn",x:"open"},{c:"t-pun",x:"();"}]},
+        {t:"ctx", ln:45, code:[{c:"t-pun",x:"}"}]}
+      ]
+    }
+  },
+  {
+    v:"2.6.4", vtag:"v", date:"June 11, 2026", rel:null,
+    cats:["fix"],
+    headline:"Sidebar tree no longer drifts on long feeds",
+    body:"The active-month highlight used a stale offset cache and lagged a section behind on feeds longer than forty entries. We swapped it for an <strong>IntersectionObserver</strong> so the year and month markers track exactly where you are.",
+    diff:{
+      file:"ui/rail.observer.ts", add:4, rem:3,
+      lines:[
+        {t:"rem", ln:18, code:[{c:"t-prop",x:"window"},{c:"t-pun",x:"."},{c:"t-fn",x:"addEventListener"},{c:"t-pun",x:"("},{c:"t-str",x:"'scroll'"},{c:"t-pun",x:", "},{c:"t-prop",x:"recalcCache"},{c:"t-pun",x:");"}]},
+        {t:"rem", ln:19, code:[{c:"t-kw",x:"let"},{c:"",x:" "},{c:"t-prop",x:"cache"},{c:"",x:" = "},{c:"t-fn",x:"measureAll"},{c:"t-pun",x:"();"}]},
+        {t:"rem", ln:20, code:[{c:"t-com",x:"// O(n) on every frame, ouch"}]},
+        {t:"add", ln:18, code:[{c:"t-kw",x:"const"},{c:"",x:" "},{c:"t-prop",x:"io"},{c:"",x:" = "},{c:"t-kw",x:"new"},{c:"",x:" "},{c:"t-fn",x:"IntersectionObserver"},{c:"t-pun",x:"("},{c:"t-prop",x:"mark"},{c:"t-pun",x:");"}]},
+        {t:"add", ln:19, code:[{c:"t-prop",x:"sections"},{c:"t-pun",x:"."},{c:"t-fn",x:"forEach"},{c:"t-pun",x:"(s => "},{c:"t-prop",x:"io"},{c:"t-pun",x:"."},{c:"t-fn",x:"observe"},{c:"t-pun",x:"(s));"}]},
+        {t:"add", ln:20, code:[{c:"t-com",x:"// fires only on threshold cross"}]},
+        {t:"add", ln:21, code:[{c:"t-prop",x:"io"},{c:"t-pun",x:"."},{c:"t-fn",x:"start"},{c:"t-pun",x:"();"}]}
+      ]
+    }
+  },
+  {
+    v:"2.6.0", vtag:"v", date:"June 3, 2026", rel:null,
+    cats:["feature"],
+    headline:"Release spotlights now carry a media preview",
+    body:"Image and short-loop video previews can attach to any entry. Landscape assets are <strong>letterboxed</strong>, never cropped, so a wide render stays whole on a phone. Only the focused clip decodes at a time to keep the feed smooth.",
+    media:{type:"img", src:"../assets/flux-clinic-4k.png", cap:"hero preview // 2048x1152 letterboxed"}
+  },
+  {
+    v:"2.5.2", vtag:"v", date:"May 22, 2026", rel:null,
+    cats:["fix","feature"],
+    headline:"Keyboard focus rings restored across the feed",
+    body:"Every interactive target in the sidebar tree and the subscribe control now shows a visible <strong>:focus-visible</strong> ring, and the pulse on the latest badge fully respects <strong>reduced-motion</strong>. No motion is forced when the system asks for stillness."
+  },
+  {
+    v:"2.5.0", vtag:"v", date:"May 9, 2026", rel:null,
+    cats:["breaking"],
+    headline:"The v1 webhook payload is retired",
+    body:"Webhooks now emit the typed v2 envelope only. The flat <strong>type</strong> string is gone in favor of a <strong>cats</strong> array. Update any consumer that reads <strong>payload.type</strong> before this version reaches your production tenant.",
+    diff:{
+      file:"webhooks/payload.v2.ts", add:3, rem:2,
+      lines:[
+        {t:"rem", ln:7, code:[{c:"t-prop",x:"type"},{c:"t-pun",x:": "},{c:"t-tag",x:"string"},{c:"t-pun",x:";"},{c:"",x:"   "},{c:"t-com",x:"// 'feature' | 'fix'"}]},
+        {t:"rem", ln:8, code:[{c:"t-prop",x:"version"},{c:"t-pun",x:": "},{c:"t-tag",x:"string"},{c:"t-pun",x:";"}]},
+        {t:"add", ln:7, code:[{c:"t-prop",x:"cats"},{c:"t-pun",x:": "},{c:"t-fn",x:"Category"},{c:"t-pun",x:"[];"}]},
+        {t:"add", ln:8, code:[{c:"t-prop",x:"version"},{c:"t-pun",x:": "},{c:"t-fn",x:"SemVer"},{c:"t-pun",x:";"}]},
+        {t:"add", ln:9, code:[{c:"t-prop",x:"shippedAt"},{c:"t-pun",x:": "},{c:"t-fn",x:"ISODate"},{c:"t-pun",x:";"}]}
+      ]
+    }
+  },
+  {
+    v:"2.4.1", vtag:"v", date:"April 28, 2026", rel:null,
+    cats:["fix"],
+    headline:"Diff blocks wrap cleanly on narrow screens",
+    body:"Long token lines in the syntax-highlighted diff overflowed the card on small phones. They now scroll horizontally inside the block instead of stretching the layout, and the line gutter stays pinned."
+  },
+  {
+    v:"2.4.0", vtag:"v", date:"April 14, 2026", rel:null,
+    cats:["feature"],
+    headline:"Year and month tree arrives in the sidebar",
+    body:"A sticky left rail groups every release by year and month so you can jump straight to a window. On mobile the rail collapses into a compact pill-only date header that scrolls horizontally."
+  }
+];
+
+const MONTH_TREE = [
+  { year:"2026", months:[
+    { id:"m-2026-06", label:"June",  v:"v2.7.0 -> v2.6.0" },
+    { id:"m-2026-05", label:"May",   v:"v2.5.2 -> v2.5.0" },
+    { id:"m-2026-04", label:"April", v:"v2.4.1 -> v2.4.0" }
+  ]},
+  { year:"2025", months:[
+    { id:"m-2025-12", label:"December", v:"v2.3.x" },
+    { id:"m-2025-09", label:"September", v:"v2.1.x" }
+  ]}
+];
+
+// map each release index to a month-section id so we can anchor section heads
+function monthIdFor(dateStr){
+  const d = new Date(dateStr);
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  return "m-"+y+"-"+m;
+}
+</script>
+
+<div class="shell">
+
+  <!-- top band: brand + status. Mechanic (spotlight) sits immediately below. -->
+  <header class="topband">
+    <div class="brand">
+      <div class="glyph">&gt;_</div>
+      <div>
+        <h1>Diff Log</h1>
+        <div class="sub">Release Notes / Changelog</div>
+      </div>
+    </div>
+    <div class="topmeta">
+      <span class="dot" aria-hidden="true"></span>
+      <span>shipping weekly</span>
+      <a class="subscribe" href="#" onclick="return false">Subscribe to RSS</a>
+    </div>
+  </header>
+
+  <!-- MOBILE compact pill-only date header (hidden on desktop) -->
+  <nav class="mobile-datebar" id="mobileDates" aria-label="Jump to month"></nav>
+
+  <!-- LEFT RAIL: year / month tree (sticky, hidden on mobile) -->
+  <aside class="rail" aria-label="Release timeline by month">
+    <div class="rail-label">// Timeline</div>
+    <ul class="tree" id="tree"></ul>
+    <div class="rail-foot">
+      <b>SemVer</b> tags<br/>
+      newest at top<br/>
+      <b>SSE</b> live feed
+    </div>
+  </aside>
+
+  <!-- FEED -->
+  <main class="feed" id="feed"></main>
+
+  <footer class="feet">
+    <span>DIFF LOG // 8 releases archived</span>
+    <span><a href="#" onclick="return false">RSS</a> &nbsp;/&nbsp; <a href="#" onclick="return false">JSON feed</a> &nbsp;/&nbsp; <a href="#" onclick="return false">v2 API docs</a></span>
+  </footer>
+</div>
+
+<script>
+/* ============================================================
+   RENDER
+   ============================================================ */
+const CAT_LABEL = { feature:"Feature", fix:"Fix", breaking:"Breaking" };
+
+function el(html){ const t=document.createElement("template"); t.innerHTML=html.trim(); return t.content.firstElementChild; }
+
+function pillsHTML(cats){
+  return '<div class="pills">'+cats.map(c =>
+    '<span class="pill '+c+'"><span class="d"></span>'+CAT_LABEL[c]+'</span>'
+  ).join("")+'</div>';
+}
+
+function badgeHTML(r, pulse){
+  return '<span class="badge'+(pulse?' pulse':'')+'">'+
+    '<span class="vtag">'+r.vtag+'</span>'+
+    '<span class="vnum">'+r.v+'</span></span>';
+}
+
+function diffHTML(d){
+  const lines = d.lines.map(L => {
+    const cls = L.t==="add" ? "add" : (L.t==="rem" ? "rem" : "ctx");
+    const sign = L.t==="add" ? "+" : (L.t==="rem" ? "-" : " ");
+    const code = L.code.map(tk => tk.c ? '<span class="'+tk.c+'">'+esc(tk.x)+'</span>' : esc(tk.x)).join("");
+    return '<span class="dl '+cls+'"><span class="ln">'+L.ln+'</span><span class="sign">'+sign+'</span>'+code+'</span>';
+  }).join("");
+  return '<div class="diff">'+
+    '<div class="diff-bar">'+
+      '<span class="lights"><i></i><i></i><i></i></span>'+
+      '<span class="fname">'+esc(d.file)+'</span>'+
+      '<span class="stat"><span class="add">+'+d.add+'</span><span class="rem">-'+d.rem+'</span></span>'+
+    '</div>'+
+    '<div class="diff-body"><pre>'+lines+'</pre></div>'+
+  '</div>';
+}
+
+function mediaHTML(m){
+  if(m.type==="img"){
+    return '<div class="media"><div class="frame">'+
+      '<img src="'+m.src+'" alt="" loading="lazy" decoding="async" />'+
+    '</div><div class="cap"><span class="tag">[media]</span>'+esc(m.cap||"")+'</div></div>';
+  }
+  // video (lazy, plays only in view) - poster shown until then
+  return '<div class="media"><div class="frame">'+
+    '<video muted loop playsinline preload="none" poster="'+(m.poster||"")+'" data-lazy="'+m.src+'"></video>'+
+  '</div><div class="cap"><span class="tag">[media]</span>'+esc(m.cap||"")+'</div></div>';
+}
+
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+function spotlightHTML(r){
+  return '<section class="spotlight" id="rel-'+r.v.replace(/\./g,"-")+'">'+
+    '<div class="sl-top">'+
+      badgeHTML(r,true)+
+      pillsHTML(r.cats)+
+      '<span class="sl-date">'+r.date+(r.rel?'<span class="rel">'+r.rel+'</span>':'')+'</span>'+
+    '</div>'+
+    '<h2 class="sl-headline">'+r.headline+'</h2>'+
+    '<p class="sl-body">'+r.body+'</p>'+
+    (r.diff?diffHTML(r.diff):'')+
+    (r.media?mediaHTML(r.media):'')+
+  '</section>';
+}
+
+function entryHTML(r){
+  return '<article class="entry" id="rel-'+r.v.replace(/\./g,"-")+'">'+
+    '<div class="e-head">'+
+      badgeHTML(r,false)+
+      pillsHTML(r.cats)+
+      '<span class="e-date">'+r.date+'</span>'+
+    '</div>'+
+    '<h3 class="e-headline">'+r.headline+'</h3>'+
+    '<p class="e-body">'+r.body+'</p>'+
+    (r.diff?diffHTML(r.diff):'')+
+    (r.media?mediaHTML(r.media):'')+
+  '</article>';
+}
+
+/* build feed with month section markers */
+(function build(){
+  const feed = document.getElementById("feed");
+  let lastMonth = null;
+  RELEASES.forEach((r,i) => {
+    const mid = monthIdFor(r.date);
+    if(mid !== lastMonth){
+      // anchor the section to its month id (first release of that month wins)
+      const d = new Date(r.date);
+      const label = d.toLocaleString("en-US",{month:"long",year:"numeric"});
+      const mark = el('<div class="month-mark" id="'+mid+'"><span class="mtext">'+label+'</span><span class="mline"></span></div>');
+      feed.appendChild(mark);
+      lastMonth = mid;
+    }
+    feed.insertAdjacentHTML("beforeend", i===0 && r.latest ? spotlightHTML(r) : entryHTML(r));
+  });
+
+  /* sidebar tree */
+  const tree = document.getElementById("tree");
+  MONTH_TREE.forEach(grp => {
+    tree.appendChild(el('<li class="year">'+grp.year+'</li>'));
+    grp.months.forEach(mo => {
+      tree.appendChild(el(
+        '<li><a class="month" href="#'+mo.id+'" data-target="'+mo.id+'">'+mo.label+
+        '<span class="v">'+mo.v+'</span></a></li>'
+      ));
+    });
+  });
+
+  /* mobile date pills (compact, pill-only) */
+  const mb = document.getElementById("mobileDates");
+  MONTH_TREE.forEach(grp => grp.months.forEach(mo => {
+    const a = el('<a href="#'+mo.id+'" data-target="'+mo.id+'">'+mo.label.slice(0,3).toUpperCase()+" '"+grp.year.slice(2)+'</a>');
+    mb.appendChild(a);
+  }));
+})();
+
+/* ============================================================
+   ACTIVE-MONTH highlight via IntersectionObserver (rail drift fix)
+   ============================================================ */
+(function activeMonth(){
+  const links = [...document.querySelectorAll('[data-target]')];
+  if(!links.length) return;
+  const setActive = id => {
+    links.forEach(l => l.classList.toggle("is-active", l.dataset.target === id));
+  };
+  const marks = [...document.querySelectorAll(".month-mark")];
+  if(!marks.length) return;
+  // track the topmost month section currently in/above view
+  let current = marks[0].id;
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if(e.isIntersecting) current = e.target.id;
+    });
+    setActive(current);
+  }, { rootMargin:"-15% 0px -70% 0px", threshold:0 });
+  marks.forEach(m => io.observe(m));
+  setActive(current);
+
+  // also nudge active on click for immediate feedback
+  links.forEach(l => l.addEventListener("click", () => setActive(l.dataset.target)));
+})();
+
+/* ============================================================
+   VIDEO: play only the in-view clip (avoids simultaneous decode)
+   ============================================================ */
+(function lazyVideo(){
+  const vids = [...document.querySelectorAll("video[data-lazy]")];
+  if(!vids.length) return;
+  const reduce = window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      const v = e.target;
+      if(e.isIntersecting && e.intersectionRatio > 0.5){
+        if(!v.src) v.src = v.dataset.lazy;
+        if(!reduce){ v.play().catch(()=>{}); }
+      } else {
+        if(!v.paused) v.pause();
+      }
+    });
+  }, { threshold:[0,0.5,1] });
+  vids.forEach(v => io.observe(v));
+})();
+</script>
+</body>
+</html>

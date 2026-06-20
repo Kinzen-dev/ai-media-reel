@@ -194,3 +194,24 @@ generative SVG filters, collab-cursor presence, data-physics particle sort, prin
 ## CHANGELOG (append per batch)
 ================================================================================
 - 2026-06-20 seed: written after batch 16 (~80 templates). Captures sections A + B from batches 1-16.
+- 2026-06-21 batches 17-24 (-> 121 templates). Big meta-lesson banked in section A: the "saturated at
+  ~106" call was wrong (narrow single-axis research). A 6-lens audit found 32 new directions; see
+  feedback_research_breadth_before_certainty. NEW DESIGN/LOOP LESSONS this run:
+  * THE PAGE-PURPOSE AXIS. A template library can be enumerated along (at least) two independent axes:
+    INTERACTION MECHANIC (how it moves: scroll-3d, particle morph, gooey merge...) and PAGE PURPOSE /
+    CONTENT DOMAIN (what it is: pricing table, changelog feed, recipe how-to, link-in-bio, annual report,
+    multistep form, AI streaming UI, interactive timeline, command-palette nav...). I saturated the first
+    axis by ~batch 22 and wrongly called the whole space done. The second axis was barely touched and is
+    huge. When a generative space feels exhausted, look for an ORTHOGONAL axis to enumerate along, not
+    more points on the axis you already mined.
+  * PAGE-PURPOSE TEMPLATES PASS FIRST-TIME FAR MORE OFTEN. Batches 23+24 = 10/10 PASS, zero fix rounds,
+    vs the interaction-mechanic batches that averaged 1-3 fix rounds each. Reason: page-purpose templates
+    are built from layout + IntersectionObserver + CSS anchor positioning + transforms - all of which
+    render deterministically in a static screenshot. The fix-heavy ones leaned on capture-fragile GPU
+    APIs (Houdini paint, WebGL/ANGLE quirks, blend modes). Library-design corollary: for a thumbnail-
+    driven library, bias the backlog toward capture-safe mechanics; they are both higher-yield and
+    lower-cost-to-verify. The novelty is in the CONTENT STRUCTURE, not in a risky render trick.
+  * SIGNATURE-AT-scroll=0 is easier to satisfy for page-purpose types: the page's whole reason to exist
+    (the streaming response, the numbered step band, the question + options + progress) is naturally
+    above the fold, so the thumbnail sells the mechanic with zero interaction almost for free. The
+    recurring "title-only hero hides the mechanic" defect mostly afflicts interaction-mechanic templates.

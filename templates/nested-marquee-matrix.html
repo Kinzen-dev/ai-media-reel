@@ -1,0 +1,601 @@
+<!-- TEMPLATE: Nested Marquee Matrix | ARCHETYPE: ticker-matrix (marquee-of-marquees) | REF: marquee-of-marquees nested ticker (Awwwards experimental-developer 2026), studio kinetic-type marquee grids (Godly 2026) | WHEN TO USE: studio/agency reel index where you want a 2D kinetic field - macro pan across cells while each cell streams its own work, click to expand | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Nested Marquee Matrix</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Expanded:wght@600;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<script>
+/* ============================================================
+   DATA - swap freely. Each work feeds an inner marquee cell.
+   kind: 'img' (poster only) | 'video' (poster + plays on focus)
+   poster: shown by default (never decode every clip at once)
+   src:    only loaded/played when this tile is focused/hovered/locked
+   ============================================================ */
+const DATA = [
+  // row 0
+  { kind:'video', label:'NEON DRIFT',     tag:'i2v', poster:'../assets/gen/poster-flux-car-i2v.png', src:'../assets/flux-car-i2v.mp4' },
+  { kind:'img',   label:'MATTE BLACK',    tag:'4k',  poster:'../assets/flux-car-4k.png' },
+  { kind:'video', label:'KLING SWEEP',    tag:'gen', poster:'../assets/gen/poster-kling-video.png', src:'../assets/kling-video.mp4' },
+  // row 1
+  { kind:'video', label:'VEO MOTION',     tag:'veo', poster:'../assets/gen/poster-veo-video.png', src:'../assets/veo-video.mp4' },
+  { kind:'img',   label:'MINT CLINIC',    tag:'4k',  poster:'../assets/flux-clinic-4k.png' },
+  { kind:'video', label:'FAL FLUX',       tag:'gen', poster:'../assets/gen/poster-fal-video.png', src:'../assets/fal-video.mp4' },
+  // row 2
+  { kind:'img',   label:'AUTUMN FOX',     tag:'sdxl',poster:'../assets/sdxl.png' },
+  { kind:'video', label:'AVATAR TAKE',    tag:'hey', poster:'../assets/gen/poster-heygen.png', src:'../assets/heygen-avatar.mp4' },
+  { kind:'video', label:'HYPERFRAMES',    tag:'hf',  poster:'../assets/gen/poster-hyperframes.png', src:'../assets/hyperframes.mp4' },
+  // overflow pool (each inner marquee pulls extra tiles so streams differ)
+  { kind:'img',   label:'LO-FI APPLE',    tag:'tsd', poster:'../assets/hf-tinysd.png' },
+  { kind:'video', label:'DID TALK',       tag:'did', poster:'../assets/gen/poster-did.png', src:'../assets/did-talking-photo.mp4' },
+  { kind:'img',   label:'CAR STILL',      tag:'still',poster:'../assets/flux-car.png' }
+];
+
+/* Inner-marquee speed range (seconds for one loop). Each cell randomized in this band. */
+const SPEED_MIN = 16, SPEED_MAX = 30;
+/* Macro-marquee base speed in px/sec. The amber counter reflects live value. */
+const MACRO_SPEED = 34;
+</script>
+<style>
+  :root{
+    --void:#0a0a0a;
+    --bone:#f0ece4;
+    --amber:#e8c547;
+    --vermilion:#c0392b;
+    --seam: 2px;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ height:100%; }
+  body{
+    background:var(--void);
+    color:var(--bone);
+    font-family:'Space Mono', ui-monospace, monospace;
+    overflow:hidden;                 /* the field lives in the viewport; no page scroll */
+    -webkit-font-smoothing:antialiased;
+  }
+  /* ---------- top band: headline overlays the live field, never pushes it down ---------- */
+  .band{
+    position:fixed; top:0; left:0; right:0; z-index:30;
+    display:flex; align-items:flex-end; justify-content:space-between;
+    gap:16px; padding:18px clamp(16px,3vw,40px) 14px;
+    pointer-events:none;
+    background:linear-gradient(to bottom, rgba(10,10,10,.92) 30%, rgba(10,10,10,0));
+  }
+  .band h1{
+    font-family:'Archivo Expanded', sans-serif;
+    font-weight:900; letter-spacing:-.02em; line-height:.86;
+    font-size:clamp(22px,4.4vw,52px);
+    text-transform:uppercase;
+  }
+  .band h1 .em{ color:var(--amber); }
+  .band .sub{
+    font-size:11px; letter-spacing:.18em; text-transform:uppercase;
+    color:rgba(240,236,228,.62); margin-top:8px; max-width:46ch;
+  }
+  /* live speed counter - the kinetic signature, top-right */
+  .gauge{
+    pointer-events:none; text-align:right; flex:0 0 auto;
+    font-family:'Space Mono', monospace;
+  }
+  .gauge .num{
+    display:block; font-size:clamp(20px,3vw,34px); font-weight:700;
+    color:var(--amber); letter-spacing:.02em; font-variant-numeric:tabular-nums;
+  }
+  .gauge .lbl{ font-size:10px; letter-spacing:.22em; color:rgba(240,236,228,.5); text-transform:uppercase; }
+  .gauge .state{ font-size:10px; letter-spacing:.22em; text-transform:uppercase; color:var(--vermilion); }
+  .gauge .state.run{ color:rgba(240,236,228,.4); }
+
+  /* ---------- stage = clipped window onto the macro-marquee ---------- */
+  .stage{
+    position:fixed; inset:0;
+    overflow:hidden;
+  }
+  /* macro track: 2 copies of the column-set side by side for seamless macro loop.
+     JS sets transform; CSS handles nothing here so reduced-motion can freeze it. */
+  .macro{
+    position:absolute; top:0; bottom:0; left:0;
+    display:flex; height:100%;
+    will-change:transform;
+  }
+  .macro-set{
+    display:grid;
+    grid-template-columns:repeat(3, var(--cellw));
+    grid-template-rows:repeat(3, 1fr);
+    height:100%;
+    --cellw:clamp(340px,32vw,560px);
+    flex:0 0 auto;
+    gap:var(--seam);
+    background:var(--vermilion);     /* gap shows as vermilion pause seam */
+    padding-right:var(--seam);
+  }
+
+  /* ---------- a cell = one independent inner sub-marquee ---------- */
+  .cell{
+    position:relative; overflow:hidden;
+    background:var(--void);
+    min-width:0; min-height:0;
+  }
+  .cell-head{
+    position:absolute; top:0; left:0; z-index:6;
+    display:flex; align-items:center; gap:8px;
+    padding:7px 10px;
+    font-size:10px; letter-spacing:.16em; text-transform:uppercase;
+    color:rgba(240,236,228,.78);
+    background:linear-gradient(to bottom, rgba(10,10,10,.85), rgba(10,10,10,0));
+    pointer-events:none; width:100%;
+  }
+  .cell-head .dot{ width:6px; height:6px; border-radius:50%; background:var(--amber); flex:0 0 auto; }
+  .cell-head .v{ color:var(--amber); }
+
+  /* inner track: content duplicated ONCE in DOM (-> seamless CSS loop, no JS cloning) */
+  .inner{
+    position:absolute; top:0; left:0; height:100%;
+    display:flex; align-items:center;
+    gap:14px; padding:0 14px;
+    width:max-content;
+    animation:slide var(--dur,22s) linear infinite;
+    will-change:transform;
+  }
+  @keyframes slide{
+    from{ transform:translate3d(0,0,0); }
+    to  { transform:translate3d(-50%,0,0); }   /* -50% = one full copy = seamless */
+  }
+  /* off-screen cells pause their inner animation (set by IntersectionObserver) */
+  .cell.paused .inner{ animation-play-state:paused; }
+
+  /* a tile inside an inner marquee */
+  .tile{
+    position:relative; flex:0 0 auto;
+    height:64%;
+    aspect-ratio:16/9;
+    border-radius:8px; overflow:hidden;
+    background:#141414;
+    border:1px solid rgba(240,236,228,.10);
+    cursor:pointer;
+    outline:none;
+  }
+  .tile .media{
+    position:absolute; inset:0; width:100%; height:100%;
+    object-fit:cover; display:block;          /* tiles are 16/9 boxes holding 16/9 media -> no crop distortion */
+    background:#141414;
+  }
+  .tile video.media{ opacity:0; transition:opacity .25s ease; }
+  .tile.playing video.media{ opacity:1; }
+  .tile .cap{
+    position:absolute; left:0; right:0; bottom:0; z-index:3;
+    display:flex; align-items:center; justify-content:space-between;
+    gap:8px; padding:7px 9px;
+    font-size:9.5px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--bone);
+    background:linear-gradient(to top, rgba(10,10,10,.9), rgba(10,10,10,0));
+  }
+  .tile .cap b{ font-weight:700; }
+  .tile .cap .t{ color:var(--amber); font-weight:700; }
+  .tile.isvid::after{                 /* play glyph marks a video tile */
+    content:''; position:absolute; z-index:4; top:50%; left:50%;
+    width:0; height:0; transform:translate(-40%,-50%);
+    border-left:13px solid rgba(240,236,228,.92);
+    border-top:9px solid transparent; border-bottom:9px solid transparent;
+    filter:drop-shadow(0 1px 3px rgba(0,0,0,.6)); transition:opacity .2s;
+  }
+  .tile.isvid.playing::after{ opacity:0; }
+  .tile:hover, .tile:focus-visible{ border-color:var(--amber); }
+  .tile:focus-visible{ box-shadow:0 0 0 2px var(--amber), 0 0 0 5px rgba(232,197,71,.35); }
+
+  /* ---------- expanded (locked) full-screen view ---------- */
+  .lock{
+    position:fixed; inset:0; z-index:60;
+    display:none; align-items:center; justify-content:center;
+    background:rgba(10,10,10,.94);
+    padding:clamp(16px,4vw,56px);
+  }
+  .lock.on{ display:flex; }
+  .lock-inner{
+    position:relative; width:100%; max-width:1280px;
+    aspect-ratio:16/9; max-height:82vh;
+    border-radius:12px; overflow:hidden;
+    background:#000; border:1px solid rgba(240,236,228,.14);
+    box-shadow:0 30px 90px rgba(0,0,0,.6);
+  }
+  .lock-inner .media{
+    position:absolute; inset:0; width:100%; height:100%;
+    object-fit:contain;                /* letterbox: never crop the asset in expand */
+    background:#000;
+  }
+  .lock-meta{
+    position:absolute; left:0; bottom:0; z-index:3; width:100%;
+    display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;
+    padding:18px 22px;
+    background:linear-gradient(to top, rgba(10,10,10,.9), rgba(10,10,10,0));
+  }
+  .lock-meta h2{ font-family:'Archivo Expanded',sans-serif; font-weight:800; font-size:clamp(18px,3vw,30px); text-transform:uppercase; letter-spacing:-.01em; }
+  .lock-meta .tg{ color:var(--amber); font-size:12px; letter-spacing:.16em; text-transform:uppercase; }
+  .lock-close{
+    position:absolute; top:14px; right:14px; z-index:5;
+    pointer-events:auto;
+    font-family:'Space Mono',monospace; font-size:11px; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--bone);
+    background:rgba(192,57,43,.9); border:none; border-radius:6px;
+    padding:9px 14px; cursor:pointer; outline:none;
+  }
+  .lock-close:hover{ background:var(--vermilion); }
+  .lock-close:focus-visible{ box-shadow:0 0 0 2px var(--amber); }
+  .lock-hint{
+    position:absolute; top:18px; left:22px; z-index:5;
+    font-size:10px; letter-spacing:.2em; text-transform:uppercase;
+    color:rgba(240,236,228,.5);
+  }
+
+  /* bottom seam ticker: reinforces the "macro pause seam" + scroll affordance */
+  .footer{
+    position:fixed; left:0; right:0; bottom:0; z-index:30;
+    display:flex; align-items:center; justify-content:space-between;
+    gap:12px; padding:9px clamp(16px,3vw,40px);
+    font-size:10px; letter-spacing:.18em; text-transform:uppercase;
+    color:rgba(240,236,228,.55);
+    background:linear-gradient(to top, rgba(10,10,10,.92) 40%, rgba(10,10,10,0));
+    pointer-events:none;
+  }
+  .footer .hint{ color:var(--amber); }
+  .footer kbd{
+    font-family:'Space Mono',monospace; color:var(--bone);
+    border:1px solid rgba(240,236,228,.25); border-radius:4px;
+    padding:1px 6px; font-size:9.5px;
+  }
+
+  /* ---------- MOBILE: 2x2 grid, 2 inner sub-marquees, letterboxed media ---------- */
+  @media (max-width:640px){
+    .macro-set{
+      grid-template-columns:repeat(2, var(--cellw));
+      grid-template-rows:repeat(2, 1fr);
+      --cellw:78vw;
+    }
+    .tile{ height:58%; }
+    .band h1{ font-size:clamp(20px,7vw,30px); }
+    .band .sub{ display:none; }
+    .gauge .num{ font-size:24px; }
+    .footer{ font-size:9px; }
+  }
+  /* very wide tiles letterbox rather than crop on tall phones */
+  @media (max-width:640px) and (orientation:portrait){
+    .tile .media{ object-fit:contain; background:#0d0d0d; }
+  }
+
+  /* ---------- REDUCED MOTION: static grid, all marquees frozen, final state shown ---------- */
+  @media (prefers-reduced-motion:reduce){
+    .inner{ animation:none !important; }
+    .gauge .num::after{ content:' (static)'; }
+  }
+</style>
+</head>
+<body>
+  <header class="band" role="banner">
+    <div>
+      <h1>MARQUEE<br><span class="em">OF MARQUEES</span></h1>
+      <p class="sub">A 2D ticker field. Pan the macro grid left to right while each cell streams its own reel at its own speed. Click any frame to lock and expand.</p>
+    </div>
+    <div class="gauge" aria-hidden="true">
+      <span class="num" id="speedNum">00</span>
+      <span class="lbl">px / sec macro</span>
+      <span class="state run" id="speedState">streaming</span>
+    </div>
+  </header>
+
+  <main class="stage" id="stage">
+    <div class="macro" id="macro" aria-label="Nested marquee matrix of work">
+      <!-- two identical sets render here via JS for seamless macro loop -->
+    </div>
+  </main>
+
+  <footer class="footer">
+    <span>VESPERWERK / REEL INDEX</span>
+    <span class="hint">drag or scroll to steer the macro pan - click a frame to expand</span>
+    <span><kbd>ESC</kbd> close</span>
+  </footer>
+
+  <!-- expanded lock view -->
+  <div class="lock" id="lock" role="dialog" aria-modal="true" aria-label="Expanded work">
+    <button class="lock-close" id="lockClose" aria-label="Close expanded work">&times; close</button>
+    <span class="lock-hint">macro locked</span>
+    <div class="lock-inner" id="lockInner"></div>
+  </div>
+
+<script>
+(() => {
+  const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const macro   = document.getElementById('macro');
+  const stage   = document.getElementById('stage');
+  const speedNum= document.getElementById('speedNum');
+  const speedState = document.getElementById('speedState');
+  const lock    = document.getElementById('lock');
+  const lockInner = document.getElementById('lockInner');
+  const lockClose = document.getElementById('lockClose');
+
+  const isMobile = () => window.matchMedia('(max-width:640px)').matches;
+
+  /* ---- build one tile element ---- */
+  function tileEl(item, idx){
+    const el = document.createElement('button');
+    el.className = 'tile' + (item.kind === 'video' ? ' isvid' : '');
+    el.type = 'button';
+    el.setAttribute('aria-label', item.label + (item.kind==='video' ? ' (video, click to expand)' : ' (image, click to expand)'));
+    el.dataset.idx = idx;
+
+    const poster = document.createElement('img');
+    poster.className = 'media poster';
+    poster.src = item.poster;
+    poster.alt = item.label;
+    poster.loading = 'lazy';
+    poster.decoding = 'async';
+    el.appendChild(poster);
+
+    // video element created lazily on focus to avoid 12 simultaneous decodes
+    const cap = document.createElement('div');
+    cap.className = 'cap';
+    cap.innerHTML = '<b>'+item.label+'</b><span class="t">'+item.tag+'</span>';
+    el.appendChild(cap);
+
+    return el;
+  }
+
+  /* ---- which DATA items feed each of the 9 (or 4) cells ----
+     Each cell gets a primary item + a couple of pool items so the
+     nine streams look distinct. Content is then duplicated once in DOM. */
+  function streamForCell(cellIndex, cellCount){
+    const out = [];
+    // primary item lines up with the grid position
+    out.push(DATA[cellIndex % DATA.length]);
+    // add 2 more, offset so neighbours differ
+    out.push(DATA[(cellIndex + 3) % DATA.length]);
+    out.push(DATA[(cellIndex + 6) % DATA.length]);
+    out.push(DATA[(cellIndex + 1 + cellCount) % DATA.length]);
+    return out;
+  }
+
+  /* ---- build one 3x3 (or 2x2) set ---- */
+  function buildSet(cellCount){
+    const set = document.createElement('div');
+    set.className = 'macro-set';
+    const rng = mulberry32(0xBEEF + cellCount);
+
+    for(let c=0;c<cellCount;c++){
+      const cell = document.createElement('section');
+      cell.className = 'cell';
+
+      const head = document.createElement('div');
+      head.className = 'cell-head';
+      const dur = (SPEED_MIN + rng()*(SPEED_MAX-SPEED_MIN));
+      head.innerHTML = '<span class="dot"></span>CELL '+String(c+1).padStart(2,'0')+
+                       ' <span class="v">'+dur.toFixed(1)+'s</span>';
+      cell.appendChild(head);
+
+      const inner = document.createElement('div');
+      inner.className = 'inner';
+      inner.style.setProperty('--dur', dur.toFixed(2)+'s');
+      // randomize start so streams don't sync visually
+      if(!REDUCED){ inner.style.animationDelay = (-rng()*dur).toFixed(2)+'s'; }
+
+      const stream = streamForCell(c, cellCount);
+      // build content, then duplicate ONCE for seamless -50% loop
+      const frag = document.createDocumentFragment();
+      stream.forEach((item,i)=> frag.appendChild(tileEl(item, DATA.indexOf(item))));
+      inner.appendChild(frag.cloneNode(true)); // copy A
+      // copy B (clone of the same nodes) for the seamless wrap
+      stream.forEach((item)=> inner.appendChild(tileEl(item, DATA.indexOf(item))));
+
+      cell.appendChild(inner);
+      set.appendChild(cell);
+    }
+    return set;
+  }
+
+  /* deterministic tiny PRNG so layout is stable across reloads */
+  function mulberry32(a){
+    return function(){
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  let setWidth = 0;
+  function render(){
+    macro.innerHTML = '';
+    const cellCount = isMobile() ? 4 : 9;
+    const a = buildSet(cellCount);
+    const b = buildSet(cellCount);
+    macro.appendChild(a);
+    macro.appendChild(b);
+    // measure one set's width for the macro wrap
+    requestAnimationFrame(()=>{ setWidth = a.getBoundingClientRect().width; });
+    wireCells();
+    return a;
+  }
+
+  /* ---- macro-marquee: JS-driven horizontal pan, wraps at one set width ---- */
+  let offset = 0;             // current translateX (negative -> moving left)
+  let macroSpeed = MACRO_SPEED;  // px/sec
+  let dir = -1;              // -1 = pan left
+  let locked = false;
+  let dragging = false;
+  let last = performance.now();
+
+  function tick(now){
+    const dt = Math.min(0.05, (now - last)/1000);
+    last = now;
+    if(!REDUCED && !locked && !dragging){
+      offset += dir * macroSpeed * dt;
+    }
+    // wrap seamlessly across the duplicated set
+    if(setWidth > 0){
+      if(offset <= -setWidth) offset += setWidth;
+      if(offset > 0)          offset -= setWidth;
+    }
+    macro.style.transform = 'translate3d('+offset.toFixed(2)+'px,0,0)';
+    // live gauge
+    const shown = (locked || dragging) ? 0 : Math.abs(Math.round(macroSpeed));
+    speedNum.textContent = String(shown).padStart(2,'0');
+    requestAnimationFrame(tick);
+  }
+
+  /* ---- steering: wheel + drag adjust the macro pan (the "scroll" of a fixed field) ---- */
+  function bumpFromDelta(delta){
+    // map input to a temporary speed/direction nudge
+    if(delta !== 0){ dir = delta < 0 ? 1 : -1; }
+    macroSpeed = Math.min(120, MACRO_SPEED + Math.min(86, Math.abs(delta)*0.6));
+    setState(true);
+    clearTimeout(bumpFromDelta._t);
+    bumpFromDelta._t = setTimeout(()=>{ macroSpeed = MACRO_SPEED; setState(false); }, 650);
+  }
+  function setState(boost){
+    speedState.textContent = locked ? 'locked' : (boost ? 'boosting' : 'streaming');
+    speedState.className = 'state ' + (locked ? '' : 'run');
+  }
+
+  stage.addEventListener('wheel', (e)=>{
+    if(locked) return;
+    e.preventDefault();
+    const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    offset += -Math.sign(d) * Math.min(40, Math.abs(d)) ; // direct nudge
+    bumpFromDelta(d);
+  }, {passive:false});
+
+  // pointer drag to steer
+  let px = 0;
+  stage.addEventListener('pointerdown', (e)=>{
+    if(locked) return;
+    dragging = true; px = e.clientX;
+    stage.setPointerCapture && stage.setPointerCapture(e.pointerId);
+  });
+  stage.addEventListener('pointermove', (e)=>{
+    if(!dragging || locked) return;
+    const dx = e.clientX - px; px = e.clientX;
+    offset += dx;
+    speedNum.textContent = String(Math.min(99, Math.abs(Math.round(dx*6)))).padStart(2,'0');
+    setState(true);
+  });
+  function endDrag(){ if(dragging){ dragging = false; setState(false); } }
+  stage.addEventListener('pointerup', endDrag);
+  stage.addEventListener('pointercancel', endDrag);
+  stage.addEventListener('pointerleave', endDrag);
+
+  /* ---- per-cell IntersectionObserver: pause off-screen inner marquees ---- */
+  let io;
+  function wireCells(){
+    if(io) io.disconnect();
+    io = new IntersectionObserver((entries)=>{
+      entries.forEach(en=>{
+        en.target.classList.toggle('paused', !en.isIntersecting);
+      });
+    }, { root: stage, threshold: 0.01, rootMargin: '0px 12% 0px 12%' });
+    document.querySelectorAll('.cell').forEach(c=> io.observe(c));
+
+    // tile focus/hover -> play just that one video (no simultaneous decode)
+    document.querySelectorAll('.tile.isvid').forEach(tile=>{
+      tile.addEventListener('pointerenter', ()=> playTile(tile));
+      tile.addEventListener('pointerleave', ()=> stopTile(tile));
+      tile.addEventListener('focus', ()=> playTile(tile));
+      tile.addEventListener('blur', ()=> stopTile(tile));
+    });
+    // any tile click -> lock + expand
+    document.querySelectorAll('.tile').forEach(tile=>{
+      tile.addEventListener('click', (e)=>{ e.preventDefault(); openLock(tile); });
+    });
+  }
+
+  function itemFor(tile){ return DATA[+tile.dataset.idx] || DATA[0]; }
+
+  function playTile(tile){
+    if(REDUCED) return;
+    const item = itemFor(tile);
+    if(item.kind !== 'video') return;
+    let v = tile.querySelector('video.media');
+    if(!v){
+      v = document.createElement('video');
+      v.className = 'media';
+      v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'none';
+      v.poster = item.poster;
+      v.src = item.src;
+      tile.appendChild(v);
+    }
+    tile.classList.add('playing');
+    v.play().catch(()=>{});
+  }
+  function stopTile(tile){
+    const v = tile.querySelector('video.media');
+    tile.classList.remove('playing');
+    if(v){ v.pause(); }
+  }
+
+  /* ---- lock + expand a cell's focused work full-screen ---- */
+  let activeLockVideo = null;
+  function openLock(tile){
+    const item = itemFor(tile);
+    locked = true; setState(false);
+    speedNum.textContent = '00';
+    lockInner.innerHTML = '';
+    if(item.kind === 'video' && !REDUCED){
+      const v = document.createElement('video');
+      v.className = 'media';
+      v.src = item.src; v.poster = item.poster;
+      v.muted = true; v.loop = true; v.playsInline = true; v.controls = false; v.autoplay = true;
+      lockInner.appendChild(v);
+      activeLockVideo = v;
+      v.play().catch(()=>{});
+    } else {
+      const img = document.createElement('img');
+      img.className = 'media';
+      img.src = item.poster; img.alt = item.label;
+      lockInner.appendChild(img);
+    }
+    const meta = document.createElement('div');
+    meta.className = 'lock-meta';
+    meta.innerHTML = '<h2>'+item.label+'</h2><span class="tg">'+item.tag+
+                     ' / '+(item.kind==='video'?'motion':'still')+'</span>';
+    lockInner.appendChild(meta);
+    lock.classList.add('on');
+    lockClose.focus();
+  }
+  function closeLock(){
+    lock.classList.remove('on');
+    if(activeLockVideo){ activeLockVideo.pause(); activeLockVideo = null; }
+    lockInner.innerHTML = '';
+    locked = false; setState(false);
+  }
+  lockClose.addEventListener('click', closeLock);
+  lock.addEventListener('click', (e)=>{ if(e.target === lock) closeLock(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape' && lock.classList.contains('on')) closeLock(); });
+
+  /* ---- boot ---- */
+  render();
+  if(!REDUCED){
+    last = performance.now();
+    requestAnimationFrame(tick);
+  } else {
+    // static: park the grid at a populated position, freeze gauge
+    macro.style.transform = 'translate3d(0,0,0)';
+    speedNum.textContent = '00';
+    speedState.textContent = 'paused';
+  }
+
+  // re-render on breakpoint cross (9 <-> 4 cells)
+  let wasMobile = isMobile();
+  let rT;
+  window.addEventListener('resize', ()=>{
+    clearTimeout(rT);
+    rT = setTimeout(()=>{
+      if(isMobile() !== wasMobile){
+        wasMobile = isMobile();
+        offset = 0;
+        render();
+      }
+    }, 180);
+  });
+})();
+</script>
+</body>
+</html>

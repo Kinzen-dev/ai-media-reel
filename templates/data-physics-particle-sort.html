@@ -1,0 +1,900 @@
+<!-- TEMPLATE: Particle Sort | ARCHETYPE: data-physics-particle-sort | REF: Codrops Particles Forming Images (2025), generative-data-viz portfolio (Godly 2026) | WHEN TO USE: a generative-media corpus where each work is a particle cloud seeded from its own pixels, and clicking a sort key springs the whole galaxy into a data-driven formation | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Particle Sort // generative corpus</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DATA-PHYSICS-PARTICLE-SORT
+   void #050508 | ice-green particles | amber sort-target | vermilion active label
+   ============================================================ */
+:root{
+  --void:#050508;
+  --void-2:#0a0a12;
+  --ice:#e8f5e9;
+  --amber:#ffcf6e;
+  --vermilion:#c0392b;
+  --dim:#5a6b66;
+  --line:#1a2420;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--void);
+  color:var(--ice);
+  font-family:"Space Grotesk",system-ui,sans-serif;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+.stage{
+  position:fixed;
+  inset:0;
+  z-index:0;
+}
+#field{
+  display:block;
+  width:100%;
+  height:100%;
+  cursor:crosshair;
+  touch-action:none;
+}
+/* radial vignette behind the galaxy */
+.stage::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:radial-gradient(120% 90% at 50% 38%, rgba(20,30,28,.55) 0%, rgba(5,5,8,.0) 45%, rgba(5,5,8,.75) 100%);
+  z-index:1;
+}
+
+/* ---------- top band (compact, overlays the live field) ---------- */
+.hud{
+  position:fixed;
+  inset:0 0 auto 0;
+  z-index:5;
+  padding:clamp(14px,2.4vw,26px) clamp(14px,3vw,40px) 0;
+  pointer-events:none;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+.topline{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+  flex-wrap:wrap;
+}
+.brand{pointer-events:auto}
+.eyebrow{
+  font-family:"Space Mono",monospace;
+  font-size:11px;
+  letter-spacing:.32em;
+  text-transform:uppercase;
+  color:var(--amber);
+  margin-bottom:6px;
+}
+h1{
+  font-size:clamp(1.5rem,3.6vw,2.7rem);
+  font-weight:700;
+  line-height:.98;
+  letter-spacing:-.02em;
+}
+h1 em{font-style:normal;color:var(--dim)}
+.sub{
+  margin-top:8px;
+  max-width:42ch;
+  font-size:13.5px;
+  line-height:1.5;
+  color:#9fb0aa;
+}
+.sub b{color:var(--ice);font-weight:500}
+
+/* ---------- sort controls ---------- */
+.sorts{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  pointer-events:auto;
+}
+.sortlabel{
+  font-family:"Space Mono",monospace;
+  font-size:10px;
+  letter-spacing:.28em;
+  text-transform:uppercase;
+  color:var(--dim);
+  align-self:center;
+  margin-right:2px;
+}
+button.sort{
+  appearance:none;
+  font-family:"Space Mono",monospace;
+  font-size:12px;
+  letter-spacing:.05em;
+  color:var(--ice);
+  background:rgba(232,245,233,.04);
+  border:1px solid var(--line);
+  border-radius:999px;
+  padding:9px 16px;
+  cursor:pointer;
+  transition:border-color .18s,background .18s,color .18s,transform .12s;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+}
+button.sort .dot{
+  width:7px;height:7px;border-radius:50%;
+  background:var(--dim);
+  transition:background .18s,box-shadow .18s;
+}
+button.sort:hover{border-color:#33433d;background:rgba(232,245,233,.07)}
+button.sort:active{transform:translateY(1px)}
+button.sort[aria-pressed="true"]{
+  border-color:var(--amber);
+  background:rgba(255,207,110,.12);
+  color:var(--amber);
+}
+button.sort[aria-pressed="true"] .dot{
+  background:var(--amber);
+  box-shadow:0 0 0 3px rgba(255,207,110,.18);
+}
+button.sort:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+
+/* ---------- axis legend (appears when sorted) ---------- */
+.axis{
+  position:fixed;
+  left:0;right:0;
+  bottom:clamp(14px,3vw,30px);
+  z-index:5;
+  padding:0 clamp(14px,3vw,40px);
+  pointer-events:none;
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  gap:12px;
+  opacity:0;
+  transition:opacity .4s;
+}
+.axis.show{opacity:1}
+.axis .leg{
+  font-family:"Space Mono",monospace;
+  font-size:10.5px;
+  letter-spacing:.18em;
+  text-transform:uppercase;
+  color:var(--dim);
+}
+.axis .leg b{color:var(--amber);font-weight:700}
+.axis .leg.right{text-align:right}
+.hint{
+  position:fixed;
+  left:50%;
+  bottom:clamp(14px,3vw,30px);
+  transform:translateX(-50%);
+  z-index:5;
+  pointer-events:none;
+  font-family:"Space Mono",monospace;
+  font-size:10.5px;
+  letter-spacing:.22em;
+  text-transform:uppercase;
+  color:var(--dim);
+  transition:opacity .4s;
+  text-align:center;
+}
+
+/* ---------- hover tooltip / thumbnail ---------- */
+.tip{
+  position:fixed;
+  z-index:8;
+  width:188px;
+  background:rgba(8,10,14,.92);
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:10px;
+  pointer-events:none;
+  opacity:0;
+  transform:translateY(6px) scale(.98);
+  transition:opacity .16s,transform .16s;
+  backdrop-filter:blur(8px);
+  box-shadow:0 18px 50px rgba(0,0,0,.6);
+}
+.tip.show{opacity:1;transform:translateY(0) scale(1)}
+.tip .thumbwrap{
+  position:relative;
+  width:100%;
+  aspect-ratio:16/10;
+  border-radius:7px;
+  overflow:hidden;
+  background:var(--void-2);
+  border:1px solid var(--line);
+}
+.tip .thumbwrap img,.tip .thumbwrap video{
+  position:absolute;inset:0;
+  width:100%;height:100%;
+  object-fit:cover;
+  display:block;
+}
+.tip .badge{
+  position:absolute;top:6px;left:6px;
+  font-family:"Space Mono",monospace;
+  font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;
+  background:rgba(5,5,8,.78);
+  color:var(--ice);
+  padding:2px 6px;border-radius:5px;
+  border:1px solid rgba(232,245,233,.14);
+}
+.tip h3{
+  font-size:13.5px;font-weight:700;
+  margin:9px 0 2px;line-height:1.15;
+}
+.tip .meta{
+  font-family:"Space Mono",monospace;
+  font-size:10px;color:var(--dim);
+  display:flex;flex-wrap:wrap;gap:4px 10px;
+  margin-top:5px;line-height:1.4;
+}
+.tip .meta span b{color:#9fb0aa;font-weight:400}
+.tip .swatch{
+  display:inline-block;width:9px;height:9px;border-radius:2px;
+  vertical-align:-1px;margin-right:4px;
+  border:1px solid rgba(255,255,255,.18);
+}
+
+/* ---------- counter chip ---------- */
+.counter{
+  position:fixed;
+  right:clamp(14px,3vw,40px);
+  top:auto;bottom:clamp(56px,9vw,90px);
+  z-index:5;
+  pointer-events:none;
+  font-family:"Space Mono",monospace;
+  font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--dim);
+  text-align:right;
+  line-height:1.7;
+}
+.counter b{color:var(--ice)}
+
+/* reduced-motion: kill the crosshair urgency cue, formations snap (handled in JS) */
+@media (prefers-reduced-motion:reduce){
+  #field{cursor:default}
+}
+
+/* ---------- mobile ---------- */
+@media (max-width:640px){
+  .hud{gap:11px;padding-top:14px}
+  .sub{display:none}
+  h1{font-size:1.45rem}
+  .sorts{gap:6px}
+  .sortlabel{display:none}
+  button.sort{padding:8px 12px;font-size:11px}
+  .axis .leg{font-size:9px}
+  .tip{width:160px}
+  .counter{bottom:clamp(50px,16vw,70px)}
+}
+@media (max-width:380px){
+  button.sort{padding:7px 10px;font-size:10px}
+}
+.skip{position:absolute;left:-9999px;top:0}
+.skip:focus{left:12px;top:12px;z-index:30;background:var(--amber);color:#000;padding:8px 12px;border-radius:6px}
+</style>
+</head>
+<body>
+<a class="skip" href="#sorts">Skip to sort controls</a>
+
+<!-- ====== LIVE PARTICLE FIELD (scroll=0 signature) ====== -->
+<div class="stage" aria-hidden="true">
+  <canvas id="field"></canvas>
+</div>
+
+<!-- ====== HUD ====== -->
+<header class="hud">
+  <div class="topline">
+    <div class="brand">
+      <div class="eyebrow">Generative corpus // particle index</div>
+      <h1>The works are <em>particles.</em></h1>
+      <p class="sub">Every piece is a cloud of points seeded from its own pixel luminance. Pick a key and the galaxy <b>springs into a sorted formation.</b> Hover a cluster to read it.</p>
+    </div>
+    <nav class="sorts" id="sorts" aria-label="Sort the corpus">
+      <span class="sortlabel">Sort by</span>
+      <button class="sort" data-sort="scatter" aria-pressed="true"><span class="dot"></span>Galaxy</button>
+      <button class="sort" data-sort="date" aria-pressed="false"><span class="dot"></span>Date</button>
+      <button class="sort" data-sort="temp" aria-pressed="false"><span class="dot"></span>Color temp</button>
+      <button class="sort" data-sort="gen" aria-pressed="false"><span class="dot"></span>Gen time</button>
+    </nav>
+  </div>
+</header>
+
+<div class="counter" id="counter">
+  <div><b id="cWorks">0</b> works</div>
+  <div><b id="cParts">0</b> particles</div>
+</div>
+
+<div class="axis" id="axis" aria-hidden="true">
+  <div class="leg" id="axisL">&larr; <b>low</b></div>
+  <div class="leg right" id="axisR"><b>high</b> &rarr;</div>
+</div>
+<div class="hint" id="hint">Click a sort key to organize the swarm</div>
+
+<!-- hover tooltip -->
+<div class="tip" id="tip" role="status" aria-live="polite">
+  <div class="thumbwrap">
+    <span class="badge" id="tBadge">IMG</span>
+    <img id="tImg" alt="" decoding="async">
+  </div>
+  <h3 id="tTitle">--</h3>
+  <div class="meta" id="tMeta"></div>
+</div>
+
+<script>
+/* =====================================================================
+   DATA  -  swap freely. Each entry becomes one particle cloud.
+   img        : thumbnail (poster for video). Used for luminance seeding + hover.
+   kind       : IMG | VIDEO | AUDIO | 3D  (badge only)
+   date       : ISO yyyy-mm-dd  -> "by date" axis
+   tempK      : perceived color temperature in Kelvin -> "by color temp" axis
+   genSec     : generation time in seconds            -> "by gen time" axis
+   accent     : dominant hue used for the tooltip swatch + particle tint bias
+   ===================================================================== */
+const DATA = [
+  { id:"car",     title:"Matte Mercedes / wet neon",  kind:"IMG",   img:"../assets/flux-car-4k.png",            date:"2026-05-30", tempK:7200, genSec:42, accent:"#2f6cff", model:"FLUX.1" },
+  { id:"clinic",  title:"Mint + wood dental clinic",  kind:"IMG",   img:"../assets/flux-clinic-4k.png",         date:"2026-04-11", tempK:5400, genSec:38, accent:"#7fd6c0", model:"FLUX.1" },
+  { id:"fox",     title:"Painterly autumn fox",       kind:"IMG",   img:"../assets/sdxl.png",                   date:"2026-02-18", tempK:3100, genSec:14, accent:"#e08a3c", model:"SDXL" },
+  { id:"apple",   title:"Abstract low-fi apple",      kind:"IMG",   img:"../assets/hf-tinysd.png",              date:"2026-01-22", tempK:4200, genSec:3,  accent:"#cf5b5b", model:"TinySD" },
+  { id:"kling",   title:"Kling motion loop",          kind:"VIDEO", img:"../assets/gen/poster-kling-video.png", date:"2026-05-12", tempK:6100, genSec:95, accent:"#6aa9ff", model:"Kling", video:"../assets/kling-video.mp4" },
+  { id:"fal",     title:"Fal diffusion loop",         kind:"VIDEO", img:"../assets/gen/poster-fal-video.png",   date:"2026-03-29", tempK:5800, genSec:60, accent:"#9d7bff", model:"Fal", video:"../assets/fal-video.mp4" },
+  { id:"cari2v",  title:"Mercedes image-to-video",    kind:"VIDEO", img:"../assets/gen/poster-flux-car-i2v.png",date:"2026-05-31", tempK:7000, genSec:120,accent:"#3d7bd9", model:"FLUX i2v", video:"../assets/flux-car-i2v.mp4" },
+  { id:"hyper",   title:"Hyperframes interp",         kind:"VIDEO", img:"../assets/gen/poster-hyperframes.png", date:"2026-02-05", tempK:4600, genSec:22, accent:"#d6a14a", model:"Hyperframes", video:"../assets/hyperframes.mp4" },
+  { id:"heygen",  title:"HeyGen talking avatar",      kind:"VIDEO", img:"../assets/gen/poster-heygen.png",      date:"2026-04-24", tempK:5200, genSec:48, accent:"#c98fae", model:"HeyGen", video:"../assets/heygen-avatar.mp4" },
+  { id:"veo",     title:"Veo cinematic shot",         kind:"VIDEO", img:"../assets/gen/poster-veo-video.png",   date:"2026-06-08", tempK:6700, genSec:110,accent:"#5fb0c9", model:"Veo", video:"../assets/veo-video.mp4" },
+  { id:"did",     title:"D-ID talking photo",         kind:"VIDEO", img:"../assets/gen/poster-did.png",         date:"2026-03-14", tempK:4900, genSec:30, accent:"#b89a6a", model:"D-ID", video:"../assets/did-talking-photo.mp4" },
+  { id:"meshy",   title:"Meshy 3D refined mesh",      kind:"3D",    img:"../assets/gen/meshy-refined-thumb.png",date:"2026-06-15", tempK:5000, genSec:75, accent:"#8fae9f", model:"Meshy", glb:"../assets/meshy-refined.glb" },
+  { id:"eleven",  title:"ElevenLabs Thai VO",         kind:"AUDIO", img:"../assets/gen/wave-elevenlabs.png",    date:"2026-01-30", tempK:4000, genSec:6,  accent:"#7ad6a0", model:"ElevenLabs", audio:"../assets/elevenlabs-thai.mp3" },
+  { id:"music",   title:"MusicGen score",             kind:"AUDIO", img:"../assets/gen/wave-musicgen.png",      date:"2026-04-02", tempK:4400, genSec:18, accent:"#9ad67a", model:"MusicGen", audio:"../assets/musicgen.wav" },
+  { id:"piper",   title:"Piper TTS line",             kind:"AUDIO", img:"../assets/gen/wave-piper.png",         date:"2026-02-27", tempK:3800, genSec:2,  accent:"#67c79a", model:"Piper", audio:"../assets/piper.wav" },
+];
+
+/* =====================================================================
+   ENGINE
+   ===================================================================== */
+(function(){
+  "use strict";
+  const cv = document.getElementById('field');
+  const ctx = cv.getContext('2d', { alpha:false });
+  const reduce = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const isMobile = window.matchMedia('(max-width:640px)').matches || ('ontouchstart' in window && window.innerWidth < 760);
+
+  // ----- tunables / guardrails -----
+  const TOTAL_CAP   = 2000;          // hard cap on particles across the whole galaxy
+  const PER_BASE    = isMobile ? 60 : 110;   // target per-work particle budget (halved on mobile)
+  const MAX_STEPS   = 120;           // spring integrator step cap -> then snap
+  const SETTLE_MS   = 1500;          // formation settle target window
+
+  let W=0,H=0,DPR=1;
+  let particles = [];                // flat list of every particle
+  const clouds = [];                 // per-work metadata + particle range
+  let mode = 'scatter';
+  let running = true;
+  let stepsSinceSort = 0;            // counts frames since last sort trigger
+  let lastTriggerTime = 0;
+
+  // ---- hover state ----
+  let hoverIdx = -1;                 // index into clouds
+  let mouseX = -1, mouseY = -1;
+
+  /* ---------------- canvas sizing ---------------- */
+  function resize(){
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    cv.width = Math.round(W*DPR);
+    cv.height = Math.round(H*DPR);
+    cv.style.width = W+'px';
+    cv.style.height = H+'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    layoutHomes();                   // recompute every formation for the new size
+    // re-snap or re-aim
+    if(reduce){ snapToMode(); }
+    else { kickSort(true); }
+  }
+
+  /* ---------------- luminance seeding ----------------
+     Draw each work's thumbnail to a tiny offscreen grid, read pixel
+     luminance, and pick the brightest cells as particle seed positions.
+     Falls back to a radial blob if the image is cross-origin / not ready. */
+  const SEED_GRID = 22;              // sample an N x N luminance grid per work
+  function seedFromImage(img, count){
+    const off = document.createElement('canvas');
+    off.width = SEED_GRID; off.height = SEED_GRID;
+    const octx = off.getContext('2d', { willReadFrequently:true });
+    let cells = [];
+    try{
+      octx.drawImage(img, 0,0, SEED_GRID, SEED_GRID);
+      const d = octx.getImageData(0,0,SEED_GRID,SEED_GRID).data;
+      for(let y=0;y<SEED_GRID;y++){
+        for(let x=0;x<SEED_GRID;x++){
+          const i=(y*SEED_GRID+x)*4;
+          const lum = 0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+          cells.push({ x:(x/(SEED_GRID-1)-.5), y:(y/(SEED_GRID-1)-.5), lum, r:d[i],g:d[i+1],b:d[i+2] });
+        }
+      }
+      // weight toward brighter cells but keep some structure: sort by lum, take top + a few mids
+      cells.sort((a,b)=>b.lum-a.lum);
+    }catch(e){ cells = null; }
+
+    const out = [];
+    if(cells && cells.length){
+      const pool = cells.slice(0, Math.max(count, Math.floor(cells.length*0.7)));
+      for(let i=0;i<count;i++){
+        const c = pool[i % pool.length];
+        // tiny jitter so duplicate cells don't perfectly overlap
+        out.push({
+          ox: c.x + (Math.random()-.5)*0.04,
+          oy: c.y + (Math.random()-.5)*0.04,
+          lum: c.lum/255,
+          rgb: [c.r,c.g,c.b]
+        });
+      }
+    } else {
+      // radial-blob fallback
+      for(let i=0;i<count;i++){
+        const a = Math.random()*Math.PI*2, rr = Math.sqrt(Math.random())*0.5;
+        out.push({ ox:Math.cos(a)*rr, oy:Math.sin(a)*rr, lum:0.5+Math.random()*0.4, rgb:null });
+      }
+    }
+    return out;
+  }
+
+  /* ---------------- build the galaxy ---------------- */
+  function buildGalaxy(){
+    particles = [];
+    clouds.length = 0;
+    // distribute particle budget under the global cap
+    let per = PER_BASE;
+    if(DATA.length*per > TOTAL_CAP) per = Math.max(28, Math.floor(TOTAL_CAP/DATA.length));
+
+    DATA.forEach((w, wi)=>{
+      const img = new Image();
+      img.decoding = 'async';
+      const cloud = {
+        ...w, wi,
+        start: particles.length,
+        n: per,
+        cx:0, cy:0, scatterX:0, scatterY:0, scatterR:0,
+        accentRGB: hexRGB(w.accent),
+        ready:false, img,
+        // axis values normalized later
+        nDate:0, nTemp:0, nGen:0,
+      };
+      // placeholder seeds (radial) until image decodes
+      const placeholder = [];
+      for(let i=0;i<per;i++){
+        const a=Math.random()*Math.PI*2, rr=Math.sqrt(Math.random())*0.5;
+        placeholder.push({ ox:Math.cos(a)*rr, oy:Math.sin(a)*rr, lum:.6, rgb:null });
+      }
+      // initial scatter home (galaxy positions) chosen in layoutHomes()
+      for(let i=0;i<per;i++){
+        const s = placeholder[i];
+        particles.push({
+          cloud: cloud,
+          ox:s.ox, oy:s.oy, lum:s.lum, rgb:s.rgb,
+          x:0,y:0, vx:0,vy:0,
+          hx:0,hy:0,            // current target home
+          // small per-particle phase for idle drift
+          ph: Math.random()*Math.PI*2,
+          sp: 0.4+Math.random()*0.8,
+        });
+      }
+      cloud.end = particles.length;
+      clouds.push(cloud);
+
+      img.onload = ()=>{
+        const seeds = seedFromImage(img, cloud.n);
+        for(let i=0;i<cloud.n;i++){
+          const p = particles[cloud.start+i];
+          const s = seeds[i];
+          p.ox=s.ox; p.oy=s.oy; p.lum=s.lum; p.rgb=s.rgb;
+        }
+        cloud.ready = true;
+        if(reduce) snapToMode();
+      };
+      img.onerror = ()=>{ cloud.ready=true; };
+      img.src = w.img;
+    });
+
+    // normalize axis values across the corpus
+    normalizeAxes();
+    document.getElementById('cWorks').textContent = clouds.length;
+    document.getElementById('cParts').textContent = particles.length;
+  }
+
+  function normalizeAxes(){
+    const dates = clouds.map(c=>+new Date(c.date));
+    const temps = clouds.map(c=>c.tempK);
+    const gens  = clouds.map(c=>c.genSec);
+    const nrm = (v,arr)=>{ const mn=Math.min(...arr),mx=Math.max(...arr); return mx===mn?0.5:(v-mn)/(mx-mn); };
+    clouds.forEach(c=>{
+      c.nDate = nrm(+new Date(c.date), dates);
+      c.nTemp = nrm(c.tempK, temps);
+      c.nGen  = nrm(c.genSec, gens);
+    });
+  }
+
+  /* ---------------- formation homes ----------------
+     For each mode, compute each cloud's center (cx,cy) and the per-cloud
+     scatter radius. Particle home = cloudCenter + particle.offset*scale. */
+  function layoutHomes(){
+    const cssW = W, cssH = H;
+    const N = clouds.length;
+
+    // --- GALAXY (scatter) : poisson-ish jittered ring layout filling the field ---
+    // deterministic-ish placement so it looks like a field of distinct clouds
+    const cols = Math.ceil(Math.sqrt(N* (cssW/cssH)));
+    const rows = Math.ceil(N/cols);
+    const padX = cssW*0.10, padY = cssH*0.26;     // leave room for HUD top
+    const gw = (cssW-padX*2)/cols, gh = (cssH-padY*1.15)/Math.max(1,rows-0+0.0+ (rows>1?0:1) );
+    const cellH = (cssH - padY - cssH*0.10)/rows;
+    clouds.forEach((c,i)=>{
+      const col = i%cols, row = (i/cols)|0;
+      // stable jitter from id hash
+      const j = hash01(c.id);
+      const jx = (j-0.5)*gw*0.55;
+      const jy = (hash01(c.id+'y')-0.5)*cellH*0.5;
+      c.scatterX = padX + gw*(col+0.5) + jx;
+      c.scatterY = padY + cellH*(row+0.5) + jy;
+      // scatter cloud radius scales with budget, kept compact so clouds read as distinct
+      const base = Math.min(gw, cellH);
+      c.scatterR = Math.max(26, Math.min(base*0.42, isMobile?46:78));
+    });
+  }
+
+  // home-target computation per particle for the active mode
+  function aimHomes(){
+    const cssW=W, cssH=H;
+    const railTop = cssH*0.30, railBot = cssH*0.74;  // vertical band for linear sorts
+    const railL = cssW*0.12, railR = cssW*0.88;
+    const N = clouds.length;
+
+    if(mode==='scatter'){
+      clouds.forEach(c=>{ c.cx=c.scatterX; c.cy=c.scatterY; c.fr=c.scatterR; });
+    } else {
+      // linear sort along X by the chosen key, clouds line up; small per-cloud cluster radius
+      const key = mode==='date'?'nDate' : mode==='temp'?'nTemp' : 'nGen';
+      // order clouds by value to give vertical "lane" stagger that reads cleanly
+      const order = clouds.slice().sort((a,b)=>a[key]-b[key]);
+      const lanes = isMobile?3:4;
+      order.forEach((c, idx)=>{
+        const t = c[key];
+        c.cx = railL + (railR-railL)*t;
+        // stagger vertically by rank so equal-ish values don't stack
+        const lane = idx % lanes;
+        const laneSpan = railBot-railTop;
+        c.cy = railTop + laneSpan*(lane/(lanes-1)) ;
+        c.fr = isMobile?30:44;
+      });
+    }
+    // write each particle's home
+    clouds.forEach(c=>{
+      for(let i=c.start;i<c.end;i++){
+        const p=particles[i];
+        p.hx = c.cx + p.ox*2*c.fr;
+        p.hy = c.cy + p.oy*2*c.fr;
+      }
+    });
+  }
+
+  /* ---------------- spring sim ----------------
+     Critically-ish damped spring toward home; same-cloud cohesion keeps the
+     formation tight; integrator capped at MAX_STEPS frames then snaps. */
+  function physics(){
+    const k = 0.055;      // spring stiffness toward home
+    const damp = 0.86;    // velocity damping
+    const settled = stepsSinceSort >= MAX_STEPS;
+
+    if(settled){
+      // snap remaining particles & idle-drift
+      for(let i=0;i<particles.length;i++){
+        const p=particles[i];
+        p.x += (p.hx-p.x)*0.18;
+        p.y += (p.hy-p.y)*0.18;
+      }
+      return;
+    }
+
+    for(let i=0;i<particles.length;i++){
+      const p=particles[i];
+      const ax = (p.hx - p.x)*k;
+      const ay = (p.hy - p.y)*k;
+      p.vx = (p.vx+ax)*damp;
+      p.vy = (p.vy+ay)*damp;
+      p.x += p.vx;
+      p.y += p.vy;
+    }
+    stepsSinceSort++;
+  }
+
+  /* ---------------- render ---------------- */
+  let t0 = performance.now();
+  function frame(now){
+    if(!running){ return; }
+    const dt = now - t0; t0 = now;
+
+    physics();
+
+    // clear
+    ctx.fillStyle = '#050508';
+    ctx.fillRect(0,0,W,H);
+
+    // optional faint connective glow per hovered cloud handled below
+    const time = now*0.001;
+    const settled = stepsSinceSort >= MAX_STEPS;
+
+    // draw particles. additive-ish look via 'lighter' but keep cheap.
+    ctx.globalCompositeOperation = 'lighter';
+    for(let ci=0; ci<clouds.length; ci++){
+      const c = clouds[ci];
+      const isHover = ci===hoverIdx;
+      const isActiveLabel = (mode!=='scatter');
+      for(let i=c.start;i<c.end;i++){
+        const p=particles[i];
+        // idle micro-drift once settled (very small, perceptual life)
+        let dx=0,dy=0;
+        if(settled && !reduce){
+          dx = Math.cos(time*p.sp + p.ph)*0.6;
+          dy = Math.sin(time*p.sp*0.9 + p.ph)*0.6;
+        }
+        const lum = p.lum;
+        // color: ice-green at rest; amber bias when sorted; hovered cloud brightens
+        let r,g,b;
+        if(mode!=='scatter'){
+          // amber sort-target tint mixed by luminance
+          r = lerp(180, 255, lum); g = lerp(170, 207, lum); b = lerp(120, 110, lum);
+        } else {
+          // ice-green base, faint sample of work's own pixel rgb for identity
+          if(p.rgb){
+            r = lerp(150, p.rgb[0], 0.35)*0.5 + 150*0.5;
+            g = lerp(200, p.rgb[1], 0.35)*0.5 + 220*0.5;
+            b = lerp(180, p.rgb[2], 0.35)*0.5 + 200*0.5;
+          } else {
+            r = lerp(150,232,lum); g=lerp(210,245,lum); b=lerp(180,233,lum);
+          }
+        }
+        let alpha = 0.30 + lum*0.45;
+        let size = 1.0 + lum*1.4;
+        if(isHover){ alpha = Math.min(1, alpha+0.30); size += 0.7; }
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = `rgb(${r|0},${g|0},${b|0})`;
+        const px = p.x+dx, py = p.y+dy;
+        ctx.fillRect(px-size*0.5, py-size*0.5, size, size);
+      }
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+
+    // hovered cloud: draw an amber ring + vermilion active-formation label tag
+    if(hoverIdx>=0){
+      const c = clouds[hoverIdx];
+      ctx.beginPath();
+      ctx.arc(c.cx, c.cy, c.fr*1.7+10, 0, Math.PI*2);
+      ctx.strokeStyle = 'rgba(255,207,110,.5)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      // vermilion connector line + tag
+      ctx.fillStyle = '#c0392b';
+      ctx.fillRect(c.cx-1, c.cy - c.fr*1.7 - 26, 2, 16);
+    }
+
+    requestAnimationFrame(frame);
+  }
+
+  /* ---------------- mode switching ---------------- */
+  function setMode(m, fromUser){
+    mode = m;
+    document.querySelectorAll('button.sort').forEach(b=>{
+      b.setAttribute('aria-pressed', String(b.dataset.sort===m));
+    });
+    // axis legend
+    const axis = document.getElementById('axis');
+    const hint = document.getElementById('hint');
+    if(m==='scatter'){
+      axis.classList.remove('show');
+      hint.style.opacity = 1;
+    } else {
+      axis.classList.add('show');
+      hint.style.opacity = 0;
+      const L = document.getElementById('axisL'), R = document.getElementById('axisR');
+      if(m==='date'){ L.innerHTML='&larr; <b>oldest</b>'; R.innerHTML='<b>newest</b> &rarr;'; }
+      if(m==='temp'){ L.innerHTML='&larr; <b>warm</b> 3000K'; R.innerHTML='7200K <b>cool</b> &rarr;'; }
+      if(m==='gen'){  L.innerHTML='&larr; <b>fast</b> render'; R.innerHTML='<b>slow</b> render &rarr;'; }
+    }
+    kickSort();
+  }
+
+  function kickSort(silent){
+    aimHomes();
+    if(reduce){ snapToMode(); return; }
+    stepsSinceSort = 0;        // restart integrator budget -> springs fire
+    lastTriggerTime = performance.now();
+  }
+
+  // reduced-motion / settle snap: place every particle on its home instantly
+  function snapToMode(){
+    aimHomes();
+    for(let i=0;i<particles.length;i++){
+      const p=particles[i];
+      p.x=p.hx; p.y=p.hy; p.vx=0; p.vy=0;
+    }
+    stepsSinceSort = MAX_STEPS;  // mark settled
+    if(reduce){ // still need one paint
+      drawStatic();
+    }
+  }
+
+  // single static paint for reduced-motion (no rAF loop churn)
+  function drawStatic(){
+    ctx.fillStyle='#050508'; ctx.fillRect(0,0,W,H);
+    ctx.globalCompositeOperation='lighter';
+    for(const c of clouds){
+      for(let i=c.start;i<c.end;i++){
+        const p=particles[i];
+        let r,g,b;
+        if(mode!=='scatter'){ r=lerp(180,255,p.lum);g=lerp(170,207,p.lum);b=lerp(120,110,p.lum); }
+        else if(p.rgb){ r=(150+p.rgb[0])*0.5; g=(220+p.rgb[1])*0.5; b=(200+p.rgb[2])*0.5; }
+        else { r=lerp(150,232,p.lum);g=lerp(210,245,p.lum);b=lerp(180,233,p.lum); }
+        ctx.globalAlpha=0.30+p.lum*0.45;
+        ctx.fillStyle=`rgb(${r|0},${g|0},${b|0})`;
+        const s=1+p.lum*1.4;
+        ctx.fillRect(p.x-s*0.5,p.y-s*0.5,s,s);
+      }
+    }
+    ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=1;
+  }
+
+  /* ---------------- hover / tooltip ---------------- */
+  const tip = document.getElementById('tip');
+  const tImg = document.getElementById('tImg');
+  const tTitle = document.getElementById('tTitle');
+  const tMeta = document.getElementById('tMeta');
+  const tBadge = document.getElementById('tBadge');
+  let tipVideo = null;
+
+  function pickCloud(mx,my){
+    let best=-1, bestD=Infinity;
+    for(let ci=0;ci<clouds.length;ci++){
+      const c=clouds[ci];
+      const dx=mx-c.cx, dy=my-c.cy;
+      const d=dx*dx+dy*dy;
+      const rr=(c.fr*1.7+14);
+      if(d < rr*rr && d<bestD){ bestD=d; best=ci; }
+    }
+    return best;
+  }
+
+  function showTip(ci, mx, my){
+    const c = clouds[ci];
+    tBadge.textContent = c.kind;
+    // build thumbnail: image always; play focused video on hover (single decode at a time)
+    cleanupTipVideo();
+    if(c.kind==='VIDEO' && c.video){
+      const v=document.createElement('video');
+      v.muted=true; v.loop=true; v.playsInline=true; v.preload='metadata';
+      v.poster=c.img; v.src=c.video;
+      v.id='tVid';
+      tImg.style.display='none';
+      v.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover;';
+      tImg.parentElement.insertBefore(v, tImg);
+      tipVideo=v;
+      v.play().catch(()=>{ tImg.src=c.img; tImg.style.display='block'; });
+    } else {
+      tImg.style.display='block';
+      tImg.src=c.img; tImg.alt=c.title;
+    }
+    tTitle.textContent = c.title;
+    const dateStr = new Date(c.date).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});
+    tMeta.innerHTML =
+      `<span><b>${c.model}</b></span>`+
+      `<span><span class="swatch" style="background:${c.accent}"></span>${c.tempK}K</span>`+
+      `<span>${dateStr}</span>`+
+      `<span>${c.genSec}s render</span>`;
+    tip.classList.add('show');
+    positionTip(mx,my);
+  }
+  function positionTip(mx,my){
+    const tw=tip.offsetWidth||188, th=tip.offsetHeight||190;
+    let x=mx+18, y=my+18;
+    if(x+tw>W-8) x=mx-tw-18;
+    if(y+th>H-8) y=my-th-18;
+    if(x<8)x=8; if(y<8)y=8;
+    tip.style.left=x+'px'; tip.style.top=y+'px';
+  }
+  function cleanupTipVideo(){
+    if(tipVideo){ try{tipVideo.pause();}catch(e){} tipVideo.remove(); tipVideo=null; }
+  }
+  function hideTip(){ tip.classList.remove('show'); cleanupTipVideo(); }
+
+  function onMove(mx,my){
+    mouseX=mx; mouseY=my;
+    const ci=pickCloud(mx,my);
+    if(ci!==hoverIdx){
+      hoverIdx=ci;
+      if(ci>=0) showTip(ci,mx,my); else hideTip();
+    } else if(ci>=0){
+      positionTip(mx,my);
+    }
+  }
+
+  cv.addEventListener('mousemove', e=>{ onMove(e.clientX,e.clientY); });
+  cv.addEventListener('mouseleave', ()=>{ hoverIdx=-1; hideTip(); });
+
+  // touch: tap a cluster to reveal; cycle sort on tap of empty space handled by buttons
+  cv.addEventListener('touchstart', e=>{
+    const t=e.touches[0]; if(!t) return;
+    onMove(t.clientX,t.clientY);
+  }, {passive:true});
+  cv.addEventListener('touchmove', e=>{
+    const t=e.touches[0]; if(!t) return;
+    onMove(t.clientX,t.clientY);
+  }, {passive:true});
+
+  /* ---------------- buttons ---------------- */
+  document.querySelectorAll('button.sort').forEach(b=>{
+    b.addEventListener('click', ()=>{ hideTip(); hoverIdx=-1; setMode(b.dataset.sort, true); });
+  });
+  // keyboard: 1-4 cycle modes
+  window.addEventListener('keydown', e=>{
+    const map={'1':'scatter','2':'date','3':'temp','4':'gen'};
+    if(map[e.key]){ setMode(map[e.key], true); }
+  });
+
+  /* ---------------- tab-visibility pause ---------------- */
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.hidden){ running=false; }
+    else if(!reduce){ running=true; t0=performance.now(); requestAnimationFrame(frame); }
+  });
+
+  /* ---------------- helpers ---------------- */
+  function lerp(a,b,t){ return a+(b-a)*t; }
+  function hexRGB(h){ h=h.replace('#',''); return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; }
+  function hash01(s){ let h=2166136261; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619);} return ((h>>>0)%10000)/10000; }
+
+  /* ---------------- boot ---------------- */
+  window.addEventListener('resize', debounce(resize, 160));
+  function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
+
+  function start(){
+    DPR=Math.min(window.devicePixelRatio||1,2);
+    W=window.innerWidth; H=window.innerHeight;
+    cv.width=Math.round(W*DPR); cv.height=Math.round(H*DPR);
+    cv.style.width=W+'px'; cv.style.height=H+'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+
+    buildGalaxy();
+    layoutHomes();
+    aimHomes();
+
+    // start particles AT a random spread so the very first frame springs INTO the galaxy
+    for(const p of particles){
+      p.x = p.hx + (Math.random()-.5)*W*0.5;
+      p.y = p.hy + (Math.random()-.5)*H*0.5;
+    }
+
+    if(reduce){
+      snapToMode();      // no spring; show formation immediately
+      drawStatic();
+    } else {
+      stepsSinceSort = 0;
+      requestAnimationFrame(frame);
+    }
+  }
+
+  start();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,669 @@
+<!-- TEMPLATE: Generative Data Letterforms | ARCHETYPE: data-type (each letter is a live canvas path generated from the work's own metrics) | REF: pudding.cool data-driven type, Creative Applications Network data-encoded letterforms | WHEN TO USE: portfolios/catalogs where every item carries metadata you want made visible AS the typography itself | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Generative Data Letterforms</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     PALETTE (hex literals only; no var() inside canvas paths)
+     paper  #f4f0e8   ink #111
+     amber  #e8b84b  (generation-time -> stroke weight)
+     teal   #3ab8a8  (cost / token count -> letter width)
+     violet #7b4ae8  (seed -> jitter)
+     ============================================================ */
+  :root{
+    --paper:#f4f0e8; --ink:#111; --ink-soft:#4a463e;
+    --amber:#e8b84b; --teal:#3ab8a8; --violet:#7b4ae8;
+    --line:#d9d2c4; --panel:#ece6d8;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:"Space Grotesk",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased; overflow-x:hidden;
+    /* faint paper grain */
+    background-image:
+      radial-gradient(rgba(17,17,17,0.022) 1px, transparent 1px),
+      radial-gradient(rgba(17,17,17,0.018) 1px, transparent 1px);
+    background-size:6px 6px, 13px 13px;
+    background-position:0 0, 3px 4px;
+  }
+  .mono{font-family:"JetBrains Mono",monospace}
+  a{color:inherit}
+
+  /* ---------- top band: signature visible at scroll=0 ---------- */
+  .wrap{max-width:1320px;margin:0 auto;padding:0 26px}
+  header.top{
+    display:flex;align-items:flex-end;justify-content:space-between;
+    gap:24px;padding:22px 0 12px;border-bottom:1.5px solid var(--ink);
+    flex-wrap:wrap;
+  }
+  .brand{font-weight:700;font-size:15px;letter-spacing:.02em;display:flex;align-items:center;gap:10px}
+  .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--violet);box-shadow:0 0 0 3px rgba(123,74,232,.18)}
+  .tagline{font-size:12.5px;color:var(--ink-soft);max-width:430px;line-height:1.45}
+  .keymap{display:flex;gap:14px;flex-wrap:wrap;font-size:11px}
+  .keymap .k{display:flex;align-items:center;gap:6px;color:var(--ink-soft)}
+  .keymap .sw{width:11px;height:11px;border-radius:2px}
+
+  /* ---------- HERO: first work's generated title, already drawn ---------- */
+  .hero{position:relative;padding:18px 0 4px}
+  .heroHead{
+    display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+    font-size:12px;color:var(--ink-soft);margin-bottom:8px;
+  }
+  .heroHead b{color:var(--ink);font-weight:700;font-size:13px}
+  .heroHead .chip{
+    border:1px solid var(--line);border-radius:20px;padding:3px 10px;
+    font-family:"JetBrains Mono",monospace;font-size:10.5px;background:var(--panel);
+  }
+  .stage{
+    position:relative;width:100%;
+    border:1.5px solid var(--ink);border-radius:6px;background:#faf7f0;
+    overflow:hidden;
+  }
+  .stage canvas{display:block;width:100%;height:auto;touch-action:pan-y}
+  /* the metric legend that pops on hover of a letter */
+  .legend{
+    position:absolute;pointer-events:none;opacity:0;transform:translateY(6px);
+    transition:opacity .14s ease, transform .14s ease;
+    background:#111;color:#f4f0e8;border-radius:7px;padding:10px 12px;
+    font-family:"JetBrains Mono",monospace;font-size:11px;line-height:1.6;
+    box-shadow:0 10px 30px rgba(0,0,0,.28);z-index:6;min-width:182px;
+  }
+  .legend.show{opacity:1;transform:translateY(0)}
+  .legend .lk{display:flex;justify-content:space-between;gap:14px}
+  .legend .lk span:first-child{color:#bdb6a6}
+  .legend .lh{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:middle}
+  .legend hr{border:none;border-top:1px solid #333;margin:6px 0}
+  .hint{font-size:11px;color:var(--ink-soft);margin:9px 2px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .hint kbd{font-family:"JetBrains Mono",monospace;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:10.5px}
+
+  /* ---------- section heads ---------- */
+  .secHead{display:flex;align-items:baseline;gap:12px;margin:54px 0 18px}
+  .secHead h2{font-size:13px;font-weight:700;letter-spacing:.16em;text-transform:uppercase}
+  .secHead .rule{flex:1;height:1px;background:var(--ink)}
+  .secHead .n{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--ink-soft)}
+
+  /* ---------- catalog of works ---------- */
+  .catalog{display:grid;grid-template-columns:repeat(2,1fr);gap:26px}
+  .work{
+    border:1.5px solid var(--ink);border-radius:6px;background:#faf7f0;
+    overflow:hidden;display:flex;flex-direction:column;
+  }
+  .work .typebar{position:relative;background:#f1ecdf;border-bottom:1.5px solid var(--ink)}
+  .work .typebar canvas{display:block;width:100%;height:auto}
+  .work .media{position:relative;aspect-ratio:16/9;background:#0d0d0d;overflow:hidden}
+  .work .media img,.work .media video{width:100%;height:100%;object-fit:cover;display:block}
+  .work .media.contain img,.work .media.contain video{object-fit:contain;background:#0d0d0d}
+  .work .media .ptag{
+    position:absolute;left:8px;top:8px;z-index:3;
+    font-family:"JetBrains Mono",monospace;font-size:9.5px;letter-spacing:.08em;
+    color:#f4f0e8;background:rgba(17,17,17,.62);padding:2px 7px;border-radius:4px;backdrop-filter:blur(3px);
+  }
+  .work .media .playpoke{
+    position:absolute;right:8px;bottom:8px;z-index:3;width:30px;height:30px;border-radius:50%;
+    background:rgba(17,17,17,.6);display:grid;place-items:center;backdrop-filter:blur(3px);
+  }
+  .work .media .playpoke::after{content:"";border-left:9px solid #f4f0e8;border-top:6px solid transparent;border-bottom:6px solid transparent;margin-left:2px}
+  .work .meta{padding:13px 15px 15px}
+  .work .meta .mt{font-weight:700;font-size:15px;margin-bottom:3px}
+  .work .meta .ms{font-size:12px;color:var(--ink-soft);line-height:1.45;margin-bottom:11px}
+  .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .metric{border:1px solid var(--line);border-radius:5px;padding:7px 8px;background:var(--paper)}
+  .metric .ml{font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft);display:flex;align-items:center;gap:5px}
+  .metric .ml .d{width:8px;height:8px;border-radius:2px}
+  .metric .mv{font-family:"JetBrains Mono",monospace;font-size:14px;font-weight:500;margin-top:3px}
+  .metric .mu{font-size:9.5px;color:var(--ink-soft)}
+
+  /* explainer strip */
+  .explain{
+    margin:54px 0 8px;border:1.5px solid var(--ink);border-radius:6px;
+    background:var(--panel);padding:22px 24px;
+    display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:24px;
+  }
+  .explain h3{font-size:12px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px}
+  .explain .axis{font-size:12.5px;line-height:1.5;color:var(--ink-soft)}
+  .explain .axis b{color:var(--ink)}
+  .explain .axis .tag{display:inline-flex;align-items:center;gap:6px;font-family:"JetBrains Mono",monospace;font-size:11px;margin-bottom:5px}
+  .explain .axis .tag .d{width:9px;height:9px;border-radius:2px}
+
+  footer{margin:60px 0 50px;padding-top:18px;border-top:1.5px solid var(--ink);
+    display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--ink-soft)}
+  footer .mono{font-size:11px}
+
+  /* ---------- responsive ---------- */
+  @media (max-width:880px){
+    .explain{grid-template-columns:1fr;gap:18px}
+  }
+  @media (max-width:640px){
+    .wrap{padding:0 16px}
+    .tagline{max-width:none}
+    .catalog{grid-template-columns:1fr;gap:20px}
+    .heroHead{font-size:11px}
+    .work .media{aspect-ratio:auto}            /* landscape assets letterboxed, never cover-cropped */
+    .work .media.contain{aspect-ratio:16/10}
+    .secHead{margin:42px 0 14px}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    *{transition:none !important;animation:none !important}
+  }
+</style>
+</head>
+<body>
+
+<!-- ====================================================================
+     DATA  -  swap this array to retarget the template.
+     Each metric drives one typographic axis of the generated title:
+       genTime (s)   -> stroke weight   (amber)
+       tokens (count)-> letter width    (teal)
+       seed (int)    -> bezier jitter   (violet)
+     media is reused from ../assets/.  isVideo flips poster/video.
+     "portrait/landscape" just toggles letterbox vs cover on mobile.
+     ==================================================================== -->
+<script>
+const DATA = [
+  {
+    title:"NEONDRIVE",
+    sub:"Cinematic matte-black coupe on a rain-slicked neon street.",
+    model:"FLUX 1.1 pro / 4K upscale",
+    genTime:42.6, tokens:128, seed:73118,
+    media:"../assets/flux-car-4k.png", poster:"../assets/flux-car-4k.png",
+    isVideo:false, fit:"cover", kind:"IMG 4K"
+  },
+  {
+    title:"DRIVECYCLE",
+    sub:"The same coupe set in motion, image-to-video loop.",
+    model:"FLUX i2v",
+    genTime:88.0, tokens:64, seed:20461,
+    media:"../assets/flux-car-i2v.mp4", poster:"../assets/gen/poster-flux-car-i2v.png",
+    isVideo:true, fit:"cover", kind:"VIDEO"
+  },
+  {
+    title:"MINTROOM",
+    sub:"Mint and warm-wood dental clinic, soft daylight.",
+    model:"FLUX 1.1 pro / 4K upscale",
+    genTime:39.2, tokens:152, seed:55207,
+    media:"../assets/flux-clinic-4k.png", poster:"../assets/flux-clinic-4k.png",
+    isVideo:false, fit:"cover", kind:"IMG 4K"
+  },
+  {
+    title:"FOXFALL",
+    sub:"Painterly autumn fox, warm impasto brushwork.",
+    model:"SDXL base",
+    genTime:11.4, tokens:96, seed:41990,
+    media:"../assets/sdxl.png", poster:"../assets/sdxl.png",
+    isVideo:false, fit:"cover", kind:"IMG"
+  },
+  {
+    title:"KLINGRUN",
+    sub:"Generated motion study, silent ambient loop.",
+    model:"Kling video",
+    genTime:121.5, tokens:48, seed:90832,
+    media:"../assets/kling-video.mp4", poster:"../assets/gen/poster-kling-video.png",
+    isVideo:true, fit:"cover", kind:"VIDEO"
+  },
+  {
+    title:"LOFIPPLE",
+    sub:"Abstract low-fi apple, tiny-model dream-sketch.",
+    model:"TinySD",
+    genTime:3.8, tokens:200, seed:12076,
+    media:"../assets/hf-tinysd.png", poster:"../assets/hf-tinysd.png",
+    isVideo:false, fit:"contain", kind:"IMG LO-FI"
+  }
+];
+</script>
+
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <div class="brand"><span class="dot"></span>DATATYPE / FOUNDRY</div>
+      <p class="tagline">A typeface unique to every piece. Each letter is a live canvas path whose stroke weight, width and jitter are computed from that work's own generation metrics. No two letters repeat.</p>
+    </div>
+    <div class="keymap" aria-hidden="true">
+      <div class="k"><span class="sw" style="background:#e8b84b"></span>gen-time &rarr; weight</div>
+      <div class="k"><span class="sw" style="background:#3ab8a8"></span>tokens &rarr; width</div>
+      <div class="k"><span class="sw" style="background:#7b4ae8"></span>seed &rarr; jitter</div>
+    </div>
+  </header>
+
+  <!-- ===================== HERO (signature, scroll=0) ===================== -->
+  <section class="hero" aria-label="Generated title for the first work">
+    <div class="heroHead">
+      <b>WORK 01</b>
+      <span class="chip" id="heroModel">FLUX 1.1 pro</span>
+      <span class="chip" id="heroGen">gen 42.6s</span>
+      <span class="chip" id="heroTok">128 tok</span>
+      <span class="chip" id="heroSeed">seed 73118</span>
+    </div>
+    <div class="stage" id="heroStage">
+      <canvas id="heroCanvas" aria-label="The word NEONDRIVE rendered as data-generated letterforms"></canvas>
+      <div class="legend" id="heroLegend" role="status"></div>
+    </div>
+    <div class="hint">
+      <span>Each glyph is drawn from this work's metadata.</span>
+      <span class="mono">Hover or tap a letter for its metric legend.</span>
+    </div>
+  </section>
+
+  <!-- ===================== EXPLAINER ===================== -->
+  <div class="explain">
+    <div class="axis">
+      <h3>How a letter is built</h3>
+      A skeleton of stroke paths is scaled and jittered per work, baked into a cached Path2D, then stroked. The skeleton never changes; the metrics reshape it. That is why every title looks like its own typeface.
+    </div>
+    <div class="axis">
+      <span class="tag"><span class="d" style="background:#e8b84b"></span>generation-time</span><br>
+      <b>Stroke weight.</b> A slow, expensive render thickens every stroke; a fast model draws thin and wiry. Heavy ink = heavy compute.
+    </div>
+    <div class="axis">
+      <span class="tag"><span class="d" style="background:#3ab8a8"></span>token count</span><br>
+      <b>Letter width.</b> A verbose prompt stretches each glyph wide; a terse one condenses it. The headline literally widens with its prompt.
+      <br><br>
+      <span class="tag"><span class="d" style="background:#7b4ae8"></span>seed</span><br>
+      <b>Control-point jitter.</b> The seed seeds a deterministic wobble on every bezier handle, so the same word from a different seed is a different hand.
+    </div>
+  </div>
+
+  <!-- ===================== CATALOG ===================== -->
+  <div class="secHead">
+    <span class="n">02</span><h2>The Catalog</h2><div class="rule"></div>
+    <span class="n">6 works / one generated typeface each</span>
+  </div>
+  <div class="catalog" id="catalog"><!-- built by JS --></div>
+
+  <footer>
+    <div>DATATYPE FOUNDRY &middot; generative data letterforms &middot; canvas 2D / Path2D &middot; no WebGL</div>
+    <div class="mono">paths cached on load &middot; &le;40 pts/letter &middot; reduced-motion = static</div>
+  </footer>
+
+</div>
+
+<script>
+/* ============================================================
+   GENERATIVE LETTERFORM ENGINE
+   - hand-authored skeleton per glyph in a 0..1 em box
+   - strokes are polylines; midpoints become bezier control pts
+   - metrics map to: weight (genTime), width (tokens), jitter (seed)
+   - paths computed ONCE per work and cached as Path2D
+   - reduced-motion -> jitter amplitude 0 (static letterforms)
+   ============================================================ */
+const REDUCE = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+/* ---- deterministic PRNG (mulberry32) seeded by the work's seed ---- */
+function rng(seed){
+  let a = seed >>> 0;
+  return function(){
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* ---- glyph skeletons. each = array of strokes; each stroke = array of [x,y] in 0..1.
+        kept well under the 40-point/letter cap (longest glyph ~22 pts). ---- */
+const GLYPHS = {
+  A:[[[0.05,1],[0.5,0],[0.95,1]],[[0.22,0.6],[0.78,0.6]]],
+  B:[[[0.1,0],[0.1,1]],[[0.1,0],[0.62,0],[0.78,0.16],[0.62,0.48],[0.1,0.48]],[[0.1,0.48],[0.68,0.48],[0.86,0.72],[0.68,1],[0.1,1]]],
+  C:[[[0.9,0.16],[0.55,0],[0.18,0.18],[0.08,0.5],[0.18,0.82],[0.55,1],[0.9,0.84]]],
+  D:[[[0.1,0],[0.1,1]],[[0.1,0],[0.6,0.04],[0.88,0.34],[0.88,0.66],[0.6,0.96],[0.1,1]]],
+  E:[[[0.85,0],[0.12,0],[0.12,1],[0.85,1]],[[0.12,0.5],[0.66,0.5]]],
+  F:[[[0.85,0],[0.12,0],[0.12,1]],[[0.12,0.5],[0.64,0.5]]],
+  G:[[[0.9,0.16],[0.55,0],[0.18,0.18],[0.08,0.5],[0.18,0.82],[0.55,1],[0.9,0.82],[0.9,0.56],[0.6,0.56]]],
+  H:[[[0.12,0],[0.12,1]],[[0.88,0],[0.88,1]],[[0.12,0.52],[0.88,0.52]]],
+  I:[[[0.5,0],[0.5,1]],[[0.26,0],[0.74,0]],[[0.26,1],[0.74,1]]],
+  K:[[[0.12,0],[0.12,1]],[[0.86,0],[0.12,0.54]],[[0.36,0.4],[0.88,1]]],
+  L:[[[0.14,0],[0.14,1],[0.84,1]]],
+  M:[[[0.08,1],[0.08,0],[0.5,0.62],[0.92,0],[0.92,1]]],
+  N:[[[0.12,1],[0.12,0],[0.88,1],[0.88,0]]],
+  O:[[[0.5,0],[0.16,0.22],[0.08,0.5],[0.16,0.78],[0.5,1],[0.84,0.78],[0.92,0.5],[0.84,0.22],[0.5,0]]],
+  P:[[[0.12,1],[0.12,0],[0.66,0],[0.84,0.18],[0.66,0.52],[0.12,0.52]]],
+  R:[[[0.12,1],[0.12,0],[0.66,0],[0.84,0.18],[0.66,0.52],[0.12,0.52]],[[0.42,0.52],[0.88,1]]],
+  S:[[[0.88,0.16],[0.5,0],[0.16,0.16],[0.16,0.42],[0.5,0.5],[0.84,0.58],[0.84,0.84],[0.5,1],[0.12,0.84]]],
+  T:[[[0.08,0],[0.92,0]],[[0.5,0],[0.5,1]]],
+  U:[[[0.12,0],[0.12,0.7],[0.3,0.95],[0.5,1],[0.7,0.95],[0.88,0.7],[0.88,0]]],
+  V:[[[0.06,0],[0.5,1],[0.94,0]]],
+  W:[[[0.04,0],[0.27,1],[0.5,0.42],[0.73,1],[0.96,0]]],
+  Y:[[[0.08,0],[0.5,0.5],[0.92,0]],[[0.5,0.5],[0.5,1]]],
+  ' ':[]
+};
+
+/* turn a single stroke (polyline of [x,y]) into a smoothed Path2D segment,
+   adding jitter to interior points based on the work's rng.
+   Returns array of {x,y} so we can also build hit boxes per glyph. */
+function jitterStroke(pts, jit, rand){
+  const out = [];
+  for(let i=0;i<pts.length;i++){
+    let [x,y] = pts[i];
+    // never jitter the very first/last point of a stroke (keeps joins clean & legible)
+    const edge = (i===0 || i===pts.length-1);
+    if(!edge && jit>0){
+      x += (rand()*2-1)*jit;
+      y += (rand()*2-1)*jit;
+    }
+    out.push({x,y});
+  }
+  return out;
+}
+
+/* build a cached glyph object: a Path2D ready to stroke + its normalized bbox.
+   wf = width factor (tokens), jit = jitter amount (seed). */
+function buildGlyph(ch, jit, rand){
+  const strokes = GLYPHS[ch] || GLYPHS[' '];
+  const path = new Path2D();
+  for(const stroke of strokes){
+    const j = jitterStroke(stroke, jit, rand);
+    if(j.length===1){ continue; }
+    if(j.length===2){
+      path.moveTo(j[0].x, j[0].y);
+      path.lineTo(j[1].x, j[1].y);
+      continue;
+    }
+    // Catmull-Rom -> cubic bezier through the jittered points: organic, hand-drawn feel
+    path.moveTo(j[0].x, j[0].y);
+    for(let i=0;i<j.length-1;i++){
+      const p0 = j[i-1] || j[i];
+      const p1 = j[i];
+      const p2 = j[i+1];
+      const p3 = j[i+2] || p2;
+      const c1x = p1.x + (p2.x - p0.x)/6;
+      const c1y = p1.y + (p2.y - p0.y)/6;
+      const c2x = p2.x - (p3.x - p1.x)/6;
+      const c2y = p2.y - (p3.y - p1.y)/6;
+      path.bezierCurveTo(c1x,c1y,c2x,c2y,p2.x,p2.y);
+    }
+  }
+  return path;
+}
+
+/* map metrics -> typographic params (all clamped to keep legibility) */
+function paramsFor(work){
+  // gen-time 3.8 .. 121.5  -> weight 0.6 .. 1.0 (relative; scaled by canvas later)
+  const t = Math.min(1, Math.max(0, (work.genTime - 4) / (120 - 4)));
+  const weight = 0.30 + t*0.95;                  // relative stroke weight
+  // tokens 48 .. 200 -> width factor 0.74 .. 1.18
+  const tw = Math.min(1, Math.max(0, (work.tokens - 48) / (200 - 48)));
+  const widthFactor = 0.74 + tw*0.44;
+  // seed -> jitter amplitude (0 when reduced motion). small, in em units.
+  const jitter = REDUCE ? 0 : 0.018 + ((work.seed % 1000)/1000)*0.026;
+  return {weight, widthFactor, jitter, t, tw};
+}
+
+/* render one word onto a canvas, return per-letter hit rectangles (css px) */
+function renderWord(canvas, word, work, opts){
+  opts = opts || {};
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);   // cap DPR at 2
+  const p = paramsFor(work);
+  const rand = rng(work.seed);
+
+  // pre-build cached glyph paths ONCE (kept on the canvas element for reuse)
+  if(!canvas._glyphs || canvas._glyphWord !== word || canvas._glyphSeed !== work.seed){
+    const built = [];
+    const r2 = rng(work.seed ^ 0x9e3779b9);   // independent stream for build
+    for(const ch of word){
+      built.push(buildGlyph(ch.toUpperCase(), p.jitter, r2));
+    }
+    canvas._glyphs = built;
+    canvas._glyphWord = word;
+    canvas._glyphSeed = work.seed;
+  }
+  const glyphs = canvas._glyphs;
+
+  // layout
+  const N = word.length;
+  const cellH = opts.cellH || 1;       // em
+  const gap = 0.16;                    // gap between letters in em
+  const cellW = p.widthFactor;
+  const totalEm = N*cellW + (N-1)*gap;
+
+  // size the canvas to its CSS box
+  const cssW = canvas.clientWidth || (canvas.parentElement.clientWidth);
+  const padX = opts.padX!=null ? opts.padX : 0.06;       // fraction of width
+  const padY = opts.padY!=null ? opts.padY : 0.18;
+  const usableW = cssW * (1 - padX*2);
+  const em = usableW / totalEm;                          // px per em
+  const cssH = em*cellH*(1+padY*2);
+
+  canvas.style.height = cssH + 'px';
+  canvas.width  = Math.round(cssW * dpr);
+  canvas.height = Math.round(cssH * dpr);
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,cssW,cssH);
+
+  // optional baseline guide (hero only)
+  if(opts.guides){
+    ctx.strokeStyle = '#e4ddcd';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    const gy = cssH*(1 - padY*0.55);
+    ctx.moveTo(cssW*0.04, gy); ctx.lineTo(cssW*0.96, gy);
+    ctx.stroke();
+  }
+
+  const startX = cssW*padX;
+  const topY = cssH*padY*0.85;
+  const glyphH = em*cellH;
+  const glyphW = em*cellW;
+  const lw = Math.max(1.4, p.weight * em * 0.12);        // metric-driven stroke weight
+
+  ctx.lineJoin='round'; ctx.lineCap='round';
+
+  const hits = [];
+  for(let i=0;i<N;i++){
+    const ch = word[i].toUpperCase();
+    const ox = startX + i*(glyphW + em*gap);
+    const oy = topY;
+
+    // ink stroke
+    ctx.save();
+    ctx.translate(ox, oy);
+    ctx.scale(glyphW, glyphH);
+    // express weight as device-independent: undo scale on lineWidth
+    ctx.lineWidth = lw / Math.max(glyphW, glyphH);
+    ctx.strokeStyle = '#111';
+    if(ch !== ' '){
+      // faint metric-hue under-shadow for richness (amber-ish glow on heavy works)
+      ctx.shadowColor = 'rgba(232,184,75,0.0)';
+      ctx.stroke(glyphs[i]);
+    }
+    ctx.restore();
+
+    if(ch !== ' '){
+      hits.push({x:ox, y:oy, w:glyphW, h:glyphH, ch, index:i});
+    }
+  }
+
+  canvas._hits = hits;
+  canvas._params = p;
+  return {p, hits, cssW, cssH};
+}
+
+/* ---------- HERO ---------- */
+const heroWork = DATA[0];
+const heroCanvas = document.getElementById('heroCanvas');
+const heroLegend = document.getElementById('heroLegend');
+const heroStage  = document.getElementById('heroStage');
+
+function drawHero(){
+  renderWord(heroCanvas, heroWork.title, heroWork, {guides:true, padY:0.22});
+}
+document.getElementById('heroModel').textContent = heroWork.model.split('/')[0].trim();
+document.getElementById('heroGen').textContent = 'gen '+heroWork.genTime+'s';
+document.getElementById('heroTok').textContent = heroWork.tokens+' tok';
+document.getElementById('heroSeed').textContent = 'seed '+heroWork.seed;
+
+/* legend on hover/tap of a letter */
+function legendHTML(work, hit){
+  const p = paramsFor(work);
+  return `
+    <div style="font-weight:700;letter-spacing:.04em;margin-bottom:5px">LETTER &ldquo;${hit.ch}&rdquo;</div>
+    <div class="lk"><span><span class="lh" style="background:#e8b84b"></span>weight</span><span>${(p.weight).toFixed(2)} &middot; ${work.genTime}s</span></div>
+    <div class="lk"><span><span class="lh" style="background:#3ab8a8"></span>width</span><span>${(p.widthFactor).toFixed(2)} &middot; ${work.tokens} tok</span></div>
+    <div class="lk"><span><span class="lh" style="background:#7b4ae8"></span>jitter</span><span>${p.jitter.toFixed(3)} &middot; seed ${work.seed}</span></div>
+    <hr><div class="lk"><span>glyph #</span><span>${hit.index+1} / ${work.title.replace(/\\s/g,'').length}</span></div>
+  `;
+}
+
+function pointHit(canvas, hits, clientX, clientY){
+  const r = canvas.getBoundingClientRect();
+  const x = clientX - r.left, y = clientY - r.top;
+  for(const h of hits){
+    if(x>=h.x-6 && x<=h.x+h.w+6 && y>=h.y-4 && y<=h.y+h.h+4) return h;
+  }
+  return null;
+}
+
+function wireLegend(canvas, legend, work, stage){
+  function show(clientX, clientY){
+    const hit = pointHit(canvas, canvas._hits||[], clientX, clientY);
+    if(!hit){ legend.classList.remove('show'); return; }
+    legend.innerHTML = legendHTML(work, hit);
+    const r = stage.getBoundingClientRect();
+    let lx = (clientX - r.left) + 14;
+    let ly = (clientY - r.top) + 14;
+    if(lx > r.width - 200) lx = r.width - 200;
+    if(ly > r.height - 120) ly = r.height - 120;
+    legend.style.left = Math.max(8,lx) + 'px';
+    legend.style.top  = Math.max(8,ly) + 'px';
+    legend.classList.add('show');
+  }
+  canvas.addEventListener('mousemove', e=>show(e.clientX,e.clientY));
+  canvas.addEventListener('mouseleave', ()=>legend.classList.remove('show'));
+  canvas.addEventListener('touchstart', e=>{
+    const t=e.touches[0]; if(t){ show(t.clientX,t.clientY); }
+  }, {passive:true});
+  canvas.addEventListener('touchmove', e=>{
+    const t=e.touches[0]; if(t){ show(t.clientX,t.clientY); }
+  }, {passive:true});
+}
+wireLegend(heroCanvas, heroLegend, heroWork, heroStage);
+
+/* ---------- CATALOG ---------- */
+const MOBILE = window.matchMedia('(max-width:640px)').matches;
+const catalog = document.getElementById('catalog');
+
+function metricHTML(work){
+  const p = paramsFor(work);
+  return `
+    <div class="metrics">
+      <div class="metric">
+        <div class="ml"><span class="d" style="background:#e8b84b"></span>gen-time</div>
+        <div class="mv">${work.genTime}<span class="mu">s</span></div>
+      </div>
+      <div class="metric">
+        <div class="ml"><span class="d" style="background:#3ab8a8"></span>tokens</div>
+        <div class="mv">${work.tokens}<span class="mu">tok</span></div>
+      </div>
+      <div class="metric">
+        <div class="ml"><span class="d" style="background:#7b4ae8"></span>seed</div>
+        <div class="mv">${work.seed}</div>
+      </div>
+    </div>`;
+}
+
+const cardCanvases = []; // {canvas, work}
+DATA.forEach((work, i)=>{
+  // mobile guardrail: cap letter count ~6 (titles already <=10; clamp display word)
+  let word = work.title;
+  if(MOBILE && word.length>6) word = word.slice(0,6);
+
+  const el = document.createElement('article');
+  el.className = 'work';
+
+  const mediaInner = work.isVideo
+    ? `<img class="poster" src="${work.poster}" alt="${work.sub}" loading="lazy" decoding="async" />
+       <video muted loop playsinline preload="none" poster="${work.poster}" data-src="${work.media}"></video>
+       <span class="ptag">${work.kind}</span><span class="playpoke" aria-hidden="true"></span>`
+    : `<img src="${work.media}" alt="${work.sub}" loading="lazy" decoding="async" />
+       <span class="ptag">${work.kind}</span>`;
+
+  el.innerHTML = `
+    <div class="typebar">
+      <canvas aria-label="The word ${work.title} rendered as data-generated letterforms for ${work.model}"></canvas>
+    </div>
+    <div class="media ${work.fit==='contain'?'contain':''}">
+      ${mediaInner}
+    </div>
+    <div class="meta">
+      <div class="mt">${work.title}</div>
+      <div class="ms">${work.sub} <span class="mono" style="color:#7b4ae8">/ ${work.model}</span></div>
+      ${metricHTML(work)}
+    </div>`;
+  catalog.appendChild(el);
+
+  const cv = el.querySelector('.typebar canvas');
+  cardCanvases.push({canvas:cv, work, word});
+});
+
+function drawCards(){
+  cardCanvases.forEach(({canvas, work, word})=>{
+    renderWord(canvas, word, work, {padX:0.05, padY:0.30});
+  });
+}
+
+/* ---------- in-view video playback (one decode at a time per card) ---------- */
+const vidObserver = new IntersectionObserver((entries)=>{
+  entries.forEach(entry=>{
+    const card = entry.target;
+    const video = card.querySelector('video');
+    if(!video) return;
+    if(entry.isIntersecting && entry.intersectionRatio>0.55){
+      if(!video.src) video.src = video.dataset.src;
+      const poster = card.querySelector('.poster');
+      video.play().then(()=>{ if(poster) poster.style.opacity='0'; }).catch(()=>{});
+    } else {
+      video.pause();
+      const poster = card.querySelector('.poster');
+      if(poster) poster.style.opacity='1';
+    }
+  });
+}, {threshold:[0,0.55,1]});
+
+document.querySelectorAll('.work .media').forEach(m=>{
+  const poster = m.querySelector('.poster');
+  if(poster){ poster.style.transition='opacity .3s ease'; }
+  vidObserver.observe(m);
+});
+
+if(REDUCE){
+  // reduced-motion: never autoplay; posters stay, videos paused
+  vidObserver.disconnect();
+}
+
+/* ---------- draw everything; redraw on resize (debounced) ---------- */
+function drawAll(){ drawHero(); drawCards(); }
+drawAll();
+
+let rT;
+window.addEventListener('resize', ()=>{
+  clearTimeout(rT);
+  rT = setTimeout(()=>{
+    // re-eval mobile word cap on resize
+    const nowMobile = window.matchMedia('(max-width:640px)').matches;
+    cardCanvases.forEach(c=>{
+      let w = c.work.title;
+      if(nowMobile && w.length>6) w = w.slice(0,6);
+      c.word = w;
+      c.canvas._glyphWord = null; // force rebuild for new word length
+    });
+    drawAll();
+  }, 140);
+});
+
+// redraw once webfonts settle (in case metrics chips reflow the stage width)
+if(document.fonts && document.fonts.ready){
+  document.fonts.ready.then(()=>{ drawAll(); });
+}
+</script>
+</body>
+</html>

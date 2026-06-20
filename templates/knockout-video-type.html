@@ -226,13 +226,45 @@ function maskUri(lines, VW, VH){
     "letter-spacing='"+(fs*trackEm).toFixed(2)+"' fill='%23fff'>"+esc(ln)+"</text>"
   ).join("");
   const svg = "<svg xmlns='http://www.w3.org/2000/svg' width='"+VW+"' height='"+VH+"'>"+texts+"</svg>";
-  return "url(\"data:image/svg+xml;utf8,"+svg+"\")";
+  // also hand back the glyph block bbox so a mobile gradient can be sized to the
+  // LETTERS, not the whole viewport (see paintMobileGradient). The estimate must
+  // OVER-cover the real Anton glyphs (advance/cap-height are approximations); a
+  // band smaller than the glyphs would leave transparent voids inside letters and
+  // break the shapes, so pad generously. Over-cover is harmless: the mask still
+  // clips, it only means the gradient's outermost stops sit just past the type.
+  const glyphW = longest * fs * advance;                 // widest line, px
+  const glyphH = lines.length * lh;                      // stacked lines, px
+  const padX = fs * 0.55, padY = fs * 0.40;
+  const bandW = Math.min(VW, glyphW + padX*2);
+  const bandH = Math.min(VH, glyphH + padY*2);
+  const band = {
+    x: Math.max(0, Math.min(cx - bandW/2, VW - bandW)),
+    y: Math.max(0, (startY - fs*0.72) - padY),           // ascender top, padded
+    w: bandW,
+    h: bandH
+  };
+  return { uri: "url(\"data:image/svg+xml;utf8,"+svg+"\")", band };
 }
 function applyMask(el, uri){
   el.style.webkitMaskImage = uri;       el.style.maskImage = uri;
   el.style.webkitMaskRepeat = "no-repeat"; el.style.maskRepeat = "no-repeat";
   el.style.webkitMaskPosition = "center"; el.style.maskPosition = "center";
   el.style.webkitMaskSize = "100% 100%";  el.style.maskSize = "100% 100%";
+}
+
+/* MOBILE gradient fill. The .media div is full-viewport so the glyph mask can
+   line up 1:1 with the SVG mask geometry, but a gradient sized to the whole div
+   only shows its MIDDLE colour stop through the thin letter band - the word then
+   reads as one flat hue. Size + position the gradient to the glyph bbox so the
+   FULL stop range renders INSIDE the letters (a real window onto the gradient),
+   matching the desktop video-in-letters effect. background-clip + size make the
+   paint a window; the mask still punches the void outside the type. */
+function paintMobileGradient(el, grad, band){
+  el.style.backgroundImage   = "linear-gradient(135deg, "+grad+")";
+  el.style.backgroundRepeat  = "no-repeat";
+  el.style.backgroundSize    = band.w.toFixed(1)+"px "+band.h.toFixed(1)+"px";
+  el.style.backgroundPosition= band.x.toFixed(1)+"px "+band.y.toFixed(1)+"px";
+  el.style.backgroundColor   = "transparent";
 }
 
 /* paint a work: swap the single live video, clip it to the title glyphs. */
@@ -250,7 +282,7 @@ function setWork(i){
   // desktop OR portrait phone) and is never clipped at the edges.
   const VW = Math.max(320, innerWidth), VH = Math.max(400, innerHeight);
   const lines = w.two ? w.title.split("\n") : [w.title];
-  const uri = maskUri(lines, VW, VH);
+  const { uri, band } = maskUri(lines, VW, VH);
 
   let media;
   if(REDUCED && !mobile){
@@ -260,8 +292,9 @@ function setWork(i){
   } else if(mobile){
     // phones: hue-matched gradient through the SAME glyph mask, so the
     // landscape source is never cover-cropped outside the type. No decode.
+    // Sized to the glyph bbox so the whole gradient shows INSIDE the letters.
     media = document.createElement("div");
-    media.style.background = "linear-gradient(135deg, "+w.grad+")";
+    paintMobileGradient(media, w.grad, band);
   } else {
     // desktop: exactly one live, muted, looping video inside the glyphs.
     media = document.createElement("video");

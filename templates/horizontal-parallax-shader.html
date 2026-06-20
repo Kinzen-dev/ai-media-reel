@@ -1,0 +1,778 @@
+<!-- TEMPLATE: Linen Lens | ARCHETYPE: H-SHIFT horizontal scroll gallery to per-image WebGL displacement | REF: Codrops Smooth Horizontal Parallax Gallery DOM-to-WebGL (Feb 2026), Three.js WebGL image-gallery scroll | WHEN TO USE: portfolio / lookbook / editorial image set where the centered work should feel alive under the cursor while the rest stays calm DOM | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Linen Lens - Horizontal Parallax Shader</title>
+
+<!-- ============================================================= -->
+<!-- DATA: swap these entries to reskin the gallery. images only.   -->
+<!-- src = full-res texture; tint = the color that bleeds into the  -->
+<!-- linen track edge as a halo and seeds the default warp accent.  -->
+<!-- ============================================================= -->
+<script>
+const DATA = {
+  brand: "LINEN LENS",
+  kicker: "Index 01 / Generative Plates",
+  title: "A horizontal cabinet of plates. The one at center bends to your hand.",
+  note: "Drag, scroll, or arrow across. The centered plate is a live WebGL surface that warps toward your cursor like a lens, then relaxes when you leave. The rest stay flat paper.",
+  items: [
+    { src: "../assets/flux-car-4k.png",   label: "Nocturne",  meta: "matte-black coupe / wet neon",        tint: "#3a6ea5" },
+    { src: "../assets/flux-clinic-4k.png", label: "Mint Ward", meta: "mint + wood interior / soft daylight", tint: "#5fae8c" },
+    { src: "../assets/sdxl.png",           label: "Vulpes",    meta: "painterly autumn fox / oil",          tint: "#c8722e" },
+    { src: "../assets/hf-tinysd.png",      label: "Pomme",     meta: "low-fi apple / abstract",             tint: "#b23a3a" },
+    { src: "../assets/gen/poster-kling-video.png", label: "Drift",  meta: "still from a moving plate",      tint: "#7a5cc0" },
+    { src: "../assets/gen/poster-veo-video.png",   label: "Atrium", meta: "still from a moving plate",      tint: "#2f8f9a" }
+  ]
+};
+</script>
+
+<style>
+  :root{
+    --linen:#f5f0e8;
+    --linen-2:#efe7da;
+    --ink:#111111;
+    --ink-soft:#5a554c;
+    --hair:rgba(17,17,17,.14);
+    --cell-w:min(46vw, 560px);     /* portrait cell width on desktop */
+    --gap:clamp(18px, 3.2vw, 56px);
+    --ease:cubic-bezier(.22,.61,.36,1);
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    background:var(--linen);
+    color:var(--ink);
+    font-family:"Inter","Helvetica Neue",Arial,sans-serif;
+    font-feature-settings:"ss01","cv05";
+    -webkit-font-smoothing:antialiased;
+    overflow:hidden;                 /* page itself does not scroll; the track does */
+    position:relative;
+  }
+  /* faint linen weave so the warm paper reads as material, not flat fill */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:
+      repeating-linear-gradient(90deg, rgba(17,17,17,.018) 0 1px, transparent 1px 3px),
+      repeating-linear-gradient(0deg, rgba(17,17,17,.018) 0 1px, transparent 1px 3px);
+    mix-blend-mode:multiply;opacity:.6;
+  }
+
+  a{color:inherit}
+
+  /* ---------- top band: compact, never a full-screen hero ---------- */
+  .band{
+    position:fixed;top:0;left:0;right:0;z-index:30;
+    padding:clamp(14px,2vw,22px) clamp(18px,3.5vw,46px) 0;
+    display:grid;grid-template-columns:1fr auto;gap:14px;align-items:start;
+    pointer-events:none;
+  }
+  .band .pointerable{pointer-events:auto}
+  .brand{
+    font-weight:800;letter-spacing:.16em;font-size:clamp(13px,1.4vw,15px);
+    text-transform:uppercase;
+  }
+  .brand .dot{color:var(--ink-soft)}
+  .headline{
+    grid-column:1 / -1;
+    /* keep the headline in the left margin so it clears the centered plate */
+    max-width:min(40ch, calc(50vw - (var(--cell-w) / 2) - 40px));
+    margin:clamp(10px,1.6vw,16px) 0 0;
+    font-size:clamp(22px,3vw,38px);line-height:1.05;letter-spacing:-.02em;
+    font-weight:800;text-wrap:balance;
+    text-shadow:0 1px 0 rgba(245,240,232,.6);
+  }
+  .sub{
+    grid-column:1 / -1;
+    max-width:min(42ch, calc(50vw - (var(--cell-w) / 2) - 40px));
+    margin:10px 0 0;
+    color:var(--ink-soft);font-size:clamp(12.5px,1.35vw,15px);line-height:1.5;
+    font-weight:450;
+  }
+  .meta-r{
+    text-align:right;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--ink-soft);line-height:1.7;white-space:nowrap;
+  }
+  .gl-badge{
+    display:inline-block;margin-top:4px;padding:2px 7px;border:1px solid var(--hair);
+    border-radius:999px;font-size:10px;letter-spacing:.12em;
+  }
+  .gl-badge[data-mode="dom"]{opacity:.7}
+
+  /* ---------- horizontal track ---------- */
+  .track{
+    position:fixed;inset:0;z-index:10;
+    display:flex;align-items:center;gap:var(--gap);
+    padding:0 calc(50vw - (var(--cell-w) / 2));   /* center first & last cell */
+    overflow-x:auto;overflow-y:hidden;
+    scroll-snap-type:x mandatory;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior-x:contain;
+    cursor:grab;
+    scrollbar-width:none;
+  }
+  .track::-webkit-scrollbar{display:none}
+  .track.dragging{cursor:grabbing;scroll-snap-type:none}
+
+  .cell{
+    position:relative;flex:0 0 var(--cell-w);
+    height:min(78vh, 760px);
+    scroll-snap-align:center;
+    border-radius:4px;
+    background:var(--linen-2);
+    box-shadow:0 1px 0 rgba(255,255,255,.6) inset, 0 18px 50px -28px rgba(17,17,17,.5);
+    transition:box-shadow .5s var(--ease);
+    will-change:transform;
+  }
+  /* per-image color halo bleeding into the linen at the cell edges */
+  .cell::before{
+    content:"";position:absolute;inset:-26px;z-index:-1;border-radius:18px;
+    background:radial-gradient(120% 90% at 50% 50%, var(--tint, transparent) 0%, transparent 62%);
+    opacity:0;filter:blur(26px);
+    transition:opacity .55s var(--ease);
+  }
+  .cell[data-active="true"]::before{opacity:.42}
+
+  .frame{
+    position:absolute;inset:0;border-radius:4px;overflow:hidden;
+    background:#e7ded0;
+  }
+  .frame img{
+    width:100%;height:100%;object-fit:cover;object-position:center;
+    display:block;user-select:none;-webkit-user-drag:none;
+    filter:saturate(1.02) contrast(1.02);
+    transition:opacity .25s linear;
+  }
+  /* when the shared WebGL canvas takes over a cell, hide its DOM image */
+  .cell[data-gl="true"] .frame img{opacity:0}
+
+  .caption{
+    position:absolute;left:14px;bottom:13px;right:14px;z-index:2;
+    display:flex;justify-content:space-between;align-items:flex-end;gap:12px;
+    pointer-events:none;
+    mix-blend-mode:normal;
+  }
+  .caption .l{
+    font-weight:800;font-size:clamp(15px,1.7vw,20px);letter-spacing:-.01em;
+    color:#fff;text-shadow:0 1px 12px rgba(0,0,0,.55);
+  }
+  .caption .m{
+    font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+    color:rgba(255,255,255,.86);text-shadow:0 1px 10px rgba(0,0,0,.6);
+    text-align:right;line-height:1.4;max-width:46%;
+  }
+  .idx{
+    position:absolute;top:11px;left:13px;z-index:2;
+    font-weight:800;font-size:12px;letter-spacing:.14em;color:#fff;
+    text-shadow:0 1px 10px rgba(0,0,0,.55);opacity:.92;
+  }
+
+  /* ---------- shared WebGL stage (one canvas, repositioned) ---------- */
+  #gl-stage{
+    position:fixed;z-index:11;border-radius:4px;overflow:hidden;
+    pointer-events:none;          /* track underneath still receives drag */
+    opacity:0;transition:opacity .28s linear;
+    box-shadow:0 18px 60px -30px rgba(17,17,17,.55);
+  }
+  #gl-stage.on{opacity:1}
+  #gl-stage canvas{display:block;width:100%;height:100%}
+
+  /* ---------- bottom hint / progress ---------- */
+  .hint{
+    position:fixed;left:0;right:0;bottom:clamp(14px,2.2vh,26px);z-index:30;
+    display:flex;justify-content:center;gap:18px;align-items:center;
+    pointer-events:none;
+  }
+  .scrub{
+    width:min(46vw,360px);height:2px;background:var(--hair);border-radius:2px;position:relative;
+    overflow:hidden;
+  }
+  .scrub>i{position:absolute;top:0;left:0;height:100%;width:18%;background:var(--ink);border-radius:2px;transform:translateX(0)}
+  .hint .txt{
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft);
+    white-space:nowrap;
+  }
+
+  /* keyboard focus ring for the track */
+  .track:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}
+  .cell a:focus-visible{outline:2px solid #fff;outline-offset:3px}
+
+  /* ============================================================= */
+  /* MOBILE <=640px: no WebGL. vertical stack, media letterboxed.   */
+  /* CSS perspective + skewX driven by scroll velocity replaces warp*/
+  /* ============================================================= */
+  @media (max-width:640px){
+    body{overflow:auto}
+    .band{position:sticky;padding:14px 18px 8px;background:linear-gradient(var(--linen),var(--linen) 70%,transparent)}
+    .headline{font-size:clamp(20px,6.6vw,30px);max-width:none;text-shadow:none}
+    .sub{max-width:none}
+    .meta-r{display:none}
+    #gl-stage{display:none !important}
+    .hint{position:fixed;bottom:10px}
+    .scrub{width:60vw}
+
+    .track{
+      position:static;inset:auto;height:auto;
+      display:flex;flex-direction:column;gap:18px;
+      padding:6px 16px 120px;
+      overflow:visible;scroll-snap-type:y proximity;
+      cursor:default;perspective:1200px;
+    }
+    .cell{
+      flex:none;width:100%;height:auto;aspect-ratio:4 / 3;  /* letterbox the landscape, no tall crop */
+      scroll-snap-align:center;
+      transform-style:preserve-3d;
+      transition:none;
+    }
+    .cell::before{inset:-14px;filter:blur(20px)}
+    .cell[data-active="true"]::before{opacity:.5}
+    .frame{background:#ded3c3}
+    .frame img{object-fit:contain}        /* contain = full landscape visible, letterboxed */
+  }
+
+  @media (max-width:640px) and (min-aspect-ratio:1/1){
+    .cell{aspect-ratio:16 / 9}
+  }
+
+  /* ============================================================= */
+  /* prefers-reduced-motion: kill rAF warp + velocity skew, show    */
+  /* the relaxed final state.                                       */
+  /* ============================================================= */
+  @media (prefers-reduced-motion:reduce){
+    .track{scroll-behavior:auto}
+    .cell,.frame img,#gl-stage{transition:none !important}
+    .cell[data-gl="true"] .frame img{opacity:1 !important} /* always show clean image */
+    #gl-stage{display:none !important}
+  }
+</style>
+</head>
+<body>
+
+  <header class="band">
+    <div class="brand pointerable" id="brand"><span id="brand-name">LINEN LENS</span> <span class="dot">/ horizontal cabinet</span></div>
+    <div class="meta-r pointerable">
+      <span id="kicker">Index 01</span><br>
+      <span class="gl-badge" id="gl-badge" data-mode="dom">DOM</span>
+    </div>
+    <h1 class="headline" id="headline"></h1>
+    <p class="sub" id="sub"></p>
+  </header>
+
+  <main class="track" id="track" tabindex="0" aria-label="Horizontal image gallery. Use left and right arrow keys to move between plates.">
+    <!-- cells injected from DATA -->
+  </main>
+
+  <!-- single shared WebGL surface, moved over the centered cell -->
+  <div id="gl-stage" aria-hidden="true"><!-- canvas injected --></div>
+
+  <div class="hint">
+    <span class="txt" id="hint-l">Centered plate is live</span>
+    <div class="scrub" aria-hidden="true"><i id="scrub"></i></div>
+    <span class="txt">Drag / Scroll / Arrows</span>
+  </div>
+
+<!-- three.js only if WebGL is usable; importmap per brief (no GSAP, no other libs) -->
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.165.0/build/three.module.js" } }
+</script>
+
+<script type="module">
+/* ----------------------------------------------------------------- */
+/* 0. boilerplate: build the DOM cells from DATA                      */
+/* ----------------------------------------------------------------- */
+const $ = (s, r=document) => r.querySelector(s);
+const track   = $('#track');
+const stage   = $('#gl-stage');
+const glBadge = $('#gl-badge');
+const scrub   = $('#scrub');
+
+$('#brand-name').textContent = DATA.brand;
+$('#kicker').textContent     = DATA.kicker;
+$('#headline').textContent   = DATA.title;
+$('#sub').textContent        = DATA.note;
+document.title = DATA.brand + ' - Horizontal Parallax Shader';
+
+const cells = DATA.items.map((it, i) => {
+  const cell = document.createElement('article');
+  cell.className = 'cell';
+  cell.style.setProperty('--tint', it.tint);
+  cell.dataset.index = i;
+  cell.innerHTML = `
+    <span class="idx">${String(i+1).padStart(2,'0')}</span>
+    <div class="frame">
+      <img src="${it.src}" alt="${it.label} - ${it.meta}" decoding="async" ${i>1?'loading="lazy"':''}>
+    </div>
+    <div class="caption">
+      <span class="l">${it.label}</span>
+      <span class="m">${it.meta}</span>
+    </div>`;
+  track.appendChild(cell);
+  return cell;
+});
+
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const isMobile = () => matchMedia('(max-width:640px)').matches;
+
+/* ----------------------------------------------------------------- */
+/* 1. native horizontal scroll niceties: wheel-to-x, drag, arrows     */
+/* ----------------------------------------------------------------- */
+// vertical wheel scrolls the track horizontally on desktop
+track.addEventListener('wheel', (e)=>{
+  if (isMobile()) return;
+  if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+    track.scrollLeft += e.deltaY;
+    e.preventDefault();
+  }
+}, { passive:false });
+
+// click-drag to pan (desktop)
+let drag=null;
+track.addEventListener('pointerdown', (e)=>{
+  if (isMobile() || e.pointerType==='touch') return;
+  drag={x:e.clientX, start:track.scrollLeft};
+  track.classList.add('dragging');
+  track.setPointerCapture(e.pointerId);
+});
+track.addEventListener('pointermove', (e)=>{
+  if(!drag) return;
+  track.scrollLeft = drag.start - (e.clientX - drag.x);
+});
+const endDrag=()=>{ if(drag){drag=null; track.classList.remove('dragging');} };
+track.addEventListener('pointerup', endDrag);
+track.addEventListener('pointercancel', endDrag);
+
+// keyboard
+track.addEventListener('keydown',(e)=>{
+  const step = (cells[0]?.offsetWidth||400) + parseFloat(getComputedStyle(track).gap||40);
+  if(e.key==='ArrowRight'){ track.scrollBy({left:step, behavior:REDUCED?'auto':'smooth'}); e.preventDefault(); }
+  if(e.key==='ArrowLeft'){  track.scrollBy({left:-step, behavior:REDUCED?'auto':'smooth'}); e.preventDefault(); }
+  if(e.key==='Home'){ track.scrollTo({left:0, behavior:REDUCED?'auto':'smooth'}); e.preventDefault(); }
+  if(e.key==='End'){  track.scrollTo({left:track.scrollWidth, behavior:REDUCED?'auto':'smooth'}); e.preventDefault(); }
+});
+
+/* ----------------------------------------------------------------- */
+/* 2. cursor tracking (normalized to active cell, lerped)            */
+/* ----------------------------------------------------------------- */
+const cursor = { x:0.5, y:0.5, tx:0.5, ty:0.5, inside:0, tinside:0 };
+function onMove(clientX, clientY){
+  const r = stage.getBoundingClientRect();
+  if (r.width<=0) return;
+  cursor.tx = (clientX - r.left) / r.width;
+  cursor.ty = (clientY - r.top)  / r.height;
+}
+let userMoved = false;
+window.addEventListener('pointermove', (e)=>{
+  if (isMobile()) return;
+  userMoved = true;
+  onMove(e.clientX, e.clientY);
+});
+// "inside" = cursor over the active cell band -> drives warp gain
+stage.parentElement && document.addEventListener('pointermove',(e)=>{
+  if (isMobile()) return;
+  const r = stage.getBoundingClientRect();
+  const over = e.clientX>=r.left && e.clientX<=r.right && e.clientY>=r.top && e.clientY<=r.bottom;
+  cursor.tinside = over ? 1 : 0;
+});
+
+/* ----------------------------------------------------------------- */
+/* 3. WebGL stage. one canvas. loads three only when supported.       */
+/*    robustness rules applied:                                       */
+/*    - preserveDrawingBuffer:true (thumbnail captures warped frame)  */
+/*    - DPR capped at 1.5                                             */
+/*    - confirm a non-blank paint before starting the rAF loop        */
+/*    - LUT uniform sampled; NO dynamic-indexed local arrays (ANGLE)  */
+/*    - one plane active; swap texture on IntersectionObserver        */
+/* ----------------------------------------------------------------- */
+let GL = null;             // { renderer, scene, cam, mat, mesh, textures[], ready }
+let activeIndex = -1;
+
+function webglSupported(){
+  try{
+    const c=document.createElement('canvas');
+    return !!(window.WebGLRenderingContext && (c.getContext('webgl')||c.getContext('experimental-webgl')));
+  }catch(e){ return false; }
+}
+
+async function initGL(){
+  if (REDUCED || isMobile() || !webglSupported()){
+    glBadge.textContent='DOM'; glBadge.dataset.mode='dom';
+    return false;
+  }
+  let THREE;
+  try { THREE = await import('three'); }
+  catch(e){ glBadge.textContent='DOM'; glBadge.dataset.mode='dom'; return false; }
+
+  const renderer = new THREE.WebGLRenderer({
+    antialias:true, alpha:true,
+    preserveDrawingBuffer:true   // keep the warped frame for the catalog thumbnail
+  });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 1.5)); // DPR cap 1.5
+  renderer.setClearColor(0x000000, 0);
+  stage.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  const cam = new THREE.OrthographicCamera(-0.5,0.5,0.5,-0.5,0,10);
+  cam.position.z = 1;
+
+  // a 1x1 plane, well segmented so the UV-displacement warps smoothly
+  const geo = new THREE.PlaneGeometry(1,1,64,64);
+
+  // LUT: a small falloff curve baked into a 1D texture. The shader reads
+  // the lens falloff from this uniform sampler instead of a dynamic-indexed
+  // local array (ANGLE returns 0 for those in GLSL ES 1.0).
+  // Stored as 8-bit RGBA (UnsignedByteType), NOT float: a FloatType texture
+  // with LinearFilter needs OES_texture_float(_linear) on WebGL1 and renders
+  // black where unsupported, which would silently kill the whole lens warp.
+  // 256 levels is ample precision for a 0..1 visual falloff curve.
+  const LUT_N = 64;
+  const lut = new Uint8Array(LUT_N*4);
+  for(let i=0;i<LUT_N;i++){
+    const t=i/(LUT_N-1);
+    const fall = Math.pow(1.0 - t, 2.2);   // smooth lens falloff toward the edge
+    const v = Math.max(0, Math.min(255, Math.round(fall*255)));
+    lut[i*4+0]=v; lut[i*4+1]=v; lut[i*4+2]=v; lut[i*4+3]=255;
+  }
+  const lutTex = new THREE.DataTexture(lut, LUT_N,1, THREE.RGBAFormat, THREE.UnsignedByteType);
+  lutTex.needsUpdate = true;
+  lutTex.minFilter = lutTex.magFilter = THREE.LinearFilter;
+  lutTex.wrapS = lutTex.wrapT = THREE.ClampToEdgeWrapping;
+
+  // 1x1 plane scaled to fill the whole clip space (-1..1) so the canvas
+  // paints edge to edge (no transparent margin to read back as "blank").
+  const VERT = `
+    varying vec2 vUv;
+    void main(){ vUv = uv; gl_Position = vec4(position.xy * 2.0, 0.0, 1.0); }
+  `;
+
+  // FRAG: cover-fit UV (match the DOM object-fit:cover) + lens displacement
+  // toward the cursor. strength = uStrength (proximity-to-center * cursor gain),
+  // seeded > 0 at scroll=0 so the static plate already shows the warp.
+  const FRAG = `
+    precision highp float;
+    varying vec2 vUv;
+    uniform sampler2D uTex;
+    uniform sampler2D uLut;       // lens falloff LUT (no dynamic-index arrays)
+    uniform vec2  uCursor;        // 0..1 in plane space
+    uniform float uStrength;      // overall warp gain
+    uniform float uTime;
+    uniform vec2  uImgRatio;      // cover-fit scale (x,y)
+    uniform vec3  uTint;
+    uniform float uHalo;
+
+    // cover-fit: keep image aspect, fill the plane, crop overflow (= object-fit:cover)
+    vec2 coverUv(vec2 uv){
+      return (uv - 0.5) * uImgRatio + 0.5;
+    }
+
+    void main(){
+      vec2 uv = vUv;
+      // radial distance from cursor, normalized so r=0 at cursor, ~1 at far corner
+      vec2 d = uv - uCursor;
+      float dist = length(d) * 1.35;
+      float fall = texture2D(uLut, vec2(clamp(dist,0.0,1.0), 0.5)).r; // lens falloff from LUT
+
+      // pull texels toward the cursor inside the lens, with a soft breathing idle
+      float breathe = 0.018 * sin(uTime*0.9);
+      float amt  = uStrength * fall * (0.30 + breathe);  // base pull (visible bulge)
+      vec2 warped = uv - d * amt * 1.7;
+
+      // a touch of chromatic lensing at the lens rim for richness
+      vec2 cu = coverUv(warped);
+      float ca = 0.004 * uStrength * fall;
+      float r = texture2D(uTex, coverUv(warped + d*ca)).r;
+      float g = texture2D(uTex, cu).g;
+      float b = texture2D(uTex, coverUv(warped - d*ca)).b;
+      vec3 col = vec3(r,g,b);
+
+      // lens highlight: brighten the very center of the warp
+      float hot = smoothstep(0.5, 0.0, dist) * uStrength * 0.10;
+      col += hot;
+
+      // tint halo bleeding from the rim toward the frame edge
+      float edge = smoothstep(0.35, 1.0, length(uv-0.5)*1.4);
+      col = mix(col, mix(col, uTint, 0.5), edge * uHalo * 0.18);
+
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `;
+
+  const mat = new THREE.ShaderMaterial({
+    vertexShader:VERT, fragmentShader:FRAG,
+    uniforms:{
+      uTex:{value:null},
+      uLut:{value:lutTex},
+      uCursor:{value:new THREE.Vector2(0.5,0.42)},
+      uStrength:{value:0.0},
+      uTime:{value:0},
+      uImgRatio:{value:new THREE.Vector2(1,1)},
+      uTint:{value:new THREE.Color(0xffffff)},
+      uHalo:{value:1.0}
+    }
+  });
+
+  const mesh = new THREE.Mesh(geo, mat);
+  scene.add(mesh);
+
+  // preload textures (lazy-decoded by the browser; cheap GPU upload on first use)
+  const loader = new THREE.TextureLoader();
+  loader.crossOrigin = 'anonymous';
+  const textures = DATA.items.map((it)=>{
+    const t = loader.load(it.src, (tex)=>{ tex.colorSpace = THREE.SRGBColorSpace; tex.needsUpdate=true; });
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.magFilter = THREE.LinearFilter;
+    t.generateMipmaps = true;
+    return t;
+  });
+
+  GL = { THREE, renderer, scene, cam, mat, mesh, textures, ready:false };
+
+  glBadge.textContent='WEBGL'; glBadge.dataset.mode='gl';
+  return true;
+}
+
+// resize/move the shared canvas to overlay a given cell, set its texture+tint
+function mountCellToGL(i){
+  if(!GL) return;
+  const it = DATA.items[i];
+  const cell = cells[i];
+  const r = cell.getBoundingClientRect();
+
+  // position the fixed stage exactly over the cell
+  stage.style.left   = r.left + 'px';
+  stage.style.top    = r.top  + 'px';
+  stage.style.width  = r.width + 'px';
+  stage.style.height = r.height+ 'px';
+  GL.renderer.setSize(r.width, r.height, false);
+
+  // texture + cover-fit ratio (DOM frame uses object-fit:cover)
+  GL.mat.uniforms.uTex.value = GL.textures[i];
+  const img = GL.textures[i].image;
+  if (img && img.width){
+    const imgAR = img.width/img.height;
+    const boxAR = r.width/r.height;
+    // cover: scale UV down on the axis that overflows
+    if (imgAR > boxAR){ GL.mat.uniforms.uImgRatio.value.set(boxAR/imgAR, 1); }
+    else              { GL.mat.uniforms.uImgRatio.value.set(1, imgAR/boxAR); }
+  } else {
+    GL.mat.uniforms.uImgRatio.value.set(1,1);
+  }
+  GL.mat.uniforms.uTint.value.set(it.tint);
+
+  cells.forEach((c,idx)=> c.dataset.gl = (idx===i ? 'true':'false'));
+}
+
+/* confirm a non-blank paint before starting the loop: render once with a
+   seeded warp, read back one pixel, only then mark ready + start rAF. */
+function confirmPaintThenLoop(){
+  if(!GL) return;
+  // seed a visible default warp so the static plate (scroll=0 thumbnail) shows it
+  GL.mat.uniforms.uStrength.value = 0.9;
+  GL.mat.uniforms.uCursor.value.set(0.5, 0.42);
+  GL.renderer.render(GL.scene, GL.cam);
+
+  const gl = GL.renderer.getContext();
+  const dbSize = new GL.THREE.Vector2();
+  GL.renderer.getDrawingBufferSize(dbSize);
+  const cx = Math.max(1, Math.floor(dbSize.x/2));
+  const cy = Math.max(1, Math.floor(dbSize.y/2));
+  const px = new Uint8Array(4);
+  let read = false;
+  try { gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(cx,cy,1,1,gl.RGBA,gl.UNSIGNED_BYTE,px); read = true; } catch(e){}
+  // the full-screen quad always writes alpha=1; a non-opaque/zero center == genuine blank.
+  const painted = !read /* readPixels unsupported -> trust the context */ || px[3] > 0 || (px[0]+px[1]+px[2]) > 0;
+
+  if(!painted){
+    // canvas came back blank -> abandon WebGL, fall back to clean DOM images
+    teardownGL();
+    return;
+  }
+  GL.ready = true;
+  stage.classList.add('on');
+  startLoop();
+}
+
+function teardownGL(){
+  if(!GL) return;
+  stage.classList.remove('on');
+  cells.forEach(c=> c.dataset.gl='false');
+  try{ GL.renderer.dispose(); GL.renderer.domElement.remove(); }catch(e){}
+  GL=null;
+  glBadge.textContent='DOM'; glBadge.dataset.mode='dom';
+}
+
+/* ----------------------------------------------------------------- */
+/* 4. which cell is centered -> active. drives DOM halo + GL mount.   */
+/* ----------------------------------------------------------------- */
+function centerIndex(){
+  const mid = window.innerWidth/2;
+  let best=-1, bestD=Infinity;
+  cells.forEach((c,i)=>{
+    const r=c.getBoundingClientRect();
+    const d=Math.abs((r.left+r.right)/2 - mid);
+    if(d<bestD){ bestD=d; best=i; }
+  });
+  return best;
+}
+
+function setActive(i){
+  if(i===activeIndex) return;
+  activeIndex=i;
+  cells.forEach((c,idx)=> c.dataset.active = (idx===i?'true':'false'));
+  $('#hint-l').textContent = DATA.items[i] ? (DATA.items[i].label + ' is live') : 'Centered plate is live';
+  if(GL){ mountCellToGL(i); }
+}
+
+/* ----------------------------------------------------------------- */
+/* 5. mobile fallback: CSS perspective skewX on scroll velocity       */
+/* ----------------------------------------------------------------- */
+let lastScroll = 0, vel = 0;
+function mobileVelocitySkew(){
+  if(!isMobile() || REDUCED) return;
+  const s = window.scrollY;
+  const raw = s - lastScroll;
+  lastScroll = s;
+  vel += (raw - vel) * 0.25;
+  const skew = Math.max(-9, Math.min(9, vel * 0.18));
+  cells.forEach((c)=>{
+    const r=c.getBoundingClientRect();
+    const centered = 1 - Math.min(1, Math.abs((r.top+r.bottom)/2 - innerHeight/2)/innerHeight);
+    c.style.transform = `skewX(${skew*centered}deg) rotateX(${ -skew*0.4*centered }deg)`;
+  });
+  vel *= 0.86;
+}
+
+/* ----------------------------------------------------------------- */
+/* 6. main render loop (desktop, WebGL only)                          */
+/* ----------------------------------------------------------------- */
+let raf=null;
+function startLoop(){
+  if(raf) return;
+  const tick=(t)=>{
+    raf=requestAnimationFrame(tick);
+    if(!GL || !GL.ready) return;
+
+    // keep stage glued to the centered cell as the track scrolls
+    if(activeIndex>=0){
+      const r=cells[activeIndex].getBoundingClientRect();
+      stage.style.left = r.left+'px';
+      stage.style.top  = r.top +'px';
+      // proximity of active cell to viewport center -> base warp gain (seed at center)
+      const off = Math.abs((r.left+r.right)/2 - innerWidth/2) / (innerWidth/2);
+      const prox = Math.max(0, 1 - off*1.4);            // 1 at dead center
+      GL.mat.uniforms.uHalo.value = prox;
+
+      // before the user moves the pointer, gently orbit an off-center point so
+      // the seeded lens visibly bends the static plate (scroll=0 thumbnail).
+      if(!userMoved){
+        const tt = t*0.0006;
+        cursor.tx = 0.62 + 0.06*Math.cos(tt);
+        cursor.ty = 0.40 + 0.05*Math.sin(tt*1.3);
+      }
+      // lerp cursor + inside gain
+      cursor.x += (cursor.tx - cursor.x)*0.12;
+      cursor.y += (cursor.ty - cursor.y)*0.12;
+      cursor.inside += (cursor.tinside - cursor.inside)*0.08;
+      GL.mat.uniforms.uCursor.value.set(cursor.x, cursor.y);
+
+      // seeded default warp + cursor-driven warp; relax when cursor leaves.
+      // idle seed is strong so the static plate already shows the lens.
+      const seeded = (userMoved ? 0.42 : 0.62) * prox;
+      const live   = (0.65*cursor.inside) * prox;
+      const target = seeded + live;
+      const cur = GL.mat.uniforms.uStrength.value;
+      GL.mat.uniforms.uStrength.value = cur + (target - cur)*0.10;
+
+      GL.mat.uniforms.uTime.value = t*0.001;
+      GL.renderer.render(GL.scene, GL.cam);
+    }
+  };
+  raf=requestAnimationFrame(tick);
+}
+
+/* ----------------------------------------------------------------- */
+/* 7. progress scrubber                                               */
+/* ----------------------------------------------------------------- */
+function updateScrub(){
+  if(isMobile()){
+    const max=(document.documentElement.scrollHeight-innerHeight)||1;
+    const p=Math.min(1,Math.max(0,scrollY/max));
+    // scrub fill is 18% wide; move it across the remaining 82% of the rail
+    scrub.style.transform=`translateX(${p*(100/0.18 - 100)}%)`;
+  } else {
+    const max=(track.scrollWidth-track.clientWidth)||1;
+    const p=Math.min(1,Math.max(0,track.scrollLeft/max));
+    scrub.style.transform=`translateX(${p*(100/0.18 - 100)}%)`;
+  }
+}
+
+/* ----------------------------------------------------------------- */
+/* 8. wire scroll handlers + boot                                     */
+/* ----------------------------------------------------------------- */
+function onScroll(){
+  setActive(centerIndex());
+  updateScrub();
+}
+track.addEventListener('scroll', onScroll, { passive:true });
+window.addEventListener('scroll', ()=>{ if(isMobile()){ onScroll(); } }, { passive:true });
+
+let resizeT=null;
+window.addEventListener('resize', ()=>{
+  clearTimeout(resizeT);
+  resizeT=setTimeout(()=>{
+    if(GL && activeIndex>=0) mountCellToGL(activeIndex);
+    setActive(centerIndex());
+    updateScrub();
+  }, 120);
+});
+
+// mobile rAF: velocity skew only (light, transform-only)
+function mobileLoop(){
+  requestAnimationFrame(mobileLoop);
+  mobileVelocitySkew();
+}
+
+async function boot(){
+  // set initial active (center) immediately so scroll=0 shows the signature
+  setActive(centerIndex());
+  updateScrub();
+
+  if (isMobile() || REDUCED){
+    if (isMobile() && !REDUCED) mobileLoop();   // CSS-skew fallback
+    // desktop-reduced and mobile both: clean DOM, no WebGL. done.
+    return;
+  }
+
+  const ok = await initGL();
+  if(!ok){ return; }                 // clean DOM-image fallback already in place
+  mountCellToGL(activeIndex);
+
+  // wait for the active texture to be ready, then confirm a painted frame
+  const tex = GL.textures[activeIndex];
+  const start = ()=> confirmPaintThenLoop();
+  if (tex.image && tex.image.complete){ start(); }
+  else {
+    // poll briefly for the first texture to decode, then confirm paint
+    let tries=0;
+    const iv=setInterval(()=>{
+      tries++;
+      if((GL && GL.textures[activeIndex].image && GL.textures[activeIndex].image.width) || tries>40){
+        clearInterval(iv);
+        if(GL) start();
+      }
+    }, 50);
+  }
+}
+
+// boot after first paint so layout is settled and scroll=0 mechanic is visible
+if (document.readyState==='complete' || document.readyState==='interactive'){
+  requestAnimationFrame(()=>requestAnimationFrame(boot));
+} else {
+  window.addEventListener('DOMContentLoaded', ()=>requestAnimationFrame(()=>requestAnimationFrame(boot)));
+}
+</script>
+</body>
+</html>

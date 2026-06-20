@@ -1,0 +1,581 @@
+<!-- TEMPLATE: Magnet Field | ARCHETYPE: magnetic-grid-snap (cursor pulls grid cells, spring-snaps back) | REF: magnetic cursor / element attraction micro-interaction (uxpilot 2026, Wix 2026 motion trends) | WHEN TO USE: a work grid where the playful pull-and-release of the cells IS the interaction - cards lean toward the pointer, neighbors shift in sympathy, a slate aura glows on capture | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>Magnet Field - a work grid the cursor pulls and snaps</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230c0c10'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%237b68ee' stroke-width='2.4'/%3E%3Crect x='12.5' y='12.5' width='7' height='7' rx='1.4' fill='%23f0ece4'/%3E%3C/svg%3E" />
+<meta name="theme-color" content="#0c0c10" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   SWAP CONTENT IN THE JS `DATA` ARRAY NEAR THE TOP OF <script>.
+   Each cell = {id,title,meta,kind,media,poster,ratio,mag}.
+   `mag` (0.6..1.4) scales how strongly that cell is attracted.
+   Everything below is the spring engine + styling.
+   ============================================================ */
+:root{
+  --bg:#0c0c10;            /* near-black field */
+  --bg-2:#0a0a0e;
+  --bone:#f0ece4;          /* bone card face */
+  --bone-2:#e6e0d4;
+  --ink:#0c0c10;
+  --slate:#7b68ee;         /* slate attraction aura */
+  --slate-soft:#9d8fff;
+  --paper:#f5f1ea;
+  --line:rgba(240,236,228,.10);
+  --line-2:rgba(240,236,228,.06);
+  --txt:#f0ece4;
+  --txt-dim:#a7a39a;
+  --txt-faint:#6b6860;
+  --r:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--bg);
+  color:var(--txt);
+  font-family:"Inter",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+  overscroll-behavior-y:none;
+}
+.serif{font-family:"Fraunces",Georgia,serif}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace;font-variant-ligatures:none}
+
+/* the field: near-black with a faint slate grid + corner bloom */
+#field{
+  position:relative;
+  min-height:100%;
+  background-color:var(--bg);
+  background-image:
+    radial-gradient(120% 90% at 18% -10%, rgba(123,104,238,.10), transparent 55%),
+    radial-gradient(120% 90% at 100% 110%, rgba(123,104,238,.07), transparent 60%),
+    linear-gradient(rgba(240,236,228,.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(240,236,228,.022) 1px, transparent 1px);
+  background-size:auto, auto, 44px 44px, 44px 44px;
+}
+
+/* aura canvas: pointer-following slate glow, behind cards */
+#aura{
+  position:fixed; inset:0; width:100%; height:100%;
+  pointer-events:none; z-index:1;
+  mix-blend-mode:screen;
+}
+
+/* ---------- top band: compact, never pushes grid below fold ---------- */
+header{
+  position:relative; z-index:3;
+  padding:26px clamp(18px,4vw,52px) 10px;
+  display:flex; align-items:flex-end; justify-content:space-between; gap:24px;
+  flex-wrap:wrap;
+}
+.brand{display:flex; align-items:baseline; gap:14px}
+.mark{
+  width:30px; height:30px; border-radius:8px; flex:none;
+  border:1.6px solid var(--slate);
+  display:grid; place-items:center;
+  box-shadow:0 0 0 4px rgba(123,104,238,.10), 0 0 22px rgba(123,104,238,.28);
+}
+.mark span{width:11px;height:11px;border-radius:3px;background:var(--bone)}
+h1{
+  font-family:"Fraunces",serif; font-weight:600;
+  font-size:clamp(20px,2.4vw,30px); letter-spacing:-.01em; line-height:1;
+}
+h1 i{font-style:italic; color:var(--slate-soft); font-weight:500}
+.lede{
+  max-width:40ch; color:var(--txt-dim);
+  font-size:clamp(12.5px,1.05vw,14px); line-height:1.5;
+}
+.lede b{color:var(--txt); font-weight:600}
+.hint{
+  font-size:11px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--txt-faint); display:flex; align-items:center; gap:9px;
+}
+.hint .dot{width:6px;height:6px;border-radius:50%;background:var(--slate);box-shadow:0 0 10px var(--slate); animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.6)}}
+
+/* ---------- the magnetic grid ---------- */
+#grid{
+  position:relative; z-index:2;
+  padding:14px clamp(14px,3.4vw,52px) 64px;
+  display:grid;
+  grid-template-columns:repeat(4, 1fr);
+  gap:clamp(14px,1.6vw,24px);
+}
+/* each cell is a spring body. JS writes --tx/--ty/--rz/--lift/--cap. */
+.cell{
+  --tx:0px; --ty:0px; --rz:0deg; --lift:0; --cap:0;
+  position:relative;
+  border-radius:var(--r);
+  transform:translate3d(var(--tx),var(--ty),0) rotate(var(--rz));
+  transition:none; /* driven by rAF; reduced-motion path re-enables below */
+  will-change:transform;
+}
+/* the visible face */
+.face{
+  position:relative; overflow:hidden;
+  border-radius:var(--r);
+  background:var(--bone);
+  border:1px solid rgba(12,12,16,.5);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.5) inset,
+    0 calc(8px + 26px * var(--lift)) calc(20px + 48px * var(--lift)) calc(-10px - 6px * var(--lift)) rgba(0,0,0,calc(.5 + .25 * var(--lift))),
+    0 0 0 calc(1px + 2px * var(--cap)) rgba(123,104,238,calc(.0 + .55 * var(--cap))),
+    0 0 calc(0px + 40px * var(--cap)) rgba(123,104,238,calc(.0 + .4 * var(--cap)));
+}
+/* media wrapper: fixed aspect box so nothing crops oddly */
+.media{
+  position:relative; width:100%; overflow:hidden;
+  background:#16151a;
+  aspect-ratio:4 / 3;
+}
+.cell[data-ratio="square"] .media{aspect-ratio:1 / 1}
+.cell[data-ratio="portrait"] .media{aspect-ratio:3 / 4}
+.cell[data-ratio="wide"] .media{aspect-ratio:16 / 10}
+.media img,.media video{
+  position:absolute; inset:0; width:100%; height:100%;
+  object-fit:cover; display:block;
+  filter:saturate(1.02) contrast(1.02);
+  transform:scale(1.001);
+}
+/* .letterbox marks wide cells; on desktop the 16:10 box matches so cover is fine.
+   The contain/letterbox rule itself is applied only inside the mobile media query
+   below, where the forced 4:3 / 16:10 box would otherwise cover-crop a wide asset. */
+/* slate scrim sweeping in as a cell is captured */
+.media::after{
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(160deg, rgba(123,104,238,.0), rgba(123,104,238,calc(.22*var(--cap))) 70%);
+  mix-blend-mode:screen;
+}
+/* play affordance for video cells */
+.kind{
+  position:absolute; top:10px; left:10px; z-index:2;
+  display:flex; align-items:center; gap:6px;
+  font:600 10.5px/1 "JetBrains Mono",monospace; letter-spacing:.08em;
+  padding:5px 8px; border-radius:999px;
+  color:var(--bone); background:rgba(12,12,16,.5);
+  border:1px solid rgba(240,236,228,.2); backdrop-filter:blur(6px);
+}
+.kind svg{width:9px;height:9px;display:block}
+/* caption stripe on the bone band below the media */
+.cap{
+  padding:11px 13px 13px; background:var(--bone);
+  display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+  color:var(--ink);
+}
+.cap .t{font-family:"Fraunces",serif; font-weight:600; font-size:14.5px; letter-spacing:-.01em; line-height:1.15}
+.cap .m{font:500 10px/1 "JetBrains Mono",monospace; letter-spacing:.05em; color:#6f6a60; white-space:nowrap}
+.idx{
+  position:absolute; bottom:10px; right:11px; z-index:2;
+  font:500 10px/1 "JetBrains Mono",monospace; color:rgba(240,236,228,.7);
+  letter-spacing:.1em; text-shadow:0 1px 3px rgba(0,0,0,.6);
+}
+/* keyboard focus */
+.cell a.hit{position:absolute; inset:0; z-index:4; border-radius:var(--r); outline:none}
+.cell a.hit:focus-visible{box-shadow:0 0 0 2px var(--bg), 0 0 0 4px var(--slate)}
+
+/* footer strip */
+footer{
+  position:relative; z-index:3;
+  padding:18px clamp(18px,4vw,52px) 30px;
+  display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap;
+  border-top:1px solid var(--line);
+  color:var(--txt-faint); font:500 11px/1.4 "JetBrains Mono",monospace; letter-spacing:.08em;
+}
+footer b{color:var(--txt-dim); font-weight:500}
+
+/* ---------- responsive: never crop landscape into a phone column ---------- */
+@media (max-width:1080px){ #grid{grid-template-columns:repeat(3,1fr)} }
+@media (max-width:720px){ #grid{grid-template-columns:repeat(2,1fr)} }
+@media (max-width:640px){
+  header{padding-top:20px}
+  /* two columns, every media forced to a calm landscape box so a portrait or
+     wide asset can never tower over the phone column */
+  .media,.cell[data-ratio] .media{aspect-ratio:4 / 3}
+  /* letterbox the wide-marked assets: in a 4:3 box a 16:10 still would be
+     cover-cropped, so contain it and pad with the field colour instead */
+  .media.letterbox img,.media.letterbox video{object-fit:contain; background:#0e0d12}
+  #grid{gap:12px; padding-left:12px; padding-right:12px}
+  .cap .t{font-size:13px}
+}
+@media (max-width:430px){
+  #grid{grid-template-columns:1fr}
+  /* single column: a 16:10 box matches the wide assets and gently letterboxes
+     the rest, so nothing is cover-cropped on the narrowest phones */
+  .media,.cell[data-ratio] .media{aspect-ratio:16 / 10}
+  .media img,.media video{object-fit:contain; background:#0e0d12}
+  h1{font-size:22px}
+}
+
+/* ---------- reduced motion: kill all translation + rAF transforms,
+     show the final resting grid, keep only a soft static aura glow ---------- */
+@media (prefers-reduced-motion:reduce){
+  .cell{transform:none !important; transition:none !important}
+  #aura{opacity:.5}
+  .face{box-shadow:0 10px 30px -14px rgba(0,0,0,.7), 0 1px 0 rgba(255,255,255,.5) inset !important}
+  .media::after{opacity:0 !important}
+  .hint .dot{animation:none}
+}
+</style>
+</head>
+<body>
+<div id="field">
+  <canvas id="aura" aria-hidden="true"></canvas>
+
+  <header>
+    <div class="brand">
+      <span class="mark"><span></span></span>
+      <div>
+        <h1>Magnet <i>Field</i></h1>
+      </div>
+    </div>
+    <p class="lede"><b>Move the pointer across the grid.</b> Cells lean toward it, neighbors drift in sympathy, then spring back the instant you pull away.</p>
+    <div class="hint"><span class="dot"></span> cursor attraction - release to snap</div>
+  </header>
+
+  <main id="grid" aria-label="Selected work, magnetically responsive"></main>
+
+  <footer>
+    <span><b>Magnet Field</b> / spring-damped verlet, no library</span>
+    <span>inverse-square falloff &middot; ~200px reach &middot; settles in ~2 cycles</span>
+  </footer>
+</div>
+
+<script>
+/* ============================================================
+   DATA - swap these to reskin. One object per grid cell.
+   kind:  "image" | "video"
+   media: path to the asset (poster shown until in-view for video)
+   ratio: "wide" | "square" | "portrait" | "" (default 4:3)
+   mag:   attraction multiplier (heavier feel < 1, springier > 1)
+   ============================================================ */
+const DATA = [
+  { id:"car",     title:"Night Run",       meta:"FLUX / 4K",      kind:"image", ratio:"wide",     media:"../assets/flux-car-4k.png",                                        mag:1.0 },
+  { id:"clinic",  title:"Mint Ward",       meta:"FLUX / interior",kind:"image", ratio:"",         media:"../assets/flux-clinic-4k.png",                                     mag:0.9 },
+  { id:"kling",   title:"Drift Loop",      meta:"KLING / motion", kind:"video", ratio:"wide",     media:"../assets/kling-video.mp4",  poster:"../assets/gen/poster-kling-video.png", mag:1.15 },
+  { id:"fox",     title:"Autumn Fox",      meta:"SDXL / paint",   kind:"image", ratio:"square",   media:"../assets/sdxl.png",                                               mag:1.0 },
+  { id:"veo",     title:"Long Take",       meta:"VEO / cinema",   kind:"video", ratio:"",         media:"../assets/veo-video.mp4",    poster:"../assets/gen/poster-veo-video.png",   mag:1.1 },
+  { id:"apple",   title:"Lo-Fi Apple",     meta:"TinySD / study", kind:"image", ratio:"square",   media:"../assets/hf-tinysd.png",                                          mag:1.3 },
+  { id:"fal",     title:"Bloom",           meta:"FAL / loop",     kind:"video", ratio:"square",   media:"../assets/fal-video.mp4",    poster:"../assets/gen/poster-fal-video.png",   mag:1.2 },
+  { id:"i2v",     title:"Car, In Motion",  meta:"FLUX i2v",       kind:"video", ratio:"wide",     media:"../assets/flux-car-i2v.mp4",  poster:"../assets/gen/poster-flux-car-i2v.png", mag:0.85 },
+  { id:"hyper",   title:"Hyperframes",     meta:"interp / 60fps", kind:"video", ratio:"",         media:"../assets/hyperframes.mp4",  poster:"../assets/gen/poster-hyperframes.png", mag:1.25 },
+  { id:"heygen",  title:"Avatar Take",     meta:"HEYGEN / talk",  kind:"video", ratio:"portrait", media:"../assets/heygen-avatar.mp4", poster:"../assets/gen/poster-heygen.png",      mag:1.0 },
+  { id:"did",     title:"Talking Photo",   meta:"D-ID / portrait",kind:"video", ratio:"portrait", media:"../assets/did-talking-photo.mp4", poster:"../assets/gen/poster-did.png",     mag:1.05 },
+  { id:"clinic2", title:"Wood & Mint",     meta:"FLUX / detail",  kind:"image", ratio:"wide",     media:"../assets/flux-clinic-4k.png",                                     mag:0.95 },
+];
+
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const isTouch = window.matchMedia("(hover: none), (pointer: coarse)").matches;
+
+/* ---------- build the DOM ---------- */
+const grid = document.getElementById("grid");
+const cells = [];
+DATA.forEach((d, i) => {
+  const cell = document.createElement("article");
+  cell.className = "cell";
+  if (d.ratio) cell.dataset.ratio = d.ratio;
+
+  // mark wide assets so the mobile media query can letterbox them (avoids cover-crop)
+  const lb = d.ratio === "wide" ? " letterbox" : "";
+  const mediaInner = d.kind === "video"
+    ? `<img class="poster" src="${d.poster}" alt="${d.title} preview" loading="lazy" decoding="async" />
+       <video data-src="${d.media}" ${d.poster?`poster="${d.poster}"`:""} muted loop playsinline preload="none" aria-hidden="true"></video>`
+    : `<img src="${d.media}" alt="${d.title}" loading="${i<6?"eager":"lazy"}" decoding="async" />`;
+
+  const tag = d.kind === "video"
+    ? `<span class="kind"><svg viewBox="0 0 10 10"><path d="M2 1.2 L8.4 5 L2 8.8 Z" fill="currentColor"/></svg>${d.meta.split(" / ")[0]}</span>`
+    : `<span class="kind"><svg viewBox="0 0 10 10"><rect x="1" y="2" width="8" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1.1"/><circle cx="3.4" cy="4.2" r=".8" fill="currentColor"/></svg>STILL</span>`;
+
+  cell.innerHTML =
+    `<div class="face">
+       <div class="media${lb}">
+         ${mediaInner}
+         ${tag}
+         <span class="idx">${String(i+1).padStart(2,"0")} / ${String(DATA.length).padStart(2,"0")}</span>
+       </div>
+       <div class="cap">
+         <span class="t">${d.title}</span>
+         <span class="m">${d.meta}</span>
+       </div>
+       <a class="hit" href="#${d.id}" aria-label="${d.title}, ${d.meta}"></a>
+     </div>`;
+  grid.appendChild(cell);
+
+  cells.push({
+    el: cell, data: d,
+    // spring state (verlet): current + previous offset in px, plus rotation
+    x:0, y:0, px:0, py:0, rz:0, prz:0,
+    // home + size cached per frame layout
+    cx:0, cy:0, hw:0, hh:0,
+    cap:0, lift:0, vid: cell.querySelector("video"),
+    poster: cell.querySelector(".poster"),
+  });
+});
+
+/* ---------- video: only the focused/hovered cell plays; rest = poster ----------
+   several heavy mp4s on one stage must not decode at once. */
+let activeVid = null;
+function playOnly(rec){
+  if (reduceMotion) return;
+  if (activeVid === rec) return;
+  if (activeVid){ const v = activeVid.vid; if (v){ v.pause(); } activeVid = null; }
+  if (rec && rec.vid){
+    const v = rec.vid;
+    if (!v.dataset.loaded){ v.src = v.dataset.src; v.dataset.loaded = "1"; v.load(); }
+    v.style.opacity = "1"; v.style.position="absolute"; v.style.zIndex="1";
+    const p = v.play(); if (p && p.catch) p.catch(()=>{});
+    activeVid = rec;
+  }
+}
+// pause videos entirely when the grid scrolls out of view
+const io = new IntersectionObserver((ents)=>{
+  ents.forEach(e=>{ if(!e.isIntersecting && activeVid && activeVid.el===e.target){ const v=activeVid.vid; if(v)v.pause(); activeVid=null; }});
+},{threshold:0.1});
+
+/* ---------- layout cache: recompute home centers on resize/scroll ---------- */
+function measure(){
+  for (const c of cells){
+    const r = c.el.getBoundingClientRect();
+    // store the *rest* center (subtract current transform so home is stable)
+    c.cx = r.left + r.width/2 - c.x;
+    c.cy = r.top + r.height/2 - c.y;
+    c.hw = r.width; c.hh = r.height;
+    io.observe(c.el);
+  }
+}
+window.addEventListener("resize", measure, { passive:true });
+window.addEventListener("scroll", measure, { passive:true });
+
+/* ---------- pointer ---------- */
+const pointer = { x: innerWidth*0.5, y: innerHeight*0.5, active:false, down:false };
+
+/* ---------- the spring + magnet engine ----------
+   Per frame:
+   1. compute target pull = (pointer - home) * inverseSquareFalloff * strength
+   2. neighbors get a softened sympathy pull (fraction of the nearest pull)
+   3. verlet integrate: x += (x - px) * (1-damping) + (target - x) * stiffness
+   On release the target collapses to 0, the spring carries it home, settling
+   in ~2 cycles thanks to the damping ratio below. */
+const REACH = 200;          // px radius of influence (falloff -> 0 here)
+const STIFF = 0.16;         // pull-to-target stiffness (k)
+const DAMP  = 0.74;         // velocity retention -> damping ratio ~ critical-ish
+const MAXPULL = 46;         // px clamp so a cell never detaches wildly
+const SYMPATHY = 0.34;      // neighbor share of the strongest local pull
+
+let captureGlow = 0;        // aura ring growth 0..1, eased toward target
+
+function falloff(dist){
+  if (dist >= REACH) return 0;
+  const n = 1 - dist / REACH;      // 1 near -> 0 at reach
+  return n * n;                    // inverse-square-ish
+}
+
+let raf = 0;
+function tick(){
+  let strongest = 0;
+
+  // pass 1: direct magnet pull toward pointer
+  for (const c of cells){
+    let tx = 0, ty = 0, trz = 0;
+    if (pointer.active){
+      const dx = pointer.x - c.cx;
+      const dy = pointer.y - c.cy;
+      const dist = Math.hypot(dx, dy);
+      const f = falloff(dist) * (c.data.mag || 1);
+      if (f > 0){
+        tx = Math.max(-MAXPULL, Math.min(MAXPULL, dx * f * 0.5));
+        ty = Math.max(-MAXPULL, Math.min(MAXPULL, dy * f * 0.5));
+        trz = (dx * f) * 0.02;     // slight lean toward the cursor
+        if (f > strongest) strongest = f;
+      }
+    }
+    c.tx = tx; c.ty = ty; c.trz = trz; c.f = pointer.active ? falloff(Math.hypot(pointer.x-c.cx, pointer.y-c.cy)) : 0;
+  }
+
+  // pass 2: sympathy - the cell nearest the pointer nudges its grid neighbors.
+  // cheap O(n): every cell with a real pull lends a fraction to cells within ~1.6 cell-widths.
+  if (pointer.active){
+    for (const c of cells){
+      if (c.f <= 0.02) continue;
+      for (const n of cells){
+        if (n === c || n.f > c.f) continue;
+        const gx = n.cx - c.cx, gy = n.cy - c.cy;
+        const gd = Math.hypot(gx, gy);
+        const span = (c.hw + c.hh) * 0.8;
+        if (gd > 0 && gd < span){
+          const share = SYMPATHY * (1 - gd/span) * c.f;
+          n.tx += c.tx * share;
+          n.ty += c.ty * share;
+        }
+      }
+    }
+  }
+
+  // pass 3: verlet integrate every cell toward its target, write CSS vars
+  for (const c of cells){
+    const tx = c.tx || 0, ty = c.ty || 0, trz = c.trz || 0;
+
+    let vx = (c.x - c.px) * DAMP;
+    let vy = (c.y - c.py) * DAMP;
+    let vr = (c.rz - c.prz) * DAMP;
+    c.px = c.x; c.py = c.y; c.prz = c.rz;
+    c.x += vx + (tx - c.x) * STIFF;
+    c.y += vy + (ty - c.y) * STIFF;
+    c.rz += vr + (trz - c.rz) * STIFF;
+
+    // capture / lift response from how strong this cell's pull is
+    const targetCap = Math.min(1, c.f * 1.5);
+    c.cap += (targetCap - c.cap) * 0.18;
+    const speed = Math.min(1, (Math.abs(vx)+Math.abs(vy)) / 14);
+    c.lift += (Math.min(1, targetCap*0.7 + speed*0.5) - c.lift) * 0.18;
+
+    // snap tiny residuals to true zero so it visibly settles (no infinite jitter)
+    if (Math.abs(c.x) < 0.04 && Math.abs(vx) < 0.04) c.x = 0;
+    if (Math.abs(c.y) < 0.04 && Math.abs(vy) < 0.04) c.y = 0;
+    if (Math.abs(c.rz) < 0.002) c.rz = 0;
+    if (c.cap < 0.003) c.cap = 0;
+    if (c.lift < 0.003) c.lift = 0;
+
+    const s = c.el.style;
+    s.setProperty("--tx", c.x.toFixed(2)+"px");
+    s.setProperty("--ty", c.y.toFixed(2)+"px");
+    s.setProperty("--rz", c.rz.toFixed(3)+"deg");
+    s.setProperty("--lift", c.lift.toFixed(3));
+    s.setProperty("--cap", c.cap.toFixed(3));
+  }
+
+  // aura ring eases toward the strongest current capture
+  captureGlow += (Math.min(1, strongest*1.4) - captureGlow) * 0.12;
+  drawAura();
+
+  raf = requestAnimationFrame(tick);
+}
+
+/* ---------- aura canvas: slate glow that follows the pointer and
+     grows a ring as a card is captured ---------- */
+const canvas = document.getElementById("aura");
+const ctx = canvas.getContext("2d");
+let DPR = Math.min(2, window.devicePixelRatio || 1);
+function sizeCanvas(){
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = Math.floor(innerWidth * DPR);
+  canvas.height = Math.floor(innerHeight * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+sizeCanvas();
+window.addEventListener("resize", sizeCanvas, { passive:true });
+
+function drawAura(){
+  ctx.clearRect(0, 0, innerWidth, innerHeight);
+  if (!pointer.active) return;
+  const x = pointer.x, y = pointer.y;
+  const g = captureGlow;
+
+  // soft field glow
+  const baseR = 120 + g * 90;
+  const grad = ctx.createRadialGradient(x, y, 0, x, y, baseR);
+  grad.addColorStop(0, `rgba(123,104,238,${0.16 + 0.22*g})`);
+  grad.addColorStop(0.5, `rgba(123,104,238,${0.06 + 0.10*g})`);
+  grad.addColorStop(1, "rgba(123,104,238,0)");
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.arc(x, y, baseR, 0, Math.PI*2); ctx.fill();
+
+  // attraction ring - grows + brightens on capture
+  const ringR = 16 + g * 30;
+  ctx.lineWidth = 1.4 + g * 2.6;
+  ctx.strokeStyle = `rgba(157,143,255,${0.4 + 0.5*g})`;
+  ctx.shadowColor = "rgba(123,104,238,0.8)";
+  ctx.shadowBlur = 10 + g * 26;
+  ctx.beginPath(); ctx.arc(x, y, ringR, 0, Math.PI*2); ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // tiny core dot
+  ctx.fillStyle = `rgba(240,236,228,${0.55 + 0.4*g})`;
+  ctx.beginPath(); ctx.arc(x, y, 2.4 + g*1.5, 0, Math.PI*2); ctx.fill();
+}
+
+/* ---------- input wiring ---------- */
+function setPointer(cx, cy){ pointer.x = cx; pointer.y = cy; pointer.active = true; }
+
+if (!isTouch){
+  window.addEventListener("pointermove", (e)=>{
+    setPointer(e.clientX, e.clientY);
+    // focus the video under the strongest pull
+    focusUnderPointer();
+  }, { passive:true });
+  window.addEventListener("pointerleave", ()=>{ pointer.active = false; });
+  window.addEventListener("blur", ()=>{ pointer.active = false; });
+}
+
+// touch: a touch-start simulates attraction centered on the touched cell
+if (isTouch){
+  grid.addEventListener("touchstart", (e)=>{
+    const t = e.touches[0]; if(!t) return;
+    setPointer(t.clientX, t.clientY);
+    const cell = e.target.closest(".cell");
+    if (cell){ const rec = cells.find(c=>c.el===cell); if(rec) playOnly(rec); }
+  }, { passive:true });
+  grid.addEventListener("touchmove", (e)=>{
+    const t = e.touches[0]; if(!t) return; setPointer(t.clientX, t.clientY);
+  }, { passive:true });
+  grid.addEventListener("touchend", ()=>{ pointer.active = false; }, { passive:true });
+}
+
+// keyboard: focusing a cell seeds the pointer over it (aura + pull on tab)
+cells.forEach(rec=>{
+  const a = rec.el.querySelector("a.hit");
+  a.addEventListener("focus", ()=>{
+    const r = rec.el.getBoundingClientRect();
+    setPointer(r.left + r.width/2, r.top + r.height/2);
+    playOnly(rec);
+  });
+});
+
+let focusRAFlock = false;
+function focusUnderPointer(){
+  if (reduceMotion || focusRAFlock) return;
+  focusRAFlock = true;
+  requestAnimationFrame(()=>{
+    let best = null, bf = 0.2;
+    for (const c of cells){
+      if (c.f > bf){ bf = c.f; best = c; }
+    }
+    if (best) playOnly(best);
+    focusRAFlock = false;
+  });
+}
+
+/* ---------- boot ---------- */
+function boot(){
+  measure();
+
+  // SEED: place the pointer over the first cell so the scroll=0 thumbnail
+  // already shows the aura + a live pull on cell 01.
+  const first = cells[0];
+  if (first){
+    const r = first.el.getBoundingClientRect();
+    setPointer(r.left + r.width*0.62, r.top + r.height*0.5);
+    if (!isTouch && !reduceMotion) playOnly(first);
+  }
+
+  if (reduceMotion){
+    // static final state: no rAF, no transforms, aura drawn once softly.
+    drawAura();
+    return;
+  }
+  raf = requestAnimationFrame(tick);
+}
+
+// fonts/layout settle then boot
+if (document.readyState === "complete") requestAnimationFrame(()=>requestAnimationFrame(boot));
+else window.addEventListener("load", ()=>requestAnimationFrame(()=>requestAnimationFrame(boot)));
+// also measure once images start arriving so home centers are right
+window.addEventListener("DOMContentLoaded", ()=>{ requestAnimationFrame(()=>{ measure(); }); });
+</script>
+</body>
+</html>

@@ -36,10 +36,10 @@ for his future-project library. He will review them all when he wakes.
 6. LAUNCH THE NEXT BATCH. Do not end the turn without the next Workflow launched.
 
 ## STATE (update each batch; _manifest.json is the source of truth)
-- 66 templates LIVE + cataloged (originals v2/v3/v4 + batches 1-12). Deploy = rsync showcase/templates/ -> /tmp/reel-deploy/templates/ then commit+push (Kinzen-dev).
-- Batch 13 IN FLIGHT (wf, build+verify): fluid-xray-reveal + corridor-walk (both WebGL/three.js - extra WebGL-paint scrutiny; verify the canvas paints a non-blank frame + preserveDrawingBuffer).
-- Batch 14 fuel: a backlog-refresh is running now to top up `_backlog-refresh.json` (it was down to the 2 in-flight WebGL).
-- Rate-limit recovery drill (happened twice now): builds land on disk even when the verify stage is rate-limited -> check disk + re-run `_verify-workflow.js` on the existing slugs, then qa-harness + judge + catalog as normal.
+- 68 templates LIVE + cataloged (originals v2/v3/v4 + batches 1-13). Deploy = rsync showcase/templates/ -> /tmp/reel-deploy/templates/ then commit+push (Kinzen-dev).
+- Batch 14 IN FLIGHT (wf, build+verify): ascii-rasterizer, kinetic-broken-grid, anchor-annotated-index, magnetic-grid-snap, horizontal-parallax-shader (1 WebGL).
+- Batch 15 fuel (in `_backlog-refresh.json`, NOT built): gravity-image-trail, ripple-click-canvas, depth-map-tilt, procedural-bezier-ribbon, noise-displacement-hover, typewriter-reveal-grid (+ page-morph-barba WebGL). Refresh again when it runs low.
+- Rate-limit recovery drill (happened twice): builds land on disk even when the verify stage is rate-limited -> check disk + re-run `_verify-workflow.js` on the existing slugs, then qa-harness + judge + catalog as normal.
 - SVG gotcha (cost 3 failed fixes on blind-mask-wipe, found by DOM probe): fill/stroke = var(--x) as an SVG presentation attribute does NOT resolve -> shape invisible; use hex or element.style. Lesson now in _batch-workflow verify prompt.
 - Recurring defect to watch: build agents make a title-only hero and hide the signature below the fold. Workflow now has a "FIRST-VIEWPORT SIGNATURE at scroll=0" rule (build + verify). Judge every thumbnail for it.
 - WebGL gotcha (cost me a long debug on dithered-lo-fi): GLSL ES 1.0 local float[] with dynamic index returns 0 on ANGLE -> all-paper; use a LUT texture + preserveDrawingBuffer:true for screenshot-stable thumbs. _batch-workflow verify prompt now warns about this.

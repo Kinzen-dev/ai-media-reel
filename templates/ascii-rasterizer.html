@@ -1,0 +1,758 @@
+<!-- TEMPLATE: ASCII Reel | ARCHETYPE: ASCII REEL | REF: ASCII canvas rasterizer (Codrops GLSL archive), CSS Design Awards generative-art 2026, Godly character-grid portfolios | WHEN TO USE: portfolio / gallery / studio index where every image+video is rendered live as a phosphor-green character raster, hover brightens cells, click flips to the raw color image with a scan-line wipe | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ASCII REEL // character-raster gallery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   ASCII REEL  -  data-driven character-raster gallery
+   Every work is drawn to a tiny offscreen canvas, each cell's
+   luminance is mapped to a glyph from DENSITY and painted as
+   phosphor-green text. Hover brightens, click flips to the raw
+   color image with a scan-line wipe. Pure Canvas 2D, no WebGL.
+   To reuse: edit the DATA array at the very top of <script>.
+   ============================================================ */
+:root{
+  --void:#0d0d0d;
+  --void-2:#080808;
+  --phosphor:#e8f5e9;
+  --phosphor-dim:#3a5a3f;
+  --phosphor-mid:#6fae7a;
+  --amber:#ffcf6e;
+  --hair:rgba(232,245,233,.12);
+  --hair-2:rgba(232,245,233,.22);
+  --edge:clamp(16px,4vw,56px);
+  --gap:clamp(14px,2vw,30px);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--void);
+  color:var(--phosphor);
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  line-height:1.4;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+/* phosphor scanline veil + subtle vignette over the whole shell */
+body::after{
+  content:"";position:fixed;inset:0;z-index:9000;pointer-events:none;
+  background:
+    repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 1px,transparent 1px 3px),
+    radial-gradient(120% 90% at 50% 0%,transparent 55%,rgba(0,0,0,.55) 100%);
+  mix-blend-mode:multiply;opacity:.6;
+}
+::selection{background:var(--phosphor);color:var(--void)}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:2px solid var(--phosphor);outline-offset:3px;border-radius:2px}
+button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer}
+
+/* ============================================================ MASTHEAD ============================================================ */
+header.mast{
+  position:sticky;top:0;z-index:120;
+  background:linear-gradient(180deg,var(--void) 60%,rgba(13,13,13,.7));
+  border-bottom:1px solid var(--hair);
+  padding:14px var(--edge) 12px;
+  display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  backdrop-filter:blur(6px);
+}
+.mast .brand{font-weight:700;letter-spacing:.18em;font-size:13px;white-space:nowrap}
+.mast .brand .cur{color:var(--phosphor);animation:blink 1.05s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.mast .meta{font-size:11px;color:var(--phosphor-mid);letter-spacing:.06em;white-space:nowrap}
+.mast .spacer{flex:1 1 auto}
+/* live resolution control */
+.res-ctl{display:flex;align-items:center;gap:10px;font-size:11px;letter-spacing:.08em;color:var(--phosphor-mid)}
+.res-ctl label{white-space:nowrap;text-transform:uppercase}
+.res-ctl input[type=range]{
+  -webkit-appearance:none;appearance:none;width:120px;height:3px;
+  background:var(--hair-2);border-radius:2px;outline-offset:5px;cursor:pointer;
+}
+.res-ctl input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;width:13px;height:13px;border-radius:50%;
+  background:var(--phosphor);box-shadow:0 0 8px rgba(232,245,233,.6);cursor:pointer;
+}
+.res-ctl input[type=range]::-moz-range-thumb{
+  width:13px;height:13px;border:none;border-radius:50%;
+  background:var(--phosphor);box-shadow:0 0 8px rgba(232,245,233,.6);cursor:pointer;
+}
+.res-ctl .val{color:var(--phosphor);min-width:42px;text-align:right;font-variant-numeric:tabular-nums}
+
+/* ============================================================ HERO BAND (compact, sits ABOVE the grid) ============================================================ */
+.hero{
+  padding:clamp(20px,4vw,44px) var(--edge) clamp(14px,2.4vw,26px);
+  border-bottom:1px solid var(--hair);
+  position:relative;
+}
+.hero h1{
+  font-family:"Space Grotesk",sans-serif;
+  font-weight:700;
+  font-size:clamp(30px,7vw,76px);
+  line-height:.96;letter-spacing:-.02em;
+  max-width:18ch;
+}
+.hero h1 .glow{color:var(--phosphor);text-shadow:0 0 18px rgba(232,245,233,.35)}
+.hero h1 .out{color:transparent;-webkit-text-stroke:1px var(--phosphor-mid)}
+.hero p{
+  margin-top:14px;max-width:62ch;font-size:clamp(12px,1.5vw,14.5px);
+  color:var(--phosphor-mid);line-height:1.55;
+}
+.hero .hint{
+  margin-top:14px;display:inline-flex;gap:9px;align-items:center;
+  font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--phosphor-dim);
+}
+.hero .hint b{color:var(--amber);font-weight:600}
+.hero .ticker{
+  position:absolute;right:var(--edge);top:50%;transform:translateY(-50%);
+  font-size:10px;color:var(--phosphor-dim);text-align:right;letter-spacing:.05em;
+  line-height:1.7;display:none;
+}
+@media(min-width:1080px){.hero .ticker{display:block}}
+
+/* ============================================================ REEL GRID ============================================================ */
+.reel{
+  padding:var(--gap) var(--edge) clamp(60px,8vw,110px);
+  display:grid;gap:var(--gap);
+  grid-template-columns:repeat(auto-fill,minmax(330px,1fr));
+}
+@media(max-width:640px){.reel{grid-template-columns:1fr;gap:18px}}
+
+.work{
+  position:relative;
+  background:var(--void-2);
+  border:1px solid var(--hair);
+  border-radius:4px;
+  overflow:hidden;
+  display:flex;flex-direction:column;
+}
+.work:focus-within,.work.lit{border-color:var(--hair-2)}
+.work.flipped{border-color:rgba(232,245,233,.4)}
+
+/* stage holds the canvas + the hidden color image; aspect kept landscape, letterboxed */
+.stage{
+  position:relative;width:100%;aspect-ratio:16/10;background:#000;
+  cursor:crosshair;overflow:hidden;
+}
+@media(max-width:640px){.stage{aspect-ratio:16/11}}
+.stage canvas{
+  position:absolute;inset:0;width:100%;height:100%;display:block;
+  image-rendering:pixelated;
+}
+/* the raw media revealed on click, masked by the scan-line wipe */
+.stage .reveal{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:contain;background:#000;
+  opacity:0;pointer-events:none;
+  clip-path:inset(0 0 100% 0);
+  transition:clip-path .62s cubic-bezier(.2,.75,.2,1),opacity .18s linear;
+  z-index:2;
+}
+.work.flipped .stage .reveal{opacity:1;clip-path:inset(0 0 0% 0)}
+/* scan-line bar that travels with the wipe */
+.stage .scanbar{
+  position:absolute;left:0;right:0;height:2px;top:0;z-index:3;
+  background:linear-gradient(90deg,transparent,var(--phosphor),transparent);
+  box-shadow:0 0 14px 2px rgba(232,245,233,.7);
+  opacity:0;pointer-events:none;
+  transition:top .62s cubic-bezier(.2,.75,.2,1),opacity .2s linear;
+}
+.work.flipped .stage .scanbar{opacity:1;top:100%}
+/* video poster sits under reveal video until played */
+.stage video.reveal{}
+
+/* corner readout overlay on the stage */
+.stage .readout{
+  position:absolute;left:8px;top:7px;z-index:4;pointer-events:none;
+  font-size:9.5px;letter-spacing:.12em;color:var(--phosphor-mid);
+  text-transform:uppercase;text-shadow:0 1px 3px #000;
+  display:flex;gap:8px;align-items:center;
+}
+.stage .readout .dot{width:6px;height:6px;border-radius:50%;background:var(--phosphor-dim);box-shadow:0 0 6px var(--phosphor-dim)}
+.work.lit .stage .readout .dot{background:var(--phosphor);box-shadow:0 0 8px var(--phosphor)}
+.work.flipped .stage .readout .dot{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+.stage .badge{
+  position:absolute;right:8px;top:7px;z-index:4;pointer-events:none;
+  font-size:9px;letter-spacing:.1em;color:var(--phosphor-dim);
+  border:1px solid var(--hair);border-radius:99px;padding:2px 8px;
+  background:rgba(8,8,8,.55);text-transform:uppercase;
+}
+.stage .prompt{
+  position:absolute;left:0;right:0;bottom:0;z-index:4;pointer-events:none;
+  padding:18px 10px 8px;font-size:10px;letter-spacing:.08em;color:var(--phosphor-mid);
+  text-transform:uppercase;
+  background:linear-gradient(0deg,rgba(8,8,8,.82),transparent);
+  display:flex;justify-content:space-between;gap:10px;
+  transition:opacity .2s;
+}
+.work.flipped .stage .prompt{opacity:0}
+.stage .prompt b{color:var(--amber);font-weight:600}
+
+/* caption strip below stage */
+.cap{
+  padding:12px 14px 13px;display:flex;flex-direction:column;gap:5px;
+  border-top:1px solid var(--hair);
+}
+.cap .row{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.cap h3{
+  font-family:"Space Grotesk",sans-serif;font-weight:500;font-size:15px;
+  letter-spacing:-.01em;color:var(--phosphor);
+}
+.cap .idx{font-size:10px;color:var(--phosphor-dim);letter-spacing:.1em;font-variant-numeric:tabular-nums}
+.cap .sub{font-size:11px;color:var(--phosphor-mid);letter-spacing:.02em;line-height:1.45}
+.cap .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:3px}
+.cap .tag{
+  font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--phosphor-dim);
+  border:1px solid var(--hair);border-radius:3px;padding:2px 7px;
+}
+
+/* ============================================================ FOOTER ============================================================ */
+footer{
+  border-top:1px solid var(--hair);
+  padding:30px var(--edge) 60px;
+  display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;
+  font-size:11px;color:var(--phosphor-dim);letter-spacing:.06em;
+}
+footer .big{
+  font-family:"Space Grotesk",sans-serif;font-size:clamp(20px,4vw,40px);
+  color:var(--phosphor-mid);letter-spacing:-.01em;max-width:24ch;font-weight:500;
+}
+footer a{border-bottom:1px solid var(--hair-2);color:var(--phosphor-mid)}
+footer a:hover{color:var(--phosphor)}
+
+/* reduced motion: no blink, no wipe transition (handled in JS), no scanline shimmer */
+@media(prefers-reduced-motion:reduce){
+  .mast .brand .cur{animation:none}
+  .stage .reveal{transition:none}
+  .stage .scanbar{transition:none;display:none}
+  body::after{background:radial-gradient(120% 90% at 50% 0%,transparent 55%,rgba(0,0,0,.55) 100%)}
+}
+</style>
+</head>
+<body>
+<script>
+/* ============================================================
+   DATA  -  edit this array to reskin the whole gallery.
+   type: "image" -> src is a still; "video" -> src is an mp4
+   loop, poster is the still used to rasterize + as fallback.
+   ratio is purely cosmetic for the readout line.
+   All paths are relative to this file in /templates/.
+   ============================================================ */
+const DATA = [
+  {
+    type:"image", title:"NOCTURNE / CLS",
+    src:"../assets/flux-car-4k.png",
+    model:"FLUX.1", ratio:"16:10", kind:"STILL",
+    sub:"Matte-black coupe on a rain-slick neon arterial. Reflection-heavy plate, chosen as cell zero.",
+    tags:["flux","automotive","neon"]
+  },
+  {
+    type:"image", title:"MINT THEATRE",
+    src:"../assets/flux-clinic-4k.png",
+    model:"FLUX.1", ratio:"16:10", kind:"STILL",
+    sub:"Mint-and-wood dental suite. Soft volumes resolve into broad glyph gradients.",
+    tags:["flux","interior","brand"]
+  },
+  {
+    type:"video", title:"DRIVE-BY / I2V",
+    src:"../assets/flux-car-i2v.mp4",
+    poster:"../assets/gen/poster-flux-car-i2v.png",
+    model:"FLUX i2v", ratio:"16:9", kind:"LOOP",
+    sub:"Image-to-video pass on the coupe. Click reveals the moving plate behind the raster.",
+    tags:["i2v","motion","loop"]
+  },
+  {
+    type:"image", title:"AUTUMN FOX",
+    src:"../assets/sdxl.png",
+    model:"SDXL", ratio:"1:1", kind:"STILL",
+    sub:"Painterly fox in leaf-light. High local contrast makes the densest glyphs pop.",
+    tags:["sdxl","painterly","character"]
+  },
+  {
+    type:"video", title:"KLING / FLOW",
+    src:"../assets/kling-video.mp4",
+    poster:"../assets/gen/poster-kling-video.png",
+    model:"Kling", ratio:"16:9", kind:"LOOP",
+    sub:"Cinematic generative loop. Rasterized from its poster, reveals to full motion on click.",
+    tags:["kling","cinematic","loop"]
+  },
+  {
+    type:"image", title:"LOW-FI APPLE",
+    src:"../assets/hf-tinysd.png",
+    model:"Tiny-SD", ratio:"1:1", kind:"STILL",
+    sub:"Abstract apple from a tiny diffusion model. Coarse forms read cleanly as characters.",
+    tags:["tiny-sd","abstract","study"]
+  },
+  {
+    type:"video", title:"VEO / SCENE",
+    src:"../assets/veo-video.mp4",
+    poster:"../assets/gen/poster-veo-video.png",
+    model:"Veo", ratio:"16:9", kind:"LOOP",
+    sub:"Long-form text-to-video sample. The raster holds the frame until you flip it.",
+    tags:["veo","t2v","loop"]
+  },
+  {
+    type:"video", title:"FAL / BURST",
+    src:"../assets/fal-video.mp4",
+    poster:"../assets/gen/poster-fal-video.png",
+    model:"fal", ratio:"16:9", kind:"LOOP",
+    sub:"Short high-energy loop. Bright cores light the brightest glyph band on hover.",
+    tags:["fal","energetic","loop"]
+  }
+];
+
+/* density ramp: darkest -> brightest. First char is "empty" void. */
+const DENSITY = " .:-=+*#%@";
+/* extra-rich ramp option kept for tuning: " .'`^,:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$" ; */
+
+const RM = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+/* global cell pixel size (drives grid resolution). Lower = denser grid. */
+let CELL = 7;           // px per character cell at the rendered canvas scale
+const MAX_SAMPLE = 200; // offscreen resample cap per work (guardrail)
+
+/* ---------- build the DOM from DATA ---------- */
+function el(tag, cls, html){ const e=document.createElement(tag); if(cls)e.className=cls; if(html!=null)e.innerHTML=html; return e; }
+
+const works = []; // controller objects
+
+function buildShell(){
+  const mast = el('header','mast');
+  mast.innerHTML = `
+    <div class="brand">ASCII&nbsp;REEL<span class="cur">_</span></div>
+    <div class="meta">CHAR-RASTER GALLERY // CANVAS 2D</div>
+    <div class="spacer"></div>
+    <div class="res-ctl">
+      <label for="res">GRID</label>
+      <input id="res" type="range" min="4" max="14" step="1" value="7" aria-label="Character grid resolution, lower is denser">
+      <span class="val" id="resval">7px</span>
+    </div>`;
+  document.body.appendChild(mast);
+
+  const hero = el('section','hero');
+  hero.innerHTML = `
+    <h1><span class="glow">EVERY&nbsp;FRAME</span><br><span class="out">IS A</span> <span class="glow">RASTER</span> <span class="out">OF</span> <span class="glow">CHARACTERS.</span></h1>
+    <p>A live character-raster index. Each work is drawn to a tiny offscreen canvas, every cell's brightness mapped to a glyph and painted in phosphor green. Move the cursor to brighten cells. Click any work to flip it to the raw color image with a scan-line wipe.</p>
+    <div class="hint">CURSOR = <b>DENSITY</b> &nbsp;//&nbsp; CLICK = <b>REVEAL</b> &nbsp;//&nbsp; SLIDER = <b>RESOLUTION</b></div>
+    <div class="ticker">SRC: offscreen &le;200&times;200<br>MAP: luminance &rarr; "${DENSITY.trim()}"<br>OUT: 2D fillText / rAF</div>`;
+  document.body.appendChild(hero);
+
+  const reel = el('section','reel');
+  reel.setAttribute('aria-label','Works, rendered as character rasters');
+  DATA.forEach((d,i)=> reel.appendChild(buildWork(d,i)) );
+  document.body.appendChild(reel);
+
+  const foot = el('footer');
+  foot.innerHTML = `
+    <div class="big">The image was always made of light. We just renamed the pixels.</div>
+    <div>
+      <div>ASCII REEL // template</div>
+      <div>swap the <a href="#" onclick="return false">DATA</a> array to reskin</div>
+      <div style="margin-top:8px;color:var(--phosphor-dim)">Canvas 2D &middot; no WebGL &middot; no libs</div>
+    </div>`;
+  document.body.appendChild(foot);
+}
+
+function buildWork(d,i){
+  const work = el('article','work');
+  work.dataset.index=i;
+  const idx = String(i+1).padStart(2,'0');
+
+  const stage = el('div','stage');
+  stage.setAttribute('role','button');
+  stage.setAttribute('tabindex','0');
+  stage.setAttribute('aria-label', d.title + ' - press to reveal the full-color image');
+  stage.setAttribute('aria-pressed','false');
+
+  const canvas = el('canvas');
+  canvas.setAttribute('aria-hidden','true');
+  stage.appendChild(canvas);
+
+  // reveal media (image or video) - hidden until flip
+  let reveal;
+  if(d.type==='video'){
+    reveal = el('video','reveal');
+    reveal.muted=true; reveal.loop=true; reveal.playsInline=true;
+    reveal.setAttribute('playsinline','');
+    reveal.setAttribute('preload','none');
+    reveal.poster = d.poster || '';
+  } else {
+    reveal = el('img','reveal');
+    reveal.alt = d.title + ' - full color';
+    reveal.decoding='async';
+  }
+  stage.appendChild(reveal);
+
+  const scanbar = el('div','scanbar'); stage.appendChild(scanbar);
+
+  stage.appendChild(el('div','readout',`<span class="dot"></span>WORK ${idx} // ${d.model}`));
+  stage.appendChild(el('div','badge', d.kind));
+  stage.appendChild(el('div','prompt',`<span>${d.ratio} SOURCE</span><span><b>CLICK</b> TO REVEAL</span>`));
+
+  work.appendChild(stage);
+
+  const cap = el('div','cap');
+  cap.innerHTML = `
+    <div class="row"><h3>${d.title}</h3><span class="idx">${idx} / ${String(DATA.length).padStart(2,'0')}</span></div>
+    <div class="sub">${d.sub}</div>
+    <div class="tags">${d.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>`;
+  work.appendChild(cap);
+
+  const ctrl = makeRasterController(work, stage, canvas, reveal, d, i);
+  works.push(ctrl);
+  return work;
+}
+
+/* ============================================================
+   RASTER CONTROLLER  -  one per work.
+   Loads the source still into an offscreen sample canvas
+   (<=200px), then on each rAF reads luminance per cell and
+   paints glyphs. Hover brightens cells near the cursor.
+   ============================================================ */
+function makeRasterController(work, stage, canvas, reveal, d, i){
+  const ctx = canvas.getContext('2d',{alpha:false});
+  const sample = document.createElement('canvas');
+  const sctx = sample.getContext('2d',{willReadFrequently:true});
+
+  let imgEl=null, ready=false, lum=null, sW=0, sH=0;
+  let cols=0, rows=0;
+  let dpr=Math.min(window.devicePixelRatio||1,2);
+  let cssW=0, cssH=0;
+  let raf=null, running=false, inView=false;
+  let flipped=false;
+  let tainted=false; // true when getImageData is blocked (e.g. opened via file://)
+  // cursor in css px, -1 = off
+  let mx=-1, my=-1, targetMx=-1, targetMy=-1;
+  let glow=0, targetGlow=0; // 0..1 hover intensity (smoothed)
+  let lastDraw=0;
+
+  // the still used both to rasterize AND (for images) as the reveal
+  const stillSrc = d.type==='video' ? (d.poster||d.src) : d.src;
+
+  function loadStill(){
+    const im = new Image();
+    /* NO crossOrigin: assets ship same-origin as this file, so getImageData
+       reads clean. Setting crossOrigin='anonymous' taints the canvas over
+       file:// and breaks the entire raster. (Verified: lab vs field.) */
+    im.decoding='async';
+    im.onload = ()=>{
+      imgEl=im;
+      buildSample();
+      ready=true;
+      // for images, the reveal IS this same still
+      if(d.type==='image') reveal.src = d.src;
+      sizeCanvas();
+      if(inView) start(); else drawOnce();
+    };
+    im.onerror = ()=>{ ready=false; drawError(); };
+    im.src = stillSrc;
+  }
+
+  // resample source into <=MAX_SAMPLE box, store luminance grid
+  function buildSample(){
+    if(!imgEl) return;
+    const ar = imgEl.naturalWidth/imgEl.naturalHeight;
+    if(ar>=1){ sW=MAX_SAMPLE; sH=Math.max(1,Math.round(MAX_SAMPLE/ar)); }
+    else { sH=MAX_SAMPLE; sW=Math.max(1,Math.round(MAX_SAMPLE*ar)); }
+    sample.width=sW; sample.height=sH;
+    sctx.drawImage(imgEl,0,0,sW,sH);
+    let data;
+    try{
+      data = sctx.getImageData(0,0,sW,sH).data;
+    }catch(_){
+      // canvas tainted (page opened via file://). Pixel reads are blocked,
+      // so we cannot build a true luminance grid. Flag it and let draw()
+      // fall back to a direct phosphor-tinted glyph-veil render so the
+      // signature still reads in any context (e.g. catalog thumbnail).
+      tainted=true; lum=null; return;
+    }
+    lum = new Float32Array(sW*sH);
+    for(let p=0,q=0;p<data.length;p+=4,q++){
+      // perceptual luminance 0..1
+      lum[q] = (0.299*data[p] + 0.587*data[p+1] + 0.114*data[p+2])/255;
+    }
+  }
+
+  function sizeCanvas(){
+    const r = stage.getBoundingClientRect();
+    cssW=r.width; cssH=r.height;
+    dpr=Math.min(window.devicePixelRatio||1,2);
+    canvas.width=Math.max(1,Math.round(cssW*dpr));
+    canvas.height=Math.max(1,Math.round(cssH*dpr));
+    computeGrid();
+  }
+
+  // grid columns/rows from CELL (css px). Glyph cell = CELL wide, CELL*1.6 tall (monospace ratio).
+  function computeGrid(){
+    const cw = CELL;
+    const ch = CELL*1.62;
+    cols=Math.max(1,Math.floor(cssW/cw));
+    rows=Math.max(1,Math.floor(cssH/ch));
+  }
+
+  // map a fractional cell (cx,cy in 0..1) to source luminance, letterboxed to keep AR
+  function lumAt(u,v){
+    if(!lum) return 0;
+    // contain: source AR vs stage AR -> letterbox
+    const srcAR = sW/sH, dstAR = cssW/cssH;
+    let su=u, sv=v;
+    if(srcAR>dstAR){ // source wider -> bars top/bottom
+      const scale = dstAR/srcAR;
+      sv = (v-0.5)/scale + 0.5;
+    } else { // source taller -> bars left/right
+      const scale = srcAR/dstAR;
+      su = (u-0.5)/scale + 0.5;
+    }
+    if(su<0||su>1||sv<0||sv>1) return -1; // letterbox void
+    const x=Math.min(sW-1,Math.floor(su*sW));
+    const y=Math.min(sH-1,Math.floor(sv*sH));
+    return lum[y*sW+x];
+  }
+
+  function draw(ts){
+    if(!ready||!ctx){ return; }
+    // hover follow + glow. Reduced motion: snap instantly (no animated easing,
+    // no continuous smoothing loop); the hover state still brightens cells but
+    // does not animate. Otherwise ease toward the target for a smooth follow.
+    if(RM){
+      if(targetMx>=0){ mx=targetMx; my=targetMy; }
+      glow=targetGlow;
+    } else {
+      if(targetMx>=0){ mx += (targetMx-mx)*0.35; my += (targetMy-my)*0.35; }
+      glow += (targetGlow-glow)*0.18;
+    }
+    if(tainted){ drawDirect(); maybeLoop(); return; }
+
+    const cw = canvas.width/cols;
+    const ch = canvas.height/rows;
+    const fontPx = Math.min(cw, ch/1.1)*1.18;
+
+    ctx.fillStyle = '#0d0d0d';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.textBaseline='top';
+    ctx.font = `600 ${fontPx}px "IBM Plex Mono", monospace`;
+
+    // cursor in canvas px
+    const hasCursor = mx>=0 && glow>0.01;
+    const cxp = mx*dpr, cyp = my*dpr;
+    const radius = Math.max(cw,ch)*7.5; // hover influence radius (canvas px)
+    const rad2 = radius*radius;
+
+    const N = DENSITY.length-1;
+    for(let r=0;r<rows;r++){
+      const v=(r+0.5)/rows;
+      const py=r*ch;
+      for(let c=0;c<cols;c++){
+        const u=(c+0.5)/cols;
+        let L = lumAt(u,v);
+        if(L<0){ continue; } // letterbox - leave void
+        let bright = L;
+        // hover: boost local density + brightness within radius
+        let lit=0;
+        if(hasCursor){
+          const px=c*cw + cw/2;
+          const dx=px-cxp, dy=py+ch/2-cyp;
+          const dd=dx*dx+dy*dy;
+          if(dd<rad2){
+            lit = (1 - Math.sqrt(dd)/radius)*glow;
+            bright = Math.min(1, bright + lit*0.55);
+          }
+        }
+        const di = Math.max(0,Math.min(N, Math.round(bright*N)));
+        const ch_ = DENSITY[di];
+        if(ch_===' ') continue;
+        // phosphor color: dim base -> bright with luminance, hot near cursor
+        const g = 90 + bright*150;           // green channel
+        const base = 30 + bright*60;         // r/b floor for the e8f5e9 tint
+        let R = base, B = base+10;
+        if(lit>0.05){
+          // hotter, whiter under the cursor
+          const h=lit;
+          R = base + h*150; B = base+10 + h*120;
+        }
+        ctx.fillStyle = `rgb(${R|0},${Math.min(255,g)|0},${B|0})`;
+        ctx.fillText(ch_, c*cw, py);
+      }
+    }
+
+    maybeLoop();
+  }
+
+  // FALLBACK render: page opened where getImageData is blocked (file://).
+  // We cannot sample luminance, so draw the image directly, tinted phosphor
+  // green, then stamp a monospace glyph veil + scanlines on top so the
+  // character-raster signature still reads. Hover still brightens locally.
+  function drawDirect(){
+    ctx.fillStyle='#0d0d0d'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    if(!imgEl) return;
+    // contain (letterbox) the image into the canvas
+    const cAR=canvas.width/canvas.height, iAR=imgEl.naturalWidth/imgEl.naturalHeight;
+    let dw,dh,dx,dy;
+    if(iAR>cAR){ dw=canvas.width; dh=dw/iAR; dx=0; dy=(canvas.height-dh)/2; }
+    else { dh=canvas.height; dw=dh*iAR; dy=0; dx=(canvas.width-dw)/2; }
+    ctx.drawImage(imgEl,dx,dy,dw,dh);
+    // phosphor tint: keep luminance, push toward green
+    ctx.globalCompositeOperation='multiply';
+    ctx.fillStyle='#2f7d3a'; ctx.fillRect(dx,dy,dw,dh);
+    ctx.globalCompositeOperation='lighter';
+    ctx.fillStyle='rgba(40,90,50,.35)'; ctx.fillRect(dx,dy,dw,dh);
+    ctx.globalCompositeOperation='source-over';
+    // glyph veil: punch a monospace grid of voids so it reads as characters
+    const cw=Math.max(3,CELL*dpr), ch=cw*1.62;
+    ctx.font=`600 ${cw*1.1}px "IBM Plex Mono", monospace`;
+    ctx.textBaseline='top'; ctx.fillStyle='rgba(13,13,13,.55)';
+    const VEIL=" ..::--==++"; // sparse stamp pattern
+    for(let yy=0,r=0;yy<canvas.height;yy+=ch,r++){
+      for(let xx=0,c=0;xx<canvas.width;xx+=cw,c++){
+        const gch=VEIL[(c*3+r*7)%VEIL.length];
+        if(gch!==' ') ctx.fillText(gch,xx,yy);
+      }
+    }
+    // scanlines
+    ctx.fillStyle='rgba(13,13,13,.35)';
+    for(let yy=0;yy<canvas.height;yy+=2) ctx.fillRect(0,yy,canvas.width,1);
+    // hover halo
+    if(mx>=0 && glow>0.02){
+      const g=ctx.createRadialGradient(mx*dpr,my*dpr,0,mx*dpr,my*dpr,Math.max(cw,ch)*7);
+      g.addColorStop(0,`rgba(232,245,233,${0.22*glow})`); g.addColorStop(1,'rgba(232,245,233,0)');
+      ctx.fillStyle=g; ctx.fillRect(0,0,canvas.width,canvas.height);
+    }
+  }
+
+  // continue rAF only while in view and something is still animating.
+  // Reduced motion: never loop - values already snapped, so one frame is final.
+  function maybeLoop(){
+    if(!running) return;
+    if(RM){ running=false; raf=null; return; }
+    const settling = Math.abs(targetMx-mx)>0.5 || Math.abs(glow-targetGlow)>0.01;
+    if(settling || targetGlow>0.01){ raf=requestAnimationFrame(draw); }
+    else { running=false; raf=null; } // idle: pause rAF to save CPU
+  }
+
+  function drawOnce(){
+    if(!ready) return;
+    cancelAnimationFrame(raf); raf=null;
+    const keep=running; running=false; // force single frame, no loop
+    draw();
+    running=keep && false;
+  }
+  function kick(){
+    if(flipped||!ready||!inView) return;
+    if(!running){ running=true; raf=requestAnimationFrame(draw); }
+  }
+  function start(){ inView=true; if(!flipped) kick(); }
+  function stop(){ inView=false; running=false; cancelAnimationFrame(raf); raf=null; }
+
+  function drawError(){
+    if(!ctx) return;
+    ctx.fillStyle='#0d0d0d'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle='#3a5a3f'; ctx.font='13px "IBM Plex Mono", monospace';
+    ctx.fillText('// source unavailable', 14, 16);
+  }
+
+  /* ---------- interaction ---------- */
+  function onMove(e){
+    if(flipped) return;
+    const r=stage.getBoundingClientRect();
+    targetMx=e.clientX-r.left; targetMy=e.clientY-r.top;
+    if(mx<0){ mx=targetMx; my=targetMy; }
+    targetGlow=1; work.classList.add('lit');
+    kick();
+  }
+  function onLeave(){
+    targetGlow=0; targetMx=-1; work.classList.remove('lit');
+    // let glow settle out then stop
+    kick();
+  }
+  stage.addEventListener('pointermove', onMove);
+  stage.addEventListener('pointerleave', onLeave);
+
+  function flip(){
+    flipped = !flipped;
+    stage.setAttribute('aria-pressed', String(flipped));
+    if(flipped){
+      work.classList.add('flipped');
+      stop();
+      if(d.type==='video'){
+        // play only the focused/locked video; others stay raster/poster
+        reveal.src = d.src;
+        const p=reveal.play(); if(p&&p.catch)p.catch(()=>{});
+      }
+      if(RM){
+        // reduced motion: instant flip, no wipe travel (CSS transition already off)
+        work.classList.add('rm-instant');
+      }
+    } else {
+      work.classList.remove('flipped');
+      if(d.type==='video'){ try{reveal.pause();}catch(_){ } }
+      // re-render raster if in view
+      if(inView){ start(); } else { drawOnce(); }
+    }
+  }
+  stage.addEventListener('click', flip);
+  stage.addEventListener('keydown',(e)=>{
+    if(e.key==='Enter'||e.key===' '){ e.preventDefault(); flip(); }
+  });
+
+  /* ---------- public hooks for global resize / resolution ---------- */
+  const api = {
+    el: work, stage,
+    onResolutionChange(){ computeGrid(); if(flipped)return; if(inView){ kick(); } else { drawOnce(); } },
+    onResize(){ sizeCanvas(); if(flipped)return; if(inView){ kick(); } else { drawOnce(); } },
+    enter(){ start(); },
+    exit(){ if(d.type==='video' && flipped){ try{reveal.pause();}catch(_){ } } stop(); },
+    isVideo: d.type==='video', flippedGet:()=>flipped, reveal
+  };
+
+  loadStill();
+  return api;
+}
+
+/* ============================================================ GLOBAL WIRING ============================================================ */
+buildShell();
+
+/* resolution slider -> CELL -> regrid all works live */
+const slider = document.getElementById('res');
+const resval = document.getElementById('resval');
+slider.addEventListener('input', ()=>{
+  // slider 4..14 = cell size in px; smaller cell = denser / finer character grid
+  CELL = parseInt(slider.value,10);
+  resval.textContent = CELL+'px';
+  works.forEach(w=>w.onResolutionChange());
+});
+// keyboard nudge already native on range; reflect initial
+resval.textContent = CELL+'px';
+
+/* in-view gating: only animate / decode visible works */
+const io = new IntersectionObserver((entries)=>{
+  entries.forEach(en=>{
+    const w = works.find(x=>x.el===en.target);
+    if(!w) return;
+    if(en.isIntersecting) w.enter(); else w.exit();
+  });
+},{rootMargin:'120px 0px', threshold:0.01});
+works.forEach(w=> io.observe(w.el) );
+
+/* debounced resize */
+let rt=null;
+window.addEventListener('resize', ()=>{
+  clearTimeout(rt);
+  rt=setTimeout(()=>{ works.forEach(w=>w.onResize()); }, 140);
+});
+
+/* FIRST-VIEWPORT SIGNATURE GUARANTEE:
+   force work 0 (and any already-visible work) to render immediately,
+   even before IntersectionObserver fires, so scroll=0 shows the raster. */
+requestAnimationFrame(()=>{
+  works.forEach(w=>{
+    const r = w.el.getBoundingClientRect();
+    if(r.top < window.innerHeight && r.bottom > 0) w.enter();
+  });
+});
+</script>
+</body>
+</html>

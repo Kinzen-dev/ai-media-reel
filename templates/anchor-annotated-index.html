@@ -1,0 +1,751 @@
+<!-- TEMPLATE: Marginalia | ARCHETYPE: ANNOTATED - CSS Anchor Positioning tethered annotations over a minimal index | REF: CSS Anchor Positioning API (Baseline 2026), Popover API + anchor positioning (CSS-Tricks 2026) | WHEN TO USE: a pure-typographic work index where hovering a row tethers a rich annotation panel (image, prompt, specs) beside it via native CSS anchor positioning, zero JS for placement | SWAP: edit the DATA array at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Marginalia - Annotated Work Index</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<!-- Fraunces for the catalog serif + Spline Sans Mono for the engraved metadata. A type system that reads like an annotated archive ledger. -->
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     PALETTE - archival paper + ink + amber annotation callout
+     ============================================================ */
+  :root{
+    --paper:#f9f6f0;
+    --paper-2:#f2ede3;
+    --ink:#111111;
+    --ink-soft:#3a352c;
+    --ink-faint:#8c8474;
+    --rule:#d9d1c2;
+    --amber:#d4a84b;
+    --amber-deep:#a87f25;
+    --shadow:rgba(40,33,18,.18);
+    --panel-w:clamp(320px, 38vw, 520px);
+    --gap:clamp(18px, 3vw, 40px);
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Fraunces", Georgia, serif;
+    font-optical-sizing:auto;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    /* faint laid-paper grain so the surface reads as archival stock, not flat web white */
+    background-image:
+      radial-gradient(circle at 12% 18%, rgba(212,168,75,.05), transparent 40%),
+      radial-gradient(circle at 88% 82%, rgba(40,33,18,.04), transparent 45%),
+      repeating-linear-gradient(0deg, rgba(40,33,18,.018) 0 1px, transparent 1px 3px);
+    background-attachment:fixed;
+    overflow-x:hidden;
+  }
+  ::selection{background:var(--amber);color:#1a1407;}
+  a{color:inherit;}
+
+  /* ============================================================
+     SHELL
+     ============================================================ */
+  .wrap{
+    max-width:1320px;
+    margin:0 auto;
+    padding:clamp(20px,3.4vw,46px) clamp(18px,4vw,64px) 120px;
+  }
+  /* the ledger column is intentionally narrower than the page so a fixed
+     right-hand MARGIN stays clear for the tethered annotation to live in,
+     exactly like the margin of an annotated book. The panel anchors into it.
+     Only on wide screens - phones/tablets stack and flip the panel BELOW. */
+  @media (min-width:881px){
+    .col-head,.index{
+      max-width:max(560px, calc(100% - var(--panel-w) - 60px));
+    }
+  }
+
+  /* compact top band - headline sits ABOVE a populated, partly-open index so
+     the signature mechanic is visible at scroll=0 without a full-screen hero */
+  header.masthead{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:18px 28px;
+    padding-bottom:18px;
+    border-bottom:2px solid var(--ink);
+    margin-bottom:6px;
+  }
+  .mast-left{max-width:640px;}
+  .eyebrow{
+    font-family:"Spline Sans Mono", monospace;
+    font-size:11px;
+    letter-spacing:.32em;
+    text-transform:uppercase;
+    color:var(--amber-deep);
+    margin:0 0 10px;
+    display:flex;align-items:center;gap:10px;
+  }
+  .eyebrow::before{content:"";width:30px;height:1px;background:var(--amber-deep);display:inline-block;}
+  h1.title{
+    font-size:clamp(38px, 7vw, 86px);
+    line-height:.92;
+    font-weight:300;
+    letter-spacing:-.015em;
+    margin:0;
+  }
+  h1.title em{font-style:italic;color:var(--ink-soft);}
+  .lede{
+    margin:14px 0 0;
+    font-size:clamp(14px,1.5vw,17px);
+    line-height:1.5;
+    color:var(--ink-soft);
+    max-width:54ch;
+    font-weight:400;
+  }
+
+  /* live counter HUD - how many annotations have been opened */
+  .hud{
+    font-family:"Spline Sans Mono", monospace;
+    text-align:right;
+    flex:0 0 auto;
+  }
+  .hud .k{
+    font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint);
+    display:block;margin-bottom:6px;
+  }
+  .hud .counter{
+    font-family:"Fraunces", serif;
+    font-size:clamp(34px,5vw,52px);
+    line-height:1;
+    font-weight:500;
+    color:var(--ink);
+    font-variant-numeric:tabular-nums;
+  }
+  .hud .counter .of{color:var(--ink-faint);font-size:.5em;}
+  .hud .hint{
+    margin-top:8px;font-size:10.5px;color:var(--ink-faint);letter-spacing:.04em;
+    max-width:170px;line-height:1.45;
+  }
+
+  .col-head{
+    display:grid;
+    grid-template-columns:46px 1fr 116px 1.05fr 36px;
+    gap:var(--gap);
+    align-items:end;
+    padding:18px 14px 9px;
+    font-family:"Spline Sans Mono", monospace;
+    font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint);
+    border-bottom:1px solid var(--rule);
+  }
+  .col-head span:nth-child(3){text-align:left;}
+
+  /* ============================================================
+     THE INDEX - one row per work, pure type
+     ============================================================ */
+  .index{position:relative;}
+
+  .row{
+    position:relative;
+    display:grid;
+    grid-template-columns:46px 1fr 116px 1.05fr 36px;
+    gap:var(--gap);
+    align-items:baseline;
+    width:100%;
+    text-align:left;
+    border:0;
+    background:transparent;
+    color:inherit;
+    font:inherit;
+    cursor:pointer;
+    padding:20px 14px;
+    border-bottom:1px solid var(--rule);
+    transition:background .35s ease, padding-left .3s ease;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .row:hover,
+  .row:focus-visible,
+  .row.is-locked{
+    background:linear-gradient(90deg, rgba(212,168,75,.14), rgba(212,168,75,.02) 70%, transparent);
+    outline:none;
+  }
+  .row:focus-visible{
+    box-shadow:inset 3px 0 0 var(--amber-deep);
+  }
+  /* dim the rest of the ledger when one row is active, like the archivist's lamp */
+  .index:hover .row:not(:hover),
+  .index:focus-within .row:not(:focus-within):not(:hover){
+    opacity:.42;
+  }
+  .index:hover .row.is-locked,
+  .index:focus-within .row.is-locked{opacity:1;}
+
+  .r-idx{
+    font-family:"Spline Sans Mono", monospace;
+    font-size:13px;color:var(--ink-faint);font-variant-numeric:tabular-nums;
+    padding-top:3px;
+  }
+  .row:hover .r-idx,.row:focus-visible .r-idx,.row.is-locked .r-idx{color:var(--amber-deep);}
+
+  .r-title{
+    display:flex;flex-direction:column;gap:5px;min-width:0;
+  }
+  .r-title .t{
+    font-size:clamp(20px,2.6vw,30px);
+    line-height:1.04;font-weight:400;letter-spacing:-.01em;
+  }
+  .r-title .t b{font-weight:600;}
+  .r-title .cap{
+    font-family:"Spline Sans Mono", monospace;
+    font-size:11.5px;color:var(--ink-faint);letter-spacing:.01em;line-height:1.4;
+    max-width:46ch;
+  }
+  .r-medium{
+    font-family:"Spline Sans Mono", monospace;
+    font-size:11px;letter-spacing:.06em;color:var(--ink-soft);
+    text-transform:uppercase;padding-top:5px;
+  }
+  .r-date{
+    font-family:"Spline Sans Mono", monospace;
+    font-size:12px;color:var(--ink-faint);font-variant-numeric:tabular-nums;
+    padding-top:4px;
+  }
+  .r-mark{
+    justify-self:end;align-self:center;
+    width:24px;height:24px;border-radius:50%;
+    border:1px solid var(--rule);
+    display:grid;place-items:center;
+    font-family:"Spline Sans Mono", monospace;font-size:13px;color:var(--ink-faint);
+    transition:transform .35s cubic-bezier(.2,.8,.2,1), border-color .3s, color .3s, background .3s;
+  }
+  .row:hover .r-mark,.row:focus-visible .r-mark{
+    border-color:var(--amber-deep);color:var(--amber-deep);transform:rotate(45deg);
+  }
+  .row.is-locked .r-mark{
+    background:var(--amber);border-color:var(--amber-deep);color:#1a1407;transform:rotate(45deg);
+  }
+
+  /* ============================================================
+     ANNOTATION PANEL - the tethered marginalia
+     Positioned with native CSS anchor positioning. ZERO JS for placement.
+     ============================================================ */
+  .annot{
+    /* sits in normal flow as a row sibling; promoted to anchored layer when supported */
+    position:absolute;
+    width:var(--panel-w);
+    background:var(--paper);
+    border:1px solid var(--ink);
+    box-shadow:14px 18px 0 -2px var(--shadow), 0 2px 30px rgba(40,33,18,.12);
+    padding:0;
+    opacity:0;visibility:hidden;
+    transform:translateY(6px);
+    transition:opacity .26s ease, transform .26s ease, visibility 0s linear .26s;
+    z-index:30;
+    pointer-events:none;
+    overflow:hidden;
+    /* amber "filing tab" spine */
+  }
+  .annot::before{
+    content:"";position:absolute;left:0;top:0;bottom:0;width:5px;
+    background:linear-gradient(180deg, var(--amber), var(--amber-deep));
+  }
+  .annot-media{
+    position:relative;
+    background:#0d0b07;            /* letterbox bed: media NEVER cover-crops */
+    aspect-ratio:16/10;
+    display:grid;place-items:center;
+    overflow:hidden;
+    border-bottom:1px solid var(--rule);
+  }
+  .annot-media img,
+  .annot-media video{
+    max-width:100%;max-height:100%;
+    width:auto;height:auto;
+    object-fit:contain;            /* letterbox, not crop */
+    display:block;
+  }
+  .annot-media .badge{
+    position:absolute;top:10px;left:14px;
+    font-family:"Spline Sans Mono", monospace;font-size:9.5px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--amber);
+    background:rgba(13,11,7,.72);padding:4px 8px;border:1px solid rgba(212,168,75,.4);
+  }
+  .annot-body{padding:18px 20px 20px 22px;}
+  .annot-kicker{
+    font-family:"Spline Sans Mono", monospace;font-size:9.5px;letter-spacing:.24em;
+    text-transform:uppercase;color:var(--amber-deep);margin:0 0 9px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .annot-kicker::after{content:"";flex:1;height:1px;background:var(--rule);}
+  .annot-prompt{
+    font-family:"Spline Sans Mono", monospace;
+    font-size:12.5px;line-height:1.55;color:var(--ink-soft);
+    margin:0 0 16px;
+    padding:11px 13px;
+    background:var(--paper-2);
+    border-left:2px solid var(--amber);
+    quotes:'"' '"';
+  }
+  .annot-prompt::before{content:open-quote;color:var(--amber-deep);}
+  .annot-prompt::after{content:close-quote;color:var(--amber-deep);}
+  .annot-specs{
+    list-style:none;margin:0 0 16px;padding:0;
+    display:grid;grid-template-columns:auto 1fr;gap:7px 16px;
+    font-family:"Spline Sans Mono", monospace;font-size:11.5px;
+  }
+  .annot-specs dt{color:var(--ink-faint);letter-spacing:.08em;text-transform:uppercase;font-size:9.5px;align-self:center;}
+  .annot-specs dd{margin:0;color:var(--ink);font-variant-numeric:tabular-nums;}
+  .annot-note{
+    margin:0;font-size:14px;line-height:1.55;color:var(--ink-soft);font-style:italic;
+    padding-top:14px;border-top:1px dashed var(--rule);
+  }
+  .annot-note .by{
+    display:block;margin-top:8px;font-style:normal;
+    font-family:"Spline Sans Mono", monospace;font-size:10px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--ink-faint);
+  }
+
+  /* ---- REVEAL: hover / focus / lock shows the tethered panel (CSS only) ---- */
+  .row:hover + .annot,
+  .row:focus-visible + .annot,
+  .row.is-locked + .annot,
+  .annot:hover{
+    opacity:1;visibility:visible;transform:translateY(0);pointer-events:auto;
+    transition:opacity .3s ease, transform .3s ease, visibility 0s;
+  }
+
+  /* ============================================================
+     ENHANCED LAYER - gated on real CSS Anchor Positioning support.
+     This is what tethers the panel to the RIGHT of its row with a
+     responsive @position-try flip to BOTTOM. No JS computes any of it.
+     ============================================================ */
+  @supports (anchor-name: --x){
+    .has-anchor .annot{
+      position:fixed;                 /* anchored layer */
+      position-anchor:var(--anchor);  /* each row sets --anchor via inline style */
+      /* default: tether to the right edge of the row, vertically aligned to its top */
+      left:anchor(right);
+      top:anchor(top);
+      margin-left:18px;
+      margin-top:-6px;
+      /* never exceed the viewport: clamp height + let a long note scroll inside */
+      max-height:calc(100vh - 32px);
+      overflow-y:auto;
+      /* prefer the right-margin tether; only fall back on a REAL overflow */
+      position-try-order:normal;
+      position-try-fallbacks:--flip-below, --flip-left;
+    }
+    /* fallback A: drop the panel below the row, full bleed under it */
+    @position-try --flip-below{
+      left:anchor(left);
+      right:anchor(right);
+      top:anchor(bottom);
+      bottom:auto;
+      width:auto;
+      margin:14px 0 0;
+    }
+    /* fallback B: tuck to the left of the row */
+    @position-try --flip-left{
+      right:anchor(left);
+      left:auto;
+      top:anchor(top);
+      margin:-6px 18px 0 0;
+    }
+    .has-anchor .support-note .yes{display:inline;}
+    .has-anchor .support-note .no{display:none;}
+  }
+
+  /* support status chip */
+  .support-note{
+    font-family:"Spline Sans Mono", monospace;
+    font-size:10px;letter-spacing:.06em;color:var(--ink-faint);
+    margin:26px 14px 0;padding-top:16px;border-top:1px solid var(--rule);
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  }
+  .support-note .dot{width:7px;height:7px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 3px rgba(212,168,75,.25);}
+  .support-note .yes{display:none;}
+  .support-note .no{display:inline;}
+
+  /* ============================================================
+     FALLBACK LAYER - no anchor support => plain details/summary
+     disclosure. Built from the same DATA. Hidden when enhanced works.
+     ============================================================ */
+  .fallback{display:block;margin-top:8px;}
+  @supports (anchor-name: --x){ .fallback{display:none;} }
+  .fb-item{border-bottom:1px solid var(--rule);}
+  .fb-item summary{
+    list-style:none;cursor:pointer;padding:18px 14px;
+    display:grid;grid-template-columns:46px 1fr 116px auto;gap:var(--gap);align-items:baseline;
+  }
+  .fb-item summary::-webkit-details-marker{display:none;}
+  .fb-item summary:hover,.fb-item[open] summary{background:rgba(212,168,75,.1);}
+  .fb-item .fb-i{font-family:"Spline Sans Mono",monospace;font-size:13px;color:var(--ink-faint);}
+  .fb-item .fb-t{font-size:22px;font-weight:500;}
+  .fb-item .fb-m{font-family:"Spline Sans Mono",monospace;font-size:11px;text-transform:uppercase;color:var(--ink-soft);}
+  .fb-item .fb-plus{font-family:"Spline Sans Mono",monospace;color:var(--amber-deep);}
+  .fb-panel{padding:0 14px 22px;max-width:640px;}
+  .fb-panel .annot-media{margin-bottom:16px;border:1px solid var(--rule);}
+
+  /* ============================================================
+     RESPONSIVE - mobile stacks; panel flips BELOW the row.
+     Never crops a landscape asset into a portrait viewport.
+     ============================================================ */
+  @media (max-width:880px){
+    .col-head{grid-template-columns:34px 1fr 78px 22px;}
+    .col-head span:nth-child(4){display:none;}
+    .row{grid-template-columns:34px 1fr 78px 22px;}
+    .r-date{display:none;}
+    .r-title .t{font-size:21px;}
+    :root{--panel-w:min(92vw, 520px);}
+  }
+  @media (max-width:640px){
+    .wrap{padding:18px 16px 90px;}
+    header.masthead{flex-direction:column;align-items:flex-start;}
+    .hud{text-align:left;}
+    .hud .hint{max-width:none;}
+    .col-head{display:none;}
+    .row{grid-template-columns:30px 1fr 26px;padding:16px 8px;}
+    .r-medium{display:none;}
+    .r-title .cap{font-size:11px;max-width:none;}
+    /* On phones the anchored panel ALWAYS drops BELOW the row, full row-width,
+       declared purely with position-area:bottom. No right-tether, no flip. */
+    @supports (anchor-name: --x){
+      .has-anchor .annot{
+        position-area:bottom;
+        left:auto;right:auto;top:auto;
+        width:auto;max-width:none;
+        margin:10px 0 0;
+        max-height:none;overflow:visible;
+        position-try-fallbacks:none;
+      }
+    }
+    .annot-body{padding:15px 16px 17px 18px;}
+  }
+
+  /* ============================================================
+     ACCESSIBILITY - honor reduced motion fully (final states, no anim)
+     ============================================================ */
+  @media (prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto;}
+    *{transition:none !important;animation:none !important;}
+    .annot{transform:none;}
+  }
+  .skip{
+    position:absolute;left:-9999px;top:0;background:var(--ink);color:var(--paper);
+    padding:10px 16px;font-family:"Spline Sans Mono",monospace;font-size:12px;z-index:99;
+  }
+  .skip:focus{left:8px;top:8px;}
+
+  footer.ledger-foot{
+    margin-top:54px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px;
+    font-family:"Spline Sans Mono",monospace;font-size:10.5px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--ink-faint);
+    border-top:2px solid var(--ink);padding-top:16px;
+  }
+</style>
+</head>
+<body>
+<a class="skip" href="#index">Skip to work index</a>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="mast-left">
+      <p class="eyebrow">Catalogue Raisonn&eacute; / Annotated</p>
+      <h1 class="title">Marginalia<em>.</em></h1>
+      <p class="lede">A typographic index of generated works. Move a row and its full annotation tethers itself alongside, placed entirely by native CSS anchor positioning. No script decides where it lands.</p>
+    </div>
+    <div class="hud">
+      <span class="k">Annotations opened</span>
+      <span class="counter"><span id="count">00</span><span class="of"> / <span id="total">00</span></span></span>
+      <span class="hint" id="hudHint">Hover or focus a row to tether its margin note. Click to pin it open.</span>
+    </div>
+  </header>
+
+  <div class="col-head" aria-hidden="true">
+    <span>No.</span><span>Title / Caption</span><span>Medium</span><span>Annotation tether</span><span></span>
+  </div>
+
+  <!-- ENHANCED: anchor-positioned popover index (built from DATA) -->
+  <main class="index" id="index" aria-label="Work index, hover a row to reveal its annotation"></main>
+
+  <!-- FALLBACK: plain details/summary disclosure (built from same DATA) -->
+  <section class="fallback" id="fallback" aria-label="Work index (disclosure fallback)"></section>
+
+  <p class="support-note">
+    <span class="dot" aria-hidden="true"></span>
+    <span class="yes">Enhanced view: annotations are tethered with native <b>anchor-name / position-anchor / @position-try</b>. Zero JS positioning.</span>
+    <span class="no">Fallback view: your browser lacks CSS Anchor Positioning, so annotations open as a <b>details disclosure</b>. The mechanic is identical, the placement is simpler.</span>
+  </p>
+
+  <footer class="ledger-foot">
+    <span>Marginalia - folio of generated works</span>
+    <span>Edit the DATA array to reuse</span>
+  </footer>
+</div>
+
+<script>
+/* ============================================================================
+   DATA  - swap this array to reuse the template. One object per index row.
+   media.kind: "image" | "video".  poster used for videos (decode-on-focus).
+   Each row also carries a per-annotation accent (one accent per visible note).
+   ============================================================================ */
+const DATA = [
+  {
+    idx:"01",
+    title:["The Black Mercedes, ", "Wet Neon"],
+    caption:"A matte saloon idling on a rain-slicked street, signage bleeding into the paint.",
+    medium:"FLUX / Still",
+    date:"2026.04",
+    accent:"#d4a84b",
+    media:{kind:"image", src:"../assets/flux-car-4k.png", badge:"4K Still"},
+    prompt:"cinematic matte-black Mercedes parked on a wet neon-lit street at night, reflections, shallow depth of field, anamorphic",
+    specs:[["Model","FLUX.1 [dev]"],["Steps","28"],["Guidance","3.5"],["Seed","771204"],["Ratio","16:9"]],
+    note:"Selected for the reflection discipline: the wet asphalt does the lighting work, not the headlamps.",
+    by:"Plate notes, archivist"
+  },
+  {
+    idx:"02",
+    title:["Mint & Wood ", "Operatory"],
+    caption:"A dental clinic interior, soft mint cabinetry against warm timber, clinical but calm.",
+    medium:"FLUX / Still",
+    date:"2026.04",
+    accent:"#5fa890",
+    media:{kind:"image", src:"../assets/flux-clinic-4k.png", badge:"4K Still"},
+    prompt:"modern dental clinic interior, mint green and warm wood, soft daylight, clean minimal, architectural photography",
+    specs:[["Model","FLUX.1 [dev]"],["Steps","30"],["Guidance","4.0"],["Seed","330918"],["Ratio","16:9"]],
+    note:"A brand-fit reference render. The palette was the brief; the geometry came for free.",
+    by:"Plate notes, archivist"
+  },
+  {
+    idx:"03",
+    title:["Kling ", "Drift"],
+    caption:"A short looping motion study generated from a single seed prompt.",
+    medium:"Kling / Motion",
+    date:"2026.05",
+    accent:"#c77b54",
+    media:{kind:"video", src:"../assets/kling-video.mp4", poster:"../assets/gen/poster-kling-video.png", badge:"Loop / muted"},
+    prompt:"slow cinematic camera drift through a moody scene, volumetric light, film grain, seamless loop",
+    specs:[["Model","Kling 1.6"],["Length","5s"],["FPS","24"],["Mode","i2v"],["Ratio","16:9"]],
+    note:"Plays only while its note is open. The poster carries the weight until focus lands, so no idle decode.",
+    by:"Motion log, archivist"
+  },
+  {
+    idx:"04",
+    title:["Painterly ", "Fox"],
+    caption:"An autumn fox rendered in thick painterly strokes, warm and deliberately unphotographic.",
+    medium:"SDXL / Still",
+    date:"2026.03",
+    accent:"#cf7a3a",
+    media:{kind:"image", src:"../assets/sdxl.png", badge:"SDXL"},
+    prompt:"painterly autumn fox, thick impasto brushwork, warm ochre and rust, storybook illustration, soft light",
+    specs:[["Model","SDXL 1.0"],["Steps","40"],["Sampler","DPM++ 2M"],["Seed","88412"],["Ratio","1:1"]],
+    note:"Kept as a style anchor: when a client asks for warmth, this is the reference plate.",
+    by:"Plate notes, archivist"
+  },
+  {
+    idx:"05",
+    title:["Veo ", "Sequence"],
+    caption:"A longer generated sequence with native audio, used as a motion-direction proof.",
+    medium:"Veo / Motion",
+    date:"2026.05",
+    accent:"#7e8fc4",
+    media:{kind:"video", src:"../assets/veo-video.mp4", poster:"../assets/gen/poster-veo-video.png", badge:"Loop"},
+    prompt:"establishing aerial drift over a stylised landscape, cinematic grade, gentle parallax, ambient score",
+    specs:[["Model","Veo"],["Length","8s"],["FPS","24"],["Audio","native"],["Ratio","16:9"]],
+    note:"The pacing sold the idea before any storyboard did. Audio is present but muted in-index.",
+    by:"Motion log, archivist"
+  },
+  {
+    idx:"06",
+    title:["Low-Fi ", "Apple"],
+    caption:"An abstract apple from a tiny distilled model, kept for its honest roughness.",
+    medium:"TinySD / Still",
+    date:"2026.02",
+    accent:"#b86b8a",
+    media:{kind:"image", src:"../assets/hf-tinysd.png", badge:"TinySD"},
+    prompt:"abstract low-fidelity apple, soft gradients, dreamy, minimal, slightly out of focus",
+    specs:[["Model","Tiny-SD"],["Steps","20"],["Guidance","6.0"],["Seed","1029"],["Ratio","1:1"]],
+    note:"The roughness is the point. Filed under proof that small models still earn a place in the ledger.",
+    by:"Plate notes, archivist"
+  }
+];
+
+/* ============================================================================
+   RENDER  - build the enhanced index (anchored) and the fallback disclosure
+   from the SAME data. Positioning is 100% CSS; JS only wires content + counter.
+   ============================================================================ */
+const supportsAnchor = CSS.supports("anchor-name", "--x");
+const index = document.getElementById("index");
+const fallback = document.getElementById("fallback");
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+if (supportsAnchor) document.body.classList.add("has-anchor");
+
+function specHTML(specs){
+  return specs.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join("");
+}
+function titleHTML(t){
+  return `${t[0]}<b>${t[1]}</b>`;
+}
+function mediaHTML(d, lazy){
+  const m = d.media;
+  if(m.kind === "video"){
+    // poster carried until focus; src wired lazily so idle rows never decode video
+    return `<div class="annot-media">
+        <span class="badge">${m.badge}</span>
+        <video muted loop playsinline preload="none"
+               poster="${m.poster}" data-src="${m.src}"></video>
+      </div>`;
+  }
+  return `<div class="annot-media">
+      <span class="badge">${m.badge}</span>
+      <img src="${m.src}" alt="${d.caption}" loading="${lazy?'lazy':'eager'}" decoding="async" />
+    </div>`;
+}
+function annotHTML(d){
+  return `<aside class="annot" id="annot-${d.idx}" style="--anchor:--row-${d.idx}; --accent:${d.accent};" role="group" aria-label="Annotation for ${d.title.join('')}">
+      ${mediaHTML(d, true)}
+      <div class="annot-body">
+        <p class="annot-kicker">Prompt</p>
+        <p class="annot-prompt">${d.prompt}</p>
+        <p class="annot-kicker">Specification</p>
+        <dl class="annot-specs">${specHTML(d.specs)}</dl>
+        <p class="annot-note">${d.note}<span class="by">${d.by}</span></p>
+      </div>
+    </aside>`;
+}
+
+/* --- ENHANCED rows --- */
+index.innerHTML = DATA.map(d => `
+  <button type="button" class="row" id="row-${d.idx}" data-idx="${d.idx}"
+          style="anchor-name:--row-${d.idx};"
+          aria-describedby="annot-${d.idx}" aria-expanded="false">
+    <span class="r-idx">${d.idx}</span>
+    <span class="r-title">
+      <span class="t">${titleHTML(d.title)}</span>
+      <span class="cap">${d.caption}</span>
+    </span>
+    <span class="r-medium">${d.medium}</span>
+    <span class="r-date">${d.date}</span>
+    <span class="r-mark" aria-hidden="true">+</span>
+  </button>
+  ${annotHTML(d)}
+`).join("");
+
+/* --- FALLBACK disclosure (only seen when @supports gate fails) --- */
+fallback.innerHTML = DATA.map((d,i) => `
+  <details class="fb-item" ${i===0?"open":""}>
+    <summary>
+      <span class="fb-i">${d.idx}</span>
+      <span class="fb-t">${titleHTML(d.title)}</span>
+      <span class="fb-m">${d.medium}</span>
+      <span class="fb-plus">+</span>
+    </summary>
+    <div class="fb-panel">
+      ${mediaHTML(d, true)}
+      <p class="annot-kicker">Prompt</p>
+      <p class="annot-prompt">${d.prompt}</p>
+      <dl class="annot-specs">${specHTML(d.specs)}</dl>
+      <p class="annot-note">${d.note}<span class="by">${d.by}</span></p>
+    </div>
+  </details>
+`).join("");
+
+document.getElementById("total").textContent = String(DATA.length).padStart(2,"0");
+
+/* ============================================================================
+   BEHAVIOUR  - counter of unique annotations opened + click-to-lock pinning.
+   Positioning is untouched here. Only one video ever plays (the active one).
+   ============================================================================ */
+const opened = new Set();
+const countEl = document.getElementById("count");
+const hudHint = document.getElementById("hudHint");
+let locked = null;
+let activeVideo = null;
+
+function bump(idx){
+  if(opened.has(idx)) return;
+  opened.add(idx);
+  countEl.textContent = String(opened.size).padStart(2,"0");
+  if(opened.size === DATA.length){
+    hudHint.textContent = "Full folio reviewed. Every margin note has been opened.";
+  }
+}
+
+/* lazy-wire + play exactly the focused/locked video; pause + reset all others */
+function focusMedia(row){
+  const annot = row.nextElementSibling;
+  const vid = annot && annot.querySelector("video");
+  if(activeVideo && activeVideo !== vid){
+    activeVideo.pause();
+    activeVideo = null;
+  }
+  if(vid){
+    if(!vid.src && vid.dataset.src) vid.src = vid.dataset.src; // decode only now
+    if(!reduce){ vid.play().catch(()=>{}); }
+    activeVideo = vid;
+  }
+}
+function blurMedia(row){
+  if(locked) return; // keep the pinned one running
+  const annot = row.nextElementSibling;
+  const vid = annot && annot.querySelector("video");
+  if(vid && vid === activeVideo){ vid.pause(); activeVideo = null; }
+}
+
+document.querySelectorAll(".row").forEach(row => {
+  const idx = row.dataset.idx;
+
+  row.addEventListener("pointerenter", () => { bump(idx); focusMedia(row); });
+  row.addEventListener("focus", () => { bump(idx); focusMedia(row); });
+  row.addEventListener("pointerleave", () => blurMedia(row));
+  row.addEventListener("blur", () => blurMedia(row));
+
+  // click / Enter / Space => pin this annotation open (lock)
+  row.addEventListener("click", () => {
+    if(locked === row){
+      row.classList.remove("is-locked");
+      row.setAttribute("aria-expanded","false");
+      locked = null;
+      blurMedia(row);
+      return;
+    }
+    if(locked){
+      locked.classList.remove("is-locked");
+      locked.setAttribute("aria-expanded","false");
+    }
+    row.classList.add("is-locked");
+    row.setAttribute("aria-expanded","true");
+    locked = row;
+    bump(idx);
+    focusMedia(row);
+  });
+});
+
+// Escape clears any pinned annotation
+document.addEventListener("keydown", e => {
+  if(e.key === "Escape" && locked){
+    locked.classList.remove("is-locked");
+    locked.setAttribute("aria-expanded","false");
+    blurMedia(locked);
+    locked = null;
+  }
+});
+
+/* SIGNATURE: first row pinned open at scroll=0 so the tethered annotation
+   is visible in a static thumbnail. Skipped for reduced-motion users? No:
+   it is a final state, not motion, so it stays. */
+(function openFirst(){
+  const first = document.querySelector(".row");
+  if(!first) return;
+  first.classList.add("is-locked");
+  first.setAttribute("aria-expanded","true");
+  locked = first;
+  bump(first.dataset.idx);
+  focusMedia(first);
+})();
+</script>
+</body>
+</html>

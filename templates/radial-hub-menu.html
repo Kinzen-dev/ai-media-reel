@@ -1,0 +1,599 @@
+<!-- TEMPLATE: Radial Hub Menu | ARCHETYPE: SPOKE radial hub portfolio | REF: Awwwards circular-navigation collection, radial/pie-menu UX pattern (Articulate 2025 radial-nav), Awwwards unusual-navigation winners 2025 | WHEN TO USE: small-to-mid portfolio (6-12 works) on a fixed single-screen canvas where the navigation itself is the centerpiece | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Radial Hub Menu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   SWAP CONTENT: edit the JS DATA array near the top of <script>.
+   Each spoke needs: label, kicker, year, kind, src, poster, blurb.
+   ============================================================ */
+:root{
+  --void:#09090b;
+  --bone:#f4f0e8;
+  --bone-dim:#8a857c;
+  --active:#c94a2e;        /* vermilion */
+  --active-soft:#e8623f;
+  --ring-line:rgba(244,240,232,0.14);
+  --hub-d:clamp(210px,38vmin,440px);   /* center media disc diameter */
+  --wheel-d:min(74vmin,720px);          /* full ring diameter; labels live OUTSIDE this */
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--void);
+  color:var(--bone);
+  font-family:"Space Grotesk",system-ui,sans-serif;
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+  position:fixed;inset:0;
+  touch-action:none;
+}
+.grain{
+  position:fixed;inset:0;pointer-events:none;z-index:60;opacity:.05;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+/* ---- top band: headline overlays the populated ring, never a full hero ---- */
+.topband{
+  position:fixed;top:0;left:0;right:0;z-index:40;
+  padding:clamp(16px,2.4vmin,30px) clamp(18px,4vw,52px);
+  display:flex;justify-content:space-between;align-items:flex-start;gap:18px;
+  pointer-events:none;
+}
+.brand{pointer-events:auto}
+.brand .mark{
+  font-family:"Fraunces",serif;font-weight:600;
+  font-size:clamp(20px,2.4vmin,30px);letter-spacing:-.01em;line-height:1;
+}
+.brand .mark em{font-style:italic;color:var(--active-soft)}
+.brand .sub{
+  margin-top:6px;font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--bone-dim);
+}
+.legend{
+  text-align:right;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--bone-dim);
+  line-height:1.7;pointer-events:auto;max-width:46vw;
+}
+.legend b{color:var(--bone);font-weight:500}
+.legend .keys{margin-top:7px;display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+.legend kbd{
+  font-family:inherit;font-size:10px;letter-spacing:.06em;color:var(--bone);
+  border:1px solid var(--ring-line);border-radius:6px;padding:3px 7px;background:rgba(244,240,232,.04);
+}
+
+/* ---- stage: the wheel fills the viewport ---- */
+.stage{
+  position:absolute;inset:0;display:grid;place-items:center;z-index:10;
+}
+.wheel-wrap{
+  position:relative;width:var(--wheel-d);height:var(--wheel-d);
+  display:grid;place-items:center;
+}
+
+/* fixed 12-o-clock marker (the active slot) */
+.marker{
+  position:absolute;left:50%;top:0;transform:translate(-50%,-2px);z-index:25;pointer-events:none;
+  width:0;height:0;border-left:11px solid transparent;border-right:11px solid transparent;
+  border-top:15px solid var(--active);
+  filter:drop-shadow(0 4px 10px rgba(201,74,46,.55));
+}
+.marker::after{
+  content:"";position:absolute;left:50%;top:-15px;transform:translateX(-50%);
+  width:2px;height:calc((var(--wheel-d) - var(--hub-d))/2 - 6px);
+  background:linear-gradient(var(--active),rgba(201,74,46,0));
+}
+
+/* the rotating ring (wedges + labels live here) */
+.ring{
+  position:absolute;inset:0;border-radius:50%;
+  will-change:transform;
+  outline:none;            /* ring container itself never shows a focus box */
+}
+.ring:focus-visible{outline:none}
+.ring-svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+/* concentric guide circles */
+.guide{fill:none;stroke:var(--ring-line);stroke-width:1}
+
+/* a single spoke = a rotated container holding a wedge + outer label */
+.spoke{
+  position:absolute;left:50%;top:50%;width:0;height:0;
+  transform-origin:0 0;
+}
+/* the radial label sits OUTSIDE the rim, on the spoke's centerline.
+   .label = the positioned anchor (rotates WITH the spoke to its angle).
+   .label-inner = counter-rotated so the TEXT stays upright. */
+.spoke .label{
+  position:absolute;left:0;top:0;
+  transform:translate(-50%,calc(-1 * (var(--wheel-d)/2 + clamp(18px,3vmin,34px))));
+  pointer-events:auto;cursor:pointer;
+  transition:transform .4s ease;
+}
+.spoke .label .label-inner{
+  display:block;width:max-content;max-width:26vmin;text-align:center;
+  transform:rotate(calc(-1 * var(--rot)));   /* keep text upright at any spoke angle */
+}
+.spoke .label .idx{
+  display:block;font-size:10px;letter-spacing:.28em;color:var(--bone-dim);margin-bottom:3px;
+  transition:color .35s ease;
+}
+.spoke .label .name{
+  font-family:"Fraunces",serif;font-weight:600;line-height:1.04;
+  font-size:clamp(12px,1.7vmin,19px);letter-spacing:-.01em;
+  color:var(--bone-dim);transition:color .35s ease, opacity .35s ease;opacity:.5;
+  white-space:nowrap;
+}
+.spoke .label .kind{
+  display:block;margin-top:3px;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--bone-dim);opacity:0;
+  transition:opacity .35s ease, color .35s ease;
+}
+/* active label = brought to full strength, lifted slightly outward */
+.spoke.active .label{transform:translate(-50%,calc(-1 * (var(--wheel-d)/2 + clamp(26px,4.2vmin,48px))))}
+.spoke.active .label .name{color:var(--bone);opacity:1}
+.spoke.active .label .idx{color:var(--active-soft)}
+.spoke.active .label .kind{color:var(--active-soft);opacity:1}
+.spoke .label:hover .name{color:var(--bone);opacity:.92}
+.label:focus-visible{outline:2px solid var(--active-soft);outline-offset:5px;border-radius:8px}
+
+/* small dot where each spoke meets the rim */
+.spoke .pip{
+  position:absolute;left:0;top:0;width:7px;height:7px;border-radius:50%;
+  transform:translate(-50%,calc(-1 * var(--wheel-d)/2));
+  background:var(--bone-dim);transition:background .35s ease, box-shadow .35s ease, transform .35s ease;
+}
+.spoke.active .pip{
+  background:var(--active);
+  box-shadow:0 0 0 4px rgba(201,74,46,.22),0 0 16px rgba(201,74,46,.7);
+}
+
+/* ---- HUB: the center disc shows the active work's media (does NOT rotate) ---- */
+.hub{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:20;
+  width:var(--hub-d);height:var(--hub-d);border-radius:50%;
+  overflow:hidden;
+  border:1px solid rgba(244,240,232,.16);
+  box-shadow:0 30px 80px -30px rgba(0,0,0,.9),inset 0 0 0 1px rgba(9,9,11,.6);
+  background:#111014;
+}
+.hub::after{ /* vermilion vignette tying hub to active sector */
+  content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;
+  box-shadow:inset 0 0 0 3px rgba(201,74,46,.0),inset 0 -90px 90px -40px rgba(9,9,11,.85);
+  transition:box-shadow .5s ease;
+}
+.hub.lit::after{box-shadow:inset 0 0 0 3px rgba(201,74,46,.5),inset 0 -90px 90px -40px rgba(9,9,11,.85)}
+.hub-media{position:absolute;inset:0}
+.hub-media img,.hub-media video{
+  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;
+  opacity:0;transition:opacity .5s ease;
+}
+.hub-media img.show,.hub-media video.show{opacity:1}
+.hub-spin{ /* faint rotating accent ring drawn over the disc edge */
+  position:absolute;inset:6px;border-radius:50%;pointer-events:none;
+  border-top:2px solid var(--active);border-right:2px solid transparent;
+  border-bottom:2px solid transparent;border-left:2px solid transparent;
+  opacity:.85;
+  animation:hubspin 5.5s linear infinite;
+}
+@keyframes hubspin{to{transform:rotate(360deg)}}
+
+/* the bloom = active work detail, drawn over lower part of hub.
+   Positioned in .wheel-wrap (no transform). Centered on the hub, pushed down
+   into the lower third of the disc so the media reads above it. */
+.bloom{
+  position:absolute;left:50%;top:calc(50% + var(--hub-d)/2 - clamp(70px,15vmin,120px));
+  transform:translate(-50%,-50%);z-index:22;
+  width:min(78%, calc(var(--hub-d) - 36px));text-align:center;pointer-events:none;
+}
+.bloom .b-kicker{font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:var(--active-soft);margin-bottom:6px}
+.bloom .b-title{
+  font-family:"Fraunces",serif;font-weight:600;font-size:clamp(17px,2.7vmin,30px);line-height:1.02;letter-spacing:-.015em;
+  text-shadow:0 2px 18px rgba(0,0,0,.85);
+}
+.bloom .b-blurb{
+  margin-top:7px;font-size:clamp(11px,1.45vmin,13.5px);line-height:1.42;color:rgba(244,240,232,.82);
+  text-shadow:0 1px 10px rgba(0,0,0,.9);
+}
+.bloom .b-meta{
+  margin-top:9px;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--bone-dim);
+}
+.bloom .b-meta span{color:var(--active-soft)}
+
+/* progress counter bottom-center */
+.counter{
+  position:fixed;left:50%;bottom:clamp(12px,2.4vmin,26px);transform:translateX(-50%);z-index:40;
+  font-family:"Fraunces",serif;font-size:clamp(12px,1.6vmin,15px);letter-spacing:.05em;color:var(--bone-dim);
+  display:flex;align-items:center;gap:10px;
+}
+.counter b{font-weight:600;color:var(--bone);font-size:1.5em;line-height:1}
+.counter .bar{width:clamp(80px,16vmin,150px);height:2px;background:var(--ring-line);position:relative;border-radius:2px}
+.counter .bar i{position:absolute;left:0;top:0;height:100%;background:var(--active);border-radius:2px;transition:width .4s ease}
+
+/* hint chip (auto-hides after interaction) */
+.hint{
+  position:fixed;left:50%;bottom:calc(clamp(12px,2.4vmin,26px) + 34px);transform:translateX(-50%);z-index:40;
+  font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--bone-dim);
+  border:1px solid var(--ring-line);border-radius:999px;padding:6px 13px;background:rgba(244,240,232,.03);
+  transition:opacity .5s ease;backdrop-filter:blur(4px);
+}
+.hint.gone{opacity:0;pointer-events:none}
+
+/* ===================== MOBILE: <=640px ===================== */
+/* shrink wheel to fit (contain), push active detail BELOW, never crop ring */
+@media (max-width:640px){
+  :root{ --wheel-d:min(94vw,440px); --hub-d:min(46vw,210px); }
+  body{overflow:hidden}
+  .stage{align-items:flex-start;padding-top:clamp(86px,15vh,130px)}
+  .topband{flex-direction:column;gap:8px;padding:14px 18px 8px}
+  .legend{display:none}
+  /* the bloom moves out of the (now tiny) hub to a panel UNDER the wheel.
+     Now viewport-relative (no transformed ancestor) so this is reliable. */
+  .bloom{
+    position:fixed;left:50%;bottom:58px;top:auto;transform:translateX(-50%);
+    width:min(90vw,440px);
+    padding:14px 18px;border-radius:16px;
+    background:linear-gradient(180deg,rgba(18,17,21,.55),rgba(9,9,11,.82));
+    border:1px solid var(--ring-line);backdrop-filter:blur(8px);
+  }
+  .bloom .b-title{text-shadow:none}
+  .bloom .b-blurb{text-shadow:none;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .spoke .label .name{font-size:clamp(11px,3.4vw,15px)}
+  .spoke .label .kind{display:none}
+  .spoke .label .idx{font-size:9px}
+  .hub-spin{inset:4px}
+  .counter{bottom:14px}
+  .hint{bottom:48px}
+}
+/* very short landscape phones: letterbox-safe, keep ring fully on screen */
+@media (max-height:560px) and (min-width:641px){
+  :root{ --wheel-d:min(150vh,720px); --hub-d:min(70vh,360px); }
+}
+
+/* ===================== REDUCED MOTION ===================== */
+/* no auto-spin, no rAF inertia override; ring static, show final lit state */
+@media (prefers-reduced-motion:reduce){
+  .hub-spin{animation:none;opacity:.5}
+  *{transition:none !important}
+}
+</style>
+</head>
+<body>
+<div class="grain" aria-hidden="true"></div>
+
+<header class="topband">
+  <div class="brand">
+    <div class="mark">Atelier <em>Vesper</em></div>
+    <div class="sub">Generative Media Studio</div>
+  </div>
+  <div class="legend" aria-hidden="true">
+    <div>Selected Works <b>2025 - 2026</b></div>
+    <div class="keys">
+      <kbd>drag</kbd><kbd>scroll</kbd><kbd>&larr;</kbd><kbd>&rarr;</kbd><kbd>to rotate</kbd>
+    </div>
+  </div>
+</header>
+
+<main class="stage">
+  <div class="wheel-wrap">
+    <div class="marker" aria-hidden="true"></div>
+
+    <!-- the rotating ring: wedges + radial labels injected by JS -->
+    <div class="ring" id="ring" role="listbox" aria-label="Portfolio works, arranged as a radial menu" tabindex="0" aria-activedescendant="spoke-0">
+      <svg class="ring-svg" id="ringSvg" viewBox="0 0 1000 1000" aria-hidden="true"></svg>
+    </div>
+
+    <!-- the HUB: center media disc. Does not rotate. -->
+    <div class="hub" id="hub">
+      <div class="hub-media" id="hubMedia"></div>
+      <div class="hub-spin" aria-hidden="true"></div>
+    </div>
+
+    <!-- the BLOOM: active work detail. Sibling of hub (NOT inside it) so the
+         hub's transform can't trap its mobile fixed-positioning. -->
+    <div class="bloom" id="bloom" aria-live="polite">
+      <div class="b-kicker" id="bKicker"></div>
+      <h1 class="b-title" id="bTitle"></h1>
+      <p class="b-blurb" id="bBlurb"></p>
+      <div class="b-meta" id="bMeta"></div>
+    </div>
+  </div>
+</main>
+
+<div class="counter" aria-hidden="true">
+  <b id="cNum">01</b>
+  <span class="bar"><i id="cBar"></i></span>
+  <span id="cTot">/ 08</span>
+</div>
+<div class="hint" id="hint">rotate the ring</div>
+
+<script>
+/* ============================================================
+   DATA  ->  swap these objects to repopulate the whole wheel.
+   kind: "image" | "video"  (video posters used until focused)
+   All paths are relative to /showcase/templates/ -> ../assets/
+   ============================================================ */
+const DATA = [
+  { label:"Nightfall Drive",  kicker:"Cinematic / i2v",     year:"2026", kind:"video", src:"../assets/flux-car-i2v.mp4",   poster:"../assets/gen/poster-flux-car-i2v.png", blurb:"Matte-black coupe gliding a rain-slicked neon boulevard. Image-to-video bloom from a single FLUX still." },
+  { label:"Wet Asphalt",      kicker:"Still / FLUX 4K",     year:"2026", kind:"image", src:"../assets/flux-car-4k.png",     poster:"../assets/flux-car-4k.png",            blurb:"The hero plate. 4K cinematic render of chrome and reflected signage on a midnight street." },
+  { label:"Mint & Wood",      kicker:"Interior / FLUX 4K",  year:"2026", kind:"image", src:"../assets/flux-clinic-4k.png",  poster:"../assets/flux-clinic-4k.png",         blurb:"A calm dental clinic in mint and warm timber. Soft daylight, clinical yet human." },
+  { label:"Kinetic Bloom",    kicker:"Motion / Kling",      year:"2025", kind:"video", src:"../assets/kling-video.mp4",     poster:"../assets/gen/poster-kling-video.png", blurb:"Fluid generative motion study. Long-form coherent loop from Kling, graded for the reel." },
+  { label:"Drift Reel",       kicker:"Motion / Veo",        year:"2025", kind:"video", src:"../assets/veo-video.mp4",       poster:"../assets/gen/poster-veo-video.png",   blurb:"Atmospheric drifting sequence rendered with Veo. Wide, slow, deliberate camera language." },
+  { label:"The Presenter",    kicker:"Avatar / HeyGen",     year:"2025", kind:"video", src:"../assets/heygen-avatar.mp4",   poster:"../assets/gen/poster-heygen.png",      blurb:"Talking-head brand avatar. Lip-synced delivery for product explainers and onboarding." },
+  { label:"Autumn Fox",       kicker:"Painterly / SDXL",    year:"2025", kind:"image", src:"../assets/sdxl.png",            poster:"../assets/sdxl.png",                   blurb:"Hand-painted feel from SDXL. A fox in warm autumn light, brushwork texture intact." },
+  { label:"Low-Fi Apple",     kicker:"Abstract / TinySD",   year:"2025", kind:"image", src:"../assets/hf-tinysd.png",       poster:"../assets/hf-tinysd.png",              blurb:"A deliberately low-fidelity study. Compressed dream-logic from a tiny diffusion model." },
+];
+
+const N = DATA.length;
+const SEG = 360 / N;                 // degrees per sector
+const reduceMotion = window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+
+const ring   = document.getElementById("ring");
+const svg    = document.getElementById("ringSvg");
+const hub    = document.getElementById("hub");
+const media  = document.getElementById("hubMedia");
+const bKick  = document.getElementById("bKicker");
+const bTitle = document.getElementById("bTitle");
+const bBlurb = document.getElementById("bBlurb");
+const bMeta  = document.getElementById("bMeta");
+const cNum   = document.getElementById("cNum");
+const cTot   = document.getElementById("cTot");
+const cBar   = document.getElementById("cBar");
+const hint   = document.getElementById("hint");
+
+const pad = (n)=> String(n+1).padStart(2,"0");
+cTot.textContent = "/ " + pad(N-1);
+
+/* ---------- build the SVG wedges (the radial structure) ---------- */
+const NS = "http://www.w3.org/2000/svg";
+const CX = 500, CY = 500, R_OUT = 498, R_IN = 0; // R_IN visually masked by hub
+function polar(cx, cy, r, deg){
+  const a = (deg - 90) * Math.PI / 180;          // 0deg = 12 o'clock
+  return [cx + r*Math.cos(a), cy + r*Math.sin(a)];
+}
+function wedgePath(startDeg, endDeg, rOut){
+  const [x1,y1] = polar(CX,CY,rOut,startDeg);
+  const [x2,y2] = polar(CX,CY,rOut,endDeg);
+  const large = (endDeg - startDeg) % 360 > 180 ? 1 : 0;
+  return `M ${CX} ${CY} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${rOut} ${rOut} 0 ${large} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`;
+}
+// concentric guide circles for the "instrument" read
+[498,392,300].forEach(r=>{
+  const c = document.createElementNS(NS,"circle");
+  c.setAttribute("cx",CX); c.setAttribute("cy",CY); c.setAttribute("r",r);
+  c.setAttribute("class","guide");
+  svg.appendChild(c);
+});
+// the wedge fills (one per work). Centered so spoke i sits at i*SEG.
+const wedgeEls = [];
+DATA.forEach((d,i)=>{
+  const mid   = i * SEG;
+  const start = mid - SEG/2;
+  const end   = mid + SEG/2;
+  const p = document.createElementNS(NS,"path");
+  p.setAttribute("d", wedgePath(start, end, R_OUT));
+  p.setAttribute("fill", "#f4f0e8");
+  p.setAttribute("fill-opacity", "0.03");
+  p.setAttribute("stroke", "#f4f0e8");
+  p.setAttribute("stroke-opacity", "0.10");
+  p.setAttribute("stroke-width", "1");
+  p.dataset.idx = i;
+  svg.appendChild(p);
+  wedgeEls.push(p);
+});
+
+/* ---------- build the spokes (labels + pips) in the rotating ring ---------- */
+const spokeEls = [];
+DATA.forEach((d,i)=>{
+  const rot = i * SEG;
+  const s = document.createElement("div");
+  s.className = "spoke";
+  s.style.setProperty("--rot", rot + "deg");
+  s.style.transform = `rotate(${rot}deg)`;
+  s.innerHTML = `
+    <span class="pip"></span>
+    <div class="label" id="spoke-${i}" role="option" tabindex="-1" aria-label="${d.label}, ${d.kicker}, ${d.year}">
+      <span class="label-inner">
+        <span class="idx">${pad(i)}</span>
+        <span class="name">${d.label}</span>
+        <span class="kind">${d.kicker}</span>
+      </span>
+    </div>`;
+  ring.appendChild(s);
+  spokeEls.push(s);
+});
+
+/* ---------- hub media elements (image OR video w/ poster) ---------- */
+const mediaEls = [];           // one element per work, only active is .show + playing
+DATA.forEach((d,i)=>{
+  let el;
+  if(d.kind === "video"){
+    el = document.createElement("video");
+    el.muted = true; el.loop = true; el.playsInline = true; el.preload = "none";
+    el.setAttribute("poster", d.poster);
+    el.dataset.src = d.src;     // lazy: only set .src when activated
+  }else{
+    el = document.createElement("img");
+    el.loading = "lazy"; el.decoding = "async";
+    el.src = d.src; el.alt = d.label + " - " + d.kicker;
+  }
+  media.appendChild(el);
+  mediaEls.push(el);
+});
+
+/* ---------- rotation state ----------
+   angle (deg): how much the ring is rotated. Active = spoke nearest 12 o'clock.
+   We rotate the ring by -active*SEG so the active spoke lands at top.        */
+let angle = 0;            // current visual rotation of the ring (deg)
+let target = 0;          // target rotation
+let active = -1;
+let raf = null;
+
+function setRingTransform(a){ ring.style.transform = `rotate(${a}deg)`; }
+
+function indexFromAngle(a){
+  // active spoke is the one whose base rotation cancels the ring rotation
+  let idx = Math.round(-a / SEG) % N;
+  if(idx < 0) idx += N;
+  return idx;
+}
+
+let hintHidden = false;
+function hideHint(){ if(!hintHidden){ hint.classList.add("gone"); hintHidden = true; } }
+
+function activate(i){
+  if(i === active) return;
+  // stop previous video
+  if(active >= 0 && DATA[active].kind === "video"){
+    const pv = mediaEls[active];
+    pv.classList.remove("show"); try{ pv.pause(); }catch(e){}
+  } else if(active >= 0){
+    mediaEls[active].classList.remove("show");
+  }
+  active = i;
+  const d = DATA[i];
+
+  // wedge highlight (active sector -> vermilion fill)
+  wedgeEls.forEach((w,wi)=>{
+    if(wi === i){ w.setAttribute("fill","#c94a2e"); w.setAttribute("fill-opacity","0.30"); w.setAttribute("stroke","#c94a2e"); w.setAttribute("stroke-opacity","0.9"); }
+    else        { w.setAttribute("fill","#f4f0e8"); w.setAttribute("fill-opacity","0.03"); w.setAttribute("stroke","#f4f0e8"); w.setAttribute("stroke-opacity","0.10"); }
+  });
+  spokeEls.forEach((s,si)=> s.classList.toggle("active", si === i));
+
+  // hub media: show only the active one; play only if video (single decode at a time)
+  const el = mediaEls[i];
+  if(d.kind === "video"){
+    if(!el.src && el.dataset.src){ el.src = el.dataset.src; }      // lazy attach
+    el.classList.add("show");
+    if(!reduceMotion){ el.play().catch(()=>{}); }
+  }else{
+    el.classList.add("show");
+  }
+  hub.classList.add("lit");
+
+  // bloom detail
+  bKick.textContent  = d.kicker;
+  bTitle.textContent = d.label;
+  bBlurb.textContent = d.blurb;
+  bMeta.innerHTML    = `<span>${pad(i)}</span> &middot; ${d.year} &middot; ${d.kind==="video"?"motion":"still"}`;
+
+  // counter
+  cNum.textContent = pad(i);
+  cBar.style.width = ((i+1)/N*100) + "%";
+
+  ring.setAttribute("aria-activedescendant", "spoke-" + i);
+}
+
+/* ---------- animation loop (skipped under reduced motion) ---------- */
+function tick(){
+  const diff = target - angle;
+  if(Math.abs(diff) < 0.05){
+    angle = target; setRingTransform(angle); raf = null;
+    activate(indexFromAngle(angle));
+    return;
+  }
+  angle += diff * 0.16;          // ease toward target
+  setRingTransform(angle);
+  activate(indexFromAngle(angle));
+  raf = requestAnimationFrame(tick);
+}
+function go(){
+  if(reduceMotion){              // jump straight to final state, no rAF override
+    angle = target; setRingTransform(angle); activate(indexFromAngle(angle)); return;
+  }
+  if(raf == null) raf = requestAnimationFrame(tick);
+}
+
+function step(dir){             // dir = +1 (next, clockwise into slot) / -1
+  target -= dir * SEG;          // moving to next work rotates ring negatively
+  hideHint();
+  go();
+}
+function goTo(i){
+  // shortest rotation to bring spoke i to top
+  const cur = indexFromAngle(target);
+  let d = (i - cur);
+  // normalize to [-N/2, N/2] for shortest path
+  d = ((d % N) + N) % N;
+  if(d > N/2) d -= N;
+  target -= d * SEG;
+  hideHint();
+  go();
+}
+
+/* ---------- input: scroll wheel ---------- */
+let wheelLock = false;
+window.addEventListener("wheel",(e)=>{
+  e.preventDefault();
+  if(wheelLock) return;
+  wheelLock = true;
+  step(e.deltaY > 0 ? 1 : -1);
+  setTimeout(()=> wheelLock = false, reduceMotion ? 60 : 280);
+},{passive:false});
+
+/* ---------- input: keyboard ---------- */
+window.addEventListener("keydown",(e)=>{
+  if(e.key === "ArrowRight" || e.key === "ArrowDown"){ e.preventDefault(); step(1); }
+  else if(e.key === "ArrowLeft" || e.key === "ArrowUp"){ e.preventDefault(); step(-1); }
+  else if(e.key === "Home"){ e.preventDefault(); goTo(0); }
+  else if(e.key === "End"){ e.preventDefault(); goTo(N-1); }
+  else if(e.key >= "1" && e.key <= "9"){ const i = +e.key - 1; if(i < N) goTo(i); }
+});
+
+/* ---------- input: pointer drag (rotate ring directly) ---------- */
+let dragging = false, lastAngle = 0, dragMoved = false;
+function pointerAngle(clientX, clientY){
+  const r = ring.getBoundingClientRect();
+  const cx = r.left + r.width/2, cy = r.top + r.height/2;
+  return Math.atan2(clientY - cy, clientX - cx) * 180 / Math.PI;
+}
+ring.addEventListener("pointerdown",(e)=>{
+  dragging = true; dragMoved = false;
+  lastAngle = pointerAngle(e.clientX, e.clientY);
+  ring.setPointerCapture(e.pointerId);
+  if(raf){ cancelAnimationFrame(raf); raf = null; }   // grab control
+});
+ring.addEventListener("pointermove",(e)=>{
+  if(!dragging) return;
+  const a = pointerAngle(e.clientX, e.clientY);
+  let dA = a - lastAngle;
+  if(dA > 180) dA -= 360; if(dA < -180) dA += 360;
+  if(Math.abs(dA) > 0.6) dragMoved = true;
+  lastAngle = a;
+  if(reduceMotion){ return; }   // no live drag override under reduced motion
+  angle += dA; target = angle;
+  setRingTransform(angle);
+  activate(indexFromAngle(angle));
+  hideHint();
+});
+ring.addEventListener("pointerup",(e)=>{
+  if(!dragging) return;
+  dragging = false;
+  try{ ring.releasePointerCapture(e.pointerId); }catch(_){}
+  // snap to nearest spoke
+  target = -Math.round(angle / SEG) * SEG;
+  go();
+});
+
+/* ---------- click a label to jump to it ---------- */
+spokeEls.forEach((s,i)=>{
+  const lbl = s.querySelector(".label");
+  lbl.addEventListener("click",(e)=>{ if(dragMoved){ e.preventDefault(); return; } goTo(i); });
+  lbl.addEventListener("keydown",(e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); goTo(i); } });
+});
+
+/* ---------- init: scroll=0 shows a complete labeled wheel, one lit sector ---------- */
+setRingTransform(0);
+activate(0);            // sector 00 highlighted in vermilion, blooming at center
+ring.focus({preventScroll:true});
+
+/* pause video when tab hidden (perf) */
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden && active>=0 && DATA[active].kind==="video"){ try{ mediaEls[active].pause(); }catch(e){} }
+  else if(!document.hidden && active>=0 && DATA[active].kind==="video" && !reduceMotion){ mediaEls[active].play().catch(()=>{}); }
+});
+</script>
+</body>
+</html>

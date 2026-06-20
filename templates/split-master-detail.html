@@ -1,0 +1,687 @@
+<!-- TEMPLATE: The Ledger | ARCHETYPE: split-master-detail | REF: SquareKicker split-screen sticky scroll (Awwwards 2025), Studeo Brand Agency sidebar, iOS/macOS master-detail | WHEN TO USE: a catalogue/archive/portfolio where every entry must stay scannable while one expands in full - the persistent two-pane split IS the point | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Ledger - Archival Split Catalogue</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DATA lives in <script> at top of body. Styles below.
+   Palette: #f9f6f0 archival paper / #111 ink / #d4a84b amber
+   Type: Newsreader (italic display) + Space Mono (metadata)
+   ============================================================ */
+:root{
+  --paper:#f9f6f0;
+  --ink:#111111;
+  --amber:#d4a84b;
+  --amber-deep:#b8893a;
+  --line:rgba(17,17,17,.14);
+  --line-soft:rgba(17,17,17,.07);
+  --rail-w:32vw;
+  --rail-min:340px;
+  --rail-max:480px;
+  --mono:"Space Mono",ui-monospace,monospace;
+  --serif:"Newsreader",Georgia,serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+html{background:var(--paper)}
+body{
+  font-family:var(--serif);
+  color:var(--ink);
+  background:var(--paper);
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden; /* panes scroll independently */
+}
+::selection{background:var(--amber);color:#111}
+
+/* paper grain + faint rule lines, very cheap */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:2;
+  background:
+    repeating-linear-gradient(0deg,transparent 0 27px,var(--line-soft) 27px 28px);
+  opacity:.5;mix-blend-mode:multiply;
+}
+
+/* ================= STAGE: the permanent split ================= */
+.stage{
+  display:grid;
+  grid-template-columns:clamp(var(--rail-min),var(--rail-w),var(--rail-max)) 1fr;
+  height:100vh;height:100dvh;
+  width:100%;
+}
+
+/* ===================== LEFT RAIL (master) ===================== */
+.rail{
+  position:relative;
+  border-right:1px solid var(--ink);
+  background:var(--paper);
+  display:flex;flex-direction:column;
+  min-height:0; /* allow inner scroll */
+  z-index:3;
+}
+.rail::after{ /* amber spine */
+  content:"";position:absolute;top:0;left:0;width:3px;height:100%;
+  background:linear-gradient(180deg,var(--amber),var(--amber-deep));
+  z-index:4;
+}
+.rail-head{
+  padding:26px 26px 16px 30px;
+  border-bottom:1px solid var(--ink);
+  flex:0 0 auto;
+}
+.brand{
+  font-family:var(--mono);font-size:10px;letter-spacing:.34em;
+  text-transform:uppercase;color:var(--amber-deep);
+  display:flex;justify-content:space-between;align-items:baseline;
+}
+.brand .yr{color:rgba(17,17,17,.45)}
+.rail-title{
+  font-size:clamp(28px,3.2vw,40px);line-height:.96;letter-spacing:-.015em;
+  margin:14px 0 6px;font-weight:500;
+}
+.rail-title em{font-style:italic;color:var(--amber-deep)}
+.rail-sub{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;
+  color:rgba(17,17,17,.55);line-height:1.5;
+}
+.rail-count{
+  font-family:var(--mono);font-size:10px;letter-spacing:.18em;
+  text-transform:uppercase;color:rgba(17,17,17,.4);
+  margin-top:12px;display:flex;gap:8px;align-items:center;
+}
+.rail-count b{color:var(--ink)}
+.rail-count .bar{flex:1;height:1px;background:var(--line)}
+
+/* the numbered ledger */
+.ledger{
+  list-style:none;margin:0;padding:0;
+  overflow-y:auto;overflow-x:hidden;
+  flex:1 1 auto;min-height:0;
+  scrollbar-width:thin;scrollbar-color:var(--line) transparent;
+}
+.ledger::-webkit-scrollbar{width:6px}
+.ledger::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px}
+.row{
+  position:relative;width:100%;text-align:left;
+  background:transparent;border:0;border-bottom:1px solid var(--line-soft);
+  display:grid;grid-template-columns:34px 1fr;gap:0 12px;
+  padding:13px 22px 13px 30px;cursor:pointer;color:inherit;
+  font-family:var(--serif);
+  transition:background .25s ease,padding .25s ease;
+}
+.row:hover{background:rgba(212,168,75,.08)}
+.row:focus-visible{outline:2px solid var(--amber-deep);outline-offset:-2px}
+.row .num{
+  font-family:var(--mono);font-size:11px;letter-spacing:.04em;
+  color:rgba(17,17,17,.42);padding-top:4px;font-weight:700;
+}
+.row .body{min-width:0}
+.row .ttl{
+  font-size:18px;line-height:1.12;letter-spacing:-.01em;font-weight:500;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.row .meta{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.05em;
+  color:rgba(17,17,17,.5);margin-top:5px;
+  display:flex;flex-wrap:wrap;gap:0 12px;
+}
+.row .meta .seed{color:var(--amber-deep)}
+.row .tag{
+  display:inline-block;font-family:var(--mono);font-size:8.5px;
+  letter-spacing:.1em;text-transform:uppercase;
+  padding:1px 6px;margin-top:7px;border:1px solid var(--line);
+  color:rgba(17,17,17,.55);border-radius:2px;
+}
+/* active row: amber marker + fill */
+.row[aria-current="true"]{
+  background:rgba(212,168,75,.16);
+  padding-left:36px;
+}
+.row[aria-current="true"]::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:5px;
+  background:var(--amber);box-shadow:0 0 0 1px var(--amber-deep);
+}
+.row[aria-current="true"] .num{color:var(--amber-deep)}
+.row[aria-current="true"] .ttl{color:#111}
+.rail-foot{
+  flex:0 0 auto;border-top:1px solid var(--ink);
+  padding:11px 30px;font-family:var(--mono);font-size:9px;
+  letter-spacing:.16em;text-transform:uppercase;color:rgba(17,17,17,.4);
+  display:flex;justify-content:space-between;
+}
+
+/* ===================== RIGHT PANEL (detail) ===================== */
+.detail{
+  position:relative;overflow-y:auto;overflow-x:hidden;
+  min-height:0;background:var(--paper);
+  scrollbar-width:thin;scrollbar-color:var(--line) transparent;
+}
+.detail::-webkit-scrollbar{width:8px}
+.detail::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
+/* cross-fade wrapper */
+.detail-inner{
+  opacity:1;transition:opacity .42s ease,transform .42s ease;
+  will-change:opacity,transform;
+}
+.detail.fading .detail-inner{opacity:0;transform:translateY(8px)}
+
+.d-top{
+  display:flex;justify-content:space-between;align-items:flex-start;
+  padding:24px 5vw 0;gap:24px;
+}
+.d-index{
+  font-family:var(--mono);font-size:clamp(54px,8vw,96px);font-weight:700;
+  line-height:.8;color:var(--amber);letter-spacing:-.02em;
+  -webkit-text-stroke:1px var(--amber-deep);
+}
+.d-folio{
+  font-family:var(--mono);font-size:10px;letter-spacing:.2em;
+  text-transform:uppercase;color:rgba(17,17,17,.45);text-align:right;
+  line-height:1.9;padding-top:8px;
+}
+.d-folio b{color:var(--amber-deep)}
+.d-head{padding:6px 5vw 0}
+.d-kicker{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--amber-deep);
+}
+.d-title{
+  font-size:clamp(38px,6vw,76px);line-height:.98;letter-spacing:-.022em;
+  margin:10px 0 0;font-weight:500;max-width:16ch;
+}
+.d-title em{font-style:italic}
+.d-lede{
+  font-size:clamp(17px,1.5vw,21px);line-height:1.5;
+  max-width:62ch;margin:20px 0 0;color:rgba(17,17,17,.78);
+}
+.d-lede::first-letter{
+  font-size:2.9em;float:left;line-height:.78;padding:6px 12px 0 0;
+  font-style:italic;color:var(--amber-deep);font-weight:500;
+}
+.d-rule{
+  height:1px;background:var(--ink);margin:30px 5vw 0;
+  position:relative;
+}
+.d-rule::before{
+  content:"";position:absolute;left:0;top:-1px;width:80px;height:3px;
+  background:var(--amber);
+}
+
+/* media block - CONTAIN, never crop */
+.d-media{
+  margin:30px 5vw 0;border:1px solid var(--ink);background:#0d0d0d;
+  position:relative;overflow:hidden;border-radius:3px;
+}
+.d-media .frame{
+  width:100%;aspect-ratio:16/9;display:grid;place-items:center;
+  background:
+    radial-gradient(120% 120% at 50% 0%,#1a1a1a,#080808);
+}
+.d-media.is-square .frame{aspect-ratio:4/3}
+.d-media img,.d-media video{
+  max-width:100%;max-height:100%;width:100%;height:100%;
+  object-fit:contain;display:block;
+}
+.d-media .cap{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
+  color:rgba(249,246,240,.62);padding:9px 14px;
+  border-top:1px solid rgba(249,246,240,.12);
+  display:flex;justify-content:space-between;background:#0d0d0d;
+}
+.d-media .cap .seed{color:var(--amber)}
+/* play affordance for posters */
+.d-media .play{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:62px;height:62px;border-radius:50%;
+  background:rgba(212,168,75,.92);color:#111;border:0;cursor:pointer;
+  display:grid;place-items:center;z-index:3;
+  transition:transform .2s ease,background .2s ease;
+}
+.d-media .play:hover{transform:translate(-50%,-50%) scale(1.07);background:var(--amber)}
+.d-media .play:focus-visible{outline:3px solid #111;outline-offset:3px}
+.d-media .play svg{width:24px;height:24px;margin-left:3px}
+.d-media.playing .play{display:none}
+
+/* spec grid */
+.d-specs{
+  margin:30px 5vw 0;display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  border:1px solid var(--line);border-bottom:0;
+}
+.d-specs .cell{
+  padding:14px 16px;border-bottom:1px solid var(--line);
+  border-right:1px solid var(--line);
+}
+.d-specs .k{
+  font-family:var(--mono);font-size:9px;letter-spacing:.16em;
+  text-transform:uppercase;color:rgba(17,17,17,.45);
+}
+.d-specs .v{font-size:16px;margin-top:5px;letter-spacing:-.01em}
+.d-specs .v em{font-style:italic;color:var(--amber-deep)}
+
+/* body prose */
+.d-body{
+  margin:34px 5vw 0;max-width:64ch;
+  font-size:17px;line-height:1.62;color:rgba(17,17,17,.84);
+  column-count:1;
+}
+.d-body p{margin:0 0 18px}
+.d-body p .smallcaps{
+  font-family:var(--mono);font-size:11px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--amber-deep);
+}
+.d-foot{
+  margin:14px 5vw 60px;padding-top:18px;border-top:1px solid var(--line);
+  font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;color:rgba(17,17,17,.4);
+  display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;
+}
+
+/* ============================ MOBILE ============================ */
+/* collapse to: top horizontal ledger strip ABOVE detail. never hide ledger */
+@media (max-width:640px){
+  body{overflow:auto}
+  body::before{background:none}
+  .stage{
+    display:flex;flex-direction:column;height:auto;min-height:100dvh;
+  }
+  .rail{
+    border-right:0;border-bottom:1px solid var(--ink);
+    position:sticky;top:0;z-index:9;
+    max-height:none;
+  }
+  .rail::after{width:100%;height:3px;top:auto;bottom:0;
+    background:linear-gradient(90deg,var(--amber),var(--amber-deep));}
+  .rail-head{padding:16px 18px 12px}
+  .rail-title{font-size:24px;margin:8px 0 4px}
+  .rail-sub{display:none}
+  .rail-count{margin-top:8px}
+  /* ledger becomes a horizontal scroll strip of chips */
+  .ledger{
+    display:flex;flex-direction:row;overflow-x:auto;overflow-y:hidden;
+    flex:0 0 auto;border-top:1px solid var(--line-soft);
+    scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;
+  }
+  .ledger::-webkit-scrollbar{height:5px}
+  .row{
+    flex:0 0 auto;width:200px;border-bottom:0;border-right:1px solid var(--line-soft);
+    grid-template-columns:1fr;padding:11px 14px;scroll-snap-align:start;
+  }
+  .row[aria-current="true"]{padding-left:14px}
+  .row[aria-current="true"]::before{
+    top:auto;bottom:0;width:100%;height:4px;box-shadow:none;
+  }
+  .row .num{padding-top:0;font-size:10px}
+  .row .ttl{font-size:15px;white-space:normal}
+  .row .meta{font-size:8.5px}
+  .row .tag{display:none}
+  .rail-foot{display:none}
+  .detail{overflow:visible;flex:1 1 auto}
+  .d-top{padding:18px 22px 0}
+  .d-head{padding:4px 22px 0}
+  .d-rule,.d-media,.d-specs,.d-body,.d-foot{margin-left:22px;margin-right:22px}
+  /* landscape assets must not be cropped into the tall phone: letterbox */
+  .d-media .frame{aspect-ratio:16/9}
+  .d-lede{font-size:17px}
+  .d-lede::first-letter{font-size:2.4em}
+}
+/* mid widths: keep split but shrink */
+@media (min-width:641px) and (max-width:960px){
+  :root{--rail-min:280px}
+  .d-title{font-size:clamp(32px,5vw,52px)}
+}
+
+/* ===================== REDUCED MOTION ===================== */
+@media (prefers-reduced-motion:reduce){
+  *{transition:none !important;animation:none !important}
+  .detail-inner{opacity:1 !important;transform:none !important}
+  .play:hover{transform:translate(-50%,-50%) !important}
+}
+</style>
+</head>
+<body>
+
+<script>
+/* ================================================================
+   DATA - swap freely. Each work = one ledger row + one detail view.
+   media.kind: "image" | "video" | "wave"
+   media.ratio: "wide" (16:9 landscape) | "square"
+   Asset paths are relative to this file (../assets/...)
+   ================================================================ */
+const A = "../assets/";
+const DATA = [
+  {
+    no:"001", date:"2026.04", medium:"Diffusion / FLUX", seed:"0x4F1A",
+    tag:"Cinematic Still",
+    title:"Nocturne, Wet Asphalt",
+    kicker:"Plate I - Photoreal",
+    lede:"A matte-black coupe held at the seam between rain and neon, rendered so the reflection carries more story than the body.",
+    media:{kind:"image",ratio:"wide",src:A+"flux-car-4k.png",cap:"flux-car-4k.png",res:"2048 x 1152"},
+    specs:[["Engine","FLUX.1 dev"],["Steps","28"],["Guidance","3.5"],["Aspect","16:9"]],
+    body:[
+      "<span class=\"smallcaps\">On exposure.</span> The plate was graded toward the shadows, letting the amber sodium lamps bleed only where the metal would actually catch them. Nothing is lit that the street would not light.",
+      "Reflections were the brief. A car on dry tarmac is a product shot; a car on wet tarmac is a scene. The puddle doubles the frame and hides the seams of the generation, which is the oldest trick in plate photography and still the best."
+    ],
+    footL:"PLATE 001 / 042", footR:"ARCHIVE -> RENDER"
+  },
+  {
+    no:"002", date:"2026.04", medium:"Diffusion / FLUX", seed:"0x91C7",
+    tag:"Interior",
+    title:"Clinic in Mint and Oak",
+    kicker:"Plate II - Photoreal",
+    lede:"Soft-mint cabinetry against warm oak, a waiting room that promises competence without the cold of a hospital.",
+    media:{kind:"image",ratio:"wide",src:A+"flux-clinic-4k.png",cap:"flux-clinic-4k.png",res:"2048 x 1152"},
+    specs:[["Engine","FLUX.1 dev"],["Steps","30"],["Guidance","4.0"],["Aspect","16:9"]],
+    body:[
+      "<span class=\"smallcaps\">On palette.</span> The constraint was a two-colour interior that still felt furnished. Mint carries the trust, oak carries the warmth, and the rest of the room is allowed to be quiet so neither has to fight for it.",
+      "Generated interiors fail at the joinery, so the camera was placed to keep cabinet edges parallel to the frame. Honest geometry first, then the soft daylight does the selling."
+    ],
+    footL:"PLATE 002 / 042", footR:"ARCHIVE -> RENDER"
+  },
+  {
+    no:"003", date:"2026.03", medium:"Diffusion / SDXL", seed:"0x2D08",
+    tag:"Painterly",
+    title:"Fox, Burnt Sienna",
+    kicker:"Plate III - Illustration",
+    lede:"An autumn fox rendered in loose painterly strokes, where the brush is allowed to show and the eye fills the rest.",
+    media:{kind:"image",ratio:"square",src:A+"sdxl.png",cap:"sdxl.png",res:"512 x 512"},
+    specs:[["Engine","SDXL 1.0"],["Steps","40"],["Sampler","DPM++ 2M"],["Aspect","1:1"]],
+    body:[
+      "<span class=\"smallcaps\">On looseness.</span> Photoreal was never the goal here. The prompt leaned hard on impasto and warm earth so the model would stop describing fur and start suggesting it.",
+      "A square crop suits illustration: it removes the question of where to look and lets the animal sit in the centre of its own colour field. Contained, never up-rezzed past its honest 512."
+    ],
+    footL:"PLATE 003 / 042", footR:"ARCHIVE -> RENDER"
+  },
+  {
+    no:"004", date:"2026.05", medium:"Video / Kling", seed:"0x77E3",
+    tag:"Motion - Loop",
+    title:"Drift, Three Seconds",
+    kicker:"Reel I - Generated Motion",
+    lede:"A short generated loop that proves the still could move. Posters first, decode only on play, the gallery stays honest.",
+    media:{kind:"video",ratio:"wide",src:A+"kling-video.mp4",poster:A+"gen/poster-kling-video.png",cap:"kling-video.mp4",res:"1920 x 1080"},
+    specs:[["Engine","Kling 1.6"],["Length","~3s loop"],["FPS","24"],["Aspect","16:9"]],
+    body:[
+      "<span class=\"smallcaps\">On restraint.</span> Only the focused work decodes. Every other media cell in this archive holds a poster frame until you ask for it, so the page never mixes a dozen video streams at once.",
+      "The motion is deliberately small. A loop that drifts rather than performs survives repetition, which is the only test a background reel ever has to pass."
+    ],
+    footL:"REEL 004 / 042", footR:"PRESS PLAY ->"
+  },
+  {
+    no:"005", date:"2026.05", medium:"Video / Veo", seed:"0x0B6A",
+    tag:"Motion - Loop",
+    title:"Veo Field Study",
+    kicker:"Reel II - Generated Motion",
+    lede:"A second motion plate, held to the same rule: a still poster until focused, then it breathes.",
+    media:{kind:"video",ratio:"wide",src:A+"veo-video.mp4",poster:A+"gen/poster-veo-video.png",cap:"veo-video.mp4",res:"1280 x 720"},
+    specs:[["Engine","Veo"],["Length","~4s"],["FPS","24"],["Aspect","16:9"]],
+    body:[
+      "<span class=\"smallcaps\">On focus.</span> Switching works pauses the outgoing video and resets it. There is never more than one decoder running, which is what keeps a media-heavy archive scrolling at full frame rate.",
+      "The right pane scrolls on its own. You can read this entire study without the ledger on the left moving a pixel, which is the whole point of the split."
+    ],
+    footL:"REEL 005 / 042", footR:"PRESS PLAY ->"
+  },
+  {
+    no:"006", date:"2026.02", medium:"Audio / ElevenLabs", seed:"0xE4F2",
+    tag:"Voice",
+    title:"Thai Synthesis, Take One",
+    kicker:"Strip I - Generated Audio",
+    lede:"A synthesised Thai voice, captured here as its waveform plate. The catalogue holds sound the way it holds light.",
+    media:{kind:"wave",ratio:"wide",src:A+"gen/wave-elevenlabs.png",audio:A+"elevenlabs-thai.mp3",cap:"elevenlabs-thai.mp3",res:"waveform"},
+    specs:[["Engine","ElevenLabs"],["Voice","Multilingual v2"],["Format","mp3"],["Channel","Mono"]],
+    body:[
+      "<span class=\"smallcaps\">On the strip.</span> Audio gets a waveform plate so it reads in the ledger like everything else. Press play and the strip becomes a real player; until then it is just a printed trace.",
+      "Voice synthesis is judged by ear, never by a metric. The waveform tells you there is signal; only listening tells you whether it is right."
+    ],
+    footL:"STRIP 006 / 042", footR:"PRESS PLAY ->"
+  },
+  {
+    no:"007", date:"2026.03", medium:"Diffusion / TinySD", seed:"0x18B0",
+    tag:"Low-Fi",
+    title:"Apple, Reduced",
+    kicker:"Plate IV - Study",
+    lede:"An abstract apple from a tiny model, kept deliberately low-fi. Even the rough drafts earn a folio in the ledger.",
+    media:{kind:"image",ratio:"square",src:A+"hf-tinysd.png",cap:"hf-tinysd.png",res:"512 x 512"},
+    specs:[["Engine","Tiny-SD"],["Steps","20"],["Note","Draft"],["Aspect","1:1"]],
+    body:[
+      "<span class=\"smallcaps\">On keeping drafts.</span> A small model produces a soft, uncertain image, and that uncertainty is worth archiving. It marks the floor the larger models are measured against.",
+      "Contained at native resolution. Nothing here is stretched to pretend it was something it was not, which is the only discipline an archive really owes its viewer."
+    ],
+    footL:"PLATE 007 / 042", footR:"ARCHIVE -> RENDER"
+  }
+];
+</script>
+
+<main class="stage">
+  <!-- ===================== MASTER ===================== -->
+  <nav class="rail" aria-label="Catalogue of works">
+    <div class="rail-head">
+      <div class="brand"><span>The Ledger</span><span class="yr" id="yearTag">MMXXVI</span></div>
+      <h1 class="rail-title">Archive of <em>Generated</em> Work</h1>
+      <p class="rail-sub">A persistent catalogue. The left rail never moves; the right reads in full.</p>
+      <div class="rail-count">
+        <span>FOLIO <b id="countNow">01</b></span><span class="bar"></span>
+        <span>OF <b id="countAll">07</b></span>
+      </div>
+    </div>
+    <ul class="ledger" id="ledger" role="listbox" aria-label="Works"></ul>
+    <div class="rail-foot"><span>EST. 2026</span><span>SPLIT / MASTER-DETAIL</span></div>
+  </nav>
+
+  <!-- ===================== DETAIL ===================== -->
+  <section class="detail" id="detail" aria-live="polite" aria-label="Selected work">
+    <div class="detail-inner" id="detailInner"><!-- rendered by JS --></div>
+  </section>
+</main>
+
+<script>
+(function(){
+  "use strict";
+  const REDUCED = window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+  const ledger  = document.getElementById("ledger");
+  const detail  = document.getElementById("detail");
+  const inner   = document.getElementById("detailInner");
+  const countNow= document.getElementById("countNow");
+  const countAll= document.getElementById("countAll");
+  let active = 0;
+  let currentMedia = null; // the playing <video>/<audio> element, if any
+
+  const pad2 = n => String(n).padStart(2,"0");
+  countAll.textContent = pad2(DATA.length);
+
+  /* ---------- build the master ledger ---------- */
+  DATA.forEach((d,i)=>{
+    const li = document.createElement("li");
+    const b  = document.createElement("button");
+    b.className="row";
+    b.setAttribute("role","option");
+    b.setAttribute("aria-current", i===0 ? "true":"false");
+    b.setAttribute("aria-selected", i===0 ? "true":"false");
+    b.dataset.i = i;
+    b.innerHTML =
+      '<span class="num">'+d.no+'</span>'+
+      '<span class="body">'+
+        '<span class="ttl">'+d.title+'</span>'+
+        '<span class="meta"><span>'+d.date+'</span><span>'+d.medium+'</span>'+
+          '<span class="seed">SEED '+d.seed+'</span></span>'+
+        '<span class="tag">'+d.tag+'</span>'+
+      '</span>';
+    b.addEventListener("click",()=>select(i));
+    b.addEventListener("keydown",e=>{
+      if(e.key==="ArrowDown"||e.key==="ArrowRight"){e.preventDefault();focusRow(i+1);}
+      if(e.key==="ArrowUp"||e.key==="ArrowLeft"){e.preventDefault();focusRow(i-1);}
+    });
+    li.appendChild(b);
+    ledger.appendChild(li);
+  });
+  const rows = [...ledger.querySelectorAll(".row")];
+
+  function focusRow(i){
+    if(i<0||i>=rows.length) return;
+    rows[i].focus();
+  }
+
+  /* ---------- render one detail view ---------- */
+  function renderDetail(d,i){
+    // tear down any playing media before swap
+    stopMedia();
+    const isSquare = d.media.ratio==="square";
+    let mediaHTML = "";
+    const mediaClass = "d-media"+(isSquare?" is-square":"");
+
+    if(d.media.kind==="image"){
+      mediaHTML =
+        '<figure class="'+mediaClass+'">'+
+          '<div class="frame"><img src="'+d.media.src+'" alt="'+d.title+'" loading="lazy" decoding="async"></div>'+
+          '<figcaption class="cap"><span>'+d.media.cap+'</span><span class="seed">'+d.media.res+'</span></figcaption>'+
+        '</figure>';
+    } else if(d.media.kind==="video"){
+      mediaHTML =
+        '<figure class="'+mediaClass+'" data-video="1">'+
+          '<div class="frame">'+
+            '<video preload="none" playsinline loop muted poster="'+d.media.poster+'" data-src="'+d.media.src+'"></video>'+
+          '</div>'+
+          '<button class="play" aria-label="Play '+d.title+'">'+
+            '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>'+
+          '</button>'+
+          '<figcaption class="cap"><span>'+d.media.cap+'</span><span class="seed">'+d.media.res+'</span></figcaption>'+
+        '</figure>';
+    } else if(d.media.kind==="wave"){
+      mediaHTML =
+        '<figure class="'+mediaClass+'" data-audio="1">'+
+          '<div class="frame" style="background:#0d0d0d;padding:6%">'+
+            '<img src="'+d.media.src+'" alt="Waveform of '+d.title+'" loading="lazy" style="object-fit:contain;filter:invert(1) sepia(1) saturate(3) hue-rotate(5deg) brightness(.9)">'+
+          '</div>'+
+          '<button class="play" aria-label="Play '+d.title+'">'+
+            '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>'+
+          '</button>'+
+          '<audio preload="none" data-src="'+d.media.audio+'"></audio>'+
+          '<figcaption class="cap"><span>'+d.media.cap+'</span><span class="seed">'+d.media.res+'</span></figcaption>'+
+        '</figure>';
+    }
+
+    const specs = d.specs.map(s=>
+      '<div class="cell"><div class="k">'+s[0]+'</div><div class="v">'+s[1]+'</div></div>'
+    ).join("");
+    const body = d.body.map(p=>'<p>'+p+'</p>').join("");
+
+    inner.innerHTML =
+      '<div class="d-top">'+
+        '<div class="d-index">'+d.no+'</div>'+
+        '<div class="d-folio">FOLIO <b>'+pad2(i+1)+'</b> / '+pad2(DATA.length)+'<br>'+d.date+'<br>SEED '+d.seed+'</div>'+
+      '</div>'+
+      '<header class="d-head">'+
+        '<div class="d-kicker">'+d.kicker+'</div>'+
+        '<h2 class="d-title">'+d.title+'</h2>'+
+        '<p class="d-lede">'+d.lede+'</p>'+
+      '</header>'+
+      '<div class="d-rule"></div>'+
+      mediaHTML+
+      '<div class="d-specs">'+specs+'</div>'+
+      '<div class="d-body">'+body+'</div>'+
+      '<footer class="d-foot"><span>'+d.footL+'</span><span>'+d.footR+'</span></footer>';
+
+    // wire media controls
+    const fig = inner.querySelector(".d-media[data-video], .d-media[data-audio]");
+    if(fig){
+      const playBtn = fig.querySelector(".play");
+      playBtn.addEventListener("click",()=>activateMedia(fig));
+    }
+    // reset detail scroll to top on swap
+    detail.scrollTop = 0;
+  }
+
+  /* ---------- single-decoder media policy ---------- */
+  function stopMedia(){
+    if(currentMedia){
+      try{ currentMedia.pause(); }catch(e){}
+      if(currentMedia.tagName==="VIDEO"){
+        currentMedia.removeAttribute("src");
+        currentMedia.load(); // free the decoder
+        const fig = currentMedia.closest(".d-media");
+        if(fig) fig.classList.remove("playing");
+      }
+      currentMedia=null;
+    }
+  }
+  function activateMedia(fig){
+    stopMedia();
+    const v = fig.querySelector("video");
+    const a = fig.querySelector("audio");
+    if(v){
+      v.src = v.dataset.src;
+      v.load();
+      const p = v.play();
+      if(p && p.catch) p.catch(()=>{});
+      fig.classList.add("playing");
+      currentMedia=v;
+    } else if(a){
+      a.src = a.dataset.src;
+      a.muted=false;
+      const p = a.play();
+      if(p && p.catch) p.catch(()=>{});
+      const btn = fig.querySelector(".play");
+      // toggle audio play/pause
+      btn.setAttribute("aria-label","Pause");
+      btn.querySelector("svg").innerHTML='<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
+      currentMedia=a;
+      a.addEventListener("ended",()=>{
+        btn.setAttribute("aria-label","Play");
+        btn.querySelector("svg").innerHTML='<path d="M8 5v14l11-7z"/>';
+        currentMedia=null;
+      },{once:true});
+    }
+  }
+
+  /* ---------- selection with cross-fade ---------- */
+  function select(i){
+    if(i===active && inner.childElementCount) return;
+    active=i;
+    rows.forEach((r,k)=>{
+      const on = k===i;
+      r.setAttribute("aria-current", on?"true":"false");
+      r.setAttribute("aria-selected", on?"true":"false");
+    });
+    countNow.textContent = pad2(i+1);
+    // keep active row visible in the rail (vertical desktop / horizontal mobile)
+    rows[i].scrollIntoView({block:"nearest",inline:"nearest",behavior:REDUCED?"auto":"smooth"});
+
+    if(REDUCED){
+      renderDetail(DATA[i],i);
+      return;
+    }
+    detail.classList.add("fading");
+    window.setTimeout(()=>{
+      renderDetail(DATA[i],i);
+      // next frame: fade back in
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{
+        detail.classList.remove("fading");
+      }));
+    },220);
+  }
+
+  /* ---------- pause video if detail scrolls it out of view ---------- */
+  detail.addEventListener("scroll",()=>{
+    if(currentMedia && currentMedia.tagName==="VIDEO"){
+      const fig = currentMedia.closest(".d-media");
+      if(!fig) return;
+      const r = fig.getBoundingClientRect();
+      const vh = detail.clientHeight || window.innerHeight;
+      const visible = r.bottom>0 && r.top<vh;
+      if(!visible && !currentMedia.paused) currentMedia.pause();
+      else if(visible && currentMedia.paused && fig.classList.contains("playing")){
+        const p=currentMedia.play(); if(p&&p.catch)p.catch(()=>{});
+      }
+    }
+  },{passive:true});
+
+  // initial paint
+  renderDetail(DATA[0],0);
+})();
+</script>
+</body>
+</html>

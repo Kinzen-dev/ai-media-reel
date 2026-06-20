@@ -1,0 +1,690 @@
+<!-- TEMPLATE: La Carta Character Scroll | ARCHETYPE: la-carta-restaurant-character | REF: La Revoltosa (WAKA), Crav Burgers (Anyflow) | WHEN TO USE: restaurant / food-brand landing where one bold mascot or wordmark stays fixed in a left panel and reacts (points, toasts, waves) as the right column scrolls hero, menu, reservation, story | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>La Carta - Character Scroll Restaurant Template</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,900&family=Bricolage+Grotesque:wght@500;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+/* =========================================================================
+   LA CARTA - one fixed brand character, the right column scrolls past it.
+   The character POSE swaps per active section (idle -> point -> toast -> wave)
+   driven by a [data-pose] attribute set from an IntersectionObserver.
+   No WebGL, no libs. Reduced-motion shows the final/calm state, no cycling.
+   ========================================================================= */
+:root{
+  --red:#F91814;
+  --cream:#F5E3CD;
+  --ink:#1A1008;
+  --ink-soft:#3d2c1c;
+  --cream-deep:#ecd4b6;
+  --paper:#fbf3e6;
+  --line: color-mix(in srgb, var(--ink) 16%, transparent);
+  --maxw:1440px;
+  --pad: clamp(18px, 4vw, 56px);
+  --r: 22px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} }
+body{
+  margin:0;
+  background:var(--cream);
+  color:var(--ink);
+  font-family:"Bricolage Grotesque", system-ui, sans-serif;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+}
+img{display:block;max-width:100%}
+a{color:inherit}
+::selection{background:var(--red);color:var(--cream)}
+
+/* grain + warm vignette so the cream never reads flat ------------------- */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:60;mix-blend-mode:multiply;opacity:.05;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* =========================== LAYOUT SHELL ============================== */
+.stage{
+  max-width:var(--maxw);
+  margin:0 auto;
+  display:grid;
+  grid-template-columns: 40% 60%;
+  align-items:start;
+}
+
+/* ---- FIXED CHARACTER PANEL (left) ---- */
+.character{
+  position:sticky;
+  top:0;
+  height:100vh;
+  height:100dvh;
+  background:
+     radial-gradient(120% 90% at 30% 18%, color-mix(in srgb,var(--red) 12%, transparent), transparent 60%),
+     var(--ink);
+  color:var(--cream);
+  padding:var(--pad);
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  overflow:hidden;
+  border-right:2px solid var(--ink);
+}
+.character::after{ /* plate rings behind mascot */
+  content:"";position:absolute;left:50%;top:54%;width:min(78%, 460px);aspect-ratio:1;
+  transform:translate(-50%,-50%);border-radius:50%;
+  background:
+    radial-gradient(circle, transparent 56%, color-mix(in srgb,var(--red) 70%, transparent) 56.4%, color-mix(in srgb,var(--red) 70%, transparent) 58%, transparent 58.4%),
+    radial-gradient(circle, transparent 47%, color-mix(in srgb,var(--cream) 26%, transparent) 47.4%, color-mix(in srgb,var(--cream) 26%, transparent) 48.4%, transparent 49%);
+  z-index:0;opacity:.9;
+}
+
+.brandbar{display:flex;align-items:center;gap:12px;position:relative;z-index:2}
+.brandbar .mark{
+  font-family:"Fraunces",serif;font-weight:900;font-size:clamp(22px,2.4vw,30px);letter-spacing:-.01em;line-height:1;
+}
+.brandbar .mark em{color:var(--red);font-style:normal}
+.brandbar .tag{
+  font-family:"DM Mono",monospace;font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+  opacity:.7;margin-left:auto;border:1px solid color-mix(in srgb,var(--cream) 35%, transparent);
+  padding:6px 10px;border-radius:999px;white-space:nowrap;
+}
+
+/* ---- THE MASCOT (pure CSS/SVG) ---- */
+.mascot-wrap{
+  position:relative;z-index:1;flex:1;display:flex;align-items:center;justify-content:center;
+  min-height:0;
+}
+.mascot{
+  width:min(86%, 380px);
+  aspect-ratio: 1 / 1.18;
+  position:relative;
+  --tilt:0deg; --bob:0px;
+  transform: translateY(var(--bob)) rotate(var(--tilt));
+  transition: transform .55s cubic-bezier(.34,1.4,.5,1);
+  filter: drop-shadow(0 24px 40px rgba(0,0,0,.45));
+}
+@keyframes bob{ 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+.mascot.anim{ animation: bob 4.2s ease-in-out infinite; }
+
+.mascot svg{width:100%;height:100%;overflow:visible}
+
+/* parts that move per pose */
+.m-arm-l, .m-arm-r{ transform-box: fill-box; transform-origin: 50% 0%;
+  transition: transform .6s cubic-bezier(.34,1.5,.5,1); }
+.m-brow-l,.m-brow-r{ transform-box:fill-box; transform-origin:center;
+  transition: transform .45s ease; }
+.m-mouth{ transition: d .45s ease, transform .45s ease; }
+.m-glass{ opacity:0; transform-box:fill-box; transform-origin:50% 100%;
+  transform: translateY(8px) scale(.6); transition: opacity .5s ease, transform .55s cubic-bezier(.34,1.5,.5,1); }
+.m-cheek{ opacity:.0; transition:opacity .4s ease; fill:var(--red); }
+.m-finger{ opacity:0; transition: opacity .4s ease; }
+
+/* POSE: idle (default) - gentle, both arms down */
+[data-pose="idle"] .m-arm-r{ transform: rotate(6deg); }
+[data-pose="idle"] .m-arm-l{ transform: rotate(-6deg); }
+
+/* POSE: point - right arm swings up toward the menu (which is on the right) */
+[data-pose="point"] .m-arm-r{ transform: rotate(-72deg) translateY(-6px); }
+[data-pose="point"] .m-finger{ opacity:1; }
+[data-pose="point"] .m-brow-l{ transform: translateY(-3px) rotate(-6deg); }
+[data-pose="point"] .m-brow-r{ transform: translateY(-3px) rotate(6deg); }
+
+/* POSE: toast - raise a glass, cheerful, cheeks blush */
+[data-pose="toast"] .m-arm-r{ transform: rotate(-118deg) translateY(-2px); }
+[data-pose="toast"] .m-arm-l{ transform: rotate(8deg); }
+[data-pose="toast"] .m-glass{ opacity:1; transform: translateY(0) scale(1); }
+[data-pose="toast"] .m-cheek{ opacity:.9; }
+[data-pose="toast"] .m-mouth{ transform: translateY(2px) scaleY(1.25); }
+
+/* POSE: wave - left arm up, friendly goodbye */
+[data-pose="wave"] .m-arm-l{ transform: rotate(150deg) translateY(-4px); }
+[data-pose="wave"] .m-arm-r{ transform: rotate(8deg); }
+[data-pose="wave"] .m-cheek{ opacity:.7; }
+
+/* pose label + dots */
+.posebar{position:relative;z-index:2;display:flex;align-items:center;gap:14px}
+.posebar .now{
+  font-family:"DM Mono",monospace;font-size:12px;letter-spacing:.18em;text-transform:uppercase;
+  opacity:.85;
+}
+.posebar .now b{color:var(--red);font-weight:500}
+.dots{display:flex;gap:8px;margin-left:auto}
+.dots span{width:9px;height:9px;border-radius:50%;background:color-mix(in srgb,var(--cream) 30%, transparent);transition:.4s}
+.dots span.on{background:var(--red);transform:scale(1.25)}
+.scrollcue{
+  position:relative;z-index:2;font-family:"DM Mono",monospace;font-size:11px;letter-spacing:.2em;
+  text-transform:uppercase;opacity:.6;display:flex;align-items:center;gap:8px;
+}
+.scrollcue .arrow{display:inline-block;animation:cue 1.6s ease-in-out infinite}
+@keyframes cue{0%,100%{transform:translateY(0)}50%{transform:translateY(4px)}}
+
+/* ============================ SCROLL COLUMN =========================== */
+.scroll{ background:var(--cream); min-width:0; }
+.sec{
+  min-height:100vh;min-height:100dvh;
+  padding:var(--pad);
+  display:flex;flex-direction:column;justify-content:center;
+  border-bottom:2px solid var(--ink);
+  position:relative;
+}
+.sec:last-child{border-bottom:none}
+.eyebrow{
+  font-family:"DM Mono",monospace;font-size:12px;letter-spacing:.26em;text-transform:uppercase;
+  color:var(--red);display:flex;align-items:center;gap:10px;margin:0 0 18px;
+}
+.eyebrow::before{content:"";width:34px;height:2px;background:var(--red)}
+
+/* ---- HERO ---- */
+.hero h1{
+  font-family:"Fraunces",serif;font-weight:900;
+  font-size:clamp(48px, 8.2vw, 116px);
+  line-height:.92;letter-spacing:-.025em;margin:0;
+  color:var(--ink);
+}
+.hero h1 .red{color:var(--red);font-style:italic}
+.hero p.lede{
+  max-width:46ch;margin:24px 0 0;font-size:clamp(16px,1.5vw,20px);line-height:1.5;color:var(--ink-soft);
+}
+.cta-row{display:flex;flex-wrap:wrap;gap:14px;margin-top:32px;align-items:center}
+.btn{
+  --bg:var(--red); --fg:var(--cream);
+  font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:16px;
+  background:var(--bg);color:var(--fg);border:2px solid var(--ink);
+  padding:15px 26px;border-radius:999px;text-decoration:none;cursor:pointer;
+  display:inline-flex;align-items:center;gap:10px;line-height:1;
+  box-shadow:4px 4px 0 var(--ink);
+  transition:transform .14s ease, box-shadow .14s ease, background .2s ease;
+}
+.btn:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--ink)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.btn.ghost{ --bg:transparent; --fg:var(--ink); box-shadow:none;}
+.btn.ghost:hover{background:var(--ink);color:var(--cream)}
+.btn:focus-visible, a:focus-visible, button:focus-visible{
+  outline:3px solid var(--red);outline-offset:3px;
+}
+.hero-meta{
+  display:flex;gap:26px;flex-wrap:wrap;margin-top:34px;
+  font-family:"DM Mono",monospace;font-size:13px;color:var(--ink-soft);
+}
+.hero-meta b{color:var(--ink);font-family:"Bricolage Grotesque";font-weight:800;display:block;font-size:15px}
+.hero-strip{
+  margin-top:30px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:560px;
+}
+.hero-strip figure{margin:0;border:2px solid var(--ink);border-radius:14px;overflow:hidden;background:var(--ink);
+  aspect-ratio:4/3;position:relative}
+.hero-strip img{width:100%;height:100%;object-fit:cover}
+.hero-strip figcaption{
+  position:absolute;left:8px;bottom:8px;font-family:"DM Mono",monospace;font-size:10px;
+  letter-spacing:.08em;background:var(--cream);color:var(--ink);padding:3px 7px;border-radius:6px;
+  border:1.5px solid var(--ink);
+}
+
+/* ---- MENU TEASER ---- */
+.menu-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:8px}
+.dish{
+  border:2px solid var(--ink);border-radius:var(--r);overflow:hidden;background:var(--paper);
+  box-shadow:5px 5px 0 var(--ink);display:flex;flex-direction:column;
+  transition:transform .16s ease, box-shadow .16s ease;
+}
+.dish:hover, .dish:focus-within{transform:translate(-3px,-3px);box-shadow:8px 8px 0 var(--ink)}
+.dish .pic{aspect-ratio:16/10;background:var(--ink);position:relative;overflow:hidden}
+.dish .pic img{width:100%;height:100%;object-fit:cover;transition:transform .5s ease}
+.dish:hover .pic img{transform:scale(1.05)}
+.dish .pic .price{
+  position:absolute;top:10px;right:10px;background:var(--red);color:var(--cream);
+  font-family:"Fraunces",serif;font-weight:900;font-size:18px;padding:6px 12px;border-radius:999px;
+  border:2px solid var(--ink);
+}
+.dish .body{padding:16px 18px 18px}
+.dish h3{font-family:"Fraunces",serif;font-weight:900;font-size:clamp(20px,2.2vw,26px);margin:0;letter-spacing:-.01em}
+.dish .desc{margin:6px 0 0;font-size:14px;line-height:1.45;color:var(--ink-soft)}
+.dish .tags{margin-top:12px;display:flex;flex-wrap:wrap;gap:7px}
+.dish .tags span{
+  font-family:"DM Mono",monospace;font-size:11px;letter-spacing:.04em;
+  border:1.5px solid var(--ink);border-radius:999px;padding:3px 9px;color:var(--ink-soft);
+}
+
+/* ---- RESERVE ---- */
+.reserve-card{
+  border:2px solid var(--ink);border-radius:var(--r);background:var(--ink);color:var(--cream);
+  padding:clamp(22px,3vw,40px);box-shadow:6px 6px 0 var(--red);
+}
+.reserve-card h2{font-family:"Fraunces",serif;font-weight:900;font-size:clamp(30px,4.2vw,52px);line-height:.96;margin:0;letter-spacing:-.02em}
+.reserve-card h2 em{color:var(--red);font-style:italic}
+.reserve-card p{max-width:42ch;color:color-mix(in srgb,var(--cream) 82%, transparent);line-height:1.5;margin:16px 0 0}
+.book{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:24px}
+.book label{display:flex;flex-direction:column;gap:7px;font-family:"DM Mono",monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:color-mix(in srgb,var(--cream) 70%, transparent)}
+.book select, .book input{
+  font-family:"Bricolage Grotesque";font-weight:700;font-size:15px;color:var(--ink);
+  background:var(--cream);border:2px solid var(--ink);border-radius:12px;padding:12px 13px;width:100%;
+}
+.book .full{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:6px}
+.reserve-card .btn{--fg:var(--cream)}
+.reserve-card .small{font-family:"DM Mono",monospace;font-size:12px;opacity:.7;margin-left:auto}
+
+/* ---- STORY ---- */
+.story h2{font-family:"Fraunces",serif;font-weight:900;font-size:clamp(34px,5vw,66px);line-height:.95;margin:0;letter-spacing:-.02em}
+.story h2 em{color:var(--red);font-style:italic}
+.story p{max-width:54ch;font-size:clamp(16px,1.5vw,19px);line-height:1.6;color:var(--ink-soft);margin:20px 0 0}
+.story .frame{
+  margin-top:26px;border:2px solid var(--ink);border-radius:var(--r);overflow:hidden;
+  aspect-ratio:16/9;background:var(--ink);max-width:620px;box-shadow:6px 6px 0 var(--ink);position:relative;
+}
+.story .frame img{width:100%;height:100%;object-fit:cover}
+.story .frame figcaption{
+  position:absolute;left:0;bottom:0;right:0;padding:12px 16px;
+  background:linear-gradient(transparent, rgba(0,0,0,.72));color:var(--cream);
+  font-family:"DM Mono",monospace;font-size:12px;letter-spacing:.06em;
+}
+.foot{display:flex;flex-wrap:wrap;gap:18px;align-items:center;margin-top:30px;
+  font-family:"DM Mono",monospace;font-size:13px;color:var(--ink-soft)}
+.foot .wm{font-family:"Fraunces",serif;font-weight:900;font-size:20px;color:var(--ink)}
+.foot .wm em{color:var(--red);font-style:normal}
+
+/* ===================== MOBILE: stack the panel into a sticky band ====== */
+.mob-band{display:none}
+
+@media (max-width: 920px){
+  .stage{grid-template-columns:1fr}
+  /* hide the tall fixed panel, show a compact sticky brand band instead */
+  .character{display:none}
+  .mob-band{
+    display:flex;align-items:center;gap:12px;
+    position:sticky;top:0;z-index:40;
+    background:var(--ink);color:var(--cream);
+    padding:11px 16px;border-bottom:2px solid var(--ink);
+  }
+  .mob-band .mob-mascot{width:40px;height:46px;flex:0 0 auto}
+  .mob-band .mob-mascot svg{width:100%;height:100%;overflow:visible}
+  .mob-band .mark{font-family:"Fraunces",serif;font-weight:900;font-size:20px;line-height:1}
+  .mob-band .mark em{color:var(--red)}
+  .mob-band .mob-pose{
+    margin-left:auto;font-family:"DM Mono",monospace;font-size:11px;letter-spacing:.14em;
+    text-transform:uppercase;border:1px solid color-mix(in srgb,var(--cream) 35%, transparent);
+    padding:5px 9px;border-radius:999px;white-space:nowrap;
+  }
+  .mob-band .mob-pose b{color:var(--red);font-weight:500}
+  .mob-band .btn{padding:9px 15px;font-size:13px;box-shadow:2px 2px 0 var(--red)}
+  .sec{min-height:auto;padding:48px var(--pad) 56px}
+  .hero{min-height:calc(100dvh - 60px)}
+  .menu-grid{grid-template-columns:1fr}
+  .book{grid-template-columns:1fr 1fr}
+  .hero-strip{grid-template-columns:repeat(3,1fr);max-width:none}
+}
+@media (max-width:480px){
+  .hero-meta{gap:18px}
+  .book{grid-template-columns:1fr}
+  .reserve-card .small{margin-left:0;width:100%}
+  .cta-row{gap:10px}
+  .btn{padding:13px 20px;font-size:15px}
+}
+
+/* reduced motion: freeze the mascot, no bob, no scroll-cue bounce */
+@media (prefers-reduced-motion: reduce){
+  .mascot, .mascot.anim{animation:none !important}
+  .mascot{transition:none}
+  .m-arm-l,.m-arm-r,.m-glass,.m-cheek,.m-finger,.m-brow-l,.m-brow-r,.m-mouth{transition:none}
+  .scrollcue .arrow{animation:none}
+  .dish .pic img, .dish{transition:none}
+}
+</style>
+</head>
+<body>
+
+<!-- =====================================================================
+     DATA  -  swap everything about this restaurant here.
+     Each section drives both the scroll content AND the mascot pose.
+     poses: idle | point | toast | wave
+     ===================================================================== -->
+<script>
+const DATA = {
+  brand: { name:"La&nbsp;<em>Carta</em>", tag:"Cocina &amp; Brasa", phone:"+66 2 544 0222", hours:"Tue - Sun  17:00 - late" },
+  mascot:{ name:"Pepe", labelIdle:"saying hola", labelPoint:"pointing at the menu", labelToast:"raising a glass", labelWave:"waving goodbye" },
+  hero:{
+    eyebrow:"Open fire kitchen . Ayutthaya",
+    line1:"Eat like",
+    line2:"you mean it.",
+    redWord:"mean it.",
+    lede:"A loud little fire-grill house where the char is the seasoning and the table runs late. Walk in hungry, leave a regular.",
+    primary:"Reserve a table",
+    secondary:"See the carta",
+    meta:[
+      {k:"No.7 in town", v:"BKK Eats 2026"},
+      {k:"4.9 / 5", v:"612 covers reviewed"},
+      {k:"Wood fire", v:"every plate touched"}
+    ],
+    strip:[
+      {img:"../assets/flux-clinic-4k.png", cap:"The room"},
+      {img:"../assets/flux-car-4k.png",   cap:"Late night"},
+      {img:"../assets/sdxl.png",          cap:"Autumn menu"}
+    ]
+  },
+  menu:{
+    eyebrow:"Today on the carta",
+    title:"Four plates worth the booking.",
+    dishes:[
+      { name:"Brasa Burger",    price:"320", img:"../assets/flux-car-4k.png",   desc:"Double smash over live coals, aged cheddar, charred onion jam, brioche from the morning bake.", tags:["wood fire","signature","spicy opt."] },
+      { name:"Ember Fox Roast", price:"410", img:"../assets/sdxl.png",          desc:"Slow-roast pork shoulder rubbed in autumn spice, glazed in its own drippings, crackling on top.", tags:["share plate","gluten free"] },
+      { name:"Garden Plancha",  price:"260", img:"../assets/flux-clinic-4k.png",desc:"Seasonal vegetables seared hard on the plancha, smoked almond romesco, burnt lemon.", tags:["vegetarian","vegan opt."] },
+      { name:"Orchard Tart",    price:"180", img:"../assets/hf-tinysd.png",     desc:"Caramelised apple tart, brown-butter crust, a scoop of salted cream that melts on contact.", tags:["dessert","baked daily"] }
+    ]
+  },
+  reserve:{
+    eyebrow:"Hold your table",
+    title:"Pull up a&nbsp;<em>chair</em>.",
+    body:"Walk-ins welcome at the bar, but the good corner booths go fast. Two clicks and Pepe holds it for you.",
+    sizes:["2 guests","3 guests","4 guests","5 guests","6+ guests"],
+    times:["17:30","18:00","19:00","20:00","21:30"],
+    cta:"Confirm booking",
+    note:"Instant confirmation . no deposit"
+  },
+  story:{
+    eyebrow:"Since 2019",
+    title:"One grill, one&nbsp;<em>obsession</em>.",
+    body:"We started with a single oil-drum grill on the corner and a stubborn belief that fire does most of the cooking if you respect it. Six years on the drum is gone, the obsession is not. Every plate still meets the flame before it meets you.",
+    frame:{ img:"../assets/flux-car-4k.png", cap:"The pass, 22:14 on a Friday" },
+    cta:"Find the door"
+  }
+};
+</script>
+
+<div class="stage" id="stage">
+
+  <!-- ============ FIXED CHARACTER PANEL (desktop) ============ -->
+  <aside class="character" id="charPanel" data-pose="idle" aria-label="La Carta brand mascot">
+    <div class="brandbar">
+      <span class="mark" id="brandMark">La <em>Carta</em></span>
+      <span class="tag" id="brandTag">Cocina &amp; Brasa</span>
+    </div>
+
+    <div class="mascot-wrap">
+      <!-- MASCOT: built once, posed by [data-pose] on the panel -->
+      <div class="mascot anim" id="mascot" role="img" aria-label="Pepe the mascot, the host of La Carta">
+        <svg viewBox="0 0 200 236" aria-hidden="true">
+          <!-- left arm (behind body) -->
+          <g class="m-arm-l">
+            <rect x="34" y="120" width="20" height="74" rx="10" fill="#F5E3CD"/>
+            <circle cx="44" cy="196" r="13" fill="#F5E3CD"/>
+          </g>
+          <!-- right arm (behind body) -->
+          <g class="m-arm-r">
+            <rect x="146" y="120" width="20" height="74" rx="10" fill="#F5E3CD"/>
+            <circle cx="156" cy="196" r="13" fill="#F5E3CD"/>
+            <!-- pointing finger (shows in point pose) -->
+            <rect class="m-finger" x="151" y="176" width="10" height="26" rx="5" fill="#F5E3CD"/>
+            <!-- the toast glass (shows in toast pose) -->
+            <g class="m-glass">
+              <path d="M147 168 h18 l-3 16 a6 6 0 0 1 -12 0 z" fill="#F91814" stroke="#1A1008" stroke-width="3"/>
+              <rect x="154" y="184" width="4" height="14" fill="#1A1008"/>
+              <ellipse cx="156" cy="201" rx="11" ry="3.4" fill="#1A1008"/>
+              <circle cx="151" cy="160" r="2.6" fill="#F91814"/>
+              <circle cx="160" cy="156" r="1.9" fill="#F91814"/>
+            </g>
+          </g>
+
+          <!-- body / apron -->
+          <path d="M58 112 h84 a14 14 0 0 1 14 14 v74 a16 16 0 0 1 -16 16 H60 a16 16 0 0 1 -16 -16 v-74 a14 14 0 0 1 14 -14 z" fill="#F91814" stroke="#1A1008" stroke-width="4"/>
+          <!-- apron pocket -->
+          <rect x="78" y="160" width="44" height="34" rx="6" fill="#F5E3CD" stroke="#1A1008" stroke-width="3.5"/>
+          <path d="M100 160 v34" stroke="#1A1008" stroke-width="3"/>
+          <!-- neckerchief -->
+          <path d="M74 112 l26 18 l26 -18 z" fill="#1A1008"/>
+
+          <!-- head -->
+          <circle cx="100" cy="74" r="50" fill="#F5E3CD" stroke="#1A1008" stroke-width="4"/>
+          <!-- ears -->
+          <circle cx="52" cy="74" r="9" fill="#F5E3CD" stroke="#1A1008" stroke-width="4"/>
+          <circle cx="148" cy="74" r="9" fill="#F5E3CD" stroke="#1A1008" stroke-width="4"/>
+          <!-- chef hat -->
+          <path d="M66 40 a18 18 0 0 1 12 -28 a20 20 0 0 1 44 0 a18 18 0 0 1 12 28 z" fill="#fbf3e6" stroke="#1A1008" stroke-width="4"/>
+          <rect x="64" y="40" width="72" height="14" rx="4" fill="#fbf3e6" stroke="#1A1008" stroke-width="4"/>
+          <!-- brows -->
+          <rect class="m-brow-l" x="68" y="58" width="20" height="6" rx="3" fill="#1A1008"/>
+          <rect class="m-brow-r" x="112" y="58" width="20" height="6" rx="3" fill="#1A1008"/>
+          <!-- eyes -->
+          <circle cx="80" cy="74" r="6.5" fill="#1A1008"/>
+          <circle cx="120" cy="74" r="6.5" fill="#1A1008"/>
+          <circle cx="82" cy="72" r="2.1" fill="#F5E3CD"/>
+          <circle cx="122" cy="72" r="2.1" fill="#F5E3CD"/>
+          <!-- blush cheeks (toast/wave) -->
+          <circle class="m-cheek" cx="70" cy="90" r="8"/>
+          <circle class="m-cheek" cx="130" cy="90" r="8"/>
+          <!-- moustache -->
+          <path d="M86 92 q14 10 28 0" fill="none" stroke="#1A1008" stroke-width="5" stroke-linecap="round"/>
+          <!-- mouth -->
+          <path class="m-mouth" d="M88 100 q12 12 24 0" fill="none" stroke="#1A1008" stroke-width="4.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+    </div>
+
+    <div>
+      <div class="posebar" aria-hidden="true">
+        <span class="now"><b id="poseName">Pepe</b> is <span id="poseLabel">saying hola</span></span>
+        <span class="dots" id="dots"></span>
+      </div>
+      <div class="scrollcue" style="margin-top:14px">
+        <span>scroll to be seated</span><span class="arrow">&#8595;</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ MOBILE STICKY BAND (replaces panel <=920px) ============ -->
+  <div class="mob-band" id="mobBand" data-pose="idle" aria-hidden="false">
+    <div class="mob-mascot" aria-hidden="true">
+      <svg viewBox="0 0 200 236">
+        <g class="m-arm-l"><rect x="34" y="120" width="20" height="74" rx="10" fill="#F5E3CD"/><circle cx="44" cy="196" r="13" fill="#F5E3CD"/></g>
+        <g class="m-arm-r"><rect x="146" y="120" width="20" height="74" rx="10" fill="#F5E3CD"/><circle cx="156" cy="196" r="13" fill="#F5E3CD"/>
+          <rect class="m-finger" x="151" y="176" width="10" height="26" rx="5" fill="#F5E3CD"/>
+          <g class="m-glass"><path d="M147 168 h18 l-3 16 a6 6 0 0 1 -12 0 z" fill="#F91814" stroke="#1A1008" stroke-width="3"/><rect x="154" y="184" width="4" height="14" fill="#1A1008"/><ellipse cx="156" cy="201" rx="11" ry="3.4" fill="#1A1008"/></g></g>
+        <path d="M58 112 h84 a14 14 0 0 1 14 14 v74 a16 16 0 0 1 -16 16 H60 a16 16 0 0 1 -16 -16 v-74 a14 14 0 0 1 14 -14 z" fill="#F91814" stroke="#1A1008" stroke-width="4"/>
+        <path d="M74 112 l26 18 l26 -18 z" fill="#1A1008"/>
+        <circle cx="100" cy="74" r="50" fill="#F5E3CD" stroke="#1A1008" stroke-width="4"/>
+        <path d="M66 40 a18 18 0 0 1 12 -28 a20 20 0 0 1 44 0 a18 18 0 0 1 12 28 z" fill="#fbf3e6" stroke="#1A1008" stroke-width="4"/>
+        <rect x="64" y="40" width="72" height="14" rx="4" fill="#fbf3e6" stroke="#1A1008" stroke-width="4"/>
+        <circle cx="80" cy="74" r="6.5" fill="#1A1008"/><circle cx="120" cy="74" r="6.5" fill="#1A1008"/>
+        <circle class="m-cheek" cx="70" cy="90" r="8"/><circle class="m-cheek" cx="130" cy="90" r="8"/>
+        <path d="M86 92 q14 10 28 0" fill="none" stroke="#1A1008" stroke-width="5" stroke-linecap="round"/>
+        <path class="m-mouth" d="M88 100 q12 12 24 0" fill="none" stroke="#1A1008" stroke-width="4.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <span class="mark" id="mobMark">La <em>Carta</em></span>
+    <span class="mob-pose"><b>Pepe</b> <span id="mobPoseLabel">hola</span></span>
+    <a class="btn" href="#reserve">Reserve</a>
+  </div>
+
+  <!-- ============ SCROLLING COLUMN ============ -->
+  <main class="scroll">
+
+    <!-- HERO -->
+    <section class="sec hero" id="sec-hero" data-pose="idle" data-label-key="labelIdle">
+      <p class="eyebrow" id="heroEyebrow">Open fire kitchen . Ayutthaya</p>
+      <h1 id="heroH1">Eat like<br><span class="red">you mean it.</span></h1>
+      <p class="lede" id="heroLede"></p>
+      <div class="cta-row">
+        <a class="btn" href="#reserve" id="heroPrimary">Reserve a table</a>
+        <a class="btn ghost" href="#sec-menu" id="heroSecondary">See the carta</a>
+      </div>
+      <div class="hero-meta" id="heroMeta"></div>
+      <div class="hero-strip" id="heroStrip"></div>
+    </section>
+
+    <!-- MENU TEASER -->
+    <section class="sec menu" id="sec-menu" data-pose="point" data-label-key="labelPoint">
+      <p class="eyebrow" id="menuEyebrow">Today on the carta</p>
+      <h1 style="font-family:'Fraunces',serif;font-weight:900;font-size:clamp(30px,4.4vw,56px);line-height:.96;letter-spacing:-.02em;margin:0 0 24px" id="menuTitle">Four plates worth the booking.</h1>
+      <div class="menu-grid" id="menuGrid"></div>
+    </section>
+
+    <!-- RESERVE -->
+    <section class="sec reserve" id="reserve" data-pose="toast" data-label-key="labelToast">
+      <p class="eyebrow" id="resEyebrow">Hold your table</p>
+      <div class="reserve-card">
+        <h2 id="resTitle">Pull up a <em>chair</em>.</h2>
+        <p id="resBody"></p>
+        <form class="book" id="bookForm" novalidate>
+          <label>Party size
+            <select id="selSize"></select>
+          </label>
+          <label>Date
+            <input type="date" id="selDate" />
+          </label>
+          <label>Time
+            <select id="selTime"></select>
+          </label>
+          <div class="full">
+            <button class="btn" type="submit" id="resCta">Confirm booking</button>
+            <span class="small" id="resNote">Instant confirmation . no deposit</span>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- STORY -->
+    <section class="sec story" id="sec-story" data-pose="wave" data-label-key="labelWave">
+      <p class="eyebrow" id="storyEyebrow">Since 2019</p>
+      <h2 id="storyTitle">One grill, one <em>obsession</em>.</h2>
+      <p id="storyBody"></p>
+      <figure class="frame" id="storyFrame">
+        <img id="storyImg" alt="The pass at La Carta during evening service" loading="lazy" />
+        <figcaption id="storyCap"></figcaption>
+      </figure>
+      <div class="foot">
+        <span class="wm" id="footMark">La <em>Carta</em></span>
+        <span id="footPhone"></span>
+        <span id="footHours"></span>
+        <a class="btn ghost" href="#sec-hero" id="storyCta" style="margin-left:auto">Find the door</a>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+(function(){
+  const $ = (s,r=document)=>r.querySelector(s);
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---------- 1. hydrate copy from DATA ---------- */
+  const D = DATA;
+  $("#brandMark").innerHTML = D.brand.name;
+  $("#brandTag").innerHTML = D.brand.tag;
+  $("#mobMark").innerHTML = D.brand.name;
+  $("#footMark").innerHTML = D.brand.name;
+  $("#poseName").textContent = D.mascot.name;
+  $("#footPhone").innerHTML = "Call &nbsp;" + D.brand.phone;
+  $("#footHours").innerHTML = D.brand.hours;
+
+  // hero
+  $("#heroEyebrow").textContent = D.hero.eyebrow;
+  // line2 keeps its full words; only redWord is colored, so "you mean it." stays intact
+  const line2Html = D.hero.redWord && D.hero.line2.includes(D.hero.redWord)
+    ? D.hero.line2.replace(D.hero.redWord, "<span class='red'>" + D.hero.redWord + "</span>")
+    : "<span class='red'>" + D.hero.line2 + "</span>";
+  $("#heroH1").innerHTML = D.hero.line1 + "<br>" + line2Html;
+  $("#heroLede").textContent = D.hero.lede;
+  $("#heroPrimary").textContent = D.hero.primary;
+  $("#heroSecondary").textContent = D.hero.secondary;
+  $("#heroMeta").innerHTML = D.hero.meta.map(m=>`<div><b>${m.k}</b>${m.v}</div>`).join("");
+  $("#heroStrip").innerHTML = D.hero.strip.map(s=>
+    `<figure><img src="${s.img}" alt="${s.cap}" loading="lazy"/><figcaption>${s.cap}</figcaption></figure>`
+  ).join("");
+
+  // menu
+  $("#menuEyebrow").textContent = D.menu.eyebrow;
+  $("#menuTitle").textContent = D.menu.title;
+  $("#menuGrid").innerHTML = D.menu.dishes.map(d=>`
+    <article class="dish" tabindex="0">
+      <div class="pic"><img src="${d.img}" alt="${d.name}" loading="lazy"/><span class="price">฿${d.price}</span></div>
+      <div class="body">
+        <h3>${d.name}</h3>
+        <p class="desc">${d.desc}</p>
+        <div class="tags">${d.tags.map(t=>`<span>${t}</span>`).join("")}</div>
+      </div>
+    </article>`).join("");
+
+  // reserve
+  $("#resEyebrow").textContent = D.reserve.eyebrow;
+  $("#resTitle").innerHTML = D.reserve.title;
+  $("#resBody").textContent = D.reserve.body;
+  $("#resCta").textContent = D.reserve.cta;
+  $("#resNote").textContent = D.reserve.note;
+  $("#selSize").innerHTML = D.reserve.sizes.map(s=>`<option>${s}</option>`).join("");
+  $("#selTime").innerHTML = D.reserve.times.map(s=>`<option>${s}</option>`).join("");
+  // default the date to today
+  try{ $("#selDate").value = new Date().toISOString().slice(0,10); }catch(e){}
+
+  // story
+  $("#storyEyebrow").textContent = D.story.eyebrow;
+  $("#storyTitle").innerHTML = D.story.title;
+  $("#storyBody").textContent = D.story.body;
+  $("#storyImg").src = D.story.frame.img;
+  $("#storyCap").textContent = D.story.frame.cap;
+  $("#storyCta").textContent = D.story.cta;
+
+  // booking form is a demo; just acknowledge
+  $("#bookForm").addEventListener("submit",function(e){
+    e.preventDefault();
+    const btn = $("#resCta");
+    const old = btn.textContent;
+    btn.textContent = "Table held ✔";
+    btn.style.background = "var(--ink)";
+    setTimeout(()=>{ btn.textContent = old; btn.style.background=""; }, 2200);
+  });
+
+  /* ---------- 2. pose dots ---------- */
+  const sections = Array.from(document.querySelectorAll(".sec"));
+  const dotsWrap = $("#dots");
+  dotsWrap.innerHTML = sections.map(()=>`<span></span>`).join("");
+  const dots = Array.from(dotsWrap.children);
+
+  const panel = $("#charPanel");
+  const band  = $("#mobBand");
+  const poseLabelEl = $("#poseLabel");
+  const mobPoseLabelEl = $("#mobPoseLabel");
+  const mobShort = { idle:"hola", point:"this way", toast:"cheers", wave:"come back" };
+
+  function applyPose(idx){
+    const sec = sections[idx];
+    const pose = sec.getAttribute("data-pose") || "idle";
+    const labelKey = sec.getAttribute("data-label-key");
+    panel.setAttribute("data-pose", pose);
+    band.setAttribute("data-pose", pose);
+    poseLabelEl.textContent = D.mascot[labelKey] || "";
+    mobPoseLabelEl.textContent = mobShort[pose] || "";
+    dots.forEach((d,i)=>d.classList.toggle("on", i===idx));
+    // a tiny tilt accent per pose makes the swap feel alive (not in reduced motion)
+    if(!reduce){
+      const mascot = $("#mascot");
+      const tilt = pose==="point" ? "4deg" : pose==="wave" ? "-5deg" : pose==="toast" ? "3deg" : "0deg";
+      mascot.style.setProperty("--tilt", tilt);
+    }
+  }
+
+  /* ---------- 3. drive pose from whichever section owns the viewport ---------- */
+  let current = -1;
+  const io = new IntersectionObserver((entries)=>{
+    // pick the most-visible intersecting section
+    let best=null, bestRatio=0;
+    entries.forEach(en=>{ if(en.isIntersecting && en.intersectionRatio>bestRatio){ best=en; bestRatio=en.intersectionRatio; } });
+    if(best){
+      const idx = sections.indexOf(best.target);
+      if(idx!==-1 && idx!==current){ current=idx; applyPose(idx); }
+    }
+  }, { threshold:[0.25,0.5,0.75], rootMargin:"-12% 0px -12% 0px" });
+  sections.forEach(s=>io.observe(s));
+
+  // set initial pose immediately so scroll=0 is correct
+  applyPose(0);
+
+  /* ---------- 4. reduced motion: stop the idle bob, keep poses static ---------- */
+  if(reduce){ $("#mascot").classList.remove("anim"); }
+})();
+</script>
+</body>
+</html>

@@ -1,26 +1,30 @@
-<!-- TEMPLATE: Lightning Crop | ARCHETYPE: PATH MORPH | REF: CSS clip-path:path() Baseline 2025 (MDN), Codrops Animating clip-path:path() 2025, Smashing scroll-driven path-morph 2026 | WHEN TO USE: a portfolio/gallery where each work should dramatically resolve from a jagged crop into a clean frame as it scrolls into view | SWAP: edit the DATA array at top -->
+<!-- TEMPLATE: Lightning Crop | ARCHETYPE: POLYGON MORPH | REF: CSS clip-path:polygon() (MDN), CSS scroll-driven animations animation-timeline:view() (MDN 2025), Codrops scroll-driven clip morph 2026 | WHEN TO USE: a portfolio/gallery where each work should dramatically resolve from a jagged crop into a clean frame as it scrolls into view | SWAP: edit the DATA array at top -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lightning Crop - clip-path:path() scroll morph</title>
+<title>Lightning Crop - clip-path:polygon() scroll morph</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
-   PATH MORPH - clip-path:path() morphs jagged -> rectangle on scroll
+   POLYGON MORPH - clip-path:polygon() morphs jagged -> rectangle on scroll
    Palette: #f5f1eb warm bone | #111 ink | #2c6fad cobalt seam
    ------------------------------------------------------------
    THE MECHANIC
    Every work panel carries a clip-path that interpolates between
-   two authored path() strings that share the SAME node count (16):
-     - entering shape  = jagged lightning-bolt polygon
-     - resting shape   = clean rectangle (16 collinear points)
-   The morph is pure CSS: animation-timeline:view() scrubs a
-   @keyframes from the jagged path to the rectangle path as the
-   panel travels through the viewport. No GSAP, no canvas, no WebGL.
+   two authored polygon() shapes that share the SAME vertex count (16):
+     - entering shape  = jagged lightning-bolt with deep angular notches
+     - resting shape   = clean rectangle (16 perimeter points)
+   Coordinates are PERCENT, not px, so the shape SCALES with the box at
+   any viewport width (1440 desktop, 390 phone) and stays aligned - this
+   is the whole reason polygon()-% beats path()-px here, whose fixed px
+   coords clip a fictional 1000-unit box and drift off-frame on wide
+   viewports. The morph is pure CSS: animation-timeline:view() scrubs a
+   @keyframes between the two equal-vertex polygons as the panel travels
+   through the viewport. No GSAP, no canvas, no WebGL.
    ============================================================ */
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -175,19 +179,28 @@ a{color:inherit}
 .foot b{color:var(--cobalt)}
 
 /* ============================================================
-   THE PATH MORPH (the whole point of the template)
-   path() interpolation requires identical command structure +
-   node count. Both keyframes below use 16 points: M then 15 L
-   then Z. The jagged frame is hand-authored; the rect is the
-   same 16 points collapsed onto the frame edges.
-   Coordinates are in px against a 1000x562 reference box
-   (16:9). The frame stretches the clip with the box.
+   THE POLYGON MORPH (the whole point of the template)
+   polygon() interpolation requires the SAME vertex count in both
+   keyframes. Both shapes below use 16 PERCENT-coordinate points,
+   walked clockwise: 5 across the top, 4 down the right, 4 across
+   the bottom, 3 up the left. Because the coords are %, the shape
+   scales with the frame box, so the jagged bite stays pinned to
+   the image at 1440 desktop AND 390 phone - no px drift.
+
+   Index-by-index, the JAGGED bolt and the clean RECT share the
+   same 16 vertices; the bolt just plunges the mid-edge points deep
+   inward (the angular notches that bite into the photo), while the
+   rect lays all 16 flat on the perimeter.
    ============================================================ */
-@supports (clip-path: path('M0 0L1 1Z')){
-  .frame{overflow:visible}            /* let the jagged clip breathe */
+@supports (clip-path: polygon(0% 0%, 100% 0%, 100% 100%)){
   .clip{
     /* frozen mid-morph fallback if no scroll timeline */
-    clip-path: path('M0,0 L210,0 L150,120 L360,150 L300,300 L520,250 L470,420 L1000,360 L1000,562 L760,500 L690,540 L500,460 L470,520 L300,440 L120,500 L0,420 Z');
+    clip-path: polygon(
+      0% 0%, 30% 0%, 50% 17%, 73% 4%, 100% 0%,
+      100% 36%, 79% 53%, 100% 78%, 100% 100%,
+      72% 100%, 50% 80%, 27% 100%, 0% 100%,
+      0% 66%, 22% 47%, 0% 22%
+    );
     animation: lightning both linear;
     animation-timeline: view();
     animation-range: entry 4% cover 46%;
@@ -195,31 +208,46 @@ a{color:inherit}
   /* the very first panel is FROZEN mid-morph at scroll=0 so the
      jagged lightning clip is the signature in the catalog thumbnail.
      No scroll animation here: it holds a static jagged-but-resolving
-     16-node path (~38% interpolated between bolt and rect) regardless
-     of scroll pos - still VERY jagged, so the lightning bite visibly
-     cuts angular chunks out of the car image and the cobalt hatched
-     seam shows through that bite (NOT a clean rect with a side panel). */
+     16-vertex polygon (~40% interpolated between bolt and rect)
+     regardless of scroll pos - still VERY jagged, so the lightning
+     bite visibly cuts angular chunks out of the car image and the
+     cobalt hatched seam shows through that bite (NOT a clean rect
+     with a side panel). */
   .panel:first-child .clip{
     animation: none;
     animation-timeline: auto;
-    clip-path: path('M0,0 L225,0 L283,74 L508,93 L566,186 L702,208 L671,367 L1000,383 L1000,562 L756,524 L618,548 L405,499 L291,536 L186,432 L74,416 L0,314 Z');
+    clip-path: polygon(
+      0% 0%, 30% 0%, 50% 17%, 73% 4%, 100% 0%,
+      100% 36%, 79% 53%, 100% 78%, 100% 100%,
+      72% 100%, 50% 80%, 27% 100%, 0% 100%,
+      0% 66%, 22% 47%, 0% 22%
+    );
   }
 }
 
 @keyframes lightning{
-  /* 0%  : authored 16-point LIGHTNING BOLT  */
+  /* 0%  : authored 16-vertex LIGHTNING BOLT (deep angular notches) */
   from{
-    clip-path: path('M0,0 L210,0 L150,120 L360,150 L300,300 L520,250 L470,420 L1000,360 L1000,562 L760,500 L690,540 L500,460 L470,520 L300,440 L120,500 L0,420 Z');
+    clip-path: polygon(
+      0% 0%, 26% 0%, 50% 28%, 76% 0%, 100% 0%,
+      100% 30%, 66% 50%, 100% 70%, 100% 100%,
+      75% 100%, 50% 72%, 24% 100%, 0% 100%,
+      0% 70%, 34% 50%, 0% 30%
+    );
   }
-  /* 100%: SAME 16 nodes flattened onto a clean RECTANGLE */
+  /* 100%: SAME 16 vertices flattened onto a clean RECTANGLE */
   to{
-    clip-path: path('M0,0 L250,0 L500,0 L750,0 L1000,0 L1000,140 L1000,280 L1000,420 L1000,562 L750,562 L500,562 L250,562 L0,562 L0,420 L0,280 L0,140 Z');
+    clip-path: polygon(
+      0% 0%, 25% 0%, 50% 0%, 75% 0%, 100% 0%,
+      100% 25%, 100% 50%, 100% 75%, 100% 100%,
+      75% 100%, 50% 100%, 25% 100%, 0% 100%,
+      0% 75%, 0% 50%, 0% 25%
+    );
   }
 }
 
-/* JS scroll fallback (browsers without view()) writes --p 0..1
-   and we manually swap toward the rect via the inline style the
-   script sets; this rule just smooths it */
+/* JS scroll fallback (browsers without view()) writes the clip-path
+   inline toward the rect; this rule just smooths the swap */
 .clip.js-morph{transition:clip-path .12s linear;animation:none !important}
 
 /* ---------- RESPONSIVE: never cover-crop a 16:9 asset into a phone ---------- */
@@ -241,24 +269,27 @@ a{color:inherit}
   .meta p{max-width:none}
 }
 
-/* ---------- REDUCED MOTION: morph collapses to an opacity fade ---------- */
+/* ---------- REDUCED MOTION: shapes rest as a clean rectangle, no morph ---------- */
 @media (prefers-reduced-motion: reduce){
   html{scroll-behavior:auto}
-  @supports (clip-path: path('M0 0L1 1Z')){
+  @supports (clip-path: polygon(0% 0%, 100% 0%, 100% 100%)){
     .clip,.panel:first-child .clip{
       animation:none !important;
+      animation-timeline:auto !important;
       /* show the FINAL resting rectangle, no jagged motion */
-      clip-path: path('M0,0 L250,0 L500,0 L750,0 L1000,0 L1000,140 L1000,280 L1000,420 L1000,562 L750,562 L500,562 L250,562 L0,562 L0,420 L0,280 L0,140 Z');
+      clip-path: polygon(
+        0% 0%, 25% 0%, 50% 0%, 75% 0%, 100% 0%,
+        100% 25%, 100% 50%, 100% 75%, 100% 100%,
+        75% 100%, 50% 100%, 25% 100%, 0% 100%,
+        0% 75%, 0% 50%, 0% 25%
+      );
     }
   }
   .frame{overflow:hidden}
-  .clip{opacity:0;animation:fadein both linear;animation-timeline:view();animation-range:entry 0% cover 30%}
-  .panel:first-child .clip{opacity:1;animation:none}
 }
-@keyframes fadein{from{opacity:0}to{opacity:1}}
 
-/* ---------- NO clip-path:path() support: inset() fallback ---------- */
-@supports not (clip-path: path('M0 0L1 1Z')){
+/* ---------- NO clip-path:polygon() support: inset() fallback ---------- */
+@supports not (clip-path: polygon(0% 0%, 100% 0%, 100% 100%)){
   .clip{
     clip-path: inset(8% 6% 8% 6% round 2px);
     animation: insetmorph both linear;
@@ -270,7 +301,7 @@ a{color:inherit}
     from{clip-path: inset(14% 22% 14% 22% round 2px)}
     to  {clip-path: inset(0% 0% 0% 0% round 2px)}
   }
-  /* if neither path() nor scroll timeline: static partial inset still reads */
+  /* if neither polygon() nor scroll timeline: static partial inset still reads */
 }
 :focus-visible{outline:2.5px solid var(--cobalt);outline-offset:3px;border-radius:2px}
 </style>
@@ -363,13 +394,14 @@ const DATA = [
       <path d="M18 0 L2 26 L13 26 L9 46 L28 16 L16 16 Z" fill="#2c6fad" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/>
     </svg>
     <div>
-      <div class="kicker">clip-path : path( ) scroll morph</div>
+      <div class="kicker">clip-path : polygon( ) scroll morph</div>
       <h1>Lightning <em>Crop</em></h1>
     </div>
   </div>
   <p class="lede">
-    Every plate is clipped by a <b>16-node path</b> that morphs from a jagged
-    lightning bolt into a clean rectangle as it scrolls. Pure CSS,
+    Every plate is clipped by a <b>16-vertex polygon</b> in percent units that
+    morphs from a jagged lightning bolt into a clean rectangle as it scrolls,
+    aligned at any width. Pure CSS,
     <b>animation-timeline: view()</b>. No canvas, no libraries.
   </p>
 </header>
@@ -379,8 +411,8 @@ const DATA = [
 <main class="stack" id="stack"></main>
 
 <footer class="foot">
-  <span>Lightning <b>Crop</b> &nbsp;/&nbsp; PATH MORPH template</span>
-  <span>clip-path: path() &nbsp;<b>Baseline 2025</b>&nbsp; / fallback inset()</span>
+  <span>Lightning <b>Crop</b> &nbsp;/&nbsp; POLYGON MORPH template</span>
+  <span>clip-path: polygon() % &nbsp;<b>responsive</b>&nbsp; / fallback inset()</span>
   <span>Swap the <b>DATA</b> array to reuse</span>
 </footer>
 
@@ -388,7 +420,7 @@ const DATA = [
 /* ============================================================
    RENDER from DATA. Each frame gets:
      - a cobalt seam ghost behind the clip
-     - a .clip layer carrying the CSS path-morph
+     - a .clip layer carrying the CSS polygon-morph
      - posters for videos; only the focused/clicked one plays
    ============================================================ */
 const stack = document.getElementById('stack');
@@ -486,29 +518,31 @@ if ('IntersectionObserver' in window){
 /* ============================================================
    SCROLL-TIMELINE FALLBACK
    If the browser lacks CSS animation-timeline:view(), drive the
-   path morph from JS by linearly interpolating the SAME 16 nodes.
-   Honors prefers-reduced-motion (skips entirely -> CSS fade).
+   polygon morph from JS by linearly interpolating the SAME 16
+   PERCENT vertices. Honors prefers-reduced-motion (skips entirely
+   -> CSS resting rectangle).
    ============================================================ */
 const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const supportsViewTL =
   CSS && CSS.supports && CSS.supports('animation-timeline: view()');
-const supportsPath =
-  CSS && CSS.supports && CSS.supports("clip-path", "path('M0 0L1 1Z')");
+const supportsPolygon =
+  CSS && CSS.supports && CSS.supports("clip-path", "polygon(0% 0%, 100% 0%, 100% 100%)");
 
-if (!supportsViewTL && supportsPath && !REDUCED){
-  // 16 authored points for each shape (x,y in the 1000x562 ref box)
-  const JAG = [[0,0],[210,0],[150,120],[360,150],[300,300],[520,250],[470,420],[1000,360],[1000,562],[760,500],[690,540],[500,460],[470,520],[300,440],[120,500],[0,420]];
-  const RECT= [[0,0],[250,0],[500,0],[750,0],[1000,0],[1000,140],[1000,280],[1000,420],[1000,562],[750,562],[500,562],[250,562],[0,562],[0,420],[0,280],[0,140]];
-  const toPath = pts => 'path("M' + pts.map(p => p[0].toFixed(1)+','+p[1].toFixed(1)).join(' L') + ' Z")';
+if (!supportsViewTL && supportsPolygon && !REDUCED){
+  // 16 authored vertices for each shape, as PERCENT (x%,y%) of the box.
+  // Same order and count as the CSS @keyframes so they interpolate.
+  const JAG = [[0,0],[26,0],[50,28],[76,0],[100,0],[100,30],[66,50],[100,70],[100,100],[75,100],[50,72],[24,100],[0,100],[0,70],[34,50],[0,30]];
+  const RECT= [[0,0],[25,0],[50,0],[75,0],[100,0],[100,25],[100,50],[100,75],[100,100],[75,100],[50,100],[25,100],[0,100],[0,75],[0,50],[0,25]];
+  const toPoly = pts => 'polygon(' + pts.map(p => p[0].toFixed(2)+'% '+p[1].toFixed(2)+'%').join(', ') + ')';
   const lerp = (a,b,t) => a + (b - a) * t;
   const ease = t => t<.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2;
 
   const allClips = [...document.querySelectorAll('.clip')];
   // panel 0 stays FROZEN jagged (the scroll=0 signature) - never JS-driven.
-  // ~38% interpolated bolt->rect: still very jagged, the lightning bite
+  // ~40% interpolated bolt->rect: still very jagged, the lightning bite
   // cuts into the car and the cobalt hatched seam shows through it.
-  const FROZEN = [[0,0],[225,0],[283,74],[508,93],[566,186],[702,208],[671,367],[1000,383],[1000,562],[756,524],[618,548],[405,499],[291,536],[186,432],[74,416],[0,314]];
-  if (allClips[0]) allClips[0].style.clipPath = toPath(FROZEN);
+  const FROZEN = [[0,0],[30,0],[50,17],[73,4],[100,0],[100,36],[79,53],[100,78],[100,100],[72,100],[50,80],[27,100],[0,100],[0,66],[22,47],[0,22]];
+  if (allClips[0]) allClips[0].style.clipPath = toPoly(FROZEN);
   const clips = allClips.slice(1);          // panels 2..N morph on scroll
   clips.forEach(c => c.classList.add('js-morph'));
 
@@ -523,7 +557,7 @@ if (!supportsViewTL && supportsPath && !REDUCED){
       p = Math.min(1, Math.max(0, p));
       const t = ease(p);
       const pts = JAG.map((j, k) => [lerp(j[0], RECT[k][0], t), lerp(j[1], RECT[k][1], t)]);
-      clip.style.clipPath = toPath(pts);
+      clip.style.clipPath = toPoly(pts);
     });
   }
   function onScroll(){ if (!ticking){ ticking = true; requestAnimationFrame(frameUpdate); } }

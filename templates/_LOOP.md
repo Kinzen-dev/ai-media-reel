@@ -41,7 +41,8 @@ After each batch, append any NEW design insight or loop-methodology insight to `
 real skills later via /promote-to-skill. Concrete + actionable bullets only; do not let it go stale.
 
 ## STATE (update each batch; _manifest.json is the source of truth)
-- 101 templates LIVE + cataloged (originals v2/v3/v4 + batches 1-20, minus the 2 parked below). Deploy = rsync showcase/templates/ -> /tmp/reel-deploy/templates/ then commit+push (Kinzen-dev).
+- 109 templates LIVE + cataloged (originals v2/v3/v4 + batches 1-22). BUILD LOOP AT SATURATION (batch 22 was the last genuinely-distinct paradigms). Deploy = rsync showcase/templates/ -> /tmp/reel-deploy/templates/ then commit+push (Kinzen-dev).
+- POST-SATURATION WORK (in progress): instead of churning variant templates, RECOVER the 2 parked distinct paradigms with capture-safe rewrites - css-houdini-paint -> SVG/Canvas ink border (Houdini paint doesn't capture); clip-path-morph-scroll -> polygon()-% (path() is non-responsive). If recovered + judged, catalog -> 111.
 - PARKED (files exist, NOT cataloged, do NOT re-attempt blindly):
   - `css-houdini-paint.html`: Houdini paint-worklet renders thin-hairline in thumbnail capture even though live+worklet are correct (capture-fragile API). 
   - `clip-path-morph-scroll.html`: clip-path:path() coords are fixed element-px, non-responsive, so the jagged path misaligns on a wide viewport (reads as a side panel). Needs a polygon()-% / SVG objectBoundingBox rewrite. See _SKILL-IDEAS.md.

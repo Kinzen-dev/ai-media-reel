@@ -1,4 +1,4 @@
-<!-- TEMPLATE: Ink Bleed Index | ARCHETYPE: css-houdini-paint | REF: CSS Houdini Paint API (houdini.how 2025-2026; developer.chrome.com), Awwwards generative card borders 2026 | WHEN TO USE: a clean typographic portfolio whose card borders, dividers and hover fills are live CSS Houdini paint worklets at zero DOM cost | SWAP: edit the DATA array at top -->
+<!-- TEMPLATE: Ink Bleed Index | ARCHETYPE: css-houdini-paint | REF: SVG feTurbulence + feDisplacementMap roughened strokes (developer.mozilla.org filters), Awwwards generative card borders 2026 | WHEN TO USE: a clean typographic portfolio whose card borders carry a bold per-card generative WET ORGANIC INK frame, drawn as a capture-safe inline SVG per card (a seeded turbulence filter distorts a thick stroked rect into wet hand-inked edges; renders reliably in a static headless screenshot, unlike a Houdini paint worklet) | SWAP: edit the DATA array at top -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,23 +10,29 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
 <style>
   /* =========================================================================
-     INK BLEED INDEX  -  CSS Houdini Paint worklets as the decoration system
+     INK BLEED INDEX  -  capture-safe SVG ink frames as the decoration system
      -------------------------------------------------------------------------
-     TWO registered paint worklets, both loaded inline via a Blob URL so this
-     file stays 100% self-contained (no external .js worklet file):
+     The signature is a BOLD per-card generative WET ORGANIC INK frame. It is
+     drawn as an INLINE SVG per card (one <svg> overlay above the card content):
 
-       paint(ink-bleed)  organic procedural ink-bleed border around every
-                         card. Repaints from --seed (per-card identity) and
-                         --progress (0..1, scroll-driven bloom + idle drift).
-                         ACTIVE on all cards at scroll=0.
+       a thick stroked rounded rect (8 to 16px) in vermilion / amber, run
+       through a per-card-seeded feTurbulence + feDisplacementMap filter so the
+       straight rect warps into a wet, hand-inked, irregular edge. A softer
+       wider under-stroke sits behind it for a bled wash. Each card seeds the
+       turbulence differently (baseFrequency + seed) so no two frames match.
 
-       paint(voronoi)    animated Voronoi-ish noise fill that floods the card
-                         on hover / focus, driven by --fill (0..1) and --t.
+     WHY SVG, not Houdini paint: a CSS paint() worklet renders as a near-blank
+     hairline in a HEADLESS screenshot (the catalog thumbnail is a headless
+     1440x900 scroll=0 capture), so the mechanic could never sell in the thumb.
+     SVG filters DO rasterize in headless capture, so the bold wet ink reads at
+     thumbnail scale with zero interaction. Stroke / fill use HEX LITERALS in
+     the presentation attributes (never CSS var(), which SVG presentation attrs
+     do not resolve).
 
-     No <canvas> in the DOM. No WebGL. The worklet output IS the ornament.
-     Guardrail: @supports (background: paint(x)) gates the whole system;
-     without Paint API support every card falls back to a plain 1px border.
-     prefers-reduced-motion freezes --progress / --t and shows final state.
+     paint(voronoi) is KEPT only as a PROGRESSIVE-ENHANCEMENT hover flood (not
+     the thumbnail's border). It paints on hover / focus, so its headless-capture
+     fragility never touches the at-rest scroll=0 thumbnail.
+     prefers-reduced-motion freezes the hover --t and shows the final state.
      ========================================================================= */
 
   :root {
@@ -42,13 +48,10 @@
        below with @property so they can be transitioned / animated smoothly. */
   }
 
-  /* --- @property: make worklet inputs real animatable typed values -------- */
-  @property --progress {
-    syntax: '<number>'; inherits: false; initial-value: 0;
-  }
-  /* NOTE: these are set DIRECTLY on each painted element (card + .flood), not
-     inherited. Inherited registered-property changes do not reliably invalidate
-     a descendant paint worklet, so JS writes --fill/--t straight to .flood. */
+  /* --- @property: animatable typed values for the voronoi HOVER flood ------
+     The at-rest ink frame is now plain SVG (no custom props needed). These
+     remain ONLY for the progressive-enhancement voronoi hover worklet, set
+     directly on each .flood element so its paint reliably invalidates. */
   @property --fill {
     syntax: '<number>'; inherits: false; initial-value: 0;
   }
@@ -57,9 +60,6 @@
   }
   @property --seed {
     syntax: '<number>'; inherits: false; initial-value: 1;
-  }
-  @property --ink-1 {
-    syntax: '<color>'; inherits: true; initial-value: #111111;
   }
   @property --ink-2 {
     syntax: '<color>'; inherits: true; initial-value: #c0392b;
@@ -96,7 +96,7 @@
 
   /* ---------------------------------------------------------------- masthead
      Compact top band. Headline sits ABOVE a populated grid so the signature
-     ink-bleed borders are already visible at scroll=0 (no title-only hero). */
+     wet-ink SVG borders are already visible at scroll=0 (no title-only hero). */
   header.mast {
     padding: 30px 0 18px;
     display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 18px;
@@ -118,12 +118,9 @@
     margin: 0; max-width: 30ch; line-height: 1.5;
   }
 
-  /* a Houdini-painted hair divider: a thin ink-bleed strip. Decorative, cheap. */
-  .rule {
-    height: 26px; margin: 14px 0 4px;
-    background: paint(ink-bleed);
-    --seed: 7; --progress: 1; --ink-1: var(--amber); --ink-2: var(--ink);
-  }
+  /* an inline-SVG ink divider: a roughened amber ink strip. Capture-safe. */
+  .rule { height: 26px; margin: 14px 0 4px; }
+  .rule svg { display: block; width: 100%; height: 100%; }
 
   /* ------------------------------------------------------------------- index */
   .index {
@@ -133,41 +130,39 @@
   }
 
   /* ------------------------------------------------------------------- card
-     The whole frame ornament is the worklet. The card is a padded box; the
-     ink-bleed frame is painted as the card BACKGROUND and blooms INWARD into
-     the generous gutter so the wet, organic edge is fully visible (nothing to
-     clip it). Real content (media + text) sits inside that gutter. */
+     The frame ornament is an inline SVG overlay (.ink-frame). The card is a
+     padded box; the bold wet-ink SVG sits ON TOP of the content around the
+     perimeter, so the organic edge is fully visible and never clipped. Real
+     content (media + text) sits inside the generous gutter. */
   .card {
     position: relative; isolation: isolate;
     padding: 30px 30px 28px; border-radius: 2px;
-    /* faint paper base only; the VISIBLE ink frame is the .ink-frame overlay
-       below (drawn ON TOP of content so the bold edge is never covered). */
+    /* faint paper base only; the VISIBLE ink frame is the inline-SVG .ink-frame
+       overlay below (drawn ON TOP of content so the bold edge is never covered). */
     background-color: var(--paper);
-    /* default fallback border (replaced by @supports block when paint() works)*/
-    border: 1px solid var(--ink);
-    --seed: 1; --progress: 0; --fill: 0; --t: 0;
-    --ink-1: var(--ink); --ink-2: var(--verm);
+    --seed: 1; --fill: 0; --t: 0; --ink-2: var(--verm);
     transition: transform .5s cubic-bezier(.2,.7,.2,1), --fill .55s ease;
     cursor: pointer; text-decoration: none; color: inherit; display: block;
   }
   .card:hover, .card:focus-visible { transform: translateY(-4px); }
   .card:focus-visible { outline: 2px solid var(--verm); outline-offset: 4px; }
 
-  /* INK FRAME OVERLAY: the signature ornament. paint(ink-bleed) draws a
-     PERIMETER frame with a transparent center, so on an inset:0 overlay above
-     the card content the bold wet ink band reads around all four edges while
-     the media stays visible in the middle. This is the fix for the
-     "hairline" bug: as a background-image the frame rendered BEHIND the opaque
-     media + body and was covered; as a top overlay it is never covered.
-     pointer-events:none keeps the card link + hover flood fully interactive. */
+  /* INK FRAME OVERLAY: the signature ornament, now a capture-safe inline SVG.
+     An <svg> is injected per card (by JS, so each gets a per-card seed). It
+     draws a PERIMETER ink frame (thick stroked rounded rect distorted by a
+     seeded feTurbulence + feDisplacementMap) with an open center, so on this
+     inset:0 overlay above the card content the bold wet ink reads around all
+     four edges while the media stays visible in the middle. SVG filters DO
+     rasterize in a headless screenshot (the old paint() worklet did not), so
+     the bold edge now renders in the thumbnail. pointer-events:none keeps the
+     card link + hover flood fully interactive. */
   .card .ink-frame {
     position: absolute; inset: 0; z-index: 4; pointer-events: none;
-    border-radius: 2px;
-    background: paint(ink-bleed);
-    /* seed + progress + inks are written straight onto THIS element by JS so
-       the worklet's paint reliably invalidates (same reason as .flood). */
-    --seed: 1; --progress: 0;
-    --ink-1: var(--ink); --ink-2: var(--verm);
+    border-radius: 2px; overflow: visible;
+  }
+  .card .ink-frame svg {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    overflow: visible; display: block;
   }
 
   /* media frame: letterbox, never cover-crop. object-fit contain on paper. */
@@ -228,26 +223,14 @@
     font-weight: 300;
   }
 
-  /* ------------------------------------------------- @supports paint gate
-     When paint() works: kill the fallback 1px border and let the .ink-frame
-     overlay worklet own the visible edge. The card keeps its faint paper
-     fill (set above) so the body has substance under the overlay.          */
-  @supports (background: paint(x)) {
-    .card { border: 0; }
-    .card .support-note { display: none; }
-  }
-  /* When paint() is NOT supported: no overlay frame, hide painted rule, keep
-     the plain 1px card border (set on .card) as the fallback edge, show note */
+  /* --------------------------------------------- @supports paint gate (flood)
+     The SVG ink frame is the at-rest border and works EVERYWHERE (no gate).
+     Only the voronoi HOVER flood is a paint() worklet; when paint() is not
+     supported the flood simply never appears and the cards stay fully usable.
+     No fallback note needed: nothing the thumbnail shows depends on paint().  */
   @supports not (background: paint(x)) {
-    .rule { background: linear-gradient(90deg, var(--amber), var(--ink)); }
-    .card .ink-frame { display: none; }
-    .card { background-color: #fbf8f1; }
+    .card .flood { display: none; }
   }
-  .support-note {
-    display: none; font-family: "IBM Plex Mono", monospace; font-size: 0.68rem;
-    color: var(--ink-soft);
-  }
-  @supports not (background: paint(x)) { .support-note { display: block; margin-top: 22px; } }
 
   /* ------------------------------------------------------------------ footer */
   footer {
@@ -361,7 +344,7 @@ const DATA = [
       <h1>Ink <em>Bleed</em><br>Catalogue</h1>
     </div>
     <div class="meta">
-      <p class="sub">Every card edge is a live CSS Houdini paint worklet. The border bleeds from a per-card seed; hover floods a Voronoi fill. Zero canvas, zero DOM cost.</p>
+      <p class="sub">Every card edge is a generative wet-ink frame, drawn as a per-card seeded SVG turbulence filter so the bold border renders crisp at any scale. Hover floods a Voronoi fill.</p>
     </div>
   </header>
 
@@ -369,20 +352,20 @@ const DATA = [
 
   <main class="index" id="index"><!-- cards injected --></main>
 
-  <p class="support-note">Your browser does not support the CSS Painting API. Showing the plain-border fallback. For the live ink-bleed effect, use a Chromium-based browser.</p>
-
   <footer>
     <span>09 works / procedural ornament</span>
-    <span>paint(ink-bleed) + paint(voronoi) / <a href="https://houdini.how" target="_blank" rel="noopener">houdini.how</a></span>
+    <span>SVG feTurbulence ink frames + paint(voronoi) hover</span>
   </footer>
 </div>
 
 <!-- ===================================================================== -->
-<!-- WORKLET SOURCE  -  registered inline via Blob URL (self-contained).    -->
+<!-- WORKLET SOURCE  -  voronoi HOVER flood only (progressive enhancement).  -->
+<!-- Registered inline via Blob URL (self-contained). The at-rest ink frame  -->
+<!-- is plain inline SVG and needs no worklet.                               -->
 <!-- ===================================================================== -->
 <script id="worklet-src" type="text/worklet">
 /* ---------------------------------------------------------------- helpers */
-/* deterministic PRNG so each --seed gives a stable, repeatable bleed shape */
+/* deterministic PRNG so each --seed gives a stable, repeatable flood shape */
 function mulberry32(a){
   return function(){
     a |= 0; a = a + 0x6D2B79F5 | 0;
@@ -395,149 +378,6 @@ function num(props, name, fb){
   const v = parseFloat(String(props.get(name)));
   return Number.isFinite(v) ? v : fb;
 }
-
-/* ============================================================ ink-bleed ===
-   An organic, hand-inked frame. We walk the rectangle perimeter and, at
-   pseudo-random anchor points, push out soft ink blobs whose radius grows
-   with --progress. Low progress = thin dry line; high = wet, blooming edge.
-*/
-registerPaint('ink-bleed', class {
-  static get inputProperties(){ return ['--seed','--progress','--ink-1','--ink-2']; }
-  static get contextOptions(){ return { alpha: true }; }
-
-  paint(ctx, size, props){
-    const W = size.width, H = size.height;
-    const seed = num(props,'--seed',1);
-    const prog = Math.max(0, Math.min(1, num(props,'--progress',0)));
-    const ink1 = String(props.get('--ink-1')).trim() || '#111';
-    const ink2 = String(props.get('--ink-2')).trim() || '#c0392b';
-    const rnd  = mulberry32(Math.floor(seed*7919) + 13);
-    // a SECOND seeded stream so per-card variation is unmistakable: wobble
-    // sign, blob clustering and the wash side all branch on this, so no two
-    // cards share a frame silhouette even at thumbnail scale.
-    const rnd2 = mulberry32(Math.floor(seed*48611) + 101);
-    const amber = '#d4a84b';
-
-    // frame sits INSIDE the box; blobs bleed INWARD so nothing clips them.
-    // a wider pad gives the wet edge real estate so it reads as a bold organic
-    // band, not a hairline, after the thumbnail downscale.
-    const pad = 16;
-    const x0 = pad, y0 = pad, x1 = W - pad, y1 = H - pad;
-    const w = x1 - x0, h = y1 - y0;
-    const peri = 2*(w+h);
-
-    // helper: point + INWARD normal at perimeter distance d
-    function edgeAt(d){
-      let px, py, nx, ny;
-      if(d < w){ px = x0 + d;             py = y0; nx = 0;  ny = 1; }
-      else if(d < w+h){ px = x1;          py = y0 + (d-w); nx = -1; ny = 0; }
-      else if(d < 2*w+h){ px = x1-(d-w-h);py = y1; nx = 0;  ny = -1; }
-      else { px = x0;                     py = y1 - (d-2*w-h); nx = 1; ny = 0; }
-      return [px,py,nx,ny];
-    }
-
-    // 0) under-wash: a soft vermilion/amber ink band hugging the whole
-    //    perimeter so the frame already reads as WET COLOUR from across the
-    //    room, before any single blob. Drawn as a thick, jittered, low-alpha
-    //    stroke just inside the edge, alternating its accent per card.
-    const washCol = (seed % 2 === 0) ? ink2 : amber;
-    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-    ctx.strokeStyle = washCol;
-    ctx.globalAlpha = 0.30 + prog*0.34;
-    ctx.lineWidth = 11 + prog*10;                // a real band, not a rule
-    ctx.beginPath();
-    const WSEG = 80;
-    for(let i=0;i<=WSEG;i++){
-      const d = (i/WSEG)*peri;
-      const [px,py,nx,ny] = edgeAt(d);
-      const inw = 4 + prog*6;                     // sit the wash just inside
-      const wob = (rnd2()-0.5)*(5+prog*5);        // wander along the edge
-      // wob pushes ALONG the edge (perpendicular to the inward normal) so the
-      // band stays a band but reads as hand-laid, never a ruled rectangle.
-      const ox = px + nx*inw + wob*Math.abs(ny);
-      const oy = py + ny*inw + wob*Math.abs(nx);
-      if(i===0) ctx.moveTo(ox,oy); else ctx.lineTo(ox,oy);
-    }
-    ctx.closePath(); ctx.stroke();
-
-    // 1) dry hand-inked stroke: a wandering rectangle, BOLD and clearly
-    //    irregular so the edge never reads as a straight 1px rule.
-    ctx.strokeStyle = ink1;
-    ctx.globalAlpha = 0.95;
-    ctx.lineWidth = 5.5 + prog*5.5;               // thick ink line
-    ctx.beginPath();
-    const SEG = 110;
-    const wobScale = 4.5 + prog*4.0;              // visible wander even cold
-    for(let i=0;i<=SEG;i++){
-      const d = (i/SEG)*peri;
-      const [px,py] = edgeAt(d);
-      const ox = px + (rnd()-0.5)*wobScale;
-      const oy = py + (rnd()-0.5)*wobScale;
-      if(i===0) ctx.moveTo(ox,oy); else ctx.lineTo(ox,oy);
-    }
-    ctx.closePath(); ctx.stroke();
-
-    // 2) wet ink blobs blooming INWARD off the perimeter - bigger, denser and
-    //    higher-alpha so the edge clearly bleeds. clustered by rnd2 so each
-    //    card's heavy side differs.
-    const blobs = 56;
-    const heavyStart = rnd2()*peri;               // per-card heavy region
-    for(let i=0;i<blobs;i++){
-      const d = rnd()*peri;
-      const [px,py,nx,ny] = edgeAt(d);
-      // blobs near this card's heavy region are larger -> distinct silhouette
-      let cluster = 1;
-      const dd = Math.abs(((d - heavyStart) + peri) % peri);
-      if(Math.min(dd, peri-dd) < peri*0.18) cluster = 1.6;
-      const base = 5.0 + rnd()*9.0;
-      const r = base * (0.70 + prog*1.7) * cluster; // grows with progress
-      const push = (4 + prog*12) + rnd()*8;          // always bleeds inward
-      const cx = px + nx*push, cy = py + ny*push;
-
-      const roll = rnd();
-      const col = roll < 0.38 ? ink2 : (roll < 0.58 ? amber : ink1);
-      const g = ctx.createRadialGradient(cx,cy,0,cx,cy,r*2.4);
-      g.addColorStop(0, col);
-      g.addColorStop(0.5, col);
-      g.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = g;
-      ctx.globalAlpha = 0.42 + prog*0.50;
-      ctx.beginPath();
-      const lobes = 3 + Math.floor(rnd()*4);     // irregular splat
-      for(let k=0;k<lobes;k++){
-        const rr = r*(0.55 + rnd()*0.8);
-        const ox = cx + (rnd()-0.5)*r*1.2;
-        const oy = cy + (rnd()-0.5)*r*1.2;
-        ctx.moveTo(ox+rr, oy);
-        ctx.arc(ox, oy, rr, 0, 6.283);
-      }
-      ctx.fill();
-    }
-
-    // 3) fine spatter flecks scattered just inside the frame (printed feel)
-    const flecks = 70;
-    ctx.fillStyle = ink1;
-    for(let i=0;i<flecks;i++){
-      const d = rnd()*peri;
-      const [px,py,nx,ny] = edgeAt(d);
-      const off = rnd()*22*(0.5+prog);
-      const fx = px + nx*off + (rnd()-0.5)*12;
-      const fy = py + ny*off + (rnd()-0.5)*12;
-      ctx.globalAlpha = (0.14 + prog*0.4) * rnd();
-      const s = 0.6 + rnd()*2.0;
-      ctx.beginPath(); ctx.arc(fx, fy, s, 0, 6.283); ctx.fill();
-    }
-
-    // 4) vermilion corner ticks for a registration-mark, printed look
-    ctx.globalAlpha = 0.8 + prog*0.2;
-    ctx.fillStyle = ink2;
-    const corners = [[x0,y0],[x1,y0],[x1,y1],[x0,y1]];
-    for(const [cxp,cyp] of corners){
-      const s = 4.5 + prog*4.0;
-      ctx.beginPath(); ctx.arc(cxp,cyp,s,0,6.283); ctx.fill();
-    }
-  }
-});
 
 /* ============================================================== voronoi ===
    Cheap Voronoi-ish flood for the hover fill. We scatter seed points,
@@ -634,6 +474,56 @@ registerPaint('voronoi', class {
   const PAINT_OK = (typeof CSS !== 'undefined') && CSS.paintWorklet
     && (CSS.supports ? CSS.supports('background', 'paint(x)') : true);
 
+  /* ---- helper: build the per-card WET INK FRAME as inline SVG -----------
+     A thick stroked rounded rect, distorted by a per-card-seeded feTurbulence
+     + feDisplacementMap so the straight rect warps into a wet, hand-inked
+     edge. SVG filters rasterize in headless capture (the old paint() worklet
+     did not), so this bold border renders in the scroll=0 thumbnail.
+       - viewBox 0..100 x 0..100 + preserveAspectRatio="none" stretches the
+         path to the card box; vector-effect="non-scaling-stroke" keeps the
+         stroke a constant px width through that stretch (so it stays BOLD).
+       - presentation attrs use HEX LITERALS only (SVG attrs ignore var()).
+       - seed varies baseFrequency, turbulence seed, displacement scale and
+         the wash accent, so no two card frames share a silhouette.          */
+  const AMBER = '#d4a84b';
+  function buildInkFrameSVG(seed, ink1, ink2){
+    // derive a few stable per-card knobs from the integer seed
+    const fid   = 'ink' + seed;                       // unique filter id
+    const bf    = (0.012 + (seed % 5) * 0.004).toFixed(4); // 0.012..0.028
+    const oct   = 2 + (seed % 3);                     // 2..4 octaves
+    const tseed = (seed * 131) % 9973;                // turbulence seed
+    const scale = (9 + (seed % 4) * 2);               // displacement 9..15
+    const wash  = (seed % 2 === 0) ? ink2 : AMBER;    // alternate wash accent
+    const main  = (seed % 2 === 0) ? ink1 : ink2;     // bold ink color
+    // stroked rect path (rounded-ish corners via separate rect with rx)
+    return `
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <filter id="${fid}" x="-20%" y="-20%" width="140%" height="140%"
+                  filterUnits="objectBoundingBox" primitiveUnits="userSpaceOnUse">
+            <feTurbulence type="fractalNoise" baseFrequency="${bf}"
+                          numOctaves="${oct}" seed="${tseed}" result="n"/>
+            <feDisplacementMap in="SourceGraphic" in2="n" scale="${scale}"
+                               xChannelSelector="R" yChannelSelector="G"/>
+          </filter>
+        </defs>
+        <g filter="url(#${fid})">
+          <rect x="6" y="6" width="88" height="88" rx="2" ry="2"
+                fill="none" stroke="${wash}" stroke-width="13"
+                stroke-opacity="0.42" stroke-linejoin="round"
+                vector-effect="non-scaling-stroke"/>
+          <rect x="6" y="6" width="88" height="88" rx="2" ry="2"
+                fill="none" stroke="${main}" stroke-width="7"
+                stroke-linejoin="round"
+                vector-effect="non-scaling-stroke"/>
+          <circle cx="6"  cy="6"  r="2.2" fill="${ink2}"/>
+          <circle cx="94" cy="6"  r="2.2" fill="${ink2}"/>
+          <circle cx="94" cy="94" r="2.2" fill="${ink2}"/>
+          <circle cx="6"  cy="94" r="2.2" fill="${ink2}"/>
+        </g>
+      </svg>`;
+  }
+
   /* ---- 1. render cards from DATA --------------------------------------- */
   const index = document.getElementById('index');
   const cards = [];
@@ -645,7 +535,6 @@ registerPaint('voronoi', class {
     // each card gets a stable, distinct seed
     const seed = 11 + i * 7;
     a.style.setProperty('--seed', seed);
-    a.style.setProperty('--ink-1', d.ink1);
     a.style.setProperty('--ink-2', d.ink2);
     a.dataset.idx = i;
 
@@ -671,92 +560,55 @@ registerPaint('voronoi', class {
         <p class="tool">${d.tool}</p>
         <p class="desc">${d.desc}</p>
       </div>
-      <div class="ink-frame" aria-hidden="true"></div>`;
+      <div class="ink-frame" aria-hidden="true">${buildInkFrameSVG(seed, d.ink1, d.ink2)}</div>`;
     // the voronoi flood paints on its OWN element; give it the seed + inks
     // directly (inherited registered-prop changes don't invalidate its paint).
     const flood = a.querySelector('.flood');
     flood.style.setProperty('--seed', seed);
-    flood.style.setProperty('--ink-1', d.ink1);
     flood.style.setProperty('--ink-2', d.ink2);
     flood.style.setProperty('--fill', '0');
     flood.style.setProperty('--t', '0');
-    // the ink-bleed frame paints on the OVERLAY element (above content) so the
-    // bold edge is never covered. drive its seed/progress/inks directly here.
-    const inkFrame = a.querySelector('.ink-frame');
-    inkFrame.style.setProperty('--seed', seed);
-    inkFrame.style.setProperty('--ink-1', d.ink1);
-    inkFrame.style.setProperty('--ink-2', d.ink2);
-    inkFrame.style.setProperty('--progress', '0');
 
     index.appendChild(a);
     cards.push(a);
   });
 
-  /* ---- 2. register the two worklets inline via a Blob URL -------------- */
+  /* the masthead ink divider: same capture-safe SVG technique, one wide band */
+  const ruleEl = document.querySelector('.rule');
+  if (ruleEl) {
+    ruleEl.innerHTML = `
+      <svg viewBox="0 0 100 26" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <filter id="ruleink" x="-5%" y="-60%" width="110%" height="220%"
+                  primitiveUnits="userSpaceOnUse">
+            <feTurbulence type="fractalNoise" baseFrequency="0.02 0.06"
+                          numOctaves="3" seed="29" result="n"/>
+            <feDisplacementMap in="SourceGraphic" in2="n" scale="7"
+                               xChannelSelector="R" yChannelSelector="G"/>
+          </filter>
+        </defs>
+        <g filter="url(#ruleink)">
+          <line x1="0" y1="13" x2="100" y2="13" stroke="#d4a84b"
+                stroke-width="9" stroke-opacity="0.5" stroke-linecap="round"
+                vector-effect="non-scaling-stroke"/>
+          <line x1="0" y1="13" x2="100" y2="13" stroke="#111111"
+                stroke-width="4" stroke-linecap="round"
+                vector-effect="non-scaling-stroke"/>
+        </g>
+      </svg>`;
+  }
+
+  /* ---- 2. register the voronoi HOVER worklet inline via a Blob URL ------
+     Progressive enhancement only: the at-rest SVG ink frame already owns the
+     visible border, so a missing/blank worklet never affects the thumbnail. */
   if (PAINT_OK) {
     const src = document.getElementById('worklet-src').textContent;
     const blob = new Blob([src], { type: 'application/javascript' });
     const url = URL.createObjectURL(blob);
-    CSS.paintWorklet.addModule(url).catch(() => {/* fallback border stays */});
+    CSS.paintWorklet.addModule(url).catch(() => {/* flood just won't appear */});
   }
 
-  /* ---- 3. scroll-driven --progress bloom on the ink-bleed borders ------
-     At scroll=0 cards already carry a partial bleed (so the signature reads
-     in a thumbnail). As each card nears viewport center it blooms to full. */
-  // the ink-bleed worklet now lives on each card's .ink-frame OVERLAY (drawn
-  // above content). --progress must be written there, not on the card, or the
-  // overlay's paint will not invalidate.
-  function inkFrameOf(c){ return c.querySelector('.ink-frame'); }
-
-  function setProgress(){
-    const vh = window.innerHeight || 800;
-    cards.forEach(c => {
-      const r = c.getBoundingClientRect();
-      const center = r.top + r.height/2;
-      // distance of card center from viewport center, normalised
-      const dist = Math.abs(center - vh/2) / vh;       // 0 = centered
-      let p = 1 - Math.min(1, dist * 1.25);            // 1 near center
-      p = 0.62 + p * 0.38;                             // high floor: bold wet edge already at scroll=0
-      inkFrameOf(c).style.setProperty('--progress', p.toFixed(3));
-    });
-  }
-
-  if (REDUCE) {
-    // frozen final state: every border fully bloomed, no rAF, no drift
-    cards.forEach(c => inkFrameOf(c).style.setProperty('--progress', '1'));
-  } else {
-    let ticking = false;
-    const onScroll = () => {
-      if (ticking) return; ticking = true;
-      requestAnimationFrame(() => { setProgress(); ticking = false; });
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll, { passive: true });
-    setProgress();
-
-    /* idle drift: a very slow --progress shimmer so the borders feel wet
-       even when the page is still. One shared rAF, throttled to ~20fps.    */
-    let last = 0, base = 0;
-    function tick(now){
-      if (now - last > 50){               // ~20fps is plenty for ink drift
-        last = now;
-        base += 0.012;
-        const breathe = (Math.sin(base) * 0.5 + 0.5) * 0.08; // small
-        cards.forEach(c => {
-          const ink = inkFrameOf(c);
-          const cur = parseFloat(ink.style.getPropertyValue('--progress')) || 0.62;
-          // only nudge cards not currently hovered (those get full flood)
-          if (!c.classList.contains('hot')) {
-            ink.style.setProperty('--progress', Math.min(1, cur + breathe).toFixed(3));
-          }
-        });
-      }
-      requestAnimationFrame(tick);
-    }
-    requestAnimationFrame(tick);
-  }
-
-  /* ---- 4. hover / focus = voronoi flood + animate --t ------------------
+  /* ---- 3. hover / focus = voronoi flood + animate --t ------------------
      One rAF per active card (only while hot). --fill is CSS-transitioned;
      --t we drive in JS so the Voronoi cells shimmer while hovered. Reduced
      motion shows a static flood (no --t animation).                        */
@@ -802,7 +654,7 @@ registerPaint('voronoi', class {
     c.addEventListener('touchstart', () => activate(c), { passive: true });
   });
 
-  /* ---- 5. pause offscreen videos (safety for any that got played) ------ */
+  /* ---- 4. pause offscreen videos (safety for any that got played) ------ */
   if ('IntersectionObserver' in window) {
     const io = new IntersectionObserver((entries) => {
       entries.forEach(e => {

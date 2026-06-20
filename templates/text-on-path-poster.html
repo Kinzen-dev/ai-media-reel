@@ -324,6 +324,13 @@
 
   const reduceMotion = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
 
+  /* MOBILE-ONLY FIX (<=430px): the deep title smile-arc squeezed the Anton
+     title into a short-wide band where words overlapped the art and each
+     other. At phone widths we flatten the title path to a near-straight
+     baseline and step the title font-size down one notch so the whole line
+     sits on one readable band, clear of the artwork. Desktop is untouched. */
+  const isMobile = window.matchMedia('(max-width:430px)').matches;
+
   /* ---- viewBox geometry (shared by every poster's <svg>) ---- */
   const VB_W = 1000, VB_H = 625;   // 16:10 working space
 
@@ -334,11 +341,19 @@
   // the url sits on its own reverse-arc near the floor with clear air between.
   function pathDefs(i){
     return {
-      title:  `M 70 195 C 270 92, 730 92, 930 195`,                 // top smile arc
+      // Desktop title = top smile arc (unchanged). Mobile title = near-straight
+      // baseline across the upper band so the full title reads on one line.
+      title:  isMobile
+                ? `M 60 168 C 270 158, 730 158, 940 168`           // mobile: gentle near-straight baseline
+                : `M 70 195 C 270 92, 730 92, 930 195`,            // desktop: top smile arc
       credit: `M 110 452 C 270 512, 730 512, 905 452`,              // mid-lower gentle sweep
       url:    `M 250 585 C 380 558, 620 558, 770 585`               // floor reverse arc, clear of credit
     };
   }
+
+  // Title font-size: one step down on mobile so the whole title clears the art
+  // without any word overlap; desktop keeps its strong 72.
+  const TITLE_SIZE = isMobile ? 58 : 72;
 
   const series = document.getElementById('series');
 
@@ -438,7 +453,7 @@
     }
 
     // title arc (big), credit sweep, url reverse-arc
-    svg.appendChild(run('title',  p.title,  { size: 72, cls: '', accent: false }));
+    svg.appendChild(run('title',  p.title,  { size: TITLE_SIZE, cls: '', accent: false }));
     svg.appendChild(run('credit', p.credit, { size: 30, cls: 'credit', accent: true }));
     svg.appendChild(run('url',    p.url,    { size: 26, cls: 'url',    accent: false }));
 

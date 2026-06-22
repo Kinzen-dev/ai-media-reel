@@ -40,6 +40,13 @@
   .card .shot img{width:100%;height:100%;object-fit:cover;display:block}
   .card .open{position:absolute;top:10px;right:10px;font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.1em;color:var(--void);background:var(--sig);padding:3px 8px;border-radius:5px;opacity:0;transition:.18s}
   .card:hover .open{opacity:1}
+  .card .fav{position:absolute;top:8px;left:8px;z-index:3;width:30px;height:30px;display:grid;place-items:center;border-radius:8px;background:rgba(8,8,10,.6);backdrop-filter:blur(4px);color:#6f6f67;font-size:16px;line-height:1;cursor:pointer;opacity:0;transition:.15s;user-select:none}
+  .card:hover .fav,.card .fav.on{opacity:1}
+  .card .fav:hover{background:rgba(8,8,10,.85);color:var(--sig);transform:scale(1.08)}
+  .card .fav.on{color:var(--sig)}
+  .nav a.fav-pill{border-color:var(--sig);color:var(--sig)}
+  .nav a.fav-pill.active{background:var(--sig);color:var(--void)}
+  .nav a.fav-pill.active b{color:var(--void)}
   .card .body{padding:15px 16px 17px}
   .card .t{font-family:"Anton",sans-serif;font-size:22px;letter-spacing:.01em;text-transform:uppercase;line-height:1}
   .card .arch{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--sig);margin:6px 0 9px;text-transform:uppercase;letter-spacing:.06em}
@@ -68,6 +75,7 @@
 
 <div class="wrap">
   <div id="cats"></div>
+  <p class="empty" id="emptyMsg" style="display:none"></p>
 
   <div class="tools">
     <div class="sec-h">AI MEDIA TOOLS <span class="ln"></span></div>
@@ -100,30 +108,54 @@
     ["editorial","Editorial & Typographic","Type-led and editorial: broadsheet, magazine, manifesto, type specimens, poster typography, silent-luxury restraint."],
   ];
   const NAMES=Object.fromEntries(ORDER.map(([k,n])=>[k,n]));
-  const card=t=>`<a class="card" data-s="${(t.slug+' '+t.archetype+' '+t.whenToUse+' '+NAMES[t.category]).toLowerCase().replace(/"/g,'')}" href="${t.file}"><div class="shot"><img loading="lazy" src="${t.thumb}" alt=""><span class="open">OPEN &#8599;</span></div><div class="body"><div class="t">${t.title}</div><div class="arch">${t.archetype}</div><div class="when">${t.whenToUse}</div><div class="foot"><span>${t.slug}.html</span><span class="fps">${t.fps} fps</span></div></div></a>`;
+  const card=t=>`<a class="card" data-s="${(t.slug+' '+t.archetype+' '+t.whenToUse+' '+NAMES[t.category]).toLowerCase().replace(/"/g,'')}" href="${t.file}"><div class="shot"><img loading="lazy" src="${t.thumb}" alt=""><span class="fav" data-slug="${t.slug}" role="button" aria-label="save to favorites" title="Save to favorites">&#9733;</span><span class="open">OPEN &#8599;</span></div><div class="body"><div class="t">${t.title}</div><div class="arch">${t.archetype}</div><div class="when">${t.whenToUse}</div><div class="foot"><span>${t.slug}.html</span><span class="fps">${t.fps} fps</span></div></div></a>`;
 
   fetch('_manifest.json',{cache:'no-store'}).then(r=>r.json()).then(d=>{
     const T=d.templates||[];
     const by={}; ORDER.forEach(([k])=>by[k]=[]);
     T.forEach(t=>{(by[t.category]||(by.interaction)).push(t);});
     document.getElementById('cnt').textContent=T.length;
-    // jump nav
-    document.getElementById('nav').innerHTML=ORDER.filter(([k])=>by[k].length)
-      .map(([k,n])=>`<a href="#cat-${k}">${n} <b>${by[k].length}</b></a>`).join('');
     // category sections
     document.getElementById('cats').innerHTML=ORDER.filter(([k])=>by[k].length).map(([k,n,desc])=>
       `<section data-cat="${k}"><h2 class="sec-h" id="cat-${k}"><span class="n">${String(by[k].length).padStart(2,'0')}</span> ${n} <span class="ln"></span></h2>`+
       `<p class="sec-sub">${desc}</p><div class="grid">${by[k].map(card).join('')}</div></section>`).join('');
-    // live filter
+
+    // FAVORITES: localStorage only (single-user static gallery, no backend/db needed).
+    const FK='tpl-favs';
+    let favs=new Set(JSON.parse(localStorage.getItem(FK)||'[]'));
+    let favOnly=false;
+    const saveFavs=()=>localStorage.setItem(FK,JSON.stringify([...favs]));
     const q=document.getElementById('q');
-    q.addEventListener('input',()=>{
+    const em=document.getElementById('emptyMsg');
+    const apply=()=>{
       const v=q.value.trim().toLowerCase();
+      let total=0;
       document.querySelectorAll('section[data-cat]').forEach(sec=>{
         let shown=0;
-        sec.querySelectorAll('.card').forEach(c=>{const m=!v||c.dataset.s.includes(v);c.style.display=m?'':'none';if(m)shown++;});
-        sec.style.display=shown?'':'none';
+        sec.querySelectorAll('.card').forEach(c=>{
+          const m=(!v||c.dataset.s.includes(v))&&(!favOnly||favs.has(c.querySelector('.fav').dataset.slug));
+          c.style.display=m?'':'none'; if(m)shown++;
+        });
+        sec.style.display=shown?'':'none'; total+=shown;
       });
-    });
+      document.querySelector('.tools').style.display=favOnly?'none':'';   // favorites view = your starred templates only
+      em.textContent=favOnly?'No favorites yet - hover any card and tap the star to save it.':'No templates match that filter.';
+      em.style.display=total?'none':'';
+    };
+    // jump nav (favorites pill first, then categories)
+    const navEl=document.getElementById('nav');
+    const renderNav=()=>{
+      navEl.innerHTML=`<a href="#" class="fav-pill${favOnly?' active':''}" id="favPill">&#9733; Favorites <b>${favs.size}</b></a>`+
+        ORDER.filter(([k])=>by[k].length).map(([k,n])=>`<a href="#cat-${k}">${n} <b>${by[k].length}</b></a>`).join('');
+      document.getElementById('favPill').addEventListener('click',e=>{e.preventDefault();favOnly=!favOnly;renderNav();apply();});
+    };
+    const paintStars=()=>document.querySelectorAll('.fav').forEach(b=>b.classList.toggle('on',favs.has(b.dataset.slug)));
+    document.querySelectorAll('.fav').forEach(b=>b.addEventListener('click',e=>{
+      e.preventDefault(); e.stopPropagation();
+      const s=b.dataset.slug; favs.has(s)?favs.delete(s):favs.add(s); saveFavs(); paintStars(); renderNav(); apply();
+    }));
+    paintStars(); renderNav();
+    q.addEventListener('input',apply);
   }).catch(()=>{document.getElementById('cats').innerHTML='<p class="empty">Open via the live URL to load the catalog: kinzen-dev.github.io/ai-media-reel/templates/</p>';});
 </script>
 </body>

@@ -1,0 +1,771 @@
+<!-- TEMPLATE: Chaptered Long-Read | ARCHETYPE: CHAPTERS scroll-timeline progress nav | REF: CSS scroll-timeline + timeline-scope, scroll-driven progress, chaptered long-read | WHEN TO USE: editorial long-form with a fixed chapter sidebar whose progress line fills declaratively as you scroll | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chaptered Long-Read</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DATA-DRIVEN BUILD. The template renders entirely from the
+   DATA array in the <script> below. Edit there to reswap.
+   ============================================================ */
+
+:root{
+  --ink:#101216;          /* near-black editorial ground */
+  --ink-2:#171a20;        /* raised panel */
+  --bone:#ece6da;         /* warm paper text */
+  --bone-dim:#9a978f;     /* muted text */
+  --line:#2a2e36;         /* hairlines */
+  --accent:#5b8cff;       /* electric editorial blue */
+  --accent-2:#b6f84a;     /* lime, used sparingly */
+  --sidebar-w:300px;
+  --maxread:680px;
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+html,body{height:100%}      /* let .scroller own the viewport-height scroll */
+body{
+  margin:0;
+  overflow:hidden;          /* the page scrolls inside .scroller, not body */
+  background:var(--ink);
+  color:var(--bone);
+  font-family:"Inter",system-ui,sans-serif;
+  font-size:17px;
+  line-height:1.7;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+img{max-width:100%;display:block}
+a{color:inherit}
+
+/* faint editorial grain/glow so the ink ground is not flat dead black */
+body::before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(120% 80% at 80% -10%, rgba(91,140,255,.10), transparent 55%),
+    radial-gradient(90% 70% at -10% 110%, rgba(182,248,74,.05), transparent 60%);
+}
+
+/* ===========================================================
+   NAMED SCROLL TIMELINE (the identity of this template)
+   .scroller IS the scroll container and OWNS the named timeline
+   (--read). timeline-scope hoists --read across its whole subtree
+   so the FIXED rail and the mobile topbar (different DOM branches)
+   read the SAME timeline. The progress fill is driven by
+   animation-timeline:--read alone. No scroll-position JS.
+   A named timeline only resolves if its owner is the real scroller,
+   so the page scrolls INSIDE .scroller, not the document body.
+   =========================================================== */
+.scroller{
+  height:100vh;
+  overflow-y:auto;
+  overflow-x:hidden;
+  scroll-timeline: --read block;     /* this scroller's progress == --read */
+  timeline-scope: --read;            /* hoist --read to descendants */
+  position:relative;
+  z-index:1;
+}
+.layout{
+  position:relative;
+  display:grid;
+  grid-template-columns:var(--sidebar-w) minmax(0,1fr);
+  gap:0;
+  max-width:1200px;
+  margin:0 auto;
+}
+.reading-track{min-width:0}
+
+/* ---------- SIDEBAR (fixed chapter nav + progress line) ---------- */
+.rail{
+  position:sticky;
+  top:0;
+  height:100vh;
+  padding:34px 26px 34px 30px;
+  display:flex;
+  flex-direction:column;
+  border-right:1px solid var(--line);
+  background:linear-gradient(180deg, rgba(16,18,22,.4), rgba(16,18,22,0));
+  backdrop-filter:blur(2px);
+}
+.brand{
+  font-family:"Fraunces",serif;
+  font-weight:600;
+  font-size:15px;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--bone);
+}
+.brand .dot{color:var(--accent)}
+.kicker{
+  margin-top:6px;
+  font-size:11px;
+  letter-spacing:.22em;
+  text-transform:uppercase;
+  color:var(--bone-dim);
+}
+
+.progress-meta{
+  margin-top:26px;
+  display:flex;
+  align-items:baseline;
+  gap:8px;
+}
+.progress-meta .pct{
+  font-family:"Fraunces",serif;
+  font-size:34px;
+  font-weight:600;
+  line-height:1;
+  color:var(--bone);
+  font-variant-numeric:tabular-nums;
+  /* the % readout itself is timeline-driven via a counter-ish trick:
+     we cannot print computed scroll %, so we animate a width bar and
+     keep a static "READ" label. The number below is decorative ramp. */
+}
+.progress-meta .of{font-size:12px;color:var(--bone-dim);letter-spacing:.14em;text-transform:uppercase}
+
+/* the chapter list with the vertical progress line behind it */
+.chapters{
+  position:relative;
+  margin-top:28px;
+  padding-left:26px;
+  flex:1 1 auto;
+  min-height:0;
+}
+/* the unfilled rail (full height of the list) */
+.chapters::before{
+  content:"";
+  position:absolute;
+  left:7px; top:6px; bottom:6px;
+  width:2px;
+  border-radius:2px;
+  background:var(--line);
+}
+/* the FILLED progress line: scaleY driven purely by the named timeline.
+   animation-timeline + scroll-timeline = declarative, zero scroll JS. */
+.chapters .fill{
+  position:absolute;
+  left:7px; top:6px; bottom:6px;
+  width:2px;
+  border-radius:2px;
+  transform-origin:top center;
+  background:linear-gradient(180deg, var(--accent), var(--accent-2));
+  box-shadow:0 0 14px rgba(91,140,255,.55);
+  transform:scaleY(.18);             /* FALLBACK + scroll=0 initial: already partly filled */
+  animation:fill-progress linear both;
+  animation-timeline:--read;
+}
+@keyframes fill-progress{
+  /* start at 0.18 so the static thumbnail shows a partly-filled rail */
+  from{transform:scaleY(.18)}
+  to{transform:scaleY(1)}
+}
+
+/* the horizontal top progress bar (used on mobile; harmless on desktop hidden) */
+.topbar{
+  position:fixed;
+  left:0; top:0; right:0;
+  height:4px;
+  z-index:30;
+  background:transparent;
+  display:none;
+}
+.topbar .tfill{
+  height:100%;
+  transform-origin:left center;
+  background:linear-gradient(90deg,var(--accent),var(--accent-2));
+  transform:scaleX(.06);
+  animation:tfill linear both;
+  animation-timeline:--read;
+}
+@keyframes tfill{from{transform:scaleX(.06)} to{transform:scaleX(1)}}
+
+/* chapter buttons */
+.chapter{
+  position:relative;
+  display:block;
+  width:100%;
+  text-align:left;
+  background:none;
+  border:0;
+  color:var(--bone-dim);
+  font:inherit;
+  cursor:pointer;
+  padding:10px 0 14px;
+  text-decoration:none;
+  transition:color .35s ease;
+}
+.chapter + .chapter{border-top:1px solid transparent}
+.chapter .num{
+  font-family:"Fraunces",serif;
+  font-size:11px;
+  letter-spacing:.18em;
+  color:var(--bone-dim);
+  display:block;
+}
+.chapter .ttl{
+  display:block;
+  margin-top:3px;
+  font-size:14px;
+  font-weight:500;
+  line-height:1.3;
+  color:var(--bone-dim);
+  transition:color .35s ease;
+}
+/* the node dot on the rail per chapter */
+.chapter::before{
+  content:"";
+  position:absolute;
+  left:-26px; top:14px;
+  width:10px;height:10px;border-radius:50%;
+  background:var(--ink);
+  border:2px solid var(--line);
+  transition:border-color .35s ease, background .35s ease, box-shadow .35s ease;
+}
+/* ACTIVE chapter: driven by IntersectionObserver toggling .is-active
+   (this is allowed; it is highlight state, not progress-fill state) */
+.chapter.is-active .ttl{color:var(--bone)}
+.chapter.is-active .num{color:var(--accent)}
+.chapter.is-active::before{
+  border-color:var(--accent);
+  background:var(--accent);
+  box-shadow:0 0 0 4px rgba(91,140,255,.18);
+}
+.chapter:hover .ttl{color:var(--bone)}
+.chapter:focus-visible{outline:none}
+.chapter:focus-visible .ttl{
+  color:var(--bone);
+  text-decoration:underline;
+  text-underline-offset:3px;
+}
+.chapter:focus-visible::before{box-shadow:0 0 0 4px rgba(182,248,74,.30)}
+
+.rail-foot{
+  margin-top:18px;
+  font-size:11px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--bone-dim);
+  display:flex;align-items:center;gap:8px;
+}
+.rail-foot .ok{color:var(--accent-2)}
+
+/* ---------- ARTICLE (the scrolling column) ---------- */
+.article{
+  padding:0 0 12vh;
+  min-width:0;
+}
+/* compact top band so the signature mechanic is in-frame at scroll=0,
+   not a full-viewport title hero pushing content below the fold */
+.masthead{
+  padding:30px 48px 8px;
+  border-bottom:1px solid var(--line);
+}
+.masthead .eyebrow{
+  font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:var(--accent);
+}
+.masthead h1{
+  font-family:"Fraunces",serif;
+  font-weight:600;
+  font-size:clamp(28px,3.4vw,46px);
+  line-height:1.04;
+  letter-spacing:-.01em;
+  margin:.35em 0 .1em;
+  max-width:14ch;
+}
+.masthead .standfirst{
+  color:var(--bone-dim);
+  max-width:48ch;
+  font-size:15px;
+  margin:.4em 0 .2em;
+}
+.byline{
+  display:flex;gap:16px;flex-wrap:wrap;
+  font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--bone-dim);
+  margin-top:10px;
+}
+.byline b{color:var(--bone);font-weight:600}
+
+/* chapter sections */
+.chapter-sec{
+  padding:6vh 48px 4vh;
+  border-bottom:1px solid var(--line);
+  scroll-margin-top:8px;
+}
+.chapter-sec:last-child{border-bottom:0}
+.sec-head{
+  display:flex;align-items:baseline;gap:14px;
+  margin-bottom:.4em;
+}
+.sec-head .secnum{
+  font-family:"Fraunces",serif;
+  font-size:13px;letter-spacing:.2em;color:var(--accent);
+  flex:0 0 auto;
+}
+.sec-head h2{
+  font-family:"Fraunces",serif;
+  font-weight:600;
+  font-size:clamp(22px,2.6vw,34px);
+  line-height:1.1;
+  letter-spacing:-.01em;
+  margin:0;
+}
+/* the opening chapter gets a heavier drop-set so chapter-1 reads BOLD
+   in the first viewport thumbnail */
+.chapter-sec.lead h2{font-size:clamp(26px,3vw,40px)}
+.chapter-sec.lead p.dropcap:first-of-type::first-letter{
+  font-family:"Fraunces",serif;
+  font-weight:800;
+  float:left;
+  font-size:3.4em;
+  line-height:.78;
+  padding:.04em .12em 0 0;
+  color:var(--accent);
+}
+.prose{max-width:var(--maxread)}
+.prose p{margin:0 0 1.1em}
+.prose p .hl{color:var(--bone);font-weight:600}
+.prose blockquote{
+  margin:1.4em 0;
+  padding-left:18px;
+  border-left:2px solid var(--accent);
+  font-family:"Fraunces",serif;
+  font-size:21px;
+  line-height:1.4;
+  color:var(--bone);
+}
+
+/* media frame: ALWAYS landscape-safe. We give it a fixed aspect and
+   object-fit:cover so a 16:9 asset is never crammed into a portrait box. */
+.figure{
+  margin:1.6em 0 .4em;
+  border:1px solid var(--line);
+  border-radius:14px;
+  overflow:hidden;
+  background:var(--ink-2);
+  position:relative;
+}
+.figure .frame{
+  position:relative;
+  aspect-ratio:16/9;
+  background:#0c0d10;
+}
+.figure .frame img,
+.figure .frame video{
+  position:absolute;inset:0;
+  width:100%;height:100%;
+  object-fit:cover;
+}
+.figure.square .frame{aspect-ratio:1/1;max-width:420px;margin:0 auto}
+.figure figcaption{
+  padding:10px 14px;
+  font-size:12px;letter-spacing:.04em;color:var(--bone-dim);
+  border-top:1px solid var(--line);
+  display:flex;justify-content:space-between;gap:12px;
+}
+.figure figcaption .tag{color:var(--accent-2);text-transform:uppercase;letter-spacing:.12em}
+/* play affordance for the one video figure */
+.figure .playbadge{
+  position:absolute;left:12px;bottom:54px;z-index:2;
+  font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  background:rgba(16,18,22,.7);border:1px solid var(--line);
+  padding:5px 9px;border-radius:999px;color:var(--bone);
+  backdrop-filter:blur(4px);
+}
+
+.pull-stats{
+  display:flex;flex-wrap:wrap;gap:26px;
+  margin:1.6em 0 .6em;
+  padding:18px 0;
+  border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+}
+.pull-stats div{min-width:90px}
+.pull-stats .v{font-family:"Fraunces",serif;font-size:28px;color:var(--bone);line-height:1}
+.pull-stats .k{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--bone-dim);margin-top:6px}
+
+.endnote{
+  padding:7vh 48px 0;
+  max-width:var(--maxread);
+  color:var(--bone-dim);
+  font-size:14px;
+}
+.endnote .sig{
+  font-family:"Fraunces",serif;color:var(--bone);font-size:18px;display:block;margin-bottom:6px;
+}
+
+/* ---------- NO-SUPPORT FALLBACK BANNER ----------
+   shown only when scroll-timeline is unsupported. Content + chapters
+   stay fully visible regardless; this just sets expectations. */
+.nofeature{
+  display:none;
+  margin:14px 30px 0;
+  padding:9px 12px;
+  font-size:11px;letter-spacing:.06em;
+  color:var(--bone-dim);
+  border:1px dashed var(--line);
+  border-radius:8px;
+}
+html.no-stl .nofeature{display:block}
+/* in fallback, keep the fill bar at a sensible static partial state already
+   set by the inline transform (scaleY .18); active-chapter JS still works. */
+
+/* ===========================================================
+   MOBILE: collapse sidebar to a TOP PROGRESS BAR
+   =========================================================== */
+@media (max-width:900px){
+  :root{--sidebar-w:0px}
+  .layout{display:block}
+  .rail{
+    position:sticky;top:0;height:auto;
+    flex-direction:row;align-items:center;gap:14px;
+    padding:12px 18px;
+    border-right:0;border-bottom:1px solid var(--line);
+    background:rgba(16,18,22,.86);
+    backdrop-filter:blur(10px);
+    z-index:25;
+    overflow-x:auto;
+  }
+  .rail .brand{font-size:13px;flex:0 0 auto}
+  .kicker,.progress-meta,.rail-foot{display:none}
+  .topbar{display:block}            /* horizontal scrubber on at top */
+  /* turn the chapter list into a horizontal scroller of pills */
+  .chapters{
+    margin-top:0;padding-left:0;
+    display:flex;gap:8px;overflow-x:auto;flex:1 1 auto;
+    scrollbar-width:none;
+  }
+  .chapters::-webkit-scrollbar{display:none}
+  .chapters::before,.chapters .fill{display:none} /* vertical line off on mobile */
+  .chapter{
+    flex:0 0 auto;
+    padding:6px 12px;
+    border:1px solid var(--line);
+    border-radius:999px;
+    background:var(--ink-2);
+  }
+  .chapter + .chapter{border-top:1px solid var(--line)}
+  .chapter::before{display:none}
+  .chapter .num{display:inline;font-size:10px;margin-right:6px}
+  .chapter .ttl{display:inline;font-size:12px;white-space:nowrap}
+  .chapter.is-active{border-color:var(--accent)}
+  .masthead{padding:18px 20px 8px}
+  .chapter-sec{padding:34px 20px 30px}
+  .endnote{padding:40px 20px 0}
+  .figure.square .frame{max-width:none}
+}
+@media (max-width:640px){
+  body{font-size:16px}
+  /* landscape assets: stack/letterbox, never portrait-crop.
+     We relax the cover crop into contain on a letterbox so the full
+     16:9 (or square) frame shows on a 390px phone. */
+  .figure .frame{aspect-ratio:16/9}
+  .figure .frame img{object-fit:cover}  /* 16:9 box on a phone is already short, no portrait crush */
+  .masthead h1{font-size:30px;max-width:none}
+  .prose blockquote{font-size:18px}
+}
+
+/* ===========================================================
+   REDUCED MOTION: the scroll-LINKED progress fill is allowed
+   (it is not time-based). We disable only decorative transitions,
+   smooth-scroll, and the video. Final states stay visible.
+   =========================================================== */
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *{transition:none !important}
+  .figure .playbadge{opacity:.5}
+}
+</style>
+</head>
+<body>
+
+<!-- .scroller is the real scroll container that OWNS the named --read timeline.
+     Everything that reads --read (rail fill, topbar) lives inside it. -->
+<div class="scroller" id="scroller">
+
+<!-- mobile top scrubber (declaratively scroll-linked, reads --read) -->
+<div class="topbar" aria-hidden="true"><div class="tfill"></div></div>
+
+<div class="layout">
+
+  <!-- ============ FIXED CHAPTER NAV (reads the shared --read timeline) ============ -->
+  <nav class="rail" aria-label="Chapter navigation">
+    <div>
+      <div class="brand">FIELD<span class="dot">.</span>NOTES</div>
+      <div class="kicker">A chaptered long-read</div>
+    </div>
+
+    <div class="progress-meta">
+      <span class="pct">05</span>
+      <span class="of">/ chapters</span>
+    </div>
+
+    <div class="chapters" id="chapters">
+      <div class="fill" aria-hidden="true"></div>
+      <!-- chapter buttons injected from DATA -->
+    </div>
+
+    <div class="rail-foot">
+      <span class="ok">&#9679;</span> scroll-timeline live
+    </div>
+    <div class="nofeature">
+      Your browser does not support CSS scroll-timeline. The chapter list and
+      article are fully readable; the progress line stays at a fixed mark.
+    </div>
+  </nav>
+
+  <!-- ============ ARTICLE: this column owns the named timeline ============ -->
+  <main class="article reading-track" id="reading">
+    <header class="masthead">
+      <div class="eyebrow" id="m-eyebrow">DISPATCH 014</div>
+      <h1 id="m-title">The render farm that taught itself to wait.</h1>
+      <p class="standfirst" id="m-stand">A five-chapter field report on generative pipelines, the patience problem, and why the slowest frame decides the whole shot.</p>
+      <div class="byline">
+        <span id="m-author">By <b>The Studio Desk</b></span>
+        <span id="m-read">18 min read</span>
+        <span id="m-date">Issue 06 / 2026</span>
+      </div>
+    </header>
+
+    <div id="sections"><!-- chapter sections injected from DATA --></div>
+
+    <footer class="endnote" id="endnote">
+      <span class="sig">Field Notes</span>
+      Filed from the edit bay. Methodology, raw frames and the full clip log are kept
+      in the appendix. Corrections to the desk.
+    </footer>
+  </main>
+</div><!-- /.layout -->
+</div><!-- /.scroller -->
+
+<script>
+/* ============================================================
+   DATA  ----  edit this to reswap the entire long-read.
+   Each chapter: id, num, title, short (sidebar), html (body),
+   optional figure {type:'image'|'video'|'square', src, poster, caption, tag}.
+   Assets are reused from ../assets/ (relative to this file).
+   ============================================================ */
+const A = "../assets/";
+const META = {
+  eyebrow:"DISPATCH 014",
+  title:"The render farm that taught itself to wait.",
+  standfirst:"A five-chapter field report on generative pipelines, the patience problem, and why the slowest frame decides the whole shot.",
+  author:"The Studio Desk",
+  read:"18 min read",
+  date:"Issue 06 / 2026"
+};
+
+const DATA = [
+  {
+    id:"ch1", num:"01", title:"The slowest frame",
+    short:"The slowest frame",
+    lead:true,
+    figure:{ type:"image", src:A+"flux-car-4k.png",
+      caption:"Plate render, wet-street pass, 4K matte", tag:"Frame 0001" },
+    html:`
+      <p class="dropcap"><span class="hl">Every shot has one frame that decides it.</span>
+      Not the prettiest, not the establishing wide. The one the queue stalls on while the
+      others sail through. Find that frame and you understand the whole pipeline: where it
+      is patient, where it panics, where it quietly lies about being done.</p>
+      <p>We spent a month watching a generative render farm grind through a single
+      sixty-second car spot. The brief was simple, a black sedan on a neon street after
+      rain. The pipeline was not. Diffusion plate, upscale pass, motion interpolation, then
+      a grade. Four stages, four different ideas about what "finished" means.</p>
+      <blockquote>The render did not get faster. It got better at knowing what to skip.</blockquote>
+      <p>This is chapter one of five. The progress line on the left fills as you read,
+      driven entirely by the browser's native scroll-timeline. No script measures the
+      scroll. The page simply declares which element's progress to follow.</p>`
+  },
+  {
+    id:"ch2", num:"02", title:"Plates and patience",
+    short:"Plates and patience",
+    figure:{ type:"video", src:A+"kling-video.mp4", poster:A+"gen/poster-kling-video.png",
+      caption:"Motion pass, in-view autoplay, muted loop", tag:"Clip 22" },
+    html:`
+      <p>The first plate came back in ninety seconds and looked finished. It was not.
+      Generative plates are <span class="hl">confidently wrong</span> in the places you
+      look last, the reflections, the wet sheen, the second car half out of frame.</p>
+      <p>So the farm learned to hold. Not every region needs the same number of steps.
+      The street surface, busy with reflection, drew the budget. The sky, near-black,
+      was left almost alone. Patience became a routing decision, not a virtue.</p>
+      <p>The clip below plays only while it is on screen, then pauses to spare the decoder.
+      One moving picture at a time is a deliberate choice; a wall of simultaneous loops
+      is how you turn a smooth page into a slideshow.</p>`
+  },
+  {
+    id:"ch3", num:"03", title:"The interpolation tax",
+    short:"The interpolation tax",
+    figure:{ type:"image", src:A+"flux-clinic-4k.png",
+      caption:"Control reference, clean-room pass", tag:"Ref plate" },
+    html:`
+      <p>Between two rendered frames sits an invented one. Interpolation is cheap to ask
+      for and expensive to trust. Ask for too much and motion turns to soap; ask for too
+      little and the eye catches every seam.</p>
+      <p>We measured the tax frame by frame. <span class="hl">The middle frames cost
+      more than the keys.</span> They have no ground truth to lean on, only a guess about
+      what physics did in the gap. The farm started rendering true frames denser around
+      fast motion and letting the slow pans coast on invention.</p>
+      <div class="pull-stats">
+        <div><div class="v">4</div><div class="k">pipeline stages</div></div>
+        <div><div class="v">61s</div><div class="k">final runtime</div></div>
+        <div><div class="v">1,464</div><div class="k">frames graded</div></div>
+        <div><div class="v">2.0&times;</div><div class="k">dpr cap</div></div>
+      </div>
+      <p>None of those numbers mattered until the one that did: the slowest frame's
+      render time. Halve that and the queue breathes.</p>`
+  },
+  {
+    id:"ch4", num:"04", title:"A grade is an opinion",
+    short:"A grade is an opinion",
+    figure:{ type:"square", src:A+"sdxl.png",
+      caption:"Style key, painterly grade test", tag:"Look dev" },
+    html:`
+      <p>Color is where the machine stops pretending to be objective. A grade is an
+      opinion stated in numbers. Push the blues and the street reads cold and expensive;
+      warm it and the same plate turns nostalgic.</p>
+      <p>The farm could not grade. It could only be consistent, which is half of grading
+      and the boring half. <span class="hl">Taste stayed human.</span> The pipeline's job
+      was to make sure every frame agreed to disagree the same way.</p>
+      <blockquote>Automate the agreement. Keep the opinion.</blockquote>
+      <p>That line became the rule for the whole farm. Anything two frames must share, the
+      machine owns. Anything a person would argue about over a coffee, the machine leaves
+      alone.</p>`
+  },
+  {
+    id:"ch5", num:"05", title:"Knowing when to stop",
+    short:"Knowing when to stop",
+    figure:{ type:"image", src:A+"hf-tinysd.png",
+      caption:"Low-fidelity draft, deliberate stop", tag:"Draft" },
+    html:`
+      <p>The last thing the farm learned was the hardest: when a frame is done. Not
+      perfect, done. There is a point where another pass changes pixels no viewer will
+      ever notice, and burns minutes anyone would.</p>
+      <p>It learned to stop by watching its own diffs. When two successive passes moved
+      almost nothing, it called the frame and moved on. <span class="hl">The slowest
+      frame stopped being the bottleneck</span> the day the farm stopped polishing the
+      ones already finished.</p>
+      <p>Five chapters, one shot, one lesson. The pipeline did not get faster by working
+      harder. It got faster by knowing what to wait for, what to skip, and when to put
+      the frame down. You have reached the end; the progress line on the left should now
+      read full.</p>`
+  }
+];
+
+/* ---------------- RENDER FROM DATA ---------------- */
+(function(){
+  // meta
+  const set=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v;};
+  set("m-eyebrow",META.eyebrow); set("m-title",META.title); set("m-stand",META.standfirst);
+  document.getElementById("m-author").innerHTML="By <b>"+META.author+"</b>";
+  set("m-read",META.read); set("m-date",META.date);
+  document.querySelector(".pct").textContent=String(DATA.length).padStart(2,"0");
+
+  const railList=document.getElementById("chapters");
+  const secWrap=document.getElementById("sections");
+
+  function figureHTML(fig){
+    if(!fig) return "";
+    if(fig.type==="video"){
+      return `<figure class="figure">
+        <div class="frame">
+          <span class="playbadge">in-view loop</span>
+          <video muted loop playsinline preload="none"
+                 poster="${fig.poster||''}" data-src="${fig.src}"></video>
+        </div>
+        <figcaption><span>${fig.caption||''}</span><span class="tag">${fig.tag||''}</span></figcaption>
+      </figure>`;
+    }
+    const sq = fig.type==="square" ? " square" : "";
+    return `<figure class="figure${sq}">
+      <div class="frame"><img loading="lazy" src="${fig.src}" alt="${fig.caption||''}"></div>
+      <figcaption><span>${fig.caption||''}</span><span class="tag">${fig.tag||''}</span></figcaption>
+    </figure>`;
+  }
+
+  DATA.forEach((c,i)=>{
+    // sidebar chapter button (anchor for click-to-jump + focus-visible)
+    const a=document.createElement("a");
+    a.className="chapter"+(i===0?" is-active":"");
+    a.href="#"+c.id;
+    a.dataset.target=c.id;
+    a.innerHTML=`<span class="num">CH ${c.num}</span><span class="ttl">${c.short}</span>`;
+    railList.appendChild(a);
+
+    // article section
+    const sec=document.createElement("section");
+    sec.className="chapter-sec"+(c.lead?" lead":"");
+    sec.id=c.id;
+    sec.innerHTML=`
+      <div class="sec-head"><span class="secnum">${c.num}</span><h2>${c.title}</h2></div>
+      <div class="prose">${figureHTML(c.figure)}${c.html}</div>`;
+    secWrap.appendChild(sec);
+  });
+
+  /* ---------------- FEATURE DETECTION (fallback banner) ----------------
+     scroll-timeline is the identity; if absent, content still works. */
+  const stlOK = CSS && CSS.supports && (
+      CSS.supports("animation-timeline: --x") ||
+      CSS.supports("animation-timeline","scroll()")
+  );
+  if(!stlOK){ document.documentElement.classList.add("no-stl"); }
+
+  /* ---------------- ACTIVE CHAPTER HIGHLIGHT ----------------
+     IntersectionObserver toggles .is-active. This is highlight state,
+     NOT the progress fill (which stays purely declarative CSS). */
+  const links=[...document.querySelectorAll(".chapter")];
+  const secs=[...document.querySelectorAll(".chapter-sec")];
+  const byId=Object.fromEntries(links.map(l=>[l.dataset.target,l]));
+  const scroller=document.getElementById("scroller");
+
+  const io=new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{
+      if(e.isIntersecting){
+        links.forEach(l=>l.classList.remove("is-active"));
+        const link=byId[e.target.id];
+        if(link){
+          link.classList.add("is-active");
+          // keep active pill visible in the mobile horizontal scroller
+          if(window.matchMedia("(max-width:900px)").matches){
+            link.scrollIntoView({inline:"center",block:"nearest",behavior:"smooth"});
+          }
+        }
+      }
+    });
+  },{root:scroller,rootMargin:"-45% 0px -50% 0px",threshold:0});
+  secs.forEach(s=>io.observe(s));
+
+  /* smooth click-to-jump (respect reduced-motion via CSS scroll-behavior) */
+  links.forEach(l=>{
+    l.addEventListener("click",ev=>{
+      ev.preventDefault();
+      const t=document.getElementById(l.dataset.target);
+      if(t) t.scrollIntoView({block:"start"});
+    });
+  });
+
+  /* ---------------- VIDEO: play only in view, one at a time ----------------
+     load + play when on screen, pause + unload offscreen. Honors RM. */
+  const reduce=window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+  const vids=[...document.querySelectorAll("video[data-src]")];
+  if(vids.length){
+    const vio=new IntersectionObserver((entries)=>{
+      entries.forEach(e=>{
+        const v=e.target;
+        if(e.isIntersecting && !reduce){
+          if(!v.src){ v.src=v.dataset.src; }
+          const p=v.play(); if(p&&p.catch) p.catch(()=>{});
+        }else{
+          v.pause();
+        }
+      });
+    },{root:scroller,threshold:0.4});
+    vids.forEach(v=>vio.observe(v));
+  }
+})();
+</script>
+</body>
+</html>

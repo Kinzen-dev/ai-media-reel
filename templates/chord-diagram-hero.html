@@ -1,0 +1,532 @@
+<!-- TEMPLATE: Chord Atlas | ARCHETYPE: chord-diagram-hero (relationship chord/arc-ribbon hero) | REF: D3 chord diagrams, circular flow / arc-ribbon relationship viz | WHEN TO USE: a brand/data hero where the headline IS a circular relationship map - categorical arc segments around a ring joined by curved color ribbons encoding flows between them | SWAP: edit the DATA array (categories) + the MATRIX (flows) at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Chord Atlas - relationship flow hero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,560&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     CHORD ATLAS - all geometry precomputed in JS, inlined as SVG.
+     Palette: #0e1014 ink + bone, 6 categorical brand hues.
+     ============================================================ */
+  :root {
+    --ink: #0e1014;
+    --ink-2: #15181f;
+    --bone: #ece6da;
+    --bone-dim: #9a958b;
+    --line: #2a2e38;
+    --ring: #3a3f4b;
+    /* 6 categorical hues - mirrored exactly in the JS DATA palette */
+    --c0: #e8624a; /* ember   */
+    --c1: #f2b134; /* amber   */
+    --c2: #5ec4b6; /* jade    */
+    --c3: #5a8fe6; /* azure   */
+    --c4: #b07be0; /* violet  */
+    --c5: #e87fb0; /* rose    */
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background:
+      radial-gradient(120% 90% at 50% 8%, #161a22 0%, var(--ink) 58%, #090b0f 100%);
+    color: var(--bone);
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ---- top band: headline + legend, compact, ABOVE/over the ring ---- */
+  .wrap {
+    position: relative;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: clamp(20px, 3.2vw, 40px) clamp(18px, 4vw, 48px) 56px;
+  }
+
+  header.band {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 18px 28px;
+    padding-bottom: clamp(14px, 2vw, 22px);
+    border-bottom: 1px solid var(--line);
+  }
+  .eyebrow {
+    font-size: 11.5px;
+    letter-spacing: 0.34em;
+    text-transform: uppercase;
+    color: var(--c2);
+    margin: 0 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .eyebrow .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--c2);
+    box-shadow: 0 0 0 4px rgba(94,196,182,0.16);
+  }
+  h1 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 560;
+    font-size: clamp(30px, 5.4vw, 60px);
+    line-height: 0.98;
+    letter-spacing: -0.012em;
+    margin: 0;
+    max-width: 16ch;
+    color: var(--bone);
+  }
+  h1 em { font-style: italic; color: var(--c1); }
+  .sub {
+    margin: 14px 0 0;
+    max-width: 40ch;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--bone-dim);
+  }
+  .meta {
+    text-align: right;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--bone-dim);
+    line-height: 1.7;
+    flex: 0 0 auto;
+  }
+  .meta b { color: var(--bone); font-weight: 500; }
+
+  /* ---- the stage: centered chord ring ---- */
+  .stage {
+    margin-top: clamp(8px, 2vw, 18px);
+    position: relative;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+  .chord-svg {
+    width: min(72vh, 640px, 92vw);
+    height: auto;
+    aspect-ratio: 1 / 1;
+    overflow: visible;
+    display: block;
+  }
+  .chord-svg text {
+    font-family: "JetBrains Mono", monospace;
+    fill: var(--bone-dim);
+  }
+
+  /* ---- ribbons + arcs draw-in (gated on reduced-motion) ---- */
+  .ribbon {
+    opacity: 0;
+    transform-box: fill-box;
+    transform-origin: 50% 50%;
+  }
+  .arc-seg {
+    opacity: 0;
+  }
+  .tick, .seg-label, .center-lines text { opacity: 0; }
+
+  body.animate .ribbon {
+    animation: ribbonIn 0.9s cubic-bezier(.22,.61,.36,1) forwards;
+  }
+  body.animate .arc-seg {
+    animation: arcIn 0.6s cubic-bezier(.22,.61,.36,1) forwards;
+  }
+  body.animate .tick,
+  body.animate .seg-label,
+  body.animate .center-lines text {
+    animation: fadeIn 0.7s ease forwards;
+  }
+  @keyframes ribbonIn {
+    from { opacity: 0; transform: scale(0.86); }
+    to   { opacity: 0.82; transform: scale(1); }
+  }
+  @keyframes arcIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  /* settled / reduced-motion final state */
+  body.settled .ribbon  { opacity: 0.82; transform: none; }
+  body.settled .arc-seg { opacity: 1; }
+  body.settled .tick,
+  body.settled .seg-label,
+  body.settled .center-lines text { opacity: 1; }
+
+  /* hover focus: dim everything but the touched node's ribbons */
+  .chord-svg.focusing .ribbon { opacity: 0.10; transition: opacity .22s ease; }
+  .chord-svg.focusing .arc-seg { opacity: 0.30; transition: opacity .22s ease; }
+  .chord-svg.focusing .ribbon.lit { opacity: 0.94; }
+  .chord-svg.focusing .arc-seg.lit { opacity: 1; }
+  .chord-svg .ribbon, .chord-svg .arc-seg { transition: opacity .22s ease; }
+
+  .arc-hit { cursor: pointer; }
+  .arc-hit:focus-visible {
+    outline: 2px solid var(--c1);
+    outline-offset: 2px;
+  }
+
+  /* center readout */
+  .center-lines .big {
+    font-family: "Fraunces", serif;
+    font-size: 34px;
+    fill: var(--bone);
+  }
+  .center-lines .small {
+    font-size: 10.5px;
+    letter-spacing: 0.22em;
+    fill: var(--bone-dim);
+  }
+
+  /* ---- legend strip under the ring ---- */
+  .legend {
+    margin: clamp(20px, 3vw, 34px) auto 0;
+    max-width: 880px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px 22px;
+  }
+  .legend button {
+    appearance: none;
+    background: var(--ink-2);
+    border: 1px solid var(--line);
+    color: var(--bone);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.04em;
+    padding: 7px 12px 7px 9px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: border-color .18s ease, background .18s ease, transform .18s ease;
+  }
+  .legend button:hover { transform: translateY(-1px); border-color: var(--ring); }
+  .legend button:focus-visible { outline: 2px solid var(--c1); outline-offset: 2px; }
+  .legend .sw {
+    width: 11px; height: 11px; border-radius: 3px;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.35) inset;
+  }
+  .legend .val { color: var(--bone-dim); font-size: 10.5px; }
+
+  /* ---- bottom caption ---- */
+  .caption {
+    margin: 44px auto 0;
+    max-width: 720px;
+    text-align: center;
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--bone-dim);
+  }
+  .caption code {
+    color: var(--c2);
+    background: rgba(94,196,182,0.08);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+
+  /* ===================== MOBILE ===================== */
+  @media (max-width: 640px) {
+    header.band { flex-direction: column; align-items: flex-start; }
+    .meta { text-align: left; }
+    .chord-svg { width: min(86vw, 420px); }
+    .center-lines .big { font-size: 26px; }
+    h1 { font-size: clamp(26px, 8.5vw, 40px); }
+    .legend { gap: 8px 14px; }
+    .legend button { font-size: 10.5px; padding: 6px 10px 6px 8px; }
+  }
+  @media (max-width: 380px) {
+    .chord-svg { width: 90vw; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="band">
+    <div>
+      <p class="eyebrow"><span class="dot" aria-hidden="true"></span>Chord Atlas / relationship map</p>
+      <h1>Every signal feeds <em>every</em> surface.</h1>
+      <p class="sub">A circular flow map. Six product domains ring the edge; each ribbon is a measured handoff between them, weighted by volume.</p>
+    </div>
+    <div class="meta">
+      <div><b>FLOWS</b> &nbsp;chord matrix</div>
+      <div>6 domains / 15 ribbons</div>
+      <div>hover a segment to isolate</div>
+    </div>
+  </header>
+
+  <div class="stage">
+    <svg class="chord-svg" id="chord" viewBox="-500 -500 1000 1000" role="img"
+         aria-label="Chord diagram: six product domains arranged in a ring, connected by weighted ribbons showing flow between them.">
+      <!-- generated -->
+    </svg>
+  </div>
+
+  <div class="legend" id="legend" aria-label="Domain legend"></div>
+
+  <p class="caption">
+    Geometry is precomputed in JS from a flow <code>MATRIX</code> and inlined as SVG arc + ribbon paths. Swap the <code>DATA</code> array and matrix at the top of the script to retarget the hero. No libraries, no canvas.
+  </p>
+</div>
+
+<script>
+/* ============================================================
+   DATA - edit these two structures to swap the whole hero.
+   1) DATA: the categorical ring segments (label + color + short tag)
+   2) MATRIX: symmetric-ish flow weights between segment i and j.
+              MATRIX[i][j] = volume of flow leaving i toward j.
+   Colors here MUST mirror --c0..--c5 in the CSS palette.
+   ============================================================ */
+  const DATA = [
+    { id: 'signal',  label: 'SIGNAL',  tag: 'capture',   color: '#e8624a' },
+    { id: 'parse',   label: 'PARSE',   tag: 'normalize', color: '#f2b134' },
+    { id: 'memory',  label: 'MEMORY',  tag: 'store',     color: '#5ec4b6' },
+    { id: 'route',   label: 'ROUTE',   tag: 'decide',    color: '#5a8fe6' },
+    { id: 'voice',   label: 'VOICE',   tag: 'respond',   color: '#b07be0' },
+    { id: 'review',  label: 'REVIEW',  tag: 'verify',    color: '#e87fb0' }
+  ];
+
+  // flow weights between domains (rows = source, cols = target)
+  const MATRIX = [
+    //   sig  par  mem  rou  voi  rev
+    [     0,  34,  12,   8,   5,   4 ], // SIGNAL
+    [    34,   0,  28,  18,   6,   3 ], // PARSE
+    [    12,  28,   0,  22,   9,  14 ], // MEMORY
+    [     8,  18,  22,   0,  26,  11 ], // ROUTE
+    [     5,   6,   9,  26,   0,  20 ], // VOICE
+    [     4,   3,  14,  11,  20,   0 ]  // REVIEW
+  ];
+
+/* ============================================================
+   GEOMETRY - chord layout precomputed below. Pure trig, no deps.
+   ============================================================ */
+  const N        = DATA.length;
+  const R_OUTER  = 400;   // arc band outer radius
+  const R_INNER  = 372;   // arc band inner radius (ribbon anchor)
+  const R_LABEL  = 432;   // segment label baseline
+  const R_TICK   = 408;   // tick marks
+  const PAD_DEG  = 4;     // gap between segments, in degrees
+  const TAU      = Math.PI * 2;
+  const D2R      = Math.PI / 180;
+
+  // total flow per segment (sum of its row) drives arc length
+  const rowTotals = MATRIX.map(r => r.reduce((a, b) => a + b, 0));
+  const grand     = rowTotals.reduce((a, b) => a + b, 0);
+
+  // distribute 360deg minus padding gaps, proportional to rowTotals
+  const padTotal  = PAD_DEG * N;
+  const usable    = 360 - padTotal;
+
+  // each segment gets a [startAngle, endAngle] in radians; sub-slots per target
+  const segs = [];
+  let cursor = -90; // start at top (12 o'clock), degrees
+  for (let i = 0; i < N; i++) {
+    const span = usable * (rowTotals[i] / grand);
+    const a0 = cursor * D2R;
+    const a1 = (cursor + span) * D2R;
+    // sub-slots: one per outgoing flow, in matrix column order, proportional
+    let sub = a0;
+    const slots = [];
+    for (let j = 0; j < N; j++) {
+      const w = MATRIX[i][j];
+      const frac = rowTotals[i] ? (w / rowTotals[i]) : 0;
+      const slotSpan = (a1 - a0) * frac;
+      slots[j] = { a0: sub, a1: sub + slotSpan, w };
+      sub += slotSpan;
+    }
+    segs.push({ i, a0, a1, mid: (a0 + a1) / 2, slots });
+    cursor += span + PAD_DEG;
+  }
+
+  // helpers
+  const P = (r, a) => [r * Math.cos(a), r * Math.sin(a)];
+
+  // arc path for the outer category band (an annulus wedge)
+  function arcWedge(rIn, rOut, a0, a1) {
+    const [x0o, y0o] = P(rOut, a0);
+    const [x1o, y1o] = P(rOut, a1);
+    const [x1i, y1i] = P(rIn,  a1);
+    const [x0i, y0i] = P(rIn,  a0);
+    const large = (a1 - a0) % TAU > Math.PI ? 1 : 0;
+    return `M${x0o.toFixed(2)},${y0o.toFixed(2)}` +
+           `A${rOut},${rOut} 0 ${large} 1 ${x1o.toFixed(2)},${y1o.toFixed(2)}` +
+           `L${x1i.toFixed(2)},${y1i.toFixed(2)}` +
+           `A${rIn},${rIn} 0 ${large} 0 ${x0i.toFixed(2)},${y0i.toFixed(2)}Z`;
+  }
+
+  // a ribbon connects sub-slot [s0a,s0b] on side A to [s1a,s1b] on side B,
+  // each end is an arc along R_INNER, joined by two quadratic curves through center.
+  function ribbonPath(s0a, s0b, s1a, s1b) {
+    const r = R_INNER;
+    const [ax0, ay0] = P(r, s0a);
+    const [ax1, ay1] = P(r, s0b);
+    const [bx0, by0] = P(r, s1a);
+    const [bx1, by1] = P(r, s1b);
+    // curve control point pulled toward center for the ribbon belly
+    const c = 0.18; // 0 = straight to center, 1 = no pull
+    const cx = 0, cy = 0;
+    const large0 = (s0b - s0a) % TAU > Math.PI ? 1 : 0;
+    const large1 = (s1b - s1a) % TAU > Math.PI ? 1 : 0;
+    return (
+      `M${ax0.toFixed(2)},${ay0.toFixed(2)}` +
+      `A${r},${r} 0 ${large0} 1 ${ax1.toFixed(2)},${ay1.toFixed(2)}` +
+      `Q${(cx).toFixed(2)},${(cy).toFixed(2)} ${bx0.toFixed(2)},${by0.toFixed(2)}` +
+      `A${r},${r} 0 ${large1} 1 ${bx1.toFixed(2)},${by1.toFixed(2)}` +
+      `Q${(cx).toFixed(2)},${(cy).toFixed(2)} ${ax0.toFixed(2)},${ay0.toFixed(2)}Z`
+    );
+  }
+
+  // build the unique chord list (each i<j pair once); color = source's hue
+  const ribbons = [];
+  for (let i = 0; i < N; i++) {
+    for (let j = i + 1; j < N; j++) {
+      if (MATRIX[i][j] === 0 && MATRIX[j][i] === 0) continue;
+      const sa = segs[i].slots[j]; // i's slot pointing at j
+      const sb = segs[j].slots[i]; // j's slot pointing at i
+      const weight = MATRIX[i][j] + MATRIX[j][i];
+      // color the heavier side
+      const dominant = MATRIX[i][j] >= MATRIX[j][i] ? i : j;
+      ribbons.push({ i, j, dominant, weight,
+        d: ribbonPath(sa.a0, sa.a1, sb.a0, sb.a1) });
+    }
+  }
+  // draw heavy ribbons first so thin ones sit on top
+  ribbons.sort((a, b) => b.weight - a.weight);
+
+/* ============================================================
+   RENDER - assemble the SVG string and inject.
+   ============================================================ */
+  const svg = document.getElementById('chord');
+  let out = '';
+
+  // faint backing ring
+  out += `<circle cx="0" cy="0" r="${R_INNER}" fill="none" stroke="#1d2129" stroke-width="1"/>`;
+  out += `<circle cx="0" cy="0" r="${R_OUTER + 8}" fill="none" stroke="#1a1d24" stroke-width="1"/>`;
+
+  // ribbons
+  ribbons.forEach((rb, k) => {
+    const col = DATA[rb.dominant].color;
+    out += `<path class="ribbon" data-i="${rb.i}" data-j="${rb.j}" `
+        +  `d="${rb.d}" fill="${col}" stroke="${col}" stroke-width="0.6" `
+        +  `style="animation-delay:${(0.25 + k * 0.045).toFixed(2)}s"/>`;
+  });
+
+  // arc segments (category band) + ticks + labels + hit areas
+  segs.forEach((s, idx) => {
+    const col = DATA[idx].color;
+    out += `<path class="arc-seg" data-i="${idx}" d="${arcWedge(R_INNER + 4, R_OUTER, s.a0, s.a1)}" `
+        +  `fill="${col}" style="animation-delay:${(idx * 0.07).toFixed(2)}s"/>`;
+
+    // ticks at slot boundaries
+    for (let j = 0; j < N; j++) {
+      const sl = s.slots[j];
+      if (sl.w === 0) continue;
+      const [tx0, ty0] = P(R_OUTER + 2, sl.a0);
+      const [tx1, ty1] = P(R_TICK + 6,  sl.a0);
+      out += `<line class="tick" x1="${tx0.toFixed(1)}" y1="${ty0.toFixed(1)}" `
+          +  `x2="${tx1.toFixed(1)}" y2="${ty1.toFixed(1)}" `
+          +  `stroke="${col}" stroke-width="1" opacity="0.5" `
+          +  `style="animation-delay:${(0.5 + idx * 0.05).toFixed(2)}s"/>`;
+    }
+
+    // segment label, rotated to sit tangent and upright
+    const mdeg = (s.mid / D2R);
+    const [lx, ly] = P(R_LABEL, s.mid);
+    let rot = mdeg;
+    let anchor = 'start';
+    if (mdeg > 90 || mdeg < -90) { rot = mdeg + 180; anchor = 'end'; }
+    out += `<text class="seg-label" x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" `
+        +  `transform="rotate(${rot.toFixed(1)} ${lx.toFixed(1)} ${ly.toFixed(1)})" `
+        +  `text-anchor="${anchor}" dominant-baseline="middle" `
+        +  `font-size="15" letter-spacing="2" fill="${col}" `
+        +  `style="animation-delay:${(0.55 + idx * 0.05).toFixed(2)}s">${DATA[idx].label}</text>`;
+
+    // invisible wider hit area for hover/focus isolation
+    out += `<path class="arc-hit" data-i="${idx}" tabindex="0" role="button" `
+        +  `aria-label="Isolate ${DATA[idx].label} relationships" `
+        +  `d="${arcWedge(R_INNER, R_LABEL + 18, s.a0, s.a1)}" fill="transparent"/>`;
+  });
+
+  // center readout
+  out += `<g class="center-lines">`;
+  out += `<text class="small" x="0" y="-26" text-anchor="middle">TOTAL FLOW</text>`;
+  out += `<text class="big" x="0" y="10" text-anchor="middle">${grand}</text>`;
+  out += `<text class="small" x="0" y="34" text-anchor="middle">UNITS / CYCLE</text>`;
+  out += `</g>`;
+
+  svg.innerHTML = out;
+
+/* ============================================================
+   LEGEND
+   ============================================================ */
+  const legend = document.getElementById('legend');
+  legend.innerHTML = DATA.map((d, i) =>
+    `<button data-i="${i}" type="button">
+       <span class="sw" style="background:${d.color}"></span>
+       <span>${d.label}</span>
+       <span class="val">${rowTotals[i]}</span>
+     </button>`
+  ).join('');
+
+/* ============================================================
+   INTERACTION - isolate a node's ribbons on hover/focus.
+   ============================================================ */
+  function focus(i) {
+    svg.classList.add('focusing');
+    svg.querySelectorAll('.ribbon').forEach(r => {
+      const lit = +r.dataset.i === i || +r.dataset.j === i;
+      r.classList.toggle('lit', lit);
+    });
+    svg.querySelectorAll('.arc-seg').forEach(a => {
+      a.classList.toggle('lit', +a.dataset.i === i);
+    });
+  }
+  function clearFocus() {
+    svg.classList.remove('focusing');
+    svg.querySelectorAll('.lit').forEach(el => el.classList.remove('lit'));
+  }
+
+  function wire(el) {
+    const i = +el.dataset.i;
+    el.addEventListener('mouseenter', () => focus(i));
+    el.addEventListener('mouseleave', clearFocus);
+    el.addEventListener('focus', () => focus(i));
+    el.addEventListener('blur', clearFocus);
+  }
+  svg.querySelectorAll('.arc-hit').forEach(wire);
+  legend.querySelectorAll('button').forEach(b => {
+    const i = +b.dataset.i;
+    b.addEventListener('mouseenter', () => focus(i));
+    b.addEventListener('mouseleave', clearFocus);
+    b.addEventListener('focus', () => focus(i));
+    b.addEventListener('blur', clearFocus);
+    b.addEventListener('click', () => { focus(i); setTimeout(clearFocus, 1400); });
+  });
+
+/* ============================================================
+   MOTION GATE - reduced-motion shows settled final state; else
+   draw-in once. Gate the draw so the hero reads correct at scroll=0.
+   ============================================================ */
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) {
+    document.body.classList.add('settled');
+  } else {
+    // start animation next frame so initial styles register
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => document.body.classList.add('animate'));
+    });
+  }
+</script>
+</body>
+</html>

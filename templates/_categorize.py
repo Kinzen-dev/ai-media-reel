@@ -95,6 +95,9 @@ SLUG_CAT = {
     # --- batch 36+ (bold/wow round) ---
     "ai-detective-narrative-hero": "product", "acid-rave-flyer": "movement",
     "svg-ferrofluid-field-lines": "generative", "oracle-card-draw-navigation": "interaction",
+    # --- batch 37 (bold + market) ---
+    "wealth-management-lifestyle-asset": "vertical", "cybersecurity-threat-graph": "vertical",
+    "hyperpop-chromatic-overload": "movement", "moire-op-art-field": "generative", "game-map-room-nav": "interaction",
 }
 
 KEYWORDS = [  # fallback for any slug not in SLUG_CAT (first match wins)

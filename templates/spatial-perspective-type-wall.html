@@ -1,0 +1,480 @@
+<!-- TEMPLATE: Spatial Perspective Type Wall | ARCHETYPE: PERSPECTIVE converging type-tunnel hero | REF: spatial perspective typography, vanishing-point type walls, CSS perspective type | WHEN TO USE: a hypnotic single-word hero that recedes into a 3D type tunnel reading INTO the screen | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Spatial Perspective Type Wall</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;600;800&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   DATA-DRIVEN: all swappable content lives in the JS DATA array
+   at the bottom of <body>. Edit that, not this CSS.
+   ============================================================ */
+
+:root{
+  --ink:        #0b0b0d;   /* near-black background */
+  --ink-2:      #131318;   /* panel tint */
+  --bone:       #ece6d8;   /* warm bone / off-white */
+  --bone-dim:   #b9b3a6;
+  --accent:     #ff5a36;   /* single hot accent */
+  --accent-2:   #ffd2c4;
+  --ring:       2px solid var(--accent);
+  --depth:      14;        /* tunnel layer count (JS reads this) */
+  --maxw:       1480px;
+}
+
+*{ box-sizing:border-box; margin:0; padding:0; }
+
+html,body{ height:100%; }
+
+body{
+  background:
+    radial-gradient(120% 90% at 50% 42%, #1b1b22 0%, var(--ink) 58%, #060608 100%);
+  color:var(--bone);
+  font-family:"Archivo", system-ui, sans-serif;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+}
+
+a{ color:inherit; }
+
+/* skip link for keyboard users */
+.skip{
+  position:absolute; left:-9999px; top:0; z-index:200;
+  background:var(--accent); color:#1a0a06; padding:.6rem 1rem;
+  font-weight:800; border-radius:0 0 8px 0;
+}
+.skip:focus{ left:0; }
+
+/* ---------- shared layout shell ---------- */
+.wrap{ width:100%; max-width:var(--maxw); margin:0 auto; padding:0 clamp(18px,4vw,52px); }
+
+/* ============================================================
+   HERO  -  the signature: a CSS-perspective type tunnel
+   Repeated display word receding to a central vanishing point.
+   Visible fully at scroll=0 in 1440x900 AND on a 390px phone.
+   ============================================================ */
+.hero{
+  position:relative;
+  min-height:100svh;
+  display:grid;
+  grid-template-rows:auto 1fr auto;
+  isolation:isolate;
+  overflow:hidden;
+}
+
+/* faint cinematic backdrop (optional asset) - kept very dim so the
+   type tunnel stays the hero, never a card-on-photo look */
+.hero__bg{
+  position:absolute; inset:0; z-index:0;
+  background-size:cover; background-position:center;
+  filter:grayscale(1) brightness(.34) contrast(1.05);
+  opacity:.22;
+  -webkit-mask-image:radial-gradient(115% 80% at 50% 46%, #000 0%, transparent 72%);
+  mask-image:radial-gradient(115% 80% at 50% 46%, #000 0%, transparent 72%);
+}
+/* vignette + scanline atmosphere */
+.hero__veil{
+  position:absolute; inset:0; z-index:1; pointer-events:none;
+  background:
+    radial-gradient(80% 60% at 50% 46%, transparent 40%, rgba(6,6,8,.85) 100%);
+}
+.hero__grain{
+  position:absolute; inset:0; z-index:1; pointer-events:none; opacity:.05;
+  background-image:repeating-linear-gradient(0deg, #fff 0 1px, transparent 1px 3px);
+}
+
+/* top band: brand + meta, compact so the tunnel is the star */
+.topbar{
+  position:relative; z-index:6;
+  display:flex; align-items:center; justify-content:space-between;
+  gap:1rem; padding-top:clamp(16px,3vh,30px); padding-bottom:8px;
+}
+.brand{
+  display:flex; align-items:baseline; gap:.6rem;
+  font-weight:800; letter-spacing:.02em;
+}
+.brand .dot{ color:var(--accent); }
+.brand small{ font-weight:600; color:var(--bone-dim); letter-spacing:.28em; text-transform:uppercase; font-size:.62rem; }
+.topnav{ display:flex; gap:clamp(.8rem,2vw,1.6rem); font-size:.72rem; letter-spacing:.22em; text-transform:uppercase; color:var(--bone-dim); }
+.topnav a{ text-decoration:none; padding:.35rem .1rem; border-bottom:1px solid transparent; transition:color .2s, border-color .2s; }
+.topnav a:hover, .topnav a:focus-visible{ color:var(--bone); border-color:var(--accent); outline:none; }
+
+/* ---------- THE TUNNEL STAGE ---------- */
+.stage{
+  position:relative; z-index:4;
+  display:grid; place-items:center;
+  perspective:640px;                 /* the 3D field of view (tighter = deeper) */
+  perspective-origin:50% 47%;
+  min-height:0;                      /* allow grid row to shrink on small h */
+}
+.tunnel{
+  position:relative;
+  width:min(92vw, 1180px);
+  height:min(70svh, 640px);
+  transform-style:preserve-3d;
+  display:grid; place-items:center;
+  will-change:transform;
+}
+
+/* each receding word iteration is absolutely centered, then pushed
+   back in Z. Per-layer scale/opacity/blur are set inline by JS via
+   --i (index) and --n (total) so the count is data-driven. */
+.layer{
+  position:absolute; inset:0;
+  display:grid; place-items:center;
+  transform-style:preserve-3d;
+  /* z: 0 (front) .. -(n-1)*step (deep). computed inline. */
+  transform:translateZ(var(--z));
+}
+.layer .word{
+  font-family:"Anton", "Archivo", sans-serif;
+  font-weight:400;
+  text-transform:uppercase;
+  line-height:.84;
+  letter-spacing:-.02em;
+  white-space:nowrap;
+  font-size:clamp(2.2rem, 9.2vw, 8.6rem);
+  /* color + opacity + glow tuned per depth inline */
+  color:var(--bone);
+  opacity:var(--op);
+  filter:blur(var(--blur));
+  text-shadow:0 0 calc(var(--glow) * 1px) rgba(255,90,54,calc(var(--glowA)));
+  transform:translateZ(.01px); /* own compositing layer */
+}
+/* deepest layers tinted toward the accent => glowing vanishing point */
+.layer.deep .word{ color:var(--accent-2); }
+.layer.core .word{
+  color:var(--accent);
+  text-shadow:0 0 26px rgba(255,90,54,.9), 0 0 60px rgba(255,90,54,.45);
+}
+
+/* outlined alternating rings give the "wall" its ridged tunnel read */
+.layer.outline .word{
+  color:transparent;
+  -webkit-text-stroke:clamp(1px,.18vw,2px) var(--bone);
+  text-shadow:none;
+}
+.layer.outline.deep .word{ -webkit-text-stroke-color:var(--accent-2); }
+
+/* central vanishing-point bloom */
+.vp{
+  position:absolute; left:50%; top:47%; z-index:3;
+  width:clamp(60px,14vw,180px); aspect-ratio:1; border-radius:50%;
+  transform:translate(-50%,-50%);
+  background:radial-gradient(circle, rgba(255,90,54,.85) 0%, rgba(255,90,54,.25) 35%, transparent 70%);
+  filter:blur(6px); pointer-events:none; mix-blend-mode:screen;
+}
+
+/* crisp foreground label - one sharp anchor over the receding wall */
+.fglabel{
+  position:absolute; z-index:7; left:50%; bottom:clamp(14px,7vh,64px);
+  transform:translateX(-50%);
+  display:flex; flex-direction:column; align-items:center; gap:.55rem;
+  text-align:center; pointer-events:auto;
+}
+.fglabel .kicker{
+  font-size:.66rem; letter-spacing:.42em; text-transform:uppercase;
+  color:var(--accent); font-weight:800;
+  display:inline-flex; align-items:center; gap:.6rem;
+}
+.fglabel .kicker::before,
+.fglabel .kicker::after{ content:""; width:34px; height:1px; background:var(--accent); opacity:.7; }
+.fglabel h1{
+  font-family:"Archivo", sans-serif; font-weight:800;
+  font-size:clamp(1.05rem,2.3vw,1.7rem); letter-spacing:.01em; line-height:1.12;
+  max-width:38ch; color:var(--bone);
+}
+.fglabel .sub{ color:var(--bone-dim); font-size:clamp(.78rem,1.5vw,.95rem); max-width:46ch; }
+.fglabel .cta{
+  margin-top:.4rem; display:inline-flex; align-items:center; gap:.55rem;
+  background:var(--accent); color:#1c0903; font-weight:800;
+  padding:.7rem 1.25rem; border-radius:999px; text-decoration:none;
+  font-size:.84rem; letter-spacing:.02em;
+  box-shadow:0 8px 30px -8px rgba(255,90,54,.7);
+  transition:transform .18s ease, box-shadow .18s ease;
+}
+.fglabel .cta:hover, .fglabel .cta:focus-visible{ transform:translateY(-2px); box-shadow:0 14px 38px -8px rgba(255,90,54,.85); outline:none; }
+.fglabel .cta:focus-visible{ outline:3px solid var(--bone); outline-offset:3px; }
+
+/* scroll hint */
+.scrollcue{
+  position:relative; z-index:6; justify-self:center;
+  padding-bottom:clamp(10px,2.5vh,22px);
+  font-size:.62rem; letter-spacing:.34em; text-transform:uppercase; color:var(--bone-dim);
+  display:flex; flex-direction:column; align-items:center; gap:.45rem;
+}
+.scrollcue .bar{ width:1px; height:34px; background:linear-gradient(var(--accent), transparent); }
+
+/* ---------- depth drift (subtle, gated by reduced-motion) ---------- */
+@media (prefers-reduced-motion: no-preference){
+  .tunnel{ animation:drift 9s ease-in-out infinite alternate; }
+  @keyframes drift{
+    from{ transform:translateZ(0) rotateX(0deg); }
+    to  { transform:translateZ(54px) rotateX(1.1deg); }
+  }
+  .vp{ animation:pulse 4.5s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{ opacity:.85; transform:translate(-50%,-50%) scale(1);} 50%{ opacity:1; transform:translate(-50%,-50%) scale(1.12);} }
+}
+
+/* ============================================================
+   BELOW THE FOLD  -  proof strip + how-it-works (kept lean)
+   ============================================================ */
+.section{ position:relative; padding:clamp(46px,9vh,96px) 0; }
+.eyebrow{ font-size:.66rem; letter-spacing:.4em; text-transform:uppercase; color:var(--accent); font-weight:800; }
+.section h2{ font-family:"Anton",sans-serif; font-weight:400; text-transform:uppercase; letter-spacing:-.01em; font-size:clamp(1.9rem,5vw,3.4rem); line-height:.95; margin:.5rem 0 1.1rem; }
+.section p.lead{ color:var(--bone-dim); max-width:56ch; font-size:clamp(.95rem,1.6vw,1.08rem); }
+
+/* mini perspective strip - same mechanic, horizontal, as a teaser */
+.strip{
+  margin-top:clamp(28px,5vh,52px);
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:18px;
+}
+.tile{
+  position:relative; border:1px solid #26262e; border-radius:16px; overflow:hidden;
+  background:linear-gradient(160deg,var(--ink-2),#0a0a0d);
+  padding:1.1rem 1.1rem 1.25rem; min-height:172px;
+  display:flex; flex-direction:column; justify-content:space-between;
+  transition:border-color .2s, transform .2s;
+}
+.tile:hover{ border-color:var(--accent); transform:translateY(-3px); }
+.tile .num{ font-family:"Anton",sans-serif; font-size:2.4rem; color:var(--accent); line-height:1; }
+.tile h3{ font-weight:800; font-size:1.02rem; margin-top:.3rem; }
+.tile p{ color:var(--bone-dim); font-size:.86rem; margin-top:.4rem; line-height:1.45; }
+
+footer{ border-top:1px solid #1e1e25; padding:28px 0 44px; color:var(--bone-dim); font-size:.8rem; }
+footer .wrap{ display:flex; flex-wrap:wrap; gap:.8rem 1.4rem; justify-content:space-between; align-items:center; }
+
+/* ============================================================
+   RESPONSIVE  -  mobile keeps the tunnel, fit to width, no overflow
+   ============================================================ */
+@media (max-width:640px){
+  .stage{ perspective:380px; perspective-origin:50% 42%; align-content:start; padding-top:6svh; }
+  .tunnel{ width:100vw; height:min(72svh,560px); }
+  .topnav{ display:none; }
+  .fglabel{ bottom:clamp(8px,3vh,22px); }
+  .fglabel h1{ font-size:1.02rem; }
+  .scrollcue{ display:none; }
+  /* on a narrow portrait viewport the front word must be bold to read
+     as a tunnel mouth, not a faint echo */
+  .layer .word{ font-size:clamp(3.4rem,18vw,6rem); filter:blur(calc(var(--blur) * .55)); }
+}
+@media (max-width:380px){
+  .layer .word{ font-size:clamp(3rem,19vw,5rem); }
+}
+
+/* short-and-wide (e.g. 1440x900 with browser chrome) safety */
+@media (max-height:680px){
+  .tunnel{ height:min(64svh,520px); }
+  .scrollcue{ padding-bottom:8px; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#more">Skip to content</a>
+
+<!-- ===================== HERO / SIGNATURE ===================== -->
+<header class="hero" id="top">
+  <div class="hero__bg" id="heroBg" aria-hidden="true"></div>
+  <div class="hero__veil" aria-hidden="true"></div>
+  <div class="hero__grain" aria-hidden="true"></div>
+
+  <!-- compact top band -->
+  <div class="wrap topbar">
+    <div class="brand">
+      <span id="brandName">VESPER<span class="dot">.</span></span>
+      <small id="brandTag">studio</small>
+    </div>
+    <nav class="topnav" aria-label="Primary">
+      <a href="#more">Work</a>
+      <a href="#more">Method</a>
+      <a href="#more">Contact</a>
+    </nav>
+  </div>
+
+  <!-- the type tunnel -->
+  <div class="stage" role="img" aria-label="Perspective type tunnel of the word receding to a vanishing point">
+    <div class="tunnel" id="tunnel" aria-hidden="true"></div>
+    <div class="vp" aria-hidden="true"></div>
+
+    <div class="fglabel">
+      <span class="kicker" id="fgKicker">depth as language</span>
+      <h1 id="fgTitle">A spatial type wall that reads straight into the screen.</h1>
+      <p class="sub" id="fgSub">One word, fourteen deep. Built with pure CSS perspective. No WebGL.</p>
+      <a class="cta" id="fgCta" href="#more">Enter the work <span aria-hidden="true">&#8594;</span></a>
+    </div>
+  </div>
+
+  <div class="scrollcue" aria-hidden="true">
+    <span>scroll</span>
+    <span class="bar"></span>
+  </div>
+</header>
+
+<!-- ===================== BELOW THE FOLD ===================== -->
+<main id="more">
+  <section class="section">
+    <div class="wrap">
+      <span class="eyebrow" id="s2Eyebrow">the mechanic</span>
+      <h2 id="s2Title">One word. Stacked in depth.</h2>
+      <p class="lead" id="s2Lead">The hero is a single display word repeated through CSS perspective. Each iteration sits deeper on the Z axis, a touch smaller and dimmer, until it folds into a glowing vanishing point. Swap the word and the whole tunnel re-renders.</p>
+
+      <div class="strip" id="strip"><!-- tiles injected from DATA --></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span id="footLeft">Spatial Perspective Type Wall</span>
+    <span id="footRight">CSS perspective tunnel - no GSAP, no WebGL</span>
+  </div>
+</footer>
+
+<script>
+/* ============================================================
+   DATA  -  EDIT THIS to reskin the template. Everything below
+   the array is generic render logic; you should not need to touch it.
+   ============================================================ */
+const DATA = {
+  // the single repeated display word that forms the tunnel
+  word: "VESPER",
+  // how many receding iterations (10-14 reads best). Drives depth.
+  depth: 14,
+
+  // brand band
+  brand:    "VESPER",
+  brandTag: "studio",
+
+  // crisp foreground label sitting over the receding wall
+  kicker:   "depth as language",
+  title:    "A spatial type wall that reads straight into the screen.",
+  sub:      "One word, fourteen deep. Built with pure CSS perspective. No WebGL.",
+  ctaText:  "Enter the work",
+  ctaHref:  "#more",
+
+  // optional atmospheric backdrop (kept very dim). null = none.
+  // reuse a real demo asset so it renders genuinely cinematic.
+  bg: "../assets/flux-car-4k.png",
+
+  // below-the-fold copy
+  s2Eyebrow: "the mechanic",
+  s2Title:   "One word. Stacked in depth.",
+  s2Lead:    "The hero is a single display word repeated through CSS perspective. Each iteration sits deeper on the Z axis, a touch smaller and dimmer, until it folds into a glowing vanishing point. Swap the word and the whole tunnel re-renders.",
+
+  // three explainer tiles
+  tiles: [
+    { num: "01", h: "Pure CSS perspective", p: "A perspective container plus translateZ on each layer. No 3D engine, no canvas, no shader." },
+    { num: "02", h: "Data-driven depth",    p: "Change one number and the tunnel regenerates with new scale and opacity falloff per layer." },
+    { num: "03", h: "Reduced-motion safe",  p: "Drift and pulse are gated. With motion off, the tunnel holds its final, fully readable state." }
+  ],
+
+  // footer
+  footLeft:  "Spatial Perspective Type Wall",
+  footRight: "CSS perspective tunnel - no GSAP, no WebGL"
+};
+
+/* ---------------- render ---------------- */
+(function render(){
+  const $ = (id) => document.getElementById(id);
+  const set = (id, txt) => { const el = $(id); if (el) el.textContent = txt; };
+
+  // brand + labels
+  $("brandName").innerHTML = DATA.brand + '<span class="dot">.</span>';
+  set("brandTag", DATA.brandTag);
+  set("fgKicker", DATA.kicker);
+  set("fgTitle", DATA.title);
+  set("fgSub", DATA.sub);
+  const cta = $("fgCta");
+  cta.firstChild.textContent = DATA.ctaText + " ";
+  cta.setAttribute("href", DATA.ctaHref);
+  set("s2Eyebrow", DATA.s2Eyebrow);
+  set("s2Title", DATA.s2Title);
+  set("s2Lead", DATA.s2Lead);
+  set("footLeft", DATA.footLeft);
+  set("footRight", DATA.footRight);
+
+  // backdrop
+  if (DATA.bg){ $("heroBg").style.backgroundImage = `url("${DATA.bg}")`; }
+
+  // ---- build the tunnel ----
+  const n = Math.max(6, Math.min(20, DATA.depth | 0));
+  document.documentElement.style.setProperty("--depth", n);
+  const tunnel = $("tunnel");
+  const Z_STEP = 116; // px between layers in Z; perspective gives the convergence
+
+  for (let i = 0; i < n; i++){
+    const t = i / (n - 1);            // 0 = front, 1 = deepest
+    const z = -i * Z_STEP;            // recede into the screen
+
+    // opacity falloff: front near-solid, deep faint -> vanishing point.
+    // hold a floor so the throat rings stay visible (tunnel read) instead
+    // of dissolving into the dark backdrop too early.
+    const op = (1 - t * 0.74).toFixed(3);
+    // blur deepens slightly with distance for atmospheric haze
+    const blur = (t * 2.6).toFixed(2);
+    // accent glow concentrates toward the core
+    const glow = (4 + t * 30).toFixed(1);
+    const glowA = (0.12 + t * 0.5).toFixed(2);
+
+    const layer = document.createElement("div");
+    layer.className = "layer";
+    // alternate outline rings give the ridged tunnel-wall read
+    if (i % 2 === 1) layer.classList.add("outline");
+    if (t > 0.62) layer.classList.add("deep");
+    if (i === n - 1) layer.classList.add("core");
+
+    layer.style.setProperty("--z", z + "px");
+    layer.style.setProperty("--op", op);
+    layer.style.setProperty("--blur", blur + "px");
+    layer.style.setProperty("--glow", glow);
+    layer.style.setProperty("--glowA", glowA);
+
+    const word = document.createElement("span");
+    word.className = "word";
+    word.textContent = DATA.word;
+    layer.appendChild(word);
+    tunnel.appendChild(layer);
+  }
+
+  // ---- tiles ----
+  const strip = $("strip");
+  DATA.tiles.forEach(tile => {
+    const el = document.createElement("div");
+    el.className = "tile";
+    el.innerHTML =
+      `<div class="num">${tile.num}</div>` +
+      `<div><h3>${tile.h}</h3><p>${tile.p}</p></div>`;
+    strip.appendChild(el);
+  });
+
+  /* ---------------- subtle pointer parallax (gated) ----------------
+     Shifts perspective-origin a few % with the cursor so the tunnel
+     feels volumetric. Fully disabled under reduced-motion, and never
+     runs on touch (no hover) to keep phones cheap. */
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const fine   = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+  if (!reduce && fine){
+    const stage = document.querySelector(".stage");
+    let raf = null, tx = 50, ty = 47;
+    window.addEventListener("pointermove", (e) => {
+      const px = e.clientX / window.innerWidth;
+      const py = e.clientY / window.innerHeight;
+      tx = 50 + (px - 0.5) * 10;   // +/- 5%
+      ty = 47 + (py - 0.5) * 8;    // +/- 4%
+      if (!raf){
+        raf = requestAnimationFrame(() => {
+          stage.style.perspectiveOrigin = tx + "% " + ty + "%";
+          raf = null;
+        });
+      }
+    }, { passive: true });
+  }
+})();
+</script>
+</body>
+</html>

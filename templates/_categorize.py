@@ -98,6 +98,9 @@ SLUG_CAT = {
     # --- batch 37 (bold + market) ---
     "wealth-management-lifestyle-asset": "vertical", "cybersecurity-threat-graph": "vertical",
     "hyperpop-chromatic-overload": "movement", "moire-op-art-field": "generative", "game-map-room-nav": "interaction",
+    # --- batch 38 (market + bold) ---
+    "supplement-3d-product-stage": "vertical", "museum-collection-explorer": "vertical", "developer-api-code-hero": "vertical",
+    "spatial-perspective-type-wall": "editorial", "future-medieval-illuminated": "movement",
 }
 
 KEYWORDS = [  # fallback for any slug not in SLUG_CAT (first match wins)

@@ -1,0 +1,691 @@
+<!-- TEMPLATE: Field Lines | ARCHETYPE: svg-ferrofluid-field-lines | REF: ferrofluid / iron-filing magnetic field-line aesthetics; generative SVG line art | WHEN TO USE: a studio, lab, or generative-art hero where a dense glowing magnetic field-line composition should carry the entire first screen with zero media and full capture-safety | SIGNATURE: hair-thin white/cyan streamlines integrated through a superposed dipole field, radiating and curving between cyan north poles and pink south poles, with closed iron-filing loops hugging each pole, dense at scroll=0 (mobile re-seeds the poles vertically) | SWAP: edit the DATA array at the top of the script (poles, charge, color, counts) -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Field Lines</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   FIELD LINES - ferrofluid / magnetic field-line SVG hero
+   Pure CSS + SVG + JS. No GSAP, no WebGL, no media.
+   The whole scene is generated into <path> elements in JS.
+   ============================================================ */
+:root{
+  --ground:#04060a;        /* near-black ground */
+  --ground-2:#070b12;
+  --ink:#eaf3ff;
+  --muted:#7c8aa0;
+  --line:#dff3ff;          /* base field-line tint (used in CSS only) */
+  --accent:#43e7ff;        /* cyan accent */
+  --accent-2:#ff5a7e;      /* single warm accent pole */
+  --hair:rgba(223,243,255,.10);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:
+    radial-gradient(120% 90% at 50% -10%, #0a1018 0%, var(--ground) 55%, #020407 100%);
+  color:var(--ink);
+  font-family:"Space Grotesk",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+a{color:inherit;text-decoration:none}
+
+/* -------- shared layout -------- */
+.wrap{max-width:1320px;margin:0 auto;padding:0 28px}
+.mono{font-family:"Space Mono",ui-monospace,monospace}
+
+/* -------- top nav band (compact, above the field) -------- */
+.nav{
+  position:relative;z-index:6;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:22px 0 18px;
+}
+.brand{display:flex;align-items:center;gap:11px;font-weight:700;letter-spacing:.02em}
+.brand .dot{
+  width:13px;height:13px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#bff6ff,var(--accent) 60%,#0a6e85 100%);
+  box-shadow:0 0 14px var(--accent),0 0 30px rgba(67,231,255,.45);
+}
+.nav-links{display:flex;gap:26px;align-items:center}
+.nav-links a{font-size:13.5px;color:var(--muted);transition:color .2s}
+.nav-links a:hover,.nav-links a:focus-visible{color:var(--ink)}
+.nav .cta{
+  border:1px solid rgba(120,200,230,.32);
+  padding:8px 16px;border-radius:999px;font-size:13px;color:var(--ink);
+  transition:border-color .2s,background .2s;
+}
+.nav .cta:hover,.nav .cta:focus-visible{border-color:var(--accent);background:rgba(67,231,255,.08)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+
+/* -------- the hero stage -------- */
+.stage{
+  position:relative;
+  width:100%;
+  height:min(86vh,940px);
+  min-height:560px;
+  overflow:hidden;
+}
+.field{
+  position:absolute;inset:0;width:100%;height:100%;
+  display:block;
+}
+/* vignette to deepen the ground edges */
+.stage::after{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:3;
+  background:
+    radial-gradient(130% 100% at 50% 42%, transparent 52%, rgba(2,4,7,.55) 86%, rgba(2,4,7,.9) 100%);
+  mix-blend-mode:normal;
+}
+/* faint grain so the black never bands */
+.stage::before{
+  content:"";position:absolute;inset:-2px;z-index:2;pointer-events:none;opacity:.05;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='90' height='90'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+/* -------- wordmark overlay -------- */
+.hero-copy{
+  position:absolute;z-index:5;left:0;right:0;top:8%;
+  pointer-events:none;
+  text-align:center;
+}
+.eyebrow{
+  display:inline-block;pointer-events:auto;
+  font-size:12px;letter-spacing:.42em;text-transform:uppercase;
+  color:var(--accent);
+  padding:7px 15px;border:1px solid rgba(67,231,255,.28);border-radius:999px;
+  background:rgba(67,231,255,.05);
+  backdrop-filter:blur(3px);
+  margin-bottom:22px;
+}
+.wordmark{
+  margin:0;font-weight:700;line-height:.92;letter-spacing:-.03em;
+  font-size:clamp(46px,9.2vw,138px);
+  text-shadow:0 2px 60px rgba(4,8,14,.9),0 0 40px rgba(67,231,255,.12);
+}
+.wordmark .glow{
+  background:linear-gradient(180deg,#ffffff 0%,#cfeaff 42%,var(--accent) 130%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.lede{
+  pointer-events:auto;
+  max-width:560px;margin:24px auto 0;
+  color:#aeb9c9;font-size:clamp(14px,1.5vw,17px);line-height:1.55;
+  text-shadow:0 1px 24px rgba(4,8,14,.95);
+}
+.hero-cta{
+  pointer-events:auto;
+  margin-top:30px;display:inline-flex;gap:14px;flex-wrap:wrap;justify-content:center;
+}
+.btn{
+  font-size:14px;font-weight:600;padding:13px 24px;border-radius:999px;
+  border:1px solid transparent;transition:transform .18s,box-shadow .25s,background .2s;
+}
+.btn-primary{
+  color:#04121a;
+  background:linear-gradient(180deg,#bff6ff,var(--accent));
+  box-shadow:0 10px 34px rgba(67,231,255,.34),0 0 0 1px rgba(67,231,255,.4) inset;
+}
+.btn-primary:hover,.btn-primary:focus-visible{transform:translateY(-2px);box-shadow:0 16px 44px rgba(67,231,255,.5)}
+.btn-ghost{color:var(--ink);border-color:rgba(150,180,200,.3);background:rgba(255,255,255,.02)}
+.btn-ghost:hover,.btn-ghost:focus-visible{border-color:var(--accent);transform:translateY(-2px)}
+
+/* pole legend chips bottom-left of stage */
+.poles{
+  position:absolute;z-index:5;left:28px;bottom:22px;
+  display:flex;gap:18px;align-items:center;
+  font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);
+}
+.poles .p{display:flex;align-items:center;gap:8px}
+.poles .swatch{width:9px;height:9px;border-radius:50%}
+.scrolltip{
+  position:absolute;z-index:5;right:28px;bottom:22px;
+  font-size:11.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);
+  display:flex;align-items:center;gap:9px;
+}
+.scrolltip .ln{width:34px;height:1px;background:linear-gradient(90deg,transparent,var(--accent))}
+
+/* -------- spec strip below the fold -------- */
+.strip{border-top:1px solid var(--hair);background:linear-gradient(180deg,var(--ground),var(--ground-2))}
+.specs{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:1px;
+  background:var(--hair);
+  border-bottom:1px solid var(--hair);
+}
+.spec{background:var(--ground);padding:30px 26px}
+.spec .k{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
+.spec .v{margin-top:9px;font-size:clamp(22px,2.6vw,34px);font-weight:700;letter-spacing:-.01em}
+.spec .v em{font-style:normal;color:var(--accent)}
+.spec .d{margin-top:7px;font-size:13px;color:#9aa6b8;line-height:1.45}
+
+/* mini gallery of regenerated field motifs */
+.motifs{padding:70px 0 90px}
+.motifs h2{margin:0 0 6px;font-size:clamp(24px,3.4vw,40px);letter-spacing:-.02em}
+.motifs p.sub{margin:0 0 34px;color:var(--muted);max-width:560px;font-size:15px;line-height:1.5}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.card{
+  position:relative;border:1px solid var(--hair);border-radius:16px;overflow:hidden;
+  background:#05080d;
+  transition:border-color .25s,transform .25s;
+}
+.card:hover{border-color:rgba(67,231,255,.34);transform:translateY(-4px)}
+.card svg{display:block;width:100%;height:188px;background:radial-gradient(120% 120% at 50% 30%,#0a121b,#04060a 80%)}
+.card .meta{padding:15px 17px 18px}
+.card .meta h3{margin:0;font-size:15.5px;font-weight:600;letter-spacing:-.01em}
+.card .meta span{display:block;margin-top:5px;font-size:12.5px;color:var(--muted)}
+
+footer{border-top:1px solid var(--hair);padding:34px 0 60px;color:var(--muted);font-size:13px}
+footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px}
+
+/* -------- responsive: keep the field, re-seed for narrow box -------- */
+@media (max-width:980px){
+  .grid{grid-template-columns:repeat(2,1fr)}
+  .specs{grid-template-columns:repeat(2,1fr)}
+  .nav-links{display:none}
+}
+@media (max-width:640px){
+  .wrap{padding:0 18px}
+  .stage{height:min(78vh,720px);min-height:500px}
+  .hero-copy{top:6%}
+  .grid{grid-template-columns:1fr}
+  .specs{grid-template-columns:repeat(2,1fr)}
+  .poles{left:18px;bottom:16px;gap:12px;font-size:10.5px}
+  .scrolltip{right:18px;bottom:16px}
+  .lede{font-size:14px;padding:0 8px}
+}
+@media (max-width:420px){
+  .specs{grid-template-columns:1fr}
+}
+
+/* -------- reduced motion: lines render static, no rAF drift -------- */
+@media (prefers-reduced-motion:reduce){
+  .btn,.card,.nav-links a{transition:none}
+}
+</style>
+</head>
+<body>
+
+<header class="wrap nav">
+  <div class="brand"><span class="dot"></span> FERROLAB</div>
+  <nav class="nav-links" aria-label="Primary">
+    <a href="#field">Field</a>
+    <a href="#specs">Method</a>
+    <a href="#motifs">Motifs</a>
+    <a href="#" class="cta">Generate</a>
+  </nav>
+</header>
+
+<!-- ============ HERO STAGE: generated SVG field lines ============ -->
+<section class="stage" id="field" aria-label="Generative magnetic field-line composition">
+  <svg class="field" id="fieldSvg" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <defs>
+      <!-- soft glow for the hair-thin lines -->
+      <filter id="ffGlow" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur stdDeviation="1.6" result="b"/>
+        <feMerge>
+          <feMergeNode in="b"/>
+          <feMergeNode in="SourceGraphic"/>
+        </feMerge>
+      </filter>
+      <radialGradient id="poleN" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#bff6ff" stop-opacity=".9"/>
+        <stop offset="38%" stop-color="#43e7ff" stop-opacity=".42"/>
+        <stop offset="100%" stop-color="#43e7ff" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="poleS" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#ffd3dd" stop-opacity=".9"/>
+        <stop offset="40%" stop-color="#ff5a7e" stop-opacity=".4"/>
+        <stop offset="100%" stop-color="#ff5a7e" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <!-- groups filled by JS -->
+    <g id="ffHalos"></g>
+    <g id="ffLines" filter="url(#ffGlow)"></g>
+    <g id="ffCores"></g>
+  </svg>
+
+  <div class="hero-copy wrap">
+    <span class="eyebrow">Generative SVG Field</span>
+    <h1 class="wordmark"><span class="glow">FIELD LINES</span></h1>
+    <p class="lede">Hair-thin magnetic streamlines, computed pole to pole and drawn as living iron filings. One paradigm, no images, capture-safe.</p>
+    <div class="hero-cta">
+      <a href="#" class="btn btn-primary">Re-seed the field</a>
+      <a href="#specs" class="btn btn-ghost">How it works</a>
+    </div>
+  </div>
+
+  <div class="poles">
+    <span class="p"><span class="swatch" style="background:#43e7ff;box-shadow:0 0 10px #43e7ff"></span> North pole</span>
+    <span class="p"><span class="swatch" style="background:#ff5a7e;box-shadow:0 0 10px #ff5a7e"></span> South pole</span>
+  </div>
+  <div class="scrolltip"><span class="ln"></span> scroll</div>
+</section>
+
+<!-- ============ METHOD STRIP ============ -->
+<section class="strip" id="specs">
+  <div class="wrap">
+    <div class="specs">
+      <div class="spec">
+        <div class="k">Primitive</div>
+        <div class="v">SVG <em>path</em></div>
+        <div class="d">Every streamline is one cubic-spline path. No canvas, no GPU.</div>
+      </div>
+      <div class="spec">
+        <div class="k">Lines drawn</div>
+        <div class="v" id="lineCount">0</div>
+        <div class="d">Integrated through the dipole field, denser near the poles.</div>
+      </div>
+      <div class="spec">
+        <div class="k">Topology</div>
+        <div class="v"><em>loops</em> + streams</div>
+        <div class="d">Closed ovals around each pole plus pole-to-pole arcs.</div>
+      </div>
+      <div class="spec">
+        <div class="k">Cost</div>
+        <div class="v">0 <em>bytes</em></div>
+        <div class="d">No media requested. Self-contained markup, fully captureable.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MOTIFS: regenerated field configurations ============ -->
+<section class="motifs wrap" id="motifs">
+  <h2>Re-seeded configurations</h2>
+  <p class="sub">Same integrator, different pole layouts. Edit the DATA array at the top of the script to retune count, charge, and color.</p>
+  <div class="grid" id="motifGrid"></div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>FERROLAB &middot; generative field-line studio</span>
+    <span class="mono">svg-ferrofluid-field-lines</span>
+  </div>
+</footer>
+
+<script>
+/* ============================================================
+   DATA - swap these to retune the whole hero. Coordinates are
+   FRACTIONS of the stage box (0..1), so re-seeding for a narrow
+   phone box just means the same fractions land in a taller frame.
+   charge: + is a "north" (cyan) pole, - is a "south" (warm) pole.
+   ============================================================ */
+const DATA = {
+  brand: "FERROLAB",
+  // desktop / landscape pole layout
+  polesWide: [
+    { x:0.34, y:0.50, charge:+1.0, color:"#43e7ff" },
+    { x:0.66, y:0.50, charge:-1.0, color:"#ff5a7e" },
+    { x:0.50, y:0.20, charge:+0.55, color:"#43e7ff" },
+    { x:0.50, y:0.84, charge:-0.55, color:"#ff5a7e" }
+  ],
+  // phone / portrait pole layout (re-seeded for the taller, narrower box)
+  polesTall: [
+    { x:0.50, y:0.30, charge:+1.0, color:"#43e7ff" },
+    { x:0.50, y:0.70, charge:-1.0, color:"#ff5a7e" },
+    { x:0.24, y:0.50, charge:+0.5, color:"#43e7ff" },
+    { x:0.76, y:0.50, charge:-0.5, color:"#ff5a7e" }
+  ],
+  seedsPerPole: 26,      // streamlines launched around each pole rim
+  loopsPerPole: 5,       // closed oval loops drawn tight around each pole
+  step: 6,               // integrator step in px
+  maxSteps: 520,         // max integration steps per streamline
+  lineColors: ["#dff3ff","#9fe8ff","#43e7ff","#bdf0ff"], // hair tints
+  background: "#04060a"
+};
+
+/* ---------- vector field: superposed magnetic dipole-ish poles ---------- */
+function fieldAt(px, py, poles){
+  let fx=0, fy=0;
+  for(const p of poles){
+    const dx = px - p.px, dy = py - p.py;
+    let r2 = dx*dx + dy*dy;
+    if(r2 < 90) r2 = 90;                 // soften the singularity at the core
+    const r = Math.sqrt(r2);
+    const inv = p.charge / (r2 * r);     // inverse-square magnitude, radial dir
+    fx += dx * inv;
+    fy += dy * inv;
+  }
+  return [fx, fy];
+}
+
+/* build a smooth path string from a list of points (Catmull-Rom -> Bezier) */
+function pointsToPath(pts){
+  if(pts.length < 2) return "";
+  let d = "M " + pts[0][0].toFixed(1) + " " + pts[0][1].toFixed(1);
+  for(let i=0; i<pts.length-1; i++){
+    const p0 = pts[i-1] || pts[i];
+    const p1 = pts[i];
+    const p2 = pts[i+1];
+    const p3 = pts[i+2] || p2;
+    const c1x = p1[0] + (p2[0]-p0[0])/6;
+    const c1y = p1[1] + (p2[1]-p0[1])/6;
+    const c2x = p2[0] - (p3[0]-p1[0])/6;
+    const c2y = p2[1] - (p3[1]-p1[1])/6;
+    d += " C " + c1x.toFixed(1) + " " + c1y.toFixed(1) +
+         " " + c2x.toFixed(1) + " " + c2y.toFixed(1) +
+         " " + p2[0].toFixed(1) + " " + p2[1].toFixed(1);
+  }
+  return d;
+}
+
+/* integrate one streamline from a seed point, following the field both ways */
+function traceLine(sx, sy, poles, W, H, dir, step, maxSteps){
+  const pts = [[sx, sy]];
+  let x = sx, y = sy;
+  for(let i=0; i<maxSteps; i++){
+    let [fx, fy] = fieldAt(x, y, poles);
+    const mag = Math.hypot(fx, fy);
+    if(mag < 1e-7) break;
+    fx = (fx/mag) * dir;
+    fy = (fy/mag) * dir;
+    // 2nd-order midpoint step for smoother arcs
+    const mx = x + fx*step*0.5, my = y + fy*step*0.5;
+    let [gx, gy] = fieldAt(mx, my, poles);
+    const gm = Math.hypot(gx, gy) || 1;
+    x += (gx/gm)*step*dir;
+    y += (gy/gm)*step*dir;
+    if(x < -40 || x > W+40 || y < -40 || y > H+40) { pts.push([x,y]); break; }
+    // stop if we fell into a pole core
+    let hit = false;
+    for(const p of poles){
+      if((x-p.px)**2 + (y-p.py)**2 < 120){ hit = true; break; }
+    }
+    pts.push([x, y]);
+    if(hit) break;
+  }
+  return pts;
+}
+
+/* deterministic-ish PRNG so a layout looks stable but seeds spread nicely */
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+/* ---------- render the full field into an <svg> ---------- */
+function renderField(svg, W, H, polesFrac, opts){
+  const o = Object.assign({
+    seedsPerPole: DATA.seedsPerPole,
+    loopsPerPole: DATA.loopsPerPole,
+    step: DATA.step,
+    maxSteps: DATA.maxSteps,
+    colors: DATA.lineColors,
+    haloR: 0.085,
+    lineW: 0.85,
+    glow: true,
+    seed: 1
+  }, opts);
+
+  // resolve fractional poles into pixel poles for this box
+  const poles = polesFrac.map(p => ({ px:p.x*W, py:p.y*H, charge:p.charge, color:p.color }));
+  const rand = mulberry32(o.seed * 9301 + 49297);
+
+  const NS = "http://www.w3.org/2000/svg";
+  svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  const halos = svg.querySelector("[data-halos]") || svg.children[1] || svg;
+  // we expect named groups when present
+  const gHalos = svg.querySelector("#ffHalos, [data-role=halos]");
+  const gLines = svg.querySelector("#ffLines, [data-role=lines]");
+  const gCores = svg.querySelector("#ffCores, [data-role=cores]");
+
+  const linesGroup = gLines || svg;
+  const halosGroup = gHalos || svg;
+  const coresGroup = gCores || svg;
+  if(gLines) gLines.innerHTML = "";
+  if(gHalos) gHalos.innerHTML = "";
+  if(gCores) gCores.innerHTML = "";
+
+  let drawn = 0;
+  const minDim = Math.min(W, H);
+
+  // 1) glow halos behind each pole (the "ferrofluid mound")
+  for(const p of poles){
+    const halo = document.createElementNS(NS, "circle");
+    halo.setAttribute("cx", p.px);
+    halo.setAttribute("cy", p.py);
+    halo.setAttribute("r", minDim * o.haloR * (0.6 + Math.abs(p.charge)*0.7));
+    halo.setAttribute("fill", p.charge > 0 ? "url(#poleN)" : "url(#poleS)");
+    halosGroup.appendChild(halo);
+  }
+
+  // 2) streaming field lines: seed on a rim around each pole, trace outward
+  for(let pi=0; pi<poles.length; pi++){
+    const p = poles[pi];
+    const seedR = minDim * 0.028 + 6;
+    const count = Math.round(o.seedsPerPole * (0.55 + Math.abs(p.charge)*0.7));
+    for(let s=0; s<count; s++){
+      const ang = (s / count) * Math.PI * 2 + rand()*0.18;
+      const sx = p.px + Math.cos(ang) * seedR;
+      const sy = p.py + Math.sin(ang) * seedR;
+      // north poles push out (dir +1), south poles pull in (dir -1)
+      const dir = p.charge > 0 ? 1 : -1;
+      const pts = traceLine(sx, sy, poles, W, H, dir, o.step, o.maxSteps);
+      if(pts.length < 4) continue;
+      const path = document.createElementNS(NS, "path");
+      path.setAttribute("d", pointsToPath(pts));
+      path.setAttribute("fill", "none");
+      const col = o.colors[(s + pi) % o.colors.length];
+      path.setAttribute("stroke", col);
+      // thinner + dimmer for the longer wandering lines, brighter near pole
+      const op = 0.22 + 0.5 * Math.max(0, 1 - pts.length / o.maxSteps);
+      path.setAttribute("stroke-opacity", op.toFixed(2));
+      path.setAttribute("stroke-width", o.lineW.toFixed(2));
+      path.setAttribute("stroke-linecap", "round");
+      linesGroup.appendChild(path);
+      drawn++;
+    }
+  }
+
+  // 3) closed oval loops hugging each pole (the iron-filing rings)
+  for(const p of poles){
+    for(let l=1; l<=o.loopsPerPole; l++){
+      const rr = (minDim*0.018) + l * (minDim*0.013);
+      const ell = 1 + (rand()-0.5)*0.4;           // slight ellipse
+      const rot = rand()*Math.PI;
+      const seg = 46;
+      const pts = [];
+      for(let k=0; k<=seg; k++){
+        const a = (k/seg)*Math.PI*2;
+        // warp the ring slightly toward the opposite pole for that "pulled" look
+        let lx = Math.cos(a)*rr;
+        let ly = Math.sin(a)*rr*ell;
+        const cx = lx*Math.cos(rot) - ly*Math.sin(rot);
+        const cy = lx*Math.sin(rot) + ly*Math.cos(rot);
+        pts.push([p.px+cx, p.py+cy]);
+      }
+      const path = document.createElementNS(NS, "path");
+      path.setAttribute("d", pointsToPath(pts) + " Z");
+      path.setAttribute("fill", "none");
+      path.setAttribute("stroke", p.charge > 0 ? "#bff6ff" : "#ffd3dd");
+      path.setAttribute("stroke-opacity", (0.5 - l*0.06).toFixed(2));
+      path.setAttribute("stroke-width", (o.lineW*0.9).toFixed(2));
+      linesGroup.appendChild(path);
+      drawn++;
+    }
+  }
+
+  // 4) bright pole cores on top
+  for(const p of poles){
+    const core = document.createElementNS(NS, "circle");
+    core.setAttribute("cx", p.px);
+    core.setAttribute("cy", p.py);
+    core.setAttribute("r", 3.2 + Math.abs(p.charge)*2.4);
+    core.setAttribute("fill", p.charge > 0 ? "#dffaff" : "#ffe3ea");
+    core.setAttribute("opacity", "0.95");
+    coresGroup.appendChild(core);
+  }
+
+  return drawn;
+}
+
+/* ---------- mount the hero ---------- */
+const heroSvg = document.getElementById("fieldSvg");
+
+function currentPoles(){
+  return window.matchMedia("(max-width:640px)").matches ? DATA.polesTall : DATA.polesWide;
+}
+
+function buildHero(){
+  const stage = heroSvg.parentElement;
+  const W = Math.max(320, stage.clientWidth);
+  const H = Math.max(420, stage.clientHeight);
+  // resolution-independent: integrate in the box pixel space, slice via preserveAspectRatio
+  const drawn = renderField(heroSvg, W, H, currentPoles(), {
+    seedsPerPole: W < 700 ? 20 : 30,
+    loopsPerPole: 6,
+    step: 6,
+    maxSteps: W < 700 ? 420 : 560,
+    lineW: 0.9,
+    seed: 7
+  });
+  // animate the spec counter once
+  countUp(document.getElementById("lineCount"), drawn);
+}
+
+function countUp(el, target){
+  if(!el) return;
+  if(window.matchMedia("(prefers-reduced-motion:reduce)").matches){ el.textContent = target; return; }
+  const start = performance.now(), dur = 900;
+  function tick(now){
+    const t = Math.min(1, (now-start)/dur);
+    const e = 1 - Math.pow(1-t, 3);
+    el.textContent = Math.round(target*e);
+    if(t < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+/* gentle, capture-safe shimmer: nudges stroke-opacity in a slow rAF loop.
+   Fully disabled under prefers-reduced-motion (lines stay static). */
+let shimmerRAF = null;
+function startShimmer(){
+  if(window.matchMedia("(prefers-reduced-motion:reduce)").matches) return;
+  const lines = heroSvg.querySelectorAll("#ffLines path");
+  const bases = [];
+  lines.forEach((ln,i)=>{ bases.push(parseFloat(ln.getAttribute("stroke-opacity"))||0.4); });
+  const t0 = performance.now();
+  function loop(now){
+    const t = (now - t0)/1000;
+    for(let i=0;i<lines.length;i+=1){
+      const b = bases[i];
+      const w = 0.10 * Math.sin(t*0.6 + i*0.35);
+      lines[i].setAttribute("stroke-opacity", Math.max(0.08, Math.min(0.85, b + w)).toFixed(2));
+    }
+    shimmerRAF = requestAnimationFrame(loop);
+  }
+  shimmerRAF = requestAnimationFrame(loop);
+}
+function stopShimmer(){ if(shimmerRAF){ cancelAnimationFrame(shimmerRAF); shimmerRAF=null; } }
+
+/* re-seed button + intersection-gated shimmer */
+function reseed(){
+  DATA._seedBump = (DATA._seedBump||7) + 3;
+  stopShimmer();
+  renderField(heroSvg, Math.max(320,heroSvg.parentElement.clientWidth),
+              Math.max(420,heroSvg.parentElement.clientHeight),
+              currentPoles(), { seed: DATA._seedBump, loopsPerPole:6, lineW:0.9,
+              seedsPerPole: heroSvg.parentElement.clientWidth<700?20:30,
+              maxSteps: heroSvg.parentElement.clientWidth<700?420:560 });
+  startShimmer();
+}
+
+document.querySelectorAll('.eyebrow,.btn-primary,.nav .cta').forEach(el=>{
+  if(el.textContent.toLowerCase().includes("re-seed") || el.classList.contains("cta")){
+    el.addEventListener("click",(e)=>{ e.preventDefault(); reseed(); });
+  }
+});
+
+/* pause shimmer when hero scrolls out of view (perf) */
+const io = new IntersectionObserver((entries)=>{
+  for(const en of entries){
+    if(en.isIntersecting) startShimmer(); else stopShimmer();
+  }
+},{threshold:0.05});
+
+/* ---------- motif cards (small re-seeded fields) ---------- */
+const MOTIFS = [
+  { title:"Dipole drift", sub:"two poles, pole-to-pole streams",
+    poles:[{x:0.30,y:0.5,charge:1,color:"#43e7ff"},{x:0.70,y:0.5,charge:-1,color:"#ff5a7e"}], seed:11 },
+  { title:"Quadrupole knot", sub:"four poles, nested loops",
+    poles:[{x:0.30,y:0.32,charge:1,color:"#43e7ff"},{x:0.70,y:0.32,charge:-1,color:"#ff5a7e"},
+           {x:0.30,y:0.70,charge:-1,color:"#ff5a7e"},{x:0.70,y:0.70,charge:1,color:"#43e7ff"}], seed:23 },
+  { title:"Single spike", sub:"one north pole, radial filings",
+    poles:[{x:0.5,y:0.5,charge:1,color:"#43e7ff"},{x:0.5,y:1.25,charge:-0.6,color:"#ff5a7e"}], seed:31 },
+  { title:"Sheared lens", sub:"offset poles, asymmetric arcs",
+    poles:[{x:0.26,y:0.36,charge:1,color:"#43e7ff"},{x:0.74,y:0.64,charge:-1,color:"#ff5a7e"}], seed:43 },
+  { title:"Triad", sub:"three-pole interference",
+    poles:[{x:0.5,y:0.26,charge:1,color:"#43e7ff"},{x:0.28,y:0.74,charge:-1,color:"#ff5a7e"},
+           {x:0.72,y:0.74,charge:-1,color:"#ff5a7e"}], seed:57 },
+  { title:"Cyan halo", sub:"strong north, tight rings",
+    poles:[{x:0.5,y:0.46,charge:1.3,color:"#43e7ff"},{x:0.5,y:1.2,charge:-0.5,color:"#ff5a7e"}], seed:67 }
+];
+
+function buildMotif(card, m){
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(NS,"svg");
+  svg.setAttribute("preserveAspectRatio","xMidYMid slice");
+  // shared defs reference the hero's <defs> by id (same document), so glow works
+  const gH = document.createElementNS(NS,"g"); gH.setAttribute("data-role","halos");
+  const gL = document.createElementNS(NS,"g"); gL.setAttribute("data-role","lines"); gL.setAttribute("filter","url(#ffGlow)");
+  const gC = document.createElementNS(NS,"g"); gC.setAttribute("data-role","cores");
+  svg.appendChild(gH); svg.appendChild(gL); svg.appendChild(gC);
+  card.insertBefore(svg, card.firstChild);
+  const W = 440, H = 376;
+  renderField(svg, W, H, m.poles, {
+    seedsPerPole: 16, loopsPerPole: 4, step: 6, maxSteps: 360,
+    lineW: 0.85, haloR: 0.10, seed: m.seed
+  });
+}
+
+function buildMotifGrid(){
+  const grid = document.getElementById("motifGrid");
+  grid.innerHTML = "";
+  MOTIFS.forEach(m=>{
+    const card = document.createElement("div");
+    card.className = "card";
+    card.tabIndex = 0;
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.innerHTML = "<h3>"+m.title+"</h3><span>"+m.sub+"</span>";
+    card.appendChild(meta);
+    buildMotif(card, m);
+    grid.appendChild(card);
+  });
+}
+
+/* ---------- boot + debounced resize re-seed for the responsive box ---------- */
+let rzT = null, lastNarrow = null;
+function onResize(){
+  clearTimeout(rzT);
+  rzT = setTimeout(()=>{
+    const narrow = window.matchMedia("(max-width:640px)").matches;
+    stopShimmer();
+    buildHero();
+    if(io){ io.disconnect(); io.observe(document.getElementById("field")); }
+    lastNarrow = narrow;
+  }, 180);
+}
+
+function boot(){
+  buildHero();
+  buildMotifGrid();
+  io.observe(document.getElementById("field"));
+  lastNarrow = window.matchMedia("(max-width:640px)").matches;
+}
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+else boot();
+window.addEventListener("resize", onResize);
+window.addEventListener("orientationchange", onResize);
+</script>
+</body>
+</html>

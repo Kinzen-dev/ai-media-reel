@@ -91,6 +91,10 @@ SLUG_CAT = {
     "text-on-path-poster": "editorial", "kinetic-broken-grid": "editorial", "knockout-video-type": "editorial",
     "svg-paint-order-poster": "editorial", "silent-luxury-restraint": "editorial", "broadsheet-newspaper": "editorial",
     "variable-font-axis-playground": "editorial", "neo-print-halftone-type": "editorial", "festival-lineup-poster": "editorial",
+    "inflatable-balloon-type-hero": "editorial",
+    # --- batch 36+ (bold/wow round) ---
+    "ai-detective-narrative-hero": "product", "acid-rave-flyer": "movement",
+    "svg-ferrofluid-field-lines": "generative", "oracle-card-draw-navigation": "interaction",
 }
 
 KEYWORDS = [  # fallback for any slug not in SLUG_CAT (first match wins)

@@ -1,0 +1,644 @@
+<!-- TEMPLATE: Oracle Card-Draw Navigation | ARCHETYPE: ORACLE | REF: tarot/oracle deck UX, mystical card-draw navigation, editorial divination sites | WHEN TO USE: portfolio / studio landing where navigation should feel ceremonial - a fanned face-down tarot deck you draw to reveal sections | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>The Oracle Deck - Draw a Card to Begin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   SWAP CONTENT: the cards are defined in the JS DATA array near
+   the top of <script>. Everything else is presentation only.
+   Palette: midnight indigo bg, gold #c8a45c ornament, cream
+   #f4ecd8 card faces, jewel accent #7d3cff (amethyst).
+   ============================================================ */
+:root{
+  --indigo-0:#0a0a18;
+  --indigo-1:#10122a;
+  --indigo-2:#181a3a;
+  --gold:#c8a45c;
+  --gold-soft:#e3c585;
+  --cream:#f4ecd8;
+  --cream-dim:#cdbf9a;
+  --jewel:#7d3cff;
+  --jewel-soft:#b48bff;
+  --card-w:clamp(132px, 17vw, 210px);
+  --card-h:calc(var(--card-w) * 1.55);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:
+    radial-gradient(1200px 800px at 50% -10%, rgba(125,60,255,0.16), transparent 60%),
+    radial-gradient(900px 700px at 50% 120%, rgba(200,164,92,0.10), transparent 60%),
+    linear-gradient(180deg, var(--indigo-1) 0%, var(--indigo-0) 55%, #05060f 100%);
+  color:var(--cream);
+  font-family:"Cormorant Garamond", Georgia, serif;
+  min-height:100svh;
+  display:flex;
+  flex-direction:column;
+  overflow-x:hidden;
+  position:relative;
+}
+/* faint star dust */
+body::before{
+  content:"";
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    radial-gradient(1.4px 1.4px at 12% 22%, rgba(244,236,216,0.55), transparent),
+    radial-gradient(1.2px 1.2px at 78% 14%, rgba(244,236,216,0.45), transparent),
+    radial-gradient(1px 1px at 34% 64%, rgba(200,164,92,0.5), transparent),
+    radial-gradient(1.6px 1.6px at 64% 80%, rgba(244,236,216,0.4), transparent),
+    radial-gradient(1px 1px at 88% 56%, rgba(180,139,255,0.5), transparent),
+    radial-gradient(1.1px 1.1px at 22% 88%, rgba(244,236,216,0.4), transparent);
+  opacity:.7;
+}
+
+/* ---------- top band (compact, above the fan) ---------- */
+.band{
+  position:relative;z-index:3;
+  text-align:center;
+  padding:clamp(18px,3.4vh,40px) 20px clamp(4px,1vh,12px);
+}
+.eyebrow{
+  font-family:"Cinzel", serif;
+  letter-spacing:.42em;
+  text-transform:uppercase;
+  font-size:clamp(9px,1.5vw,11px);
+  color:var(--gold);
+  opacity:.85;
+  margin-bottom:10px;
+  padding-left:.42em;
+}
+.title{
+  font-family:"Cinzel", serif;
+  font-weight:600;
+  font-size:clamp(26px,5vw,52px);
+  line-height:1.04;
+  letter-spacing:.02em;
+  color:var(--cream);
+  text-shadow:0 2px 30px rgba(125,60,255,0.25);
+}
+.title .accent{color:var(--gold-soft)}
+.sub{
+  margin-top:10px;
+  font-style:italic;
+  font-size:clamp(13px,2.1vw,18px);
+  color:var(--cream-dim);
+  max-width:48ch;
+  margin-left:auto;margin-right:auto;
+}
+
+/* ---------- stage: the fanned deck ---------- */
+.stage-wrap{
+  position:relative;z-index:2;
+  flex:1 1 auto;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:clamp(10px,3vh,30px) 12px clamp(24px,6vh,60px);
+  min-height:0;
+}
+.stage{
+  position:relative;
+  width:min(94vw, 920px);
+  height:var(--card-h);
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  perspective:1600px;
+  margin-top:clamp(8px,3vh,40px);
+}
+
+/* each card slot is absolutely centered; CSS var --i sets its place in the fan */
+.card{
+  position:absolute;
+  bottom:0;left:50%;
+  width:var(--card-w);
+  height:var(--card-h);
+  margin-left:calc(var(--card-w) / -2);
+  transform-style:preserve-3d;
+  transform-origin:50% 118%;
+  /* fan spread: rotate around a pivot below the cards */
+  transform:
+    rotate(calc(var(--i) * var(--spread)))
+    translateY(calc(var(--lift) * -1px));
+  transition:transform .55s cubic-bezier(.22,.61,.36,1), filter .4s ease;
+  cursor:pointer;
+  border:0;background:none;padding:0;
+  will-change:transform;
+}
+.card:focus{outline:none}
+.card:focus-visible .card-inner{
+  box-shadow:0 0 0 3px var(--jewel-soft), 0 0 0 6px rgba(125,60,255,0.4), 0 30px 60px rgba(0,0,0,.6);
+}
+
+/* raise + straighten a hovered card so it reads as "pull this one" */
+.card:hover,
+.card:focus-visible{
+  transform:
+    rotate(calc(var(--i) * var(--spread) * 0.35))
+    translateY(calc(var(--lift) * -1px - 46px))
+    scale(1.06);
+  z-index:40;
+}
+
+.card-inner{
+  position:relative;
+  width:100%;height:100%;
+  border-radius:14px;
+  transform-style:preserve-3d;
+  transition:transform .8s cubic-bezier(.2,.7,.2,1);
+  box-shadow:0 18px 40px rgba(0,0,0,.55), 0 2px 0 rgba(255,255,255,.04) inset;
+}
+.card.is-flipped .card-inner{transform:rotateY(180deg)}
+
+.face{
+  position:absolute;inset:0;
+  border-radius:14px;
+  backface-visibility:hidden;
+  -webkit-backface-visibility:hidden;
+  overflow:hidden;
+}
+
+/* ---------- card BACK (ornate gold-line) ---------- */
+.back{
+  background:
+    radial-gradient(120% 90% at 50% 30%, #1b1d44 0%, #12132f 55%, #0c0d24 100%);
+  border:1px solid rgba(200,164,92,0.55);
+  box-shadow:0 0 0 1px rgba(0,0,0,.5) inset, 0 0 26px rgba(200,164,92,0.12) inset;
+}
+.back svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+/* ---------- card FACE (revealed section) ---------- */
+.front{
+  transform:rotateY(180deg);
+  background:
+    linear-gradient(180deg, #f7f0df 0%, #efe5cd 100%);
+  border:1px solid rgba(200,164,92,0.7);
+  display:flex;
+  flex-direction:column;
+  padding:10px 10px 12px;
+  color:#241a0f;
+  box-shadow:0 0 0 1px rgba(255,255,255,.4) inset;
+}
+.front .arcana-num{
+  font-family:"Cinzel", serif;
+  text-align:center;
+  letter-spacing:.3em;
+  font-size:10px;
+  color:#9a7b35;
+  padding:2px 0 5px;
+  flex:0 0 auto;
+}
+.front .art{
+  flex:1 1 auto;
+  position:relative;
+  border-radius:8px;
+  overflow:hidden;
+  background:
+    repeating-linear-gradient(45deg, #1a1c38 0 8px, #16182f 8px 16px);
+  border:1px solid rgba(154,123,53,.5);
+  display:flex;align-items:center;justify-content:center;
+  min-height:0;
+}
+.front .art img{
+  width:100%;height:100%;
+  object-fit:contain;            /* never crop a landscape asset */
+  display:block;
+}
+.front .name{
+  font-family:"Cinzel", serif;
+  text-align:center;
+  font-weight:600;
+  font-size:clamp(12px,1.4vw,15px);
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:#3a2a12;
+  padding:7px 2px 2px;
+  flex:0 0 auto;
+}
+.front .blurb{
+  text-align:center;
+  font-style:italic;
+  font-size:clamp(10px,1.2vw,12.5px);
+  line-height:1.25;
+  color:#6a5634;
+  padding:0 4px;
+  flex:0 0 auto;
+}
+
+/* ---------- draw CTA ---------- */
+.cta{
+  position:relative;z-index:5;
+  margin-top:clamp(18px,4vh,42px);
+  display:inline-flex;align-items:center;gap:.7em;
+  font-family:"Cinzel", serif;
+  font-size:clamp(12px,1.7vw,16px);
+  letter-spacing:.26em;
+  text-transform:uppercase;
+  color:var(--indigo-0);
+  background:linear-gradient(180deg, var(--gold-soft), var(--gold));
+  border:1px solid #d9bd7e;
+  padding:.85em 1.9em;
+  border-radius:999px;
+  cursor:pointer;
+  box-shadow:0 0 0 1px rgba(0,0,0,.3), 0 14px 36px rgba(200,164,92,0.28), 0 0 40px rgba(200,164,92,0.18);
+  animation:pulse 3.2s ease-in-out infinite;
+  text-shadow:0 1px 0 rgba(255,255,255,.3);
+}
+.cta:focus-visible{outline:3px solid var(--jewel-soft);outline-offset:3px}
+.cta .spark{font-size:1.1em;line-height:0;color:var(--indigo-1)}
+@keyframes pulse{
+  0%,100%{box-shadow:0 0 0 1px rgba(0,0,0,.3), 0 14px 36px rgba(200,164,92,0.28), 0 0 30px rgba(200,164,92,0.16); transform:translateY(0)}
+  50%{box-shadow:0 0 0 1px rgba(0,0,0,.3), 0 18px 46px rgba(200,164,92,0.4), 0 0 60px rgba(200,164,92,0.34); transform:translateY(-3px)}
+}
+.cta-hint{
+  display:block;
+  margin-top:12px;
+  font-style:italic;
+  font-size:13px;
+  color:var(--cream-dim);
+  opacity:.8;
+  letter-spacing:.04em;
+}
+
+/* ---------- reading panel (after draw) ---------- */
+.reading{
+  position:fixed;inset:0;z-index:60;
+  display:none;
+  align-items:center;justify-content:center;
+  padding:24px;
+  background:radial-gradient(900px 700px at 50% 40%, rgba(20,16,48,.86), rgba(6,7,15,.96));
+  backdrop-filter:blur(6px);
+}
+.reading.open{display:flex}
+.reading-card{
+  position:relative;
+  width:min(92vw,460px);
+  background:linear-gradient(180deg,#15173a,#0e1030);
+  border:1px solid rgba(200,164,92,.6);
+  border-radius:18px;
+  padding:28px 26px 30px;
+  text-align:center;
+  box-shadow:0 30px 90px rgba(0,0,0,.7), 0 0 60px rgba(125,60,255,.18);
+}
+.reading-card .r-eyebrow{
+  font-family:"Cinzel",serif;letter-spacing:.34em;text-transform:uppercase;
+  font-size:10px;color:var(--gold);padding-left:.34em;
+}
+.reading-card .r-name{
+  font-family:"Cinzel",serif;font-weight:600;
+  font-size:clamp(22px,4.5vw,30px);letter-spacing:.08em;
+  margin:8px 0 14px;color:var(--cream);
+}
+.reading-card .r-art{
+  border-radius:10px;overflow:hidden;border:1px solid rgba(200,164,92,.45);
+  background:repeating-linear-gradient(45deg,#1a1c38 0 8px,#16182f 8px 16px);
+  aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;
+}
+.reading-card .r-art img{width:100%;height:100%;object-fit:contain}
+.reading-card .r-body{
+  font-style:italic;color:var(--cream-dim);
+  font-size:clamp(14px,2.4vw,17px);line-height:1.5;margin:16px 0 18px;
+}
+.reading-card .r-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.r-btn{
+  font-family:"Cinzel",serif;letter-spacing:.16em;text-transform:uppercase;
+  font-size:11px;padding:.7em 1.3em;border-radius:999px;cursor:pointer;
+  border:1px solid var(--gold);background:transparent;color:var(--gold-soft);
+}
+.r-btn.primary{background:linear-gradient(180deg,var(--gold-soft),var(--gold));color:var(--indigo-0);border-color:#d9bd7e}
+.r-btn:focus-visible{outline:3px solid var(--jewel-soft);outline-offset:2px}
+
+/* ---------- footer note ---------- */
+.foot{
+  position:relative;z-index:3;text-align:center;
+  font-size:12px;color:var(--cream-dim);opacity:.55;
+  letter-spacing:.14em;text-transform:uppercase;font-family:"Cinzel",serif;
+  padding:0 16px 18px;
+}
+
+/* ===================================================================
+   MOBILE: keep the fan, tighten the spread; at very small widths
+   stack toward a compact deck. Never crop landscape art (contain).
+   =================================================================== */
+@media (max-width:900px){
+  .stage{width:min(96vw,640px)}
+}
+@media (max-width:640px){
+  :root{
+    --card-w:clamp(116px, 40vw, 150px);
+    --card-h:calc(var(--card-w) * 1.55);
+  }
+  .stage{width:96vw; margin-top:clamp(6px,2vh,24px)}
+  .sub{font-size:14px}
+  /* tighter fan so 5 cards sit inside the phone without clipping */
+  .card{transition:transform .5s cubic-bezier(.22,.61,.36,1)}
+}
+@media (max-width:380px){
+  :root{ --card-w:clamp(104px, 44vw, 128px); }
+}
+@media (max-height:680px){
+  :root{ --card-w:clamp(108px, 14vw, 150px); }
+  .band{padding-top:14px}
+  .sub{display:none}
+}
+
+/* ===================================================================
+   REDUCED MOTION: no pulse, no auto idle drift, flip is instant,
+   hover lift is removed; cards remain a readable static fan.
+   =================================================================== */
+@media (prefers-reduced-motion: reduce){
+  *{animation:none !important}
+  .card{transition:none !important}
+  .card:hover,.card:focus-visible{
+    transform:rotate(calc(var(--i) * var(--spread) * 0.5)) translateY(calc(var(--lift) * -1px - 20px));
+  }
+  .card-inner{transition:none !important}
+  .cta{animation:none}
+}
+</style>
+</head>
+<body>
+
+  <!-- compact top band; mechanic (the fan) sits right under it, in-viewport -->
+  <header class="band">
+    <div class="eyebrow">The Studio Oracle</div>
+    <h1 class="title">Draw a card to <span class="accent">begin</span></h1>
+    <p class="sub">Five cards lie face down. Each conceals a passage - the work, the maker, the message. Choose one, and let the deck decide where your reading starts.</p>
+  </header>
+
+  <main class="stage-wrap">
+    <!-- the fanned deck of face-down ornate cards -->
+    <section class="stage" id="stage" role="list" aria-label="Oracle deck navigation. Each card reveals a section."></section>
+
+    <button class="cta" id="drawCta" aria-label="Draw a random card to begin">
+      <span class="spark">&#10022;</span> Draw a card to begin
+    </button>
+    <span class="cta-hint">or hover a card to glimpse its face</span>
+  </main>
+
+  <p class="foot">An oracle reading &middot; five passages &middot; one deck</p>
+
+  <!-- the focused "reading" panel that opens when a card is drawn -->
+  <div class="reading" id="reading" role="dialog" aria-modal="true" aria-labelledby="rName">
+    <div class="reading-card">
+      <div class="r-eyebrow" id="rEyebrow">Your card</div>
+      <div class="r-name" id="rName">The Card</div>
+      <div class="r-art"><img id="rImg" alt="" decoding="async"></div>
+      <p class="r-body" id="rBody">A passage of the studio.</p>
+      <div class="r-actions">
+        <a class="r-btn primary" id="rGo" href="#">Enter this passage</a>
+        <button class="r-btn" id="rClose">Draw again</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* =====================================================================
+   DATA  -  swap these objects to repoint the navigation.
+   Each card = one nav destination, themed as a Major-Arcana card.
+   img: path under ../assets/  (rendered with object-fit:contain, so
+   landscape OR square assets both letterbox cleanly, never cropped).
+   ===================================================================== */
+const DATA = [
+  {
+    arcana: "0",
+    name: "The Wanderer",
+    section: "About",
+    blurb: "Who walks behind the work",
+    reading: "The maker sets out alone, curious and unfinished. This passage tells where the studio came from and what it is still chasing.",
+    img: "../assets/sdxl.png",            /* painterly fox - square */
+    href: "#about"
+  },
+  {
+    arcana: "III",
+    name: "The Artisan",
+    section: "Work",
+    blurb: "Selected works and commissions",
+    reading: "Built things, rendered things, the proof of the hand. Step into the gallery of finished pieces and the craft behind them.",
+    img: "../assets/flux-car-4k.png",     /* cinematic car - landscape */
+    href: "#work"
+  },
+  {
+    arcana: "VI",
+    name: "The Sanctuary",
+    section: "Studio",
+    blurb: "Where the work is made",
+    reading: "A calm room of mint and wood. This is the practice itself - the space, the tools, the way the studio keeps its quiet rhythm.",
+    img: "../assets/flux-clinic-4k.png",  /* clinic interior - landscape */
+    href: "#studio"
+  },
+  {
+    arcana: "XVII",
+    name: "The Seed",
+    section: "Lab",
+    blurb: "Experiments in progress",
+    reading: "A low-fi spark, not yet ripe. Here live the half-formed ideas, the sketches and prototypes still finding their shape.",
+    img: "../assets/hf-tinysd.png",       /* abstract apple - square */
+    href: "#lab"
+  },
+  {
+    arcana: "XX",
+    name: "The Summons",
+    section: "Contact",
+    blurb: "Begin a conversation",
+    reading: "The card that calls back. Reach the studio, send the brief, open the line. Every commission starts with a single message.",
+    img: "../assets/sdxl.png",            /* reuse fox as a sigil */
+    href: "#contact"
+  }
+];
+
+/* ornate gold-line card back - inline SVG, literal hex (never var()) */
+function cardBackSVG(){
+  const G="#c8a45c", Gs="#e3c585", J="#7d3cff";
+  return `
+  <svg viewBox="0 0 200 310" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <defs>
+      <radialGradient id="ob_glow" cx="50%" cy="36%" r="60%">
+        <stop offset="0%" stop-color="${J}" stop-opacity="0.30"/>
+        <stop offset="55%" stop-color="${J}" stop-opacity="0.05"/>
+        <stop offset="100%" stop-color="${J}" stop-opacity="0"/>
+      </radialGradient>
+      <linearGradient id="ob_line" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${Gs}"/>
+        <stop offset="100%" stop-color="${G}"/>
+      </linearGradient>
+    </defs>
+    <rect x="0" y="0" width="200" height="310" fill="url(#ob_glow)"/>
+    <!-- double inner border -->
+    <rect x="9" y="9" width="182" height="292" rx="9" fill="none" stroke="url(#ob_line)" stroke-width="1.4" opacity="0.95"/>
+    <rect x="15" y="15" width="170" height="280" rx="6" fill="none" stroke="${G}" stroke-width="0.7" opacity="0.6"/>
+    <!-- corner flourishes -->
+    <g stroke="${G}" stroke-width="1" fill="none" opacity="0.85">
+      <path d="M20 34 Q20 20 34 20"/>
+      <path d="M180 34 Q180 20 166 20"/>
+      <path d="M20 276 Q20 290 34 290"/>
+      <path d="M180 276 Q180 290 166 290"/>
+      <circle cx="34" cy="20" r="1.6" fill="${Gs}"/>
+      <circle cx="166" cy="20" r="1.6" fill="${Gs}"/>
+      <circle cx="34" cy="290" r="1.6" fill="${Gs}"/>
+      <circle cx="166" cy="290" r="1.6" fill="${Gs}"/>
+    </g>
+    <!-- central sun / oracle eye sigil -->
+    <g transform="translate(100 134)">
+      <g stroke="url(#ob_line)" stroke-width="1.1" fill="none">
+        ${Array.from({length:16}).map((_,k)=>{
+          const a=(k/16)*Math.PI*2, r1=34, r2=(k%2? 50:44);
+          return `<line x1="${(Math.cos(a)*r1).toFixed(1)}" y1="${(Math.sin(a)*r1).toFixed(1)}" x2="${(Math.cos(a)*r2).toFixed(1)}" y2="${(Math.sin(a)*r2).toFixed(1)}"/>`;
+        }).join("")}
+      </g>
+      <circle r="30" fill="none" stroke="${G}" stroke-width="1.2"/>
+      <circle r="22" fill="none" stroke="${G}" stroke-width="0.7" opacity="0.7"/>
+      <!-- almond eye -->
+      <path d="M-20 0 Q0 -14 20 0 Q0 14 -20 0 Z" fill="none" stroke="${Gs}" stroke-width="1.3"/>
+      <circle r="6.5" fill="${J}" opacity="0.85"/>
+      <circle r="6.5" fill="none" stroke="${Gs}" stroke-width="1"/>
+      <circle r="2.2" fill="${Gs}"/>
+    </g>
+    <!-- diamond lattice top & bottom -->
+    <g stroke="${G}" stroke-width="0.6" opacity="0.55" fill="none">
+      <path d="M100 40 l14 14 -14 14 -14 -14 Z"/>
+      <path d="M100 256 l14 14 -14 14 -14 -14 Z"/>
+      <line x1="100" y1="54" x2="100" y2="94"/>
+      <line x1="100" y1="216" x2="100" y2="256"/>
+    </g>
+    <!-- small star studs -->
+    <g fill="${Gs}" opacity="0.8">
+      <circle cx="60" cy="78" r="1.1"/><circle cx="140" cy="78" r="1.1"/>
+      <circle cx="60" cy="232" r="1.1"/><circle cx="140" cy="232" r="1.1"/>
+    </g>
+  </svg>`;
+}
+
+const stage = document.getElementById('stage');
+const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* fan geometry: spread cards symmetrically around centre.
+   --i is signed index from centre; --spread is degrees per step;
+   --lift gives the centre card the highest arc. */
+const N = DATA.length;
+const mid = (N - 1) / 2;
+const isNarrow = window.matchMedia('(max-width:640px)').matches;
+const SPREAD_DEG = isNarrow ? 10 : 13;     // degrees between adjacent cards
+const ARC = isNarrow ? 9 : 16;             // vertical arc depth per step
+
+DATA.forEach((d, idx) => {
+  const signed = idx - mid;                 // e.g. -2,-1,0,1,2
+  const lift = 78 - Math.abs(signed) * Math.abs(signed) * ARC; // arc highest in middle
+  const btn = document.createElement('button');
+  btn.className = 'card';
+  btn.setAttribute('role', 'listitem');
+  btn.setAttribute('aria-label', `Card ${idx + 1} of ${N}: reveals the ${d.section} passage, ${d.name}`);
+  btn.style.setProperty('--i', signed);
+  btn.style.setProperty('--spread', SPREAD_DEG + 'deg');
+  btn.style.setProperty('--lift', lift);
+  btn.style.zIndex = String(20 - Math.abs(signed)); // centre cards on top
+  btn.dataset.idx = idx;
+
+  btn.innerHTML = `
+    <div class="card-inner">
+      <div class="face back">${cardBackSVG()}</div>
+      <div class="face front">
+        <div class="arcana-num">${escapeHtml(d.arcana)} &middot; ${escapeHtml(d.section)}</div>
+        <div class="art"><img src="${d.img}" alt="${escapeHtml(d.name)} - ${escapeHtml(d.section)} card art" loading="lazy" decoding="async"></div>
+        <div class="name">${escapeHtml(d.name)}</div>
+        <div class="blurb">${escapeHtml(d.blurb)}</div>
+      </div>
+    </div>`;
+
+  // hover = peek (flip) on capable pointers; reduce honored by CSS (instant)
+  btn.addEventListener('mouseenter', () => btn.classList.add('is-flipped'));
+  btn.addEventListener('mouseleave', () => { if (!btn.dataset.locked) btn.classList.remove('is-flipped'); });
+  btn.addEventListener('focus', () => btn.classList.add('is-flipped'));
+  btn.addEventListener('blur', () => { if (!btn.dataset.locked) btn.classList.remove('is-flipped'); });
+
+  // click / Enter = draw this card -> open the reading
+  btn.addEventListener('click', () => openReading(idx, btn));
+
+  stage.appendChild(btn);
+});
+
+/* ---------- reading panel ---------- */
+const reading = document.getElementById('reading');
+const rEyebrow = document.getElementById('rEyebrow');
+const rName = document.getElementById('rName');
+const rImg = document.getElementById('rImg');
+const rBody = document.getElementById('rBody');
+const rGo = document.getElementById('rGo');
+const rClose = document.getElementById('rClose');
+let lastFocused = null;
+
+function openReading(idx, fromEl){
+  const d = DATA[idx];
+  // flip + lock the chosen card so the deck shows the drawn one face-up
+  document.querySelectorAll('.card').forEach(c => { c.classList.remove('is-flipped'); delete c.dataset.locked; });
+  if (fromEl){ fromEl.classList.add('is-flipped'); fromEl.dataset.locked = '1'; }
+
+  rEyebrow.textContent = `${d.arcana} - ${d.section}`;
+  rName.textContent = d.name;
+  rImg.src = d.img;
+  rImg.alt = `${d.name} - ${d.section}`;
+  rBody.textContent = d.reading;
+  rGo.href = d.href;
+  rGo.textContent = `Enter the ${d.section}`;
+
+  lastFocused = fromEl || document.activeElement;
+  reading.classList.add('open');
+  rClose.focus();
+  document.addEventListener('keydown', onKey);
+}
+function closeReading(){
+  reading.classList.remove('open');
+  document.removeEventListener('keydown', onKey);
+  document.querySelectorAll('.card').forEach(c => { c.classList.remove('is-flipped'); delete c.dataset.locked; });
+  if (lastFocused && lastFocused.focus) lastFocused.focus();
+}
+function onKey(e){
+  if (e.key === 'Escape') closeReading();
+}
+rClose.addEventListener('click', closeReading);
+reading.addEventListener('click', (e) => { if (e.target === reading) closeReading(); });
+
+/* ---------- the big draw CTA: pick a card at random ---------- */
+const drawCta = document.getElementById('drawCta');
+drawCta.addEventListener('click', () => {
+  const cards = Array.from(document.querySelectorAll('.card'));
+  if (!cards.length) return;
+  const pick = Math.floor(Math.random() * cards.length);
+
+  if (reduce){
+    // no shuffle animation under reduced motion: reveal immediately
+    openReading(pick, cards[pick]);
+    return;
+  }
+  // brief ceremonial riffle: flash-flip cards in sequence, then open the chosen one
+  let step = 0;
+  const order = cards.map((_, i) => i);
+  const timer = setInterval(() => {
+    cards.forEach(c => c.classList.remove('is-flipped'));
+    const at = order[step % order.length];
+    cards[at].classList.add('is-flipped');
+    step++;
+    if (step >= cards.length + 1){
+      clearInterval(timer);
+      cards.forEach(c => c.classList.remove('is-flipped'));
+      openReading(pick, cards[pick]);
+    }
+  }, 110);
+});
+
+/* tiny HTML escaper for swapped data safety */
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m => (
+    {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]
+  ));
+}
+</script>
+</body>
+</html>

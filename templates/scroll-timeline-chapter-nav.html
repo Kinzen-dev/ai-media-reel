@@ -460,11 +460,16 @@ html.no-stl .nofeature{display:block}
 }
 @media (max-width:640px){
   body{font-size:16px}
-  /* landscape assets: stack/letterbox, never portrait-crop.
-     We relax the cover crop into contain on a letterbox so the full
-     16:9 (or square) frame shows on a 390px phone. */
-  .figure .frame{aspect-ratio:16/9}
-  .figure .frame img{object-fit:cover}  /* 16:9 box on a phone is already short, no portrait crush */
+  /* landscape assets: letterbox, never crop. On a narrow phone we relax the
+     cover crop into CONTAIN on a dark mat so the FULL frame (16:9, portrait
+     i2v, or square) is always visible, with no edge cropped off. */
+  .figure .frame{
+    aspect-ratio:16/9;
+    background:#070809;             /* the letterbox mat */
+  }
+  .figure .frame img,
+  .figure .frame video{object-fit:contain}
+  .figure.square .frame{aspect-ratio:16/9}   /* square art mats into the same wide box */
   .masthead h1{font-size:30px;max-width:none}
   .prose blockquote{font-size:18px}
 }
@@ -720,6 +725,7 @@ const DATA = [
   const secs=[...document.querySelectorAll(".chapter-sec")];
   const byId=Object.fromEntries(links.map(l=>[l.dataset.target,l]));
   const scroller=document.getElementById("scroller");
+  const reduce=window.matchMedia("(prefers-reduced-motion:reduce)").matches;
 
   const io=new IntersectionObserver((entries)=>{
     entries.forEach(e=>{
@@ -730,7 +736,8 @@ const DATA = [
           link.classList.add("is-active");
           // keep active pill visible in the mobile horizontal scroller
           if(window.matchMedia("(max-width:900px)").matches){
-            link.scrollIntoView({inline:"center",block:"nearest",behavior:"smooth"});
+            link.scrollIntoView({inline:"center",block:"nearest",
+              behavior:reduce?"auto":"smooth"});
           }
         }
       }
@@ -748,8 +755,8 @@ const DATA = [
   });
 
   /* ---------------- VIDEO: play only in view, one at a time ----------------
-     load + play when on screen, pause + unload offscreen. Honors RM. */
-  const reduce=window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+     load + play when on screen, pause + unload offscreen. Honors RM
+     (reduce is declared above and gates autoplay here). */
   const vids=[...document.querySelectorAll("video[data-src]")];
   if(vids.length){
     const vio=new IntersectionObserver((entries)=>{

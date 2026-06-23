@@ -169,6 +169,19 @@
   .chord-svg.focusing .arc-seg.lit { opacity: 1; }
   .chord-svg .ribbon, .chord-svg .arc-seg { transition: opacity .22s ease; }
 
+  /* ---- reduced motion: kill ALL animation + transition timing, keep final/isolated
+     state changes instant. The JS also gates the draw-in (sets .settled, never .animate). ---- */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-delay: 0s !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      transition-delay: 0s !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
   .arc-hit { cursor: pointer; }
   .arc-hit:focus-visible {
     outline: 2px solid var(--c1);
@@ -472,8 +485,9 @@
    ============================================================ */
   const legend = document.getElementById('legend');
   legend.innerHTML = DATA.map((d, i) =>
-    `<button data-i="${i}" type="button">
-       <span class="sw" style="background:${d.color}"></span>
+    `<button data-i="${i}" type="button" aria-pressed="false"
+             aria-label="Isolate ${d.label} relationships, ${rowTotals[i]} units of flow">
+       <span class="sw" style="background:${d.color}" aria-hidden="true"></span>
        <span>${d.label}</span>
        <span class="val">${rowTotals[i]}</span>
      </button>`
@@ -495,6 +509,8 @@
   function clearFocus() {
     svg.classList.remove('focusing');
     svg.querySelectorAll('.lit').forEach(el => el.classList.remove('lit'));
+    const lg = document.getElementById('legend');
+    if (lg) lg.querySelectorAll('[aria-pressed="true"]').forEach(b => b.setAttribute('aria-pressed', 'false'));
   }
 
   function wire(el) {
@@ -505,13 +521,28 @@
     el.addEventListener('blur', clearFocus);
   }
   svg.querySelectorAll('.arc-hit').forEach(wire);
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   legend.querySelectorAll('button').forEach(b => {
     const i = +b.dataset.i;
     b.addEventListener('mouseenter', () => focus(i));
     b.addEventListener('mouseleave', clearFocus);
     b.addEventListener('focus', () => focus(i));
     b.addEventListener('blur', clearFocus);
-    b.addEventListener('click', () => { focus(i); setTimeout(clearFocus, 1400); });
+    // click toggles isolation. Under reduced-motion, no timed auto-revert
+    // (a self-firing animation); the user toggles it back.
+    b.addEventListener('click', () => {
+      if (svg.classList.contains('focusing') && b.getAttribute('aria-pressed') === 'true') {
+        clearFocus();
+        b.setAttribute('aria-pressed', 'false');
+        return;
+      }
+      legend.querySelectorAll('button').forEach(o => o.setAttribute('aria-pressed', 'false'));
+      focus(i);
+      b.setAttribute('aria-pressed', 'true');
+      if (!reduceMotion) {
+        setTimeout(() => { clearFocus(); b.setAttribute('aria-pressed', 'false'); }, 1400);
+      }
+    });
   });
 
 /* ============================================================

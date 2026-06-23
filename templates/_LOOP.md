@@ -51,8 +51,9 @@ real skills later via /promote-to-skill. Concrete + actionable bullets only; do 
 - Batch 37 DONE + cataloged (wealth-management-lifestyle-asset, cybersecurity-threat-graph, hyperpop-chromatic-overload, moire-op-art-field, game-map-room-nav - all PASS -> 186 live).
 - DASH-SCAN CHANGE: the rg-via-rtk shim mangles byte-class output (false 297-match on wealth template). Use the PYTHON codepoint scan instead (bad={0x2012,0x2013,0x2014,0x2015,0x2212,0x2500,0x2501}); it is rtk-immune and ground truth.
 - Batch 38 DONE + cataloged (supplement-3d-product-stage, museum-collection-explorer, developer-api-code-hero, spatial-perspective-type-wall, future-medieval-illuminated - all PASS -> 191 live).
-- Batch 39 IN FLIGHT `wtksga1b4` (2 market + 3 bold): luxury-resort-cinematic-stillness, beauty-skincare-ritual-editorial, flow-field-still-portrait, gothic-horror-editorial, chrome-mercury-letterpress.
-- ~196 next; do a milestone summary for King around 200. Keep alternating bold/market; lots of fuel left in both pools.
+- Batch 39 DONE + cataloged (luxury-resort-cinematic-stillness, beauty-skincare-ritual-editorial, flow-field-still-portrait, gothic-horror-editorial, chrome-mercury-letterpress - all PASS -> 196 live).
+- Batch 40 IN FLIGHT `wdfc6kdl3` (3 bold + 2 market, CROSSES 200): generative-woven-textile-hero, ben-day-pop-couture, css-voxel-data-city, ev-automotive-cinematic-hero, mental-health-calm-canvas.
+- ON BATCH 40 CATALOG (=201): give King a MILESTONE SUMMARY (count, category spread, fuel remaining, the bold+market story since resume). Keep alternating; both fuel pools still deep.
 - FUEL CONSUMED so far - bold: ai-detective, acid-rave, inflatable-balloon, svg-ferrofluid, oracle-card, hyperpop, moire-op-art, game-map-room (8 of 49). market: wealth-management, cybersecurity (2 of 71). LOTS left. King (2026-06-23) wants BOTH bold AND broad market coverage -> keep alternating; surface a milestone summary as the count climbs (~200).
 - After cataloging each batch run `python3 _categorize.py` (auto-buckets; add new slugs to SLUG_CAT to lock). Catalog -> deploy -> next batch.
 

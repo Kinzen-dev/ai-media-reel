@@ -1,0 +1,595 @@
+<!-- TEMPLATE: Voxel Data City | ARCHETYPE: css-voxel-data-city | REF: isometric CSS voxel art, data-as-architecture, pure-CSS 3D city | WHEN TO USE: a metrics/KPI hero where each value becomes a skyscraper - skyline reads as a dashboard | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Voxel Data City - Skyline as Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   DATA-CITY THEME TOKENS
+   ============================================================ */
+:root{
+  --bg-0:#06080f;            /* deep night void */
+  --bg-1:#0a0e1a;
+  --ground:#0e1424;         /* street-grid plate */
+  --ground-line:#1c2a45;    /* street lines */
+  --bone:#e8e2d2;           /* bone labels */
+  --bone-dim:#9a9485;
+  --ink:#f4f1e8;
+  /* data ramp: cool teal (low) -> warm coral (high) */
+  --ramp-0:#1fb8a6;         /* teal */
+  --ramp-1:#3fd0c0;
+  --ramp-2:#8fe06a;         /* lime mid */
+  --ramp-3:#f4c84a;         /* gold */
+  --ramp-4:#f78a3c;         /* amber */
+  --ramp-5:#ef5d52;         /* coral high */
+  --accent:#3fd0c0;
+  /* isometric face-shade factors (reference only; the live values that render
+     the faces are TOP_L / LEFT_L / RIGHT_L in JS, precomputed per tower) */
+  --top-l:1.16;             /* lit top */
+  --left-l:0.72;            /* shaded left */
+  --right-l:0.5;            /* darkest right */
+  --iso-rot:0deg;
+}
+
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{
+  font-family:'Space Grotesk',system-ui,sans-serif;
+  background:
+    radial-gradient(120% 90% at 50% -10%, #122042 0%, var(--bg-1) 42%, var(--bg-0) 100%);
+  color:var(--ink);
+  min-height:100vh;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ============================================================
+   STAGE LAYOUT - first viewport = headline band + voxel city
+   ============================================================ */
+.hero{
+  position:relative;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  isolation:isolate;
+}
+
+/* compact top band; the city sits below it but still in-view */
+.topband{
+  position:relative;
+  z-index:6;
+  padding:clamp(18px,3.2vw,40px) clamp(20px,5vw,72px) 0;
+  pointer-events:none;
+}
+.topband .eyebrow{
+  font-family:'Space Mono',monospace;
+  font-size:clamp(10px,1.05vw,13px);
+  letter-spacing:.42em;
+  text-transform:uppercase;
+  color:var(--accent);
+  display:flex;align-items:center;gap:.7em;
+}
+.topband .eyebrow::before{
+  content:"";width:34px;height:1px;background:var(--accent);display:inline-block;
+}
+.topband h1{
+  font-size:clamp(2rem,5.6vw,4.6rem);
+  line-height:.96;
+  font-weight:700;
+  letter-spacing:-.02em;
+  margin-top:.34em;
+  max-width:16ch;
+}
+.topband h1 .grad{
+  background:linear-gradient(96deg,var(--ramp-0),var(--ramp-2) 40%,var(--ramp-4) 72%,var(--ramp-5));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.topband p.lede{
+  margin-top:1.05em;
+  max-width:46ch;
+  font-size:clamp(.92rem,1.45vw,1.12rem);
+  line-height:1.5;
+  color:var(--bone-dim);
+}
+
+/* ============================================================
+   ISOMETRIC CITY SCENE
+   ============================================================ */
+.scene-wrap{
+  position:relative;
+  flex:1 1 auto;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  perspective:none;
+  margin-top:clamp(-30px,-2vw,0px);
+  min-height:62vh;
+  /* the city is decorative (aria-hidden); clip the scaled layout box so it
+     never produces horizontal page scroll on narrow viewports */
+  overflow:hidden;
+  width:100%;
+}
+.scene{
+  /* true isometric: tilt back 54deg, then spin via --iso-rot (base 45deg) so two
+     walls present as a diamond. The 45deg base lives in JS so Rotate can oscillate. */
+  transform-style:preserve-3d;
+  transform:rotateX(54deg) rotateZ(var(--iso-rot));
+  transform-origin:center center;
+  transition:transform .2s linear;
+  will-change:transform;
+}
+
+/* the ground plate that holds the street grid */
+.grid{
+  --cells:8;
+  --cell:74px;            /* footprint of one tower cell on the X/Y plane */
+  position:relative;
+  width:calc(var(--cells) * var(--cell));
+  height:calc(var(--cells) * var(--cell));
+  transform-style:preserve-3d;
+  background:var(--ground);
+  /* street grid lines */
+  background-image:
+    linear-gradient(var(--ground-line) 1px,transparent 1px),
+    linear-gradient(90deg,var(--ground-line) 1px,transparent 1px);
+  background-size:var(--cell) var(--cell);
+  box-shadow:0 0 0 1px var(--ground-line) inset;
+}
+/* subtle glow plate UNDER the ground for depth */
+.grid::after{
+  content:"";position:absolute;inset:-40px;
+  background:radial-gradient(60% 60% at 50% 50%,rgba(63,208,192,.10),transparent 70%);
+  transform:translateZ(-2px);
+  z-index:-1;
+}
+
+/* one tower cell: positioned in grid flow via absolute coords set inline */
+.tower{
+  position:absolute;
+  width:var(--w);
+  height:var(--w);
+  --w:54px;              /* footprint side (a bit smaller than cell = streets show) */
+  transform-style:preserve-3d;
+}
+/* the rising box: roof + two visible walls, corner-anchored at (0,0,0).
+   This recipe was lab-verified to close cleanly at any --h:
+     +x = right, +y = into screen (down in the flat element), +z = up.
+   Each wall hinges at the shared top-left corner (transform-origin:left top).
+   Per-face colors are precomputed in JS (NO filter - filter flattens preserve-3d). */
+.box{
+  position:absolute;
+  inset:0;
+  transform-style:preserve-3d;
+}
+.face{
+  position:absolute;left:0;top:0;
+  transform-style:preserve-3d;backface-visibility:hidden;
+}
+/* ROOF - lit, floating at building height --h */
+.face.top{
+  width:var(--w);height:var(--w);
+  background:var(--ct);
+  transform:translateZ(var(--h));
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);
+}
+/* LEFT wall (the x=0 plane) - mid shade, faces camera-left */
+.face.left{
+  width:var(--w);height:var(--h);
+  background:var(--cl);
+  transform-origin:left top;
+  transform:rotateY(-90deg);
+}
+/* RIGHT wall (the y=0 plane) - darkest shade, faces camera-right */
+.face.right{
+  width:var(--w);height:var(--h);
+  background:var(--cr);
+  transform-origin:left top;
+  transform:rotateX(90deg);
+}
+/* lit window striping on the side faces - cheap CSS, reads as a skyscraper */
+.face.left::before,.face.right::before{
+  content:"";position:absolute;inset:0;
+  background-image:
+    repeating-linear-gradient(to bottom,
+      rgba(255,255,255,.10) 0 1px,transparent 1px 7px);
+  mix-blend-mode:screen;opacity:.65;
+}
+
+/* floating bone label tag above a tagged tower */
+.tag{
+  position:absolute;
+  left:50%;top:50%;
+  /* lift to roof height + a little, then counter-rotate the scene
+     (undo rotateZ(--iso-rot) and rotateX(54deg)) so the chip faces the camera flat */
+  transform:translate(-50%,-50%) translateZ(calc(var(--h) + 34px)) rotateZ(calc(-1 * var(--iso-rot))) rotateX(-54deg);
+  transform-origin:center;
+  pointer-events:none;
+  white-space:nowrap;
+}
+.tag .pin{
+  display:block;width:1px;height:26px;margin:0 auto;
+  background:linear-gradient(var(--bone),transparent);
+  opacity:.55;
+}
+.tag .chip{
+  font-family:'Space Mono',monospace;
+  font-size:11px;font-weight:700;
+  color:var(--bg-0);
+  background:var(--bone);
+  padding:3px 8px 2px;
+  border-radius:3px;
+  letter-spacing:.02em;
+  box-shadow:0 6px 16px rgba(0,0,0,.55);
+  line-height:1;
+}
+.tag .chip b{color:var(--bg-0);}
+.tag .chip .v{
+  display:block;font-size:9px;color:#3a4258;margin-top:2px;font-weight:700;
+}
+
+/* ============================================================
+   LEGEND + READOUT (HUD overlay, screen-flat, not in 3D)
+   ============================================================ */
+.hud{
+  position:absolute;
+  z-index:7;
+  pointer-events:none;
+}
+.legend{
+  left:clamp(20px,5vw,72px);
+  bottom:clamp(20px,4vh,44px);
+}
+.legend .lab{
+  font-family:'Space Mono',monospace;
+  font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--bone-dim);margin-bottom:9px;
+}
+.legend .ramp{
+  width:clamp(180px,22vw,260px);height:12px;border-radius:6px;
+  background:linear-gradient(90deg,
+    var(--ramp-0),var(--ramp-1),var(--ramp-2),var(--ramp-3),var(--ramp-4),var(--ramp-5));
+  box-shadow:0 0 0 1px rgba(255,255,255,.10) inset;
+}
+.legend .ends{
+  display:flex;justify-content:space-between;margin-top:7px;
+  font-family:'Space Mono',monospace;font-size:10.5px;color:var(--bone);
+}
+.readout{
+  right:clamp(20px,5vw,72px);
+  bottom:clamp(20px,4vh,44px);
+  text-align:right;
+}
+.readout .big{
+  font-family:'Space Mono',monospace;
+  font-size:clamp(1.5rem,3.4vw,2.4rem);
+  font-weight:700;line-height:1;
+  color:var(--ink);
+}
+.readout .big .u{font-size:.5em;color:var(--accent);margin-left:.25em;}
+.readout .sub{
+  font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--bone-dim);margin-top:8px;
+}
+.readout .delta{color:var(--ramp-2);}
+
+/* controls pill */
+.controls{
+  position:absolute;z-index:8;
+  top:clamp(16px,3vw,34px);right:clamp(16px,5vw,72px);
+  display:flex;gap:8px;pointer-events:auto;
+}
+.controls button{
+  font-family:'Space Mono',monospace;
+  font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--bone);background:rgba(20,28,48,.7);
+  border:1px solid var(--ground-line);
+  padding:7px 12px;border-radius:999px;cursor:pointer;
+  backdrop-filter:blur(6px);
+  transition:border-color .18s,color .18s,background .18s;
+}
+.controls button:hover{border-color:var(--accent);color:var(--ink);}
+.controls button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.controls button[aria-pressed="true"]{
+  background:var(--accent);color:var(--bg-0);border-color:var(--accent);
+}
+
+/* second section - explains the paradigm, keeps it a real page */
+.below{
+  position:relative;z-index:2;
+  padding:clamp(60px,9vw,120px) clamp(20px,6vw,90px);
+  max-width:1100px;margin:0 auto;
+}
+.below h2{
+  font-size:clamp(1.5rem,3.4vw,2.4rem);font-weight:700;letter-spacing:-.01em;
+  max-width:22ch;
+}
+.below h2 .grad{
+  background:linear-gradient(96deg,var(--ramp-1),var(--ramp-4));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.below .grid3{
+  margin-top:clamp(32px,5vw,56px);
+  display:grid;gap:clamp(16px,2.4vw,28px);
+  grid-template-columns:repeat(3,1fr);
+}
+.card{
+  border:1px solid var(--ground-line);border-radius:14px;
+  padding:clamp(18px,2.4vw,28px);
+  background:linear-gradient(180deg,rgba(18,26,46,.6),rgba(10,14,26,.4));
+}
+.card .k{
+  font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--accent);
+}
+.card h3{font-size:1.05rem;margin:.6em 0 .4em;}
+.card p{font-size:.92rem;line-height:1.55;color:var(--bone-dim);}
+
+footer{
+  position:relative;z-index:2;
+  padding:36px clamp(20px,6vw,90px) 56px;
+  border-top:1px solid var(--ground-line);
+  font-family:'Space Mono',monospace;font-size:11px;
+  color:var(--bone-dim);letter-spacing:.06em;
+  display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;
+}
+
+/* ============================================================
+   RESPONSIVE - scale the city to contain, never crop off-screen
+   ============================================================ */
+@media (max-width:1100px){
+  .grid{--cell:60px;}
+  .below .grid3{grid-template-columns:1fr;max-width:520px;}
+}
+@media (max-width:640px){
+  .topband{padding-top:clamp(56px,11vw,72px);} /* clear the controls pill */
+  .scene-wrap{min-height:54vh;}
+  /* scale entire scene to fit phone width via transform; transform-origin keeps it centered */
+  .scene{transform:scale(.62) rotateX(58deg) rotateZ(var(--iso-rot));}
+  .grid{--cell:54px;}
+  .legend{bottom:clamp(14px,3vh,30px);}
+  .legend .ramp{width:140px;}
+  .readout{display:none;}            /* avoid crowding the small skyline */
+  .controls{top:12px;right:12px;}
+  .hud.legend{left:14px;}
+}
+@media (max-width:380px){
+  .scene{transform:scale(.5) rotateX(58deg) rotateZ(var(--iso-rot));}
+}
+
+/* ============================================================
+   ACCESSIBILITY - freeze ambient rotate fully
+   ============================================================ */
+@media (prefers-reduced-motion:reduce){
+  .scene{transition:none !important;}
+  html{scroll-behavior:auto;}
+}
+</style>
+</head>
+<body>
+
+<main class="hero" aria-label="Voxel data-city hero">
+
+  <!-- ====================== CONTROLS ====================== -->
+  <div class="controls" role="group" aria-label="City controls">
+    <button id="spin" type="button" aria-pressed="false">Rotate</button>
+    <button id="reseed" type="button">Reseed</button>
+  </div>
+
+  <!-- ====================== HEADLINE BAND ====================== -->
+  <header class="topband">
+    <div class="eyebrow">Data as architecture</div>
+    <h1>Your metrics, built as a <span class="grad">voxel skyline</span>.</h1>
+    <p class="lede">Every tower is one data point. Height encodes the value, color ramps cool-teal at the low end to warm-coral at the peak. Pure CSS 3D transforms, no WebGL, no canvas. Swap the DATA array and the city rebuilds itself.</p>
+  </header>
+
+  <!-- ====================== ISOMETRIC CITY ====================== -->
+  <div class="scene-wrap">
+    <div class="scene" id="scene">
+      <div class="grid" id="grid" aria-hidden="true"><!-- towers injected --></div>
+    </div>
+  </div>
+
+  <!-- ====================== HUD: LEGEND + READOUT ====================== -->
+  <div class="hud legend" aria-hidden="true">
+    <div class="lab">Value ramp</div>
+    <div class="ramp"></div>
+    <div class="ends"><span id="rampLo">low</span><span id="rampHi">high</span></div>
+  </div>
+
+  <div class="hud readout" aria-hidden="true">
+    <div class="big" id="peakV">0<span class="u" id="peakU"></span></div>
+    <div class="sub">Peak tower <span class="delta" id="peakName">-</span></div>
+  </div>
+
+</main>
+
+<!-- ====================== SUPPORTING SECTION ====================== -->
+<section class="below">
+  <h2>A skyline you can <span class="grad">read at a glance</span>, not a chart you have to decode.</h2>
+  <div class="grid3">
+    <div class="card">
+      <div class="k">Encoding</div>
+      <h3>Height + color, two channels</h3>
+      <p>Tower height maps the raw value and the same value drives a teal-to-coral ramp, so outliers spike and glow without a single axis label.</p>
+    </div>
+    <div class="card">
+      <div class="k">Pure CSS 3D</div>
+      <h3>Three faces per voxel</h3>
+      <p>Each building is a lit top plus two shaded side faces from CSS transforms. No WebGL, no canvas, no animation library - it stays well above 50fps.</p>
+    </div>
+    <div class="card">
+      <div class="k">Swap-ready</div>
+      <h3>One DATA array</h3>
+      <p>Edit the labeled array at the top of the file. Set a value, optionally a name and unit, and the grid, legend, and peak readout all recompute.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span>VOXEL DATA CITY / data-as-architecture template</span>
+  <span>CSS 3D transforms - no WebGL - no canvas - reduced-motion safe</span>
+</footer>
+
+<script>
+/* ============================================================
+   ============  DATA  (edit this to reswap the city)  ========
+   Each entry becomes one tower. Required: value.
+   Optional: name + unit -> renders a floating bone label tag.
+   Order fills the grid row by row (left-to-right, front-to-back).
+   ============================================================ */
+const DATA = [
+  // ---- front row (closest) ----
+  {value:42},{value:61,name:"NA-East",unit:"k"},{value:28},{value:73},
+  {value:55},{value:38},{value:66},{value:31},
+  // ---- row 2 ----
+  {value:49},{value:88,name:"APAC",unit:"k"},{value:34},{value:57},
+  {value:71},{value:44},{value:62},{value:39},
+  // ---- row 3 ----
+  {value:53},{value:67},{value:96,name:"EU-Core",unit:"k"},{value:41},
+  {value:60},{value:35},{value:78},{value:48},
+  // ---- row 4 ----
+  {value:46},{value:58},{value:33},{value:69},
+  {value:52},{value:81,name:"LATAM",unit:"k"},{value:37},{value:64},
+  // ---- row 5 ----
+  {value:40},{value:54},{value:29},{value:63},
+  {value:47},{value:59},{value:36},{value:72},
+  // ---- row 6 ----
+  {value:51},{value:43},{value:65},{value:32},
+  {value:56},{value:30},{value:50},{value:45},
+  // ---- row 7 ----
+  {value:38},{value:62},{value:34},{value:58},
+  {value:41},{value:53},{value:27},{value:60},
+  // ---- back row (farthest) ----
+  {value:44},{value:35},{value:57},{value:31},
+  {value:48},{value:39},{value:52},{value:42},
+];
+
+/* legend end labels + grid dimensions */
+const GRID_COLS = 8;                 // fills the grid row by row
+const CELL = 74;                     // base px per cell (CSS var --cell tracks this at desktop)
+const MAX_H_FACTOR = 4.8;            // tallest tower = footprint * this (keeps skyline in proportion)
+
+/* ----- color ramp stops (teal -> coral), same order as CSS legend ----- */
+const RAMP = ["#1fb8a6","#3fd0c0","#8fe06a","#f4c84a","#f78a3c","#ef5d52"];
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+const gridEl = document.getElementById('grid');
+let DATASET = DATA.slice();         // mutable copy (reseed swaps this)
+
+function hexRGB(h){return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];}
+function lerpRGB(a,b,t){return a.map((v,i)=>Math.round(v+(b[i]-v)*t));}
+function rampRGB(t){                 // t in 0..1 -> [r,g,b] along the teal->coral ramp
+  t=Math.max(0,Math.min(1,t));
+  const seg=t*(RAMP.length-1);
+  const i=Math.min(RAMP.length-2,Math.floor(seg));
+  return lerpRGB(hexRGB(RAMP[i]),hexRGB(RAMP[i+1]),seg-i);
+}
+const css=c=>`rgb(${c[0]},${c[1]},${c[2]})`;
+/* face shading: roof lit, left wall mid, right wall dark - precomputed (no CSS filter) */
+function shade(rgb,k){return css(rgb.map(v=>Math.round(Math.max(0,Math.min(255,v*k)))));}
+const TOP_L=1.16, LEFT_L=0.72, RIGHT_L=0.5;
+
+function build(){
+  const vals=DATASET.map(d=>d.value);
+  const lo=Math.min(...vals), hi=Math.max(...vals);
+  const span=Math.max(1,hi-lo);
+
+  // size the grid plate to the dataset
+  const cols=GRID_COLS;
+  const rows=Math.ceil(DATASET.length/cols);
+  gridEl.style.setProperty('--cells',cols);
+  gridEl.style.width  = `calc(${cols} * var(--cell))`;
+  gridEl.style.height = `calc(${rows} * var(--cell))`;
+
+  // read the live --cell value (responsive) for absolute placement
+  const cssCell=parseFloat(getComputedStyle(gridEl).getPropertyValue('--cell'))||CELL;
+  const footprint=Math.round(cssCell*0.56);   // tower base, leaves wide street gaps so walls show
+  const pad=Math.round((cssCell-footprint)/2);
+
+  let html='';
+  let peak={value:-Infinity,name:null,unit:''};
+  // heights scale to footprint so the skyline stays proportional on every viewport
+  const minH=Math.round(footprint*0.45);
+  const maxH=Math.round(footprint*MAX_H_FACTOR);
+  DATASET.forEach((d,idx)=>{
+    const col=idx%cols, row=Math.floor(idx/cols);
+    const t=(d.value-lo)/span;                 // 0..1 normalized
+    const h=Math.round(minH+t*(maxH-minH));
+    const rgb=rampRGB(t);
+    const ct=shade(rgb,TOP_L), cl=shade(rgb,LEFT_L), cr=shade(rgb,RIGHT_L);
+    const x=col*cssCell+pad, y=row*cssCell+pad;
+    if(d.value>peak.value) peak={value:d.value,name:d.name||`#${idx+1}`,unit:d.unit||''};
+
+    let tag='';
+    if(d.name){
+      tag=`<div class="tag"><div class="chip"><b>${d.name}</b><span class="v">${d.value}${d.unit||''}</span></div><span class="pin"></span></div>`;
+    }
+    html+=`<div class="tower" style="left:${x}px;top:${y}px;--w:${footprint}px;--h:${h}px;--ct:${ct};--cl:${cl};--cr:${cr}">`
+        +   `<div class="box">`
+        +     `<div class="face left"></div>`
+        +     `<div class="face right"></div>`
+        +     `<div class="face top"></div>`
+        +   `</div>${tag}</div>`;
+  });
+  gridEl.innerHTML=html;
+
+  // legend + readout
+  document.getElementById('rampLo').textContent=lo;
+  document.getElementById('rampHi').textContent=hi;
+  document.getElementById('peakV').firstChild.textContent=peak.value;
+  document.getElementById('peakU').textContent=peak.unit;
+  document.getElementById('peakName').textContent=peak.name;
+}
+build();
+window.addEventListener('resize',()=>{ /* rebuild for responsive cell size */
+  clearTimeout(window.__rt); window.__rt=setTimeout(build,150);
+});
+
+/* ============================================================
+   AMBIENT ROTATE  (opt-in, reduced-motion safe)
+   ============================================================ */
+const scene=document.getElementById('scene');
+const spinBtn=document.getElementById('spin');
+const reduced=window.matchMedia('(prefers-reduced-motion:reduce)');
+const ISO_BASE=45;                    // resting isometric spin (two walls as a diamond)
+let spinning=false, raf=null, phase=0;
+
+scene.style.setProperty('--iso-rot',ISO_BASE+'deg');   // freeze-state default
+
+function tick(){
+  phase=(phase+0.25)%360;
+  // gentle oscillation around the 45deg base so the city never spins off-camera
+  const rot=ISO_BASE+Math.sin(phase*Math.PI/180)*14;
+  scene.style.setProperty('--iso-rot',rot.toFixed(2)+'deg');
+  raf=requestAnimationFrame(tick);
+}
+function setSpin(on){
+  if(reduced.matches) on=false;       // never animate under reduced motion
+  spinning=on;
+  spinBtn.setAttribute('aria-pressed',on?'true':'false');
+  if(on){ if(!raf) raf=requestAnimationFrame(tick); }
+  else { if(raf){cancelAnimationFrame(raf);raf=null;} scene.style.setProperty('--iso-rot',ISO_BASE+'deg'); }
+}
+spinBtn.addEventListener('click',()=>setSpin(!spinning));
+reduced.addEventListener('change',e=>{ if(e.matches) setSpin(false); });
+
+/* ============================================================
+   RESEED  (demo: jitter values to show the encoding live)
+   ============================================================ */
+document.getElementById('reseed').addEventListener('click',()=>{
+  DATASET=DATA.map(d=>{
+    const nv=Math.max(18,Math.min(100,Math.round(d.value+(Math.random()*2-1)*22)));
+    return {...d,value:nv};
+  });
+  build();
+});
+</script>
+</body>
+</html>

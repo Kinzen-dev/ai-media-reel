@@ -1,0 +1,537 @@
+<!-- TEMPLATE: Chrome Mercury Letterpress | ARCHETYPE: CHROME liquid-chrome letterpress wordmark hero | REF: chrome/liquid-metal typography, Y2K chrome lettering, SVG-filter chrome | WHEN TO USE: one-word brand reveal / launch splash / luxury studio cover where the wordmark IS the hero | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chrome Mercury Letterpress</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+/* =========================================================================
+   CHROME MERCURY LETTERPRESS
+   One-word liquid-chrome wordmark hero. Pure CSS + inline SVG filter.
+   The whole effect is driven by:
+     - a vertical metallic gradient (dark -> light -> dark bands) as text fill
+     - a bright specular pearl highlight sitting dead-centre on the strokes
+     - a soft bevel/emboss via layered text-shadow + drop-shadow
+   No GSAP, no WebGL, no canvas. Capture-safe at scroll=0.
+   ========================================================================= */
+
+:root{
+  /* chrome band stops (vertical) */
+  --c-deep:   #0c0f14;   /* darkest band, top + bottom shadow */
+  --c-steel:  #5a6473;   /* mid steel */
+  --c-silver: #c9d2dc;   /* bright silver */
+  --c-pearl:  #ffffff;   /* specular pearl centre */
+  --c-sky:    #aebfd4;   /* cool sky reflection */
+  --c-warm:   #e9d7c3;   /* warm horizon reflection low on strokes */
+
+  --ground:   #07080b;   /* dark stage ground */
+  --ground-2: #101521;
+  --ink:      #aeb6c4;   /* muted UI text */
+  --ink-dim:  #59626f;   /* dim secondary UI text */
+  --rule:     rgba(170,182,204,.16);
+  --accent:   #8fb4ff;
+
+  --font-display: "Anton", "Archivo", system-ui, sans-serif;
+  --font-ui: "Archivo", system-ui, sans-serif;
+}
+
+*{ box-sizing:border-box; margin:0; padding:0; }
+
+html,body{ height:100%; }
+
+body{
+  font-family:var(--font-ui);
+  color:var(--ink);
+  background:
+    radial-gradient(120% 90% at 50% -10%, #161c2a 0%, var(--ground-2) 38%, var(--ground) 78%, #04050a 100%);
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+  position:relative;
+}
+
+/* faint reflective floor under the wordmark for the "polished" read */
+body::after{
+  content:"";
+  position:fixed;
+  left:50%; bottom:-6vh;
+  width:140vw; height:42vh;
+  transform:translateX(-50%);
+  background:
+    radial-gradient(60% 100% at 50% 0%, rgba(160,180,220,.10) 0%, rgba(160,180,220,0) 70%);
+  pointer-events:none;
+  z-index:0;
+}
+
+/* =========================================================================
+   STAGE / FIRST VIEWPORT  -- the signature must read at scroll=0
+   ========================================================================= */
+.stage{
+  position:relative;
+  z-index:2;
+  min-height:100svh;
+  display:grid;
+  grid-template-rows:auto 1fr auto;
+  padding:clamp(16px,3vw,34px);
+  gap:clamp(10px,2vh,22px);
+}
+
+/* compact top band so the wordmark stays the hero, not a buried title */
+.topband{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  flex-wrap:wrap;
+}
+.brand-tag{
+  display:flex; align-items:center; gap:10px;
+  font-family:var(--font-ui);
+  font-weight:800;
+  font-size:12px;
+  letter-spacing:.34em;
+  text-transform:uppercase;
+  color:var(--ink);
+}
+.brand-tag .dot{
+  width:10px; height:10px; border-radius:50%;
+  background:linear-gradient(180deg,#fff 0%,#9fb0c6 45%,#2a3340 100%);
+  box-shadow:0 0 0 1px rgba(255,255,255,.25), 0 2px 6px rgba(0,0,0,.6);
+}
+.nav{
+  display:flex; gap:clamp(14px,2.4vw,30px);
+  font-size:12px; letter-spacing:.2em; text-transform:uppercase;
+  color:var(--ink-dim);
+  flex-wrap:wrap;
+}
+.nav a{
+  color:inherit; text-decoration:none;
+  padding:6px 2px;
+  border-bottom:1px solid transparent;
+  transition:color .25s ease, border-color .25s ease;
+}
+.nav a:hover, .nav a:focus-visible{ color:#dfe6f2; border-color:var(--accent); outline:none; }
+.nav a:focus-visible{ outline:2px solid var(--accent); outline-offset:4px; border-radius:2px; }
+
+/* the wordmark zone */
+.hero{
+  position:relative;
+  align-self:center;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+}
+
+/* the chrome word. ~90vw, fills the viewport. */
+.wordmark{
+  font-family:var(--font-display);
+  font-weight:400;            /* Anton ships single weight */
+  line-height:.82;
+  letter-spacing:-.01em;
+  text-transform:uppercase;
+  /* size driven so a 7-char word lands near 90vw on desktop */
+  font-size:clamp(72px, 24vw, 460px);
+  margin:0;
+  position:relative;
+  user-select:none;
+  /* NOTE: no text-shadow here. With -webkit-background-clip:text + transparent
+     fill, a text-shadow flattens the clipped gradient in Chromium. The cast
+     shadow + bevel are provided by the SVG #chromeBevel filter + drop-shadow. */
+  color:#c4ccd8;
+  /* the metallic vertical gradient becomes the actual fill.
+     Strong dark bands top + bottom and a tight light core = liquid chrome read. */
+  background:
+    linear-gradient(
+      180deg,
+      #05070b         0%,
+      #161c26         11%,
+      #3d4756         24%,
+      #8fa2ba         37%,
+      #e4ecf6         45%,
+      #ffffff         50%,   /* specular pearl dead-centre */
+      #f3ead9         55%,   /* warm horizon catch just below the pearl */
+      #b9c2cf         62%,
+      #6b7585         73%,
+      #313a47         85%,
+      #11161f         94%,
+      #05070b         100%
+    );
+  -webkit-background-clip:text;
+  background-clip:text;
+  -webkit-text-fill-color:transparent;
+  /* SVG filter adds the soft bevel/emboss + liquid edge (kept light so it
+     sharpens edges without flooding the glyph white) */
+  filter:url(#chromeBevel) drop-shadow(0 14px 24px rgba(0,0,0,.55));
+  /* gradient maps 1:1 to the glyph height so the pearl band lands dead-centre.
+     A gentle vertical breathe shifts the bright core a few % for the wet read,
+     without ever moving it off the strokes; disabled under reduced motion. */
+  /* slightly taller than the glyph so the bright core can breathe a few %
+     without ever leaving the strokes; pearl sits dead-centre at rest. */
+  background-size:100% 118%;
+  background-position:50% var(--spec,50%);
+  animation:specDrift 9s ease-in-out infinite alternate;
+}
+
+/* a second pass painted directly on top adds the razor pearl streak,
+   independent of the band gradient so the highlight stays crisp */
+.wordmark::after{
+  content:attr(data-word);
+  position:absolute;
+  inset:0;
+  font-family:inherit;
+  text-transform:inherit;
+  letter-spacing:inherit;
+  line-height:inherit;
+  background:linear-gradient(
+    180deg,
+    rgba(255,255,255,0) 44%,
+    rgba(255,255,255,.7) 48.6%,
+    rgba(255,255,255,1) 50%,
+    rgba(255,255,255,.7) 51.4%,
+    rgba(255,255,255,0) 56%
+  );
+  -webkit-background-clip:text;
+  background-clip:text;
+  -webkit-text-fill-color:transparent;
+  pointer-events:none;
+  mix-blend-mode:screen;
+  opacity:1;
+}
+
+@keyframes specDrift{
+  0%   { --spec:42%; }
+  100% { --spec:58%; }
+}
+/* register the custom prop so it animates smoothly */
+@property --spec{
+  syntax:"<percentage>";
+  inherits:true;
+  initial-value:50%;
+}
+
+/* sub-caption sits under the wordmark, kept quiet */
+.kicker{
+  margin-top:clamp(26px,4.5vh,52px);
+  font-size:clamp(11px,1.1vw,14px);
+  letter-spacing:.42em;
+  text-transform:uppercase;
+  color:var(--ink-dim);
+  max-width:60ch;
+}
+.kicker b{ color:#cdd6e6; font-weight:600; }
+
+/* bottom band: a thin chrome swatch strip so the palette + polish reads
+   even before the hero word, plus a scroll cue */
+.botband{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:18px;
+  flex-wrap:wrap;
+}
+.swatches{
+  display:flex; align-items:center; gap:8px;
+  font-size:10px; letter-spacing:.2em; text-transform:uppercase;
+  color:var(--ink-dim);
+}
+.swatches .chips{ display:flex; gap:6px; }
+.chip{
+  width:22px; height:14px; border-radius:3px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.4), 0 1px 3px rgba(0,0,0,.6);
+}
+.chip.c1{ background:linear-gradient(180deg,#0c0f14,#5a6473); }
+.chip.c2{ background:linear-gradient(180deg,#5a6473,#c9d2dc); }
+.chip.c3{ background:linear-gradient(180deg,#c9d2dc,#ffffff); }
+.chip.c4{ background:linear-gradient(180deg,#ffffff,#aebfd4); }
+.chip.c5{ background:linear-gradient(180deg,#aebfd4,#0c0f14); }
+
+.scrollcue{
+  display:flex; align-items:center; gap:10px;
+  font-size:11px; letter-spacing:.28em; text-transform:uppercase;
+  color:var(--ink-dim);
+}
+.scrollcue .line{
+  width:46px; height:1px; background:var(--rule); position:relative; overflow:hidden;
+}
+.scrollcue .line::after{
+  content:""; position:absolute; left:-40%; top:0; width:40%; height:100%;
+  background:linear-gradient(90deg,transparent,#9fb6e0,transparent);
+  animation:cueSlide 2.4s linear infinite;
+}
+@keyframes cueSlide{ to{ left:120%; } }
+
+/* =========================================================================
+   SCROLL SECTION 2 -- variants gallery, proving the same recipe reuses
+   ========================================================================= */
+.variants{
+  position:relative; z-index:2;
+  padding:clamp(40px,8vh,96px) clamp(16px,4vw,60px);
+  border-top:1px solid var(--rule);
+  max-width:1320px; margin:0 auto;
+}
+.variants h2{
+  font-family:var(--font-ui);
+  font-weight:800;
+  font-size:clamp(13px,1.4vw,15px);
+  letter-spacing:.34em; text-transform:uppercase;
+  color:var(--ink);
+  margin-bottom:6px;
+}
+.variants p.sub{
+  color:var(--ink-dim); font-size:13px; letter-spacing:.04em;
+  max-width:64ch; margin-bottom:clamp(22px,4vh,40px);
+}
+.vgrid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:clamp(12px,2vw,22px);
+}
+.vcard{
+  position:relative;
+  border:1px solid var(--rule);
+  border-radius:14px;
+  padding:clamp(26px,4vw,40px) 18px;
+  min-height:170px;
+  display:flex; align-items:center; justify-content:center;
+  background:
+    radial-gradient(120% 100% at 50% 0%, rgba(255,255,255,.04), rgba(255,255,255,0) 60%),
+    linear-gradient(180deg, rgba(255,255,255,.02), rgba(0,0,0,.18));
+  overflow:hidden;
+  transition:transform .35s cubic-bezier(.2,.7,.2,1), border-color .35s ease;
+}
+.vcard:hover{ transform:translateY(-4px); border-color:rgba(170,182,204,.34); }
+.vcard .mini{
+  font-family:var(--font-display);
+  text-transform:uppercase;
+  font-size:clamp(34px,5.4vw,58px);
+  line-height:.8;
+  -webkit-background-clip:text; background-clip:text;
+  -webkit-text-fill-color:transparent;
+  filter:url(#chromeBevel) drop-shadow(0 8px 14px rgba(0,0,0,.55));
+}
+.vcard .vlabel{
+  position:absolute; left:14px; bottom:12px;
+  font-size:10px; letter-spacing:.22em; text-transform:uppercase;
+  color:var(--ink-dim);
+}
+.vcard .ground-dot{
+  position:absolute; right:14px; bottom:12px;
+  font-size:10px; letter-spacing:.18em; color:var(--ink-dim);
+}
+/* per-variant ground tints (clean vs dark) set inline by JS */
+
+.foot{
+  position:relative; z-index:2;
+  text-align:center;
+  padding:clamp(30px,6vh,60px) 16px clamp(40px,7vh,70px);
+  color:var(--ink-dim);
+  font-size:11px; letter-spacing:.24em; text-transform:uppercase;
+  border-top:1px solid var(--rule);
+  max-width:1320px; margin:0 auto;
+}
+.foot b{ color:#c7d0e0; font-weight:600; }
+
+/* =========================================================================
+   RESPONSIVE  -- keep the wordmark dominant; never crop
+   ========================================================================= */
+@media (max-width:640px){
+  .wordmark{
+    /* bigger relative scale so the single word still FILLS a portrait phone */
+    font-size:clamp(64px, 26vw, 150px);
+    letter-spacing:-.02em;
+  }
+  .nav{ display:none; }          /* keep the phone first-screen clean */
+  .kicker{ letter-spacing:.3em; }
+  .botband{ justify-content:center; }
+  .scrollcue{ display:none; }
+}
+@media (max-width:380px){
+  .wordmark{ font-size:clamp(56px, 28vw, 120px); }
+}
+
+/* =========================================================================
+   REDUCED MOTION  -- freeze the specular drift + scroll cues, show final
+   ========================================================================= */
+@media (prefers-reduced-motion:reduce){
+  .wordmark{ animation:none; background-position:50% 50%; }
+  .scrollcue .line::after{ animation:none; }
+  *{ scroll-behavior:auto !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===========================================================================
+     INLINE SVG FILTER
+     NOTE: SVG fills use literal hex, never var() (CSS vars do not resolve in SVG
+     presentation attributes). chromeBevel = light bevel/emboss giving the
+     embossed liquid-chrome edge; it is referenced by the hero wordmark and the
+     .vcard minis. The metallic colour FILL is a pure-CSS gradient clipped to the
+     text (see the script), not an SVG paint-server.
+     =========================================================================== -->
+<svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+  <defs>
+    <!-- soft bevel / emboss: blur the alpha, light it, composite back -->
+    <filter id="chromeBevel" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1.6" result="blur"/>
+      <feSpecularLighting in="blur" surfaceScale="2.8" specularConstant="0.7"
+                          specularExponent="30" lighting-color="#ffffff" result="spec">
+        <feDistantLight azimuth="235" elevation="60"/>
+      </feSpecularLighting>
+      <feComposite in="spec" in2="SourceAlpha" operator="in" result="specClip"/>
+      <!-- add a rim of spec to the gradient fill for the beveled edge sheen -->
+      <feComposite in="SourceGraphic" in2="specClip" operator="arithmetic"
+                   k1="0" k2="1" k3="0.62" k4="0" result="lit"/>
+      <!-- subtle inner dark line at base for the pressed letterpress feel -->
+      <feDropShadow in="lit" dx="0" dy="1.5" stdDeviation="0.5" flood-color="#05070b" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+</svg>
+
+<!-- ===========================================================================
+     FIRST VIEWPORT
+     =========================================================================== -->
+<main class="stage">
+
+  <header class="topband">
+    <div class="brand-tag"><span class="dot" aria-hidden="true"></span><span id="tagline">Mercury Foundry</span></div>
+    <nav class="nav" aria-label="Primary">
+      <a href="#variants">Variants</a>
+      <a href="#variants">Recipe</a>
+      <a href="#foot">Foundry</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <h1 class="wordmark" id="wordmark" data-word="MERCURY">MERCURY</h1>
+    <p class="kicker" id="kicker">Liquid chrome letterpress &nbsp;&middot;&nbsp; <b>one word, viewport-scale</b></p>
+  </section>
+
+  <footer class="botband">
+    <div class="swatches">
+      <span>Chrome bands</span>
+      <span class="chips" aria-hidden="true">
+        <span class="chip c1"></span><span class="chip c2"></span>
+        <span class="chip c3"></span><span class="chip c4"></span><span class="chip c5"></span>
+      </span>
+    </div>
+    <div class="scrollcue"><span class="line" aria-hidden="true"></span><span>Scroll for variants</span></div>
+  </footer>
+
+</main>
+
+<!-- ===========================================================================
+     SCROLL: VARIANTS (same recipe, swapped word + ground)
+     =========================================================================== -->
+<section class="variants" id="variants">
+  <h2>One recipe, infinite wordmarks</h2>
+  <p class="sub">The hero above is a single &lt;h1&gt; with a vertical metallic gradient clipped to text, a centre pearl streak, and an SVG bevel filter. Swap the word and the ground tint in the DATA array. No images required.</p>
+  <div class="vgrid" id="vgrid"><!-- injected --></div>
+</section>
+
+<footer class="foot" id="foot">
+  <p><b>Chrome Mercury Letterpress</b> &nbsp;&middot;&nbsp; pure CSS + inline SVG filter &nbsp;&middot;&nbsp; capture-safe &nbsp;&middot;&nbsp; edit the DATA array to reskin</p>
+</footer>
+
+<script>
+/* ===========================================================================
+   DATA  -- swap everything here. The whole template reskins from this object.
+   =========================================================================== */
+const DATA = {
+  /* the hero wordmark. ONE word. Keep it 5-8 chars for the 90vw fill. */
+  hero: {
+    word:    "MERCURY",
+    tagline: "Mercury Foundry",
+    kicker:  "Liquid chrome letterpress &nbsp;&middot;&nbsp; <b>one word, viewport-scale</b>"
+  },
+  /* variant cards prove the recipe reuses. fill = which SVG gradient to clip.
+     ground 'dark' or 'clean' just tints the card backdrop. */
+  variants: [
+    { word:"VESPER",  fill:"chromeFillCool", ground:"dark",  label:"cool chrome / dark ground" },
+    { word:"ATELIER", fill:"chromeFillWarm", ground:"dark",  label:"warm chrome / dark ground" },
+    { word:"ORBIT",   fill:"chromeFillCool", ground:"clean", label:"cool chrome / clean ground" },
+    { word:"FLUX",    fill:"chromeFillWarm", ground:"clean", label:"warm chrome / clean ground" },
+    { word:"NOVA",    fill:"chromeFillCool", ground:"dark",  label:"cool chrome / dark ground" },
+    { word:"HALO",    fill:"chromeFillWarm", ground:"dark",  label:"warm chrome / dark ground" }
+  ]
+};
+
+/* ---- apply hero ---- */
+(function applyHero(){
+  const w = document.getElementById("wordmark");
+  w.textContent = DATA.hero.word;
+  w.setAttribute("data-word", DATA.hero.word);
+  document.getElementById("tagline").textContent = DATA.hero.tagline;
+  document.getElementById("kicker").innerHTML = DATA.hero.kicker;
+  document.title = DATA.hero.word + " | Chrome Mercury Letterpress";
+})();
+
+/* ---- build variant cards ---- */
+(function buildVariants(){
+  const grid = document.getElementById("vgrid");
+  const cleanGround =
+    "radial-gradient(120% 100% at 50% 0%, rgba(255,255,255,.10), rgba(255,255,255,0) 60%)," +
+    "linear-gradient(180deg,#e9edf3,#c4ccd8)";
+  /* cool + warm metallic fills as pure CSS gradients clipped to the mini text.
+     (We do NOT reference SVG <linearGradient> via CSS url(#id): a CSS background
+     cannot resolve an SVG paint-server, so that would render no fill at all.) */
+  const fills = {
+    chromeFillCool:
+      "linear-gradient(180deg,#0c0f14 0%,#5a6473 16%,#aebfd4 34%,#ffffff 50%,#9fb0c6 66%,#46505f 84%,#0c0f14 100%)",
+    chromeFillWarm:
+      "linear-gradient(180deg,#15100c 0%,#6b5d4d 16%,#d7c3aa 34%,#fff6ea 50%,#c9b393 66%,#5a4a36 84%,#120d08 100%)"
+  };
+  DATA.variants.forEach(v=>{
+    const card = document.createElement("div");
+    card.className = "vcard";
+    if(v.ground === "clean"){ card.style.background = cleanGround; }
+    const mini = document.createElement("span");
+    mini.className = "mini";
+    mini.textContent = v.word;
+    /* pick the cool or warm chrome fill named in the DATA array */
+    mini.style.backgroundImage = fills[v.fill] || fills.chromeFillCool;
+    mini.style.webkitBackgroundClip = "text";
+    mini.style.backgroundClip = "text";
+    mini.style.webkitTextFillColor = "transparent";
+    const lbl = document.createElement("span");
+    lbl.className = "vlabel";
+    lbl.textContent = v.label;
+    const gd = document.createElement("span");
+    gd.className = "ground-dot";
+    gd.textContent = v.ground;
+    if(v.ground === "clean"){ lbl.style.color = "#3a4150"; gd.style.color = "#3a4150"; }
+    card.append(mini, lbl, gd);
+    grid.appendChild(card);
+  });
+})();
+
+/* ---- lightweight specular nudge tied to pointer (skipped if reduced motion).
+        Keeps the hero feeling "wet" without rAF churn: throttled pointermove. */
+(function pointerSheen(){
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
+  if(reduce.matches) return;
+  const w = document.getElementById("wordmark");
+  let raf = 0;
+  window.addEventListener("pointermove", (e)=>{
+    if(raf) return;
+    raf = requestAnimationFrame(()=>{
+      raf = 0;
+      const t = e.clientY / window.innerHeight; // 0..1
+      const pos = 42 + t * 16;                  // 42%..58%, pearl stays on strokes
+      w.style.setProperty("--spec", pos.toFixed(1) + "%");
+    });
+  }, { passive:true });
+  /* if user flips reduced-motion on mid-session, stop overriding */
+  reduce.addEventListener("change", (ev)=>{
+    if(ev.matches){ w.style.removeProperty("--spec"); w.style.animation = "none"; }
+  });
+})();
+</script>
+</body>
+</html>

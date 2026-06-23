@@ -1,0 +1,887 @@
+<!-- TEMPLATE: Ink Cartography | ARCHETYPE: flow-field-still-portrait | REF: flow-field / Perlin-noise ink-trail generative art, algorithmic portraits | WHEN TO USE: art-led hero / studio / launch where a one-of-one generative portrait must read at scroll=0 | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ink Cartography - Flow-Field Portrait</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     DATA-DRIVEN, CAPTURE-STABLE FLOW-FIELD PORTRAIT
+     Near-black ground + ultra-fine golden/bone ink trails that
+     follow a Perlin-noise vector field and RESOLVE into a face.
+     Rendered ONCE synchronously (no animation loop) for a stable
+     screenshot. Re-renders only on resize (mobile narrower box).
+     ============================================================ */
+
+  :root {
+    --ink: #e8c87a;          /* golden ink */
+    --ink-bone: #f4ead3;     /* bone highlight */
+    --accent: #ff5a3c;       /* single warm accent */
+    --ground: #07060a;       /* near-black */
+    --ground-2: #0c0a12;
+    --text-dim: #8a8474;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body { background: var(--ground); color: var(--ink-bone); }
+
+  body {
+    font-family: "Space Grotesk", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+
+  /* ---- STAGE: the frozen flow-field portrait ---- */
+  .stage {
+    position: relative;
+    width: 100%;
+    min-height: 100vh;
+    /* keep the field edge-to-edge; deepen the corners */
+    background:
+      radial-gradient(120% 90% at 70% 18%, #14101c 0%, var(--ground) 55%, #040308 100%);
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  #field {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    z-index: 1;
+  }
+
+  /* vignette + film grain over the canvas to make the ink sit in the dark */
+  .stage::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    background:
+      radial-gradient(130% 110% at 50% 42%, transparent 38%, rgba(4,3,8,0.55) 88%, rgba(2,1,5,0.92) 100%);
+    mix-blend-mode: multiply;
+  }
+
+  /* ---- OVERLAY: compact top band + wordmark, sits above the field ---- */
+  .overlay {
+    position: relative;
+    z-index: 3;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    padding: clamp(20px, 3.2vw, 46px);
+  }
+
+  .topbar {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 18px;
+    pointer-events: auto;
+  }
+
+  .brand {
+    font-family: "Fraunces", serif;
+    font-weight: 600;
+    font-size: clamp(15px, 1.5vw, 19px);
+    letter-spacing: 0.02em;
+    color: var(--ink-bone);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .brand .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 14px 2px rgba(255,90,60,0.6);
+    flex: none;
+  }
+
+  .nav {
+    display: flex;
+    gap: clamp(14px, 1.8vw, 30px);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+  .nav a { color: inherit; text-decoration: none; transition: color .2s; }
+  .nav a:hover, .nav a:focus-visible { color: var(--ink); }
+  .nav a:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; border-radius: 2px; }
+
+  /* headline overlays the field, kept compact and pushed to lower-left
+     so the portrait centre/right stays legible */
+  .hero-copy {
+    margin-top: auto;
+    max-width: 760px;
+    pointer-events: auto;
+  }
+
+  .eyebrow {
+    font-size: 11.5px;
+    letter-spacing: 0.34em;
+    text-transform: uppercase;
+    color: var(--ink);
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .eyebrow::before {
+    content: "";
+    width: clamp(28px, 4vw, 56px);
+    height: 1px;
+    background: linear-gradient(90deg, var(--ink), transparent);
+  }
+
+  .hero-copy h1 {
+    font-family: "Fraunces", serif;
+    font-weight: 300;
+    font-size: clamp(38px, 7.4vw, 104px);
+    line-height: 0.96;
+    letter-spacing: -0.018em;
+    color: var(--ink-bone);
+    text-shadow: 0 2px 40px rgba(0,0,0,0.6);
+  }
+  .hero-copy h1 em {
+    font-style: italic;
+    font-weight: 500;
+    color: var(--ink);
+  }
+  .hero-copy h1 .accent { color: var(--accent); font-style: italic; font-weight: 500; }
+
+  .hero-copy p.lede {
+    margin-top: 22px;
+    max-width: 46ch;
+    font-size: clamp(14px, 1.25vw, 17px);
+    line-height: 1.62;
+    color: #c6bda6;
+  }
+
+  .cta-row {
+    margin-top: 30px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    align-items: center;
+  }
+  .btn {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 13px 26px;
+    border-radius: 999px;
+    text-decoration: none;
+    transition: transform .2s ease, background .2s ease, color .2s ease;
+    pointer-events: auto;
+  }
+  .btn-primary {
+    background: var(--ink);
+    color: #1a1206;
+    font-weight: 600;
+    box-shadow: 0 0 30px -6px rgba(232,200,122,0.5);
+  }
+  .btn-primary:hover { transform: translateY(-2px); background: var(--ink-bone); }
+  .btn-ghost {
+    color: var(--ink-bone);
+    border: 1px solid rgba(232,200,122,0.34);
+  }
+  .btn-ghost:hover { transform: translateY(-2px); border-color: var(--ink); color: var(--ink); }
+  .btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
+
+  /* meta strip pinned to bottom-right of the hero */
+  .meta {
+    position: absolute;
+    right: clamp(20px, 3.2vw, 46px);
+    bottom: clamp(20px, 3.2vw, 46px);
+    z-index: 3;
+    text-align: right;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    line-height: 1.9;
+    pointer-events: none;
+  }
+  .meta b { color: var(--ink); font-weight: 600; }
+
+  /* loading shimmer fallback removed after paint */
+  .render-note {
+    position: absolute;
+    left: clamp(20px, 3.2vw, 46px);
+    bottom: clamp(20px, 3.2vw, 46px);
+    z-index: 3;
+    font-size: 10.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(138,132,116,0.7);
+    pointer-events: none;
+  }
+  .render-note .live { color: var(--ink); }
+
+  /* ---- SECOND SECTION: the method / specimen strip (real text) ---- */
+  .specimen {
+    position: relative;
+    z-index: 1;
+    background: linear-gradient(180deg, var(--ground) 0%, var(--ground-2) 100%);
+    border-top: 1px solid rgba(232,200,122,0.12);
+    padding: clamp(56px, 8vw, 110px) clamp(20px, 3.2vw, 46px);
+  }
+  .specimen-grid {
+    max-width: 1180px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(22px, 3vw, 48px);
+  }
+  .spec-head {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 14px;
+  }
+  .spec-head h2 {
+    font-family: "Fraunces", serif;
+    font-weight: 300;
+    font-size: clamp(26px, 3.6vw, 46px);
+    letter-spacing: -0.01em;
+    color: var(--ink-bone);
+    max-width: 18ch;
+  }
+  .spec-head h2 em { font-style: italic; color: var(--ink); }
+  .spec-head .kicker {
+    font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--ink);
+  }
+  .card {
+    border: 1px solid rgba(232,200,122,0.14);
+    border-radius: 14px;
+    padding: 26px 24px;
+    background: rgba(255,255,255,0.012);
+    transition: border-color .25s, transform .25s;
+  }
+  .card:hover { border-color: rgba(232,200,122,0.34); transform: translateY(-3px); }
+  .card .idx {
+    font-family: "Fraunces", serif;
+    font-style: italic;
+    font-size: 30px;
+    color: var(--ink);
+    opacity: 0.85;
+  }
+  .card h3 {
+    margin: 12px 0 8px;
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    letter-spacing: 0.01em;
+    color: var(--ink-bone);
+  }
+  .card p {
+    font-size: 13.5px;
+    line-height: 1.62;
+    color: #aaa392;
+  }
+
+  /* ---- MOBILE: keep the field dense, stack the copy ---- */
+  @media (max-width: 880px) {
+    .specimen-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 640px) {
+    .overlay { padding: 16px; }
+    .nav { display: none; }
+    .hero-copy h1 { font-size: clamp(34px, 12vw, 56px); }
+    .meta { position: static; text-align: left; margin-top: 18px; pointer-events: auto; }
+    .render-note { position: static; margin-top: 10px; }
+    .hero-copy { padding-bottom: 8px; }
+    .specimen-grid { grid-template-columns: 1fr; }
+    .spec-head { flex-direction: column; align-items: flex-start; }
+    /* scrim under the lower copy so the headline stays legible over the
+       dense ink that sits in the top band above it */
+    .stage::before {
+      content: "";
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      height: 64%;
+      z-index: 2;
+      pointer-events: none;
+      background: linear-gradient(180deg, transparent 0%, rgba(7,6,10,0.55) 38%, rgba(5,4,8,0.92) 72%);
+    }
+  }
+
+  /* The field is already static. prefers-reduced-motion only calms the
+     hover micro-motions; nothing to disable in the render itself. */
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+    .btn:hover, .card:hover, .btn-primary:hover, .btn-ghost:hover { transform: none; }
+  }
+</style>
+</head>
+<body>
+<script>
+  /* ============================================================
+     DATA  -  edit here to reuse this template
+     - SUBJECT.asset: relative path to an image whose LUMINANCE
+       seeds the portrait. Leave null to use the pure parametric
+       face. Any asset works; a frontal face reads best.
+     - The parametric face ALWAYS guarantees a legible portrait,
+       so the render never depends on the asset loading.
+     ============================================================ */
+  const DATA = {
+    brand: "ATELIER NOIR",
+    nav: ["Work", "Process", "Studio", "Contact"],
+    eyebrow: "Generative Portrait No. 014",
+    headline: ['A face drawn by', { em: "ten thousand" }, 'lines of', { accent: "golden ink" }, '.'],
+    lede: "One frozen flow-field. Every stroke follows a Perlin vector field, weighted by light, until a portrait surfaces from the dark. Rendered once, in the browser, at full resolution.",
+    ctas: [
+      { label: "View the series", href: "#work", kind: "primary" },
+      { label: "How it is made", href: "#process", kind: "ghost" }
+    ],
+    meta: [
+      ["Medium", "Canvas2D ink"],
+      ["Field", "Perlin flow"],
+      ["Edition", "1 of 1"]
+    ],
+    // luminance source. set to null for the parametric-only face.
+    subject: { asset: "../assets/sdxl.png", label: "Specimen 014" },
+    specimen: {
+      kicker: "The Method",
+      title: ["Three forces decide where the ", { em: "ink" }, " falls."],
+      cards: [
+        { idx: "i", title: "A luminance map", body: "A real image is sampled to grayscale. Dark regions pull more ink; light regions are left as bone-coloured negative space. The face lives in that contrast." },
+        { idx: "ii", title: "A Perlin flow field", body: "A smooth noise field assigns every point a direction. Trails advect along it, so the ink reads as wind-blown contour rather than a flat halftone." },
+        { idx: "iii", title: "A single pass", body: "The whole field paints synchronously on load, no animation loop. The result is deterministic and capture-stable: the same portrait every time you open it." }
+      ]
+    }
+  };
+</script>
+
+<main>
+  <section class="stage" id="hero">
+    <canvas id="field" aria-hidden="true"></canvas>
+
+    <div class="overlay">
+      <header class="topbar">
+        <div class="brand"><span class="dot"></span><span id="brand"></span></div>
+        <nav class="nav" id="nav" aria-label="Primary"></nav>
+      </header>
+
+      <div class="hero-copy">
+        <div class="eyebrow" id="eyebrow"></div>
+        <h1 id="headline"></h1>
+        <p class="lede" id="lede"></p>
+        <div class="cta-row" id="ctas"></div>
+      </div>
+    </div>
+
+    <div class="meta" id="meta"></div>
+    <div class="render-note">Painted in <span class="live" id="renderTime">0</span> ms - <span id="strokeCount">0</span> strokes - <span id="subjectLabel"></span></div>
+  </section>
+
+  <section class="specimen" id="process">
+    <div class="specimen-grid" id="specimenGrid"></div>
+  </section>
+</main>
+
+<script>
+/* ================================================================
+   1. POPULATE TEXT FROM DATA (real, selectable text)
+   ================================================================ */
+(function fillText() {
+  document.getElementById("brand").textContent = DATA.brand;
+  document.title = DATA.brand + " - Flow-Field Portrait";
+
+  const nav = document.getElementById("nav");
+  DATA.nav.forEach(n => {
+    const a = document.createElement("a");
+    a.href = "#"; a.textContent = n; nav.appendChild(a);
+  });
+
+  document.getElementById("eyebrow").textContent = DATA.eyebrow;
+
+  const h1 = document.getElementById("headline");
+  DATA.headline.forEach((part, i) => {
+    if (typeof part === "string") {
+      h1.appendChild(document.createTextNode((i ? " " : "") + part));
+    } else if (part.em) {
+      const e = document.createElement("em"); e.textContent = " " + part.em; h1.appendChild(e);
+    } else if (part.accent) {
+      const s = document.createElement("span"); s.className = "accent"; s.textContent = " " + part.accent; h1.appendChild(s);
+    }
+  });
+
+  document.getElementById("lede").textContent = DATA.lede;
+
+  const ctas = document.getElementById("ctas");
+  DATA.ctas.forEach(c => {
+    const a = document.createElement("a");
+    a.className = "btn " + (c.kind === "primary" ? "btn-primary" : "btn-ghost");
+    a.href = c.href; a.textContent = c.label; ctas.appendChild(a);
+  });
+
+  const meta = document.getElementById("meta");
+  DATA.meta.forEach(([k, v]) => {
+    const d = document.createElement("div");
+    d.innerHTML = k + " &nbsp;<b>" + v + "</b>";
+    meta.appendChild(d);
+  });
+
+  document.getElementById("subjectLabel").textContent = DATA.subject ? DATA.subject.label : "parametric face";
+
+  // specimen section
+  const grid = document.getElementById("specimenGrid");
+  const head = document.createElement("div");
+  head.className = "spec-head";
+  const h2 = document.createElement("h2");
+  DATA.specimen.title.forEach(p => {
+    if (typeof p === "string") h2.appendChild(document.createTextNode(p));
+    else if (p.em) { const e = document.createElement("em"); e.textContent = p.em; h2.appendChild(e); }
+  });
+  const kick = document.createElement("div");
+  kick.className = "kicker"; kick.textContent = DATA.specimen.kicker;
+  head.appendChild(h2); head.appendChild(kick);
+  grid.appendChild(head);
+
+  DATA.specimen.cards.forEach(c => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML =
+      '<div class="idx">' + c.idx + '</div>' +
+      '<h3>' + c.title + '</h3>' +
+      '<p>' + c.body + '</p>';
+    grid.appendChild(card);
+  });
+})();
+</script>
+
+<script>
+/* ================================================================
+   2. THE FLOW-FIELD PORTRAIT ENGINE
+   ------------------------------------------------------------
+   - Builds a LUMINANCE MAP (parametric face, optionally blended
+     with a sampled real asset) on an offscreen grid.
+   - Seeds trails weighted by darkness, advects each along a
+     value-noise vector field, modulates stroke by local light.
+   - Renders ONCE, synchronously, per layout size. No rAF loop.
+   ================================================================ */
+(function flowField() {
+  "use strict";
+
+  const canvas = document.getElementById("field");
+  const ctx = canvas.getContext("2d", { alpha: true });
+
+  // -------- deterministic PRNG (so the portrait is reproducible) --------
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // -------- value-noise (smooth, no external libs) --------
+  function makeNoise(seed) {
+    const rnd = mulberry32(seed);
+    const perm = new Uint8Array(512);
+    const p = new Uint8Array(256);
+    for (let i = 0; i < 256; i++) p[i] = i;
+    for (let i = 255; i > 0; i--) {
+      const j = (rnd() * (i + 1)) | 0;
+      const t = p[i]; p[i] = p[j]; p[j] = t;
+    }
+    for (let i = 0; i < 512; i++) perm[i] = p[i & 255];
+    const grad = new Float32Array(512);
+    for (let i = 0; i < 512; i++) grad[i] = rnd() * 2 - 1;
+    const fade = t => t * t * t * (t * (t * 6 - 15) + 10);
+    const lerp = (a, b, t) => a + (b - a) * t;
+    // 2D value noise -> returns approx [-1,1]
+    return function (x, y) {
+      const xi = Math.floor(x) & 255, yi = Math.floor(y) & 255;
+      const xf = x - Math.floor(x), yf = y - Math.floor(y);
+      const u = fade(xf), v = fade(yf);
+      const aa = grad[perm[perm[xi] + yi]];
+      const ab = grad[perm[perm[xi] + yi + 1]];
+      const ba = grad[perm[perm[xi + 1] + yi]];
+      const bb = grad[perm[perm[xi + 1] + yi + 1]];
+      const x1 = lerp(aa, ba, u);
+      const x2 = lerp(ab, bb, u);
+      return lerp(x1, x2, v);
+    };
+  }
+
+  // ============================================================
+  //  LUMINANCE MAP: parametric face on an offscreen grid.
+  //  Returns darkness in [0,1]; higher = more ink.
+  //  Built at a fixed sampling grid, mapped to the canvas box.
+  // ============================================================
+  const GRID = 220;                 // luminance sampling resolution
+  const lum = new Float32Array(GRID * GRID);
+
+  function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+  function smooth(e0, e1, x) {
+    const t = clamp01((x - e0) / (e1 - e0));
+    return t * t * (3 - 2 * t);
+  }
+  // soft elliptical "blob": 1 at centre, falls to 0 at the edge
+  function blob(nx, ny, cx, cy, rx, ry, soft) {
+    const dx = (nx - cx) / rx, dy = (ny - cy) / ry;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    return 1 - smooth(1 - soft, 1, d);
+  }
+
+  /* A near-front-facing portrait built from soft analytic forms.
+     IMPORTANT polarity: this returns INK = how much bone-gold ink falls
+     here, in [0,1]. The canvas composites ADDITIVELY on near-black, so
+     ink 1 => bright bone, ink 0 => black. The LIT planes of the face
+     (forehead, cheek, nose bridge, chin) get the most ink (bright); the
+     hair, eye sockets, shadowed side and the surrounding ground get
+     little or none (dark). That is what reads as a chiaroscuro face.
+     Coordinates are normalized 0..1; the head sits a touch right-of-centre
+     so the headline breathes on the left. */
+  function parametricFace(nx, ny) {
+    const cx = 0.55, cy = 0.46;          // face centre
+    // local face coordinates (u right, v down), normalized so the face oval
+    // is roughly |u|<1, |v|<1.
+    const u = (nx - cx) / 0.20;
+    const v = (ny - cy) / 0.275;
+    const rr = u * u + v * v;            // squared radius in face space
+
+    // ---- silhouette masks ----
+    const head = blob(nx, ny, cx, cy, 0.225, 0.30, 0.62);
+    const neck = blob(nx, ny, cx, cy + 0.37, 0.12, 0.13, 0.85);
+    const shoulders = blob(nx, ny, cx, cy + 0.56, 0.42, 0.18, 0.9);
+    const silhouette = Math.max(head, neck, shoulders * 0.92);
+
+    // soft face-oval membership (1 in the face, fades at the rim)
+    const inFace = 1 - smooth(0.78, 1.06, Math.sqrt(rr));
+
+    // ---- BASE SHADING: a lit sphere-like face. Bright front, falling to
+    // the rim. Key light upper-left, so brightness drops to the right/down. ----
+    // sphere term: bright centre, darker rim
+    let shade = 1 - rr * 0.55;
+    // directional light from upper-left
+    shade += (-u * 0.22) + (-v * 0.16);
+    shade = clamp01(shade);
+    // gamma to push the lit plane bright and the rim into shadow
+    let ink = Math.pow(shade, 1.35) * inFace;
+
+    // ---- FEATURE DIPS: subtract shallow, smooth shadows. Each is a gentle
+    // local darkening, NOT a hole, so the face stays a continuous mass. ----
+    // eye line: two sockets, set symmetric just above centre
+    const eyeY = cy - 0.045, eyeDX = 0.092;
+    ink -= blob(nx, ny, cx - eyeDX, eyeY, 0.062, 0.042, 0.7) * 0.5;
+    ink -= blob(nx, ny, cx + eyeDX, eyeY, 0.062, 0.042, 0.7) * 0.5;
+    // upper-lid / brow shadow
+    ink -= blob(nx, ny, cx - eyeDX, eyeY - 0.04, 0.07, 0.02, 0.6) * 0.22;
+    ink -= blob(nx, ny, cx + eyeDX, eyeY - 0.04, 0.07, 0.02, 0.6) * 0.22;
+    // nose: a soft shadow down the RIGHT of the bridge + under the tip
+    ink -= blob(nx, ny, cx + 0.045, cy + 0.05, 0.03, 0.1, 0.7) * 0.26;
+    ink -= blob(nx, ny, cx + 0.0, cy + 0.115, 0.055, 0.026, 0.6) * 0.3;  // base
+    // mouth: a thin seam shadow with lit lips around it
+    ink -= blob(nx, ny, cx + 0.0, cy + 0.175, 0.085, 0.014, 0.5) * 0.34;
+    // a touch of cheek-hollow under each cheekbone
+    ink -= blob(nx, ny, cx - 0.15, cy + 0.12, 0.06, 0.1, 0.8) * 0.16;
+    ink -= blob(nx, ny, cx + 0.155, cy + 0.13, 0.055, 0.09, 0.8) * 0.14;
+    // jaw/chin underside falls to shadow
+    ink -= blob(nx, ny, cx, cy + 0.275, 0.16, 0.06, 0.85) * 0.3;
+
+    ink = clamp01(ink);
+
+    // ---- ACCENTS that ADD ink ----
+    // nose-bridge + tip highlight ridge (specular catch)
+    ink += blob(nx, ny, cx + 0.005, cy + 0.0, 0.022, 0.12, 0.5) * 0.16 * inFace;
+    ink += blob(nx, ny, cx + 0.012, cy + 0.085, 0.028, 0.026, 0.4) * 0.22 * inFace;
+    // lit lower lip + chin
+    ink += blob(nx, ny, cx + 0.0, cy + 0.205, 0.07, 0.04, 0.5) * 0.2 * inFace;
+    // tiny eye catchlights
+    ink += blob(nx, ny, cx - eyeDX + 0.008, eyeY - 0.006, 0.012, 0.012, 0.3) * 0.4 * inFace;
+    ink += blob(nx, ny, cx + eyeDX + 0.012, eyeY - 0.006, 0.012, 0.012, 0.3) * 0.36 * inFace;
+
+    ink = clamp01(ink);
+
+    // ---- HAIR + low mass: a dim deep-amber ink framing the bright face ----
+    let hair = Math.max(
+      blob(nx, ny, cx, cy - 0.25, 0.25, 0.2, 0.75),         // crown
+      blob(nx, ny, cx - 0.205, cy - 0.04, 0.11, 0.27, 0.7),  // left fall
+      blob(nx, ny, cx + 0.205, cy - 0.04, 0.11, 0.27, 0.7)   // right fall
+    );
+    hair *= 1 - inFace * 0.96;                 // hair never covers the face
+    ink = Math.max(ink, hair * 0.17);          // dim mass, frames the face
+
+    const lowMass = Math.max(neck, shoulders * 0.8) * (1 - inFace);
+    ink = Math.max(ink, lowMass * 0.1);
+
+    // faint ground flow hugging the silhouette so the field exists but stays
+    // far dimmer than the face.
+    const nearEdge = smooth(0.30, 0.04, silhouette) * smooth(-0.02, 0.1, silhouette);
+    if (inFace < 0.05) ink = Math.max(ink, nearEdge * 0.05);
+
+    return clamp01(ink);
+  }
+
+  // optional: blend a real asset's luminance into the map.
+  // Resolves a promise; we render the parametric face immediately
+  // and re-render once if/when the asset arrives (still no loop).
+  function loadAssetLuminance(src) {
+    return new Promise(resolve => {
+      if (!src) return resolve(null);
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = function () {
+        try {
+          const off = document.createElement("canvas");
+          off.width = GRID; off.height = GRID;
+          const octx = off.getContext("2d", { willReadFrequently: true });
+          // contain-fit the asset into the square grid, centred
+          const ar = img.width / img.height;
+          let dw = GRID, dh = GRID, dx = 0, dy = 0;
+          if (ar > 1) { dh = GRID / ar; dy = (GRID - dh) / 2; }
+          else { dw = GRID * ar; dx = (GRID - dw) / 2; }
+          octx.fillStyle = "#7d7d7d";
+          octx.fillRect(0, 0, GRID, GRID);
+          octx.drawImage(img, dx, dy, dw, dh);
+          const data = octx.getImageData(0, 0, GRID, GRID).data;
+          const out = new Float32Array(GRID * GRID);
+          for (let i = 0; i < GRID * GRID; i++) {
+            const r = data[i * 4], g = data[i * 4 + 1], b = data[i * 4 + 2];
+            // store LUMINANCE in [0,1] (the render blends it as light)
+            out[i] = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+          }
+          resolve(out);
+        } catch (e) {
+          resolve(null); // CORS / tainted canvas: stay parametric
+        }
+      };
+      img.onerror = () => resolve(null);
+      img.src = src;
+    });
+  }
+
+  // build the luminance grid (parametric, blended with asset if present)
+  function buildLuminance(assetLum) {
+    for (let gy = 0; gy < GRID; gy++) {
+      for (let gx = 0; gx < GRID; gx++) {
+        const nx = gx / (GRID - 1);
+        const ny = gy / (GRID - 1);
+        let d = parametricFace(nx, ny);   // d = INK amount in [0,1]
+        if (assetLum) {
+          const a = assetLum[gy * GRID + gx]; // asset luminance in [0,1]
+          // the parametric face OWNS the legibility; the real asset only
+          // adds a faint organic grain, scaled by the existing ink so it
+          // never paints the empty ground. (a non-face asset must never
+          // override the portrait structure.)
+          d = clamp01(d + (a - 0.5) * 0.14 * d);
+        }
+        lum[gy * GRID + gx] = d;
+      }
+    }
+  }
+
+  function sampleLum(nx, ny) {
+    // bilinear sample of the darkness grid
+    const fx = clamp01(nx) * (GRID - 1);
+    const fy = clamp01(ny) * (GRID - 1);
+    const x0 = Math.floor(fx), y0 = Math.floor(fy);
+    const x1 = Math.min(x0 + 1, GRID - 1), y1 = Math.min(y0 + 1, GRID - 1);
+    const tx = fx - x0, ty = fy - y0;
+    const a = lum[y0 * GRID + x0], b = lum[y0 * GRID + x1];
+    const c = lum[y1 * GRID + x0], d = lum[y1 * GRID + x1];
+    return (a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty;
+  }
+
+  // ============================================================
+  //  RENDER  -  paint the whole frozen field in one synchronous pass
+  // ============================================================
+  const noise = makeNoise(2024);
+
+  function render() {
+    const rect = canvas.getBoundingClientRect();
+    const W = Math.max(1, Math.floor(rect.width));
+    const H = Math.max(1, Math.floor(rect.height));
+    const dpr = Math.min(window.devicePixelRatio || 1, 2); // cap DPR at 2
+
+    canvas.width = Math.floor(W * dpr);
+    canvas.height = Math.floor(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const t0 = performance.now();
+
+    // near-black ground
+    ctx.clearRect(0, 0, W, H);
+
+    // The portrait box: a centred portrait-aspect region so the face keeps
+    // its proportions on any viewport (no cover-cropping). The flow-field
+    // fills the whole canvas around it.
+    const portrait = Math.min(W * 0.98, H * 1.02);   // reference square
+    // mobile: a smaller face parked in the TOP band so the headline below it
+    // does not overlap the features. desktop: a large face nudged right.
+    const box = portrait * (W < 680 ? 1.06 : 1.12);
+    const boxX = W * 0.5 - box * 0.5 + (W < 680 ? 0 : W * 0.08);
+    const boxY = W < 680
+      ? H * 0.285 - box * 0.5     // face centred ~28% height (clears the copy)
+      : H * 0.54 - box * 0.5;     // a touch below centre so the crown clears the nav
+
+    // map a canvas pixel -> normalized portrait coords (0..1)
+    function toNorm(px, py) {
+      return [(px - boxX) / box, (py - boxY) / box];
+    }
+
+    // --- DENSITY: a fine jittered seed grid. The face emerges from the
+    // ACCUMULATION of thousands of fine trails, not from fat strokes, so
+    // we seed densely and keep each stroke thin + semi-transparent.
+    const cell = W < 680 ? 2.2 : 2.6;            // seed grid spacing (px)
+    const cols = Math.ceil(W / cell);
+    const rows = Math.ceil(H / cell);
+
+    // noise field geometry. SHORT trails that ride a smooth global flow.
+    // Legibility comes from DENSITY + BRIGHTNESS modulation by the portrait,
+    // not from long contour-tracing trails (those smear the features). Each
+    // trail re-samples the ink as it drifts, so it fades into the shadows.
+    const fScale = 0.85 / Math.max(360, Math.min(W, H)); // viewport-stable
+    const swirl = 1.0;                           // gentle curl
+    const stepLen = W < 680 ? 1.6 : 1.9;         // px per integration step
+    const maxSteps = 16;                         // SHORT trails (local ink dashes)
+    const eps = 0.010;
+
+    const seedRnd = mulberry32(99173);
+    let strokes = 0;
+
+    // draw additively so overlapping ink builds toward bone in dense areas
+    ctx.globalCompositeOperation = "lighter";
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    // colour ramp keyed to LIGHTNESS (= 1 - darkness). Because the canvas
+    // composites ADDITIVELY on near-black, more/brighter ink => a brighter
+    // pixel, so the LIT planes (cheek, forehead, nose bridge) must collect
+    // the most bone-coloured ink and the shadows the least. That polarity is
+    // what makes the portrait read as a painted face rather than a wire glow.
+    function inkColor(light, edge, a) {
+      if (edge > 0.6 && light > 0.45 && light < 0.8) {
+        // a crisp lit rim -> single warm accent ember (used sparingly)
+        return "rgba(255,120,72," + (a * 0.85).toFixed(3) + ")";
+      }
+      if (light > 0.66) {
+        // brightest lit planes -> bone
+        return "rgba(246,236,214," + a.toFixed(3) + ")";
+      }
+      if (light > 0.42) {
+        // mid tones -> golden ink
+        return "rgba(228,192,112," + a.toFixed(3) + ")";
+      }
+      // shadow -> deep amber, the sparsest + dimmest ink
+      return "rgba(176,124,62," + a.toFixed(3) + ")";
+    }
+
+    // iterate a jittered grid of seeds; ink density + brightness follow LIGHT
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        let px = c * cell + (seedRnd() - 0.5) * cell * 1.7;
+        let py = r * cell + (seedRnd() - 0.5) * cell * 1.7;
+        if (px < -2 || px > W + 2 || py < -2 || py > H + 2) continue;
+
+        const [n0x, n0y] = toNorm(px, py);
+        const light = sampleLum(n0x, n0y);   // lum now holds INK (lightness)
+
+        // seed probability follows the ink directly: dense on the lit planes
+        // (the face), almost none on the dark ground. NO floor, so the
+        // surrounding ground stays near-black and the figure pops.
+        const p = Math.pow(light, 1.15) * 1.06;
+        if (seedRnd() > p) continue;
+
+        // local edge magnitude (gradient of ink) -> rim accent on bright edges
+        const gx = sampleLum(n0x + eps, n0y) - sampleLum(n0x - eps, n0y);
+        const gy = sampleLum(n0x, n0y + eps) - sampleLum(n0x, n0y - eps);
+        const edge = Math.min(1, Math.sqrt(gx * gx + gy * gy) * 9);
+
+        const steps = 6 + Math.floor(light * maxSteps);
+        const lineW = (0.5 + light * 0.5) * (W < 680 ? 0.92 : 1);
+        ctx.lineWidth = lineW;
+
+        // Draw the trail as short segments, RE-SAMPLING the portrait ink at
+        // each step so the stroke fades as it drifts into shadow. Each segment
+        // gets its own colour+alpha from the local light, so a single trail
+        // can run from bright cheek into dim jaw and read as a soft gradient.
+        let x = px, y = py, prevX = px, prevY = py;
+        let localLight = light;
+        for (let s = 0; s < steps; s++) {
+          // smooth global flow field: two octaves of value noise -> angle
+          const nv = noise(x * fScale * 5.0, y * fScale * 5.0);
+          const nv2 = noise(x * fScale * 1.6 + 40, y * fScale * 1.6 - 40);
+          const ang = (nv * swirl + nv2 * 0.7) * Math.PI * 2;
+
+          prevX = x; prevY = y;
+          x += Math.cos(ang) * stepLen;
+          y += Math.sin(ang) * stepLen;
+          if (x < -6 || x > W + 6 || y < -6 || y > H + 6) break;
+
+          const [tx, tyy] = toNorm(x, y);
+          localLight = sampleLum(tx, tyy);
+          if (localLight < 0.015) break;      // ran off the figure -> stop
+
+          // edge at this point (for the rare accent ember)
+          const lgx = sampleLum(tx + eps, tyy) - sampleLum(tx - eps, tyy);
+          const lgy = sampleLum(tx, tyy + eps) - sampleLum(tx, tyy - eps);
+          const ledge = Math.min(1, Math.sqrt(lgx * lgx + lgy * lgy) * 9);
+
+          // alpha is capped so the brightest planes still read as TRAILS,
+          // never a blown-out white blob (the "ten thousand lines" must show)
+          const a = 0.045 + localLight * localLight * 0.105;
+          ctx.strokeStyle = inkColor(localLight, ledge, a);
+          ctx.beginPath();
+          ctx.moveTo(prevX, prevY);
+          ctx.lineTo(x, y);
+          ctx.stroke();
+        }
+        strokes++;
+      }
+    }
+
+    ctx.globalCompositeOperation = "source-over";
+
+    const t1 = performance.now();
+    document.getElementById("renderTime").textContent = Math.round(t1 - t0);
+    document.getElementById("strokeCount").textContent = strokes.toLocaleString();
+  }
+
+  // ----- orchestrate: build map, render once, re-render on resize -----
+  let assetLum = null;
+
+  function buildAndRender() {
+    buildLuminance(assetLum);
+    render();
+  }
+
+  // initial synchronous render with the parametric face (capture-stable):
+  buildAndRender();
+
+  // then try to fold in the real asset's luminance and re-render ONCE.
+  if (DATA.subject && DATA.subject.asset) {
+    loadAssetLuminance(DATA.subject.asset).then(a => {
+      if (a) { assetLum = a; buildAndRender(); }
+    });
+  }
+
+  // re-render on resize (debounced) so mobile re-paints into the narrow box.
+  let rT;
+  window.addEventListener("resize", () => {
+    clearTimeout(rT);
+    rT = setTimeout(buildAndRender, 160);
+  });
+})();
+</script>
+</body>
+</html>

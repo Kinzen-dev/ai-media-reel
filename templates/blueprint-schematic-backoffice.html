@@ -1,0 +1,879 @@
+<!-- TEMPLATE: Blueprint Schematic Backoffice | ARCHETYPE: blueprint-schematic-backoffice | REF: engineering blueprint / schematic drawing, cyan lines on navy, title-block + dimension lines | WHEN TO USE: clinic-AI owner overview rendered as a technical drafting-table schematic (KPIs as leader-line readouts, technical trend chart, channel split, handoff list) | SWAP: edit the DATA object at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Yimwhan Clinic Operations - Schematic Overview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     DATA-DRIVEN SCHEMATIC. To repurpose: edit window.DATA below.
+     ============================================================ */
+  :root{
+    --navy:#0d2a4a;        /* blueprint ground */
+    --navy-deep:#0a2440;   /* deeper panels */
+    --navy-line:#16406a;   /* faint grid + panel hairlines */
+    --cyan:#cfe8ff;        /* schematic line / primary text */
+    --cyan-dim:#8fb9e6;    /* secondary annotation */
+    --cyan-faint:#5d83ad;  /* tertiary / dimension text */
+    --callout:#ffb24a;     /* amber callout accent */
+    --alert:#ff6b6b;       /* red alert accent */
+    --grid:rgba(120,170,225,0.09);
+    --grid-major:rgba(120,170,225,0.16);
+    --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --sans:'IBM Plex Sans',system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background-color:var(--navy);
+    /* faint blueprint grid: fine + major lines */
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+      linear-gradient(var(--grid-major) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-major) 1px, transparent 1px);
+    background-size:
+      28px 28px,
+      28px 28px,
+      140px 140px,
+      140px 140px;
+    color:var(--cyan);
+    font-family:var(--sans);
+    font-weight:300;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+    line-height:1.5;
+  }
+  .mono{font-family:var(--mono);}
+  a{color:inherit;}
+
+  /* drafting sheet wrapper with a double border like a drawing sheet */
+  .sheet{
+    max-width:1440px;
+    margin:0 auto;
+    padding:18px;
+    min-width:0;
+  }
+  .sheet-frame{
+    border:1.5px solid var(--cyan-faint);
+    position:relative;
+    padding:0;
+    min-width:0;
+  }
+  .sheet-frame::before{
+    content:"";
+    position:absolute;
+    inset:6px;
+    border:1px solid var(--navy-line);
+    pointer-events:none;
+  }
+  /* corner ticks like a registration drawing */
+  .corner{position:absolute;width:14px;height:14px;border:1.5px solid var(--cyan-dim);pointer-events:none;z-index:2;}
+  .corner.tl{top:-1.5px;left:-1.5px;border-right:none;border-bottom:none;}
+  .corner.tr{top:-1.5px;right:-1.5px;border-left:none;border-bottom:none;}
+  .corner.bl{bottom:-1.5px;left:-1.5px;border-right:none;border-top:none;}
+  .corner.br{bottom:-1.5px;right:-1.5px;border-left:none;border-top:none;}
+
+  .inner{padding:22px 26px 26px;min-width:0;}
+
+  /* ---------- top band: title block ---------- */
+  .titleblock{
+    display:grid;
+    grid-template-columns:1fr auto;
+    gap:18px;
+    border-bottom:1px solid var(--navy-line);
+    padding-bottom:16px;
+    margin-bottom:4px;
+    min-width:0;
+  }
+  .tb-left{min-width:0;}
+  .tb-tag{
+    font-family:var(--mono);
+    font-size:10px;
+    letter-spacing:0.28em;
+    color:var(--cyan-faint);
+    text-transform:uppercase;
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  }
+  .tb-tag .dot{width:6px;height:6px;border-radius:50%;background:var(--callout);box-shadow:0 0 8px var(--callout);}
+  .tb-title{
+    font-family:var(--mono);
+    font-weight:500;
+    font-size:clamp(20px,3.4vw,34px);
+    letter-spacing:0.01em;
+    margin:10px 0 6px;
+    color:var(--cyan);
+    line-height:1.08;
+    overflow-wrap:break-word;
+  }
+  .tb-sub{
+    font-size:13px;
+    color:var(--cyan-dim);
+    max-width:52ch;
+    overflow-wrap:break-word;
+  }
+  /* title-block stamp box (engineering drawing style) */
+  .stamp{
+    font-family:var(--mono);
+    font-size:10px;
+    border:1px solid var(--navy-line);
+    min-width:236px;
+    align-self:start;
+  }
+  .stamp .row{
+    display:grid;
+    grid-template-columns:auto 1fr;
+    border-bottom:1px solid var(--navy-line);
+  }
+  .stamp .row:last-child{border-bottom:none;}
+  .stamp .k{
+    padding:6px 8px;
+    color:var(--cyan-faint);
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    border-right:1px solid var(--navy-line);
+    white-space:nowrap;
+    font-size:9px;
+  }
+  .stamp .v{padding:6px 8px;color:var(--cyan);text-align:right;overflow-wrap:break-word;min-width:0;}
+  .stamp .v.ok{color:#7fe3a0;}
+
+  /* ---------- section labels (drafting note) ---------- */
+  .note{
+    font-family:var(--mono);
+    font-size:10px;
+    letter-spacing:0.24em;
+    color:var(--cyan-faint);
+    text-transform:uppercase;
+    display:flex;align-items:center;gap:10px;
+    margin:30px 0 14px;
+  }
+  .note::before{content:"";display:block;width:18px;height:1px;background:var(--cyan-faint);}
+  .note .idx{color:var(--cyan-dim);}
+
+  /* ---------- KPI schematic readouts ---------- */
+  .kpis{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:14px;
+    min-width:0;
+  }
+  .kpi{
+    position:relative;
+    border:1px solid var(--navy-line);
+    padding:14px 14px 16px;
+    min-width:0;
+    background:
+      repeating-linear-gradient(135deg, rgba(120,170,225,0.025) 0 6px, transparent 6px 12px);
+    overflow:hidden;
+  }
+  .kpi .lead{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;}
+  .kpi-head{
+    font-family:var(--mono);
+    font-size:10px;
+    letter-spacing:0.16em;
+    color:var(--cyan-faint);
+    text-transform:uppercase;
+    display:flex;justify-content:space-between;align-items:baseline;gap:8px;
+    min-width:0;
+  }
+  .kpi-head .ref{color:var(--cyan-dim);flex-shrink:0;}
+  .kpi-val{
+    font-family:var(--mono);
+    font-weight:600;
+    font-size:clamp(26px,3.6vw,38px);
+    color:var(--cyan);
+    line-height:1;
+    margin:14px 0 4px;
+    letter-spacing:0.01em;
+    overflow-wrap:break-word;
+  }
+  .kpi-val .u{font-size:13px;font-weight:400;color:var(--cyan-dim);margin-left:4px;}
+  .kpi-foot{
+    display:flex;align-items:center;gap:8px;
+    font-family:var(--mono);font-size:11px;
+    margin-top:2px;flex-wrap:wrap;
+  }
+  .delta{display:inline-flex;align-items:center;gap:4px;letter-spacing:0.02em;}
+  .delta.up{color:#7fe3a0;}
+  .delta.down{color:var(--alert);}
+  .delta.flat{color:var(--cyan-faint);}
+  .kpi-foot .vs{color:var(--cyan-faint);font-size:10px;letter-spacing:0.1em;}
+  .kpi.flag{border-color:var(--callout);}
+  .kpi.flag::after{
+    content:"";position:absolute;top:0;right:0;border-width:0 16px 16px 0;
+    border-style:solid;border-color:transparent var(--callout) transparent transparent;
+  }
+
+  /* ---------- two-column technical body ---------- */
+  .body-grid{
+    display:grid;
+    grid-template-columns:1.55fr 1fr;
+    gap:18px;
+    align-items:start;
+    min-width:0;
+  }
+  .panel{
+    border:1px solid var(--navy-line);
+    padding:16px 18px 18px;
+    position:relative;
+    min-width:0;
+  }
+  .panel-title{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:0.2em;
+    text-transform:uppercase;
+    color:var(--cyan-dim);
+    display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+    border-bottom:1px solid var(--navy-line);
+    padding-bottom:10px;margin-bottom:8px;flex-wrap:wrap;
+  }
+  .panel-title .tag{color:var(--cyan-faint);font-size:9px;letter-spacing:0.16em;}
+
+  /* trend chart */
+  .chart-wrap{width:100%;min-width:0;}
+  .chart-svg{width:100%;height:auto;display:block;}
+  .legend{
+    display:flex;gap:16px;flex-wrap:wrap;
+    font-family:var(--mono);font-size:10px;color:var(--cyan-dim);
+    letter-spacing:0.08em;margin-top:10px;
+  }
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .legend i{width:16px;height:0;border-top-width:2px;border-top-style:solid;display:inline-block;}
+
+  /* channel split schematic */
+  .split-svg{width:100%;height:auto;display:block;margin-top:4px;}
+
+  /* handoff list */
+  .handoff{margin-top:2px;}
+  .ho{
+    display:grid;
+    grid-template-columns:auto 1fr auto;
+    gap:12px;
+    align-items:center;
+    padding:11px 4px;
+    border-bottom:1px dashed var(--navy-line);
+    min-width:0;
+  }
+  .ho:last-child{border-bottom:none;}
+  .ho .id{
+    font-family:var(--mono);font-size:11px;color:var(--cyan-faint);
+    letter-spacing:0.06em;white-space:nowrap;
+  }
+  .ho .meta{min-width:0;}
+  .ho .who{
+    font-family:var(--mono);font-size:13px;color:var(--cyan);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .ho .why{
+    font-size:11.5px;color:var(--cyan-dim);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .ho .badge{
+    font-family:var(--mono);font-size:9.5px;letter-spacing:0.12em;
+    text-transform:uppercase;padding:3px 8px;border:1px solid currentColor;
+    white-space:nowrap;flex-shrink:0;
+  }
+  .badge.hot{color:var(--alert);}
+  .badge.warm{color:var(--callout);}
+  .badge.wait{color:var(--cyan-dim);}
+  .ho .ch{
+    font-family:var(--mono);font-size:10px;color:var(--cyan-faint);
+    margin-top:2px;letter-spacing:0.08em;
+  }
+
+  /* alert callout strip */
+  .callout-strip{
+    display:flex;align-items:flex-start;gap:12px;
+    border:1px solid var(--callout);
+    padding:12px 14px;margin-top:14px;
+    position:relative;min-width:0;
+    background:repeating-linear-gradient(135deg, rgba(255,178,74,0.05) 0 8px, transparent 8px 16px);
+  }
+  .callout-strip .ico{
+    font-family:var(--mono);font-weight:600;color:var(--callout);
+    border:1.5px solid var(--callout);width:24px;height:24px;
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;
+  }
+  .callout-strip .ct-txt{min-width:0;}
+  .callout-strip .ct-h{
+    font-family:var(--mono);font-size:11px;letter-spacing:0.14em;
+    text-transform:uppercase;color:var(--callout);
+  }
+  .callout-strip .ct-b{font-size:12.5px;color:var(--cyan-dim);margin-top:2px;overflow-wrap:break-word;}
+
+  /* schematic facility plate using the real clinic asset, framed as a drawing */
+  .facility{
+    margin-top:18px;border:1px solid var(--navy-line);
+    display:grid;grid-template-columns:auto 1fr;gap:0;min-width:0;
+  }
+  .facility .plate{
+    position:relative;width:200px;max-width:38vw;aspect-ratio:4/3;overflow:hidden;
+    border-right:1px solid var(--navy-line);
+  }
+  .facility .plate img{
+    width:100%;height:100%;object-fit:cover;display:block;
+    filter:grayscale(0.5) brightness(0.62) contrast(1.05);
+    mix-blend-mode:luminosity;opacity:0.9;
+  }
+  .facility .plate::after{
+    content:"";position:absolute;inset:0;
+    background:linear-gradient(180deg, rgba(13,42,74,0.25), rgba(13,42,74,0.72));
+    pointer-events:none;
+  }
+  .facility .plate .tick{
+    position:absolute;font-family:var(--mono);font-size:8.5px;color:var(--cyan-dim);
+    letter-spacing:0.1em;
+  }
+  .facility .fdata{padding:14px 16px;min-width:0;}
+  .facility .fdata h4{
+    font-family:var(--mono);font-size:11px;letter-spacing:0.2em;text-transform:uppercase;
+    color:var(--cyan-dim);margin:0 0 10px;font-weight:500;
+  }
+  .frow{
+    display:grid;grid-template-columns:auto 1fr;gap:10px;
+    font-family:var(--mono);font-size:11px;padding:5px 0;
+    border-bottom:1px dotted var(--navy-line);min-width:0;
+  }
+  .frow:last-child{border-bottom:none;}
+  .frow .fk{color:var(--cyan-faint);letter-spacing:0.1em;white-space:nowrap;}
+  .frow .fv{color:var(--cyan);text-align:right;overflow-wrap:break-word;min-width:0;}
+
+  /* footer dimension bar */
+  .dimbar{
+    display:flex;justify-content:space-between;align-items:center;gap:14px;
+    margin-top:26px;padding-top:12px;border-top:1px solid var(--navy-line);
+    font-family:var(--mono);font-size:9.5px;letter-spacing:0.16em;
+    color:var(--cyan-faint);text-transform:uppercase;flex-wrap:wrap;
+  }
+  .dimbar .scale{display:inline-flex;align-items:center;gap:8px;}
+  .dimbar .scale .bar{
+    width:60px;height:8px;border:1px solid var(--cyan-faint);
+    border-top:none;position:relative;
+  }
+  .dimbar .scale .bar::before,
+  .dimbar .scale .bar::after{
+    content:"";position:absolute;top:0;width:1px;height:8px;background:var(--cyan-faint);
+  }
+  .dimbar .scale .bar::before{left:50%;}
+
+  :focus-visible{outline:2px solid var(--callout);outline-offset:2px;}
+
+  /* draw-in animation for schematic strokes */
+  .draw{
+    stroke-dasharray:var(--len,1000);
+    stroke-dashoffset:var(--len,1000);
+    animation:draw 1.6s ease forwards;
+  }
+  .kpi-val,.tb-title{opacity:0;animation:fade .7s ease forwards;}
+  .blink{animation:blink 1.4s steps(2,start) infinite;}
+  @keyframes draw{to{stroke-dashoffset:0;}}
+  @keyframes fade{to{opacity:1;}}
+  @keyframes blink{50%{opacity:0.25;}}
+
+  /* ---------- responsive ---------- */
+  @media (max-width:1080px){
+    .kpis{grid-template-columns:repeat(2,1fr);}
+    .body-grid{grid-template-columns:1fr;}
+  }
+  @media (max-width:640px){
+    .sheet{padding:10px;}
+    .inner{padding:14px 13px 18px;}
+    /* COMPACT MOBILE HERO so the schematic readouts peek into the first screen (scroll=0 thumb) */
+    .titleblock{grid-template-columns:1fr;gap:12px;padding-bottom:12px;}
+    .tb-title{font-size:22px;margin:7px 0 5px;}
+    .tb-sub{font-size:12px;line-height:1.4;max-width:none;
+      display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+    /* stamp -> dense 2-up grid on phones (was 7 stacked full-width rows eating the fold) */
+    .stamp{min-width:0;width:100%;display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--navy-line);}
+    .stamp .row{border-bottom:1px solid var(--navy-line);}
+    .stamp .row:nth-last-child(2){border-bottom:none;}
+    .stamp .k{padding:4px 7px;}
+    .stamp .v{padding:4px 7px;}
+    /* the Facility + Status rows read better full-width at the foot of the stamp */
+    .stamp .row:nth-child(6),
+    .stamp .row:nth-child(7){grid-column:1 / -1;}
+    .note{margin:18px 0 11px;}
+    .kpis{grid-template-columns:1fr;gap:11px;}
+    .kpi{padding:11px 13px 13px;}
+    .facility{grid-template-columns:1fr;}
+    .facility .plate{width:100%;max-width:100%;aspect-ratio:16/9;border-right:none;border-bottom:1px solid var(--navy-line);}
+    .ho{grid-template-columns:auto 1fr;}
+    .ho .badge{grid-column:2;justify-self:start;margin-top:4px;}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    .draw{stroke-dashoffset:0 !important;animation:none !important;}
+    .kpi-val,.tb-title{opacity:1 !important;animation:none !important;}
+    .blink{animation:none !important;}
+    *{scroll-behavior:auto !important;}
+  }
+</style>
+</head>
+<body>
+<script>
+  /* =====================================================================
+     DATA  -  swap these values to repurpose the schematic for any clinic.
+     ===================================================================== */
+  window.DATA = {
+    meta:{
+      drawingNo:"YMW-OPS-001",
+      sheet:"1 / 1",
+      rev:"C",
+      scale:"1:1",
+      drawnBy:"น้องยิ้มหวาน AI",
+      date:"2026-06-30",
+      facility:"Yimwhan Dental - สาขาพระราม 9",
+      status:"LIVE"
+    },
+    title:"ผังการทำงานคลินิก - ภาพรวมเจ้าของ",
+    subtitle:"Schematic overview of AI front-desk operations. Calls, bookings, channel split and the cases that still need a human look.",
+    period:"รอบ 7 วันล่าสุด (23 - 30 มิ.ย. 2026)",
+    kpis:[
+      {ref:"K-01", label:"สายรับสาย", value:"428", unit:"calls", delta:"+12.4%", dir:"up", vs:"vs สัปดาห์ก่อน"},
+      {ref:"K-02", label:"นัดหมายปิดได้", value:"96", unit:"bookings", delta:"+8.1%", dir:"up", vs:"vs สัปดาห์ก่อน"},
+      {ref:"K-03", label:"มูลค่านัด (THB)", value:"฿312,400", unit:"", delta:"+5.6%", dir:"up", vs:"vs สัปดาห์ก่อน"},
+      {ref:"K-04", label:"ต้องให้คนดู", value:"7", unit:"cases", delta:"+3", dir:"down", vs:"คิวค้างตอนนี้", flag:true}
+    ],
+    // 7-day trend, two series. values are absolute counts.
+    trend:{
+      days:["จ.","อ.","พ.","พฤ.","ศ.","ส.","อา."],
+      calls:[52,61,58,72,80,55,50],
+      bookings:[11,14,12,16,18,13,12],
+      callsMax:90
+    },
+    channels:[
+      {name:"VOICE", sub:"สายโทรศัพท์", value:61, calls:261, color:"#cfe8ff"},
+      {name:"LINE", sub:"LINE OA แชท", value:39, calls:167, color:"#ffb24a"}
+    ],
+    handoffs:[
+      {id:"H-114", who:"คุณพิมพ์ชนก ว.", why:"ขอเลื่อนรากฟันเทียม รอบที่ 3 ติดต่อไม่ได้", ch:"VOICE", level:"hot"},
+      {id:"H-118", who:"คุณธนกร ส.", why:"ราคาจัดฟันใส เกินสคริปต์ AI", ch:"LINE", level:"warm"},
+      {id:"H-121", who:"คุณอรวรา ม.", why:"ขอใบเสนอราคา + ผ่อน 0% รอเจ้าของยืนยัน", ch:"LINE", level:"warm"},
+      {id:"H-122", who:"คุณกิตติพงศ์ ค.", why:"เคสฉุกเฉินปวดฟัน นอกเวลาทำการ", ch:"VOICE", level:"hot"},
+      {id:"H-126", who:"คุณศุภวิช ต.", why:"นัดซ้อนช่วงบ่าย ต้องจัดคิวหมอ", ch:"LINE", level:"wait"}
+    ],
+    callout:{
+      head:"ต้องตัดสินใจวันนี้",
+      body:"2 เคสฉุกเฉิน (H-114, H-122) AI ติดต่อกลับไม่สำเร็จเกิน 3 รอบ แนะนำให้ทีมโทรเองภายในวันนี้ก่อนปิดคลินิก"
+    },
+    facility:{
+      img:"../assets/flux-clinic-4k.png",
+      caption:"DENTAL UNIT A",
+      rows:[
+        {k:"ห้องตรวจ", v:"4 ห้อง"},
+        {k:"หมอเวร", v:"3 ท่าน"},
+        {k:"คิวว่างพรุ่งนี้", v:"11 ช่อง"},
+        {k:"AI uptime", v:"99.4%", ok:true}
+      ]
+    }
+  };
+</script>
+
+<div class="sheet">
+  <div class="sheet-frame">
+    <span class="corner tl"></span><span class="corner tr"></span>
+    <span class="corner bl"></span><span class="corner br"></span>
+    <div class="inner">
+
+      <!-- ===================== TITLE BLOCK ===================== -->
+      <div class="titleblock">
+        <div class="tb-left">
+          <div class="tb-tag">
+            <span class="dot"></span>
+            <span id="tb-drawing">DRAWING NO -</span>
+            <span>&bull;</span>
+            <span id="tb-period">PERIOD -</span>
+          </div>
+          <h1 class="tb-title" id="tb-title">-</h1>
+          <p class="tb-sub" id="tb-sub">-</p>
+        </div>
+        <div class="stamp mono" id="stamp"></div>
+      </div>
+
+      <!-- ===================== KPI READOUTS ===================== -->
+      <div class="note"><span class="idx">01</span>&nbsp;KEY READOUTS / ตัวชี้วัดหลัก</div>
+      <div class="kpis" id="kpis"></div>
+
+      <!-- ===================== BODY: CHART + SPLIT / HANDOFF ===================== -->
+      <div class="note"><span class="idx">02</span>&nbsp;OPERATIONS DETAIL / รายละเอียดการทำงาน</div>
+      <div class="body-grid">
+
+        <!-- LEFT: trend chart + channel split -->
+        <div style="min-width:0;display:flex;flex-direction:column;gap:18px;">
+          <div class="panel">
+            <div class="panel-title">
+              <span>สายเข้า &amp; นัดหมาย / 7 วัน</span>
+              <span class="tag" id="chart-tag">FIG. 2.1</span>
+            </div>
+            <div class="chart-wrap" id="chart"></div>
+            <div class="legend">
+              <span><i style="border-top-color:#cfe8ff;"></i> สายเข้า (calls)</span>
+              <span><i style="border-top-color:#ffb24a;border-top-style:dashed;"></i> นัดหมาย (bookings)</span>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-title">
+              <span>สัดส่วนช่องทาง / Voice vs LINE</span>
+              <span class="tag">FIG. 2.2</span>
+            </div>
+            <div id="split"></div>
+          </div>
+        </div>
+
+        <!-- RIGHT: handoff list + callout -->
+        <div class="panel" style="min-width:0;">
+          <div class="panel-title">
+            <span>รายการต้องให้คนดู</span>
+            <span class="tag" id="ho-count">- ITEMS</span>
+          </div>
+          <div class="handoff" id="handoff"></div>
+          <div class="callout-strip" id="callout"></div>
+        </div>
+      </div>
+
+      <!-- ===================== FACILITY PLATE ===================== -->
+      <div class="note"><span class="idx">03</span>&nbsp;FACILITY PLATE / ข้อมูลสาขา</div>
+      <div class="facility" id="facility"></div>
+
+      <!-- ===================== DIMENSION FOOTER ===================== -->
+      <div class="dimbar">
+        <span id="foot-left">SCALE 1:1 &bull; REV -</span>
+        <span class="scale">SCALE <span class="bar"></span> 0 ___ 50 ___ 100</span>
+        <span id="foot-right">GENERATED BY น้องยิ้มหวาน AI</span>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var D = window.DATA;
+  var REDUCE = window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  var NS = "http://www.w3.org/2000/svg";
+  function el(tag,attrs,txt){
+    var e=document.createElement(tag);
+    if(attrs){for(var k in attrs){e.setAttribute(k,attrs[k]);}}
+    if(txt!=null){e.textContent=txt;}
+    return e;
+  }
+  function svg(tag,attrs){
+    var e=document.createElementNS(NS,tag);
+    if(attrs){for(var k in attrs){e.setAttribute(k,attrs[k]);}}
+    return e;
+  }
+  function esc(s){return String(s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+
+  /* ---------- title block ---------- */
+  document.getElementById('tb-drawing').textContent = "DWG "+D.meta.drawingNo;
+  document.getElementById('tb-period').textContent = D.period;
+  document.getElementById('tb-title').textContent = D.title;
+  document.getElementById('tb-sub').textContent = D.subtitle;
+
+  var stamp = document.getElementById('stamp');
+  var stampRows = [
+    ["Drawing", D.meta.drawingNo],
+    ["Sheet", D.meta.sheet],
+    ["Rev", D.meta.rev],
+    ["Drawn", D.meta.drawnBy],
+    ["Date", D.meta.date],
+    ["Facility", D.meta.facility],
+    ["Status", D.meta.status, true]
+  ];
+  stampRows.forEach(function(r){
+    var row = el('div',{class:'row'});
+    row.appendChild(el('div',{class:'k'}, r[0]));
+    row.appendChild(el('div',{class:'v'+(r[2]?' ok':'')}, r[1]));
+    stamp.appendChild(row);
+  });
+
+  /* ---------- KPI readouts with leader-line callouts (SVG) ---------- */
+  var kpiWrap = document.getElementById('kpis');
+  D.kpis.forEach(function(k,i){
+    var box = el('div',{class:'kpi'+(k.flag?' flag':'')});
+    box.setAttribute('tabindex','0');
+
+    // leader-line SVG: a small drafting leader from corner toward the value
+    var lead = svg('svg',{class:'lead',viewBox:'0 0 200 120',preserveAspectRatio:'none','aria-hidden':'true'});
+    var ln = svg('path',{
+      d:'M6 110 L6 70 L30 70',
+      fill:'none',
+      stroke: k.flag ? '#ffb24a' : '#5d83ad',
+      'stroke-width':'1'
+    });
+    var len = 100;
+    ln.style.setProperty('--len', len);
+    if(!REDUCE){ ln.setAttribute('class','draw'); ln.style.animationDelay=(0.2+i*0.12)+'s'; }
+    var tick = svg('circle',{cx:'6',cy:'110',r:'2.4',fill: k.flag ? '#ffb24a':'#5d83ad'});
+    lead.appendChild(ln); lead.appendChild(tick);
+    box.appendChild(lead);
+
+    var head = el('div',{class:'kpi-head'});
+    head.appendChild(el('span',null,k.label));
+    head.appendChild(el('span',{class:'ref'},k.ref));
+    box.appendChild(head);
+
+    var val = el('div',{class:'kpi-val'});
+    val.style.animationDelay=(0.15+i*0.1)+'s';
+    val.appendChild(document.createTextNode(k.value));
+    if(k.unit){ var u=el('span',{class:'u'},k.unit); val.appendChild(u); }
+    box.appendChild(val);
+
+    var foot = el('div',{class:'kpi-foot'});
+    var dirClass = k.dir==='up'?'up':(k.dir==='down'?'down':'flat');
+    var arrow = k.dir==='up'?'▲':(k.dir==='down'?'▼':'▬');
+    var d = el('span',{class:'delta '+dirClass});
+    d.appendChild(el('span',null,arrow));
+    d.appendChild(el('span',null,k.delta));
+    foot.appendChild(d);
+    foot.appendChild(el('span',{class:'vs'},k.vs));
+    box.appendChild(foot);
+
+    kpiWrap.appendChild(box);
+  });
+
+  /* ---------- TREND CHART (technical line chart, SVG) ---------- */
+  (function(){
+    var t = D.trend;
+    var W=560, H=240, padL=42, padR=18, padT=18, padB=34;
+    var iw = W-padL-padR, ih = H-padT-padB;
+    var n = t.days.length;
+    var max = t.callsMax;
+    var bMax = Math.max.apply(null, t.bookings) * 1.25;
+
+    var s = svg('svg',{class:'chart-svg',viewBox:'0 0 '+W+' '+H,role:'img','aria-label':'Calls and bookings over 7 days'});
+
+    // grid + y axis ticks
+    var steps=4;
+    for(var g=0; g<=steps; g++){
+      var y = padT + ih - (ih*g/steps);
+      var gl = svg('line',{x1:padL,y1:y,x2:W-padR,y2:y,stroke:'#16406a','stroke-width':'1'});
+      if(g>0) gl.setAttribute('stroke-dasharray','2 5');
+      s.appendChild(gl);
+      var yl = svg('text',{x:padL-8,y:y+3,'text-anchor':'end',fill:'#5d83ad','font-size':'9','font-family':"'IBM Plex Mono',monospace"});
+      yl.textContent = Math.round(max*g/steps);
+      s.appendChild(yl);
+    }
+    // axis lines
+    s.appendChild(svg('line',{x1:padL,y1:padT,x2:padL,y2:padT+ih,stroke:'#5d83ad','stroke-width':'1'}));
+    s.appendChild(svg('line',{x1:padL,y1:padT+ih,x2:W-padR,y2:padT+ih,stroke:'#5d83ad','stroke-width':'1'}));
+
+    function xAt(i){return padL + (n<=1?iw/2:(iw*i/(n-1)));}
+    function yCalls(v){return padT + ih - (ih*v/max);}
+    function yBook(v){return padT + ih - (ih*v/bMax);}
+
+    // x labels + vertical dimension ticks
+    for(var i=0;i<n;i++){
+      var x = xAt(i);
+      var xl = svg('text',{x:x,y:padT+ih+18,'text-anchor':'middle',fill:'#8fb9e6','font-size':'10','font-family':"'IBM Plex Mono',monospace"});
+      xl.textContent = t.days[i];
+      s.appendChild(xl);
+      s.appendChild(svg('line',{x1:x,y1:padT+ih,x2:x,y2:padT+ih+4,stroke:'#5d83ad','stroke-width':'1'}));
+    }
+
+    function buildPath(arr,yfn){
+      var dd='';
+      for(var i=0;i<arr.length;i++){ dd += (i===0?'M':'L') + xAt(i).toFixed(1) + ' ' + yfn(arr[i]).toFixed(1) + ' '; }
+      return dd.trim();
+    }
+
+    // calls line (solid cyan)
+    var pc = buildPath(t.calls,yCalls);
+    var callsPath = svg('path',{d:pc,fill:'none',stroke:'#cfe8ff','stroke-width':'2','stroke-linejoin':'round','stroke-linecap':'round'});
+    // bookings line (dashed amber)
+    var pb = buildPath(t.bookings,yBook);
+    var bookPath = svg('path',{d:pb,fill:'none',stroke:'#ffb24a','stroke-width':'1.5','stroke-dasharray':'5 4','stroke-linejoin':'round'});
+
+    if(!REDUCE){
+      var lenC = callsPath.getTotalLength ? 0 : 0; // measured after attach
+      callsPath.setAttribute('class','draw');
+      bookPath.setAttribute('class','draw');
+    }
+    s.appendChild(bookPath);
+    s.appendChild(callsPath);
+
+    // data point markers + leader annotation on the peak
+    var peakIdx = t.calls.indexOf(Math.max.apply(null,t.calls));
+    for(var i=0;i<n;i++){
+      var cx=xAt(i), cy=yCalls(t.calls[i]);
+      s.appendChild(svg('rect',{x:cx-2.2,y:cy-2.2,width:4.4,height:4.4,fill:'#0d2a4a',stroke:'#cfe8ff','stroke-width':'1.2'}));
+      var bx=xAt(i), by=yBook(t.bookings[i]);
+      s.appendChild(svg('circle',{cx:bx,cy:by,r:'2',fill:'#ffb24a'}));
+    }
+    // peak leader callout
+    (function(){
+      var px=xAt(peakIdx), py=yCalls(t.calls[peakIdx]);
+      var lx = px+18 > W-padR-60 ? px-70 : px+10;
+      var ldr = svg('path',{d:'M'+px+' '+py+' L'+(px)+' '+(py-18)+' L'+(lx+(lx<px?52:0))+' '+(py-18),fill:'none',stroke:'#cfe8ff','stroke-width':'1','stroke-dasharray':'1 2'});
+      s.appendChild(ldr);
+      var lt = svg('text',{x:lx+(lx<px?52:2),y:py-22,'text-anchor':lx<px?'end':'start',fill:'#cfe8ff','font-size':'9.5','font-family':"'IBM Plex Mono',monospace"});
+      lt.textContent='PEAK '+t.calls[peakIdx];
+      s.appendChild(lt);
+    })();
+
+    var c = document.getElementById('chart');
+    c.appendChild(s);
+
+    // measure & animate stroke draw after layout
+    if(!REDUCE){
+      requestAnimationFrame(function(){
+        try{
+          var lc = callsPath.getTotalLength();
+          callsPath.style.setProperty('--len',lc);
+          callsPath.style.animationDuration='1.8s';
+          var lb = bookPath.getTotalLength();
+          bookPath.style.setProperty('--len',lb);
+          bookPath.style.animationDuration='1.8s';
+          bookPath.style.animationDelay='0.25s';
+        }catch(e){}
+      });
+    }
+  })();
+
+  /* ---------- CHANNEL SPLIT (schematic horizontal bars w/ dimension lines) ---------- */
+  (function(){
+    var ch = D.channels;
+    var W=560, rowH=58, padX=14, padR=64;
+    var H = ch.length*rowH + 30;
+    var s = svg('svg',{class:'split-svg',viewBox:'0 0 '+W+' '+H,role:'img','aria-label':'Channel split Voice versus LINE'});
+    var trackW = W - padX - padR - 90;
+    var x0 = padX + 90;
+
+    // top dimension line spanning full track (100%)
+    var dimY = 16;
+    s.appendChild(svg('line',{x1:x0,y1:dimY,x2:x0+trackW,y2:dimY,stroke:'#5d83ad','stroke-width':'1'}));
+    s.appendChild(svg('line',{x1:x0,y1:dimY-4,x2:x0,y2:dimY+4,stroke:'#5d83ad','stroke-width':'1'}));
+    s.appendChild(svg('line',{x1:x0+trackW,y1:dimY-4,x2:x0+trackW,y2:dimY+4,stroke:'#5d83ad','stroke-width':'1'}));
+    var dimT = svg('text',{x:x0+trackW/2,y:dimY-6,'text-anchor':'middle',fill:'#5d83ad','font-size':'9','font-family':"'IBM Plex Mono',monospace"});
+    dimT.textContent='428 calls = 100%';
+    s.appendChild(dimT);
+
+    ch.forEach(function(c,i){
+      var y = 30 + i*rowH;
+      var w = trackW * (c.value/100);
+      // label
+      var lab = svg('text',{x:padX,y:y+18,fill:'#cfe8ff','font-size':'13','font-family':"'IBM Plex Mono',monospace",'font-weight':'600'});
+      lab.textContent=c.name;
+      s.appendChild(lab);
+      var sub = svg('text',{x:padX,y:y+31,fill:'#5d83ad','font-size':'9','font-family':"'IBM Plex Mono',monospace"});
+      sub.textContent=c.sub;
+      s.appendChild(sub);
+
+      // track outline (full)
+      s.appendChild(svg('rect',{x:x0,y:y,width:trackW,height:22,fill:'none',stroke:'#16406a','stroke-width':'1'}));
+      // hatched fill bar
+      var bar = svg('rect',{x:x0,y:y,width:(REDUCE?w:0),height:22,fill:'none',stroke:c.color,'stroke-width':'1.4'});
+      // diagonal hatch via pattern-less manual lines is heavy; use semi fill
+      var fill = svg('rect',{x:x0,y:y,width:(REDUCE?w:0),height:22,fill:c.color,'fill-opacity':'0.14'});
+      s.appendChild(fill);
+      s.appendChild(bar);
+      // hatch lines inside
+      var hatchG = svg('g',{});
+      var step=8;
+      for(var hx=x0+4; hx<x0+w; hx+=step){
+        hatchG.appendChild(svg('line',{x1:hx,y1:y+1,x2:Math.min(hx+11,x0+w),y2:y+21,stroke:c.color,'stroke-width':'0.6','stroke-opacity':'0.35'}));
+      }
+      s.appendChild(hatchG);
+
+      // value readout
+      var vt = svg('text',{x:x0+trackW+8,y:y+15,fill:c.color,'font-size':'13','font-family':"'IBM Plex Mono',monospace",'font-weight':'600'});
+      vt.textContent=c.value+'%';
+      s.appendChild(vt);
+      var ct = svg('text',{x:x0+trackW+8,y:y+27,fill:'#5d83ad','font-size':'8.5','font-family':"'IBM Plex Mono',monospace"});
+      ct.textContent=c.calls+' calls';
+      s.appendChild(ct);
+
+      // animate width
+      if(!REDUCE){
+        var target=w;
+        var start=null, dur=1100, delay=200+i*180;
+        var step2=function(ts){
+          if(start===null) start=ts;
+          var p=Math.min(1,(ts-start-delay)/dur);
+          if(p<0){requestAnimationFrame(step2);return;}
+          var e=1-Math.pow(1-p,3);
+          var cw=target*e;
+          fill.setAttribute('width',cw);
+          bar.setAttribute('width',cw);
+          if(p<1) requestAnimationFrame(step2);
+        };
+        requestAnimationFrame(step2);
+      }
+    });
+
+    document.getElementById('split').appendChild(s);
+  })();
+
+  /* ---------- HANDOFF LIST ---------- */
+  (function(){
+    var wrap = document.getElementById('handoff');
+    document.getElementById('ho-count').textContent = D.handoffs.length + ' ITEMS';
+    var levelLabel = {hot:'ด่วน',warm:'รอตอบ',wait:'รอจัดคิว'};
+    var levelClass = {hot:'hot',warm:'warm',wait:'wait'};
+    D.handoffs.forEach(function(h){
+      var row = el('div',{class:'ho'});
+      row.setAttribute('tabindex','0');
+      row.appendChild(el('div',{class:'id mono'},h.id));
+      var meta = el('div',{class:'meta'});
+      meta.appendChild(el('div',{class:'who'},h.who));
+      meta.appendChild(el('div',{class:'why'},h.why));
+      meta.appendChild(el('div',{class:'ch'},'CH: '+h.ch));
+      row.appendChild(meta);
+      row.appendChild(el('div',{class:'badge '+levelClass[h.level]},levelLabel[h.level]));
+      wrap.appendChild(row);
+    });
+  })();
+
+  /* ---------- CALLOUT STRIP ---------- */
+  (function(){
+    var c = document.getElementById('callout');
+    var ico = el('div',{class:'ico mono'+(REDUCE?'':' ')});
+    ico.textContent='!';
+    if(!REDUCE) ico.classList.add('blink');
+    c.appendChild(ico);
+    var txt = el('div',{class:'ct-txt'});
+    txt.appendChild(el('div',{class:'ct-h mono'},D.callout.head));
+    txt.appendChild(el('div',{class:'ct-b'},D.callout.body));
+    c.appendChild(txt);
+  })();
+
+  /* ---------- FACILITY PLATE ---------- */
+  (function(){
+    var f = D.facility;
+    var wrap = document.getElementById('facility');
+    var plate = el('div',{class:'plate'});
+    var img = el('img',{src:f.img, alt:'Clinic facility reference photo', loading:'lazy', decoding:'async'});
+    plate.appendChild(img);
+    plate.appendChild(el('span',{class:'tick',style:'top:6px;left:8px;'},'PLATE 03'));
+    plate.appendChild(el('span',{class:'tick',style:'bottom:6px;right:8px;'},esc?f.caption:f.caption));
+    plate.lastChild.textContent=f.caption;
+    wrap.appendChild(plate);
+
+    var fdata = el('div',{class:'fdata'});
+    fdata.appendChild(el('h4',null,'FACILITY DATA / ข้อมูลสาขา'));
+    f.rows.forEach(function(r){
+      var row = el('div',{class:'frow'});
+      row.appendChild(el('div',{class:'fk'},r.k));
+      var v = el('div',{class:'fv'},r.v);
+      if(r.ok) v.style.color='#7fe3a0';
+      row.appendChild(v);
+      fdata.appendChild(row);
+    });
+    wrap.appendChild(fdata);
+  })();
+
+  /* ---------- FOOTER ---------- */
+  document.getElementById('foot-left').textContent = 'SCALE '+D.meta.scale+' • REV '+D.meta.rev+' • SHEET '+D.meta.sheet;
+  document.getElementById('foot-right').textContent = 'GENERATED BY '+D.meta.drawnBy;
+})();
+</script>
+</body>
+</html>

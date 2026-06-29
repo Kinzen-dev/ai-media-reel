@@ -132,6 +132,9 @@ SLUG_CAT = {
     # --- batch 49 (more wow backoffice styles) ---
     "dark-luxe-backoffice": "admin", "claymorphism-backoffice": "admin", "swiss-grid-backoffice": "admin",
     "spatial-depth-backoffice": "admin", "organic-blob-backoffice": "admin",
+    # --- batch 50 (more wow backoffice styles) ---
+    "y2k-chrome-backoffice": "admin", "blueprint-schematic-backoffice": "admin", "risograph-backoffice": "admin",
+    "neumorphism-backoffice": "admin", "duotone-bold-backoffice": "admin",
 }
 
 KEYWORDS = [  # fallback for any slug not in SLUG_CAT (first match wins)

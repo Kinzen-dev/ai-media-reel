@@ -1,0 +1,845 @@
+<!-- TEMPLATE: Semantic Zoom Universe | ARCHETYPE: semantic-zoom-universe | REF: semantic zoom UX, Figma/Prezi zoom levels, scale-as-navigation | WHEN TO USE: a knowledge map / product taxonomy / portfolio whose content nests by scale, where zoom IS the navigation | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Semantic Zoom Universe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     SEMANTIC ZOOM UNIVERSE
+     deep ground + bone nodes + one accent on the active node
+     depth via scale + opacity. zoom IS navigation.
+     ============================================================ */
+  :root {
+    --ground-0: #0a0c10;
+    --ground-1: #0e1117;
+    --ground-2: #141821;
+    --bone: #e9e3d6;
+    --bone-dim: #b6b1a6;
+    --bone-faint: #6f6c66;
+    --accent: #ff6a3d;       /* the one accent: lands only on the active node */
+    --accent-soft: rgba(255, 106, 61, 0.16);
+    --line: rgba(233, 227, 214, 0.10);
+    --line-strong: rgba(233, 227, 214, 0.22);
+    --easing: cubic-bezier(0.22, 0.61, 0.30, 1);
+    --zoom-dur: 1100ms;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body { height: 100%; }
+
+  body {
+    background:
+      radial-gradient(120% 90% at 50% 8%, var(--ground-2) 0%, var(--ground-1) 46%, var(--ground-0) 100%);
+    color: var(--bone);
+    font-family: "Fraunces", Georgia, serif;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* faint coordinate grid to read the space as a map, not a card list */
+  .grid-field {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 64px 64px, 64px 64px;
+    mask-image: radial-gradient(120% 100% at 50% 42%, #000 30%, transparent 86%);
+    -webkit-mask-image: radial-gradient(120% 100% at 50% 42%, #000 30%, transparent 86%);
+    opacity: 0.7;
+  }
+
+  /* ---------- top band: compact, never pushes the universe below fold ---------- */
+  .topband {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px clamp(16px, 3.6vw, 44px);
+    background: linear-gradient(180deg, rgba(10,12,16,0.86) 0%, rgba(10,12,16,0.0) 100%);
+    pointer-events: none;
+  }
+  .topband > * { pointer-events: auto; }
+  .brand {
+    display: flex; align-items: baseline; gap: 12px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--bone-dim);
+  }
+  .brand b { color: var(--bone); font-weight: 500; }
+  .brand .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 4px var(--accent-soft);
+    align-self: center;
+  }
+  .scale-readout {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px; letter-spacing: 0.14em;
+    color: var(--bone-faint);
+    text-transform: uppercase;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .scale-readout b { color: var(--accent); font-weight: 500; }
+
+  /* ---------- the universe ---------- */
+  .stage {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: grid;
+    place-items: center;
+    perspective: 1400px;
+  }
+
+  /* the whole content-space scales as one body; per-level scale composes on top */
+  .universe {
+    position: relative;
+    width: min(92vw, 1180px);
+    height: min(82vh, 760px);
+    transform-style: preserve-3d;
+    transition: transform var(--zoom-dur) var(--easing);
+    will-change: transform;
+  }
+
+  .node {
+    position: absolute;
+    left: 50%; top: 50%;
+    /* x / y are CSS vars in % of universe box; s is the level scale */
+    transform:
+      translate(-50%, -50%)
+      translate(var(--x), var(--y))
+      scale(var(--s));
+    transition:
+      transform var(--zoom-dur) var(--easing),
+      opacity calc(var(--zoom-dur) * 0.8) var(--easing),
+      filter calc(var(--zoom-dur) * 0.8) var(--easing);
+    transform-origin: center center;
+    will-change: transform, opacity;
+  }
+
+  .node-card {
+    position: relative;
+    width: var(--w);
+    border-radius: 16px;
+    background:
+      linear-gradient(160deg, rgba(20,24,33,0.94), rgba(12,15,21,0.94));
+    border: 1px solid var(--line-strong);
+    box-shadow:
+      0 1px 0 rgba(233,227,214,0.05) inset,
+      0 24px 60px -28px rgba(0,0,0,0.85);
+    padding: 0;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 320ms var(--easing), box-shadow 420ms var(--easing), transform 320ms var(--easing);
+    outline: none;
+  }
+  .node-card:hover { transform: translateY(-2px); }
+  .node-card:focus-visible {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--ground-0), 0 0 0 4px var(--accent), 0 24px 60px -28px rgba(0,0,0,0.85);
+  }
+
+  .node-media {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    background: var(--ground-2);
+  }
+  .node-media img,
+  .node-media video {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+    filter: saturate(0.92) brightness(0.92);
+  }
+  .play-pip {
+    position: absolute; right: 10px; bottom: 10px;
+    width: 26px; height: 26px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: rgba(10,12,16,0.66);
+    border: 1px solid var(--line-strong);
+    backdrop-filter: blur(4px);
+  }
+  .play-pip::before {
+    content: ""; width: 0; height: 0;
+    border-left: 8px solid var(--bone);
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    margin-left: 2px;
+  }
+  .node-body { padding: 14px 16px 16px; }
+  .node-kicker {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--bone-faint);
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 8px;
+  }
+  .node-kicker .lvl {
+    color: var(--bone-dim);
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    padding: 1px 7px;
+  }
+  .node-title {
+    font-weight: 500;
+    line-height: 1.06;
+    letter-spacing: -0.01em;
+    font-size: var(--ts);
+    color: var(--bone);
+  }
+  .node-sub {
+    margin-top: 8px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--bone-dim);
+  }
+
+  /* depth read: deeper levels recede (dimmer, cooler). active level pops. */
+  .node[data-rel="active"]   { opacity: 1;    filter: none; z-index: 30; }
+  .node[data-rel="active"] .node-card {
+    border-color: var(--accent);
+    box-shadow:
+      0 0 0 1px var(--accent) inset,
+      0 0 60px -10px var(--accent-soft),
+      0 30px 80px -34px rgba(0,0,0,0.9);
+  }
+  .node[data-rel="active"] .node-kicker .lvl { color: var(--accent); border-color: var(--accent); }
+  .node[data-rel="active"] .play-pip::before { border-left-color: var(--accent); }
+
+  .node[data-rel="child"]    { opacity: 0.92; filter: none;            z-index: 22; }
+  .node[data-rel="grand"]    { opacity: 0.62; filter: blur(0.4px) saturate(0.8); z-index: 14; }
+  .node[data-rel="great"]    { opacity: 0.34; filter: blur(1.4px) saturate(0.6); z-index: 8; }
+  .node[data-rel="parent"]   { opacity: 0.30; filter: blur(1.8px) saturate(0.55); z-index: 6; }
+  .node[data-rel="far"]      { opacity: 0;    filter: blur(4px);      pointer-events: none; z-index: 2; }
+
+  /* connective hairlines from active to its children (drawn in SVG) */
+  .links {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    overflow: visible;
+    z-index: 1;
+  }
+  .links line {
+    stroke: var(--line-strong);
+    stroke-width: 1;
+    transition: opacity var(--zoom-dur) var(--easing), stroke 400ms;
+  }
+  .links line.lit { stroke: var(--accent); opacity: 0.55; }
+
+  /* ---------- control rail ---------- */
+  .rail {
+    position: fixed;
+    left: 50%;
+    bottom: clamp(16px, 3.2vh, 30px);
+    transform: translateX(-50%);
+    z-index: 45;
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px;
+    border-radius: 999px;
+    background: rgba(12,15,21,0.78);
+    border: 1px solid var(--line-strong);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 18px 50px -26px rgba(0,0,0,0.9);
+  }
+  .rail button {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px; letter-spacing: 0.08em;
+    color: var(--bone-dim);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    padding: 7px 12px;
+    cursor: pointer;
+    transition: color 200ms, background 200ms, border-color 200ms;
+  }
+  .rail button:hover { color: var(--bone); background: rgba(233,227,214,0.06); }
+  .rail button:focus-visible { outline: none; border-color: var(--accent); color: var(--bone); }
+  .rail .sep { width: 1px; height: 18px; background: var(--line-strong); }
+  .rail .breadcrumbs {
+    display: flex; align-items: center; gap: 6px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px; letter-spacing: 0.06em;
+    max-width: 46vw; overflow: hidden;
+  }
+  .crumb {
+    color: var(--bone-faint);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color 180ms;
+  }
+  .crumb:hover { color: var(--bone-dim); }
+  .crumb.here { color: var(--accent); }
+  .crumb-arrow { color: var(--bone-faint); }
+
+  .hint {
+    position: fixed;
+    right: clamp(16px, 3.6vw, 44px);
+    bottom: clamp(16px, 3.2vh, 30px);
+    z-index: 41;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--bone-faint);
+    text-align: right;
+    line-height: 1.7;
+    pointer-events: none;
+  }
+  .hint .k {
+    color: var(--bone-dim);
+    border: 1px solid var(--line-strong);
+    border-radius: 5px;
+    padding: 1px 6px;
+    margin: 0 2px;
+  }
+
+  /* ---------- mobile: keep the cluster, fit to width, stack the rail ---------- */
+  @media (max-width: 640px) {
+    .universe {
+      width: 94vw;
+      height: 72vh;
+    }
+    .topband { padding: 14px 16px; }
+    .scale-readout { display: none; }
+    .hint { display: none; }
+    .rail {
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 92vw;
+      bottom: 14px;
+      padding: 8px 10px;
+    }
+    .rail .breadcrumbs { max-width: 86vw; }
+    /* avoid simultaneous-decode FPS hit: cards stay smaller, media leaner */
+    .node-media { aspect-ratio: 16 / 10; }
+  }
+
+  /* ---------- reduced motion: settle into a composed state, no zoom ---------- */
+  @media (prefers-reduced-motion: reduce) {
+    .universe, .node, .links line { transition: none !important; }
+    .rail .breadcrumbs, .hint { /* keep */ }
+  }
+
+  /* loading shimmer for lazy media */
+  .node-media.loading::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: linear-gradient(110deg, transparent 30%, rgba(233,227,214,0.05) 50%, transparent 70%);
+    background-size: 220% 100%;
+    animation: shimmer 1.4s linear infinite;
+  }
+  @keyframes shimmer { to { background-position: -220% 0; } }
+  @media (prefers-reduced-motion: reduce) { .node-media.loading::after { animation: none; } }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     DATA: the content universe as a nested tree.
+     Each node: id, parent, title, kicker, sub, media (img|video|poster).
+     Swap this array to repurpose the template. Geometry (x/y/scale)
+     is assigned automatically per level by layoutUniverse().
+     ============================================================ -->
+<script>
+  const ASSETS = "../assets/";
+  const DATA = {
+    root: "studio",
+    nodes: [
+      // LEVEL 0 - the hero topic (scale 1)
+      { id: "studio", parent: null,
+        kicker: "UNIVERSE", title: "Generative Media Studio",
+        sub: "A zoomable map of everything the studio can make. Click any node to descend a scale level.",
+        media: { type: "img", src: ASSETS + "flux-car-4k.png" } },
+
+      // LEVEL 1 - children of studio
+      { id: "image", parent: "studio",
+        kicker: "DOMAIN", title: "Still Image",
+        sub: "Diffusion stills, 4K matte renders, painterly studies.",
+        media: { type: "img", src: ASSETS + "flux-clinic-4k.png" } },
+      { id: "motion", parent: "studio",
+        kicker: "DOMAIN", title: "Motion",
+        sub: "I2V loops, talking avatars, cinematic camera moves.",
+        media: { type: "video", src: ASSETS + "kling-video.mp4", poster: ASSETS + "gen/poster-kling-video.png" } },
+      { id: "voice", parent: "studio",
+        kicker: "DOMAIN", title: "Voice and Sound",
+        sub: "Thai TTS, music beds, synthetic narration.",
+        media: { type: "img", src: ASSETS + "gen/wave-musicgen.png" } },
+      { id: "spatial", parent: "studio",
+        kicker: "DOMAIN", title: "Spatial",
+        sub: "Mesh-to-asset 3D, refined topology, AR-ready.",
+        media: { type: "img", src: ASSETS + "meshy-refined-thumb.png" } },
+
+      // LEVEL 2 - grandchildren
+      // image children
+      { id: "cinematic", parent: "image",
+        kicker: "PIPELINE", title: "Cinematic Render",
+        sub: "Matte-black on wet neon. Flux 4K.",
+        media: { type: "img", src: ASSETS + "flux-car-4k.png" } },
+      { id: "painterly", parent: "image",
+        kicker: "PIPELINE", title: "Painterly",
+        sub: "SDXL autumn fox study.",
+        media: { type: "img", src: ASSETS + "sdxl.png" } },
+      { id: "lofi", parent: "image",
+        kicker: "PIPELINE", title: "Low-Fi Sketch",
+        sub: "Tiny-SD rapid ideation pass.",
+        media: { type: "img", src: ASSETS + "hf-tinysd.png" } },
+      // motion children
+      { id: "i2v", parent: "motion",
+        kicker: "PIPELINE", title: "Image to Video",
+        sub: "Flux car driven into a 6s loop.",
+        media: { type: "video", src: ASSETS + "flux-car-i2v.mp4", poster: ASSETS + "gen/poster-flux-car-i2v.png" } },
+      { id: "avatar", parent: "motion",
+        kicker: "PIPELINE", title: "Talking Avatar",
+        sub: "HeyGen lip-synced presenter.",
+        media: { type: "video", src: ASSETS + "heygen-avatar.mp4", poster: ASSETS + "gen/poster-heygen.png" } },
+      { id: "camera", parent: "motion",
+        kicker: "PIPELINE", title: "Camera Move",
+        sub: "Veo directed dolly + parallax.",
+        media: { type: "video", src: ASSETS + "veo-video.mp4", poster: ASSETS + "gen/poster-veo-video.png" } },
+      // voice children
+      { id: "tts-thai", parent: "voice",
+        kicker: "PIPELINE", title: "Thai TTS",
+        sub: "ElevenLabs Thai narration.",
+        media: { type: "img", src: ASSETS + "gen/wave-elevenlabs.png" } },
+      { id: "music", parent: "voice",
+        kicker: "PIPELINE", title: "Music Bed",
+        sub: "MusicGen instrumental loop.",
+        media: { type: "img", src: ASSETS + "gen/wave-musicgen.png" } },
+      // spatial children
+      { id: "mesh", parent: "spatial",
+        kicker: "PIPELINE", title: "Refined Mesh",
+        sub: "Meshy retopo, clean quads.",
+        media: { type: "img", src: ASSETS + "meshy-thumb.png" } },
+
+      // LEVEL 3 - great-grandchildren (deepest, faintest at root view)
+      { id: "fal-loop", parent: "i2v",
+        kicker: "FRAME", title: "Fal Loop",
+        sub: "Seamless fal.ai render.",
+        media: { type: "video", src: ASSETS + "fal-video.mp4", poster: ASSETS + "gen/poster-fal-video.png" } },
+      { id: "hyper", parent: "i2v",
+        kicker: "FRAME", title: "Hyperframes",
+        sub: "Interpolated tween pass.",
+        media: { type: "video", src: ASSETS + "hyperframes.mp4", poster: ASSETS + "gen/poster-hyperframes.png" } },
+      { id: "did", parent: "avatar",
+        kicker: "FRAME", title: "Talking Photo",
+        sub: "D-ID single-still drive.",
+        media: { type: "video", src: ASSETS + "did-talking-photo.mp4", poster: ASSETS + "gen/poster-did.png" } },
+    ]
+  };
+</script>
+
+<div class="grid-field" aria-hidden="true"></div>
+
+<header class="topband">
+  <div class="brand">
+    <span class="dot" aria-hidden="true"></span>
+    <span><b>ATLAS</b> / semantic zoom</span>
+  </div>
+  <div class="scale-readout" aria-hidden="true">
+    scale <b id="scaleVal">1.00x</b> &nbsp; lvl <span id="lvlVal">0</span>
+  </div>
+</header>
+
+<main class="stage" aria-label="Semantic zoom content universe">
+  <div class="universe" id="universe">
+    <svg class="links" id="links" aria-hidden="true"></svg>
+    <!-- nodes injected here -->
+  </div>
+</main>
+
+<nav class="rail" aria-label="Zoom navigation">
+  <button id="upBtn" aria-label="Zoom out one level">- out</button>
+  <div class="sep" aria-hidden="true"></div>
+  <div class="breadcrumbs" id="crumbs" aria-label="Current path"></div>
+  <div class="sep" aria-hidden="true"></div>
+  <button id="rootBtn" aria-label="Return to root">reset</button>
+</nav>
+
+<div class="hint" aria-hidden="true">
+  <div><span class="k">scroll</span> to zoom levels</div>
+  <div><span class="k">click</span> a node to enter &nbsp; <span class="k">esc</span> to back out</div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const IS_MOBILE = window.matchMedia("(max-width: 640px)").matches;
+
+  const universe = document.getElementById("universe");
+  const linksSvg = document.getElementById("links");
+  const crumbsEl = document.getElementById("crumbs");
+  const scaleVal = document.getElementById("scaleVal");
+  const lvlVal = document.getElementById("lvlVal");
+
+  // ---- index the tree ----
+  const byId = new Map();
+  DATA.nodes.forEach(n => byId.set(n.id, n));
+  const childrenOf = id => DATA.nodes.filter(n => n.parent === id);
+  const depthOf = id => {
+    let d = 0, cur = byId.get(id);
+    while (cur && cur.parent != null) { d++; cur = byId.get(cur.parent); }
+    return d;
+  };
+  const pathOf = id => {
+    const p = [];
+    let cur = byId.get(id);
+    while (cur) { p.unshift(cur); cur = cur.parent ? byId.get(cur.parent) : null; }
+    return p;
+  };
+
+  // ---- layout: assign each node an (x,y) on a ring around its parent ----
+  // scale per generation-distance from the FOCUSED node is applied at render.
+  // base geometry (relative to root) is precomputed so the cluster is stable.
+  const geo = new Map(); // id -> {bx, by}  in % of universe box, centered at 0
+  function layoutUniverse() {
+    geo.set(DATA.root, { bx: 0, by: 0 });
+    function place(parentId, radius) {
+      const kids = childrenOf(parentId);
+      const pg = geo.get(parentId);
+      const n = kids.length;
+      if (n === 0) return;
+      // distribute on a ring; offset alternating gens for a fuller cluster
+      const startA = (depthOf(parentId) % 2 === 0) ? -Math.PI / 2 : -Math.PI / 2 + Math.PI / n;
+      kids.forEach((k, i) => {
+        const a = startA + (i / n) * Math.PI * 2;
+        const bx = pg.bx + Math.cos(a) * radius;
+        const by = pg.by + Math.sin(a) * radius * 0.78; // slightly flattened
+        geo.set(k.id, { bx, by });
+        place(k.id, radius * 0.52);
+      });
+    }
+    place(DATA.root, 30); // first ring radius in % units
+  }
+  layoutUniverse();
+
+  // ---- build DOM nodes ----
+  const nodeEls = new Map(); // id -> { el, cardWidth }
+  function widthForRel(rel) {
+    // intrinsic card width by relation to focus; level scale multiplies this
+    if (IS_MOBILE) {
+      return { active: 200, child: 150, grand: 112, great: 90, parent: 150 }[rel] || 90;
+    }
+    return { active: 300, child: 214, grand: 150, great: 116, parent: 214 }[rel] || 116;
+  }
+
+  function mediaMarkup(node) {
+    const m = node.media;
+    if (m.type === "video") {
+      return `
+        <div class="node-media loading" data-media>
+          <img data-poster src="${m.poster}" alt="" loading="lazy" decoding="async" />
+          <span class="play-pip" aria-hidden="true"></span>
+        </div>`;
+    }
+    return `
+      <div class="node-media loading" data-media>
+        <img data-img src="${m.src}" alt="" loading="lazy" decoding="async" />
+      </div>`;
+  }
+
+  function buildNodes() {
+    DATA.nodes.forEach(node => {
+      const el = document.createElement("article");
+      el.className = "node";
+      el.dataset.id = node.id;
+      el.dataset.lvl = depthOf(node.id);
+      el.tabIndex = -1; // focus managed; card is the button
+      const lvl = depthOf(node.id);
+      el.innerHTML = `
+        <div class="node-card" role="button" tabindex="0"
+             aria-label="${node.title}. Level ${lvl}. Zoom in.">
+          ${mediaMarkup(node)}
+          <div class="node-body">
+            <div class="node-kicker"><span>${node.kicker}</span><span class="lvl">L${lvl}</span></div>
+            <h2 class="node-title">${node.title}</h2>
+            <p class="node-sub">${node.sub}</p>
+          </div>
+        </div>`;
+      universe.appendChild(el);
+      nodeEls.set(node.id, el);
+
+      const card = el.querySelector(".node-card");
+      const enter = () => focusNode(node.id);
+      card.addEventListener("click", enter);
+      card.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); enter(); }
+      });
+    });
+  }
+  buildNodes();
+
+  // ---- lazy-load media when its node is near focus (avoids decoding all at once) ----
+  const loadedImg = new Set();
+  function ensureImageLoaded(node) {
+    const el = nodeEls.get(node.id);
+    const wrap = el.querySelector("[data-media]");
+    if (loadedImg.has(node.id)) return;
+    const imgEl = el.querySelector("[data-img], [data-poster]");
+    if (imgEl) {
+      const done = () => { wrap.classList.remove("loading"); };
+      if (imgEl.complete) done();
+      else imgEl.addEventListener("load", done, { once: true });
+    } else {
+      wrap.classList.remove("loading");
+    }
+    loadedImg.add(node.id);
+  }
+
+  // ---- video discipline: only the FOCUSED node's video plays; one at a time ----
+  let activeVideoId = null;
+  function setVideoFor(focusId) {
+    // tear down previous
+    if (activeVideoId && activeVideoId !== focusId) {
+      const prevEl = nodeEls.get(activeVideoId);
+      const v = prevEl && prevEl.querySelector("video");
+      if (v) { v.pause(); }
+      activeVideoId = null;
+    }
+    const node = byId.get(focusId);
+    if (!node || node.media.type !== "video" || REDUCED) return;
+    const el = nodeEls.get(focusId);
+    let v = el.querySelector("video");
+    if (!v) {
+      // upgrade poster -> real video lazily, only when focused
+      const wrap = el.querySelector("[data-media]");
+      v = document.createElement("video");
+      v.src = node.media.src;
+      v.muted = true; v.loop = true; v.playsInline = true; v.preload = "metadata";
+      v.setAttribute("aria-hidden", "true");
+      const poster = wrap.querySelector("[data-poster]");
+      v.poster = node.media.poster;
+      wrap.insertBefore(v, wrap.firstChild);
+      if (poster) poster.style.display = "none";
+    }
+    const p = v.play();
+    if (p && p.catch) p.catch(() => {});
+    activeVideoId = focusId;
+  }
+
+  // ---- focus state + render ----
+  let focusId = DATA.root;
+
+  // relation of node to current focus, for scale/opacity tiering
+  function relation(nodeId, focus) {
+    if (nodeId === focus) return "active";
+    const n = byId.get(nodeId);
+    const f = byId.get(focus);
+    // direct child of focus
+    if (n.parent === focus) return "child";
+    // parent of focus (one above)
+    if (f.parent === nodeId) return "parent";
+    // grandchild of focus (child of a child)
+    const np = n.parent ? byId.get(n.parent) : null;
+    if (np && np.parent === focus) return "grand";
+    // great-grandchild
+    const npp = np && np.parent ? byId.get(np.parent) : null;
+    if (npp && npp.parent === focus) return "great";
+    return "far";
+  }
+
+  // scale multiplier per relation: active biggest, deeper smaller
+  const REL_SCALE = { active: 1.0, child: 0.66, grand: 0.42, great: 0.27, parent: 0.5, far: 0.18 };
+
+  function render(animate) {
+    const focusGeo = geo.get(focusId);
+    // we shift the universe so the focused node sits at center,
+    // and scale the whole body so the focus reads at "scale 1" presence.
+    const FOCUS_BASE_S = 1.9; // how much the body magnifies when deep-focused
+    const depth = depthOf(focusId);
+    const bodyScale = 1 + depth * 0.0; // body stays unit; per-node scale does the work
+    // translate the universe so focus geo is centered
+    const tx = -focusGeo.bx;
+    const ty = -focusGeo.by;
+
+    universe.style.transition = animate ? "" : "none";
+    universe.style.transform = `translate(${tx * 1}%, ${ty * 1}%) scale(${bodyScale})`;
+    if (!animate) { void universe.offsetWidth; universe.style.transition = ""; }
+
+    let litChildren = [];
+    DATA.nodes.forEach(node => {
+      const el = nodeEls.get(node.id);
+      const g = geo.get(node.id);
+      const rel = relation(node.id, focusId);
+      el.dataset.rel = rel;
+
+      const relScale = REL_SCALE[rel];
+      // magnify the active branch so descending feels like a real zoom-in
+      const focusMag = (rel === "active") ? FOCUS_BASE_S
+                     : (rel === "child") ? FOCUS_BASE_S * 0.74
+                     : (rel === "grand") ? FOCUS_BASE_S * 0.5
+                     : (rel === "great") ? FOCUS_BASE_S * 0.34
+                     : (rel === "parent") ? FOCUS_BASE_S * 0.6
+                     : 0.6;
+
+      el.style.setProperty("--x", g.bx + "%");
+      el.style.setProperty("--y", g.by + "%");
+      el.style.setProperty("--s", (relScale * focusMag).toFixed(3));
+
+      const w = widthForRel(rel);
+      const card = el.querySelector(".node-card");
+      card.querySelector(".node-card") ; // noop guard
+      el.querySelector(".node-card").style.setProperty("--w", w + "px");
+      // title size scales a touch with card width
+      el.querySelector(".node-card").style.setProperty("--ts",
+        (rel === "active" ? 30 : rel === "child" ? 22 : rel === "grand" ? 17 : 14) + "px");
+
+      // load media for everything that is at least faintly visible
+      if (rel !== "far") ensureImageLoaded(node);
+
+      if (rel === "child") litChildren.push(node.id);
+    });
+
+    // play the focused video (only one), pause others
+    setVideoFor(focusId);
+
+    drawLinks(litChildren);
+    updateChrome();
+  }
+
+  // ---- connective hairlines from focus to its children ----
+  function drawLinks(litChildren) {
+    // positions in the universe box are % relative to center;
+    // SVG coordinate system = the universe box pixel size.
+    const rect = universe.getBoundingClientRect();
+    const W = rect.width, H = rect.height;
+    linksSvg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    linksSvg.setAttribute("width", W);
+    linksSvg.setAttribute("height", H);
+
+    const toPx = (g) => ({
+      x: W / 2 + (g.bx / 100) * W,
+      y: H / 2 + (g.by / 100) * H
+    });
+    let html = "";
+    DATA.nodes.forEach(node => {
+      if (!node.parent) return;
+      // draw the edge only if both ends are within the visible tier set
+      const relA = relation(node.id, focusId);
+      const relB = relation(node.parent, focusId);
+      const visible = (r) => r !== "far";
+      if (!visible(relA) || !visible(relB)) return;
+      const a = toPx(geo.get(node.id));
+      const b = toPx(geo.get(node.parent));
+      const lit = (node.parent === focusId) ? " lit" : "";
+      html += `<line class="${lit.trim()}" x1="${b.x.toFixed(1)}" y1="${b.y.toFixed(1)}" x2="${a.x.toFixed(1)}" y2="${a.y.toFixed(1)}" />`;
+    });
+    linksSvg.innerHTML = html;
+  }
+
+  // ---- chrome: breadcrumbs, scale readout, focus ring ----
+  function updateChrome() {
+    const path = pathOf(focusId);
+    crumbsEl.innerHTML = "";
+    path.forEach((n, i) => {
+      if (i > 0) {
+        const arr = document.createElement("span");
+        arr.className = "crumb-arrow"; arr.textContent = "/";
+        crumbsEl.appendChild(arr);
+      }
+      const c = document.createElement("span");
+      c.className = "crumb" + (i === path.length - 1 ? " here" : "");
+      c.textContent = n.title;
+      c.addEventListener("click", () => focusNode(n.id));
+      c.tabIndex = 0;
+      c.setAttribute("role", "link");
+      c.addEventListener("keydown", e => { if (e.key === "Enter") focusNode(n.id); });
+      crumbsEl.appendChild(c);
+    });
+    const depth = depthOf(focusId);
+    lvlVal.textContent = depth;
+    scaleVal.textContent = (1 + depth * 0.9).toFixed(2) + "x";
+
+    // move keyboard focus to the active card on programmatic zoom (a11y)
+    const active = nodeEls.get(focusId);
+    if (active && document.activeElement && document.activeElement.classList && document.activeElement.classList.contains("crumb")) {
+      // keep crumb focus
+    }
+  }
+
+  function focusNode(id) {
+    if (!byId.has(id)) return;
+    focusId = id;
+    render(!REDUCED);
+  }
+
+  function zoomOut() {
+    const cur = byId.get(focusId);
+    if (cur && cur.parent != null) focusNode(cur.parent);
+  }
+
+  // ---- scroll = zoom levels (debounced; no page scroll happens, body is fixed) ----
+  let scrollLock = false;
+  function onWheel(e) {
+    e.preventDefault();
+    if (REDUCED) return;        // reduced motion: settle, ignore zoom-scroll
+    if (scrollLock) return;
+    scrollLock = true;
+    setTimeout(() => { scrollLock = false; }, 360);
+    if (e.deltaY > 0) {
+      // zoom IN: descend into first child of focus, if any
+      const kids = childrenOf(focusId);
+      if (kids.length) focusNode(kids[0].id);
+    } else {
+      zoomOut();
+    }
+  }
+  window.addEventListener("wheel", onWheel, { passive: false });
+
+  // touch: vertical swipe = zoom level
+  let touchY = null;
+  window.addEventListener("touchstart", e => { touchY = e.touches[0].clientY; }, { passive: true });
+  window.addEventListener("touchend", e => {
+    if (touchY == null || REDUCED) return;
+    const dy = (e.changedTouches[0].clientY) - touchY;
+    if (Math.abs(dy) < 46) { touchY = null; return; }
+    if (dy < 0) { const kids = childrenOf(focusId); if (kids.length) focusNode(kids[0].id); }
+    else { zoomOut(); }
+    touchY = null;
+  }, { passive: true });
+
+  // keyboard
+  window.addEventListener("keydown", e => {
+    if (e.key === "Escape") { e.preventDefault(); zoomOut(); }
+    else if (e.key === "Backspace") { e.preventDefault(); zoomOut(); }
+    else if (e.key === "Home") { e.preventDefault(); focusNode(DATA.root); }
+  });
+
+  document.getElementById("upBtn").addEventListener("click", zoomOut);
+  document.getElementById("rootBtn").addEventListener("click", () => focusNode(DATA.root));
+
+  // re-measure SVG on resize
+  let rAF = null;
+  window.addEventListener("resize", () => {
+    if (rAF) cancelAnimationFrame(rAF);
+    rAF = requestAnimationFrame(() => render(false));
+  });
+
+  // ---- initial paint: at scroll=0 the WHOLE cluster reads as a universe ----
+  // root focus shows hero big, level-1 children, level-2 grandchildren receding.
+  render(false);
+
+  // gentle settle so the cluster animates into place on load (skipped if reduced)
+  if (!REDUCED) {
+    universe.style.transform += " scale(1.02)";
+    requestAnimationFrame(() => requestAnimationFrame(() => render(true)));
+  }
+})();
+</script>
+</body>
+</html>

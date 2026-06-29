@@ -14,6 +14,7 @@ ORDER = [
     ("platform",    "Platform-Primitive Showcases"),
     ("product",     "Page Purpose & Product UI"),
     ("vertical",    "Industry Verticals"),
+    ("admin",       "Admin & Backoffice"),
     ("document",    "Document & Microsite Artifacts"),
     ("movement",    "Design Movements & Eras"),
     ("editorial",   "Editorial & Typographic"),
@@ -110,6 +111,9 @@ SLUG_CAT = {
     # --- batch 41 (bold + market) ---
     "digital-rococo-baroque": "movement", "l-system-botanical-canvas": "generative", "vertical-elevator-floors": "interaction",
     "cpg-food-brand-bold-color": "vertical", "cloud-devops-blueprint-grid": "vertical",
+    # --- batch 43 (YIMWHAN BACKOFFICE lane, King 2026-06-29) ---
+    "admin-owner-overview": "admin", "admin-case-inbox": "admin", "admin-bookings-calendar": "admin",
+    "admin-handoff-liveops": "admin", "admin-analytics-report": "admin",
 }
 
 KEYWORDS = [  # fallback for any slug not in SLUG_CAT (first match wins)

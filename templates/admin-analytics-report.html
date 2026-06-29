@@ -1,0 +1,812 @@
+<!-- TEMPLATE: Clinic AI Analytics Report | ARCHETYPE: analytics | REF: Mixpanel, PostHog, Amplitude | WHEN TO USE: owner-facing reporting dashboard for an AI voice or chat assistant (or any ops product); all charts are hand-built inline SVG, no chart library, no external media | SWAP: edit window.DATA in the script at the bottom -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yimwhan - AI Performance Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DATA lives in the JS <script> at the bottom (window.DATA).
+   Edit that single object to repoint this report at new data.
+   ============================================================ */
+:root{
+  --bg:#0c0e14;
+  --bg-2:#11141d;
+  --panel:#151926;
+  --panel-2:#1a1f30;
+  --line:#242a3d;
+  --line-2:#2e3650;
+  --ink:#eef1f8;
+  --ink-2:#aab2c8;
+  --ink-3:#6c7591;
+  --accent:#7c5cff;
+  --accent-soft:#9b82ff;
+  /* multi-series chart palette */
+  --c1:#7c5cff; /* voice / primary */
+  --c2:#23c4a7; /* line / teal */
+  --c3:#ffb020; /* amber */
+  --c4:#ff5d8f; /* pink */
+  --c5:#3aa0ff; /* blue */
+  --good:#23c4a7;
+  --warn:#ffb020;
+  --bad:#ff5d8f;
+  --radius:14px;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:"Inter",system-ui,-apple-system,sans-serif;
+  background:
+    radial-gradient(1200px 600px at 85% -10%, rgba(124,92,255,.12), transparent 60%),
+    radial-gradient(900px 500px at 0% 0%, rgba(35,196,167,.07), transparent 55%),
+    var(--bg);
+  color:var(--ink);
+  font-feature-settings:"tnum" 1,"cv05" 1;
+  -webkit-font-smoothing:antialiased;
+  line-height:1.45;
+  min-height:100vh;
+}
+.tnum{font-variant-numeric:tabular-nums}
+.mono{font-family:var(--mono)}
+
+/* ---------- shell ---------- */
+.wrap{max-width:1440px;margin:0 auto;padding:20px 28px 64px}
+
+/* ---------- header ---------- */
+.appbar{
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  padding:14px 18px;margin-bottom:18px;
+  background:linear-gradient(180deg,rgba(26,31,48,.9),rgba(21,25,38,.9));
+  border:1px solid var(--line);border-radius:var(--radius);
+  backdrop-filter:blur(8px);
+  position:sticky;top:12px;z-index:20;
+}
+.brand{display:flex;align-items:center;gap:11px;min-width:0}
+.logo{
+  width:38px;height:38px;border-radius:11px;flex:none;
+  background:conic-gradient(from 210deg,var(--c1),var(--c2),var(--c5),var(--c1));
+  display:grid;place-items:center;color:#fff;font-weight:800;font-size:17px;
+  box-shadow:0 6px 18px rgba(124,92,255,.35);
+}
+.brand .bt{font-weight:700;font-size:15px;letter-spacing:-.01em;line-height:1.1}
+.brand .bs{font-size:11.5px;color:var(--ink-3);letter-spacing:.02em}
+.spacer{flex:1 1 auto}
+
+.seg{display:inline-flex;background:var(--bg-2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+.seg button{
+  font:inherit;font-size:12.5px;font-weight:600;color:var(--ink-3);
+  background:none;border:0;padding:6px 12px;border-radius:7px;cursor:pointer;
+  transition:background .15s,color .15s;letter-spacing:.01em;
+}
+.seg button:hover{color:var(--ink-2)}
+.seg button[aria-pressed="true"]{background:var(--panel-2);color:var(--ink);box-shadow:0 1px 0 rgba(255,255,255,.04) inset}
+
+.daterange{
+  display:inline-flex;align-items:center;gap:8px;
+  background:var(--bg-2);border:1px solid var(--line);border-radius:10px;
+  padding:7px 12px;font-size:12.5px;color:var(--ink-2);font-weight:500;
+}
+.daterange svg{flex:none}
+.daterange .dr-cur{color:var(--ink);font-weight:600}
+.daterange .chev{color:var(--ink-3)}
+
+.btn{
+  font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;
+  display:inline-flex;align-items:center;gap:7px;
+  padding:8px 14px;border-radius:10px;border:1px solid var(--line-2);
+  background:var(--panel-2);color:var(--ink);transition:transform .12s,border-color .15s,background .15s;
+}
+.btn:hover{border-color:var(--accent);background:#1f2336}
+.btn:active{transform:translateY(1px)}
+.btn.primary{
+  background:linear-gradient(180deg,var(--accent-soft),var(--accent));
+  border-color:transparent;color:#fff;box-shadow:0 6px 16px rgba(124,92,255,.32);
+}
+.btn.primary:hover{filter:brightness(1.06)}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-3);font-weight:600;letter-spacing:.02em}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 4px rgba(35,196,167,.16);animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+
+/* ---------- KPI strip ---------- */
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:16px}
+.kpi{
+  background:linear-gradient(180deg,var(--panel-2),var(--panel));
+  border:1px solid var(--line);border-radius:var(--radius);padding:15px 16px;
+  position:relative;overflow:hidden;
+}
+.kpi::after{content:"";position:absolute;inset:0;border-radius:var(--radius);pointer-events:none;box-shadow:0 1px 0 rgba(255,255,255,.04) inset}
+.kpi .lab{font-size:11.5px;color:var(--ink-3);font-weight:600;letter-spacing:.04em;text-transform:uppercase;display:flex;align-items:center;gap:6px}
+.kpi .val{font-size:27px;font-weight:700;letter-spacing:-.02em;margin-top:6px;line-height:1}
+.kpi .val small{font-size:14px;color:var(--ink-3);font-weight:600}
+.kpi .sub{font-size:12px;color:var(--ink-3);margin-top:8px;display:flex;align-items:center;gap:7px}
+.delta{font-family:var(--mono);font-size:11.5px;font-weight:600;padding:2px 7px;border-radius:6px;display:inline-flex;align-items:center;gap:3px}
+.delta.up{color:var(--good);background:rgba(35,196,167,.12)}
+.delta.down{color:var(--bad);background:rgba(255,93,143,.12)}
+.delta.flat{color:var(--ink-3);background:rgba(108,117,145,.12)}
+.spark{margin-top:10px}
+
+/* ---------- chart grid ---------- */
+.grid{display:grid;gap:16px}
+.row-main{grid-template-columns:1.55fr 1fr 1.25fr}
+.row-second{grid-template-columns:1.4fr 1fr 1fr}
+.card{
+  background:linear-gradient(180deg,var(--panel),var(--bg-2));
+  border:1px solid var(--line);border-radius:var(--radius);padding:16px 16px 14px;
+  display:flex;flex-direction:column;min-width:0;
+}
+.card.tall{min-height:280px}
+.chead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:4px}
+.ctitle{font-size:14px;font-weight:700;letter-spacing:-.01em}
+.csub{font-size:11.5px;color:var(--ink-3);margin-top:2px;font-weight:500}
+.cmeta{text-align:right;font-size:11.5px;color:var(--ink-3);font-weight:600;white-space:nowrap}
+.cmeta b{display:block;color:var(--ink);font-size:18px;font-weight:700;letter-spacing:-.01em;line-height:1.2}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:11.5px;color:var(--ink-2);font-weight:500}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.lg{width:9px;height:9px;border-radius:3px;flex:none}
+.cnote{font-size:11px;color:var(--ink-3);margin-top:10px;display:flex;justify-content:space-between;gap:10px;font-weight:500}
+
+/* chart SVGs fill their host; UI icon SVGs keep their attribute sizing */
+#volChart svg,#resChart svg,#heatmap svg,.spark{display:block;width:100%;height:auto;overflow:visible}
+.appbar svg,.foot svg{flex:none}
+.axis{font-family:var(--mono);font-size:10px;fill:#6c7591}
+.gl{stroke:#222a3e;stroke-width:1}
+.gl-0{stroke:#2e3650}
+
+/* draw-in animation (gated by reduced-motion) */
+.bar-rect{transform-box:fill-box;transform-origin:bottom}
+.line-path{stroke-dasharray:var(--len);stroke-dashoffset:var(--len)}
+.hbar-rect{transform-box:fill-box;transform-origin:left}
+.donut-seg{transition:opacity .15s}
+.heat-cell{transition:transform .15s}
+.fun-step{transform-box:fill-box;transform-origin:center}
+
+@media (prefers-reduced-motion:no-preference){
+  .anim .bar-rect{animation:growY .7s cubic-bezier(.2,.7,.2,1) backwards}
+  .anim .line-path{animation:draw 1.3s ease forwards}
+  .anim .hbar-rect{animation:growX .8s cubic-bezier(.2,.7,.2,1) backwards}
+  .anim .fun-step{animation:growX .7s cubic-bezier(.2,.7,.2,1) backwards}
+  .anim .heat-cell{animation:fade .5s ease backwards}
+  .anim .donut-seg{animation:fade .6s ease backwards}
+}
+@keyframes growY{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes growX{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+
+/* bar hover */
+.bar-rect{transition:filter .12s}
+.bargroup:hover .bar-rect{filter:brightness(1.22)}
+
+/* ---------- intent (horizontal bars) ---------- */
+.hbars{display:flex;flex-direction:column;gap:11px;margin-top:8px}
+.hbar{display:grid;grid-template-columns:84px 1fr 52px;align-items:center;gap:11px}
+.hbar .hlab{font-size:12px;color:var(--ink-2);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hbar .htrack{height:11px;background:var(--bg);border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+.hbar .hfill{height:100%;border-radius:6px;transform-origin:left}
+.anim .hbar .hfill{animation:growX .8s cubic-bezier(.2,.7,.2,1) backwards}
+.hbar .hval{font-family:var(--mono);font-size:12px;font-weight:600;text-align:right;color:var(--ink)}
+.hbar .hpct{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);text-align:right}
+
+/* ---------- heatmap ---------- */
+.heatwrap{margin-top:6px}
+.heat-legend{display:flex;align-items:center;gap:8px;font-size:10.5px;color:var(--ink-3);font-family:var(--mono);margin-top:10px}
+.heat-scale{display:flex;height:9px;border-radius:5px;overflow:hidden;flex:none;width:120px;border:1px solid var(--line)}
+.heat-scale i{flex:1}
+
+/* ---------- funnel ---------- */
+.funnel{display:flex;flex-direction:column;gap:9px;margin-top:8px}
+.fstep{position:relative}
+.frow{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
+.fname{font-size:12px;font-weight:600;color:var(--ink-2)}
+.fnum{font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--ink)}
+.fnum .fdrop{color:var(--ink-3);font-size:10.5px;margin-left:7px}
+.ftrack{height:24px;background:var(--bg);border-radius:7px;overflow:hidden;border:1px solid var(--line);position:relative}
+.ffill{height:100%;border-radius:7px;transform-origin:left;display:flex;align-items:center;padding-left:10px}
+.anim .ffill{animation:growX .8s cubic-bezier(.2,.7,.2,1) backwards}
+.ffill .fp{font-family:var(--mono);font-size:11px;font-weight:600;color:#06121b;mix-blend-mode:normal}
+
+/* ---------- cost tile ---------- */
+.cost{background:
+  radial-gradient(120% 120% at 100% 0%,rgba(124,92,255,.16),transparent 55%),
+  linear-gradient(180deg,var(--panel-2),var(--panel));}
+.cost-top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.cost-big{font-size:34px;font-weight:800;letter-spacing:-.025em;line-height:1}
+.cost-big small{font-size:15px;color:var(--ink-3);font-weight:600;margin-left:4px}
+.budget{margin-top:14px}
+.budget-track{height:10px;background:var(--bg);border-radius:6px;overflow:hidden;border:1px solid var(--line);position:relative}
+.budget-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--c2),var(--c1));transform-origin:left}
+.anim .budget-fill{animation:growX .9s cubic-bezier(.2,.7,.2,1) backwards}
+.budget-marks{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10.5px;color:var(--ink-3);margin-top:6px}
+.cost-rows{margin-top:14px;border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:9px}
+.crow{display:flex;align-items:center;justify-content:space-between;font-size:12px}
+.crow .cl{display:flex;align-items:center;gap:8px;color:var(--ink-2);font-weight:500}
+.crow .cr{font-family:var(--mono);font-weight:600;color:var(--ink)}
+.cdot{width:8px;height:8px;border-radius:3px;flex:none}
+
+.tip{
+  position:fixed;pointer-events:none;z-index:50;
+  background:#06080e;border:1px solid var(--line-2);border-radius:9px;
+  padding:8px 11px;font-size:11.5px;color:var(--ink);
+  box-shadow:0 12px 30px rgba(0,0,0,.5);opacity:0;transition:opacity .12s;
+  transform:translate(-50%,-118%);white-space:nowrap;
+}
+.tip.on{opacity:1}
+.tip b{font-family:var(--mono);font-weight:600}
+.tip .tk{color:var(--ink-3);font-weight:500;margin-right:6px}
+
+.foot{margin-top:22px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;font-size:11.5px;color:var(--ink-3);font-weight:500}
+.foot .badge{display:inline-flex;align-items:center;gap:6px;background:var(--bg-2);border:1px solid var(--line);padding:5px 10px;border-radius:8px}
+
+:focus-visible{outline:2px solid var(--accent-soft);outline-offset:2px;border-radius:6px}
+
+/* ---------- responsive ---------- */
+@media (max-width:1100px){
+  .kpis{grid-template-columns:repeat(3,1fr)}
+  .row-main,.row-second{grid-template-columns:1fr 1fr}
+}
+@media (max-width:760px){
+  .wrap{padding:14px 14px 48px}
+  .appbar{position:static;top:auto;padding:12px 14px;gap:10px}
+  .appbar .seg{order:3;width:100%;justify-content:space-between}
+  .appbar .seg button{flex:1}
+  .kpis{grid-template-columns:1fr 1fr;gap:11px}
+  .kpi .val{font-size:23px}
+  .row-main,.row-second{grid-template-columns:1fr}
+  .daterange{font-size:12px;padding:6px 10px}
+  .cost-big{font-size:30px}
+}
+/* <=640px: charts have no media to cover-crop, so just compact the header +
+   KPI strip enough that the first chart row (the signature inline-SVG viz)
+   peeks into the first screen at scroll=0 instead of sitting below the fold.
+   Single-column charts stack; nothing crops. */
+@media (max-width:640px){
+  .wrap{padding:10px 12px 44px}
+  .appbar{padding:10px 12px;gap:8px;margin-bottom:12px}
+  .appbar .daterange,.appbar .btn.primary{flex:1 1 auto}
+  .kpis{grid-template-columns:1fr 1fr;gap:9px;margin-bottom:12px}
+  .kpi{padding:11px 12px}
+  .kpi .val{font-size:21px;margin-top:4px}
+  .kpi .sub{margin-top:5px;font-size:11px}
+  /* drop the per-KPI sparkline on the smallest screens: the headline charts
+     below are the real signature and we want them above the fold */
+  .kpi .spark{display:none}
+  .row-main,.row-second{grid-template-columns:1fr;gap:13px}
+  .card{padding:14px 13px 12px}
+  .hbar{grid-template-columns:74px 1fr 46px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ===================== HEADER ===================== -->
+  <header class="appbar">
+    <div class="brand">
+      <div class="logo">ยิ้ม</div>
+      <div>
+        <div class="bt" id="brandTitle">Yimwhan AI</div>
+        <div class="bs" id="brandSub">Performance report</div>
+      </div>
+    </div>
+    <div class="live"><span class="dot"></span> LIVE</div>
+    <div class="spacer"></div>
+
+    <div class="seg" role="group" aria-label="Channel filter">
+      <button data-ch="all" aria-pressed="true">All</button>
+      <button data-ch="voice" aria-pressed="false">Voice</button>
+      <button data-ch="line" aria-pressed="false">LINE</button>
+    </div>
+
+    <button class="daterange" id="dateBtn" aria-label="Change date range">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#aab2c8" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      <span><span class="dr-cur" id="drLabel">Jun 1 - Jun 29</span></span>
+      <svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+
+    <button class="btn primary" id="exportBtn">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+      Export
+    </button>
+  </header>
+
+  <!-- ===================== KPI STRIP ===================== -->
+  <section class="kpis" id="kpis"></section>
+
+  <!-- ============ ROW 1: VOLUME + INTENT + RESOLUTION ============ -->
+  <section class="grid row-main" style="margin-bottom:16px">
+
+    <!-- VOLUME bar chart -->
+    <div class="card">
+      <div class="chead">
+        <div>
+          <div class="ctitle">Conversation volume by hour</div>
+          <div class="csub">Voice calls + LINE messages, today vs 7-day average</div>
+        </div>
+        <div class="cmeta"><b id="volTotal">0</b>total today</div>
+      </div>
+      <div id="volChart"></div>
+      <div class="legend">
+        <span><i class="lg" style="background:#7c5cff"></i> Today</span>
+        <span><i class="lg" style="background:#2e3650"></i> 7-day avg</span>
+        <span><i class="lg" style="background:#23c4a7"></i> Peak hour</span>
+      </div>
+    </div>
+
+    <!-- INTENT breakdown horizontal bars -->
+    <div class="card">
+      <div class="chead">
+        <div>
+          <div class="ctitle">Intent breakdown</div>
+          <div class="csub">Classified by the AI, this period</div>
+        </div>
+        <div class="cmeta"><b id="intTotal">0</b>tagged</div>
+      </div>
+      <div class="hbars" id="intentBars"></div>
+    </div>
+
+    <!-- RESOLUTION line chart -->
+    <div class="card">
+      <div class="chead">
+        <div>
+          <div class="ctitle">AI resolution rate</div>
+          <div class="csub">Closed by AI without human handoff</div>
+        </div>
+        <div class="cmeta"><b id="resNow">0%</b>last 7d</div>
+      </div>
+      <div id="resChart"></div>
+      <div class="legend">
+        <span><i class="lg" style="background:#23c4a7"></i> Resolution rate</span>
+        <span><i class="lg" style="background:#ffb020"></i> Target 80%</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ROW 2: HEATMAP + FUNNEL + COST ============ -->
+  <section class="grid row-second">
+
+    <!-- HEATMAP -->
+    <div class="card">
+      <div class="chead">
+        <div>
+          <div class="ctitle">Peak times</div>
+          <div class="csub">Inbound conversations, day x hour</div>
+        </div>
+        <div class="cmeta"><b id="heatPeak">-</b>busiest slot</div>
+      </div>
+      <div class="heatwrap" id="heatmap"></div>
+      <div class="heat-legend">
+        <span>fewer</span>
+        <div class="heat-scale">
+          <i style="background:#161b2a"></i><i style="background:#2a2a55"></i>
+          <i style="background:#4636a8"></i><i style="background:#6e4dff"></i>
+          <i style="background:#23c4a7"></i>
+        </div>
+        <span>busier</span>
+      </div>
+    </div>
+
+    <!-- FUNNEL -->
+    <div class="card">
+      <div class="chead">
+        <div>
+          <div class="ctitle">Booking funnel</div>
+          <div class="csub">Contacted to confirmed booking</div>
+        </div>
+        <div class="cmeta"><b id="convRate">0%</b>conversion</div>
+      </div>
+      <div class="funnel" id="funnel"></div>
+    </div>
+
+    <!-- COST tile -->
+    <div class="card cost">
+      <div class="chead">
+        <div>
+          <div class="ctitle">Cost this month</div>
+          <div class="csub">AI + telephony usage, THB</div>
+        </div>
+      </div>
+      <div class="cost-top">
+        <div class="cost-big">฿<span id="costMTD" class="tnum">0</span></div>
+        <div class="cmeta"><b id="costProj" class="tnum"></b>projected</div>
+      </div>
+      <div class="budget">
+        <div class="budget-track"><div class="budget-fill" id="budgetFill" style="width:0"></div></div>
+        <div class="budget-marks">
+          <span id="budgetUsed">฿0 used</span>
+          <span id="budgetCap">budget ฿0</span>
+        </div>
+      </div>
+      <div class="cost-rows" id="costRows"></div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <div class="badge">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#23c4a7" stroke-width="2.2" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+      <span id="footStamp">Generated for review</span>
+    </div>
+    <div>Yimwhan dental AI assistant - owner reporting - all figures demo data</div>
+  </footer>
+</div>
+
+<div class="tip" id="tip"></div>
+
+<script>
+/* ================================================================
+   DATA  -  swap this single object to repoint the whole report.
+   Realistic dental-clinic AI assistant content (THB, voice + LINE).
+   ================================================================ */
+window.DATA = {
+  brand:{ title:"Yimwhan AI", sub:"Clinic AI performance report", clinic:"Smile Dental, Rama 9" },
+  range:"Jun 1 - Jun 29",
+
+  // headline KPIs. spark = mini trend (relative values 0..1 scaled internally)
+  kpis:[
+    { lab:"Conversations", val:"3,184", delta:"+12.4%", dir:"up",  sub:"vs prior 28d",
+      spark:[.45,.5,.42,.6,.58,.7,.66,.8,.78,.92,.88,1] },
+    { lab:"AI resolution",  val:"82.6", unit:"%", delta:"+4.1pt", dir:"up", sub:"target 80%",
+      spark:[.6,.58,.63,.65,.62,.7,.72,.71,.76,.79,.8,.83] },
+    { lab:"Bookings",       val:"612",  delta:"+8.7%", dir:"up",  sub:"confirmed visits",
+      spark:[.4,.45,.5,.48,.55,.6,.58,.66,.7,.72,.8,.86] },
+    { lab:"Avg handle",     val:"1:48", unit:"", delta:"-9s", dir:"up", sub:"per conversation",
+      spark:[.9,.88,.85,.8,.82,.76,.74,.7,.68,.66,.6,.58] },
+    { lab:"Spend MTD",      val:"฿18,940", delta:"+2.0%", dir:"flat", sub:"of ฿28,000",
+      spark:[.2,.3,.35,.42,.5,.55,.6,.66,.72,.78,.85,.9] }
+  ],
+
+  // 24h volume. today + 7-day baseline per hour (clinic 8:00-20:00 active)
+  volume:{
+    hours:["6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21"],
+    today:[ 4, 22, 78,142,176,168,118,150,182,196,210,184,168,120, 64, 26],
+    base: [ 6, 20, 70,128,160,150,124,138,162,170,180,160,150,108, 70, 30]
+  },
+
+  // intent classes (booking / inquiry / reschedule / complaint / other)
+  intents:[
+    { name:"Booking",    count:1184, color:"#7c5cff" },
+    { name:"Inquiry",    count: 902, color:"#3aa0ff" },
+    { name:"Reschedule", count: 548, color:"#23c4a7" },
+    { name:"Complaint",  count: 196, color:"#ff5d8f" },
+    { name:"Other",      count: 354, color:"#ffb020" }
+  ],
+
+  // resolution rate over 14 days (percent)
+  resolution:{
+    days:14,
+    rate:[71,73,72,75,74,77,76,79,78,80,81,83,82,84],
+    target:80
+  },
+
+  // heatmap: 7 days x 16 hour-buckets (6..21). values are conversation counts.
+  heatDays:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],
+  heatHours:["6","8","10","12","14","16","18","20"],
+  heat:[
+    [ 2, 38, 92,110,140,160, 88, 30], // Mon
+    [ 3, 44,104,116,150,172, 96, 34], // Tue
+    [ 2, 40, 98,108,138,158, 90, 28], // Wed
+    [ 4, 50,118,128,168,190,104, 40], // Thu
+    [ 5, 58,134,142,184,210,120, 48], // Fri  (busiest)
+    [ 8, 70,150,120, 96, 80, 44, 16], // Sat
+    [ 1, 10, 22, 18, 14, 12,  6,  2]  // Sun (clinic closed-ish)
+  ],
+
+  // booking funnel
+  funnel:[
+    { name:"Contacted",        n:3184, color:"#7c5cff" },
+    { name:"Intent: booking",  n:1184, color:"#6e4dff" },
+    { name:"Slot offered",     n: 980, color:"#3aa0ff" },
+    { name:"Slot accepted",    n: 712, color:"#23c4a7" },
+    { name:"Booking confirmed",n: 612, color:"#1fae93" }
+  ],
+
+  // cost breakdown (THB, month to date)
+  cost:{
+    mtd:18940, projected:21800, budget:28000,
+    items:[
+      { name:"LLM (Claude)",      thb:8420, color:"#7c5cff" },
+      { name:"Voice STT (Soniox)",thb:4180, color:"#23c4a7" },
+      { name:"TTS (Google)",      thb:2960, color:"#3aa0ff" },
+      { name:"Telephony (Twilio)",thb:2480, color:"#ffb020" },
+      { name:"LINE Messaging",    thb: 900, color:"#ff5d8f" }
+    ]
+  }
+};
+
+/* ================================================================
+   RENDER
+   ================================================================ */
+(function(){
+  const D = window.DATA;
+  const RM = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const SVGNS = "http://www.w3.org/2000/svg";
+  const $ = (s,r=document)=>r.querySelector(s);
+  const el=(t,a={})=>{const e=document.createElementNS(SVGNS,t);for(const k in a)e.setAttribute(k,a[k]);return e;};
+  const fmt=n=>n.toLocaleString("en-US");
+  const tip = $("#tip");
+
+  function showTip(html,x,y){tip.innerHTML=html;tip.style.left=x+"px";tip.style.top=y+"px";tip.classList.add("on");}
+  function hideTip(){tip.classList.remove("on");}
+
+  // header
+  $("#brandTitle").textContent=D.brand.title;
+  $("#brandSub").textContent=D.brand.sub;
+  $("#drLabel").textContent=D.range;
+  $("#footStamp").textContent="Generated for "+D.brand.clinic;
+
+  /* ---------- KPI strip + sparklines ---------- */
+  (function(){
+    const wrap=$("#kpis");
+    D.kpis.forEach((k,i)=>{
+      const d=document.createElement("div");d.className="kpi";
+      const cls = k.dir==="up"?"up":k.dir==="down"?"down":"flat";
+      const arrow = k.dir==="up"?"&#9650;":k.dir==="down"?"&#9660;":"&#9644;";
+      d.innerHTML=`
+        <div class="lab">${k.lab}</div>
+        <div class="val tnum">${k.val}${k.unit?`<small>${k.unit}</small>`:""}</div>
+        <div class="sub"><span class="delta ${cls}">${arrow} ${k.delta}</span> ${k.sub}</div>`;
+      // sparkline
+      const W=130,H=30,p=2;
+      const svg=el("svg",{viewBox:`0 0 ${W} ${H}`,class:"spark",role:"img","aria-label":k.lab+" trend"});
+      const vals=k.spark, mx=Math.max(...vals), mn=Math.min(...vals);
+      const x=j=>p+ j*(W-2*p)/(vals.length-1);
+      const y=v=>H-p-((v-mn)/((mx-mn)||1))*(H-2*p);
+      let dPath="M"+x(0)+","+y(vals[0]);
+      vals.forEach((v,j)=>{if(j) dPath+=" L"+x(j)+","+y(v);});
+      const col = k.dir==="down"?"#ff5d8f":"#23c4a7";
+      // area
+      const area=el("path",{d:dPath+` L${x(vals.length-1)},${H} L${x(0)},${H} Z`,fill:col,"fill-opacity":"0.10",stroke:"none"});
+      const line=el("path",{d:dPath,fill:"none",stroke:col,"stroke-width":"1.8","stroke-linecap":"round","stroke-linejoin":"round",class:"line-path"});
+      svg.appendChild(area);svg.appendChild(line);
+      const last=el("circle",{cx:x(vals.length-1),cy:y(vals[vals.length-1]),r:"2.4",fill:col});
+      svg.appendChild(last);
+      d.appendChild(svg);
+      if(!RM){const len=line.getTotalLength();line.style.setProperty("--len",len);line.style.strokeDasharray=len;line.style.strokeDashoffset=len;}
+      wrap.appendChild(d);
+      if(!RM){line.style.animation=`draw .9s ease ${.15+i*.05}s forwards`;}
+    });
+  })();
+
+  /* ---------- VOLUME bar chart (grouped: today bar + baseline ghost) ---------- */
+  function renderVolume(scale){
+    const host=$("#volChart");host.innerHTML="";
+    const V=D.volume;
+    let today=V.today.slice(), base=V.base.slice();
+    if(scale!==undefined){ today=today.map(v=>Math.round(v*scale)); base=base.map(v=>Math.round(v*scale)); }
+    const W=560,H=200, m={t:14,r:8,b:24,l:34};
+    const iw=W-m.l-m.r, ih=H-m.t-m.b;
+    const n=today.length;
+    const mx=Math.max(...today,...base);
+    const ymax=Math.ceil(mx/50)*50;
+    const svg=el("svg",{viewBox:`0 0 ${W} ${H}`,role:"img","aria-label":"Volume by hour"});
+    // gridlines + y labels
+    for(let g=0;g<=4;g++){
+      const yv=ymax*g/4, yy=m.t+ih-(yv/ymax)*ih;
+      svg.appendChild(el("line",{x1:m.l,x2:W-m.r,y1:yy,y2:yy,class:g===0?"gl-0":"gl"}));
+      const tx=el("text",{x:m.l-6,y:yy+3,"text-anchor":"end",class:"axis"});tx.textContent=yv;svg.appendChild(tx);
+    }
+    const bw=iw/n, bar=Math.min(bw*0.52,16), gpad=(bw-bar)/2;
+    const peakIdx=today.indexOf(Math.max(...today));
+    today.forEach((v,i)=>{
+      const xx=m.l+i*bw+gpad;
+      const bh=(v/ymax)*ih, by=m.t+ih-bh;
+      const baseH=(base[i]/ymax)*ih, baseY=m.t+ih-baseH;
+      const g=el("g",{class:"bargroup"});
+      // baseline ghost
+      g.appendChild(el("rect",{x:xx-2,y:baseY,width:bar+4,height:Math.max(baseH,1),rx:3,fill:"#2e3650","fill-opacity":"0.6"}));
+      // today bar
+      const r=el("rect",{x:xx,y:by,width:bar,height:Math.max(bh,1),rx:3,
+        fill: i===peakIdx ? "#23c4a7":"#7c5cff",class:"bar-rect"});
+      if(!RM) r.style.animationDelay=(i*0.03)+"s";
+      g.appendChild(r);
+      // x label every other
+      if(i%2===0){const tx=el("text",{x:xx+bar/2,y:H-8,"text-anchor":"middle",class:"axis"});tx.textContent=V.hours[i];svg.appendChild(tx);}
+      // hover
+      g.style.cursor="pointer";
+      g.addEventListener("pointerenter",e=>{
+        const rc=host.getBoundingClientRect(); const cx=rc.left+(xx+bar/2)/W*rc.width; const cy=rc.top+by/H*rc.height;
+        showTip(`<span class="tk">${V.hours[i]}:00</span><b>${v}</b> today<br><span class="tk">avg</span><b>${base[i]}</b>`,cx,cy);
+      });
+      g.addEventListener("pointerleave",hideTip);
+      svg.appendChild(g);
+    });
+    host.appendChild(svg);
+    $("#volTotal").textContent=fmt(today.reduce((a,b)=>a+b,0));
+  }
+
+  /* ---------- INTENT horizontal bars ---------- */
+  function renderIntent(scale){
+    const host=$("#intentBars");host.innerHTML="";
+    let items=D.intents.map(x=>({...x}));
+    if(scale!==undefined) items.forEach(x=>x.count=Math.round(x.count*scale));
+    const total=items.reduce((a,b)=>a+b.count,0);
+    const mx=Math.max(...items.map(x=>x.count));
+    items.forEach((it,i)=>{
+      const pct=((it.count/total)*100);
+      const w=(it.count/mx)*100;
+      const row=document.createElement("div");row.className="hbar";
+      row.innerHTML=`
+        <div class="hlab" title="${it.name}">${it.name}</div>
+        <div class="htrack"><div class="hfill" style="width:${w}%;background:${it.color}"></div></div>
+        <div class="hval">${fmt(it.count)}<div class="hpct">${pct.toFixed(1)}%</div></div>`;
+      if(!RM){const f=row.querySelector(".hfill");f.style.animationDelay=(0.1+i*0.06)+"s";}
+      host.appendChild(row);
+    });
+    $("#intTotal").textContent=fmt(total);
+  }
+
+  /* ---------- RESOLUTION line chart ---------- */
+  function renderResolution(){
+    const host=$("#resChart");host.innerHTML="";
+    const R=D.resolution, vals=R.rate, n=vals.length;
+    const W=380,H=200, m={t:14,r:10,b:24,l:30};
+    const iw=W-m.l-m.r, ih=H-m.t-m.b;
+    const ymin=60,ymax=100;
+    const x=i=>m.l+i*iw/(n-1);
+    const y=v=>m.t+ih-((v-ymin)/(ymax-ymin))*ih;
+    const svg=el("svg",{viewBox:`0 0 ${W} ${H}`,role:"img","aria-label":"Resolution rate over time"});
+    for(let g=0;g<=4;g++){
+      const yv=ymin+(ymax-ymin)*g/4, yy=y(yv);
+      svg.appendChild(el("line",{x1:m.l,x2:W-m.r,y1:yy,y2:yy,class:g===0?"gl-0":"gl"}));
+      const tx=el("text",{x:m.l-6,y:yy+3,"text-anchor":"end",class:"axis"});tx.textContent=yv+"%";svg.appendChild(tx);
+    }
+    // target line
+    const ty=y(R.target);
+    svg.appendChild(el("line",{x1:m.l,x2:W-m.r,y1:ty,y2:ty,stroke:"#ffb020","stroke-width":"1.4","stroke-dasharray":"4 4","stroke-opacity":".8"}));
+    // path
+    let dp="M"+x(0)+","+y(vals[0]);
+    vals.forEach((v,i)=>{if(i)dp+=" L"+x(i)+","+y(v);});
+    const area=el("path",{d:dp+` L${x(n-1)},${m.t+ih} L${x(0)},${m.t+ih} Z`,fill:"#23c4a7","fill-opacity":".10"});
+    svg.appendChild(area);
+    const line=el("path",{d:dp,fill:"none",stroke:"#23c4a7","stroke-width":"2.4","stroke-linecap":"round","stroke-linejoin":"round",class:"line-path"});
+    svg.appendChild(line);
+    // dots + hover
+    vals.forEach((v,i)=>{
+      const c=el("circle",{cx:x(i),cy:y(v),r:i===n-1?"3.6":"2.6",fill:i===n-1?"#23c4a7":"#0c0e14",stroke:"#23c4a7","stroke-width":"1.8"});
+      c.style.cursor="pointer";
+      const dayLabel="d-"+(n-1-i);
+      c.addEventListener("pointerenter",()=>{
+        const rc=host.getBoundingClientRect();
+        showTip(`<span class="tk">${i===n-1?"today":dayLabel}</span><b>${v}%</b> resolved`,rc.left+x(i)/W*rc.width,rc.top+y(v)/H*rc.height);
+      });
+      c.addEventListener("pointerleave",hideTip);
+      svg.appendChild(c);
+    });
+    // x labels (every 2)
+    for(let i=0;i<n;i+=3){const tx=el("text",{x:x(i),y:H-8,"text-anchor":"middle",class:"axis"});tx.textContent=(n-1-i===0?"now":"-"+(n-1-i)+"d");svg.appendChild(tx);}
+    host.appendChild(svg);
+    if(!RM){const len=line.getTotalLength();line.style.setProperty("--len",len);}
+    $("#resNow").textContent=vals[n-1]+"%";
+  }
+
+  /* ---------- HEATMAP ---------- */
+  function renderHeatmap(){
+    const host=$("#heatmap");host.innerHTML="";
+    const days=D.heatDays, hours=D.heatHours, grid=D.heat;
+    const cols=hours.length, rows=days.length;
+    const W=380, lblL=34, lblT=16, gap=3;
+    const cw=(W-lblL)/cols;
+    const ch=22;
+    const H=lblT+rows*(ch+gap);
+    const flat=grid.flat(); const mx=Math.max(...flat);
+    function color(v){
+      const t=v/mx;
+      // interpolate dark -> purple -> teal accent at top
+      const stops=[[22,27,42],[42,42,85],[70,77,168],[110,77,255],[35,196,167]];
+      const seg=Math.min(stops.length-2,Math.floor(t*(stops.length-1)));
+      const lt=(t*(stops.length-1))-seg;
+      const a=stops[seg],b=stops[seg+1];
+      const c=a.map((v0,i)=>Math.round(v0+(b[i]-v0)*lt));
+      return `rgb(${c[0]},${c[1]},${c[2]})`;
+    }
+    const svg=el("svg",{viewBox:`0 0 ${W} ${H}`,role:"img","aria-label":"Peak times heatmap"});
+    // hour labels (top)
+    hours.forEach((h,c)=>{const tx=el("text",{x:lblL+c*cw+cw/2,y:11,"text-anchor":"middle",class:"axis"});tx.textContent=h;svg.appendChild(tx);});
+    let peakV=0,peakStr="";
+    grid.forEach((rowArr,r)=>{
+      const ty=lblT+r*(ch+gap);
+      const tl=el("text",{x:lblL-7,y:ty+ch/2+3,"text-anchor":"end",class:"axis"});tl.textContent=days[r];svg.appendChild(tl);
+      rowArr.forEach((v,c)=>{
+        const xx=lblL+c*cw;
+        const rect=el("rect",{x:xx+1,y:ty,width:cw-2,height:ch,rx:4,fill:color(v),class:"heat-cell"});
+        if(v>=mx*0.78) rect.setAttribute("stroke","rgba(255,255,255,.18)");
+        if(!RM) rect.style.animationDelay=((r*cols+c)*0.012)+"s";
+        rect.style.cursor="pointer";
+        rect.addEventListener("pointerenter",()=>{
+          const rc=host.getBoundingClientRect();
+          showTip(`<span class="tk">${days[r]} ${hours[c]}:00</span><b>${v}</b> conv.`,rc.left+(xx+cw/2)/W*rc.width,rc.top+(ty+ch/2)/H*rc.height);
+        });
+        rect.addEventListener("pointerleave",hideTip);
+        svg.appendChild(rect);
+        if(v>peakV){peakV=v;peakStr=days[r]+" "+hours[c]+":00";}
+      });
+    });
+    host.appendChild(svg);
+    $("#heatPeak").textContent=peakStr;
+  }
+
+  /* ---------- FUNNEL ---------- */
+  function renderFunnel(){
+    const host=$("#funnel");host.innerHTML="";
+    const F=D.funnel, top=F[0].n;
+    F.forEach((s,i)=>{
+      const w=(s.n/top)*100;
+      const drop = i>0 ? Math.round((1-(s.n/F[i-1].n))*100) : 0;
+      const div=document.createElement("div");div.className="fstep";
+      div.innerHTML=`
+        <div class="frow">
+          <span class="fname">${s.name}</span>
+          <span class="fnum">${fmt(s.n)}${i>0?`<span class="fdrop">-${drop}%</span>`:""}</span>
+        </div>
+        <div class="ftrack"><div class="ffill" style="width:${w}%;background:linear-gradient(90deg,${s.color},${shade(s.color,18)})">
+          <span class="fp">${((s.n/top)*100).toFixed(0)}%</span></div></div>`;
+      if(!RM){const f=div.querySelector(".ffill");f.style.animationDelay=(0.12+i*0.08)+"s";}
+      host.appendChild(div);
+    });
+    const conv=((F[F.length-1].n/top)*100).toFixed(1);
+    $("#convRate").textContent=conv+"%";
+  }
+  function shade(hex,amt){
+    const c=hex.replace("#","");const n=parseInt(c,16);
+    let r=(n>>16)+amt,g=((n>>8)&255)+amt,b=(n&255)+amt;
+    r=Math.max(0,Math.min(255,r));g=Math.max(0,Math.min(255,g));b=Math.max(0,Math.min(255,b));
+    return "#"+((r<<16)|(g<<8)|b).toString(16).padStart(6,"0");
+  }
+
+  /* ---------- COST tile ---------- */
+  function renderCost(){
+    const C=D.cost;
+    $("#costMTD").textContent=fmt(C.mtd);
+    $("#costProj").textContent="฿"+fmt(C.projected);
+    const used=(C.mtd/C.budget)*100;
+    const fill=$("#budgetFill"); fill.style.width=Math.min(used,100)+"%";
+    if(used>90) fill.style.background="linear-gradient(90deg,#ffb020,#ff5d8f)";
+    $("#budgetUsed").textContent="฿"+fmt(C.mtd)+" used ("+used.toFixed(0)+"%)";
+    $("#budgetCap").textContent="budget ฿"+fmt(C.budget);
+    const rows=$("#costRows");rows.innerHTML="";
+    C.items.forEach(it=>{
+      const r=document.createElement("div");r.className="crow";
+      r.innerHTML=`<span class="cl"><i class="cdot" style="background:${it.color}"></i>${it.name}</span><span class="cr">฿${fmt(it.thb)}</span>`;
+      rows.appendChild(r);
+    });
+  }
+
+  /* ---------- channel filter (scales volume + intent for the demo) ---------- */
+  const scales={ all:undefined, voice:0.58, line:0.42 };
+  $(".seg").addEventListener("click",e=>{
+    const b=e.target.closest("button");if(!b)return;
+    [...e.currentTarget.querySelectorAll("button")].forEach(x=>x.setAttribute("aria-pressed","false"));
+    b.setAttribute("aria-pressed","true");
+    const s=scales[b.dataset.ch];
+    renderVolume(s); renderIntent(s);
+  });
+
+  /* ---------- header actions (demo) ---------- */
+  $("#exportBtn").addEventListener("click",function(){
+    const orig=this.innerHTML;
+    this.innerHTML=`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Exported PDF`;
+    setTimeout(()=>{this.innerHTML=orig;},1700);
+  });
+  $("#dateBtn").addEventListener("click",function(){
+    const ranges=["Jun 1 - Jun 29","Last 7 days","Last 90 days","This quarter"];
+    const cur=$("#drLabel").textContent;
+    const next=ranges[(ranges.indexOf(cur)+1)%ranges.length];
+    $("#drLabel").textContent=next;
+  });
+
+  // initial render
+  renderVolume(); renderIntent(); renderResolution();
+  renderHeatmap(); renderFunnel(); renderCost();
+
+  // gate draw-in: only after layout, only if motion allowed
+  if(!RM){
+    requestAnimationFrame(()=>requestAnimationFrame(()=>document.body.classList.add("anim")));
+  }
+})();
+</script>
+</body>
+</html>

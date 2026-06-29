@@ -1,0 +1,1396 @@
+<!-- TEMPLATE: Caseline Inbox | ARCHETYPE: admin-case-inbox | REF: Intercom, Front, Missive helpdesk; CRM conversation inbox | WHEN TO USE: 3-pane backoffice for reviewing AI-captured voice + chat conversations verbatim with extracted case fields and human takeover | SWAP: edit the CASES array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Caseline Inbox - Yimwhan Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   CASELINE INBOX  -  Yimwhan dental AI backoffice
+   Native CSS / SVG / JS only. Desktop-first (1440). Mobile collapses.
+   ============================================================ */
+
+:root{
+  /* surfaces (clean light) */
+  --bg:#eef1f6;
+  --pane:#ffffff;
+  --pane-2:#f7f9fc;
+  --pane-3:#eef2f8;
+  --line:#e2e8f2;
+  --line-strong:#d2dbe8;
+  /* ink */
+  --ink:#10151f;
+  --ink-2:#3c4858;
+  --ink-3:#6b7686;
+  --ink-4:#97a1b1;
+  /* channels */
+  --line-green:#06C755;
+  --line-green-soft:#e4f8ed;
+  --voice-blue:#2f6df6;
+  --voice-blue-soft:#e6efff;
+  /* status */
+  --st-ai:#0ea371;          /* AI-handled */
+  --st-ai-soft:#e0f6ed;
+  --st-human:#e0851b;       /* needs-human */
+  --st-human-soft:#fdf0db;
+  --st-booked:#7a5af5;      /* booked */
+  --st-booked-soft:#eee9ff;
+  --accent:#2f6df6;
+  --unread:#2f6df6;
+  --radius:14px;
+  --radius-sm:9px;
+  --shadow-pane:0 1px 2px rgba(20,30,50,.04), 0 8px 28px rgba(20,30,50,.06);
+  --shadow-pop:0 12px 36px rgba(20,30,50,.16);
+  --font:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --thai:"Noto Sans Thai","Inter",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--font);
+  background:
+    radial-gradient(1200px 520px at 88% -8%, #ffffff 0%, rgba(255,255,255,0) 60%),
+    radial-gradient(900px 480px at 6% 108%, #e7edf7 0%, rgba(231,237,247,0) 60%),
+    var(--bg);
+  color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  overflow:hidden;
+}
+.thai{font-family:var(--thai)}
+
+/* ---------- App shell ---------- */
+.app{
+  height:100vh; height:100dvh;
+  display:grid;
+  grid-template-rows:auto 1fr;
+  max-width:1680px;
+  margin:0 auto;
+}
+
+/* ---------- Top bar ---------- */
+.topbar{
+  display:flex; align-items:center; gap:18px;
+  padding:14px 22px;
+  border-bottom:1px solid var(--line);
+  background:rgba(255,255,255,.72);
+  backdrop-filter:blur(10px);
+}
+.brand{display:flex; align-items:center; gap:11px; flex:0 0 auto}
+.brand-mark{
+  width:34px; height:34px; border-radius:10px; flex:0 0 auto;
+  background:linear-gradient(150deg,#2f6df6,#7a5af5);
+  display:grid; place-items:center;
+  box-shadow:0 4px 12px rgba(47,109,246,.36);
+}
+.brand-txt{line-height:1.05}
+.brand-txt b{font-size:15px; font-weight:700; letter-spacing:-.2px; display:block}
+.brand-txt span{font-size:11px; color:var(--ink-3); font-weight:500}
+.brand-txt span .thai{font-weight:600; color:var(--ink-2)}
+
+.topbar-search{
+  flex:1 1 auto; max-width:440px;
+  display:flex; align-items:center; gap:9px;
+  background:var(--pane-2);
+  border:1px solid var(--line);
+  border-radius:11px;
+  padding:9px 13px;
+  color:var(--ink-3);
+}
+.topbar-search input{
+  border:0; background:transparent; outline:none;
+  font-family:var(--font); font-size:13.5px; color:var(--ink);
+  width:100%;
+}
+.topbar-search input::placeholder{color:var(--ink-4)}
+.topbar-search kbd{
+  font-family:var(--mono); font-size:10.5px; color:var(--ink-3);
+  background:var(--pane); border:1px solid var(--line-strong);
+  border-radius:5px; padding:2px 6px; flex:0 0 auto;
+}
+.topbar-spacer{flex:1 1 auto}
+.topbar-actions{display:flex; align-items:center; gap:10px; flex:0 0 auto}
+.live-pill{
+  display:flex; align-items:center; gap:7px;
+  font-size:12px; font-weight:600; color:var(--st-ai);
+  background:var(--st-ai-soft); border:1px solid #c9eddd;
+  border-radius:20px; padding:6px 11px 6px 9px;
+}
+.live-dot{width:7px; height:7px; border-radius:50%; background:var(--st-ai)}
+.pulse{position:relative}
+/* pulse ring drawn with box-shadow so it never grows the dot's scroll box */
+.pulse{animation:pulse 2.4s ease-out infinite}
+@keyframes pulse{
+  0%{box-shadow:0 0 0 0 rgba(14,163,113,.5)}
+  70%{box-shadow:0 0 0 7px rgba(14,163,113,0)}
+  100%{box-shadow:0 0 0 0 rgba(14,163,113,0)}
+}
+.ava-me{
+  width:34px;height:34px;border-radius:50%;flex:0 0 auto;
+  background:linear-gradient(150deg,#f9b288,#e0851b);
+  display:grid;place-items:center;color:#fff;font-weight:600;font-size:13px;
+  border:2px solid #fff; box-shadow:0 2px 8px rgba(20,30,50,.14);
+}
+
+/* ---------- 3-pane body ---------- */
+.panes{
+  display:grid;
+  grid-template-columns:340px minmax(0,1fr) 332px;
+  min-height:0;
+  overflow:hidden;
+}
+
+/* ============ LEFT : case list ============ */
+.col-list{
+  display:flex; flex-direction:column; min-height:0;
+  background:var(--pane);
+  border-right:1px solid var(--line);
+}
+.list-head{padding:16px 16px 8px}
+.list-head h1{font-size:16px; font-weight:700; letter-spacing:-.3px; display:flex; align-items:center; gap:8px}
+.list-head h1 .count{
+  font-size:11.5px; font-weight:600; color:var(--ink-3);
+  background:var(--pane-3); border-radius:20px; padding:2px 9px;
+}
+.tabs{display:flex; flex-wrap:wrap; gap:7px 5px; padding:8px 14px 12px; overflow-x:auto; scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{
+  flex:0 0 auto; cursor:pointer; user-select:none;
+  font-size:12.5px; font-weight:600; color:var(--ink-3);
+  padding:6px 12px; border-radius:9px; border:1px solid transparent;
+  background:transparent; display:flex; align-items:center; gap:6px;
+  transition:background .15s, color .15s, border-color .15s;
+}
+.tab:hover{background:var(--pane-2); color:var(--ink-2)}
+.tab[aria-selected="true"]{background:var(--ink); color:#fff; border-color:var(--ink)}
+.tab .tcount{
+  font-size:10.5px; font-weight:600; padding:1px 6px; border-radius:10px;
+  background:var(--pane-3); color:var(--ink-3);
+}
+.tab[aria-selected="true"] .tcount{background:rgba(255,255,255,.2); color:#fff}
+.tab.has-alert .tcount{background:var(--st-human-soft); color:var(--st-human)}
+.tab[aria-selected="true"].has-alert .tcount{background:rgba(255,255,255,.22); color:#fff}
+
+.list-scroll{flex:1 1 auto; min-height:0; overflow-y:auto; padding:4px 8px 16px}
+.list-scroll{scrollbar-width:thin; scrollbar-color:var(--line-strong) transparent}
+.list-scroll::-webkit-scrollbar{width:8px}
+.list-scroll::-webkit-scrollbar-thumb{background:var(--line-strong); border-radius:8px; border:2px solid var(--pane)}
+
+.case{
+  position:relative; cursor:pointer; user-select:none;
+  display:grid; grid-template-columns:42px 1fr; gap:11px;
+  padding:11px 11px 12px; border-radius:12px;
+  border:1px solid transparent;
+  transition:background .14s, border-color .14s;
+}
+.case:hover{background:var(--pane-2)}
+.case[aria-selected="true"]{background:var(--voice-blue-soft); border-color:#cfe0ff}
+.case[aria-selected="true"]:hover{background:var(--voice-blue-soft)}
+.case-ava{
+  position:relative; width:42px; height:42px; border-radius:50%;
+  display:grid; place-items:center; color:#fff; font-weight:600; font-size:14px;
+  font-family:var(--thai);
+}
+.case-chan{
+  position:absolute; right:0; bottom:0;
+  width:18px; height:18px; border-radius:50%;
+  display:grid; place-items:center; border:2.5px solid var(--pane);
+}
+.case[aria-selected="true"] .case-chan{border-color:var(--voice-blue-soft)}
+.case-chan.line{background:var(--line-green)}
+.case-chan.voice{background:var(--voice-blue)}
+.case-body{min-width:0}
+.case-top{display:flex; align-items:center; gap:8px}
+.case-name{font-size:14px; font-weight:600; letter-spacing:-.1px; color:var(--ink); flex:1 1 auto; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.case[data-unread="1"] .case-name{font-weight:700}
+.case-time{font-size:11px; color:var(--ink-4); flex:0 0 auto; font-variant-numeric:tabular-nums}
+.case-snip{
+  font-size:12.5px; color:var(--ink-3); line-height:1.35; margin-top:3px;
+  display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+.case[data-unread="1"] .case-snip{color:var(--ink-2)}
+.case-snip .who{color:var(--ink-4); font-weight:500}
+.case-foot{display:flex; align-items:center; gap:7px; margin-top:8px}
+.pill{
+  display:inline-flex; align-items:center; gap:5px;
+  font-size:11px; font-weight:600; line-height:1;
+  padding:4px 8px 4px 7px; border-radius:20px; white-space:nowrap;
+}
+.pill .dot{width:6px; height:6px; border-radius:50%}
+.pill.ai{background:var(--st-ai-soft); color:var(--st-ai)}
+.pill.ai .dot{background:var(--st-ai)}
+.pill.human{background:var(--st-human-soft); color:var(--st-human)}
+.pill.human .dot{background:var(--st-human)}
+.pill.booked{background:var(--st-booked-soft); color:var(--st-booked)}
+.pill.booked .dot{background:var(--st-booked)}
+.case-unread{
+  width:8px; height:8px; border-radius:50%; background:var(--unread);
+  flex:0 0 auto; margin-left:auto;
+  box-shadow:0 0 0 3px rgba(47,109,246,.16);
+}
+.case[data-unread="0"] .case-unread{display:none}
+
+/* ============ CENTER : conversation thread ============ */
+.col-thread{
+  display:flex; flex-direction:column; min-height:0;
+  background:
+    linear-gradient(180deg, #fbfcfe 0%, #f4f7fb 100%);
+}
+.thread-head{
+  display:flex; align-items:center; gap:13px;
+  padding:13px 20px;
+  border-bottom:1px solid var(--line);
+  background:rgba(255,255,255,.78);
+  backdrop-filter:blur(8px);
+}
+.back-btn{
+  display:none; flex:0 0 auto;
+  width:36px; height:36px; border-radius:10px; border:1px solid var(--line);
+  background:var(--pane); cursor:pointer; place-items:center;
+}
+.th-ava{
+  width:40px; height:40px; border-radius:50%; flex:0 0 auto;
+  display:grid; place-items:center; color:#fff; font-weight:600; font-size:14px;
+  font-family:var(--thai); position:relative;
+}
+.th-ava .case-chan{border-color:rgba(255,255,255,.95)}
+.th-meta{min-width:0; flex:1 1 auto}
+.th-name{font-size:15px; font-weight:700; letter-spacing:-.2px; display:flex; align-items:center; gap:8px}
+.th-sub{font-size:12px; color:var(--ink-3); margin-top:2px; display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+.th-sub .chip-mono{font-family:var(--mono); font-size:11px; color:var(--ink-2)}
+.chan-tag{
+  display:inline-flex; align-items:center; gap:5px;
+  font-size:11px; font-weight:600; padding:3px 8px; border-radius:7px;
+}
+.chan-tag.line{background:var(--line-green-soft); color:#06824a}
+.chan-tag.voice{background:var(--voice-blue-soft); color:#1d4fc4}
+.th-head-actions{display:flex; gap:8px; flex:0 0 auto}
+.icon-btn{
+  width:36px; height:36px; border-radius:10px; border:1px solid var(--line);
+  background:var(--pane); cursor:pointer; display:grid; place-items:center;
+  color:var(--ink-3); transition:background .14s, color .14s;
+}
+.icon-btn:hover{background:var(--pane-2); color:var(--ink)}
+.detail-toggle{display:none}
+
+.thread-scroll{flex:1 1 auto; min-height:0; overflow-y:auto; padding:22px 26px 30px}
+.thread-scroll{scrollbar-width:thin; scrollbar-color:var(--line-strong) transparent}
+.thread-scroll::-webkit-scrollbar{width:9px}
+.thread-scroll::-webkit-scrollbar-thumb{background:var(--line-strong); border-radius:8px; border:2px solid transparent; background-clip:padding-box}
+.thread-inner{max-width:760px; margin:0 auto}
+
+.day-div{display:flex; align-items:center; gap:12px; margin:6px 0 18px}
+.day-div::before,.day-div::after{content:""; height:1px; flex:1; background:var(--line)}
+.day-div span{font-size:11px; font-weight:600; color:var(--ink-4); letter-spacing:.4px; text-transform:uppercase}
+
+/* --- call banner (voice) --- */
+.call-banner{
+  display:flex; align-items:center; gap:14px;
+  background:var(--voice-blue-soft);
+  border:1px solid #cfe0ff; border-radius:14px;
+  padding:13px 16px; margin-bottom:20px;
+}
+.call-icon{
+  width:42px; height:42px; border-radius:12px; flex:0 0 auto;
+  background:var(--voice-blue); display:grid; place-items:center;
+  box-shadow:0 4px 12px rgba(47,109,246,.35);
+}
+.call-info{flex:1 1 auto; min-width:0}
+.call-info b{font-size:13.5px; font-weight:700; color:#1d4fc4; display:block}
+.call-info span{font-size:12px; color:#3a63b8}
+.wave{
+  display:flex; align-items:center; gap:2.5px; height:34px; flex:0 0 auto;
+  cursor:pointer;
+}
+.wave i{
+  width:3px; border-radius:3px; background:var(--voice-blue); opacity:.55;
+  display:block;
+}
+.wave i.on{opacity:1}
+.call-dur{font-family:var(--mono); font-size:12px; color:#1d4fc4; font-weight:500; flex:0 0 auto}
+.play-btn{
+  width:34px;height:34px;border-radius:50%;border:0;flex:0 0 auto;
+  background:#fff;color:var(--voice-blue);cursor:pointer;display:grid;place-items:center;
+  box-shadow:0 3px 9px rgba(47,109,246,.2);
+}
+
+/* --- transcript turns (voice) --- */
+.turn{display:grid; grid-template-columns:30px 1fr; gap:11px; margin-bottom:16px}
+.turn-badge{
+  width:30px;height:30px;border-radius:50%;display:grid;place-items:center;
+  font-size:11px;font-weight:700;flex:0 0 auto;margin-top:2px;
+}
+.turn.patient .turn-badge{background:var(--pane-3); color:var(--ink-2)}
+.turn.ai .turn-badge{background:linear-gradient(150deg,#2f6df6,#7a5af5); color:#fff}
+.turn-main{min-width:0}
+.turn-who{display:flex; align-items:baseline; gap:8px; margin-bottom:3px}
+.turn-who b{font-size:12.5px; font-weight:600}
+.turn.ai .turn-who b{color:var(--voice-blue)}
+.turn-who time{font-family:var(--mono); font-size:10.5px; color:var(--ink-4)}
+.turn-txt{
+  font-size:14px; line-height:1.55; color:var(--ink-2);
+}
+.turn.ai .turn-txt{color:var(--ink)}
+
+/* --- LINE bubbles --- */
+.bubble-row{display:flex; margin-bottom:11px; gap:9px; align-items:flex-end}
+.bubble-row.ai{justify-content:flex-start}
+.bubble-row.patient{justify-content:flex-end; flex-direction:row-reverse}
+.bub-ava{
+  width:28px;height:28px;border-radius:50%;flex:0 0 auto;
+  display:grid;place-items:center;color:#fff;font-size:11px;font-weight:600;font-family:var(--thai);
+  margin-bottom:18px;
+}
+.bub-ava.ai{background:linear-gradient(150deg,#2f6df6,#7a5af5)}
+.bubble{
+  max-width:74%; position:relative;
+}
+.bubble .txt{
+  font-size:14px; line-height:1.5; padding:10px 13px;
+  border-radius:16px; word-wrap:break-word;
+}
+.bubble-row.ai .txt{background:#fff; color:var(--ink); border:1px solid var(--line); border-bottom-left-radius:5px}
+.bubble-row.patient .txt{background:var(--line-green); color:#fff; border-bottom-right-radius:5px}
+.bubble time{
+  font-size:10.5px; color:var(--ink-4); font-family:var(--mono);
+  display:block; margin-top:4px;
+}
+.bubble-row.patient time{text-align:right}
+
+/* --- inline AI action chips --- */
+.act-chip{
+  display:inline-flex; align-items:center; gap:9px;
+  background:#fff; border:1px solid var(--line); border-radius:13px;
+  padding:11px 14px; margin:6px 0 14px; max-width:440px;
+  box-shadow:0 2px 10px rgba(20,30,50,.05);
+}
+.act-icon{
+  width:34px;height:34px;border-radius:10px;flex:0 0 auto;display:grid;place-items:center;
+}
+.act-icon.book{background:var(--st-booked-soft)}
+.act-icon.phone{background:var(--voice-blue-soft)}
+.act-body b{font-size:12.5px; font-weight:700; display:block; color:var(--ink)}
+.act-body span{font-size:12px; color:var(--ink-3)}
+.act-body .mono{font-family:var(--mono); color:var(--ink-2); font-weight:500}
+.act-tag{
+  margin-left:auto; font-size:10px; font-weight:700; letter-spacing:.4px;
+  color:var(--st-ai); background:var(--st-ai-soft); padding:3px 7px; border-radius:6px;
+  align-self:flex-start;
+}
+.center-row{display:flex; justify-content:center}
+
+/* --- composer (read-only review note) --- */
+.composer{
+  border-top:1px solid var(--line);
+  background:rgba(255,255,255,.86);
+  backdrop-filter:blur(8px);
+  padding:13px 26px;
+  display:flex; align-items:center; gap:11px;
+}
+.composer-note{
+  flex:1 1 auto; display:flex; align-items:center; gap:10px;
+  background:var(--pane-2); border:1px solid var(--line);
+  border-radius:12px; padding:11px 14px; color:var(--ink-4); font-size:13px;
+}
+.composer-note input{flex:1 1 auto; border:0; background:transparent; outline:none; font-family:var(--font); font-size:13.5px; color:var(--ink)}
+.composer-note input::placeholder{color:var(--ink-4)}
+.takeover-btn{
+  flex:0 0 auto; border:0; cursor:pointer;
+  background:var(--ink); color:#fff; font-family:var(--font);
+  font-size:13px; font-weight:600; padding:11px 17px; border-radius:11px;
+  display:flex; align-items:center; gap:7px;
+  transition:transform .12s, box-shadow .12s;
+}
+.takeover-btn:hover{box-shadow:0 6px 18px rgba(16,21,31,.28); transform:translateY(-1px)}
+
+/* ============ RIGHT : detail panel ============ */
+.col-detail{
+  display:flex; flex-direction:column; min-height:0;
+  background:var(--pane);
+  border-left:1px solid var(--line);
+}
+.detail-scroll{flex:1 1 auto; min-height:0; overflow-y:auto}
+.detail-scroll{scrollbar-width:thin; scrollbar-color:var(--line-strong) transparent}
+.detail-scroll::-webkit-scrollbar{width:8px}
+.detail-scroll::-webkit-scrollbar-thumb{background:var(--line-strong); border-radius:8px; border:2px solid var(--pane)}
+
+.det-hero{
+  padding:22px 20px 18px; text-align:center;
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg, var(--pane-2), var(--pane));
+}
+.det-ava{
+  width:62px;height:62px;border-radius:50%;margin:0 auto 11px;
+  display:grid;place-items:center;color:#fff;font-weight:600;font-size:21px;font-family:var(--thai);
+  box-shadow:0 6px 18px rgba(20,30,50,.16);
+}
+.det-name{font-size:17px; font-weight:700; letter-spacing:-.3px}
+.det-name .thai{font-weight:600}
+.det-sub{font-size:12.5px; color:var(--ink-3); margin-top:3px; font-family:var(--mono)}
+.det-conf{
+  display:inline-flex; align-items:center; gap:9px; margin-top:14px;
+  background:var(--pane-2); border:1px solid var(--line); border-radius:11px;
+  padding:9px 14px;
+}
+.conf-ring{position:relative; width:38px; height:38px; flex:0 0 auto}
+.conf-ring svg{transform:rotate(-90deg)}
+.conf-ring .pct{
+  position:absolute; inset:0; display:grid; place-items:center;
+  font-size:11px; font-weight:700; color:var(--st-ai);
+}
+.det-conf .lbl{text-align:left}
+.det-conf .lbl b{font-size:13px; font-weight:700; display:block; color:var(--ink)}
+.det-conf .lbl span{font-size:11px; color:var(--ink-3)}
+
+.det-sect{padding:16px 20px; border-bottom:1px solid var(--line)}
+.det-sect h3{
+  font-size:11px; font-weight:700; letter-spacing:.5px; text-transform:uppercase;
+  color:var(--ink-4); margin-bottom:12px; display:flex; align-items:center; gap:7px;
+}
+.det-sect h3 .ai-mark{
+  font-size:9px; font-weight:700; letter-spacing:.3px; color:var(--accent);
+  background:var(--voice-blue-soft); padding:2px 6px; border-radius:5px; text-transform:none;
+}
+.field{display:flex; align-items:flex-start; gap:10px; padding:7px 0}
+.field + .field{border-top:1px solid var(--pane-3)}
+.field-k{font-size:12px; color:var(--ink-3); flex:0 0 116px; padding-top:1px}
+.field-v{font-size:13px; color:var(--ink); font-weight:500; flex:1 1 auto; line-height:1.4}
+.field-v.mono{font-family:var(--mono); font-size:12.5px}
+.field-v .thai{font-weight:500}
+.field-v.linked{color:var(--accent)}
+.booking-card{
+  background:var(--st-booked-soft); border:1px solid #ddd3ff; border-radius:11px;
+  padding:12px 14px; display:flex; gap:11px; align-items:flex-start;
+}
+.booking-card .bk-ic{width:32px;height:32px;border-radius:9px;background:#fff;display:grid;place-items:center;flex:0 0 auto}
+.booking-card b{font-size:13px; color:#5b3fd0; display:block}
+.booking-card span{font-size:12px; color:#6e57c4; line-height:1.45}
+.no-booking{font-size:12.5px; color:var(--ink-4); font-style:italic}
+
+.tags{display:flex; flex-wrap:wrap; gap:6px}
+.tag{
+  font-size:11.5px; font-weight:500; color:var(--ink-2);
+  background:var(--pane-2); border:1px solid var(--line);
+  border-radius:20px; padding:4px 10px; font-family:var(--thai);
+}
+.tag.add{cursor:pointer; color:var(--ink-4); border-style:dashed}
+.tag.add:hover{color:var(--accent); border-color:var(--accent)}
+
+.history{position:relative; padding-left:18px}
+.history::before{content:""; position:absolute; left:4px; top:5px; bottom:5px; width:2px; background:var(--line)}
+.hist{position:relative; padding:5px 0}
+.hist::before{content:""; position:absolute; left:-17px; top:9px; width:9px; height:9px; border-radius:50%; background:var(--pane); border:2px solid var(--line-strong)}
+.hist.now::before{background:var(--accent); border-color:var(--accent)}
+.hist b{font-size:12.5px; font-weight:600; display:block; color:var(--ink-2)}
+.hist span{font-size:11.5px; color:var(--ink-4); font-family:var(--mono)}
+
+.det-actions{padding:16px 20px; display:flex; flex-direction:column; gap:9px; margin-top:auto; border-top:1px solid var(--line); background:var(--pane-2)}
+.btn{
+  border:0; cursor:pointer; font-family:var(--font); font-size:13.5px; font-weight:600;
+  padding:12px 15px; border-radius:11px; display:flex; align-items:center; justify-content:center; gap:8px;
+  transition:transform .12s, box-shadow .12s, background .14s;
+}
+.btn:hover{transform:translateY(-1px)}
+.btn-primary{background:var(--ink); color:#fff}
+.btn-primary:hover{box-shadow:0 8px 20px rgba(16,21,31,.26)}
+.btn-ghost{background:#fff; color:var(--ink-2); border:1px solid var(--line-strong)}
+.btn-ghost:hover{background:var(--pane-3)}
+.btn-resolved{background:var(--st-ai-soft); color:var(--st-ai); border:1px solid #bfe9d6}
+.btn-resolved:hover{box-shadow:0 6px 16px rgba(14,163,113,.2)}
+
+/* scrim for mobile sheets */
+.scrim{
+  position:fixed; inset:0; background:rgba(16,21,31,.42);
+  opacity:0; pointer-events:none; transition:opacity .2s; z-index:40;
+}
+
+/* ============ RESPONSIVE ============ */
+@media (max-width:1180px){
+  .panes{grid-template-columns:300px minmax(0,1fr) 300px}
+}
+@media (max-width:980px){
+  /* detail becomes a slide-over bottom-anchored panel on tablet */
+  .panes{grid-template-columns:280px minmax(0,1fr)}
+  .col-detail{
+    position:fixed; top:0; right:0; height:100dvh; width:340px; max-width:88vw;
+    z-index:50; box-shadow:var(--shadow-pop);
+    transform:translateX(102%); transition:transform .26s cubic-bezier(.4,0,.2,1);
+  }
+  body.detail-open .col-detail{transform:translateX(0)}
+  body.detail-open .scrim{opacity:1; pointer-events:auto}
+  .detail-toggle{display:grid}
+}
+@media (max-width:640px){
+  body{overflow:auto}
+  .app{height:auto; min-height:100dvh; grid-template-rows:auto 1fr}
+  .topbar{padding:11px 14px; gap:10px; flex-wrap:wrap; overflow:hidden}
+  .brand{flex:1 1 auto; min-width:0}
+  .brand-txt{min-width:0; overflow:hidden}
+  .brand-txt b,.brand-txt span{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .topbar-spacer{display:none}
+  .topbar-search{order:3; flex:1 1 100%; min-width:0; max-width:100%}
+  .topbar-search kbd{display:none}
+  .live-pill .lp-txt{display:none}
+  .live-pill{padding:7px 9px}
+  .panes{
+    display:block; height:auto; overflow:hidden; width:100%; max-width:100%;
+  }
+  .col-list,.col-thread{width:100%; max-width:100%}
+  /* one pane at a time: list by default, thread when a case is open */
+  .col-list{
+    border-right:0; height:calc(100dvh - 60px);
+  }
+  body.thread-open .col-list{display:none}
+
+  .col-thread{
+    display:none;
+    height:calc(100dvh - 60px);
+  }
+  body.thread-open .col-thread{display:flex}
+  .back-btn{display:grid}
+  .detail-toggle{display:grid}
+
+  /* detail as bottom sheet */
+  .col-detail{
+    top:auto; bottom:0; right:0; left:0;
+    width:100%; max-width:100%; height:auto; max-height:86dvh;
+    border-radius:20px 20px 0 0; border-left:0; border-top:1px solid var(--line);
+    transform:translateY(102%);
+  }
+  body.detail-open .col-detail{transform:translateY(0)}
+  .det-hero{border-radius:20px 20px 0 0; position:relative}
+  .sheet-grab{
+    display:block; width:42px; height:5px; border-radius:5px; background:var(--line-strong);
+    margin:0 auto 14px;
+  }
+  .thread-scroll{padding:18px 15px 24px}
+  .composer{padding:11px 14px}
+  .composer-note{display:none}
+  .takeover-btn{flex:1 1 auto; justify-content:center}
+  .thread-inner{max-width:100%}
+  .bubble{max-width:82%}
+  /* call banner: wrap to 2 rows so the info text reads cleanly and the
+     waveform letterboxes (overflow clip) instead of squeezing the layout */
+  .call-banner{flex-wrap:wrap; gap:10px 12px; padding:12px 14px}
+  .call-info{flex:1 1 140px}
+  .wave{flex:1 1 auto; min-width:0; overflow:hidden; order:2}
+  .play-btn{order:1}
+  .call-dur{order:3; margin-left:auto}
+}
+.sheet-grab{display:none}
+
+/* reduced motion */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important}
+  .pulse{box-shadow:none !important}
+}
+
+/* focus */
+:focus-visible{outline:2.5px solid var(--accent); outline-offset:2px; border-radius:6px}
+.case:focus-visible,.tab:focus-visible{outline-offset:-2px}
+</style>
+</head>
+<body class="">
+
+<div class="app">
+
+  <!-- ===== TOP BAR ===== -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3c-4.97 0-9 3.58-9 8 0 2.4 1.2 4.55 3.1 6L5 21l4.2-2.2c.9.2 1.83.3 2.8.3 4.97 0 9-3.58 9-8s-4.03-8-9-8Z" fill="#ffffff"/><circle cx="8.5" cy="11" r="1.3" fill="#2f6df6"/><circle cx="12" cy="11" r="1.3" fill="#2f6df6"/><circle cx="15.5" cy="11" r="1.3" fill="#2f6df6"/></svg>
+      </div>
+      <div class="brand-txt">
+        <b>Caseline</b>
+        <span><span class="thai">ยิ้มหวาน</span> Dental Clinic</span>
+      </div>
+    </div>
+
+    <div class="topbar-search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="#97a1b1" stroke-width="2"/><path d="m20 20-3.5-3.5" stroke="#97a1b1" stroke-width="2" stroke-linecap="round"/></svg>
+      <input type="text" placeholder="Search patient, phone, procedure..." aria-label="Search cases">
+      <kbd>/</kbd>
+    </div>
+
+    <div class="topbar-spacer"></div>
+
+    <div class="topbar-actions">
+      <span class="live-pill"><span class="live-dot pulse"></span><span class="lp-txt">AI on call</span></span>
+      <button class="icon-btn" aria-label="Notifications">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3a6 6 0 0 0-6 6c0 5-2 6-2 6h16s-2-1-2-6a6 6 0 0 0-6-6Z" stroke="#6b7686" stroke-width="1.8" stroke-linejoin="round"/><path d="M10.5 20a1.8 1.8 0 0 0 3 0" stroke="#6b7686" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+      <div class="ava-me" title="Admin: Ploy">P</div>
+    </div>
+  </header>
+
+  <!-- ===== 3 PANES ===== -->
+  <div class="panes">
+
+    <!-- ===== LEFT : CASE LIST ===== -->
+    <section class="col-list" aria-label="Case list">
+      <div class="list-head">
+        <h1>Cases <span class="count" id="caseCount">8</span></h1>
+      </div>
+      <div class="tabs" role="tablist" aria-label="Filter cases">
+        <button class="tab" role="tab" aria-selected="true" data-filter="all">All <span class="tcount" id="tc-all">8</span></button>
+        <button class="tab" role="tab" aria-selected="false" data-filter="voice">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 4h3l1.5 4-2 1.5a11 11 0 0 0 5 5l1.5-2 4 1.5v3a2 2 0 0 1-2 2A15 15 0 0 1 3 6a2 2 0 0 1 2-2Z" stroke="#6b7686" stroke-width="1.8" stroke-linejoin="round"/></svg>
+          Voice <span class="tcount" id="tc-voice">3</span>
+        </button>
+        <button class="tab" role="tab" aria-selected="false" data-filter="line">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4C6.9 4 3 7.3 3 11.4c0 3.7 3.1 6.8 7.4 7.4.7.1.6.4.5.9l-.2 1.1c-.1.4.2.7.7.5 2.6-1.1 5.6-3 7.6-5.6 1.4-1.4 2.2-3 2.2-4.8C21.2 7.3 17.1 4 12 4Z" stroke="#6b7686" stroke-width="1.8" stroke-linejoin="round"/></svg>
+          LINE <span class="tcount" id="tc-line">5</span>
+        </button>
+        <button class="tab has-alert" role="tab" aria-selected="false" data-filter="human">Needs-human <span class="tcount" id="tc-human">2</span></button>
+      </div>
+      <div class="list-scroll" id="caseList"></div>
+    </section>
+
+    <!-- ===== CENTER : THREAD ===== -->
+    <section class="col-thread" aria-label="Conversation">
+      <div class="thread-head">
+        <button class="back-btn" id="backBtn" aria-label="Back to case list">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="m14 6-6 6 6 6" stroke="#3c4858" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="th-ava" id="thAva"></div>
+        <div class="th-meta">
+          <div class="th-name" id="thName"></div>
+          <div class="th-sub" id="thSub"></div>
+        </div>
+        <div class="th-head-actions">
+          <button class="icon-btn" aria-label="More options">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="5" cy="12" r="1.6" fill="#6b7686"/><circle cx="12" cy="12" r="1.6" fill="#6b7686"/><circle cx="19" cy="12" r="1.6" fill="#6b7686"/></svg>
+          </button>
+          <button class="icon-btn detail-toggle" id="detailToggle" aria-label="Show case details">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="16" rx="3" stroke="#6b7686" stroke-width="1.8"/><path d="M14 4v16" stroke="#6b7686" stroke-width="1.8"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="thread-scroll">
+        <div class="thread-inner" id="threadBody"></div>
+      </div>
+
+      <div class="composer">
+        <div class="composer-note">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 5h16v11H8l-4 4V5Z" stroke="#97a1b1" stroke-width="1.8" stroke-linejoin="round"/></svg>
+          <input type="text" placeholder="Add an internal note (not sent to patient)" aria-label="Internal note">
+        </div>
+        <button class="takeover-btn" id="takeoverBtn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/><rect x="5" y="11" width="14" height="9" rx="2" stroke="#fff" stroke-width="1.8"/></svg>
+          <span id="takeoverLabel">Take over chat</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ===== RIGHT : DETAIL ===== -->
+    <aside class="col-detail" id="detailPanel" aria-label="Case details">
+      <div class="detail-scroll" id="detailBody"></div>
+    </aside>
+
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+<script>
+/* ============================================================
+   DATA  -  swap this array to repopulate the whole inbox.
+   Each case: identity + channel + status + transcript/messages
+   + extracted fields. Everything below renders from this.
+   ============================================================ */
+const CASES = [
+  {
+    id:"c1",
+    name:"คุณณัฐริกา ส.",
+    initials:"ณ",
+    color:"#2f6df6",
+    channel:"voice",          // voice | line
+    status:"human",           // ai | human | booked
+    unread:true,
+    time:"2 min",
+    handle:"+66 81 234 5567",
+    snippet:[{who:"AI",text:"ขอโอนสายให้พี่พยาบาลนะคะ รอสักครู่ค่ะ"}],
+    sub:{phone:"+66 81 234 5567", chan:"Inbound call - 1m 52s"},
+    call:{duration:"1:52", at:"14:36"},
+    thread:[
+      {type:"day", label:"Today - 29 Jun 2026"},
+      {type:"call"},
+      {type:"turn", who:"ai", name:"AI Assistant", time:"14:36:02", text:"สวัสดีค่ะ คลินิกทันตกรรมยิ้มหวานนะคะ น้องยิ้มหวานผู้ช่วย AI ค่ะ ไม่ทราบว่าสะดวกให้ช่วยเรื่องอะไรดีคะ"},
+      {type:"turn", who:"patient", name:"Patient", time:"14:36:11", text:"คือฟันกรามล่างซ้ายมันปวดมากเลยค่ะ ปวดมาสองวันแล้ว เสียวด้วย อยากเข้าไปให้หมอดูด่วนเลยได้ไหมคะ"},
+      {type:"turn", who:"ai", name:"AI Assistant", time:"14:36:24", text:"เข้าใจค่ะ อาการปวดฟันกรามแบบเสียวร่วมด้วยควรให้คุณหมอตรวจโดยเร็วนะคะ ขอเช็กคิวด่วนวันนี้ให้ก่อนนะคะ ขอทราบชื่อและเบอร์ติดต่อกลับด้วยค่ะ"},
+      {type:"turn", who:"patient", name:"Patient", time:"14:36:40", text:"ณัฐริกาค่ะ เบอร์ศูนย์แปดหนึ่ง สองสามสี่ ห้าห้าหกเจ็ด"},
+      {type:"action", kind:"phone", title:"Phone captured", detail:"+66 81 234 5567", tag:"VERIFIED"},
+      {type:"turn", who:"ai", name:"AI Assistant", time:"14:37:05", text:"คิวด่วนวันนี้เต็มแล้วค่ะ แต่อาการแบบนี้ไม่ควรรอ ขอโอนสายให้พี่พยาบาลช่วยจัดคิวแทรกให้นะคะ รอสักครู่ค่ะ"},
+      {type:"escalate", text:"AI escalated to human - urgent dental pain, same-day slot full"}
+    ],
+    fields:{
+      intent:"Urgent appointment - tooth pain",
+      procedure:"Emergency exam (lower-left molar)",
+      confidence:74,
+      booking:null,
+      tags:["ปวดฟัน","เคสด่วน","คนไข้ใหม่"],
+      patientType:"New patient"
+    },
+    history:[
+      {label:"This call - urgent pain", time:"Today 14:36", now:true},
+      {label:"No prior records", time:"First contact"}
+    ]
+  },
+
+  {
+    id:"c2",
+    name:"คุณพิมพ์ชนก ว.",
+    initials:"พ",
+    color:"#06C755",
+    channel:"line",
+    status:"booked",
+    unread:true,
+    time:"14 min",
+    handle:"LINE - pim_chnk",
+    snippet:[{who:"AI",text:"จองคิวขูดหินปูน พฤ. 3 ก.ค. 10:30 น. เรียบร้อยค่ะ"}],
+    sub:{phone:"LINE - pim_chnk", chan:"LINE Official Account"},
+    thread:[
+      {type:"day", label:"Today - 29 Jun 2026"},
+      {type:"bubble", who:"patient", time:"14:09", text:"สวัสดีค่ะ อยากจองคิวขูดหินปูนกับฟอกสีฟันค่ะ"},
+      {type:"bubble", who:"ai", time:"14:09", text:"สวัสดีค่ะ น้องยิ้มหวานยินดีช่วยจองให้เลยนะคะ ขูดหินปูนใช้เวลาประมาณ 45 นาที ส่วนฟอกสีฟันแบบในคลินิกประมาณ 1 ชั่วโมงค่ะ สะดวกวันไหนดีคะ"},
+      {type:"bubble", who:"patient", time:"14:11", text:"ขอแค่ขูดหินปูนก่อนค่ะ วันพฤหัสหน้าได้ไหมคะ ช่วงสายๆ"},
+      {type:"bubble", who:"ai", time:"14:11", text:"ได้ค่ะ วันพฤหัสบดีที่ 3 กรกฎาคม มีคิวว่าง 10:30 น. กับ 11:15 น. ค่ะ จะเลือกเวลาไหนดีคะ"},
+      {type:"bubble", who:"patient", time:"14:13", text:"10:30 เลยค่ะ"},
+      {type:"action", kind:"book", title:"Appointment booked", detail:"Scaling - Thu 3 Jul, 10:30", tag:"CONFIRMED"},
+      {type:"bubble", who:"ai", time:"14:13", text:"จองคิวขูดหินปูน วันพฤหัสบดีที่ 3 กรกฎาคม 10:30 น. เรียบร้อยค่ะ ค่าบริการประมาณ 800 - 1,200 บาท ระบบจะส่ง LINE เตือนก่อนถึงคิว 1 วันนะคะ"}
+    ],
+    fields:{
+      intent:"Book appointment",
+      procedure:"Scaling (ขูดหินปูน)",
+      confidence:96,
+      booking:{proc:"Scaling - ขูดหินปูน", when:"Thu 3 Jul 2026, 10:30", price:"800 - 1,200 THB"},
+      tags:["ขูดหินปูน","คนไข้เก่า"],
+      patientType:"Returning patient"
+    },
+    history:[
+      {label:"Booked scaling", time:"Today 14:13", now:true},
+      {label:"Whitening consult", time:"12 Mar 2026"},
+      {label:"Scaling + checkup", time:"4 Nov 2025"}
+    ]
+  },
+
+  {
+    id:"c3",
+    name:"คุณสมศักดิ์ ต.",
+    initials:"ส",
+    color:"#e0851b",
+    channel:"voice",
+    status:"human",
+    unread:false,
+    time:"38 min",
+    handle:"+66 89 882 1140",
+    snippet:[{who:"P",text:"ราคารากเทียมเท่าไหร่ครับ ผ่อนได้ไหม"}],
+    sub:{phone:"+66 89 882 1140", chan:"Inbound call - 3m 04s"},
+    call:{duration:"3:04", at:"13:45"},
+    thread:[
+      {type:"day", label:"Today - 29 Jun 2026"},
+      {type:"call"},
+      {type:"turn", who:"ai", name:"AI Assistant", time:"13:45:03", text:"สวัสดีค่ะ คลินิกทันตกรรมยิ้มหวานค่ะ มีอะไรให้น้องยิ้มหวานช่วยดูแลคะ"},
+      {type:"turn", who:"patient", name:"Patient", time:"13:45:14", text:"คือผมหายฟันไปซี่นึงครับ อยากทำรากเทียม อยากรู้ราคาคร่าวๆ แล้วก็ผ่อนได้ไหมครับ"},
+      {type:"turn", who:"ai", name:"AI Assistant", time:"13:45:30", text:"รากเทียมที่คลินิกเริ่มต้นประมาณ 35,000 บาทต่อซี่ค่ะ ขึ้นกับยี่ห้อรากและสภาพกระดูก ส่วนเรื่องแผนผ่อนชำระมีค่ะ แต่รายละเอียดและการอนุมัติขอให้ทีมการเงินยืนยันนะคะ"},
+      {type:"turn", who:"patient", name:"Patient", time:"13:46:02", text:"งั้นช่วยต่อให้คุยกับคนที่ดูเรื่องผ่อนได้ไหมครับ อยากรู้ว่าผ่อนกี่งวด"},
+      {type:"action", kind:"phone", title:"Phone captured", detail:"+66 89 882 1140", tag:"VERIFIED"},
+      {type:"escalate", text:"AI escalated to human - financing terms outside AI scope"}
+    ],
+    fields:{
+      intent:"Price + financing inquiry",
+      procedure:"Dental implant (รากเทียม)",
+      confidence:81,
+      booking:null,
+      tags:["รากเทียม","สอบถามราคา","ผ่อนชำระ"],
+      patientType:"New patient"
+    },
+    history:[
+      {label:"Implant + financing", time:"Today 13:45", now:true},
+      {label:"No prior records", time:"First contact"}
+    ]
+  },
+
+  {
+    id:"c4",
+    name:"คุณกัญญารัตน์ ม.",
+    initials:"ก",
+    color:"#7a5af5",
+    channel:"line",
+    status:"booked",
+    unread:false,
+    time:"1 hr",
+    handle:"LINE - kanya.m",
+    snippet:[{who:"AI",text:"เลื่อนนัดอุดฟันเป็น อ. 1 ก.ค. 15:00 น. ให้แล้วนะคะ"}],
+    sub:{phone:"LINE - kanya.m", chan:"LINE Official Account"},
+    thread:[
+      {type:"day", label:"Today - 29 Jun 2026"},
+      {type:"bubble", who:"patient", time:"12:48", text:"พี่คะ หนูติดงานวันจันทร์ ขอเลื่อนนัดอุดฟันได้ไหมคะ"},
+      {type:"bubble", who:"ai", time:"12:48", text:"ได้ค่ะ ตอนนี้คุณกัญญารัตน์มีนัดอุดฟันวันจันทร์ที่ 30 มิ.ย. 14:00 น. อยู่ค่ะ อยากเลื่อนเป็นวันไหนดีคะ"},
+      {type:"bubble", who:"patient", time:"12:50", text:"อังคารได้ไหมคะ บ่ายๆ"},
+      {type:"bubble", who:"ai", time:"12:50", text:"วันอังคารที่ 1 กรกฎาคม มีคิวว่าง 15:00 น. ค่ะ ยืนยันเลื่อนเป็นเวลานี้ไหมคะ"},
+      {type:"bubble", who:"patient", time:"12:51", text:"ยืนยันค่ะ ขอบคุณค่ะ"},
+      {type:"action", kind:"book", title:"Appointment rescheduled", detail:"Filling - Tue 1 Jul, 15:00", tag:"UPDATED"},
+      {type:"bubble", who:"ai", time:"12:51", text:"เลื่อนนัดอุดฟันเป็นวันอังคารที่ 1 กรกฎาคม 15:00 น. เรียบร้อยค่ะ แล้วเจอกันนะคะ"}
+    ],
+    fields:{
+      intent:"Reschedule appointment",
+      procedure:"Filling (อุดฟัน)",
+      confidence:94,
+      booking:{proc:"Filling - อุดฟัน", when:"Tue 1 Jul 2026, 15:00", price:"700 - 1,500 THB"},
+      tags:["อุดฟัน","เลื่อนนัด","คนไข้เก่า"],
+      patientType:"Returning patient"
+    },
+    history:[
+      {label:"Rescheduled filling", time:"Today 12:51", now:true},
+      {label:"Booked filling", time:"18 Jun 2026"},
+      {label:"X-ray + consult", time:"2 Jun 2026"}
+    ]
+  },
+
+  {
+    id:"c5",
+    name:"คุณธนกร พ.",
+    initials:"ธ",
+    color:"#0ea371",
+    channel:"line",
+    status:"ai",
+    unread:false,
+    time:"2 hr",
+    handle:"LINE - tk.phon",
+    snippet:[{who:"AI",text:"คลินิกเปิด จ.-ส. 9:00-19:00 น. อาทิตย์หยุดค่ะ"}],
+    sub:{phone:"LINE - tk.phon", chan:"LINE Official Account"},
+    thread:[
+      {type:"day", label:"Today - 29 Jun 2026"},
+      {type:"bubble", who:"patient", time:"11:30", text:"คลินิกเปิดกี่โมงครับ วันอาทิตย์เปิดไหม"},
+      {type:"bubble", who:"ai", time:"11:30", text:"คลินิกเปิดวันจันทร์ถึงวันเสาร์ 9:00 - 19:00 น. ค่ะ วันอาทิตย์หยุดนะคะ มีอะไรให้ช่วยจองคิวเพิ่มไหมคะ"},
+      {type:"bubble", who:"patient", time:"11:32", text:"พอแค่นี้ก่อนครับ ขอบคุณครับ"},
+      {type:"bubble", who:"ai", time:"11:32", text:"ยินดีค่ะ ถ้าต้องการนัดหมายทักมาได้ตลอดเลยนะคะ ดูแลสุขภาพฟันด้วยนะคะ"}
+    ],
+    fields:{
+      intent:"Opening hours inquiry",
+      procedure:"None (general info)",
+      confidence:99,
+      booking:null,
+      tags:["สอบถามทั่วไป","เวลาทำการ"],
+      patientType:"Unknown"
+    },
+    history:[
+      {label:"Asked opening hours", time:"Today 11:30", now:true},
+      {label:"No prior records", time:"First contact"}
+    ]
+  },
+
+  {
+    id:"c6",
+    name:"คุณวรินทร ช.",
+    initials:"ว",
+    color:"#e0851b",
+    channel:"voice",
+    status:"ai",
+    unread:false,
+    time:"3 hr",
+    handle:"+66 92 551 7788",
+    snippet:[{who:"AI",text:"นัดจัดฟัน ศ. 4 ก.ค. 16:00 น. เรียบร้อยค่ะ"}],
+    sub:{phone:"+66 92 551 7788", chan:"Inbound call - 2m 18s"},
+    call:{duration:"2:18", at:"10:55"},
+    thread:[
+      {type:"day", label:"Today - 29 Jun 2026"},
+      {type:"call"},
+      {type:"turn", who:"ai", name:"AI Assistant", time:"10:55:02", text:"สวัสดีค่ะ คลินิกทันตกรรมยิ้มหวานค่ะ น้องยิ้มหวานยินดีให้บริการนะคะ"},
+      {type:"turn", who:"patient", name:"Patient", time:"10:55:12", text:"อยากนัดปรึกษาจัดฟันครับ พอมีคิวสัปดาห์นี้ไหม"},
+      {type:"turn", who:"ai", name:"AI Assistant", time:"10:55:26", text:"มีค่ะ คิวปรึกษาจัดฟันสัปดาห์นี้ว่างวันศุกร์ที่ 4 กรกฎาคม 16:00 น. ค่ะ การปรึกษาครั้งแรกมีเอกซเรย์และพิมพ์ปากด้วยนะคะ สะดวกเวลานี้ไหมคะ"},
+      {type:"turn", who:"patient", name:"Patient", time:"10:55:50", text:"สะดวกครับ จองเลย ชื่อวรินทรครับ"},
+      {type:"action", kind:"book", title:"Appointment booked", detail:"Ortho consult - Fri 4 Jul, 16:00", tag:"CONFIRMED"},
+      {type:"turn", who:"ai", name:"AI Assistant", time:"10:56:30", text:"จองคิวปรึกษาจัดฟัน วันศุกร์ที่ 4 กรกฎาคม 16:00 น. เรียบร้อยค่ะ รบกวนมาก่อนเวลานัด 15 นาทีเพื่อกรอกประวัตินะคะ ขอบคุณค่ะ"}
+    ],
+    fields:{
+      intent:"Book consultation",
+      procedure:"Orthodontic consult (จัดฟัน)",
+      confidence:92,
+      booking:{proc:"Ortho consult - จัดฟัน", when:"Fri 4 Jul 2026, 16:00", price:"Free first consult"},
+      tags:["จัดฟัน","ปรึกษา","คนไข้ใหม่"],
+      patientType:"New patient"
+    },
+    history:[
+      {label:"Booked ortho consult", time:"Today 10:55", now:true},
+      {label:"No prior records", time:"First contact"}
+    ]
+  },
+
+  {
+    id:"c7",
+    name:"คุณอารยา ก.",
+    initials:"อ",
+    color:"#2f6df6",
+    channel:"line",
+    status:"ai",
+    unread:false,
+    time:"Yesterday",
+    handle:"LINE - araya.k",
+    snippet:[{who:"P",text:"ขอบคุณค่ะ ฟันสวยขึ้นเยอะเลย"}],
+    sub:{phone:"LINE - araya.k", chan:"LINE Official Account"},
+    thread:[
+      {type:"day", label:"Yesterday - 28 Jun 2026"},
+      {type:"bubble", who:"ai", time:"17:40", text:"สวัสดีค่ะคุณอารยา หลังฟอกสีฟันวันนี้ แนะนำงดชา กาแฟ และอาหารสีเข้ม 48 ชั่วโมงนะคะ ถ้ามีอาการเสียวฟันเล็กน้อยถือเป็นเรื่องปกติค่ะ"},
+      {type:"bubble", who:"patient", time:"19:22", text:"รับทราบค่ะ ขอบคุณค่ะ ฟันสวยขึ้นเยอะเลย"},
+      {type:"bubble", who:"ai", time:"19:22", text:"ยินดีมากเลยค่ะ ดูแลรอยยิ้มสวยๆ ต่อไปนะคะ แล้วพบกันคิวขูดหินปูนรอบหน้าค่ะ"}
+    ],
+    fields:{
+      intent:"Post-treatment follow-up",
+      procedure:"Teeth whitening (ฟอกสีฟัน)",
+      confidence:97,
+      booking:null,
+      tags:["ฟอกสีฟัน","ติดตามผล","คนไข้เก่า"],
+      patientType:"Returning patient"
+    },
+    history:[
+      {label:"Whitening follow-up", time:"Yesterday 17:40", now:true},
+      {label:"Teeth whitening", time:"28 Jun 2026"},
+      {label:"Scaling", time:"10 May 2026"}
+    ]
+  },
+
+  {
+    id:"c8",
+    name:"คุณเมธาวี ร.",
+    initials:"ม",
+    color:"#7a5af5",
+    channel:"line",
+    status:"ai",
+    unread:false,
+    time:"Yesterday",
+    handle:"LINE - methawee.r",
+    snippet:[{who:"AI",text:"ส่งแผนที่และที่จอดรถให้แล้วนะคะ"}],
+    sub:{phone:"LINE - methawee.r", chan:"LINE Official Account"},
+    thread:[
+      {type:"day", label:"Yesterday - 28 Jun 2026"},
+      {type:"bubble", who:"patient", time:"15:05", text:"คลินิกอยู่ตรงไหนคะ มีที่จอดรถไหม"},
+      {type:"bubble", who:"ai", time:"15:05", text:"คลินิกอยู่ที่ ถนนโรจนะ ตรงข้ามเซ็นทรัล อยุธยา ค่ะ มีที่จอดรถหน้าคลินิกประมาณ 8 คัน และจอดในห้างได้ค่ะ น้องยิ้มหวานส่งพิกัดแผนที่ให้นะคะ"},
+      {type:"bubble", who:"patient", time:"15:07", text:"ขอบคุณค่ะ สะดวกมากเลย"},
+      {type:"bubble", who:"ai", time:"15:07", text:"ยินดีค่ะ เดินทางปลอดภัยนะคะ ถ้าต้องการนัดหมายทักมาได้เลยค่ะ"}
+    ],
+    fields:{
+      intent:"Location + parking inquiry",
+      procedure:"None (general info)",
+      confidence:98,
+      booking:null,
+      tags:["สอบถามทั่วไป","เส้นทาง"],
+      patientType:"Unknown"
+    },
+    history:[
+      {label:"Asked location", time:"Yesterday 15:05", now:true},
+      {label:"No prior records", time:"First contact"}
+    ]
+  }
+];
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const isThai = s => /[฀-๿]/.test(s);
+const thaiSpan = s => isThai(s) ? `<span class="thai">${esc(s)}</span>` : esc(s);
+
+const STATUS = {
+  ai:    {cls:"ai",     label:"AI-handled"},
+  human: {cls:"human",  label:"Needs human"},
+  booked:{cls:"booked", label:"Booked"}
+};
+
+let activeId = CASES[0].id;
+let activeFilter = "all";
+
+/* ---- LEFT: case list ---- */
+function snippetLine(snip){
+  const s = snip[0];
+  const whoLabel = s.who === "AI" ? "AI" : s.who === "P" ? "Patient" : s.who;
+  return `<span class="who">${whoLabel}:</span> ${thaiSpan(s.text)}`;
+}
+
+function chanIcon(channel){
+  if(channel === "line"){
+    return `<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M12 4C6.9 4 3 7.3 3 11.4c0 3.7 3.1 6.8 7.4 7.4.7.1.6.4.5.9l-.2 1.1c-.1.4.2.7.7.5 2.6-1.1 5.6-3 7.6-5.6 1.4-1.4 2.2-3 2.2-4.8C21.2 7.3 17.1 4 12 4Z" fill="#fff"/></svg>`;
+  }
+  return `<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M5.5 4h2.4l1.2 3.2-1.6 1.2a9 9 0 0 0 4.1 4.1l1.2-1.6 3.2 1.2v2.4a1.6 1.6 0 0 1-1.7 1.6A12.5 12.5 0 0 1 4 5.7 1.6 1.6 0 0 1 5.5 4Z" fill="#fff"/></svg>`;
+}
+
+function renderList(){
+  const list = CASES.filter(c=>{
+    if(activeFilter === "all") return true;
+    if(activeFilter === "human") return c.status === "human";
+    return c.channel === activeFilter;
+  });
+  $("#caseList").innerHTML = list.map(c=>{
+    const st = STATUS[c.status];
+    return `
+    <div class="case" role="button" tabindex="0" aria-selected="${c.id===activeId}" data-id="${c.id}" data-unread="${c.unread?1:0}">
+      <div class="case-ava" style="background:${c.color}">
+        ${thaiSpan(c.initials)}
+        <span class="case-chan ${c.channel}" aria-hidden="true">${chanIcon(c.channel)}</span>
+      </div>
+      <div class="case-body">
+        <div class="case-top">
+          <span class="case-name">${thaiSpan(c.name)}</span>
+          <span class="case-time">${esc(c.time)}</span>
+        </div>
+        <div class="case-snip">${snippetLine(c.snippet)}</div>
+        <div class="case-foot">
+          <span class="pill ${st.cls}"><span class="dot"></span>${st.label}</span>
+          <span class="case-unread" aria-label="Unread"></span>
+        </div>
+      </div>
+    </div>`;
+  }).join("") || `<div style="padding:30px 16px;text-align:center;color:var(--ink-4);font-size:13px">No cases in this filter.</div>`;
+
+  // counts
+  const cnt = f => CASES.filter(c => f==="all" ? true : f==="human" ? c.status==="human" : c.channel===f).length;
+  $("#tc-all").textContent = cnt("all");
+  $("#tc-voice").textContent = cnt("voice");
+  $("#tc-line").textContent = cnt("line");
+  $("#tc-human").textContent = cnt("human");
+  $("#caseCount").textContent = list.length;
+}
+
+/* ---- waveform bars (deterministic, cheap) ---- */
+function waveBars(n){
+  let h = "";
+  for(let i=0;i<n;i++){
+    const v = 6 + Math.round((Math.sin(i*0.9)*0.5+0.5)*22 + (i%3)*4);
+    const on = i < Math.floor(n*0.34) ? " on" : "";
+    h += `<i class="${on}" style="height:${Math.min(v,30)}px"></i>`;
+  }
+  return h;
+}
+
+/* ---- CENTER: thread ---- */
+function renderThread(c){
+  // header
+  const ava = $("#thAva");
+  ava.style.background = c.color;
+  ava.innerHTML = `${thaiSpan(c.initials)}<span class="case-chan ${c.channel}" aria-hidden="true">${chanIcon(c.channel)}</span>`;
+  $("#thName").innerHTML = `${thaiSpan(c.name)}`;
+  const chanTag = c.channel === "line"
+    ? `<span class="chan-tag line">${chanIcon0("line")} LINE OA</span>`
+    : `<span class="chan-tag voice">${chanIcon0("voice")} Phone - voice</span>`;
+  $("#thSub").innerHTML = `${chanTag}<span class="chip-mono">${esc(c.sub.phone)}</span><span>${esc(c.sub.chan)}</span>`;
+
+  // body
+  $("#threadBody").innerHTML = c.thread.map(node => renderNode(node, c)).join("");
+
+  // takeover label by status
+  const lbl = c.status === "human" ? "Take over chat" : c.status === "booked" ? "Reopen + take over" : "Take over chat";
+  $("#takeoverLabel").textContent = lbl;
+}
+
+// dark-ink icon variant for chan tags
+function chanIcon0(channel){
+  if(channel === "line"){
+    return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 4C6.9 4 3 7.3 3 11.4c0 3.7 3.1 6.8 7.4 7.4.7.1.6.4.5.9l-.2 1.1c-.1.4.2.7.7.5 2.6-1.1 5.6-3 7.6-5.6 1.4-1.4 2.2-3 2.2-4.8C21.2 7.3 17.1 4 12 4Z" fill="#06824a"/></svg>`;
+  }
+  return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5.5 4h2.4l1.2 3.2-1.6 1.2a9 9 0 0 0 4.1 4.1l1.2-1.6 3.2 1.2v2.4a1.6 1.6 0 0 1-1.7 1.6A12.5 12.5 0 0 1 4 5.7 1.6 1.6 0 0 1 5.5 4Z" fill="#1d4fc4"/></svg>`;
+}
+
+function renderNode(node, c){
+  switch(node.type){
+    case "day":
+      return `<div class="day-div"><span>${esc(node.label)}</span></div>`;
+
+    case "call":
+      return `
+      <div class="call-banner" role="group" aria-label="Voice recording">
+        <div class="call-icon" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M6 4h2.6l1.4 3.6-1.8 1.4a10.5 10.5 0 0 0 4.8 4.8l1.4-1.8L18 17.4V20a1.8 1.8 0 0 1-2 1.8A14.5 14.5 0 0 1 2.2 6 1.8 1.8 0 0 1 4 4Z" fill="#fff"/></svg>
+        </div>
+        <div class="call-info">
+          <b>Inbound voice call</b>
+          <span>Recorded - transcribed by AI - ${esc(c.call.at)}</span>
+        </div>
+        <button class="play-btn" aria-label="Play recording" data-play>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M8 5v14l11-7L8 5Z" fill="#2f6df6"/></svg>
+        </button>
+        <div class="wave" aria-hidden="true" data-wave>${waveBars(34)}</div>
+        <span class="call-dur">${esc(c.call.duration)}</span>
+      </div>`;
+
+    case "turn":
+      return `
+      <div class="turn ${node.who}">
+        <div class="turn-badge" aria-hidden="true">${node.who==="ai"?"AI":thaiSpan(c.initials)}</div>
+        <div class="turn-main">
+          <div class="turn-who"><b>${node.who==="ai"?"AI Assistant":esc(node.name||"Patient")}</b><time>${esc(node.time)}</time></div>
+          <div class="turn-txt">${thaiSpan(node.text)}</div>
+        </div>
+      </div>`;
+
+    case "bubble":
+      if(node.who === "ai"){
+        return `
+        <div class="bubble-row ai">
+          <div class="bub-ava ai" aria-hidden="true">AI</div>
+          <div class="bubble">
+            <div class="txt">${thaiSpan(node.text)}</div>
+            <time>${esc(node.time)} - AI Assistant</time>
+          </div>
+        </div>`;
+      }
+      return `
+      <div class="bubble-row patient">
+        <div class="bub-ava" style="background:${c.color}" aria-hidden="true">${thaiSpan(c.initials)}</div>
+        <div class="bubble">
+          <div class="txt">${thaiSpan(node.text)}</div>
+          <time>${esc(node.time)}</time>
+        </div>
+      </div>`;
+
+    case "action":{
+      const ic = node.kind === "book"
+        ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="4" y="5" width="16" height="15" rx="2.5" stroke="#7a5af5" stroke-width="1.8"/><path d="M4 9h16M8 3v3M16 3v3" stroke="#7a5af5" stroke-width="1.8" stroke-linecap="round"/><path d="m9 14 2 2 4-4" stroke="#7a5af5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+        : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 4h2.6l1.4 3.6-1.8 1.4a10.5 10.5 0 0 0 4.8 4.8l1.4-1.8L18 17.4V20a1.8 1.8 0 0 1-2 1.8A14.5 14.5 0 0 1 2.2 6 1.8 1.8 0 0 1 4 4Z" stroke="#2f6df6" stroke-width="1.8" stroke-linejoin="round"/></svg>`;
+      return `
+      <div class="center-row">
+        <div class="act-chip" role="note">
+          <div class="act-icon ${node.kind}" aria-hidden="true">${ic}</div>
+          <div class="act-body">
+            <b>${esc(node.title)}</b>
+            <span class="mono">${thaiSpan(node.detail)}</span>
+          </div>
+          <span class="act-tag">${esc(node.tag)}</span>
+        </div>
+      </div>`;
+    }
+
+    case "escalate":
+      return `
+      <div class="center-row">
+        <div class="act-chip" role="note" style="border-color:#f5d9b0;background:#fdf6ec">
+          <div class="act-icon" style="background:var(--st-human-soft)" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3 2.5 20h19L12 3Z" stroke="#e0851b" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 10v4" stroke="#e0851b" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="17" r="1.1" fill="#e0851b"/></svg>
+          </div>
+          <div class="act-body">
+            <b>Escalated to human</b>
+            <span>${thaiSpan(node.text.replace(/^AI escalated to human - /,''))}</span>
+          </div>
+          <span class="act-tag" style="color:var(--st-human);background:var(--st-human-soft)">NEEDS HUMAN</span>
+        </div>
+      </div>`;
+  }
+  return "";
+}
+
+/* ---- RIGHT: detail panel ---- */
+function confRingColor(p){ return p>=90?"#0ea371":p>=78?"#2f6df6":"#e0851b"; }
+
+function renderDetail(c){
+  const f = c.fields;
+  const ringCol = confRingColor(f.confidence);
+  const r = 16, circ = 2*Math.PI*r, off = circ*(1 - f.confidence/100);
+
+  const bookingHtml = f.booking
+    ? `<div class="booking-card">
+         <div class="bk-ic" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><rect x="4" y="5" width="16" height="15" rx="2.5" stroke="#7a5af5" stroke-width="1.8"/><path d="M4 9h16M8 3v3M16 3v3" stroke="#7a5af5" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+         <div><b>${thaiSpan(f.booking.proc)}</b><span class="thai">${esc(f.booking.when)}<br>${esc(f.booking.price)}</span></div>
+       </div>`
+    : `<p class="no-booking">No booking made on this case.</p>`;
+
+  const tagsHtml = f.tags.map(t => `<span class="tag">${thaiSpan(t)}</span>`).join("")
+    + `<span class="tag add">+ tag</span>`;
+
+  const histHtml = c.history.map(h => `
+    <div class="hist ${h.now?'now':''}"><b>${thaiSpan(h.label)}</b><span>${esc(h.time)}</span></div>
+  `).join("");
+
+  $("#detailBody").innerHTML = `
+    <div class="det-hero">
+      <span class="sheet-grab" aria-hidden="true"></span>
+      <div class="det-ava" style="background:${c.color}">${thaiSpan(c.initials)}</div>
+      <div class="det-name">${thaiSpan(c.name)}</div>
+      <div class="det-sub">${esc(c.handle)}</div>
+      <div class="det-conf" role="group" aria-label="AI confidence ${f.confidence} percent">
+        <div class="conf-ring">
+          <svg width="38" height="38" viewBox="0 0 38 38">
+            <circle cx="19" cy="19" r="${r}" fill="none" stroke="#e8edf5" stroke-width="4"/>
+            <circle cx="19" cy="19" r="${r}" fill="none" stroke="${ringCol}" stroke-width="4" stroke-linecap="round" stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"/>
+          </svg>
+          <span class="pct" style="color:${ringCol}">${f.confidence}</span>
+        </div>
+        <div class="lbl"><b>AI confidence</b><span>${f.confidence>=90?'High - auto-handled':f.confidence>=78?'Good - review optional':'Low - human review'}</span></div>
+      </div>
+    </div>
+
+    <div class="det-sect">
+      <h3>Extracted fields <span class="ai-mark">AI</span></h3>
+      <div class="field"><span class="field-k">Patient name</span><span class="field-v">${thaiSpan(c.name)}</span></div>
+      <div class="field"><span class="field-k">Contact</span><span class="field-v mono">${esc(c.handle)}</span></div>
+      <div class="field"><span class="field-k">Intent</span><span class="field-v">${esc(f.intent)}</span></div>
+      <div class="field"><span class="field-k">Requested</span><span class="field-v">${thaiSpan(f.procedure)}</span></div>
+      <div class="field"><span class="field-k">Patient type</span><span class="field-v">${esc(f.patientType)}</span></div>
+    </div>
+
+    <div class="det-sect">
+      <h3>Booking</h3>
+      ${bookingHtml}
+    </div>
+
+    <div class="det-sect">
+      <h3>Tags</h3>
+      <div class="tags">${tagsHtml}</div>
+    </div>
+
+    <div class="det-sect">
+      <h3>Patient history</h3>
+      <div class="history">${histHtml}</div>
+    </div>
+
+    <div class="det-actions">
+      <button class="btn btn-primary" data-act="takeover">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/><rect x="5" y="11" width="14" height="9" rx="2" stroke="#fff" stroke-width="1.8"/></svg>
+        Take over
+      </button>
+      <button class="btn btn-resolved" data-act="resolve">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="m5 12 4 4 10-10" stroke="#0ea371" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Mark resolved
+      </button>
+      <button class="btn btn-ghost" data-act="assign">Assign to teammate</button>
+    </div>
+  `;
+}
+
+/* ---- select a case ---- */
+function selectCase(id){
+  activeId = id;
+  const c = CASES.find(x=>x.id===id);
+  if(!c) return;
+  // mark read
+  c.unread = false;
+  // sync list selection without full rebuild for snappiness
+  document.querySelectorAll(".case").forEach(el=>{
+    el.setAttribute("aria-selected", el.dataset.id===id);
+    if(el.dataset.id===id) el.dataset.unread = 0;
+  });
+  renderThread(c);
+  renderDetail(c);
+  // mobile: open thread view
+  if(window.matchMedia("(max-width:640px)").matches){
+    document.body.classList.add("thread-open");
+  }
+  // scroll thread to top
+  const ts = document.querySelector(".thread-scroll");
+  if(ts) ts.scrollTop = 0;
+}
+
+/* ---- events ---- */
+function init(){
+  renderList();
+  selectCase(activeId);
+
+  // case click / keyboard
+  $("#caseList").addEventListener("click", e=>{
+    const el = e.target.closest(".case");
+    if(el) selectCase(el.dataset.id);
+  });
+  $("#caseList").addEventListener("keydown", e=>{
+    const el = e.target.closest(".case");
+    if(!el) return;
+    if(e.key === "Enter" || e.key === " "){ e.preventDefault(); selectCase(el.dataset.id); }
+    if(e.key === "ArrowDown" || e.key === "ArrowUp"){
+      e.preventDefault();
+      const cards = [...document.querySelectorAll(".case")];
+      const i = cards.indexOf(el);
+      const next = cards[e.key==="ArrowDown" ? Math.min(i+1,cards.length-1) : Math.max(i-1,0)];
+      if(next){ next.focus(); selectCase(next.dataset.id); }
+    }
+  });
+
+  // filter tabs
+  document.querySelectorAll(".tab").forEach(tab=>{
+    tab.addEventListener("click", ()=>{
+      document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected","false"));
+      tab.setAttribute("aria-selected","true");
+      activeFilter = tab.dataset.filter;
+      renderList();
+      // keep current selection if still visible, else pick first visible
+      const visible = [...document.querySelectorAll(".case")];
+      if(!visible.some(el=>el.dataset.id===activeId) && visible[0]){
+        selectCase(visible[0].dataset.id);
+      } else {
+        document.querySelectorAll(".case").forEach(el=>el.setAttribute("aria-selected", el.dataset.id===activeId));
+      }
+    });
+  });
+
+  // mobile back
+  $("#backBtn").addEventListener("click", ()=> document.body.classList.remove("thread-open"));
+
+  // detail toggle (tablet/mobile sheet)
+  const openDetail = ()=> document.body.classList.add("detail-open");
+  const closeDetail = ()=> document.body.classList.remove("detail-open");
+  $("#detailToggle").addEventListener("click", openDetail);
+  $("#scrim").addEventListener("click", closeDetail);
+
+  // detail panel actions + takeover (event-delegated, flash feedback)
+  $("#detailBody").addEventListener("click", e=>{
+    const b = e.target.closest("[data-act]");
+    if(!b) return;
+    flash(b);
+    if(b.dataset.act === "takeover" || b.dataset.act === "resolve") closeDetail();
+  });
+  $("#takeoverBtn").addEventListener("click", e=> flash(e.currentTarget));
+
+  // wave / play (visual only)
+  $("#threadBody").addEventListener("click", e=>{
+    const p = e.target.closest("[data-play]");
+    const w = e.target.closest("[data-wave]");
+    if(p || w){
+      const wave = document.querySelector("[data-wave]");
+      if(wave) animateWave(wave);
+    }
+  });
+
+  // search focus shortcut
+  document.addEventListener("keydown", e=>{
+    if(e.key === "/" && document.activeElement.tagName !== "INPUT"){
+      e.preventDefault();
+      document.querySelector(".topbar-search input").focus();
+    }
+    if(e.key === "Escape"){ closeDetail(); }
+  });
+}
+
+let flashTimer;
+function flash(btn){
+  const original = btn.dataset.flashed ? null : btn.innerHTML;
+  if(original !== null) btn.dataset.orig = original;
+  btn.dataset.flashed = "1";
+  const done = btn.querySelector("svg") ? btn.dataset.orig : btn.dataset.orig;
+  btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="m5 12 4 4 10-10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Done`;
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(()=>{ btn.innerHTML = btn.dataset.orig; }, 1300);
+}
+
+/* lightweight wave animation, respects reduced-motion */
+function animateWave(wave){
+  if(window.matchMedia("(prefers-reduced-motion:reduce)").matches) return;
+  const bars = [...wave.querySelectorAll("i")];
+  bars.forEach(b=>b.classList.remove("on"));
+  let i = 0;
+  clearInterval(wave._t);
+  wave._t = setInterval(()=>{
+    bars.forEach((b,idx)=> b.classList.toggle("on", idx <= i));
+    i++;
+    if(i >= bars.length){ clearInterval(wave._t); }
+  }, 38);
+}
+
+init();
+</script>
+</body>
+</html>

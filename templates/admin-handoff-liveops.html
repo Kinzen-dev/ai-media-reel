@@ -1,0 +1,1115 @@
+<!-- TEMPLATE: Relay Handoff Console | ARCHETYPE: handoff-queue-liveops | REF: PagerDuty, Twilio Flex, live-ops escalation console | WHEN TO USE: dark control-room screen showing AI-to-human escalations in real time with live SLA timers, claim/assign actions, and a selected-case context panel | SWAP: edit the DATA arrays at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Relay - Handoff Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     DATA-DRIVEN dark control-room handoff console.
+     All copy + cases live in the JS DATA block at the very top of
+     <script>. Swap there. Styling below is mechanic-first.
+     ============================================================ */
+
+  :root {
+    --bg: #070a12;
+    --bg-2: #0a0f1b;
+    --panel: #0d1320;
+    --panel-2: #111a2b;
+    --line: #1b2740;
+    --line-soft: #141d2f;
+    --ink: #e8eefc;
+    --ink-2: #9fb0d0;
+    --ink-3: #5d6f93;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --sans: 'Inter', system-ui, sans-serif;
+
+    --urgent: #ff3b5c;
+    --urgent-glow: rgba(255, 59, 92, 0.5);
+    --waiting: #ffb020;
+    --waiting-glow: rgba(255, 176, 32, 0.4);
+    --claimed: #2fe08a;
+    --claimed-glow: rgba(47, 224, 138, 0.4);
+    --info: #4aa3ff;
+
+    --r: 14px;
+    --r-sm: 9px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+
+  body {
+    background:
+      radial-gradient(900px 520px at 84% -8%, rgba(74, 163, 255, 0.10), transparent 60%),
+      radial-gradient(760px 460px at 6% 6%, rgba(255, 59, 92, 0.07), transparent 58%),
+      var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* subtle control-room grid wash */
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(74, 163, 255, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(74, 163, 255, 0.035) 1px, transparent 1px);
+    background-size: 46px 46px;
+    pointer-events: none;
+    z-index: 0;
+    mask-image: radial-gradient(120% 90% at 50% 0%, #000 40%, transparent 100%);
+  }
+
+  .shell {
+    position: relative;
+    z-index: 1;
+    max-width: 1500px;
+    margin: 0 auto;
+    padding: 18px 22px 40px;
+  }
+
+  /* ---------- TOP STATUS BAR ---------- */
+  .statusbar {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    padding: 13px 18px;
+    box-shadow: 0 18px 50px -28px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    flex-wrap: wrap;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 11px;
+    padding-right: 18px;
+    border-right: 1px solid var(--line);
+  }
+  .brand .mark {
+    width: 34px; height: 34px;
+    display: grid; place-items: center;
+    border-radius: 9px;
+    background: radial-gradient(120% 120% at 30% 20%, #14233d, #0a1322);
+    border: 1px solid var(--line);
+    box-shadow: 0 0 18px -6px var(--urgent-glow);
+  }
+  .brand .name { font-weight: 800; font-size: 15px; letter-spacing: .2px; }
+  .brand .name span { color: var(--ink-3); font-weight: 600; }
+  .brand .sub {
+    font-family: var(--mono); font-size: 10px; color: var(--ink-3);
+    letter-spacing: 1.4px; text-transform: uppercase; margin-top: 1px;
+  }
+
+  .live-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--urgent);
+    box-shadow: 0 0 0 0 var(--urgent-glow);
+    animation: pulseDot 1.8s ease-out infinite;
+  }
+  @keyframes pulseDot {
+    0% { box-shadow: 0 0 0 0 var(--urgent-glow); }
+    70% { box-shadow: 0 0 0 9px rgba(255, 59, 92, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 59, 92, 0); }
+  }
+
+  .stats { display: flex; align-items: stretch; gap: 0; flex: 1; flex-wrap: wrap; }
+  .stat {
+    display: flex; flex-direction: column; gap: 3px;
+    padding: 0 20px;
+    border-right: 1px solid var(--line-soft);
+    min-width: 96px;
+  }
+  .stat:last-child { border-right: 0; }
+  .stat .k {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 1.2px;
+    text-transform: uppercase; color: var(--ink-3);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .stat .v {
+    font-family: var(--mono); font-size: 22px; font-weight: 700;
+    line-height: 1; letter-spacing: .5px;
+  }
+  .stat .v small { font-size: 12px; color: var(--ink-3); font-weight: 500; }
+  .stat.danger .v { color: var(--urgent); }
+  .stat.warn .v { color: var(--waiting); }
+  .stat.ok .v { color: var(--claimed); }
+
+  .agents { display: flex; align-items: center; gap: -6px; }
+  .ava {
+    width: 26px; height: 26px; border-radius: 50%;
+    display: grid; place-items: center;
+    font-family: var(--mono); font-size: 10px; font-weight: 700;
+    color: #06101e; border: 2px solid var(--panel);
+    margin-left: -7px;
+  }
+  .ava:first-child { margin-left: 0; }
+  .ava.on { box-shadow: 0 0 0 2px var(--claimed-glow); }
+
+  /* ---------- HEADLINE BAND ---------- */
+  .headband {
+    margin: 18px 2px 14px;
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap;
+  }
+  .headband h1 {
+    margin: 0; font-size: clamp(22px, 3vw, 31px); font-weight: 800;
+    letter-spacing: -0.5px; line-height: 1.05;
+  }
+  .headband h1 b { color: var(--urgent); font-weight: 800; }
+  .headband p {
+    margin: 6px 0 0; color: var(--ink-2); font-size: 13.5px; max-width: 60ch;
+  }
+  .filterchips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .4px;
+    padding: 7px 12px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--panel);
+    color: var(--ink-2); cursor: pointer;
+    display: inline-flex; align-items: center; gap: 7px;
+    transition: border-color .18s, color .18s, background .18s;
+  }
+  .chip:hover { border-color: #2a3c61; color: var(--ink); }
+  .chip[aria-pressed="true"] { background: #16223a; border-color: #36507f; color: var(--ink); }
+  .chip .swatch { width: 8px; height: 8px; border-radius: 2px; }
+
+  /* ---------- MAIN LAYOUT ---------- */
+  .grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+    gap: 18px;
+    align-items: start;
+  }
+
+  /* ---------- QUEUE ---------- */
+  .queue { display: flex; flex-direction: column; gap: 13px; }
+  .queue-head {
+    display: flex; align-items: center; justify-content: space-between;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 1.3px;
+    text-transform: uppercase; color: var(--ink-3);
+    padding: 2px 4px;
+  }
+  .queue-head .right { display: flex; gap: 14px; align-items: center; }
+
+  .card {
+    position: relative;
+    display: grid;
+    grid-template-columns: 6px 1fr auto;
+    gap: 0;
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color .18s, transform .15s, box-shadow .2s;
+  }
+  .card:hover { border-color: #2c4068; transform: translateY(-1px); }
+  .card:focus-visible {
+    outline: 2px solid var(--info);
+    outline-offset: 2px;
+  }
+  .card.sel {
+    border-color: #36507f;
+    box-shadow: 0 0 0 1px rgba(74, 163, 255, 0.35), 0 22px 50px -30px rgba(0,0,0,.9);
+  }
+
+  /* urgency stripe */
+  .stripe { width: 6px; align-self: stretch; }
+  .card[data-u="urgent"] .stripe { background: linear-gradient(180deg, var(--urgent), #b3203b); box-shadow: 0 0 22px -2px var(--urgent-glow); }
+  .card[data-u="waiting"] .stripe { background: linear-gradient(180deg, var(--waiting), #b87a12); box-shadow: 0 0 20px -4px var(--waiting-glow); }
+  .card[data-u="claimed"] .stripe { background: linear-gradient(180deg, var(--claimed), #18925a); box-shadow: 0 0 20px -4px var(--claimed-glow); }
+
+  .card-body { padding: 14px 15px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .card-top { display: flex; align-items: center; gap: 11px; min-width: 0; }
+  .patient-ava {
+    width: 38px; height: 38px; border-radius: 10px; flex: none;
+    display: grid; place-items: center;
+    font-family: var(--mono); font-weight: 700; font-size: 13px;
+    color: #06101e;
+  }
+  .patient-meta { min-width: 0; }
+  .patient-meta .pname {
+    font-weight: 700; font-size: 15px; line-height: 1.15;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .patient-meta .pid {
+    font-family: var(--mono); font-size: 11px; color: var(--ink-3); margin-top: 2px;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .chan {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: var(--mono); font-size: 10.5px; font-weight: 600;
+    padding: 3px 8px; border-radius: 6px; letter-spacing: .3px;
+  }
+  .chan.line { background: rgba(6, 199, 85, 0.12); color: #46e08a; border: 1px solid rgba(6,199,85,.22); }
+  .chan.voice { background: rgba(74, 163, 255, 0.12); color: var(--info); border: 1px solid rgba(74,163,255,.22); }
+
+  .reason {
+    display: flex; align-items: center; gap: 9px;
+    font-size: 13px; color: var(--ink-2);
+    background: var(--bg-2);
+    border: 1px solid var(--line-soft);
+    border-radius: var(--r-sm);
+    padding: 9px 11px;
+  }
+  .reason .tag {
+    font-family: var(--mono); font-size: 10px; font-weight: 700;
+    letter-spacing: .6px; text-transform: uppercase;
+    padding: 3px 7px; border-radius: 5px; white-space: nowrap;
+  }
+  .reason .tag.complaint { background: rgba(255,59,92,.14); color: var(--urgent); }
+  .reason .tag.complex { background: rgba(255,176,32,.14); color: var(--waiting); }
+  .reason .tag.lowconf { background: rgba(74,163,255,.14); color: var(--info); }
+  .reason .tag.human { background: rgba(168,120,255,.16); color: #b48dff; }
+  .reason .txt { min-width: 0; line-height: 1.35; }
+
+  .conf-row { display: flex; align-items: center; gap: 9px; }
+  .conf-bar {
+    flex: 1; height: 5px; border-radius: 99px; background: #0a1424; overflow: hidden;
+    border: 1px solid var(--line-soft);
+  }
+  .conf-bar i { display: block; height: 100%; border-radius: 99px; }
+  .conf-label {
+    font-family: var(--mono); font-size: 10px; color: var(--ink-3);
+    letter-spacing: .5px; white-space: nowrap;
+  }
+
+  /* RIGHT SIDE: timer + action */
+  .card-side {
+    display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between;
+    padding: 14px 15px 14px 6px; gap: 12px; border-left: 1px solid var(--line-soft);
+    background: linear-gradient(180deg, rgba(255,255,255,.012), transparent);
+  }
+  .sla {
+    text-align: right;
+  }
+  .sla .lab {
+    font-family: var(--mono); font-size: 9px; letter-spacing: 1.4px;
+    text-transform: uppercase; color: var(--ink-3); margin-bottom: 3px;
+  }
+  .sla .timer {
+    font-family: var(--mono); font-size: 27px; font-weight: 700;
+    line-height: 1; letter-spacing: 1px; font-variant-numeric: tabular-nums;
+    transition: color .3s;
+  }
+  .card[data-u="urgent"] .sla .timer { color: var(--urgent); text-shadow: 0 0 16px var(--urgent-glow); }
+  .card[data-u="waiting"] .sla .timer { color: var(--waiting); }
+  .card[data-u="claimed"] .sla .timer { color: var(--claimed); }
+  .sla .breach {
+    font-family: var(--mono); font-size: 9.5px; margin-top: 4px; letter-spacing: .3px;
+  }
+  .sla .breach.over { color: var(--urgent); font-weight: 700; }
+  .sla .breach.ok { color: var(--ink-3); }
+
+  .actions { display: flex; gap: 7px; align-items: center; }
+  .btn {
+    font-family: var(--mono); font-size: 11.5px; font-weight: 600; letter-spacing: .3px;
+    border-radius: 8px; padding: 8px 13px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+    transition: background .16s, border-color .16s, transform .12s, color .16s;
+    display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  }
+  .btn:hover { transform: translateY(-1px); border-color: #36507f; }
+  .btn:active { transform: translateY(0); }
+  .btn:focus-visible { outline: 2px solid var(--info); outline-offset: 2px; }
+  .btn.claim {
+    background: linear-gradient(180deg, #2fe08a, #16a865);
+    color: #04140c; border-color: transparent;
+    box-shadow: 0 8px 22px -12px var(--claimed-glow);
+  }
+  .btn.claim:hover { box-shadow: 0 12px 26px -10px var(--claimed-glow); }
+  .btn.icon { padding: 8px 10px; }
+  .btn.claimed {
+    background: rgba(47,224,138,.1); color: var(--claimed);
+    border-color: rgba(47,224,138,.3); cursor: default;
+  }
+  .btn.claimed:hover { transform: none; }
+
+  /* ---------- CONTEXT PANEL ---------- */
+  .ctx {
+    position: sticky; top: 18px;
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    overflow: hidden;
+    box-shadow: 0 24px 60px -34px rgba(0,0,0,.95), inset 0 1px 0 rgba(255,255,255,.03);
+    display: flex; flex-direction: column;
+    max-height: calc(100vh - 36px);
+  }
+  .ctx-head {
+    position: relative;
+    padding: 0;
+  }
+  .ctx-hero {
+    height: 84px; position: relative; overflow: hidden;
+    border-bottom: 1px solid var(--line);
+  }
+  .ctx-hero img {
+    width: 100%; height: 100%; object-fit: cover; object-position: 50% 56%;
+    filter: saturate(.85) brightness(.5) contrast(1.05);
+  }
+  .ctx-hero::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(7,10,18,.35), rgba(7,10,18,.92));
+  }
+  .ctx-hero .clinic {
+    position: absolute; left: 16px; bottom: 11px; z-index: 2;
+    font-family: var(--mono); font-size: 11px; letter-spacing: .6px; color: var(--ink-2);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .ctx-hero .clinic b { color: var(--ink); font-weight: 700; letter-spacing: .2px; }
+
+  .ctx-id {
+    padding: 14px 16px 12px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .ctx-id .av {
+    width: 44px; height: 44px; border-radius: 11px; flex: none;
+    display: grid; place-items: center; font-family: var(--mono);
+    font-weight: 700; font-size: 15px; color: #06101e;
+  }
+  .ctx-id .who .n { font-weight: 700; font-size: 16px; }
+  .ctx-id .who .d {
+    font-family: var(--mono); font-size: 11px; color: var(--ink-3); margin-top: 3px;
+    display: flex; gap: 9px; align-items: center; flex-wrap: wrap;
+  }
+  .ctx-id .right { margin-left: auto; text-align: right; }
+  .ctx-id .right .lab { font-family: var(--mono); font-size: 9px; letter-spacing: 1.2px; color: var(--ink-3); text-transform: uppercase; }
+  .ctx-id .right .timer { font-family: var(--mono); font-size: 21px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  .transcript {
+    flex: 1; overflow-y: auto; padding: 15px 16px;
+    display: flex; flex-direction: column; gap: 11px;
+    background:
+      radial-gradient(600px 200px at 100% 0%, rgba(74,163,255,.04), transparent 60%);
+    min-height: 150px;
+  }
+  .transcript::-webkit-scrollbar { width: 8px; }
+  .transcript::-webkit-scrollbar-thumb { background: #1c2942; border-radius: 99px; }
+  .ts-meta {
+    text-align: center; font-family: var(--mono); font-size: 9.5px;
+    color: var(--ink-3); letter-spacing: 1px; text-transform: uppercase;
+    margin: 2px 0;
+  }
+  .msg { max-width: 86%; display: flex; flex-direction: column; gap: 3px; }
+  .msg .bub {
+    padding: 9px 12px; border-radius: 12px; font-size: 13px; line-height: 1.4;
+    border: 1px solid var(--line-soft);
+  }
+  .msg .meta { font-family: var(--mono); font-size: 9px; color: var(--ink-3); letter-spacing: .4px; padding: 0 3px; }
+  .msg.user { align-self: flex-start; }
+  .msg.user .bub { background: #0e1827; border-top-left-radius: 4px; color: var(--ink); }
+  .msg.ai { align-self: flex-end; }
+  .msg.ai .bub {
+    background: linear-gradient(180deg, #13233d, #0f1b30);
+    border-color: rgba(74,163,255,.22); border-top-right-radius: 4px;
+    color: #d8e6ff;
+  }
+  .msg.ai .meta { text-align: right; }
+  .msg.flag .bub {
+    background: rgba(255,59,92,.08); border-color: rgba(255,59,92,.3); color: #ffd2da;
+  }
+  .msg.flag .meta { color: var(--urgent); }
+
+  /* AI suggested reply composer */
+  .composer {
+    border-top: 1px solid var(--line);
+    background: linear-gradient(180deg, var(--panel), #0b1120);
+    padding: 13px 14px 14px;
+  }
+  .composer .lab {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 1.1px;
+    text-transform: uppercase; color: var(--info);
+    display: flex; align-items: center; gap: 7px; margin-bottom: 9px;
+  }
+  .composer .lab .spark {
+    width: 15px; height: 15px; display: grid; place-items: center;
+  }
+  .composer textarea {
+    width: 100%; resize: vertical; min-height: 78px;
+    background: #0a1322; color: var(--ink);
+    border: 1px solid var(--line); border-radius: 10px;
+    padding: 11px 12px; font-family: var(--sans); font-size: 13.5px; line-height: 1.45;
+    transition: border-color .16s;
+  }
+  .composer textarea:focus { outline: none; border-color: #36507f; }
+  .composer textarea:focus-visible { outline: 2px solid var(--info); outline-offset: 1px; }
+  .composer-foot { display: flex; align-items: center; gap: 9px; margin-top: 11px; flex-wrap: wrap; }
+  .composer-foot .hint { font-family: var(--mono); font-size: 10px; color: var(--ink-3); margin-right: auto; }
+  .btn.send {
+    background: linear-gradient(180deg, #4aa3ff, #2f7ee0);
+    color: #04101f; border-color: transparent; font-weight: 700;
+    box-shadow: 0 8px 22px -12px rgba(74,163,255,.6);
+  }
+  .btn.ghost { background: transparent; }
+
+  /* mobile sheet scrim (only used <=900) */
+  .scrim { display: none; }
+
+  /* reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .live-dot { animation: none; }
+    .card, .btn { transition: none; }
+    .sla .timer { text-shadow: none; }
+  }
+
+  /* ---------- RESPONSIVE ---------- */
+  @media (max-width: 1100px) {
+    .grid { grid-template-columns: 1fr; }
+    .ctx { position: static; max-height: none; }
+    .transcript { max-height: 360px; }
+  }
+
+  @media (max-width: 900px) {
+    /* context panel becomes a slide-up sheet */
+    .ctx {
+      position: fixed; left: 0; right: 0; bottom: 0; top: auto; z-index: 60;
+      max-height: 88vh; border-radius: 18px 18px 0 0;
+      transform: translateY(102%);
+      transition: transform .28s cubic-bezier(.2,.7,.2,1);
+      box-shadow: 0 -30px 70px -20px rgba(0,0,0,.95);
+    }
+    .ctx.open { transform: translateY(0); }
+    .scrim {
+      display: block; position: fixed; inset: 0; z-index: 55;
+      background: rgba(3,6,12,.6); opacity: 0; pointer-events: none;
+      transition: opacity .25s;
+    }
+    .scrim.open { opacity: 1; pointer-events: auto; }
+    .transcript { max-height: 42vh; }
+    .ctx-sheet-handle { display: block; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ctx { transition: none; }
+    .scrim { transition: none; }
+  }
+  .ctx-sheet-handle { display: none; }
+
+  @media (max-width: 640px) {
+    .shell { padding: 12px 12px 30px; }
+    .statusbar { gap: 12px; padding: 12px 13px; }
+    .brand { padding-right: 12px; }
+    .stats { width: 100%; order: 3; border-top: 1px solid var(--line-soft); padding-top: 11px; }
+    .stat { padding: 0 12px 0 0; min-width: 78px; }
+    .stat .v { font-size: 18px; }
+    .headband h1 { font-size: 22px; }
+    .card { grid-template-columns: 6px 1fr; }
+    .card-side {
+      grid-column: 1 / -1;
+      flex-direction: row; align-items: center; justify-content: space-between;
+      border-left: 0; border-top: 1px solid var(--line-soft);
+      padding: 12px 14px;
+    }
+    .sla { text-align: left; display: flex; align-items: baseline; gap: 10px; }
+    .sla .lab { margin-bottom: 0; }
+    .patient-meta .pname { white-space: normal; }
+    .ctx-sheet-handle {
+      width: 40px; height: 4px; border-radius: 99px; background: #2a3852;
+      margin: 9px auto 2px;
+    }
+  }
+</style>
+</head>
+<body>
+  <div class="shell">
+
+    <!-- ===== TOP STATUS BAR ===== -->
+    <header class="statusbar" role="banner">
+      <div class="brand">
+        <div class="mark" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2 4 6v6c0 4.5 3.2 7.8 8 10 4.8-2.2 8-5.5 8-10V6l-8-4z" stroke="#ff3b5c" stroke-width="1.6"/>
+            <path d="M9 12l2.2 2.4L15.5 9.5" stroke="#46e08a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div>
+          <div class="name">Relay <span>/ handoff</span></div>
+          <div class="sub" id="clinicTag">Yimwhan AI</div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat danger">
+          <div class="k"><span class="live-dot" aria-hidden="true"></span> waiting now</div>
+          <div class="v" id="stWaiting">0</div>
+        </div>
+        <div class="stat warn">
+          <div class="k">avg wait</div>
+          <div class="v" id="stAvg">0<small>s</small></div>
+        </div>
+        <div class="stat ok">
+          <div class="k">claimed / 1h</div>
+          <div class="v" id="stClaimed">0</div>
+        </div>
+        <div class="stat">
+          <div class="k">sla breaches</div>
+          <div class="v" id="stBreach">0</div>
+        </div>
+        <div class="stat">
+          <div class="k">agents online</div>
+          <div class="v" style="display:flex;align-items:center;gap:10px;">
+            <span id="stAgents">0</span>
+            <span class="agents" id="agentRow" aria-hidden="true"></span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ===== HEADLINE BAND (compact, above the live queue) ===== -->
+    <div class="headband">
+      <div>
+        <h1>What needs a <b>human</b> right now</h1>
+        <p>Cases the AI assistant escalated. Claim one to take over the conversation. Timers count time since handoff.</p>
+      </div>
+      <div class="filterchips" role="group" aria-label="Filter queue">
+        <button class="chip" data-filter="all" aria-pressed="true">All</button>
+        <button class="chip" data-filter="urgent" aria-pressed="false"><span class="swatch" style="background:var(--urgent)"></span> Urgent</button>
+        <button class="chip" data-filter="waiting" aria-pressed="false"><span class="swatch" style="background:var(--waiting)"></span> Waiting</button>
+        <button class="chip" data-filter="claimed" aria-pressed="false"><span class="swatch" style="background:var(--claimed)"></span> Claimed</button>
+      </div>
+    </div>
+
+    <!-- ===== MAIN GRID: QUEUE + CONTEXT ===== -->
+    <div class="grid">
+      <!-- QUEUE COLUMN -->
+      <section class="queue" aria-label="Handoff queue">
+        <div class="queue-head">
+          <span>Live escalation queue</span>
+          <span class="right">
+            <span id="qCount">0 cases</span>
+            <span>sorted by urgency</span>
+          </span>
+        </div>
+        <div id="queueList"></div>
+      </section>
+
+      <!-- CONTEXT PANEL COLUMN -->
+      <aside class="ctx" id="ctxPanel" aria-label="Selected case context">
+        <div class="ctx-sheet-handle" aria-hidden="true"></div>
+        <div class="ctx-head">
+          <div class="ctx-hero">
+            <img src="../assets/flux-clinic-4k.png" alt="" loading="lazy" decoding="async" />
+            <div class="clinic">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v18M4 8h16M6 21V8M18 21V8" stroke="#46e08a" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <b id="heroClinic">Bangkok Smile Dental</b> live context
+            </div>
+          </div>
+        </div>
+
+        <div class="ctx-id">
+          <div class="av" id="ctxAv">--</div>
+          <div class="who">
+            <div class="n" id="ctxName">Select a case</div>
+            <div class="d" id="ctxDetail">Claim or open a card to load the conversation</div>
+          </div>
+          <div class="right">
+            <div class="lab">since handoff</div>
+            <div class="timer" id="ctxTimer">--:--</div>
+          </div>
+        </div>
+
+        <div class="transcript" id="transcript">
+          <div class="ts-meta">no case selected</div>
+        </div>
+
+        <div class="composer">
+          <div class="lab">
+            <span class="spark" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2l2 6 6 2-6 2-2 6-2-6-6-2 6-2 2-6z" stroke="#4aa3ff" stroke-width="1.6" stroke-linejoin="round"/></svg>
+            </span>
+            AI-suggested reply <span style="color:var(--ink-3);text-transform:none;letter-spacing:0;">- edit before sending</span>
+          </div>
+          <textarea id="composer" aria-label="Suggested reply, editable" placeholder="Select a case to load a suggested reply"></textarea>
+          <div class="composer-foot">
+            <span class="hint" id="composerHint">--</span>
+            <button class="btn ghost" id="regenBtn" type="button">Regenerate</button>
+            <button class="btn send" id="sendBtn" type="button">
+              Send as me
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 11l18-8-8 18-2-8-8-2z" stroke="#04101f" stroke-width="1.8" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div class="scrim" id="scrim" aria-hidden="true"></div>
+
+<script>
+/* ============================================================
+   DATA  -  swap everything here.
+   reasonType: complaint | complex | lowconf | human
+   channel: line | voice
+   bornAgo: seconds since the AI handed off (timer counts UP from this)
+   slaSec: SLA target seconds; breach when timer exceeds it
+   confidence: AI's confidence right before it gave up (0-100)
+   status: 'queued' or 'claimed' (claimed shows assignee)
+   ============================================================ */
+const CLINIC = { name: "Bangkok Smile Dental", code: "BKK-SMILE-01" };
+
+const AGENTS = [
+  { id: "PM", name: "Ploy M.",  color: "#46e08a" },
+  { id: "NW", name: "Nat W.",   color: "#4aa3ff" },
+  { id: "KT", name: "Korn T.",  color: "#b48dff" },
+];
+
+const CASES = [
+  {
+    id: "HS-4821",
+    patient: "คุณ สมหญิง ทองดี",
+    pid: "PT-10293",
+    phone: "+66 81 234 5678",
+    channel: "voice",
+    reasonType: "complaint",
+    reason: "Patient upset about pain after a root canal done last week, asking to speak to a person.",
+    confidence: 22,
+    bornAgo: 412,
+    slaSec: 180,
+    status: "queued",
+    avColor: "#ff3b5c",
+    transcript: [
+      { who: "user", t: "หมอคะ คือเมื่ออาทิตย์ที่แล้วทำรากฟันมา ตอนนี้มันปวดมากเลยค่ะ ปวดจนนอนไม่ได้", at: "13:58" },
+      { who: "ai", t: "เข้าใจค่ะ อาการปวดหลังรักษารากฟันพบได้บ้างในช่วงแรก ขออนุญาตสอบถามว่าปวดมากี่วันแล้วคะ และมีบวมร่วมด้วยไหมคะ", at: "13:58" },
+      { who: "user", t: "ปวดมา 2 วันแล้ว แล้วก็บวมด้วย กินยาแก้ปวดก็ไม่หาย ขอคุยกับคนได้ไหม ไม่อยากคุยกับบอท", at: "13:59", flag: true },
+      { who: "ai", t: "ได้ค่ะ อาการบวมร่วมกับปวดที่ยาแก้ปวดไม่ช่วย ควรให้ทันตแพทย์ดูโดยเร็ว ดิฉันกำลังต่อสายให้เจ้าหน้าที่นะคะ รอสักครู่ค่ะ", at: "13:59" }
+    ],
+    suggested: "สวัสดีค่ะคุณสมหญิง ดิฉันชื่อพลอย เจ้าหน้าที่คลินิกค่ะ ทราบว่าปวดและบวมหลังทำรากฟันมา 2 วันนะคะ อาการแบบนี้เราอยากให้คุณหมอดูวันนี้เลยค่ะ ขอนัดเข้ามาช่วงบ่ายนี้เวลา 15:30 ได้ไหมคะ ถ้าปวดมากระหว่างรอ ทานยาตามที่จ่ายไปได้ตามเวลา และประคบเย็นบริเวณแก้มได้ค่ะ"
+  },
+  {
+    id: "HS-4822",
+    patient: "Michael Brennan",
+    pid: "PT-10311",
+    phone: "+66 92 887 4410",
+    channel: "line",
+    reasonType: "complex",
+    reason: "Wants to move 3 family appointments and combine an Invisalign consult on the same day.",
+    confidence: 48,
+    bornAgo: 96,
+    slaSec: 300,
+    status: "queued",
+    avColor: "#ffb020",
+    transcript: [
+      { who: "user", t: "Hi, I need to reschedule cleanings for me, my wife and my son. Can you also add an Invisalign consult for me on the same visit?", at: "14:03" },
+      { who: "ai", t: "Happy to help. I can move the three cleanings together. For the Invisalign consult I see two slots next week, but combining four appointments on one day needs a longer block I cannot confirm automatically.", at: "14:03" },
+      { who: "user", t: "Right, ideally all four next Saturday morning back to back. Is that possible?", at: "14:04", flag: true },
+      { who: "ai", t: "Saturday mornings are limited and the consult overlaps the hygienist schedule. Let me bring in a coordinator to lock the exact times for you.", at: "14:04" }
+    ],
+    suggested: "Hi Michael, this is Nat from the clinic. I can hold next Saturday for all four. Proposed block: 09:00 you (cleaning), 09:30 wife, 10:00 son, then 10:30 your Invisalign consult with Dr. Aran. That keeps you in one trip. Shall I confirm and send the calendar invites to this LINE chat?"
+  },
+  {
+    id: "HS-4823",
+    patient: "คุณ วีรพล แสนสุข",
+    pid: "PT-09980",
+    phone: "+66 88 552 1097",
+    channel: "line",
+    reasonType: "lowconf",
+    reason: "Asked whether the clinic's whitening is safe with his heart medication. AI confidence below threshold on a medical question.",
+    confidence: 31,
+    bornAgo: 233,
+    slaSec: 240,
+    status: "queued",
+    avColor: "#4aa3ff",
+    transcript: [
+      { who: "user", t: "ผมกินยาโรคหัวใจอยู่ครับ ถ้าจะมาฟอกสีฟันที่คลินิก มันจะมีปัญหาอะไรไหมครับ", at: "14:01" },
+      { who: "ai", t: "เป็นคำถามที่ดีค่ะ การฟอกสีฟันโดยทั่วไปปลอดภัย แต่เนื่องจากเกี่ยวข้องกับยาประจำตัวด้านหัวใจ ดิฉันไม่สามารถให้คำแนะนำทางการแพทย์เฉพาะบุคคลได้ค่ะ", at: "14:01", flag: true },
+      { who: "ai", t: "ขออนุญาตให้ทันตแพทย์เป็นผู้ประเมินกับข้อมูลยาของคุณโดยตรงนะคะ ดิฉันกำลังส่งต่อให้เจ้าหน้าที่ค่ะ", at: "14:01" }
+    ],
+    suggested: "สวัสดีค่ะคุณวีรพล ขอบคุณที่แจ้งเรื่องยาประจำตัวค่ะ การฟอกสีฟันส่วนใหญ่ไม่กระทบกับยาโรคหัวใจ แต่เพื่อความปลอดภัย คุณหมอขอดูชื่อยาและขนาดที่ทานก่อนนะคะ รบกวนถ่ายรูปฉลากยาหรือพิมพ์ชื่อยามาได้ไหมคะ จากนั้นเราจะนัดประเมินสั้น ๆ ก่อนทำจริงค่ะ"
+  },
+  {
+    id: "HS-4824",
+    patient: "คุณ จิราพร เกิดผล",
+    pid: "PT-10402",
+    phone: "+66 95 110 8822",
+    channel: "voice",
+    reasonType: "human",
+    reason: "Politely but firmly asked to speak with a real staff member about a billing question.",
+    confidence: 61,
+    bornAgo: 58,
+    slaSec: 300,
+    status: "queued",
+    avColor: "#b48dff",
+    transcript: [
+      { who: "user", t: "คือบิลค่ารักษาครั้งที่แล้ว มันไม่ตรงกับที่คุยกันไว้น่ะค่ะ ขอคุยกับเจ้าหน้าที่จริง ๆ ได้ไหมคะ", at: "14:05", flag: true },
+      { who: "ai", t: "ได้เลยค่ะ เรื่องค่าใช้จ่ายที่ไม่ตรงกัน ดิฉันขอให้เจ้าหน้าที่บัญชีเป็นผู้ดูแลและอธิบายให้นะคะ กำลังต่อสายให้ค่ะ", at: "14:05" }
+    ],
+    suggested: "สวัสดีค่ะคุณจิราพร ดิฉันชื่อพลอยค่ะ ขออภัยเรื่องบิลที่ไม่ตรงนะคะ ขอเช็กรายการให้เดี๋ยวนี้เลยค่ะ รบกวนยืนยันวันที่เข้ารับบริการครั้งล่าสุด แล้วดิฉันจะเทียบกับใบเสนอราคาที่คุยกันไว้และแจ้งส่วนต่างให้ชัดเจนภายในวันนี้ค่ะ"
+  },
+  {
+    id: "HS-4819",
+    patient: "Aiko Tanaka",
+    pid: "PT-10044",
+    phone: "+66 80 998 7733",
+    channel: "line",
+    reasonType: "complex",
+    reason: "Insurance pre-authorization question for an implant, needs document checklist.",
+    confidence: 44,
+    bornAgo: 41,
+    slaSec: 300,
+    status: "claimed",
+    assignee: "NW",
+    avColor: "#2fe08a",
+    transcript: [
+      { who: "user", t: "My insurer needs a pre-authorization before the implant. What documents do you provide for that?", at: "14:06" },
+      { who: "ai", t: "We can supply a treatment plan and an itemized quote. Pre-auth paperwork varies by insurer, so I am bringing in a coordinator to give you the exact checklist.", at: "14:06", flag: true }
+    ],
+    suggested: "Hi Aiko, Nat here. For implant pre-auth we provide: 1) signed treatment plan, 2) itemized quote with procedure codes, 3) a panoramic x-ray, and 4) Dr. Aran's clinical note. Send me your insurer name and I will format the packet to their template and email it within one business day."
+  }
+];
+
+/* ============================================================
+   RUNTIME
+   ============================================================ */
+const $ = (s, r = document) => r.querySelector(s);
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const isMobile = () => window.matchMedia("(max-width: 900px)").matches;
+
+const REASON_LABEL = {
+  complaint: { tag: "complaint", text: "Complaint" },
+  complex:   { tag: "complex",   text: "Complex booking" },
+  lowconf:   { tag: "lowconf",   text: "Low confidence" },
+  human:     { tag: "human",     text: "Asked for human" }
+};
+const CHAN_LABEL = {
+  line:  { cls: "line",  text: "LINE" },
+  voice: { cls: "voice", text: "Voice" }
+};
+// urgency derived from reason + how close to / past SLA
+function urgencyOf(c, elapsed) {
+  if (c.status === "claimed") return "claimed";
+  if (c.reasonType === "complaint") return "urgent";
+  if (elapsed >= c.slaSec) return "urgent";
+  if (elapsed >= c.slaSec * 0.6) return "waiting";
+  return "waiting";
+}
+function confColor(v) {
+  if (v < 35) return "var(--urgent)";
+  if (v < 55) return "var(--waiting)";
+  return "var(--claimed)";
+}
+function fmt(sec) {
+  sec = Math.max(0, Math.floor(sec));
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+}
+function initials(name) {
+  const clean = name.replace(/^คุณ\s*/, "").trim();
+  const parts = clean.split(/\s+/);
+  if (/[฀-๿]/.test(clean)) return clean.slice(0, 2);
+  return (parts[0]?.[0] || "") + (parts[1]?.[0] || "");
+}
+
+// per-case live state
+const T0 = Date.now();
+const state = CASES.map(c => ({ ...c, elapsed: c.bornAgo, claimed: c.status === "claimed", assignee: c.assignee || null }));
+let activeFilter = "all";
+let selectedId = null;
+
+/* ---- top status bar ---- */
+$("#clinicTag").textContent = CLINIC.name;
+$("#heroClinic").textContent = CLINIC.name;
+(function renderAgents() {
+  const row = $("#agentRow");
+  row.innerHTML = "";
+  AGENTS.forEach(a => {
+    const d = document.createElement("span");
+    d.className = "ava on";
+    d.style.background = a.color;
+    d.textContent = a.id;
+    d.title = a.name + " (online)";
+    row.appendChild(d);
+  });
+  $("#stAgents").textContent = AGENTS.length;
+})();
+
+/* ---- queue render ---- */
+function buildCard(c) {
+  const u = urgencyOf(c, c.elapsed);
+  const r = REASON_LABEL[c.reasonType];
+  const ch = CHAN_LABEL[c.channel];
+  const el = document.createElement("article");
+  el.className = "card" + (c.id === selectedId ? " sel" : "");
+  el.dataset.u = u;
+  el.dataset.id = c.id;
+  el.tabIndex = 0;
+  el.setAttribute("role", "button");
+  el.setAttribute("aria-label", `${c.patient}, ${r.text}, via ${ch.text}`);
+
+  const overSla = c.elapsed >= c.slaSec;
+  const breachTxt = c.claimed
+    ? `claimed by ${AGENTS.find(a => a.id === c.assignee)?.name || "agent"}`
+    : (overSla ? `SLA +${fmt(c.elapsed - c.slaSec)} over` : `SLA ${fmt(c.slaSec - c.elapsed)} left`);
+
+  el.innerHTML = `
+    <div class="stripe" aria-hidden="true"></div>
+    <div class="card-body">
+      <div class="card-top">
+        <div class="patient-ava" style="background:${c.avColor}">${initials(c.patient)}</div>
+        <div class="patient-meta">
+          <div class="pname">${c.patient}</div>
+          <div class="pid">
+            <span class="chan ${ch.cls}">${chanIcon(c.channel)} ${ch.text}</span>
+            <span>${c.pid}</span>
+            <span>${c.phone}</span>
+          </div>
+        </div>
+      </div>
+      <div class="reason">
+        <span class="tag ${r.tag}">${r.text}</span>
+        <span class="txt">${c.reason}</span>
+      </div>
+      <div class="conf-row">
+        <span class="conf-label">AI conf</span>
+        <span class="conf-bar"><i style="width:${c.confidence}%;background:${confColor(c.confidence)}"></i></span>
+        <span class="conf-label">${c.confidence}%</span>
+      </div>
+    </div>
+    <div class="card-side">
+      <div class="sla">
+        <div class="lab">since handoff</div>
+        <div class="timer" data-timer="${c.id}">${fmt(c.elapsed)}</div>
+        <div class="breach ${overSla && !c.claimed ? "over" : "ok"}" data-breach="${c.id}">${breachTxt}</div>
+      </div>
+      <div class="actions">
+        ${c.claimed
+          ? `<span class="btn claimed">${checkIcon()} Claimed</span>`
+          : `<button class="btn icon" type="button" data-act="assign" data-id="${c.id}" aria-label="Assign to agent">${assignIcon()}</button>
+             <button class="btn claim" type="button" data-act="claim" data-id="${c.id}">${handIcon()} Claim</button>`}
+      </div>
+    </div>
+  `;
+  return el;
+}
+
+function chanIcon(ch) {
+  if (ch === "voice")
+    return `<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M5 4h3l1.5 4.5L7 11a12 12 0 0 0 6 6l2.5-2.5L20 16v3a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
+  return `<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M12 4c-4.4 0-8 2.9-8 6.5 0 2 1.2 3.8 3 5l-.7 3.2 3.4-1.8c.7.1 1.5.2 2.3.2 4.4 0 8-2.9 8-6.6S16.4 4 12 4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+}
+function handIcon() { return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M8 11V6.5a1.5 1.5 0 0 1 3 0V11m0 0V5a1.5 1.5 0 0 1 3 0v6m0 0V7a1.5 1.5 0 0 1 3 0v6c0 4-2.5 7-6.5 7S8 17 8 14l-2-2.5a1.4 1.4 0 0 1 2-2l.5.5" stroke="#04140c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`; }
+function assignIcon() { return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M18 8v6m3-3h-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`; }
+function checkIcon() { return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`; }
+
+function visibleSorted() {
+  const order = { urgent: 0, waiting: 1, claimed: 2 };
+  return state
+    .filter(c => {
+      if (activeFilter === "all") return true;
+      return urgencyOf(c, c.elapsed) === activeFilter;
+    })
+    .sort((a, b) => {
+      const ua = urgencyOf(a, a.elapsed), ub = urgencyOf(b, b.elapsed);
+      if (order[ua] !== order[ub]) return order[ua] - order[ub];
+      return b.elapsed - a.elapsed; // older waits first within a tier
+    });
+}
+
+function renderQueue() {
+  const list = $("#queueList");
+  const vis = visibleSorted();
+  list.innerHTML = "";
+  vis.forEach(c => list.appendChild(buildCard(c)));
+  $("#qCount").textContent = vis.length + (vis.length === 1 ? " case" : " cases");
+  renderStats();
+}
+
+function renderStats() {
+  const waiting = state.filter(c => !c.claimed).length;
+  const claimed = state.filter(c => c.claimed).length;
+  const breaches = state.filter(c => !c.claimed && c.elapsed >= c.slaSec).length;
+  const waits = state.filter(c => !c.claimed).map(c => c.elapsed);
+  const avg = waits.length ? Math.round(waits.reduce((a, b) => a + b, 0) / waits.length) : 0;
+  $("#stWaiting").textContent = waiting;
+  $("#stClaimed").textContent = claimed + 11; // 11 already handled this hour
+  $("#stBreach").textContent = breaches;
+  // avg wait in mono Xm Ys style
+  $("#stAvg").innerHTML = `${Math.floor(avg/60)}<small>m </small>${avg%60}<small>s</small>`;
+}
+
+/* ---- selection + context panel ---- */
+function selectCase(id, openSheet) {
+  selectedId = id;
+  const c = state.find(x => x.id === id);
+  if (!c) return;
+  const ch = CHAN_LABEL[c.channel];
+  const r = REASON_LABEL[c.reasonType];
+
+  $("#ctxAv").textContent = initials(c.patient);
+  $("#ctxAv").style.background = c.avColor;
+  $("#ctxName").textContent = c.patient;
+  $("#ctxDetail").innerHTML =
+    `<span class="chan ${ch.cls}">${ch.text}</span> ${c.pid} <span>${c.phone}</span>`;
+  $("#ctxTimer").textContent = fmt(c.elapsed);
+  $("#ctxTimer").style.color = confColor(c.confidence);
+
+  // transcript
+  const t = $("#transcript");
+  t.innerHTML = `<div class="ts-meta">handoff reason: ${r.text}</div>`;
+  c.transcript.forEach(m => {
+    const wrap = document.createElement("div");
+    wrap.className = "msg " + (m.who === "ai" ? "ai" : "user") + (m.flag ? " flag" : "");
+    const who = m.who === "ai" ? "น้องยิ้มหวาน (AI)" : c.patient.replace(/^คุณ\s*/, "");
+    wrap.innerHTML = `<div class="bub">${m.t}</div><div class="meta">${who} - ${m.at}${m.flag ? " - escalation point" : ""}</div>`;
+    t.appendChild(wrap);
+  });
+  const handoff = document.createElement("div");
+  handoff.className = "ts-meta";
+  handoff.textContent = "AI handed off to a human here";
+  t.appendChild(handoff);
+  t.scrollTop = t.scrollHeight;
+
+  // composer
+  $("#composer").value = c.suggested;
+  $("#composerHint").textContent = c.claimed
+    ? `you are ${AGENTS.find(a => a.id === c.assignee)?.name || "assigned"}`
+    : `reply goes to ${ch.text} as the clinic`;
+  $("#sendBtn").firstChild.textContent = ch.text === "Voice" ? "Read to caller " : "Send as me ";
+
+  // mark selected card
+  document.querySelectorAll(".card").forEach(el => el.classList.toggle("sel", el.dataset.id === id));
+
+  if (openSheet && isMobile()) openCtxSheet();
+}
+
+/* ---- mobile sheet ---- */
+function openCtxSheet() {
+  $("#ctxPanel").classList.add("open");
+  $("#scrim").classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+function closeCtxSheet() {
+  $("#ctxPanel").classList.remove("open");
+  $("#scrim").classList.remove("open");
+  document.body.style.overflow = "";
+}
+$("#scrim").addEventListener("click", closeCtxSheet);
+
+/* ---- actions ---- */
+function claimCase(id, agentId) {
+  const c = state.find(x => x.id === id);
+  if (!c || c.claimed) return;
+  c.claimed = true;
+  c.status = "claimed";
+  c.assignee = agentId || AGENTS[0].id;
+  renderQueue();
+  if (selectedId === id) selectCase(id, false);
+}
+
+document.addEventListener("click", (e) => {
+  const actBtn = e.target.closest("[data-act]");
+  if (actBtn) {
+    e.stopPropagation();
+    const id = actBtn.dataset.id;
+    if (actBtn.dataset.act === "claim") {
+      claimCase(id, AGENTS[0].id);
+      selectCase(id, true);
+    } else if (actBtn.dataset.act === "assign") {
+      // round-robin assign demo: pick next agent and claim
+      const idx = Math.floor(Math.random() * AGENTS.length);
+      claimCase(id, AGENTS[idx].id);
+      selectCase(id, true);
+    }
+    return;
+  }
+  const card = e.target.closest(".card");
+  if (card) selectCase(card.dataset.id, true);
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeCtxSheet();
+  const card = e.target.closest && e.target.closest(".card");
+  if (card && (e.key === "Enter" || e.key === " ")) {
+    e.preventDefault();
+    selectCase(card.dataset.id, true);
+  }
+});
+
+/* ---- filter chips ---- */
+document.querySelectorAll(".chip").forEach(chip => {
+  chip.addEventListener("click", () => {
+    document.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", "false"));
+    chip.setAttribute("aria-pressed", "true");
+    activeFilter = chip.dataset.filter;
+    renderQueue();
+    if (selectedId) document.querySelectorAll(".card").forEach(el => el.classList.toggle("sel", el.dataset.id === selectedId));
+  });
+});
+
+/* ---- composer buttons ---- */
+$("#sendBtn").addEventListener("click", () => {
+  if (!selectedId) return;
+  const btn = $("#sendBtn");
+  const original = btn.innerHTML;
+  btn.innerHTML = "Sent " + checkIcon();
+  btn.disabled = true;
+  setTimeout(() => { btn.innerHTML = original; btn.disabled = false; }, 1600);
+});
+$("#regenBtn").addEventListener("click", () => {
+  if (!selectedId) return;
+  const c = state.find(x => x.id === selectedId);
+  const ta = $("#composer");
+  const prefix = /[฀-๿]/.test(c.suggested) ? "ขออภัยในความไม่สะดวกค่ะ " : "Thanks for your patience. ";
+  ta.value = prefix + c.suggested;
+});
+
+/* ---- LIVE TIMERS (count up) ---- */
+function tickTimers() {
+  const now = Date.now();
+  const dt = Math.floor((now - T0) / 1000);
+  let needsResort = false;
+  state.forEach(c => {
+    if (c.claimed) return; // claimed timers freeze
+    const newElapsed = c.bornAgo + dt;
+    // detect tier change to re-sort
+    const before = urgencyOf(c, c.elapsed);
+    c.elapsed = newElapsed;
+    const after = urgencyOf(c, c.elapsed);
+    if (before !== after) needsResort = true;
+
+    const tEl = document.querySelector(`[data-timer="${c.id}"]`);
+    if (tEl) tEl.textContent = fmt(c.elapsed);
+    const bEl = document.querySelector(`[data-breach="${c.id}"]`);
+    if (bEl) {
+      const over = c.elapsed >= c.slaSec;
+      bEl.textContent = over ? `SLA +${fmt(c.elapsed - c.slaSec)} over` : `SLA ${fmt(c.slaSec - c.elapsed)} left`;
+      bEl.className = "breach " + (over ? "over" : "ok");
+    }
+  });
+  if (selectedId) {
+    const c = state.find(x => x.id === selectedId);
+    if (c && !c.claimed) $("#ctxTimer").textContent = fmt(c.elapsed);
+  }
+  renderStats();
+  if (needsResort) {
+    // re-order DOM without nuking everything visually: simplest correct path is re-render
+    renderQueue();
+    document.querySelectorAll(".card").forEach(el => el.classList.toggle("sel", el.dataset.id === selectedId));
+  }
+}
+
+/* ---- boot ---- */
+renderQueue();
+// preselect the top urgent case so the context panel reads as live at scroll=0 on desktop
+const first = visibleSorted()[0];
+if (first) {
+  selectedId = first.id;
+  selectCase(first.id, false); // do not auto-open sheet on mobile
+  document.querySelectorAll(".card").forEach(el => el.classList.toggle("sel", el.dataset.id === first.id));
+}
+
+if (!reduceMotion) {
+  setInterval(tickTimers, 1000);
+} else {
+  // static under reduced motion: render timers once at their starting values (already rendered)
+  renderStats();
+}
+</script>
+</body>
+</html>

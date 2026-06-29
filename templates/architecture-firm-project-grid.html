@@ -1,0 +1,575 @@
+<!-- TEMPLATE: Project Grid As Homepage | ARCHETYPE: architecture-firm-project-grid | REF: snohetta.com, big.dk | WHEN TO USE: architecture / design / interiors studio where the work itself is the homepage - a viewport-filling project grid, no hero banner | SWAP: edit the PROJECTS array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FELDMARK / Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   DATA-DRIVEN SWAP NOTE: all content lives in the PROJECTS
+   array in the <script> at the very bottom. Edit there only.
+   ============================================================ */
+
+:root{
+  --paper:        #f4f3f0;   /* warm off-white field */
+  --paper-2:      #ebe9e4;   /* tile backdrop / letterbox bars */
+  --ink:          #15140f;   /* near-black ink */
+  --ink-soft:     #4a4843;   /* secondary ink */
+  --ink-faint:    #908d85;   /* captions / meta */
+  --line:         #d9d6cf;   /* hairlines */
+  --accent:       #b8492f;   /* one restrained terracotta accent */
+  --gutter:       10px;      /* grid gutter */
+  --bar-h:        62px;      /* top bar height */
+  --cols:         4;         /* desktop columns */
+  --ease:         cubic-bezier(.22,.61,.36,1);
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+html{-webkit-text-size-adjust:100%;}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size:15px;
+  line-height:1.4;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+}
+a{color:inherit;text-decoration:none;}
+img,video{display:block;}
+
+/* keyboard focus only */
+a:focus-visible,
+button:focus-visible,
+.tile:focus-visible{
+  outline:2px solid var(--accent);
+  outline-offset:3px;
+}
+
+/* ===================== TOP BAR ===================== */
+.topbar{
+  position:sticky;
+  top:0;
+  z-index:40;
+  height:var(--bar-h);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:24px;
+  padding:0 clamp(14px,2.4vw,30px);
+  background:rgba(244,243,240,.86);
+  backdrop-filter:saturate(140%) blur(10px);
+  -webkit-backdrop-filter:saturate(140%) blur(10px);
+  border-bottom:1px solid var(--line);
+}
+.brand{
+  display:flex;
+  align-items:baseline;
+  gap:10px;
+  white-space:nowrap;
+}
+.brand .mark{
+  font-weight:700;
+  font-size:clamp(15px,1.5vw,18px);
+  letter-spacing:.26em;
+  text-transform:uppercase;
+}
+.brand .dot{
+  display:inline-block;
+  width:6px;height:6px;
+  border-radius:50%;
+  background:var(--accent);
+  transform:translateY(-1px);
+}
+.brand .sub{
+  font-family:'Newsreader', Georgia, serif;
+  font-style:italic;
+  font-size:13px;
+  color:var(--ink-faint);
+  letter-spacing:.01em;
+}
+.nav{
+  display:flex;
+  align-items:center;
+  gap:clamp(16px,2vw,32px);
+}
+.nav a{
+  font-size:12.5px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--ink-soft);
+  position:relative;
+  padding:4px 0;
+  transition:color .25s var(--ease);
+}
+.nav a::after{
+  content:"";
+  position:absolute;left:0;bottom:0;
+  width:100%;height:1px;
+  background:var(--ink);
+  transform:scaleX(0);
+  transform-origin:left;
+  transition:transform .3s var(--ease);
+}
+.nav a:hover{color:var(--ink);}
+.nav a:hover::after{transform:scaleX(1);}
+.nav a.is-active{color:var(--ink);}
+.nav a.is-active::after{transform:scaleX(1);background:var(--accent);}
+.nav .contact{
+  color:var(--ink);
+  border:1px solid var(--ink);
+  border-radius:999px;
+  padding:7px 15px;
+}
+.nav .contact::after{display:none;}
+.nav .contact:hover{background:var(--ink);color:var(--paper);}
+
+/* ===================== GRID ===================== */
+.grid{
+  display:grid;
+  grid-template-columns:repeat(var(--cols),1fr);
+  gap:var(--gutter);
+  padding:var(--gutter);
+}
+
+/* a tile */
+.tile{
+  position:relative;
+  display:block;
+  aspect-ratio:4 / 3;
+  background:var(--paper-2);
+  overflow:hidden;
+  cursor:pointer;
+  isolation:isolate;
+  border-radius:2px;
+}
+/* a couple of feature tiles span 2x to break the uniform rhythm,
+   Snohetta/BIG register: mostly uniform with rare emphasis */
+.tile.wide{ grid-column:span 2; aspect-ratio:8 / 3; }
+
+.tile .media{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+}
+.tile img.cover,
+.tile video.cover{
+  width:100%;height:100%;
+  object-fit:cover;            /* fixed-ratio tiles cover cleanly */
+  object-position:center;
+}
+.tile video.cover{display:none;}   /* shown only when activated */
+.tile.is-playing video.cover{display:block;}
+.tile.is-playing img.cover{opacity:0;}
+
+/* slow reveal zoom + grayscale-to-color on hover (motion-gated) */
+.tile img.cover,
+.tile video.cover{
+  transform:scale(1.001);
+  filter:grayscale(.34) contrast(1.02);
+  transition:transform 1.1s var(--ease), filter .7s var(--ease), opacity .5s var(--ease);
+  will-change:transform;
+}
+.tile:hover img.cover,
+.tile:focus-visible img.cover,
+.tile.is-playing video.cover{
+  transform:scale(1.045);
+  filter:grayscale(0) contrast(1.04);
+}
+
+/* thin index number, top-left */
+.tile .idx{
+  position:absolute;
+  top:9px;left:11px;
+  z-index:3;
+  font-size:11px;
+  letter-spacing:.18em;
+  color:var(--paper);
+  mix-blend-mode:difference;
+  opacity:.9;
+}
+
+/* caption: name (grotesk) + place/year (serif) reveal on hover */
+.tile .cap{
+  position:absolute;
+  left:0;right:0;bottom:0;
+  z-index:3;
+  padding:14px 14px 13px;
+  color:var(--paper);
+  background:linear-gradient(to top, rgba(10,9,6,.78) 0%, rgba(10,9,6,.30) 55%, rgba(10,9,6,0) 100%);
+  transform:translateY(8px);
+  opacity:0;
+  transition:opacity .4s var(--ease), transform .5s var(--ease);
+}
+.tile:hover .cap,
+.tile:focus-visible .cap,
+.tile.is-playing .cap{
+  opacity:1;
+  transform:translateY(0);
+}
+.tile .cap .name{
+  font-weight:600;
+  font-size:15px;
+  letter-spacing:.005em;
+  line-height:1.15;
+}
+.tile .cap .meta{
+  font-family:'Newsreader', Georgia, serif;
+  font-style:italic;
+  font-size:12.5px;
+  color:rgba(244,243,240,.82);
+  margin-top:3px;
+  display:flex;
+  gap:8px;
+  align-items:baseline;
+}
+.tile .cap .meta .yr{
+  font-style:normal;
+  font-family:'Archivo',sans-serif;
+  letter-spacing:.12em;
+  color:rgba(244,243,240,.62);
+}
+
+/* video badge */
+.tile .vbadge{
+  position:absolute;
+  top:9px;right:11px;
+  z-index:3;
+  display:flex;align-items:center;gap:5px;
+  font-size:10px;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--paper);
+  mix-blend-mode:difference;
+}
+.tile .vbadge .tri{
+  width:0;height:0;
+  border-left:6px solid currentColor;
+  border-top:4px solid transparent;
+  border-bottom:4px solid transparent;
+}
+
+/* hairline frame on hover */
+.tile::after{
+  content:"";
+  position:absolute;inset:0;
+  border:1px solid rgba(255,255,255,0);
+  z-index:4;
+  pointer-events:none;
+  transition:border-color .35s var(--ease);
+}
+.tile:hover::after,
+.tile:focus-visible::after{ border-color:rgba(255,255,255,.16); }
+
+/* ===================== FOOTER STRIP ===================== */
+.footer{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  padding:26px clamp(14px,2.4vw,30px) 34px;
+  border-top:1px solid var(--line);
+  margin-top:var(--gutter);
+}
+.footer .fl{
+  font-family:'Newsreader', Georgia, serif;
+  font-size:15px;
+  color:var(--ink-soft);
+  max-width:46ch;
+}
+.footer .fl em{color:var(--accent);font-style:italic;}
+.footer .fr{
+  display:flex;gap:22px;
+  font-size:12px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--ink-faint);
+}
+.footer .fr a:hover{color:var(--ink);}
+
+/* ===================== RESPONSIVE ===================== */
+
+/* large desktop: keep 4 wide but allow a 5th on very wide screens */
+@media (min-width:1700px){
+  :root{ --cols:5; }
+}
+
+/* tablet */
+@media (max-width:1100px){
+  :root{ --cols:3; }
+  .tile.wide{ grid-column:span 2; }
+}
+
+/* phone: 2 columns, contain so landscape assets are never face-cropped */
+@media (max-width:640px){
+  :root{ --cols:2; --gutter:7px; --bar-h:54px; }
+  .brand .sub{display:none;}
+  .nav{gap:14px;}
+  .nav a:not(.contact){display:none;}     /* keep bar minimal on phone */
+  .nav .contact{padding:6px 13px;font-size:11px;}
+
+  .tile{
+    aspect-ratio:1 / 1;                    /* square cells, calm 2-up rhythm */
+    background:var(--paper-2);
+  }
+  .tile.wide{ grid-column:span 2; aspect-ratio:16 / 9; }
+
+  /* CONTAIN on phone: letterbox landscape art rather than crop faces/cars */
+  .tile img.cover,
+  .tile video.cover{
+    object-fit:contain;
+    background:var(--paper-2);
+    filter:grayscale(0) contrast(1.02);    /* no hover on touch; show final */
+    transform:none;
+  }
+  /* captions always visible on phone (no hover affordance) */
+  .tile .cap{ opacity:1; transform:none; padding:10px 11px 11px; }
+  .tile .cap .name{font-size:13px;}
+  .tile .cap .meta{font-size:11px;}
+  .tile .idx{font-size:10px;}
+
+  .footer .fl{font-size:14px;}
+}
+
+/* very small phones */
+@media (max-width:380px){
+  .tile .cap .meta .place{display:none;}
+}
+
+/* ===================== REDUCED MOTION ===================== */
+@media (prefers-reduced-motion:reduce){
+  *{
+    transition:none !important;
+    animation:none !important;
+    scroll-behavior:auto !important;
+  }
+  .tile img.cover,
+  .tile video.cover{
+    transform:none !important;
+    filter:grayscale(0) contrast(1.02) !important;
+    will-change:auto;
+  }
+  /* captions visible without hover so info is reachable */
+  .tile .cap{ opacity:1 !important; transform:none !important; }
+  .tile::after{ border-color:rgba(255,255,255,.12) !important; }
+}
+</style>
+</head>
+<body>
+
+  <!-- ============ MINIMAL TOP BAR (firm name + thin nav) ============ -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="mark">Feldmark<span class="dot" aria-hidden="true"></span></span>
+      <span class="sub">Architecture and Urbanism</span>
+    </div>
+    <nav class="nav" aria-label="Primary">
+      <a href="#" class="is-active">Work</a>
+      <a href="#">Studio</a>
+      <a href="#">Journal</a>
+      <a href="#" class="contact">Contact</a>
+    </nav>
+  </header>
+
+  <!-- ============ THE GRID IS THE HOMEPAGE ============ -->
+  <main>
+    <section class="grid" id="grid" aria-label="Selected projects"></section>
+
+    <footer class="footer">
+      <p class="fl">A studio working between landscape, structure and light. <em>Selected works, 2019 to 2026.</em></p>
+      <div class="fr">
+        <a href="#">Instagram</a>
+        <a href="#">Index</a>
+        <a href="#">Press kit</a>
+      </div>
+    </footer>
+  </main>
+
+<script>
+/* ===========================================================
+   PROJECTS  -  edit this array to swap the whole homepage.
+   Each entry:
+     name   : project title (grotesk)
+     place  : location (serif italic caption)
+     year   : year string
+     img    : poster / still image (always present)
+     video  : optional mp4 -> plays only when this tile is
+              hovered / focused / tapped (never all at once)
+     wide   : optional true -> tile spans 2 columns (feature)
+   Paths are relative to this file in /showcase/templates/.
+   =========================================================== */
+const ASSET = "../assets/";
+const GEN   = "../assets/gen/";
+
+const PROJECTS = [
+  { name:"Nocturne Pavilion",  place:"Kanazawa, JP",   year:"2025",
+    img: ASSET+"flux-car-4k.png",                       // cinematic still
+    video: ASSET+"flux-car-i2v.mp4",  poster:GEN+"poster-flux-car-i2v.png",
+    wide:true },
+
+  { name:"Verdant Clinic",     place:"Chiang Mai, TH", year:"2024",
+    img: ASSET+"flux-clinic-4k.png" },
+
+  { name:"Ridgeline House",    place:"Otago, NZ",      year:"2023",
+    img: GEN+"poster-kling-video.png",
+    video: ASSET+"kling-video.mp4",   poster:GEN+"poster-kling-video.png" },
+
+  { name:"Foundry Lofts",      place:"Porto, PT",      year:"2024",
+    img: GEN+"poster-fal-video.png",
+    video: ASSET+"fal-video.mp4",     poster:GEN+"poster-fal-video.png" },
+
+  { name:"Amber Field Studio", place:"Vermont, US",    year:"2022",
+    img: ASSET+"sdxl.png" },
+
+  { name:"Tidal Terminal",     place:"Bergen, NO",     year:"2026",
+    img: GEN+"poster-veo-video.png",
+    video: ASSET+"veo-video.mp4",     poster:GEN+"poster-veo-video.png",
+    wide:true },
+
+  { name:"Orchard Annex",      place:"Kyoto, JP",      year:"2021",
+    img: ASSET+"hf-tinysd.png" },
+
+  { name:"Glasshouse Wing",    place:"Reykjavik, IS",  year:"2025",
+    img: ASSET+"flux-clinic-4k.png" },
+
+  { name:"Solace Chapel",      place:"Tuscany, IT",    year:"2023",
+    img: ASSET+"flux-clinic-4k.png" },
+
+  { name:"Harbour Reading Room", place:"Lisbon, PT",   year:"2024",
+    img: ASSET+"flux-car-4k.png" },
+
+  { name:"Meadow Observatory", place:"Atacama, CL",    year:"2022",
+    img: ASSET+"sdxl.png" },
+
+  { name:"Slate Courtyard",    place:"Seoul, KR",      year:"2026",
+    img: GEN+"poster-fal-video.png",
+    video: ASSET+"fal-video.mp4",     poster:GEN+"poster-fal-video.png" },
+];
+
+/* ----- render ----- */
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const grid = document.getElementById('grid');
+const tileEls = [];
+
+PROJECTS.forEach((p, i) => {
+  const a = document.createElement('a');
+  a.className = 'tile' + (p.wide ? ' wide' : '');
+  a.href = '#';
+  a.setAttribute('role','listitem');
+  a.setAttribute('aria-label', `${p.name}, ${p.place}, ${p.year}`);
+  a.dataset.idx = i;
+
+  const num = String(i + 1).padStart(2, '0');
+  const poster = p.poster || p.img;
+
+  let inner = '';
+  inner += `<span class="idx" aria-hidden="true">${num}</span>`;
+
+  if (p.video) {
+    inner += `<div class="vbadge" aria-hidden="true"><span class="tri"></span>Film</div>`;
+  }
+
+  // still image (always loaded, lazy)
+  inner += `<img class="cover" src="${p.img}" alt="${p.name}, ${p.place}" loading="${i < 4 ? 'eager' : 'lazy'}" decoding="async" />`;
+
+  // optional video, no autoplay, no preload of data
+  if (p.video && !reduceMotion) {
+    inner += `<video class="cover" muted loop playsinline preload="none" poster="${poster}"></video>`;
+  }
+
+  inner += `<div class="cap">
+              <div class="name">${p.name}</div>
+              <div class="meta"><span class="place">${p.place}</span><span class="yr">${p.year}</span></div>
+            </div>`;
+
+  a.innerHTML = inner;
+  grid.appendChild(a);
+  tileEls.push(a);
+
+  if (p.video) a._videoSrc = p.video;
+});
+
+/* ===========================================================
+   VIDEO PLAYBACK: only ONE tile plays at a time, and only
+   while it is hovered / focused / tapped. Sources are attached
+   lazily on first activation so nothing downloads on load.
+   This avoids simultaneous decode that tanks FPS.
+   =========================================================== */
+let activeTile = null;
+
+function activate(tile){
+  if (reduceMotion) return;
+  if (!tile || !tile._videoSrc) return;
+  if (activeTile === tile) return;
+  deactivate();                       // stop any other playing tile first
+  const vid = tile.querySelector('video.cover');
+  if (!vid) return;
+  if (!vid.src) vid.src = tile._videoSrc;   // lazy attach
+  tile.classList.add('is-playing');
+  const play = vid.play();
+  if (play && play.catch) play.catch(()=>{ /* autoplay guard, ignore */ });
+  activeTile = tile;
+}
+
+function deactivate(){
+  if (!activeTile) return;
+  const vid = activeTile.querySelector('video.cover');
+  if (vid){ try{ vid.pause(); }catch(e){} }
+  activeTile.classList.remove('is-playing');
+  activeTile = null;
+}
+
+/* desktop: hover + keyboard focus */
+tileEls.forEach(tile => {
+  if (!tile._videoSrc) return;
+  tile.addEventListener('mouseenter', () => activate(tile));
+  tile.addEventListener('mouseleave', () => deactivate());
+  tile.addEventListener('focus',     () => activate(tile));
+  tile.addEventListener('blur',      () => deactivate());
+});
+
+/* touch: tap toggles play (so phone users can also see film tiles),
+   but only one plays at a time and only if it is on screen */
+let touchUsed = false;
+tileEls.forEach(tile => {
+  tile.addEventListener('click', (e) => {
+    if (!tile._videoSrc) return;
+    // treat as preview toggle, do not navigate in this demo
+    if (touchUsed){
+      e.preventDefault();
+      if (activeTile === tile) deactivate(); else activate(tile);
+    }
+  });
+});
+window.addEventListener('touchstart', () => { touchUsed = true; }, {once:true, passive:true});
+
+/* ===========================================================
+   IN-VIEW GUARD: pause a playing video if it scrolls out of
+   view (keeps decode work bounded, never plays off-screen).
+   =========================================================== */
+if ('IntersectionObserver' in window){
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.target === activeTile && entry.intersectionRatio < 0.25){
+        deactivate();
+      }
+    });
+  }, { threshold:[0, 0.25, 0.6] });
+  tileEls.forEach(t => { if (t._videoSrc) io.observe(t); });
+}
+
+/* pause everything when tab is hidden */
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) deactivate();
+});
+</script>
+</body>
+</html>

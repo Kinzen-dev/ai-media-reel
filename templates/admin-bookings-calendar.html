@@ -1,0 +1,939 @@
+<!-- TEMPLATE: Clinic Booking Admin (Week Calendar) | ARCHETYPE: bookings | REF: Calendly, Cal.com, clinic scheduling admin | WHEN TO USE: backoffice appointment management with AI-created bookings needing staff approval | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Yimwhan Clinic | Booking Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   DATA-DRIVEN CLINIC BOOKING ADMIN
+   All content lives in the JS DATA block at the very top of
+   <script>. Procedures, providers, appointments, pending AI
+   bookings - swap there. Nothing below hardcodes content.
+   ============================================================ */
+:root{
+  --bg:#f4f6fb;
+  --panel:#ffffff;
+  --ink:#1a2233;
+  --ink-2:#5a6680;
+  --ink-3:#8b96ad;
+  --line:#e6eaf2;
+  --line-2:#eef1f7;
+  --grid-line:#edf0f6;
+  --accent:#3b6ef5;
+  --accent-soft:#eaf0fe;
+  --ai:#7b3ff2;
+  --ai-soft:#f1ebfe;
+  --ok:#16a36b;
+  --warn:#e08a17;
+  --radius:14px;
+  --radius-sm:9px;
+  --shadow-sm:0 1px 2px rgba(26,34,51,.05);
+  --shadow:0 6px 20px -8px rgba(26,34,51,.18);
+  --shadow-lg:0 18px 50px -18px rgba(26,34,51,.28);
+  --row-h:58px;
+  --tnum:"tnum" 1,"lnum" 1;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:"Inter",system-ui,-apple-system,sans-serif;
+  background:
+    radial-gradient(1200px 500px at 12% -8%, #eaf0ff 0%, rgba(234,240,255,0) 60%),
+    radial-gradient(1000px 520px at 105% 0%, #f0ebff 0%, rgba(240,235,255,0) 55%),
+    var(--bg);
+  color:var(--ink);
+  font-size:14px;
+  line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  font-feature-settings:var(--tnum);
+}
+.tnum{font-variant-numeric:tabular-nums lining-nums;font-feature-settings:var(--tnum)}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+:focus-visible{outline:2.5px solid var(--accent);outline-offset:2px;border-radius:6px}
+
+/* ====== APP SHELL ====== */
+.app{
+  display:grid;
+  grid-template-columns:248px minmax(0,1fr) 340px;
+  grid-template-rows:64px minmax(0,1fr);
+  grid-template-areas:
+    "brand topbar topbar"
+    "rail  cal    pending";
+  height:100vh;
+  width:100%;
+  max-width:1680px;
+  margin:0 auto;
+  gap:0;
+}
+
+/* ====== BRAND / TOP-LEFT ====== */
+.brand{
+  grid-area:brand;
+  display:flex;align-items:center;gap:11px;
+  padding:0 20px;
+  border-bottom:1px solid var(--line);
+  border-right:1px solid var(--line);
+  background:rgba(255,255,255,.72);
+  backdrop-filter:blur(8px);
+}
+.brand .logo{
+  width:34px;height:34px;border-radius:10px;flex:none;
+  background:linear-gradient(145deg,#4f7bff,#7b3ff2);
+  display:grid;place-items:center;color:#fff;
+  box-shadow:0 5px 14px -4px rgba(91,79,242,.6);
+}
+.brand .nm{font-weight:800;font-size:15px;letter-spacing:-.01em;line-height:1.1}
+.brand .sub{font-size:11px;color:var(--ink-3);font-weight:500;letter-spacing:.02em}
+
+/* ====== TOPBAR ====== */
+.topbar{
+  grid-area:topbar;
+  display:flex;align-items:center;gap:16px;
+  padding:0 22px;
+  border-bottom:1px solid var(--line);
+  background:rgba(255,255,255,.72);
+  backdrop-filter:blur(8px);
+}
+.wknav{display:flex;align-items:center;gap:4px}
+.wknav button.nav{
+  width:34px;height:34px;border-radius:9px;
+  display:grid;place-items:center;color:var(--ink-2);
+  border:1px solid var(--line);background:#fff;
+  transition:background .15s,color .15s,border-color .15s;
+}
+.wknav button.nav:hover{background:var(--accent-soft);color:var(--accent);border-color:#cfdcfd}
+.btn-today{
+  height:34px;padding:0 14px;border-radius:9px;font-weight:600;font-size:13px;
+  border:1px solid var(--line);background:#fff;color:var(--ink);
+  display:inline-flex;align-items:center;gap:7px;
+  transition:background .15s,border-color .15s;
+}
+.btn-today:hover{background:#f7f9fe;border-color:#cfdcfd}
+.btn-today .dot{width:7px;height:7px;border-radius:50%;background:var(--accent)}
+.wktitle{display:flex;flex-direction:column;line-height:1.15;margin-left:4px}
+.wktitle .rng{font-weight:700;font-size:15px;letter-spacing:-.01em}
+.wktitle .yr{font-size:11px;color:var(--ink-3);font-weight:500}
+.topbar .spacer{flex:1}
+.search{
+  display:flex;align-items:center;gap:8px;height:36px;padding:0 12px;
+  border:1px solid var(--line);border-radius:10px;background:#fff;
+  color:var(--ink-3);min-width:200px;max-width:240px;
+}
+.search input{border:none;outline:none;background:none;font-size:13px;color:var(--ink);width:100%;font-family:inherit}
+.search input::placeholder{color:var(--ink-3)}
+.btn-new{
+  height:38px;padding:0 16px;border-radius:10px;font-weight:600;font-size:13.5px;
+  background:linear-gradient(180deg,#4f7bff,#3b6ef5);color:#fff;
+  display:inline-flex;align-items:center;gap:8px;
+  box-shadow:0 8px 18px -8px rgba(59,110,245,.7);
+  transition:transform .12s,box-shadow .15s,filter .15s;
+}
+.btn-new:hover{filter:brightness(1.05);box-shadow:0 10px 22px -8px rgba(59,110,245,.8)}
+.btn-new:active{transform:translateY(1px)}
+
+/* ====== LEFT RAIL (providers / chairs) ====== */
+.rail{
+  grid-area:rail;
+  border-right:1px solid var(--line);
+  background:rgba(255,255,255,.62);
+  backdrop-filter:blur(6px);
+  overflow-y:auto;
+  padding:16px 14px 22px;
+  display:flex;flex-direction:column;gap:18px;
+}
+.rail-clinic{
+  border-radius:12px;overflow:hidden;position:relative;
+  border:1px solid var(--line);box-shadow:var(--shadow-sm);
+  aspect-ratio:16/9;
+}
+.rail-clinic img{width:100%;height:100%;object-fit:cover;display:block}
+.rail-clinic .ov{
+  position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(15,23,42,0) 30%,rgba(15,23,42,.78) 100%);
+  display:flex;align-items:flex-end;padding:10px 12px;
+}
+.rail-clinic .ov b{color:#fff;font-size:12.5px;font-weight:700;letter-spacing:.01em}
+.rail-clinic .ov span{color:#cfe0ff;font-size:10.5px;display:block;font-weight:500}
+.rail-h{
+  font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-3);padding:0 6px;margin-bottom:9px;display:flex;align-items:center;justify-content:space-between;
+}
+.rail-h .cnt{background:var(--line-2);color:var(--ink-2);border-radius:20px;font-size:10px;padding:1px 7px;letter-spacing:0}
+.prov-list{display:flex;flex-direction:column;gap:3px}
+.prov{
+  display:flex;align-items:center;gap:10px;padding:8px 9px;border-radius:10px;
+  width:100%;text-align:left;transition:background .14s;position:relative;
+}
+.prov:hover{background:#f3f6fd}
+.prov.off{opacity:.42}
+.prov .sw{width:11px;height:11px;border-radius:4px;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+.prov .av{
+  width:30px;height:30px;border-radius:9px;flex:none;display:grid;place-items:center;
+  font-weight:700;font-size:12px;color:#fff;letter-spacing:.01em;
+}
+.prov .meta{flex:1;min-width:0}
+.prov .meta b{font-size:13px;font-weight:600;display:block;line-height:1.2;color:var(--ink)}
+.prov .meta span{font-size:11px;color:var(--ink-3);font-weight:500}
+.prov .chk{
+  width:18px;height:18px;border-radius:6px;border:1.5px solid var(--line);flex:none;
+  display:grid;place-items:center;transition:all .14s;
+}
+.prov[aria-pressed="true"] .chk{background:var(--accent);border-color:var(--accent)}
+.prov[aria-pressed="true"] .chk svg{opacity:1}
+.prov .chk svg{opacity:0;transition:opacity .14s}
+
+.legend{display:flex;flex-direction:column;gap:7px;padding:0 4px}
+.legend .lg{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--ink-2);font-weight:500}
+.legend .lg i{width:13px;height:13px;border-radius:4px;flex:none}
+
+/* ====== CALENDAR ====== */
+.cal{
+  grid-area:cal;
+  display:flex;flex-direction:column;
+  background:var(--panel);
+  overflow:hidden;
+}
+.cal-head{
+  display:grid;
+  grid-template-columns:64px repeat(7,minmax(0,1fr));
+  border-bottom:1px solid var(--line);
+  background:rgba(255,255,255,.9);
+  position:sticky;top:0;z-index:5;flex:none;
+}
+.cal-head .corner{border-right:1px solid var(--grid-line)}
+.dcol{
+  padding:9px 6px 8px;text-align:center;border-right:1px solid var(--grid-line);
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+}
+.dcol .dow{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.dcol .dnum{
+  font-weight:700;font-size:15px;width:30px;height:30px;border-radius:50%;
+  display:grid;place-items:center;color:var(--ink);line-height:1;
+}
+.dcol.today .dow{color:var(--accent)}
+.dcol.today .dnum{background:var(--accent);color:#fff;box-shadow:0 4px 10px -3px rgba(59,110,245,.6)}
+.dcol .cnt{font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.01em}
+
+.cal-scroll{flex:1;overflow-y:auto;position:relative}
+.grid{
+  display:grid;
+  grid-template-columns:64px repeat(7,minmax(0,1fr));
+  position:relative;
+}
+.timecol{display:flex;flex-direction:column;border-right:1px solid var(--grid-line)}
+.tlabel{
+  height:var(--row-h);position:relative;
+}
+.tlabel span{
+  position:absolute;top:-7px;right:9px;font-size:10.5px;color:var(--ink-3);
+  font-weight:600;letter-spacing:.01em;
+}
+.daycol{
+  position:relative;border-right:1px solid var(--grid-line);
+}
+/* mobile-only agenda header + empty note, hidden in the desktop grid */
+.agenda-day-h,.agenda-empty{display:none}
+.daycol.is-today{background:linear-gradient(180deg,rgba(59,110,245,.035),rgba(59,110,245,.01))}
+.slot{
+  height:var(--row-h);border-bottom:1px solid var(--grid-line);
+}
+/* now-line */
+.now-line{
+  position:absolute;left:0;right:0;height:0;z-index:4;pointer-events:none;
+  border-top:2px solid #e8474a;
+}
+.now-line::before{
+  content:"";position:absolute;left:-4px;top:-5px;width:9px;height:9px;border-radius:50%;
+  background:#e8474a;box-shadow:0 0 0 3px rgba(232,71,74,.18);
+}
+
+/* ====== APPOINTMENT BLOCKS ====== */
+.appt{
+  position:absolute;left:5px;right:5px;border-radius:9px;
+  padding:7px 9px;overflow:hidden;text-align:left;
+  background:var(--apt-bg);border:1px solid var(--apt-bd);
+  border-left:3.5px solid var(--apt-ac);
+  box-shadow:0 2px 5px -2px rgba(26,34,51,.16);
+  transition:transform .13s,box-shadow .15s,filter .15s;
+  display:flex;flex-direction:column;gap:1px;z-index:2;
+  cursor:pointer;
+}
+.appt:hover{transform:translateY(-1px) scale(1.012);box-shadow:var(--shadow);z-index:6;filter:saturate(1.05)}
+.appt .a-top{display:flex;align-items:center;justify-content:space-between;gap:5px}
+.appt .a-time{font-size:10.5px;font-weight:700;color:var(--apt-ac);letter-spacing:.01em;font-variant-numeric:tabular-nums}
+.appt .a-name{font-size:12.5px;font-weight:700;color:var(--ink);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.appt .a-proc{font-size:11px;color:var(--ink-2);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.appt.short{padding:4px 8px}
+.appt.short .a-proc{display:none}
+.ai-badge{
+  flex:none;display:inline-flex;align-items:center;gap:3px;
+  background:linear-gradient(135deg,#8b54f6,#6f37e8);color:#fff;
+  font-size:9px;font-weight:800;letter-spacing:.05em;
+  padding:1.5px 5px 1.5px 4px;border-radius:20px;line-height:1;
+  box-shadow:0 2px 5px -1px rgba(123,63,242,.6);
+}
+.ai-badge svg{width:8px;height:8px}
+.appt.is-ai{border-left-style:double;border-left-width:4px}
+.appt.is-ai::after{
+  content:"";position:absolute;inset:0;pointer-events:none;border-radius:8px;
+  background:linear-gradient(120deg,transparent 60%,rgba(123,63,242,.07));
+}
+
+/* ====== PENDING RAIL ====== */
+.pending{
+  grid-area:pending;
+  border-left:1px solid var(--line);
+  background:linear-gradient(180deg,#fbfaff,#f7f8fd);
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.pending-h{
+  padding:16px 18px 13px;border-bottom:1px solid var(--line);flex:none;
+}
+.pending-h .row1{display:flex;align-items:center;gap:9px}
+.pending-h .pin{
+  width:30px;height:30px;border-radius:9px;flex:none;display:grid;place-items:center;color:#fff;
+  background:linear-gradient(135deg,#8b54f6,#6f37e8);box-shadow:0 5px 13px -4px rgba(123,63,242,.6);
+}
+.pending-h h2{font-size:14.5px;font-weight:800;letter-spacing:-.01em}
+.pending-h .badge-n{
+  margin-left:auto;background:#fde9ea;color:#d23a3f;font-weight:800;font-size:12px;
+  border-radius:20px;padding:2px 9px;font-variant-numeric:tabular-nums;
+}
+.pending-h p{font-size:11.5px;color:var(--ink-2);margin-top:7px;line-height:1.4}
+.pending-h p b{color:var(--ai);font-weight:700}
+.pending-list{flex:1;overflow-y:auto;padding:13px 14px 18px;display:flex;flex-direction:column;gap:11px}
+.pcard{
+  background:#fff;border:1px solid var(--line);border-radius:13px;padding:13px 13px 11px;
+  box-shadow:var(--shadow-sm);position:relative;transition:box-shadow .15s,transform .12s,opacity .25s;
+}
+.pcard:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
+.pcard.gone{opacity:0;transform:scale(.96) translateY(-4px);pointer-events:none}
+.pcard .pc-top{display:flex;align-items:flex-start;gap:10px}
+.pcard .pc-av{
+  width:36px;height:36px;border-radius:10px;flex:none;display:grid;place-items:center;
+  font-weight:700;font-size:13px;color:#fff;letter-spacing:.01em;
+}
+.pcard .pc-id{flex:1;min-width:0}
+.pcard .pc-name{font-size:13.5px;font-weight:700;color:var(--ink);line-height:1.2}
+.pcard .pc-phone{font-size:11px;color:var(--ink-3);font-weight:500;font-variant-numeric:tabular-nums;margin-top:1px}
+.pcard .chan{
+  flex:none;display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:700;
+  padding:3px 7px;border-radius:7px;letter-spacing:.02em;
+}
+.chan.line{background:#e7f7e9;color:#15893a}
+.chan.voice{background:#eaf0fe;color:#345fd0}
+.pcard .pc-when{
+  display:flex;align-items:center;gap:8px;margin:11px 0 9px;
+  background:var(--row-bg,#f6f8fc);border:1px solid var(--line-2);border-radius:9px;padding:8px 10px;
+}
+.pc-when .proc-sw{width:11px;height:11px;border-radius:4px;flex:none}
+.pc-when .pw-main{flex:1;min-width:0}
+.pc-when .pw-proc{font-size:12.5px;font-weight:700;color:var(--ink);line-height:1.2}
+.pc-when .pw-dt{font-size:11px;color:var(--ink-2);font-weight:500;font-variant-numeric:tabular-nums;margin-top:1px}
+.pc-when .pw-fee{font-size:12px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.pc-when .pw-fee span{display:block;font-size:9.5px;color:var(--ink-3);font-weight:600;letter-spacing:.03em}
+.pcard .pc-quote{
+  font-size:11.5px;color:var(--ink-2);line-height:1.5;background:var(--ai-soft);
+  border-radius:8px;padding:8px 10px;margin-bottom:11px;border:1px solid #ece4fd;
+}
+.pcard .pc-quote .q-ai{font-weight:700;color:var(--ai);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;display:block;margin-bottom:3px}
+.pc-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pc-actions button{
+  height:36px;border-radius:9px;font-weight:700;font-size:12.5px;
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  transition:filter .14s,background .14s,transform .1s,border-color .14s;
+}
+.pc-actions button:active{transform:translateY(1px)}
+.btn-approve{background:linear-gradient(180deg,#1bb877,#16a36b);color:#fff;box-shadow:0 6px 14px -6px rgba(22,163,107,.7)}
+.btn-approve:hover{filter:brightness(1.05)}
+.btn-resched{background:#fff;border:1px solid var(--line);color:var(--ink-2)}
+.btn-resched:hover{background:#f6f8fc;border-color:#cfdcfd;color:var(--ink)}
+.pending-empty{
+  flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;
+  gap:12px;text-align:center;padding:30px;color:var(--ink-3);
+}
+.pending-empty.show{display:flex}
+.pending-empty .ec{width:54px;height:54px;border-radius:16px;background:#e9f7ef;display:grid;place-items:center;color:var(--ok)}
+.pending-empty b{font-size:14px;color:var(--ink);font-weight:700}
+.pending-empty span{font-size:12px}
+
+/* toast */
+.toast{
+  position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
+  background:#1a2233;color:#fff;font-size:13px;font-weight:600;
+  padding:11px 18px;border-radius:11px;box-shadow:var(--shadow-lg);
+  display:flex;align-items:center;gap:9px;opacity:0;pointer-events:none;
+  transition:opacity .25s,transform .25s;z-index:50;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast .ti{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;flex:none;background:var(--ok);color:#fff}
+
+/* mobile day picker (hidden on desktop) */
+.mday{display:none}
+
+/* ============================================================
+   RESPONSIVE - collapse to single-day vertical agenda <=860px
+   ============================================================ */
+@media (max-width:1180px){
+  .app{grid-template-columns:220px minmax(0,1fr) 300px}
+}
+@media (max-width:860px){
+  body{font-size:14px;height:auto}
+  .app{
+    display:flex;flex-direction:column;height:auto;min-height:100vh;max-width:100%;
+  }
+  .brand{
+    border-right:none;height:58px;order:0;position:sticky;top:0;z-index:30;
+  }
+  .topbar{
+    flex-wrap:wrap;gap:10px;padding:11px 14px;height:auto;order:1;
+    position:sticky;top:58px;z-index:29;
+  }
+  .topbar .search{display:none}
+  .topbar .spacer{display:none}
+  .wktitle{order:-1;width:100%;margin-left:0}
+  .btn-new{margin-left:auto}
+  /* left rail becomes a horizontal provider chip strip.
+     containment lives on .prov-list (#provList) itself so the chip
+     strip scrolls inside the viewport and nothing reports page-width
+     overflow; .rail stays a normal full-width block. */
+  .rail{
+    order:2;flex-direction:column;overflow:visible;gap:0;
+    padding:11px 0;border-right:none;border-bottom:1px solid var(--line);
+    background:#fff;align-items:stretch;min-width:0;
+  }
+  .rail > div{min-width:0}
+  .rail-clinic,.legend,.rail-h{display:none}
+  .rail .prov-list{
+    flex-direction:row;gap:8px;
+    overflow-x:auto;overflow-y:hidden;
+    padding:0 14px;max-width:100%;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none;
+  }
+  .rail .prov-list::-webkit-scrollbar{display:none}
+  .prov{
+    flex:none;flex-direction:row;border:1px solid var(--line);background:#fff;
+    border-radius:20px;padding:6px 12px 6px 8px;white-space:nowrap;min-width:0;
+  }
+  .prov .av{width:24px;height:24px;border-radius:7px;font-size:10px}
+  .prov .meta span{display:none}
+  .prov .chk{display:none}
+  .prov[aria-pressed="false"]{opacity:.4}
+  /* mobile day picker strip */
+  .mday{
+    order:3;display:flex;gap:7px;overflow-x:auto;padding:11px 14px;background:#fff;
+    border-bottom:1px solid var(--line);-webkit-overflow-scrolling:touch;
+  }
+  .mday button{
+    flex:none;display:flex;flex-direction:column;align-items:center;gap:2px;
+    min-width:54px;padding:8px 4px;border-radius:12px;border:1px solid var(--line);background:#fff;
+  }
+  .mday button .md-dow{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
+  .mday button .md-num{font-size:17px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums}
+  .mday button .md-cnt{width:5px;height:5px;border-radius:50%;background:var(--accent);opacity:0}
+  .mday button.has .md-cnt{opacity:1}
+  .mday button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent)}
+  .mday button[aria-pressed="true"] .md-dow,.mday button[aria-pressed="true"] .md-num{color:#fff}
+  .mday button[aria-pressed="true"] .md-cnt{background:#fff}
+  /* week grid -> single-day agenda list */
+  .cal{order:4}
+  .cal-head{display:none}
+  .cal-scroll{overflow:visible}
+  .grid{display:block}
+  .timecol,.now-line{display:none}
+  .daycol{display:none;border-right:none}
+  .daycol.mobile-active{display:block;padding:8px 14px 20px}
+  .daycol.mobile-active .slot{display:none}
+  .daycol.mobile-active .agenda-day-h{
+    display:flex;align-items:baseline;gap:8px;padding:10px 2px 4px;
+  }
+  .daycol.mobile-active .agenda-empty{display:block}
+  .agenda-day-h b{font-size:16px;font-weight:800}
+  .agenda-day-h span{font-size:12px;color:var(--ink-3);font-weight:500}
+  /* appt becomes a full-width agenda row, stacked by time */
+  .daycol.mobile-active .appt{
+    position:static !important;left:auto;right:auto;width:100%;
+    border-radius:12px;padding:12px 14px;margin-bottom:9px;gap:3px;
+    min-height:auto;height:auto !important;top:auto !important;
+    box-shadow:var(--shadow-sm);transform:none !important;
+  }
+  .daycol.mobile-active .appt.short .a-proc{display:block}
+  .daycol.mobile-active .appt .a-name{font-size:14.5px;white-space:normal}
+  .daycol.mobile-active .appt .a-proc{font-size:12.5px;white-space:normal}
+  .daycol.mobile-active .appt .a-time{font-size:12px}
+  .agenda-empty{padding:40px 16px;text-align:center;color:var(--ink-3);font-size:13px}
+  /* pending rail full width below */
+  .pending{
+    order:5;border-left:none;border-top:1px solid var(--line);max-height:none;
+  }
+  .pending-list{padding-bottom:30px}
+}
+@media (max-width:420px){
+  .pc-actions{grid-template-columns:1fr 1fr}
+  .topbar{padding:10px}
+}
+
+/* reduced motion: kill transforms / animation, show final state */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.001ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.001ms !important;
+    scroll-behavior:auto !important;
+  }
+  .appt:hover{transform:none}
+  .now-line::before{box-shadow:none}
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- BRAND -->
+  <header class="brand">
+    <div class="logo" aria-hidden="true">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <path d="M12 3c-3.6 0-6 2.2-6 5.6 0 2 .8 3 .8 5.2 0 1.4-.4 2.2-.4 3.6C6.4 19.4 7.5 21 9 21c1.1 0 1.4-1.2 1.6-2.4.2-1.2.5-2 1.4-2s1.2.8 1.4 2c.2 1.2.5 2.4 1.6 2.4 1.5 0 2.6-1.6 2.6-3.6 0-1.4-.4-2.2-.4-3.6 0-2.2.8-3.2.8-5.2C18 5.2 15.6 3 12 3Z" fill="#fff"/>
+      </svg>
+    </div>
+    <div>
+      <div class="nm">Yimwhan</div>
+      <div class="sub">Bangkapi Dental</div>
+    </div>
+  </header>
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="wknav">
+      <button class="nav" id="prevWk" aria-label="Previous week">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="nav" id="nextWk" aria-label="Next week">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+    <button class="btn-today" id="todayBtn"><span class="dot"></span>Today</button>
+    <div class="wktitle">
+      <span class="rng tnum" id="wkRange">Jun 29 - Jul 5</span>
+      <span class="yr tnum" id="wkYear">2026 . Week 27</span>
+    </div>
+    <div class="spacer"></div>
+    <label class="search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input type="text" placeholder="Search patient or phone" aria-label="Search patient or phone" />
+    </label>
+    <button class="btn-new" id="newBtn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
+      New appointment
+    </button>
+  </div>
+
+  <!-- LEFT RAIL -->
+  <aside class="rail">
+    <div class="rail-clinic">
+      <img src="../assets/flux-clinic-4k.png" alt="Bangkapi Dental clinic interior, mint and wood treatment room" loading="lazy" decoding="async" />
+      <div class="ov"><div><b>Bangkapi Dental</b><span>4 chairs . open 09:00 - 18:00</span></div></div>
+    </div>
+
+    <div>
+      <div class="rail-h">Dentists &amp; chairs <span class="cnt" id="provCnt">6</span></div>
+      <div class="prov-list" id="provList"></div>
+    </div>
+
+    <div>
+      <div class="rail-h">Procedures</div>
+      <div class="legend" id="legend"></div>
+    </div>
+  </aside>
+
+  <!-- CALENDAR -->
+  <main class="cal">
+    <div class="cal-head" id="calHead">
+      <div class="corner"></div>
+    </div>
+
+    <!-- mobile day picker -->
+    <nav class="mday" id="mday" aria-label="Pick a day"></nav>
+
+    <div class="cal-scroll" id="calScroll">
+      <div class="grid" id="grid"></div>
+    </div>
+  </main>
+
+  <!-- PENDING RAIL -->
+  <aside class="pending">
+    <div class="pending-h">
+      <div class="row1">
+        <span class="pin" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3v3m0 12v3m9-9h-3M6 12H3m13.5-6.5-2 2m-7 7-2 2m11 0-2-2m-7-7-2-2" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="3.2" fill="#fff"/></svg>
+        </span>
+        <h2>Pending confirmation</h2>
+        <span class="badge-n tnum" id="pendingN">0</span>
+      </div>
+      <p>Bookings the <b>AI assistant</b> made over LINE and voice that need staff approval before they lock the chair.</p>
+    </div>
+    <div class="pending-list" id="pendingList"></div>
+    <div class="pending-empty" id="pendingEmpty">
+      <div class="ec"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <b>Queue is clear</b>
+      <span>Every AI booking has been reviewed.</span>
+    </div>
+  </aside>
+
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite">
+  <span class="ti"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+  <span id="toastMsg">Booking approved</span>
+</div>
+
+<script>
+/* ============================================================================
+   DATA  -  swap everything here to repurpose the template
+   ----------------------------------------------------------------------------
+   PROCEDURES : color-coded treatment types (hex pair: solid + soft bg + fee)
+   PROVIDERS  : dentists / chairs shown in the left filter rail
+   APPTS      : confirmed week appointments  (day 0=Mon .. 6=Sun)
+   PENDING    : AI-created bookings awaiting staff approve / reschedule
+   ============================================================================ */
+const GRID = { startHour: 9, endHour: 18 };  // visible day range (rows)
+
+const PROCEDURES = {
+  cleaning : { label:"Cleaning",      ac:"#2f9e8f", bg:"#e7f6f3", bd:"#bfe8e1", fee:1200 },
+  filling  : { label:"Filling",       ac:"#3b6ef5", bg:"#e9f0fe", bd:"#c8dafc", fee:1500 },
+  braces   : { label:"Braces check",  ac:"#d9842b", bg:"#fcf1e3", bd:"#f3dab6", fee:1800 },
+  whitening: { label:"Whitening",     ac:"#c64ba6", bg:"#fbeaf6", bd:"#f1cae6", fee:6500 },
+  rootcanal: { label:"Root canal",    ac:"#d8434a", bg:"#fdeaeb", bd:"#f6c5c8", fee:8500 },
+  consult  : { label:"Consult",       ac:"#7b6cf0", bg:"#eeebfd", bd:"#d6cefb", fee:500  }
+};
+
+const PROVIDERS = [
+  { id:"p1", name:"Dr. Ploy",   role:"Chair 1 . Ortho",      color:"#3b6ef5", on:true },
+  { id:"p2", name:"Dr. Anan",   role:"Chair 2 . Endo",       color:"#d8434a", on:true },
+  { id:"p3", name:"Dr. Mink",   role:"Chair 3 . General",    color:"#2f9e8f", on:true },
+  { id:"p4", name:"Dr. Krit",   role:"Chair 4 . Cosmetic",   color:"#c64ba6", on:true },
+  { id:"hy", name:"Hygienist",  role:"Cleaning bay",         color:"#d9842b", on:true },
+  { id:"p5", name:"Dr. Sasi",   role:"Locum . Wed/Fri",      color:"#7b6cf0", on:false }
+];
+
+// day: 0=Mon..6=Sun ; start "HH:MM" ; dur minutes ; ai true = AI-created
+const APPTS = [
+  { day:0, start:"09:00", dur:60, name:"คุณนภัสsร วงศ์ดี", proc:"cleaning",  prov:"hy", ai:false },
+  { day:0, start:"10:30", dur:90, name:"คุณธีรภัทร", proc:"rootcanal", prov:"p2", ai:false },
+  { day:0, start:"13:00", dur:45, name:"คุณวรินทร", proc:"consult",   prov:"p3", ai:true  },
+  { day:0, start:"15:00", dur:60, name:"คุณกานต์", proc:"filling",   prov:"p3", ai:false },
+  { day:0, start:"16:30", dur:60, name:"คุณพิมพ์ชนก", proc:"braces", prov:"p1", ai:true  },
+
+  { day:1, start:"09:30", dur:60, name:"คุณศุภวิชญ์", proc:"filling",  prov:"p3", ai:false },
+  { day:1, start:"11:00", dur:90, name:"คุณเมธาวี", proc:"whitening", prov:"p4", ai:true  },
+  { day:1, start:"13:30", dur:45, name:"คุณอนุชา", proc:"cleaning",  prov:"hy", ai:false },
+  { day:1, start:"15:00", dur:60, name:"คุณรัตนา", proc:"braces",    prov:"p1", ai:false },
+
+  { day:2, start:"09:00", dur:45, name:"คุณชนิสรา", proc:"consult",  prov:"p5", ai:true  },
+  { day:2, start:"10:00", dur:60, name:"คุณกฤษณะ", proc:"cleaning",  prov:"hy", ai:false },
+  { day:2, start:"11:30", dur:120,name:"คุณปวีณา", proc:"rootcanal", prov:"p2", ai:false },
+  { day:2, start:"14:00", dur:60, name:"คุณธนกร", proc:"filling",    prov:"p3", ai:true  },
+  { day:2, start:"16:00", dur:60, name:"คุณอารยา", proc:"braces",    prov:"p1", ai:false },
+
+  { day:3, start:"09:30", dur:90, name:"คุณภาณุพงศ์", proc:"whitening", prov:"p4", ai:false },
+  { day:3, start:"11:30", dur:45, name:"คุณสุดารัตน์", proc:"consult", prov:"p3", ai:true  },
+  { day:3, start:"13:00", dur:60, name:"คุณวีรภัทร", proc:"cleaning",  prov:"hy", ai:false },
+  { day:3, start:"14:30", dur:90, name:"คุณนัทธมน", proc:"rootcanal",  prov:"p2", ai:false },
+  { day:3, start:"16:30", dur:45, name:"คุณจิรายุ", proc:"filling",    prov:"p3", ai:true  },
+
+  { day:4, start:"09:00", dur:60, name:"คุณพัชราภา", proc:"cleaning",  prov:"hy", ai:false },
+  { day:4, start:"10:30", dur:45, name:"คุณกิตติพงษ์", proc:"consult", prov:"p5", ai:true  },
+  { day:4, start:"11:30", dur:60, name:"คุณศิริพร", proc:"braces",     prov:"p1", ai:false },
+  { day:4, start:"13:30", dur:120,name:"คุณธัญญารัตน์", proc:"whitening", prov:"p4", ai:false },
+  { day:4, start:"16:00", dur:60, name:"คุณภูริ", proc:"filling",      prov:"p3", ai:true  },
+
+  { day:5, start:"09:30", dur:60, name:"คุณวศินี", proc:"cleaning",  prov:"hy", ai:false },
+  { day:5, start:"11:00", dur:90, name:"คุณชัยวัฒน์", proc:"braces", prov:"p1", ai:false },
+  { day:5, start:"13:00", dur:45, name:"คุณเบญจวรรณ", proc:"consult", prov:"p3", ai:true },
+
+  { day:6, start:"10:00", dur:60, name:"คุณปุณยวีร์", proc:"consult", prov:"p3", ai:true }
+];
+
+// AI bookings awaiting approval; dt is a friendly display string, day/start map onto grid
+const PENDING = [
+  { name:"คุณอรพิน สุขใจ", phone:"081 234 5567", chan:"line",
+    proc:"whitening", dt:"Thu 2 Jul . 10:00", fee:6500,
+    quote:"ลูกค้าอยากฟอกสีฟันก่อนงานแต่ง ขอช่วงเช้าวันพฤหัสครับ น้องยิ้มหวานจองให้ที่ 10 โมง" },
+  { name:"คุณธนวัฒน์ พรหมมา", phone:"089 776 1240", chan:"voice",
+    proc:"rootcanal", dt:"Fri 3 Jul . 14:30", fee:8500,
+    quote:"ปวดฟันกรามล่างซ้ายมาก ขอนัดด่วนที่สุด รับสายแล้วจองรักษารากฟันให้บ่ายวันศุกร์" },
+  { name:"คุณกัญญาวีร์ ทองดี", phone:"062 998 0031", chan:"line",
+    proc:"braces", dt:"Wed 1 Jul . 16:00", fee:1800,
+    quote:"ถึงรอบเช็คจัดฟันแล้วค่ะ ขอช่วงเย็นหลังเลิกงาน น้องยิ้มหวานจองเช็คจัดฟันให้ 4 โมงเย็น" },
+  { name:"คุณสมชาย แก้วมณี", phone:"084 551 7782", chan:"voice",
+    proc:"cleaning", dt:"Mon 30 Jun . 11:30", fee:1200,
+    quote:"อยากขูดหินปูนทำความสะอาดฟัน ว่างวันจันทร์สาย จองให้ที่ห้องขูดหินปูน 11 โมงครึ่ง" }
+];
+
+/* ============================================================================
+   RENDER (no framework, plain DOM)
+   ============================================================================ */
+const DOW = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const ROW_H = 58;
+const TODAY_DAY = 0; // Monday is the "today" column in this static demo week
+const NOW_MIN = 14 * 60 + 20; // demo now-line at 14:20
+
+const $ = (s,r=document)=>r.querySelector(s);
+const el = (t,c)=>{const e=document.createElement(t);if(c)e.className=c;return e;};
+const toMin = t => { const [h,m]=t.split(":").map(Number); return h*60+m; };
+const fmt = t => { const [h,m]=t.split(":").map(Number); const ap=h<12?"AM":"PM"; const hh=((h+11)%12)+1; return hh+":"+String(m).padStart(2,"0")+" "+ap; };
+const endTime = (start,dur)=>{ let m=toMin(start)+dur; return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0"); };
+const initials = name => { const clean=name.replace(/^คุณ\s*/,""); return clean.slice(0,1) + (clean.slice(1,2)||""); };
+const baht = n => "฿"+n.toLocaleString("en-US");
+
+let activeProviders = new Set(PROVIDERS.filter(p=>p.on).map(p=>p.id));
+let mobileDay = TODAY_DAY;
+
+/* week date labels for the static demo week (Mon Jun 29 .. Sun Jul 5, 2026) */
+const WEEK_DATES = [
+  {m:5,d:29},{m:5,d:30},{m:6,d:1},{m:6,d:2},{m:6,d:3},{m:6,d:4},{m:6,d:5}
+];
+
+function applyProcVars(node, key){
+  const p = PROCEDURES[key];
+  node.style.setProperty("--apt-bg", p.bg);
+  node.style.setProperty("--apt-bd", p.bd);
+  node.style.setProperty("--apt-ac", p.ac);
+}
+
+/* ---- LEFT RAIL: providers ---- */
+function renderProviders(){
+  const list = $("#provList"); list.innerHTML="";
+  PROVIDERS.forEach(p=>{
+    const b = el("button","prov"+(activeProviders.has(p.id)?"":" off"));
+    b.setAttribute("aria-pressed", activeProviders.has(p.id));
+    b.innerHTML = `
+      <span class="av" style="background:${p.color}">${p.name.replace("Dr. ","").replace("Hygienist","Hy").slice(0,2)}</span>
+      <span class="meta"><b>${p.name}</b><span>${p.role}</span></span>
+      <span class="chk"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
+    b.addEventListener("click",()=>{
+      if(activeProviders.has(p.id)) activeProviders.delete(p.id); else activeProviders.add(p.id);
+      renderProviders(); renderGrid();
+    });
+    list.appendChild(b);
+  });
+  $("#provCnt").textContent = activeProviders.size;
+}
+
+/* ---- LEFT RAIL: legend ---- */
+function renderLegend(){
+  const wrap = $("#legend"); wrap.innerHTML="";
+  Object.values(PROCEDURES).forEach(p=>{
+    const r = el("div","lg");
+    r.innerHTML = `<i style="background:${p.ac}"></i>${p.label} <span style="margin-left:auto;color:var(--ink-3);font-weight:600;font-size:11px">${baht(p.fee)}</span>`;
+    wrap.appendChild(r);
+  });
+}
+
+/* ---- CALENDAR HEAD ---- */
+function renderHead(){
+  const head = $("#calHead");
+  head.querySelectorAll(".dcol").forEach(n=>n.remove());
+  DOW.forEach((d,i)=>{
+    const wd = WEEK_DATES[i];
+    const c = el("div","dcol"+(i===TODAY_DAY?" today":""));
+    const count = APPTS.filter(a=>a.day===i && activeProviders.has(a.prov)).length;
+    c.innerHTML = `<span class="dow">${d}</span><span class="dnum tnum">${wd.d}</span><span class="cnt tnum">${count?count+" appt":"-"}</span>`;
+    head.appendChild(c);
+  });
+}
+
+/* ---- MOBILE DAY PICKER ---- */
+function renderMday(){
+  const m = $("#mday"); m.innerHTML="";
+  DOW.forEach((d,i)=>{
+    const wd = WEEK_DATES[i];
+    const has = APPTS.some(a=>a.day===i && activeProviders.has(a.prov));
+    const b = el("button",(has?"has":""));
+    b.setAttribute("aria-pressed", i===mobileDay);
+    b.innerHTML = `<span class="md-dow">${d}</span><span class="md-num tnum">${wd.d}</span><span class="md-cnt"></span>`;
+    b.addEventListener("click",()=>{ mobileDay=i; renderMday(); renderGrid(); });
+    m.appendChild(b);
+  });
+}
+
+/* ---- CALENDAR GRID ---- */
+function renderGrid(){
+  const grid = $("#grid");
+  grid.innerHTML="";
+  const rows = GRID.endHour - GRID.startHour;
+
+  // time column
+  const tc = el("div","timecol");
+  for(let h=GRID.startHour; h<GRID.endHour; h++){
+    const t = el("div","tlabel");
+    const hh = ((h+11)%12)+1, ap = h<12?"AM":"PM";
+    t.innerHTML = `<span>${hh} ${ap}</span>`;
+    tc.appendChild(t);
+  }
+  grid.appendChild(tc);
+
+  // day columns
+  DOW.forEach((d,i)=>{
+    const col = el("div","daycol"+(i===TODAY_DAY?" is-today":"")+(i===mobileDay?" mobile-active":""));
+
+    // mobile agenda header (only shows <=860)
+    const wd = WEEK_DATES[i];
+    const ah = el("div","agenda-day-h");
+    ah.innerHTML = `<b>${d} ${MON[wd.m]} ${wd.d}</b><span>${MON[wd.m]} ${wd.d}, 2026</span>`;
+    col.appendChild(ah);
+
+    // empty slots (desktop grid lines)
+    for(let r=0;r<rows;r++) col.appendChild(el("div","slot"));
+
+    // now-line on today
+    if(i===TODAY_DAY){
+      const nl = el("div","now-line");
+      const top = ((NOW_MIN - GRID.startHour*60)/60)*ROW_H;
+      nl.style.top = top+"px";
+      col.appendChild(nl);
+    }
+
+    // appointments (sorted by start for mobile agenda order)
+    const dayAppts = APPTS
+      .filter(a=>a.day===i && activeProviders.has(a.prov))
+      .sort((a,b)=>toMin(a.start)-toMin(b.start));
+
+    if(dayAppts.length===0){
+      const em = el("div","agenda-empty");
+      em.textContent = "No appointments this day.";
+      col.appendChild(em);
+    }
+
+    dayAppts.forEach(a=>{
+      const top = ((toMin(a.start) - GRID.startHour*60)/60)*ROW_H;
+      const height = (a.dur/60)*ROW_H - 6;
+      const b = el("button","appt"+(a.dur<=45?" short":"")+(a.ai?" is-ai":""));
+      applyProcVars(b, a.proc);
+      b.style.top = (top+3)+"px";
+      b.style.height = height+"px";
+      const pname = PROCEDURES[a.proc].label;
+      const prov = PROVIDERS.find(p=>p.id===a.prov);
+      b.setAttribute("aria-label", `${a.name}, ${pname}, ${fmt(a.start)} to ${fmt(endTime(a.start,a.dur))}${a.ai?", AI booked":""}, ${prov?prov.name:""}`);
+      b.innerHTML = `
+        <span class="a-top">
+          <span class="a-time tnum">${fmt(a.start)}</span>
+          ${a.ai?`<span class="ai-badge"><svg viewBox="0 0 24 24" fill="none"><path d="M12 2v3M5 9l2 1M19 9l-2 1M12 8a4 4 0 0 0-4 4v3h8v-3a4 4 0 0 0-4-4Z" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>AI</span>`:``}
+        </span>
+        <span class="a-name" data-lint-ignore>${a.name}</span>
+        <span class="a-proc" data-lint-ignore>${pname}${prov?" . "+prov.name.replace("Dr. ",""):""}</span>`;
+      b.addEventListener("click",()=>toast(`${a.name} . ${pname} . ${fmt(a.start)}`,"#3b6ef5"));
+      col.appendChild(b);
+    });
+
+    grid.appendChild(col);
+  });
+}
+
+/* ---- PENDING RAIL ---- */
+let pendingItems = [...PENDING];
+function renderPending(){
+  const wrap = $("#pendingList"); wrap.innerHTML="";
+  $("#pendingN").textContent = pendingItems.length;
+  $("#pendingEmpty").classList.toggle("show", pendingItems.length===0);
+
+  pendingItems.forEach((it,idx)=>{
+    const p = PROCEDURES[it.proc];
+    const provColor = p.ac;
+    const card = el("div","pcard");
+    card.innerHTML = `
+      <div class="pc-top">
+        <span class="pc-av" style="background:${provColor}">${initials(it.name)}</span>
+        <span class="pc-id">
+          <div class="pc-name">${it.name}</div>
+          <div class="pc-phone tnum">${it.phone}</div>
+        </span>
+        <span class="chan ${it.chan}">
+          ${it.chan==="line"
+            ? `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C6.5 3 2 6.6 2 11c0 4 3.6 7.3 8.5 7.9.3.1.8.2.9.5.1.3.1.7 0 1l-.1.9c0 .3-.2 1 .9.6 1.1-.5 6-3.5 8.2-6C21.6 14.3 22 12.7 22 11c0-4.4-4.5-8-10-8Z"/></svg>LINE`
+            : `<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M6 4l3 1 1 4-2 1.5a11 11 0 0 0 4.5 4.5L18 17l1 3-1 1c-7 1-14-6-13-13l1-1Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>Voice`}
+        </span>
+      </div>
+      <div class="pc-when">
+        <span class="proc-sw" style="background:${p.ac}"></span>
+        <span class="pw-main">
+          <div class="pw-proc">${p.label}</div>
+          <div class="pw-dt tnum">${it.dt}</div>
+        </span>
+        <span class="pw-fee tnum">${baht(it.fee)}<span>EST FEE</span></span>
+      </div>
+      <div class="pc-quote"><span class="q-ai">AI transcript</span>${it.quote}</div>
+      <div class="pc-actions">
+        <button class="btn-approve" data-act="approve">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Approve
+        </button>
+        <button class="btn-resched" data-act="resched">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M21 12a9 9 0 1 1-3-6.7M21 4v5h-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Reschedule
+        </button>
+      </div>`;
+    card.querySelector('[data-act="approve"]').addEventListener("click",()=>resolveCard(card,it,"approve"));
+    card.querySelector('[data-act="resched"]').addEventListener("click",()=>resolveCard(card,it,"resched"));
+    wrap.appendChild(card);
+  });
+}
+
+function resolveCard(card,it,act){
+  const reduce = window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+  const remove = ()=>{
+    pendingItems = pendingItems.filter(x=>x!==it);
+    renderPending();
+  };
+  if(act==="approve") toast(`Approved . ${it.name} . ${PROCEDURES[it.proc].label}`,"#16a36b");
+  else toast(`Reschedule sent to ${it.name}`,"#e08a17");
+  if(reduce){ remove(); }
+  else { card.classList.add("gone"); setTimeout(remove,260); }
+}
+
+/* ---- TOAST ---- */
+let toastTimer;
+function toast(msg,color){
+  const t=$("#toast"), m=$("#toastMsg");
+  m.textContent=msg;
+  t.querySelector(".ti").style.background = color||"#16a36b";
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove("show"),2400);
+}
+
+/* ---- TOPBAR week nav (demo: nudge label only, static data) ---- */
+let wkOffset=0;
+function bumpWeek(dir){
+  wkOffset+=dir;
+  const base = wkOffset===0 ? "Jun 29 - Jul 5" : (wkOffset>0?`+${wkOffset} wk ahead`:`${wkOffset} wk back`);
+  $("#wkRange").textContent = wkOffset===0 ? "Jun 29 - Jul 5" : base;
+  $("#wkYear").textContent = `2026 . Week ${27+wkOffset}`;
+  toast(wkOffset===0?"Current week":(dir>0?"Next week":"Previous week"),"#3b6ef5");
+}
+$("#prevWk").addEventListener("click",()=>bumpWeek(-1));
+$("#nextWk").addEventListener("click",()=>bumpWeek(1));
+$("#todayBtn").addEventListener("click",()=>{ wkOffset=0; $("#wkRange").textContent="Jun 29 - Jul 5"; $("#wkYear").textContent="2026 . Week 27"; mobileDay=TODAY_DAY; renderMday(); renderGrid(); toast("Jumped to today","#3b6ef5"); });
+$("#newBtn").addEventListener("click",()=>toast("New appointment form","#3b6ef5"));
+
+/* ---- INIT ---- */
+renderProviders();
+renderLegend();
+renderHead();
+renderMday();
+renderGrid();
+renderPending();
+
+// keep the calendar scrolled to the morning start (09:00 row) at load on desktop
+requestAnimationFrame(()=>{
+  const sc = $("#calScroll");
+  if(sc && window.innerWidth>860) sc.scrollTop = 0;
+});
+</script>
+</body>
+</html>

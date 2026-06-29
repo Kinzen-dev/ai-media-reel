@@ -1,0 +1,598 @@
+<!-- TEMPLATE: Living Note Analytics | ARCHETYPE: living-note hand-drawn sketch analytics | REF: xkcd hand-drawn charts, handwriting sketch data-viz on warm paper | WHEN TO USE: owner-facing AI backoffice weekly report rendered as a charming hand-drawn notebook page (all inline SVG wobble, no chart lib) | SWAP: edit the DATA object at the top of the script -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How we did this week - Yimwhan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Shantell+Sans:wght@400;500;600;700&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f7f3ea;
+    --paper-2:#f1ead9;
+    --ink:#2a2722;
+    --ink-soft:#6a6358;
+    --rule:#d8cdb6;
+    --sage:#7c9473;
+    --terra:#c47a59;
+    --dusty:#7892a8;
+    --pen:#3a4d6b;
+    --shadow:rgba(42,39,34,.10);
+  }
+  *{box-sizing:border-box;min-width:0;}
+  html,body{margin:0;padding:0;}
+  html{background:var(--paper);}
+  body{
+    font-family:"Nunito Sans",system-ui,sans-serif;
+    color:var(--ink);
+    background:
+      radial-gradient(circle at 18% 12%, rgba(124,148,115,.06), transparent 45%),
+      radial-gradient(circle at 88% 78%, rgba(196,122,89,.06), transparent 42%),
+      var(--paper);
+    -webkit-font-smoothing:antialiased;
+    line-height:1.5;
+    overflow-x:hidden;
+  }
+  /* faint notebook rule lines + margin */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background-image:repeating-linear-gradient(to bottom, transparent 0, transparent 31px, rgba(120,146,168,.10) 31px, rgba(120,146,168,.10) 32px);
+    -webkit-mask-image:linear-gradient(to bottom, transparent 0, #000 120px, #000 100%);
+            mask-image:linear-gradient(to bottom, transparent 0, #000 120px, #000 100%);
+    opacity:.55;
+  }
+  body::after{
+    content:"";position:fixed;top:0;bottom:0;left:54px;width:1px;pointer-events:none;z-index:0;
+    background:rgba(196,122,89,.32);
+  }
+  @media(max-width:640px){ body::after{ left:22px; } }
+
+  .page{
+    position:relative;z-index:1;
+    max-width:1200px;margin:0 auto;
+    padding:34px 40px 80px 78px;
+  }
+  @media(max-width:640px){ .page{ padding:22px 18px 60px 34px; } }
+
+  a{color:inherit;}
+
+  /* ---------- top band : handwritten header ---------- */
+  .masthead{
+    display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;
+    gap:14px 26px;margin-bottom:10px;
+  }
+  .mast-left{min-width:0;flex:1 1 320px;}
+  .eyebrow{
+    font-family:"Shantell Sans",cursive;font-weight:600;font-size:13px;letter-spacing:.04em;
+    color:var(--terra);text-transform:uppercase;margin:0 0 2px;
+  }
+  h1{
+    font-family:"Caveat",cursive;font-weight:700;
+    font-size:clamp(40px,6.4vw,76px);line-height:.92;margin:0;letter-spacing:.5px;
+    color:var(--ink);
+  }
+  h1 .swish{color:var(--sage);}
+  .subhead{
+    font-family:"Caveat",cursive;font-size:clamp(20px,2.6vw,28px);color:var(--ink-soft);
+    margin:4px 0 0;line-height:1;
+  }
+  .stamp{
+    flex:0 0 auto;align-self:flex-start;margin-top:4px;
+    font-family:"Shantell Sans",cursive;font-weight:700;font-size:13px;
+    color:var(--terra);border:2px solid var(--terra);border-radius:14px;
+    padding:7px 13px;transform:rotate(-4deg);
+    box-shadow:1px 2px 0 rgba(196,122,89,.18);text-align:center;line-height:1.15;
+    background:rgba(247,243,234,.7);
+  }
+  .stamp small{display:block;font-weight:600;font-size:10px;color:var(--ink-soft);letter-spacing:.06em;}
+
+  .hr-sketch{display:block;width:100%;height:14px;margin:8px 0 22px;overflow:visible;}
+
+  /* ---------- KPI hand-written chips ---------- */
+  .kpis{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:26px;
+  }
+  @media(max-width:900px){ .kpis{grid-template-columns:repeat(2,1fr);} }
+  @media(max-width:430px){ .kpis{grid-template-columns:1fr 1fr;gap:10px;} }
+  .kpi{position:relative;padding:12px 14px 12px;min-width:0;}
+  .kpi svg.box{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;}
+  .kpi-val{font-family:"Caveat",cursive;font-weight:700;font-size:clamp(30px,4vw,42px);line-height:.95;}
+  .kpi-lab{font-family:"Shantell Sans",cursive;font-weight:500;font-size:12.5px;color:var(--ink-soft);margin-top:2px;}
+  .kpi-note{font-family:"Caveat",cursive;font-size:17px;line-height:1;margin-top:4px;}
+  .up{color:var(--sage);} .down{color:var(--terra);}
+
+  /* ---------- charts grid ---------- */
+  .grid{display:grid;grid-template-columns:1.35fr 1fr;gap:26px;}
+  @media(max-width:860px){ .grid{grid-template-columns:1fr;gap:30px;} }
+  .card{position:relative;min-width:0;padding:6px 4px 10px;}
+  .card h2{
+    font-family:"Caveat",cursive;font-weight:700;font-size:clamp(26px,3.2vw,34px);
+    margin:0 0 2px;line-height:1;
+  }
+  .card .cap{
+    font-family:"Shantell Sans",cursive;font-weight:500;font-size:13px;color:var(--ink-soft);
+    margin:0 0 8px;
+  }
+  .chart-wrap{position:relative;width:100%;}
+  svg.chart{display:block;width:100%;height:auto;overflow:visible;}
+
+  /* hand-lettered svg text */
+  .hl{font-family:"Shantell Sans",cursive;font-weight:600;fill:var(--ink);}
+  .hl-soft{font-family:"Shantell Sans",cursive;font-weight:500;fill:var(--ink-soft);}
+  .cav{font-family:"Caveat",cursive;font-weight:700;}
+
+  /* insight callouts */
+  .callout text{font-family:"Caveat",cursive;font-weight:700;}
+
+  .full{grid-column:1 / -1;}
+
+  /* bottom note */
+  .signoff{
+    margin-top:34px;display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;
+    font-family:"Caveat",cursive;font-size:23px;color:var(--ink-soft);
+  }
+  .signoff .pen{color:var(--pen);font-weight:700;}
+  .legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:2px;}
+  .legend span{display:inline-flex;align-items:center;gap:6px;font-family:"Shantell Sans",cursive;font-weight:500;font-size:12.5px;color:var(--ink-soft);}
+  .swatch{width:14px;height:14px;border-radius:3px;display:inline-block;}
+
+  :focus-visible{outline:2.5px dashed var(--terra);outline-offset:3px;border-radius:4px;}
+
+  /* draw-in animation (disabled for reduced motion) */
+  .pen-draw{stroke-dasharray:var(--len);stroke-dashoffset:var(--len);animation:draw 1.1s ease-out forwards;animation-delay:var(--d,0s);}
+  .grow{transform-origin:bottom;transform:scaleY(.001);animation:grow .8s cubic-bezier(.2,.9,.25,1) forwards;animation-delay:var(--d,0s);}
+  .pop{opacity:0;animation:pop .5s ease-out forwards;animation-delay:var(--d,0s);}
+  @keyframes draw{to{stroke-dashoffset:0;}}
+  @keyframes grow{to{transform:scaleY(1);}}
+  @keyframes pop{to{opacity:1;}}
+  @media(prefers-reduced-motion:reduce){
+    .pen-draw{animation:none;stroke-dashoffset:0;}
+    .grow{animation:none;transform:scaleY(1);}
+    .pop{animation:none;opacity:1;}
+  }
+</style>
+</head>
+<body>
+<main class="page">
+
+  <header class="masthead">
+    <div class="mast-left">
+      <p class="eyebrow">Yimwhan AI - weekly notebook</p>
+      <h1 id="title">How we did <span class="swish">this week</span></h1>
+      <p class="subhead" id="subhead"></p>
+    </div>
+    <div class="stamp" id="stamp">
+      <span id="stampWk">wk 26</span>
+      <small id="stampRange">Jun 22 - 28</small>
+    </div>
+  </header>
+
+  <svg class="hr-sketch" viewBox="0 0 1000 14" preserveAspectRatio="none" aria-hidden="true">
+    <path id="rulePath" fill="none" stroke="#c47a59" stroke-width="2.4" stroke-linecap="round"/>
+  </svg>
+
+  <!-- KPI chips -->
+  <section class="kpis" id="kpis" aria-label="Headline numbers"></section>
+
+  <!-- charts -->
+  <section class="grid">
+
+    <!-- BAR: calls by hour -->
+    <div class="card" id="card-bar">
+      <h2>Calls by hour</h2>
+      <p class="cap">when the phone and LINE light up</p>
+      <div class="chart-wrap"><svg class="chart" id="barChart" role="img" aria-label="Hand-drawn bar chart of calls by hour, busiest around 10am"></svg></div>
+    </div>
+
+    <!-- DONUT: intent breakdown -->
+    <div class="card" id="card-donut">
+      <h2>What they asked</h2>
+      <p class="cap">intent mix across voice + LINE</p>
+      <div class="chart-wrap"><svg class="chart" id="donutChart" role="img" aria-label="Hand-drawn donut of intent breakdown: booking, inquiry, reschedule, complaint"></svg></div>
+    </div>
+
+    <!-- LINE: AI resolved rate over the week (full width) -->
+    <div class="card full" id="card-line">
+      <h2>AI handled it on its own</h2>
+      <p class="cap">share of chats the assistant resolved with no human, day by day</p>
+      <div class="chart-wrap"><svg class="chart" id="lineChart" role="img" aria-label="Hand-drawn wobbly line of AI resolved rate over the week, ending at 86 percent"></svg></div>
+    </div>
+
+  </section>
+
+  <div class="legend" id="legend" aria-hidden="true"></div>
+
+  <p class="signoff">
+    <span>scribbled by <span class="pen" id="byline">น้องยิ้มหวาน</span></span>
+    <span>all numbers in <span class="pen">THB</span> where money is shown</span>
+    <span id="genStamp"></span>
+  </p>
+
+</main>
+
+<script>
+/* ============================================================
+   DATA  -  swap everything here. Numbers are real & legible.
+   Chart colours are inline hex (never CSS vars) per brief.
+   ============================================================ */
+const DATA = {
+  meta:{
+    clinic:"Yimwhan Dental",
+    subhead:"a quick, friendly look at the week on voice + LINE",
+    week:"wk 26",
+    range:"Jun 22 - 28",
+    byline:"น้องยิ้มหวาน",
+    generated:"drawn Sun 9:40pm"
+  },
+  // colours used by the sketch charts
+  ink:"#2a2722", inkSoft:"#6a6358",
+  sage:"#7c9473", terra:"#c47a59", dusty:"#7892a8", pen:"#3a4d6b",
+  paper:"#f7f3ea",
+
+  kpis:[
+    { val:"312",  lab:"conversations",      note:"+18 vs last wk", dir:"up"   },
+    { val:"86%",  lab:"AI handled solo",    note:"up from 79%",    dir:"up"   },
+    { val:"1m 04s",lab:"avg reply",         note:"faster",         dir:"up"   },
+    { val:"7",    lab:"booked visits",      note:"3 from LINE",    dir:"up"   }
+  ],
+
+  // BAR : calls by hour (clinic open 9-19)
+  callsByHour:[
+    {h:"9a", v:14}, {h:"10a", v:38}, {h:"11a", v:31}, {h:"12p", v:19},
+    {h:"1p", v:16}, {h:"2p", v:27}, {h:"3p", v:24}, {h:"4p", v:21},
+    {h:"5p", v:30}, {h:"6p", v:17}, {h:"7p", v:9}
+  ],
+  barInsight:{ atLabel:"10a", text:"busiest around 10am" },
+
+  // DONUT : intent breakdown (must sum ~100)
+  intents:[
+    { name:"booking",    v:41, color:"#7c9473" },
+    { name:"inquiry",    v:33, color:"#7892a8" },
+    { name:"reschedule", v:18, color:"#c47a59" },
+    { name:"complaint",  v:8,  color:"#a8896a" }
+  ],
+  donutInsight:"most asked: cleaning prices",
+
+  // LINE : AI resolved rate over the week (%)
+  resolvedRate:[
+    {d:"Mon", v:79}, {d:"Tue", v:82}, {d:"Wed", v:80},
+    {d:"Thu", v:84}, {d:"Fri", v:88}, {d:"Sat", v:85}, {d:"Sun", v:86}
+  ],
+  lineInsight:{ text:"AI handled 86%", at:"Sun" }
+};
+
+/* ============================================================
+   tiny helpers
+   ============================================================ */
+const SVGNS="http://www.w3.org/2000/svg";
+const reduced = window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+
+// deterministic pseudo-random so the wobble is stable per reload
+let _seed = 7;
+function rnd(){ _seed=(_seed*1103515245+12345)&0x7fffffff; return _seed/0x7fffffff; }
+function jit(n){ return (rnd()-0.5)*2*n; }
+
+function el(name, attrs, parent){
+  const e=document.createElementNS(SVGNS,name);
+  for(const k in attrs){ e.setAttribute(k, attrs[k]); }
+  if(parent) parent.appendChild(e);
+  return e;
+}
+
+// build a hand-drawn wobbly path between points (slight midpoint jitter)
+function wobblePath(pts, wob){
+  wob = wob==null?1.4:wob;
+  let d="M "+pts[0][0].toFixed(1)+" "+pts[0][1].toFixed(1);
+  for(let i=1;i<pts.length;i++){
+    const a=pts[i-1], b=pts[i];
+    const mx=(a[0]+b[0])/2 + jit(wob*3);
+    const my=(a[1]+b[1])/2 + jit(wob*3);
+    d+=" Q "+mx.toFixed(1)+" "+my.toFixed(1)+" "+(b[0]+jit(wob)).toFixed(1)+" "+(b[1]+jit(wob)).toFixed(1);
+  }
+  return d;
+}
+// a closed wobbly rectangle (sketchy box outline)
+function wobbleRect(x,y,w,h,wob){
+  wob=wob||1.6;
+  const c=[[x,y],[x+w,y],[x+w,y+h],[x,y+h],[x,y]];
+  // add midpoints so each side wobbles
+  const pts=[];
+  for(let i=0;i<c.length-1;i++){
+    pts.push(c[i]);
+    pts.push([(c[i][0]+c[i+1][0])/2,(c[i][1]+c[i+1][1])/2]);
+  }
+  pts.push(c[0]);
+  let d="M "+(pts[0][0]+jit(wob)).toFixed(1)+" "+(pts[0][1]+jit(wob)).toFixed(1);
+  for(let i=1;i<pts.length;i++){
+    d+=" L "+(pts[i][0]+jit(wob)).toFixed(1)+" "+(pts[i][1]+jit(wob)).toFixed(1);
+  }
+  return d;
+}
+function pathLen(p){ try{return p.getTotalLength();}catch(e){return 600;} }
+function animateDraw(p, delay){
+  if(reduced) return;
+  const len=pathLen(p);
+  p.style.setProperty("--len", len);
+  p.style.setProperty("--d", (delay||0)+"s");
+  p.classList.add("pen-draw");
+}
+
+/* ============================================================
+   fill the static bits
+   ============================================================ */
+document.getElementById("subhead").textContent=DATA.meta.subhead;
+document.getElementById("stampWk").textContent=DATA.meta.week;
+document.getElementById("stampRange").textContent=DATA.meta.range;
+document.getElementById("byline").textContent=DATA.meta.byline;
+document.getElementById("genStamp").textContent=DATA.meta.generated;
+
+// rule line under masthead (one long wobble)
+(function(){
+  const pts=[]; for(let i=0;i<=20;i++){ pts.push([i*50, 7+jit(2.2)]); }
+  document.getElementById("rulePath").setAttribute("d", wobblePath(pts,1.2));
+})();
+
+/* ---------- KPI chips with sketchy boxes ---------- */
+(function(){
+  const wrap=document.getElementById("kpis");
+  DATA.kpis.forEach((k,i)=>{
+    const div=document.createElement("div"); div.className="kpi";
+    const box=document.createElementNS(SVGNS,"svg");
+    box.setAttribute("class","box"); box.setAttribute("viewBox","0 0 200 120");
+    box.setAttribute("preserveAspectRatio","none");
+    const p=el("path",{ d:wobbleRect(8,8,184,104,2.2), fill:"rgba(247,243,234,.55)",
+      stroke:(i%2? DATA.dusty:DATA.sage), "stroke-width":2.2, "stroke-linecap":"round","stroke-linejoin":"round" }, box);
+    div.appendChild(box);
+    const v=document.createElement("div"); v.className="kpi-val"; v.textContent=k.val;
+    const l=document.createElement("div"); l.className="kpi-lab"; l.textContent=k.lab;
+    const n=document.createElement("div"); n.className="kpi-note "+(k.dir==="down"?"down":"up");
+    n.textContent=(k.dir==="down"?"↓ ":"↑ ")+k.note;
+    div.appendChild(v); div.appendChild(l); div.appendChild(n);
+    wrap.appendChild(div);
+    animateDraw(p, 0.1+i*0.08);
+  });
+})();
+
+/* ============================================================
+   BAR CHART : calls by hour
+   ============================================================ */
+(function(){
+  const svg=document.getElementById("barChart");
+  const W=560, H=320, padL=40, padR=18, padT=24, padB=44;
+  svg.setAttribute("viewBox","0 0 "+W+" "+H);
+  const data=DATA.callsByHour;
+  const max=Math.max(...data.map(d=>d.v));
+  const innerW=W-padL-padR, innerH=H-padT-padB;
+  const bw=innerW/data.length;
+  const x0=padL, y0=H-padB;
+
+  // wobbly axes
+  const axY=[]; for(let i=0;i<=10;i++) axY.push([padL-2+jit(1.4), padT+i*(innerH/10)]);
+  const axX=[]; for(let i=0;i<=10;i++) axX.push([padL+i*(innerW/10), y0+jit(1.4)]);
+  el("path",{d:wobblePath(axY,1),fill:"none",stroke:DATA.ink,"stroke-width":2,"stroke-linecap":"round"},svg);
+  el("path",{d:wobblePath(axX,1),fill:"none",stroke:DATA.ink,"stroke-width":2,"stroke-linecap":"round"},svg);
+
+  // faint y gridlines + ticks
+  for(let g=10; g<=max+5; g+=10){
+    const gy=y0-(g/max)*innerH;
+    const gp=[]; for(let i=0;i<=8;i++) gp.push([padL+i*(innerW/8), gy+jit(.8)]);
+    el("path",{d:wobblePath(gp,.6),fill:"none",stroke:DATA.inkSoft,"stroke-width":1,"stroke-dasharray":"2 5",opacity:.4},svg);
+    const t=el("text",{x:padL-8,y:gy+4,"text-anchor":"end","font-size":12,class:"hl-soft"},svg);
+    t.textContent=g;
+  }
+
+  let busiestX=0, busiestY=0;
+  data.forEach((d,i)=>{
+    const h=(d.v/max)*innerH;
+    const bx=x0+i*bw+bw*0.18;
+    const w=bw*0.64;
+    const by=y0-h;
+    const isPeak = d.h===DATA.barInsight.atLabel;
+    const fill = isPeak? DATA.terra : DATA.dusty;
+    // sketch hatch fill: the bar body
+    const g=el("g",{},svg);
+    if(!reduced){ g.classList.add("grow"); g.style.setProperty("--d",(0.25+i*0.05)+"s"); }
+    const body=el("path",{ d:wobbleRect(bx,by,w,h,1.6),
+      fill:fill, "fill-opacity":isPeak?.32:.22,
+      stroke:fill, "stroke-width":2.2, "stroke-linejoin":"round","stroke-linecap":"round" }, g);
+    // a couple of hand hatch lines for texture
+    for(let hy=by+6; hy<y0-3; hy+=9){
+      el("path",{d:wobblePath([[bx+3, hy+jit(1)],[bx+w-3, hy+jit(1)]],.8),
+        fill:"none",stroke:fill,"stroke-width":1,opacity:.30},g);
+    }
+    // value on top
+    const vt=el("text",{x:bx+w/2,y:by-7,"text-anchor":"middle","font-size":13,class:"hl",fill:DATA.ink},svg);
+    vt.textContent=d.v;
+    if(!reduced){ vt.classList.add("pop"); vt.style.setProperty("--d",(0.5+i*0.05)+"s"); }
+    // x label
+    const xt=el("text",{x:bx+w/2,y:y0+18,"text-anchor":"middle","font-size":12.5,class:"hl-soft"},svg);
+    xt.textContent=d.h;
+    if(isPeak){ busiestX=bx+w/2; busiestY=by; }
+  });
+
+  // axis title
+  const yt=el("text",{x:padL-2,y:padT-9,"text-anchor":"start","font-size":12.5,class:"hl-soft"},svg);
+  yt.textContent="calls";
+
+  // INSIGHT callout pointing at the peak bar
+  const cg=el("g",{class:"callout"},svg);
+  const cx=Math.min(busiestX+58, W-120), cy=Math.max(busiestY-44, padT+8);
+  // wobbly arrow from text to bar top
+  const arrow=el("path",{ d:wobblePath([[cx-6,cy+10],[ (cx-6+busiestX)/2 + 10, (cy+10+busiestY)/2 ],[busiestX+2, busiestY-6]],1.4),
+    fill:"none",stroke:DATA.terra,"stroke-width":2.2,"stroke-linecap":"round" },cg);
+  // arrowhead
+  el("path",{d:"M "+(busiestX+2)+" "+(busiestY-6)+" l -8 -2 m 8 2 l -3 8",
+    fill:"none",stroke:DATA.terra,"stroke-width":2.2,"stroke-linecap":"round","stroke-linejoin":"round"},cg);
+  const ct=el("text",{x:cx,y:cy,"font-size":24,fill:DATA.terra,"text-anchor":"start"},cg);
+  ct.textContent=DATA.barInsight.text;
+  animateDraw(arrow, reduced?0:1.0);
+  if(!reduced){ ct.classList.add("pop"); ct.style.setProperty("--d","1.15s"); }
+})();
+
+/* ============================================================
+   DONUT CHART : intent breakdown (hand-drawn ring)
+   ============================================================ */
+(function(){
+  const svg=document.getElementById("donutChart");
+  const W=420, H=320;
+  svg.setAttribute("viewBox","0 0 "+W+" "+H);
+  const cx=150, cy=160, R=104, r=58;
+  const data=DATA.intents;
+  const total=data.reduce((s,d)=>s+d.v,0);
+
+  function arcPts(a0,a1,rad,steps){
+    const pts=[];
+    for(let i=0;i<=steps;i++){
+      const a=a0+(a1-a0)*i/steps;
+      pts.push([cx+Math.cos(a)*rad, cy+Math.sin(a)*rad]);
+    }
+    return pts;
+  }
+  let ang=-Math.PI/2; // start at top
+  const slices=[];
+  data.forEach((d,i)=>{
+    const frac=d.v/total;
+    const a0=ang, a1=ang+frac*Math.PI*2;
+    ang=a1;
+    const steps=Math.max(6, Math.round(frac*40));
+    const outer=arcPts(a0,a1,R,steps);
+    const inner=arcPts(a1,a0,r,steps);
+    let dd="M "+(outer[0][0]+jit(1)).toFixed(1)+" "+(outer[0][1]+jit(1)).toFixed(1);
+    outer.slice(1).forEach(p=>{ dd+=" L "+(p[0]+jit(1.1)).toFixed(1)+" "+(p[1]+jit(1.1)).toFixed(1); });
+    inner.forEach(p=>{ dd+=" L "+(p[0]+jit(1.1)).toFixed(1)+" "+(p[1]+jit(1.1)).toFixed(1); });
+    dd+=" Z";
+    const seg=el("path",{ d:dd, fill:d.color, "fill-opacity":.30,
+      stroke:d.color, "stroke-width":2.4, "stroke-linejoin":"round" }, svg);
+    if(!reduced){ seg.classList.add("pop"); seg.style.setProperty("--d",(0.2+i*0.12)+"s"); }
+    // hand hatch inside the slice (a few short strokes)
+    const amid=(a0+a1)/2, rmid=(R+r)/2;
+    for(let k=-1;k<=1;k++){
+      const aa=amid+k*(frac*Math.PI*2)*0.22;
+      el("path",{d:wobblePath([[cx+Math.cos(aa)*r, cy+Math.sin(aa)*r],[cx+Math.cos(aa)*R, cy+Math.sin(aa)*R]],.9),
+        fill:"none",stroke:d.color,"stroke-width":1,opacity:.32},svg);
+    }
+    slices.push({d,amid,rmid});
+  });
+
+  // hand-lettered legend list on the right
+  data.forEach((d,i)=>{
+    const ly=64+i*46;
+    el("rect",{x:300,y:ly-12,width:15,height:15,rx:3,fill:d.color,"fill-opacity":.55,stroke:d.color,"stroke-width":1.6},svg);
+    const t=el("text",{x:324,y:ly+1,"font-size":15,class:"hl"},svg);
+    t.textContent=d.name;
+    const pv=el("text",{x:324,y:ly+18,"font-size":13,class:"hl-soft"},svg);
+    pv.textContent=d.v+"%";
+  });
+
+  // center hand label
+  const c1=el("text",{x:cx,y:cy-4,"text-anchor":"middle","font-size":30,class:"cav",fill:DATA.ink},svg);
+  c1.textContent=total===100?"100%":total;
+  const c2=el("text",{x:cx,y:cy+18,"text-anchor":"middle","font-size":13,class:"hl-soft"},svg);
+  c2.textContent="of chats";
+
+  // INSIGHT callout under the donut
+  const cg=el("g",{class:"callout"},svg);
+  const it=el("text",{x:cx,y:H-14,"text-anchor":"middle","font-size":22,fill:DATA.terra},cg);
+  it.textContent=DATA.donutInsight;
+  const ux=[]; for(let i=0;i<=12;i++) ux.push([cx-92+i*15.3, H-32+jit(1.6)]);
+  el("path",{d:wobblePath(ux,1),fill:"none",stroke:DATA.terra,"stroke-width":1.8,"stroke-linecap":"round"},cg);
+  if(!reduced){ it.classList.add("pop"); it.style.setProperty("--d","0.9s"); }
+})();
+
+/* ============================================================
+   LINE CHART : AI resolved rate over the week (wobbly)
+   ============================================================ */
+(function(){
+  const svg=document.getElementById("lineChart");
+  const W=1080, H=300, padL=52, padR=150, padT=34, padB=46;
+  svg.setAttribute("viewBox","0 0 "+W+" "+H);
+  const data=DATA.resolvedRate;
+  const innerW=W-padL-padR, innerH=H-padT-padB;
+  const lo=70, hi=95; // y scale window for %
+  const x0=padL, y0=H-padB;
+  const X=i=> x0 + (innerW)*(i/(data.length-1));
+  const Y=v=> y0 - innerH*((v-lo)/(hi-lo));
+
+  // axes
+  const axY=[]; for(let i=0;i<=10;i++) axY.push([padL-2+jit(1.3), padT+i*(innerH/10)]);
+  const axX=[]; for(let i=0;i<=10;i++) axX.push([padL+i*(innerW/10), y0+jit(1.3)]);
+  el("path",{d:wobblePath(axY,1),fill:"none",stroke:DATA.ink,"stroke-width":2,"stroke-linecap":"round"},svg);
+  el("path",{d:wobblePath(axX,1),fill:"none",stroke:DATA.ink,"stroke-width":2,"stroke-linecap":"round"},svg);
+
+  // y ticks (%)
+  [70,75,80,85,90,95].forEach(v=>{
+    const gy=Y(v);
+    const gp=[]; for(let i=0;i<=10;i++) gp.push([padL+i*(innerW/10), gy+jit(.7)]);
+    el("path",{d:wobblePath(gp,.5),fill:"none",stroke:DATA.inkSoft,"stroke-width":1,"stroke-dasharray":"2 6",opacity:.35},svg);
+    const t=el("text",{x:padL-9,y:gy+4,"text-anchor":"end","font-size":12,class:"hl-soft"},svg);
+    t.textContent=v+"%";
+  });
+
+  // target band reference (e.g. goal 80%)
+  const gy=Y(80);
+  el("text",{x:padL+2,y:gy-6,"font-size":12.5,class:"hl-soft",fill:DATA.sage}).textContent="goal 80%";
+  const gline=[]; for(let i=0;i<=14;i++) gline.push([padL+i*(innerW/14), gy+jit(.6)]);
+  el("path",{d:wobblePath(gline,.6),fill:"none",stroke:DATA.sage,"stroke-width":1.6,"stroke-dasharray":"7 6",opacity:.7},svg);
+
+  // build the wobbly line
+  const pts=data.map((d,i)=>[X(i),Y(d.v)]);
+  const linePath=el("path",{ d:wobblePath(pts,1.6), fill:"none",
+    stroke:DATA.pen, "stroke-width":3.2, "stroke-linecap":"round","stroke-linejoin":"round" },svg);
+
+  // soft fill under the line (sketchy)
+  const fillPts=[[pts[0][0],y0]].concat(pts).concat([[pts[pts.length-1][0],y0]]);
+  let fd="M "+fillPts[0][0]+" "+fillPts[0][1];
+  fillPts.slice(1).forEach(p=> fd+=" L "+p[0].toFixed(1)+" "+p[1].toFixed(1));
+  fd+=" Z";
+  el("path",{d:fd,fill:DATA.pen,"fill-opacity":.07,stroke:"none"},svg);
+
+  // x labels + dots + value labels
+  data.forEach((d,i)=>{
+    const px=X(i), py=Y(d.v);
+    const isLast = d.d===DATA.lineInsight.at;
+    const dot=el("circle",{cx:px,cy:py,r:isLast?6.5:4.4,fill:DATA.paper,
+      stroke:isLast?DATA.terra:DATA.pen,"stroke-width":isLast?3:2.4},svg);
+    if(!reduced){ dot.classList.add("pop"); dot.style.setProperty("--d",(0.9+i*0.06)+"s"); }
+    const xt=el("text",{x:px,y:y0+20,"text-anchor":"middle","font-size":13,class:"hl-soft"},svg);
+    xt.textContent=d.d;
+    const vt=el("text",{x:px,y:py-12,"text-anchor":"middle","font-size":13,class:"hl",fill:DATA.pen},svg);
+    vt.textContent=d.v+"%";
+    if(!reduced){ vt.classList.add("pop"); vt.style.setProperty("--d",(1.0+i*0.06)+"s"); }
+  });
+
+  // INSIGHT callout near last point
+  const lastX=X(data.length-1), lastY=Y(data[data.length-1].v);
+  const cg=el("g",{class:"callout"},svg);
+  const tx=lastX+14, ty=lastY-6;
+  const ct=el("text",{x:tx,y:ty,"font-size":27,fill:DATA.terra,"text-anchor":"start"},cg);
+  ct.textContent=DATA.lineInsight.text;
+  // bracket / underline scribble
+  const ul=[]; for(let i=0;i<=10;i++) ul.push([tx+i*14, ty+10+jit(1.4)]);
+  el("path",{d:wobblePath(ul,1),fill:"none",stroke:DATA.terra,"stroke-width":2,"stroke-linecap":"round"},cg);
+  el("path",{d:wobblePath([[lastX+6,lastY],[tx-4,ty-6]],1.2),fill:"none",stroke:DATA.terra,"stroke-width":2,"stroke-linecap":"round"},cg);
+  animateDraw(linePath, reduced?0:0.4);
+  if(!reduced){ ct.classList.add("pop"); ct.style.setProperty("--d","1.5s"); }
+})();
+
+/* ---------- bottom legend swatches ---------- */
+(function(){
+  const wrap=document.getElementById("legend");
+  const items=[
+    {c:DATA.dusty, t:"call volume"},
+    {c:DATA.terra, t:"highlight / insight"},
+    {c:DATA.sage,  t:"on target"},
+    {c:DATA.pen,   t:"AI resolved"}
+  ];
+  items.forEach(it=>{
+    const s=document.createElement("span");
+    const sw=document.createElement("span"); sw.className="swatch";
+    sw.style.background=it.c; sw.style.opacity=.55;
+    s.appendChild(sw); s.appendChild(document.createTextNode(it.t));
+    wrap.appendChild(s);
+  });
+})();
+</script>
+</body>
+</html>

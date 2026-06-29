@@ -1,0 +1,584 @@
+<!-- TEMPLATE: Living Note Live Feed | ARCHETYPE: living-note-live-feed | REF: hand-drawn notebook, handwriting diary, running handwritten log | WHEN TO USE: a watch-the-AI-work live activity screen styled as the assistant's own running handwritten journal - newest log line on top, soft event-type ink colors, hand-drawn channel marks, a live pulse header | SWAP: edit the SEED and STREAM arrays at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Living Note - Live Feed</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Shantell+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f7f3ea;        /* warm cream */
+    --paper-2:#f2ecdd;      /* deeper cream for the page edge */
+    --paper-hi:#fbf8f0;     /* highlight cream */
+    --ink:#2a2722;          /* dark ink */
+    --ink-soft:#5b554b;     /* faded ink for secondary text */
+    --ink-faint:#9a9183;    /* very faint pencil-grey */
+    --rule:#e4dccb;         /* notebook rule line */
+    --margin-line:#d8a9a0;  /* faint red margin line */
+    --paper-shadow:rgba(42,39,34,.12);
+    /* soft event-type inks (hex literals, never var() inside SVG) */
+    --ink-book:#2f6b53;     /* booking - green ink */
+    --ink-price:#9a6a1e;    /* price / money - amber ink */
+    --ink-help:#a23b4e;     /* handoff / complaint - rose ink */
+    --ink-info:#3a5f86;     /* answered / info - blue ink */
+    --ink-note:#6b5a8a;     /* follow-up / note - violet ink */
+    --pulse:#cf5648;        /* live pulse red-ink */
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;min-width:0;}
+  body{
+    background:
+      radial-gradient(120% 90% at 82% -8%, #fbf8f0 0%, var(--paper) 46%, var(--paper-2) 100%);
+    color:var(--ink);
+    font-family:"Shantell Sans","Segoe UI",system-ui,sans-serif;
+    font-size:16px;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+    min-height:100vh;
+  }
+
+  /* faint paper grain */
+  body::before{
+    content:"";
+    position:fixed;inset:0;
+    pointer-events:none;
+    background-image:radial-gradient(rgba(42,39,34,.025) 1px, transparent 1px);
+    background-size:4px 4px;
+    z-index:0;
+    opacity:.7;
+  }
+
+  .wrap{
+    position:relative;
+    z-index:1;
+    max-width:920px;
+    margin:0 auto;
+    padding:34px 26px 80px;
+    min-width:0;
+  }
+
+  /* ---------- the page sheet ---------- */
+  .sheet{
+    position:relative;
+    background:
+      linear-gradient(180deg,#fbf7ee 0%, #f7f3ea 100%);
+    border-radius:6px;
+    box-shadow:
+      0 22px 50px -26px var(--paper-shadow),
+      0 6px 18px -12px var(--paper-shadow),
+      0 0 0 1px rgba(42,39,34,.05);
+    padding:30px 34px 40px 64px;
+    min-width:0;
+    overflow:hidden;
+  }
+  /* notebook ruled lines behind the log */
+  .sheet::before{
+    content:"";
+    position:absolute;inset:0;
+    pointer-events:none;
+    background-image:repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 37px,
+      var(--rule) 37px,
+      var(--rule) 38px
+    );
+    opacity:.55;
+    z-index:0;
+  }
+  /* red margin line */
+  .sheet::after{
+    content:"";
+    position:absolute;
+    top:0;bottom:0;left:48px;
+    width:1.5px;
+    background:var(--margin-line);
+    opacity:.5;
+    z-index:0;
+  }
+  .sheet > *{position:relative;z-index:1;}
+
+  /* ---------- live header ---------- */
+  .head{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:18px;
+    flex-wrap:wrap;
+    padding-bottom:14px;
+    margin-bottom:8px;
+    border-bottom:2px solid transparent;
+    border-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='6'><path d='M0 3 Q150 0 300 3 T600 3' stroke='%23cdbfa0' stroke-width='1.6' fill='none'/></svg>") 0 0 100% 0 / 0 0 4px 0 stretch;
+    min-width:0;
+  }
+  .head-l{min-width:0;}
+  .eyebrow{
+    display:flex;align-items:center;gap:9px;
+    font-family:"JetBrains Mono",monospace;
+    font-size:11px;
+    letter-spacing:.16em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    margin-bottom:2px;
+  }
+  .live-dot{
+    position:relative;
+    width:9px;height:9px;flex:0 0 auto;
+    border-radius:50%;
+    background:var(--pulse);
+  }
+  .live-dot::after{
+    content:"";
+    position:absolute;inset:0;
+    border-radius:50%;
+    background:var(--pulse);
+    animation:pulse 1.8s ease-out infinite;
+  }
+  @keyframes pulse{
+    0%{transform:scale(1);opacity:.55;}
+    70%{transform:scale(3.4);opacity:0;}
+    100%{transform:scale(3.4);opacity:0;}
+  }
+  h1{
+    font-family:"Caveat",cursive;
+    font-weight:700;
+    font-size:clamp(34px,5vw,52px);
+    line-height:.95;
+    margin:0;
+    color:var(--ink);
+  }
+  .subtitle{
+    font-family:"Caveat",cursive;
+    font-size:20px;
+    color:var(--ink-soft);
+    margin-top:2px;
+  }
+  .head-r{
+    text-align:right;
+    flex:0 0 auto;
+    min-width:0;
+  }
+  .count{
+    font-family:"Caveat",cursive;
+    font-weight:700;
+    font-size:clamp(30px,4vw,42px);
+    line-height:1;
+    color:var(--ink);
+    display:inline-flex;
+    align-items:baseline;
+    gap:6px;
+  }
+  .count b{color:var(--ink-book);}
+  .count-label{
+    font-family:"JetBrains Mono",monospace;
+    font-size:10.5px;
+    letter-spacing:.13em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    margin-top:3px;
+  }
+  .today-date{
+    font-family:"Caveat",cursive;
+    font-size:18px;
+    color:var(--ink-soft);
+    margin-top:1px;
+  }
+
+  /* ---------- channel legend (tiny hand key) ---------- */
+  .legend{
+    display:flex;gap:16px;flex-wrap:wrap;
+    margin:12px 0 4px;
+    font-family:"Caveat",cursive;
+    font-size:17px;
+    color:var(--ink-soft);
+  }
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .legend svg{flex:0 0 auto;}
+
+  /* ---------- the running log ---------- */
+  .log{
+    list-style:none;
+    margin:14px 0 0;
+    padding:0;
+    min-width:0;
+  }
+  .line{
+    display:grid;
+    grid-template-columns:auto auto 1fr;
+    align-items:baseline;
+    gap:11px;
+    padding:9px 4px 9px 0;
+    min-width:0;
+    min-height:38px;
+  }
+  /* fresh-line entrance (gated by reduced-motion) */
+  .line.fresh{
+    animation:writeIn .62s cubic-bezier(.22,.85,.3,1) both;
+  }
+  @keyframes writeIn{
+    0%{opacity:0;transform:translateY(-12px) rotate(-.5deg);}
+    60%{opacity:1;}
+    100%{opacity:1;transform:none;}
+  }
+  /* a soft highlighter swipe that fades after a new line lands */
+  .line.fresh .action::after{
+    content:"";
+    position:absolute;left:-3px;right:-3px;top:2px;bottom:2px;
+    border-radius:3px;
+    background:rgba(214,178,79,.34);
+    mix-blend-mode:multiply;
+    animation:highlightFade 2.6s ease-out forwards;
+    z-index:-1;
+  }
+  @keyframes highlightFade{
+    0%{opacity:1;transform:scaleX(0);transform-origin:left;}
+    18%{opacity:1;transform:scaleX(1);}
+    100%{opacity:0;transform:scaleX(1);}
+  }
+
+  .ts{
+    font-family:"JetBrains Mono",monospace;
+    font-size:12.5px;
+    color:var(--ink-faint);
+    white-space:nowrap;
+    padding-top:2px;
+    letter-spacing:.01em;
+  }
+
+  .mark{
+    flex:0 0 auto;
+    width:26px;height:26px;
+    transform:translateY(3px) rotate(-3deg);
+  }
+
+  .action{
+    position:relative;
+    font-family:"Shantell Sans",sans-serif;
+    font-size:17.5px;
+    line-height:1.42;
+    color:var(--ink);
+    min-width:0;
+    overflow-wrap:break-word;
+    word-break:break-word;
+  }
+  /* event-type dot + accent inherits the line color */
+  .action .who{font-weight:600;}
+  .action .tag{
+    display:inline-block;
+    font-family:"Caveat",cursive;
+    font-size:16px;
+    font-weight:600;
+    padding:0 1px;
+    border-bottom:2px solid currentColor;
+    line-height:1;
+  }
+  .meta{
+    display:block;
+    font-family:"JetBrains Mono",monospace;
+    font-size:11px;
+    color:var(--ink-faint);
+    margin-top:2px;
+    letter-spacing:.02em;
+  }
+
+  /* event-type ink colors, applied per line */
+  .ev-book .tag{color:var(--ink-book);}
+  .ev-price .tag{color:var(--ink-price);}
+  .ev-help .tag{color:var(--ink-help);}
+  .ev-info .tag{color:var(--ink-info);}
+  .ev-note .tag{color:var(--ink-note);}
+
+  /* small colored nib before each action */
+  .nib{
+    flex:0 0 auto;
+    width:9px;height:9px;
+    border-radius:50%;
+    transform:translateY(4px);
+    box-shadow:0 0 0 3px rgba(0,0,0,.03);
+  }
+  .ev-book .nib{background:var(--ink-book);}
+  .ev-price .nib{background:var(--ink-price);}
+  .ev-help .nib{background:var(--ink-help);}
+  .ev-info .nib{background:var(--ink-info);}
+  .ev-note .nib{background:var(--ink-note);}
+
+  /* group: actually the action cell holds nib+text */
+  .body{
+    display:flex;align-items:baseline;gap:9px;min-width:0;
+  }
+
+  /* day divider written in the margin */
+  .day-mark{
+    font-family:"Caveat",cursive;
+    font-size:19px;
+    color:var(--ink-faint);
+    padding:14px 0 4px;
+    border-top:1px dashed var(--rule);
+    margin-top:6px;
+  }
+
+  /* footer note */
+  .foot{
+    margin-top:26px;
+    font-family:"Caveat",cursive;
+    font-size:18px;
+    color:var(--ink-faint);
+    display:flex;align-items:center;gap:8px;
+    flex-wrap:wrap;
+  }
+  .foot .pen{transform:rotate(2deg);}
+
+  /* pause / reduced-motion control */
+  .ctl{
+    display:inline-flex;align-items:center;gap:7px;
+    margin-left:auto;
+    font-family:"JetBrains Mono",monospace;
+    font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--ink-soft);
+    background:transparent;
+    border:1.5px solid var(--rule);
+    border-radius:20px;
+    padding:5px 13px;
+    cursor:pointer;
+  }
+  .ctl:hover{border-color:var(--ink-faint);}
+  .ctl:focus-visible{outline:3px solid #3a5f8655;outline-offset:2px;}
+
+  a:focus-visible, button:focus-visible{
+    outline:3px solid #3a5f8655;outline-offset:2px;border-radius:4px;
+  }
+
+  /* ---------- mobile ---------- */
+  @media (max-width:640px){
+    .wrap{padding:18px 12px 60px;}
+    .sheet{padding:22px 16px 30px 40px;}
+    .sheet::after{left:26px;}
+    .sheet::before{
+      background-image:repeating-linear-gradient(
+        to bottom,transparent 0,transparent 35px,var(--rule) 35px,var(--rule) 36px);
+    }
+    .head{align-items:flex-start;}
+    .head-r{text-align:left;}
+    h1{font-size:clamp(30px,9vw,40px);}
+    .line{grid-template-columns:auto 1fr;gap:8px;}
+    .ts{grid-column:1 / -1;padding-top:0;margin-bottom:-3px;}
+    .mark{grid-column:1;}
+    .action{grid-column:2;font-size:16.5px;}
+    .legend{font-size:15.5px;gap:11px;}
+  }
+
+  /* honor reduced motion fully: no pulse, no entrance, settled state */
+  @media (prefers-reduced-motion:reduce){
+    .live-dot::after{animation:none;opacity:.4;transform:scale(1.8);}
+    .line.fresh{animation:none;}
+    .line.fresh .action::after{display:none;}
+  }
+</style>
+</head>
+<body>
+
+<!-- inline SVG wobble filter (feTurbulence) - hand-drawn jitter on marks -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="wobble" x="-20%" y="-20%" width="140%" height="140%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.018 0.022" numOctaves="2" seed="7" result="noise"/>
+    <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.1" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</svg>
+
+<main class="wrap">
+  <section class="sheet" aria-label="Live activity journal">
+
+    <header class="head">
+      <div class="head-l">
+        <div class="eyebrow"><span class="live-dot" aria-hidden="true"></span> happening now</div>
+        <h1 id="diaryTitle">Today's running notes</h1>
+        <div class="subtitle">what น้องยิ้มหวาน has been doing</div>
+      </div>
+      <div class="head-r">
+        <div class="count"><b id="countNum">0</b> things done</div>
+        <div class="count-label">since midnight</div>
+        <div class="today-date" id="todayDate">Mon, 29 Jun</div>
+      </div>
+    </header>
+
+    <div class="legend" aria-label="channel key">
+      <span><svg class="mark legend-mark" width="22" height="22" viewBox="0 0 26 26" aria-hidden="true">
+        <path d="M5 11 q0 -5 5 -5 h6 q5 0 5 5 v3 q0 5 -5 5 h-6 l-4 4 v-4 q0 0 0 -8 z"
+          fill="none" stroke="#3a5f86" stroke-width="1.7" filter="url(#wobble)"/>
+        <circle cx="10" cy="12.5" r="1.1" fill="#3a5f86"/><circle cx="13" cy="12.5" r="1.1" fill="#3a5f86"/><circle cx="16" cy="12.5" r="1.1" fill="#3a5f86"/>
+      </svg> LINE chat</span>
+      <span><svg class="mark legend-mark" width="22" height="22" viewBox="0 0 26 26" aria-hidden="true">
+        <path d="M7 7 q-1 6 2 11 q3 5 9 6 q1 0 1 -2 l0 -2 q0 -1 -1 -1 l-3 -1 q-1 0 -1 1 q-3 -2 -5 -6 q1 0 1 -1 l-1 -3 q0 -1 -1 -1 z"
+          fill="none" stroke="#2f6b53" stroke-width="1.7" stroke-linejoin="round" filter="url(#wobble)"/>
+      </svg> phone call</span>
+    </div>
+
+    <ul class="log" id="log" aria-live="polite" aria-relevant="additions"></ul>
+
+    <div class="foot">
+      <svg class="pen" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 19 l1 -4 l11 -11 l3 3 l-11 11 z" fill="none" stroke="#9a9183" stroke-width="1.5" filter="url(#wobble)"/>
+        <path d="M15 5 l3 3" stroke="#9a9183" stroke-width="1.5"/>
+      </svg>
+      <span id="footNote">still writing as things happen</span>
+      <button class="ctl" id="pauseBtn" type="button" aria-pressed="false">Pause</button>
+    </div>
+
+  </section>
+</main>
+
+<script>
+/* =====================================================================
+   DATA - swap these two arrays to repurpose the feed.
+   SEED  = lines already on the page at load (newest first).
+   STREAM = lines the AI "writes" live, one at a time, onto the top.
+   event types: book | price | info | help | note
+   channel: 'line' or 'call'
+   ===================================================================== */
+
+const SEED = [
+  { t:"10:14", ch:"call", ev:"book",  who:"คุณสมชาย",  text:"booked", tag:"a cleaning", tail:"on Friday 10:00", meta:"slot held . confirmation sent" },
+  { t:"10:09", ch:"line", ev:"price", who:null,         text:"answered a price question on LINE", tag:"scaling 1,200 THB", tail:"", meta:"quoted from clinic price list" },
+  { t:"10:02", ch:"line", ev:"help",  who:"คุณนภา",     text:"flagged for a human", tag:"a complaint", tail:"about waiting time", meta:"handoff to front desk" },
+  { t:"09:51", ch:"call", ev:"info",  who:null,         text:"answered", tag:"opening hours", tail:"and parking", meta:"voice . 38s" },
+  { t:"09:43", ch:"line", ev:"book",  who:"คุณพิไล",    text:"rescheduled", tag:"a filling", tail:"to next Tuesday", meta:"old slot released" },
+  { t:"09:30", ch:"call", ev:"note",  who:"คุณธีรพงษ์", text:"took a follow-up note", tag:"call back about braces", tail:"", meta:"saved to patient file" },
+  { t:"09:18", ch:"line", ev:"price", who:null,         text:"quoted", tag:"a root canal 8,500 THB", tail:"with payment plan", meta:"range explained" },
+  { t:"09:05", ch:"call", ev:"book",  who:"คุณอารยา",   text:"booked", tag:"a check-up", tail:"for her son, Saturday", meta:"new patient . form sent" },
+];
+
+/* lines the assistant will keep writing while you watch */
+const STREAM = [
+  { ch:"line", ev:"book",  who:"คุณวิชัย",   text:"booked", tag:"a whitening", tail:"on Thursday 14:00", meta:"deposit link sent" },
+  { ch:"call", ev:"help",  who:"คุณมาลี",    text:"asked for help with", tag:"a complaint", tail:"about a crown", meta:"handoff . front desk notified" },
+  { ch:"line", ev:"price", who:null,          text:"answered a price question on LINE", tag:"x-ray 400 THB", tail:"", meta:"from clinic price list" },
+  { ch:"call", ev:"info",  who:null,          text:"explained", tag:"after-care", tail:"for an extraction", meta:"voice . 1m 12s" },
+  { ch:"line", ev:"book",  who:"คุณกานต์",   text:"booked", tag:"a cleaning", tail:"on Friday 11:30", meta:"reminder scheduled" },
+  { ch:"call", ev:"note",  who:"คุณสุดา",    text:"took a follow-up note", tag:"prefers morning slots", tail:"", meta:"saved to patient file" },
+  { ch:"line", ev:"info",  who:null,          text:"answered", tag:"clinic location", tail:"and how to get there", meta:"map link sent" },
+  { ch:"call", ev:"price", who:"คุณปกรณ์",   text:"quoted", tag:"braces 45,000 THB", tail:"over 18 months", meta:"plan options given" },
+];
+
+/* ---- channel mark SVGs (hand-drawn, wobble filter) ---- */
+function markSVG(ch){
+  if(ch === "call"){
+    return `<svg class="mark" width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
+      <path d="M7 7 q-1 6 2 11 q3 5 9 6 q1 0 1 -2 l0 -2 q0 -1 -1 -1 l-3 -1 q-1 0 -1 1 q-3 -2 -5 -6 q1 0 1 -1 l-1 -3 q0 -1 -1 -1 z"
+        fill="none" stroke="#2f6b53" stroke-width="1.7" stroke-linejoin="round" filter="url(#wobble)"/></svg>`;
+  }
+  return `<svg class="mark" width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
+    <path d="M5 11 q0 -5 5 -5 h6 q5 0 5 5 v3 q0 5 -5 5 h-6 l-4 4 v-4 q0 0 0 -8 z"
+      fill="none" stroke="#3a5f86" stroke-width="1.7" filter="url(#wobble)"/>
+    <circle cx="10" cy="12.5" r="1.1" fill="#3a5f86"/><circle cx="13" cy="12.5" r="1.1" fill="#3a5f86"/><circle cx="16" cy="12.5" r="1.1" fill="#3a5f86"/></svg>`;
+}
+
+/* build one log <li> */
+function lineHTML(d){
+  const who = d.who ? `<span class="who">${d.who}</span> ` : "";
+  const tag = d.tag ? ` <span class="tag">${d.tag}</span>` : "";
+  const tail = d.tail ? ` ${d.tail}` : "";
+  const meta = d.meta ? `<span class="meta">${d.meta}</span>` : "";
+  return `
+    <span class="ts">${d.t}</span>
+    ${markSVG(d.ch)}
+    <span class="action">
+      <span class="body"><span class="nib" aria-hidden="true"></span>
+        <span>${d.text} ${who}${tag}${tail}.</span>
+      </span>
+      ${meta}
+    </span>`;
+}
+
+const logEl   = document.getElementById("log");
+const countEl = document.getElementById("countNum");
+const dateEl  = document.getElementById("todayDate");
+const pauseBtn= document.getElementById("pauseBtn");
+const footEl  = document.getElementById("footNote");
+
+let count = 0;
+
+function addLine(d, fresh){
+  const li = document.createElement("li");
+  li.className = "line ev-" + d.ev + (fresh ? " fresh" : "");
+  li.innerHTML = lineHTML(d);
+  logEl.insertBefore(li, logEl.firstChild);
+  count++;
+  countEl.textContent = count;
+}
+
+/* today's date label */
+(function setDate(){
+  const days=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const mons=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const n=new Date();
+  dateEl.textContent = days[n.getDay()] + ", " + n.getDate() + " " + mons[n.getMonth()];
+})();
+
+/* seed the page settled (newest already on top in SEED order) */
+SEED.slice().reverse().forEach(d => addLine(d, false));
+/* keep the visible count looking like a real day total */
+count = 31 + SEED.length;  // earlier-today lines not all shown
+countEl.textContent = count;
+
+/* ----- live writing loop, fully gated by reduced-motion ----- */
+const reduce = window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+
+let idx = 0;
+let paused = reduce;          // under reduce: never auto-write
+let timer = null;
+
+function nowStamp(){
+  const n=new Date();
+  return String(n.getHours()).padStart(2,"0")+":"+String(n.getMinutes()).padStart(2,"0");
+}
+
+function tick(){
+  if(paused) return;
+  const base = STREAM[idx % STREAM.length];
+  const d = Object.assign({}, base, { t: nowStamp() });
+  addLine(d, true);
+  idx++;
+  schedule();
+}
+
+function schedule(){
+  if(paused) return;
+  clearTimeout(timer);
+  timer = setTimeout(tick, 4200 + Math.random()*3200);  // human-paced jitter
+}
+
+if(reduce){
+  footEl.textContent = "showing today's settled notes";
+  pauseBtn.textContent = "Paused";
+  pauseBtn.setAttribute("aria-pressed","true");
+  pauseBtn.disabled = true;
+  pauseBtn.style.opacity = ".55";
+} else {
+  schedule();
+}
+
+/* pause / resume control (also a manual reduced-motion escape) */
+pauseBtn.addEventListener("click", () => {
+  if(reduce) return;
+  paused = !paused;
+  pauseBtn.setAttribute("aria-pressed", String(paused));
+  pauseBtn.textContent = paused ? "Resume" : "Pause";
+  footEl.textContent = paused ? "paused . catching my breath" : "still writing as things happen";
+  if(!paused) schedule();
+  else clearTimeout(timer);
+});
+
+/* pause when the tab is hidden (save cycles, avoid burst on return) */
+document.addEventListener("visibilitychange", () => {
+  if(reduce) return;
+  if(document.hidden){ clearTimeout(timer); }
+  else if(!paused){ schedule(); }
+});
+</script>
+</body>
+</html>

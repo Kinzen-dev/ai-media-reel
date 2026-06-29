@@ -1,0 +1,732 @@
+<!-- TEMPLATE: Living Note - Notes to the Assistant | ARCHETYPE: LIVING-NOTE hand-drawn AI config | REF: hand-drawn notebook UI, handwriting, notes-to-the-assistant settings | WHEN TO USE: warm human-feeling AI persona / behavior config screen (settings as handwritten notes) | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notes to the Assistant - How น้องยิ้มหวาน should behave</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Shantell+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DATA-DRIVEN STYLE TOKENS
+   Palette: warm paper + ink + ONE muted accent (clay) + soft tints
+   ============================================================ */
+:root{
+  --paper:#f7f3ea;
+  --paper-card:#fdfbf5;
+  --ink:#2a2722;
+  --ink-soft:#5c574d;
+  --ink-faint:#8a8377;
+  --accent:#b6593f;        /* ONE muted accent: warm clay */
+  --accent-soft:#d98e74;
+  --line:#d8cfbd;          /* ruled-paper line */
+  --line-strong:#c4b8a0;
+  --tint-on:#e3ecdf;       /* soft green toggle-on tint */
+  --tint-on-ink:#4f6b4a;
+  --tint-warn:#f3e3d4;
+  --shadow:rgba(42,39,34,.12);
+  --radius:14px;
+  --hand:'Caveat',cursive;
+  --hand-body:'Shantell Sans',cursive;
+  --body:'Inter',system-ui,sans-serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  font-family:var(--body);
+  color:var(--ink);
+  background-color:var(--paper);
+  background-image:
+    /* faint ruled lines */
+    repeating-linear-gradient(to bottom, transparent 0 31px, rgba(180,168,144,.18) 31px 32px),
+    /* paper grain */
+    radial-gradient(circle at 18% 12%, rgba(255,255,255,.5) 0, transparent 42%),
+    radial-gradient(circle at 82% 78%, rgba(214,199,170,.35) 0, transparent 48%);
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+.wrap{max-width:1320px;margin:0 auto;padding:26px 28px 80px;}
+img,svg,video{max-width:100%;display:block;}
+
+/* ---------- handwritten margin tab ---------- */
+.sheet{position:relative;}
+.punch{
+  position:absolute;left:-2px;top:120px;width:18px;height:18px;border-radius:50%;
+  background:radial-gradient(circle at 40% 40%, #efe7d4, #d8cdb6);
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.25);display:none;
+}
+@media(min-width:880px){ .wrap{padding-left:54px;} .punch{display:block;} .punch.p2{top:260px;} .punch.p3{top:400px;} }
+
+/* ============================================================
+   HEADER  (signature: visible at scroll=0)
+   ============================================================ */
+header.note-head{
+  position:relative;
+  display:grid;grid-template-columns:1fr;gap:6px;
+  padding:8px 4px 18px;
+}
+.eyebrow{
+  font-family:var(--hand-body);font-weight:500;font-size:15px;
+  color:var(--accent);letter-spacing:.3px;text-transform:none;
+  display:inline-flex;align-items:center;gap:8px;
+}
+.eyebrow .pin{width:16px;height:16px;flex:0 0 auto;}
+h1.title{
+  font-family:var(--hand);font-weight:700;
+  font-size:clamp(36px,5.4vw,62px);line-height:1.02;
+  margin:2px 0 0;color:var(--ink);letter-spacing:.5px;
+  max-width:18ch;min-width:0;
+}
+h1.title em{font-style:normal;color:var(--accent);position:relative;white-space:nowrap;}
+h1.title em::after{
+  content:"";position:absolute;left:-2%;right:-2%;bottom:2px;height:7px;
+  background:var(--accent-soft);opacity:.45;border-radius:6px;z-index:-1;
+  transform:rotate(-.6deg);
+}
+.sub{
+  font-family:var(--hand-body);font-weight:400;font-size:clamp(15px,1.4vw,18px);
+  color:var(--ink-soft);max-width:62ch;margin-top:4px;
+}
+.head-meta{
+  display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:14px;align-items:center;
+}
+.chip{
+  display:inline-flex;align-items:center;gap:7px;
+  font-family:var(--hand-body);font-size:14px;color:var(--ink-soft);
+  background:var(--paper-card);border:1.5px solid var(--line-strong);
+  border-radius:999px;padding:5px 13px;
+  box-shadow:1px 1px 0 var(--shadow);
+}
+.chip .dot{width:9px;height:9px;border-radius:50%;background:var(--tint-on-ink);}
+.chip .dot.amber{background:var(--accent);}
+
+/* ============================================================
+   LAYOUT GRID
+   ============================================================ */
+.cols{
+  display:grid;grid-template-columns:1fr;gap:22px;margin-top:8px;
+}
+@media(min-width:980px){
+  .cols{grid-template-columns:1.55fr 1fr;align-items:start;}
+}
+
+/* ---------- generic note card ---------- */
+.card{
+  position:relative;background:var(--paper-card);
+  border-radius:var(--radius);
+  border:1.5px solid var(--line-strong);
+  padding:20px 22px 22px;min-width:0;
+  box-shadow:2px 4px 0 var(--shadow), 0 1px 0 rgba(255,255,255,.6) inset;
+}
+.card+.card{margin-top:22px;}
+/* hand-drawn double border feel via offset pseudo */
+.card::before{
+  content:"";position:absolute;inset:5px;border:1.5px solid var(--line);
+  border-radius:10px;pointer-events:none;opacity:.55;
+}
+.card-h{
+  font-family:var(--hand);font-weight:700;font-size:26px;line-height:1;
+  color:var(--ink);margin:0 0 2px;display:flex;align-items:baseline;gap:10px;
+}
+.card-h .num{
+  font-family:var(--hand);font-size:18px;color:var(--accent);
+  border:2px solid var(--accent);border-radius:50%;
+  width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;
+  flex:0 0 auto;transform:rotate(-4deg);
+}
+.card-note{
+  font-family:var(--hand-body);font-size:14px;color:var(--ink-faint);
+  margin:2px 0 16px;
+}
+
+/* ============================================================
+   RULE LINES (handwritten + hand-drawn toggle / checkbox)
+   ============================================================ */
+.rule{
+  display:flex;align-items:flex-start;gap:14px;
+  padding:11px 4px;border-bottom:1.5px dashed var(--line);
+  min-width:0;
+}
+.rule:last-of-type{border-bottom:none;}
+.rule-txt{flex:1 1 auto;min-width:0;}
+.rule-txt .line{
+  font-family:var(--hand-body);font-size:17px;color:var(--ink);line-height:1.35;
+}
+.rule-txt .hint{
+  font-family:var(--hand-body);font-size:13.5px;color:var(--ink-faint);margin-top:2px;
+}
+.rule-txt .line b{font-weight:600;color:var(--ink);}
+.rule.off .rule-txt .line{color:var(--ink-faint);text-decoration:line-through;text-decoration-color:var(--line-strong);text-decoration-thickness:1.5px;}
+.rule.off .rule-txt .hint{opacity:.7;}
+
+/* hand-drawn TOGGLE */
+.toggle{
+  flex:0 0 auto;width:62px;height:30px;border:none;background:transparent;
+  cursor:pointer;padding:0;position:relative;outline:none;
+}
+.toggle svg{width:62px;height:30px;display:block;}
+.toggle .knob{transition:transform .28s cubic-bezier(.5,0,.2,1);}
+.toggle .track-on{transition:opacity .25s ease;}
+.toggle[aria-checked="false"] .knob{transform:translateX(0);}
+.toggle[aria-checked="true"]  .knob{transform:translateX(31px);}
+.toggle[aria-checked="false"] .track-on{opacity:0;}
+.toggle[aria-checked="true"]  .track-on{opacity:1;}
+
+/* hand-drawn CHECKBOX */
+.chk{
+  flex:0 0 auto;width:34px;height:34px;border:none;background:transparent;cursor:pointer;
+  padding:0;position:relative;outline:none;
+}
+.chk svg{width:34px;height:34px;}
+.chk .tick{stroke-dasharray:30;stroke-dashoffset:30;transition:stroke-dashoffset .3s ease;}
+.chk[aria-checked="true"] .tick{stroke-dashoffset:0;}
+
+/* focus-visible accessibility */
+.toggle:focus-visible svg .frame,
+.chk:focus-visible svg .frame,
+button:focus-visible,a:focus-visible,input:focus-visible{
+  outline:none;
+}
+.toggle:focus-visible,.chk:focus-visible{
+  box-shadow:0 0 0 3px rgba(182,89,63,.35);border-radius:10px;
+}
+
+/* ============================================================
+   HAND-DRAWN SLIDER (low-confidence threshold)
+   ============================================================ */
+.slider-block{
+  margin-top:18px;padding:16px 6px 8px;border-top:1.5px dashed var(--line);
+}
+.slider-block .sl-h{
+  font-family:var(--hand-body);font-size:16px;color:var(--ink);margin-bottom:2px;
+}
+.slider-block .sl-h b{color:var(--accent);font-weight:700;}
+.slider-block .sl-note{font-family:var(--hand-body);font-size:13.5px;color:var(--ink-faint);margin-bottom:14px;}
+.sl-wrap{position:relative;height:54px;}
+.sl-wrap svg{position:absolute;inset:0;width:100%;height:54px;pointer-events:none;}
+.sl-range{
+  position:absolute;left:0;top:14px;width:100%;height:26px;margin:0;
+  -webkit-appearance:none;appearance:none;background:transparent;cursor:pointer;
+}
+.sl-range:focus-visible{outline:none;}
+.sl-range:focus-visible+.sl-focus{opacity:1;}
+.sl-focus{position:absolute;inset:-4px -2px;border-radius:14px;box-shadow:0 0 0 3px rgba(182,89,63,.3);opacity:0;pointer-events:none;transition:opacity .15s;}
+.sl-range::-webkit-slider-thumb{
+  -webkit-appearance:none;width:30px;height:30px;border-radius:50%;
+  background:var(--accent);border:3px solid var(--paper-card);
+  box-shadow:1px 2px 4px rgba(42,39,34,.3);cursor:grab;margin-top:-2px;
+}
+.sl-range::-webkit-slider-thumb:active{cursor:grabbing;}
+.sl-range::-moz-range-thumb{
+  width:30px;height:30px;border-radius:50%;background:var(--accent);
+  border:3px solid var(--paper-card);box-shadow:1px 2px 4px rgba(42,39,34,.3);cursor:grab;
+}
+.sl-val{
+  font-family:var(--hand);font-weight:700;font-size:30px;color:var(--accent);
+  position:absolute;top:-4px;right:4px;line-height:1;transform:rotate(-3deg);
+}
+.sl-ends{display:flex;justify-content:space-between;font-family:var(--hand-body);font-size:12.5px;color:var(--ink-faint);margin-top:8px;}
+
+/* ============================================================
+   PERSONA / TONE quick toggles (chip row)
+   ============================================================ */
+.tones{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;}
+.tone-chip{
+  font-family:var(--hand-body);font-size:15px;color:var(--ink-soft);
+  background:var(--paper);border:1.5px solid var(--line-strong);
+  border-radius:999px;padding:7px 15px;cursor:pointer;
+  transition:transform .12s ease, background .15s ease, color .15s ease, border-color .15s ease;
+  outline:none;
+}
+.tone-chip[aria-pressed="true"]{
+  background:var(--tint-on);color:var(--tint-on-ink);border-color:var(--tint-on-ink);
+  transform:rotate(-1.2deg);
+}
+.tone-chip:focus-visible{box-shadow:0 0 0 3px rgba(182,89,63,.3);}
+
+/* clinic hours mini-card */
+.hours{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  margin-top:16px;padding:14px 16px;border:1.5px dashed var(--line-strong);
+  border-radius:12px;background:var(--paper);min-width:0;
+}
+.hours .h-ico{width:30px;height:30px;flex:0 0 auto;}
+.hours .h-txt{font-family:var(--hand-body);font-size:15px;color:var(--ink);min-width:0;}
+.hours .h-txt b{font-weight:600;}
+.hours .h-txt span{color:var(--ink-faint);}
+
+/* ============================================================
+   KNOWLEDGE BASE Q&A note cards
+   ============================================================ */
+.kb-grid{display:grid;grid-template-columns:1fr;gap:14px;margin-top:6px;}
+@media(min-width:560px){.kb-grid{grid-template-columns:1fr 1fr;}}
+.qa{
+  position:relative;background:var(--paper);
+  border:1.5px solid var(--line-strong);border-radius:12px;
+  padding:14px 16px 16px;min-width:0;
+  box-shadow:1.5px 2px 0 var(--shadow);
+}
+.qa:nth-child(odd){transform:rotate(-.5deg);}
+.qa:nth-child(even){transform:rotate(.6deg);}
+.qa .tape{
+  position:absolute;top:-9px;left:18px;width:48px;height:18px;
+  background:rgba(214,199,170,.55);border:1px solid rgba(180,168,144,.5);
+  transform:rotate(-3deg);border-radius:2px;
+}
+.qa .q{font-family:var(--hand);font-weight:700;font-size:21px;color:var(--accent);line-height:1.05;margin:6px 0 7px;}
+.qa .q::before{content:"Q ";color:var(--ink-faint);font-size:16px;}
+.qa .a{font-family:var(--hand-body);font-size:14.5px;color:var(--ink-soft);line-height:1.45;}
+.qa .a::before{content:"A ";color:var(--ink-faint);font-weight:600;}
+.kb-add{
+  font-family:var(--hand-body);font-size:14px;color:var(--accent);
+  background:none;border:1.5px dashed var(--accent-soft);border-radius:12px;
+  padding:14px;cursor:pointer;text-align:center;min-height:84px;
+  display:flex;align-items:center;justify-content:center;gap:8px;outline:none;
+}
+.kb-add:hover{background:var(--tint-warn);}
+.kb-add:focus-visible{box-shadow:0 0 0 3px rgba(182,89,63,.3);}
+
+/* ============================================================
+   PREVIEW CARD (warm reply preview)
+   ============================================================ */
+.preview{
+  position:sticky;top:18px;
+  background:linear-gradient(180deg,#fdfbf5,#f9f4e9);
+  border:2px solid var(--line-strong);border-radius:16px;
+  padding:18px 18px 20px;min-width:0;
+  box-shadow:3px 6px 0 var(--shadow);
+}
+.preview .pv-h{
+  font-family:var(--hand);font-weight:700;font-size:25px;color:var(--ink);
+  display:flex;align-items:center;gap:10px;margin-bottom:3px;
+}
+.preview .pv-note{font-family:var(--hand-body);font-size:13px;color:var(--ink-faint);margin-bottom:14px;}
+.pv-channel{
+  display:inline-flex;gap:6px;margin-bottom:14px;
+}
+.pv-channel button{
+  font-family:var(--hand-body);font-size:13px;color:var(--ink-soft);
+  background:var(--paper);border:1.5px solid var(--line-strong);border-radius:999px;
+  padding:4px 12px;cursor:pointer;outline:none;
+}
+.pv-channel button[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent);}
+.pv-channel button:focus-visible{box-shadow:0 0 0 3px rgba(182,89,63,.3);}
+
+/* chat bubbles */
+.bubble-row{display:flex;gap:10px;margin-bottom:12px;align-items:flex-end;}
+.bubble-row.me{justify-content:flex-end;}
+.ava{
+  width:38px;height:38px;border-radius:50%;flex:0 0 auto;overflow:hidden;
+  border:2px solid var(--paper-card);box-shadow:0 1px 3px var(--shadow);
+  background:#e7ddc9;
+}
+.ava img{width:100%;height:100%;object-fit:cover;}
+.bubble{
+  max-width:80%;min-width:0;padding:10px 13px;border-radius:14px;
+  font-size:14px;line-height:1.45;word-break:break-word;
+}
+.bubble.her{
+  background:#fff;border:1.5px solid var(--line);border-bottom-left-radius:4px;
+  font-family:var(--body);color:var(--ink);
+}
+.bubble.me{
+  background:var(--tint-on);border:1.5px solid var(--tint-on-ink);
+  border-bottom-right-radius:4px;color:var(--ink);font-family:var(--body);
+}
+.bubble .meta{font-family:var(--hand-body);font-size:11px;color:var(--ink-faint);margin-top:5px;}
+.handoff-bub{
+  background:var(--tint-warn);border:1.5px dashed var(--accent-soft);
+  border-radius:12px;padding:10px 13px;font-family:var(--hand-body);font-size:13.5px;
+  color:var(--accent);margin:4px 0 14px;display:flex;gap:8px;align-items:flex-start;
+}
+.handoff-bub.hide{display:none;}
+.handoff-bub svg{flex:0 0 auto;margin-top:1px;}
+
+/* voice preview row */
+.voice{
+  display:flex;align-items:center;gap:12px;margin-top:6px;padding:12px;
+  border:1.5px dashed var(--line-strong);border-radius:12px;background:var(--paper);min-width:0;
+}
+.voice .play{
+  width:42px;height:42px;flex:0 0 auto;border-radius:50%;border:2px solid var(--accent);
+  background:var(--paper-card);color:var(--accent);cursor:pointer;display:flex;
+  align-items:center;justify-content:center;outline:none;
+}
+.voice .play:focus-visible{box-shadow:0 0 0 3px rgba(182,89,63,.3);}
+.voice .wave{flex:1 1 auto;min-width:0;height:34px;display:flex;align-items:center;overflow:hidden;}
+.voice .wave img{width:100%;height:34px;object-fit:cover;opacity:.85;filter:sepia(.3) saturate(.8) hue-rotate(-10deg);}
+.voice .v-lab{font-family:var(--hand-body);font-size:12px;color:var(--ink-faint);flex:0 0 auto;}
+
+/* footer note */
+.foot{
+  margin-top:34px;text-align:center;font-family:var(--hand-body);
+  font-size:14px;color:var(--ink-faint);
+}
+.foot .save{
+  font-family:var(--hand);font-weight:700;font-size:20px;color:var(--accent);
+  border:2px solid var(--accent);border-radius:14px;padding:8px 26px;background:var(--paper-card);
+  cursor:pointer;transform:rotate(-1deg);display:inline-block;margin-bottom:10px;outline:none;
+  box-shadow:2px 3px 0 var(--shadow);
+}
+.foot .save:focus-visible{box-shadow:0 0 0 3px rgba(182,89,63,.35),2px 3px 0 var(--shadow);}
+.foot .save:active{transform:rotate(-1deg) translate(2px,3px);box-shadow:0 0 0 var(--shadow);}
+
+/* mobile */
+@media(max-width:979px){
+  .preview{position:static;margin-top:8px;}
+}
+@media(max-width:560px){
+  .wrap{padding:18px 16px 64px;}
+  .rule{gap:10px;}
+  .bubble{max-width:84%;}
+}
+
+/* reduced motion: kill transitions, show final state */
+@media(prefers-reduced-motion:reduce){
+  *{transition:none !important;animation:none !important;}
+  .toggle .knob,.chk .tick{transition:none !important;}
+}
+</style>
+</head>
+<body>
+<!-- inline SVG filter for hand-drawn wobble on card frames -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <filter id="wobble"><feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="2" seed="7" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4"/></filter>
+  </defs>
+</svg>
+
+<div class="wrap sheet">
+  <span class="punch p1"></span><span class="punch p2"></span><span class="punch p3"></span>
+
+  <!-- ===================== HEADER (signature @ scroll=0) ===================== -->
+  <header class="note-head">
+    <span class="eyebrow">
+      <svg class="pin" viewBox="0 0 24 24" fill="none"><path d="M12 2c-3 0-5 2-5 5 0 3 5 9 5 9s5-6 5-9c0-3-2-5-5-5z" stroke="#b6593f" stroke-width="1.8" fill="#d98e74" fill-opacity=".35"/><circle cx="12" cy="7" r="1.6" fill="#b6593f"/></svg>
+      a note pinned to the assistant
+    </span>
+    <h1 class="title">How <em>น้องยิ้มหวาน</em> should behave</h1>
+    <p class="sub">Write the rules the way you would tell a new front-desk teammate. Each line is a real setting. Flip the toggles, set how careful she should be, and watch the preview update on the right.</p>
+    <div class="head-meta">
+      <span class="chip"><span class="dot"></span> Yimwhan dental backoffice</span>
+      <span class="chip"><span class="dot amber"></span> voice + LINE</span>
+      <span class="chip">last edited by you, just now</span>
+    </div>
+  </header>
+
+  <div class="cols">
+    <!-- ===================== LEFT: the notes ===================== -->
+    <div class="left">
+
+      <!-- 1. Persona & tone -->
+      <section class="card">
+        <h2 class="card-h"><span class="num">1</span> who she is</h2>
+        <p class="card-note">Pick the voice she answers in. She keeps it across voice calls and LINE chats.</p>
+        <div class="tones" id="tones"></div>
+        <div class="hours">
+          <svg class="h-ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#b6593f" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="#b6593f" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <div class="h-txt"><b>Clinic hours</b> Mon to Sat, 9:00 to 19:00. <span>Outside these, she takes a message and says the team will call back.</span></div>
+        </div>
+      </section>
+
+      <!-- 2. Behaviour rules with toggles + checkboxes -->
+      <section class="card">
+        <h2 class="card-h"><span class="num">2</span> how she should act</h2>
+        <p class="card-note">Things she does on every conversation. Cross one out to turn it off.</p>
+        <div id="rules"></div>
+
+        <!-- hand-drawn slider: low-confidence threshold -->
+        <div class="slider-block">
+          <div class="sl-h">When she is less than <b id="thr-label">65%</b> sure, hand the chat to a human.</div>
+          <div class="sl-note">Lower means she answers more on her own. Higher means she asks the team sooner.</div>
+          <div class="sl-wrap">
+            <svg viewBox="0 0 600 54" preserveAspectRatio="none" aria-hidden="true">
+              <!-- hand-drawn wobbly rail -->
+              <path d="M14 30 C 120 24, 240 36, 360 28 S 540 30, 586 28" stroke="#c4b8a0" stroke-width="4" fill="none" stroke-linecap="round"/>
+              <path id="thr-fill" d="M14 30 L 300 30" stroke="#b6593f" stroke-width="4" fill="none" stroke-linecap="round"/>
+            </svg>
+            <input class="sl-range" id="thr" type="range" min="0" max="100" value="65" step="5" aria-label="Low confidence handoff threshold percent">
+            <span class="sl-focus"></span>
+            <span class="sl-val" id="thr-val">65%</span>
+          </div>
+          <div class="sl-ends"><span>answers more herself</span><span>asks the team sooner</span></div>
+        </div>
+      </section>
+
+      <!-- 3. Knowledge base -->
+      <section class="card">
+        <h2 class="card-h"><span class="num">3</span> what she knows</h2>
+        <p class="card-note">Little notes she reads from when patients ask. Keep them short and true.</p>
+        <div class="kb-grid" id="kb"></div>
+      </section>
+    </div>
+
+    <!-- ===================== RIGHT: live preview ===================== -->
+    <aside class="right">
+      <div class="preview">
+        <div class="pv-h">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 5h16v11H8l-4 3z" stroke="#b6593f" stroke-width="1.8" fill="#d98e74" fill-opacity=".25" stroke-linejoin="round"/></svg>
+          how she would reply
+        </div>
+        <p class="pv-note">A live read of the settings on the left. This is not sent anywhere.</p>
+
+        <div class="pv-channel" id="channels">
+          <button data-ch="line" aria-pressed="true">LINE chat</button>
+          <button data-ch="voice" aria-pressed="false">voice call</button>
+        </div>
+
+        <!-- patient bubble -->
+        <div class="bubble-row me">
+          <div class="bubble me">ปวดฟันมากเลยค่ะ พรุ่งนี้เข้าได้ไหมคะ<div class="meta">patient, 21:14</div></div>
+        </div>
+
+        <!-- handoff banner (shown when threshold high) -->
+        <div class="handoff-bub" id="handoff">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3l9 16H3z" stroke="#b6593f" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 10v4" stroke="#b6593f" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="16.6" r="1" fill="#b6593f"/></svg>
+          <span id="handoff-txt">careful mode: she would flag this to the team before promising a slot.</span>
+        </div>
+
+        <!-- her reply -->
+        <div class="bubble-row her">
+          <div class="ava"><img src="../assets/flux-clinic-4k.png" alt="น้องยิ้มหวาน assistant avatar, mint and wood dental clinic" loading="lazy" decoding="async"></div>
+          <div class="bubble her" id="reply-bubble">
+            <span id="reply-text">สวัสดีค่ะ น้องยิ้มหวานเองนะคะ เสียใจด้วยที่ปวดฟันมากเลย พรุ่งนี้คลินิกเปิด 9 โมงถึง 1 ทุ่มค่ะ เดี๋ยวขอเช็คคิวให้นะคะ ระหว่างนี้บ้วนน้ำเกลืออุ่นช่วยได้ค่ะ</span>
+            <div class="meta" id="reply-meta">น้องยิ้มหวาน, warm + reassuring</div>
+          </div>
+        </div>
+
+        <!-- voice preview (real asset, in-view only) -->
+        <div class="voice" id="voicebox">
+          <button class="play" id="playbtn" aria-label="Play voice sample">
+            <svg id="play-ico" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5l12 7-12 7z"/></svg>
+          </button>
+          <div class="wave"><img src="../assets/gen/wave-elevenlabs.png" alt="voice waveform of น้องยิ้มหวาน sample reply"></div>
+          <span class="v-lab" id="v-lab">her voice</span>
+          <audio id="vaudio" src="../assets/elevenlabs-thai.mp3" preload="none"></audio>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="foot">
+    <button class="save" id="savebtn">save the note</button>
+    <div id="foot-txt">Settings read as a note. Change anything on the left and the preview keeps up.</div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   DATA  (swap everything here)
+   ============================================================ */
+const DATA = {
+  persona: "น้องยิ้มหวาน",
+  tones: [
+    {id:"warm",   label:"warm + reassuring", on:true},
+    {id:"brief",  label:"short + to the point", on:false},
+    {id:"playful",label:"a little playful", on:false},
+    {id:"formal", label:"polite + formal", on:false}
+  ],
+  rules: [
+    {type:"toggle", on:true,  line:"Always greet with her name first, then help.", hint:"so patients know who they are talking to"},
+    {type:"toggle", on:true,  line:"Never quote a <b>price</b> or a <b>dosage</b> herself. Pass it to the team.", hint:"high-trust info gets a human"},
+    {type:"toggle", on:true,  line:"For a real <b>emergency</b> (heavy bleeding, swelling), tell them to call now.", hint:"safety first, no waiting on chat"},
+    {type:"check",  on:true,  line:"Confirm the clinic is closed before taking an after-hours message.", hint:"checks hours, then buffers the request"},
+    {type:"toggle", on:false, line:"Offer to book the appointment end to end.", hint:"off for now, team books manually"},
+    {type:"check",  on:true,  line:"Repeat the patient phone number back before any handoff.", hint:"catches mis-typed digits"}
+  ],
+  threshold: 65,
+  kb: [
+    {q:"คลินิกเปิดกี่โมง", a:"จันทร์ถึงเสาร์ 9:00 ถึง 19:00 ค่ะ อาทิตย์ปิดทำการ"},
+    {q:"จอดรถได้ไหม", a:"มีที่จอดหน้าคลินิก 4 คัน และจอดข้างถนนได้ค่ะ"},
+    {q:"รับบัตรประกันไหม", a:"รับประกันสังคมและบัตรเครดิตค่ะ รายละเอียดเดี๋ยวทีมยืนยันอีกครั้ง"},
+    {q:"ขูดหินปูนใช้เวลานานไหม", a:"ปกติราว 30 ถึง 45 นาทีค่ะ ขึ้นกับสภาพฟันแต่ละคน"}
+  ],
+  replies: {
+    line:  "สวัสดีค่ะ น้องยิ้มหวานเองนะคะ เสียใจด้วยที่ปวดฟันมากเลย พรุ่งนี้คลินิกเปิด 9 โมงถึง 1 ทุ่มค่ะ เดี๋ยวขอเช็คคิวให้นะคะ ระหว่างนี้บ้วนน้ำเกลืออุ่นช่วยได้ค่ะ",
+    voice: "สวัสดีค่ะ น้องยิ้มหวานเองนะคะ เสียใจด้วยที่ปวดฟันมากเลยนะคะ พรุ่งนี้คลินิกเปิดเก้าโมงถึงหนึ่งทุ่มค่ะ เดี๋ยวขอเช็คคิวให้นะคะ"
+  }
+};
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+const $ = s => document.querySelector(s);
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---- tone chips ---- */
+const tonesEl = $('#tones');
+DATA.tones.forEach(t=>{
+  const b=document.createElement('button');
+  b.className='tone-chip';b.textContent=t.label;b.dataset.id=t.id;
+  b.setAttribute('aria-pressed', t.on?'true':'false');
+  b.addEventListener('click',()=>{
+    DATA.tones.forEach(x=>x.on=false);
+    tonesEl.querySelectorAll('.tone-chip').forEach(c=>c.setAttribute('aria-pressed','false'));
+    t.on=true;b.setAttribute('aria-pressed','true');
+    update();
+  });
+  tonesEl.appendChild(b);
+});
+
+/* ---- hand-drawn SVG strings (hex inline, never var()) ---- */
+function toggleSVG(){
+  return `<svg viewBox="0 0 62 30" aria-hidden="true">
+    <rect class="frame" x="2" y="3" width="58" height="24" rx="12" fill="#f1ead9" stroke="#c4b8a0" stroke-width="2"/>
+    <rect class="track-on" x="2" y="3" width="58" height="24" rx="12" fill="#e3ecdf" stroke="#4f6b4a" stroke-width="2"/>
+    <g class="knob"><circle cx="16" cy="15" r="10" fill="#fdfbf5" stroke="#9c917b" stroke-width="2"/></g>
+  </svg>`;
+}
+function checkSVG(){
+  return `<svg viewBox="0 0 34 34" aria-hidden="true">
+    <path class="frame" d="M5 6 Q4 4 7 4 L28 5 Q30 5 29 8 L30 28 Q30 30 27 29 L6 30 Q4 30 5 27 Z" fill="#f1ead9" stroke="#c4b8a0" stroke-width="2"/>
+    <path class="tick" d="M9 18 L15 24 L26 9" fill="none" stroke="#b6593f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+}
+
+/* ---- rule lines ---- */
+const rulesEl = $('#rules');
+DATA.rules.forEach((r,i)=>{
+  const row=document.createElement('div');
+  row.className='rule'+(r.on?'':' off');
+  const ctrl=document.createElement('button');
+  if(r.type==='toggle'){
+    ctrl.className='toggle';ctrl.innerHTML=toggleSVG();
+    ctrl.setAttribute('role','switch');
+  }else{
+    ctrl.className='chk';ctrl.innerHTML=checkSVG();
+    ctrl.setAttribute('role','checkbox');
+  }
+  ctrl.setAttribute('aria-checked', r.on?'true':'false');
+  ctrl.setAttribute('aria-label', r.line.replace(/<[^>]+>/g,''));
+  ctrl.addEventListener('click',()=>{
+    r.on=!r.on;
+    ctrl.setAttribute('aria-checked', r.on?'true':'false');
+    row.classList.toggle('off', !r.on);
+    update();
+  });
+  ctrl.addEventListener('keydown',e=>{
+    if(e.key===' '||e.key==='Enter'){e.preventDefault();ctrl.click();}
+  });
+  const txt=document.createElement('div');
+  txt.className='rule-txt';
+  txt.innerHTML=`<div class="line">${r.line}</div><div class="hint">${r.hint}</div>`;
+  if(r.type==='check'){ row.appendChild(ctrl); row.appendChild(txt); }
+  else { row.appendChild(txt); row.appendChild(ctrl); }
+  rulesEl.appendChild(row);
+});
+
+/* ---- knowledge base cards ---- */
+const kbEl=$('#kb');
+DATA.kb.forEach(card=>{
+  const d=document.createElement('div');
+  d.className='qa';
+  d.innerHTML=`<span class="tape" aria-hidden="true"></span><div class="q">${card.q}</div><div class="a">${card.a}</div>`;
+  kbEl.appendChild(d);
+});
+const add=document.createElement('button');
+add.className='kb-add';
+add.innerHTML=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#b6593f" stroke-width="2" stroke-linecap="round"/></svg> add a note she should know`;
+add.addEventListener('click',()=>{ add.firstChild && (add.lastChild.textContent=' note saved (demo)'); });
+kbEl.appendChild(add);
+
+/* ============================================================
+   SLIDER  (threshold)
+   ============================================================ */
+const thr=$('#thr'), thrVal=$('#thr-val'), thrLabel=$('#thr-label'), thrFill=$('#thr-fill');
+function paintSlider(){
+  const v=+thr.value;
+  thrVal.textContent=v+'%';
+  thrLabel.textContent=v+'%';
+  // wobbly fill path: 14 -> 586 across 0..100
+  const x=14+(586-14)*(v/100);
+  thrFill.setAttribute('d',`M14 30 C 120 24, ${Math.min(x,300)} 33, ${x} 29`);
+  // position the floating value roughly over thumb on wide screens handled by CSS right-align
+}
+thr.addEventListener('input',()=>{ paintSlider(); DATA.threshold=+thr.value; update(); });
+
+/* ============================================================
+   PREVIEW UPDATE
+   ============================================================ */
+let channel='line';
+const chBtns=$('#channels');
+chBtns.querySelectorAll('button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    chBtns.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed','false'));
+    b.setAttribute('aria-pressed','true');
+    channel=b.dataset.ch;
+    update();
+  });
+});
+
+function activeTone(){ return DATA.tones.find(t=>t.on)||DATA.tones[0]; }
+
+function update(){
+  const tone=activeTone();
+  // reply text by channel
+  let txt = channel==='voice' ? DATA.replies.voice : DATA.replies.line;
+  // greeting rule off -> drop the name greeting
+  const greet=DATA.rules[0];
+  if(!greet.on){ txt = txt.replace(/^สวัสดีค่ะ น้องยิ้มหวานเองนะคะ\s*/,'สวัสดีค่ะ '); }
+  // brief tone -> trim trailing care line
+  if(tone.id==='brief'){ txt = txt.split(' ระหว่างนี้')[0].replace(' เดี๋ยวขอเช็คคิวให้นะคะ',' เดี๋ยวเช็คคิวให้ค่ะ'); }
+  if(tone.id==='formal'){ txt = txt.replace(/นะคะ/g,'ค่ะ'); }
+  $('#reply-text').textContent=txt;
+  $('#reply-meta').textContent=DATA.persona+', '+tone.label;
+
+  // handoff banner: show when threshold high OR price/emergency rule + tooth-pain context
+  const handoff=$('#handoff');
+  const careful = DATA.threshold>=70;
+  handoff.classList.toggle('hide', !careful);
+  $('#handoff-txt').textContent = careful
+    ? `careful mode (${DATA.threshold}%): she flags this to the team before promising a slot.`
+    : '';
+
+  // voice box only relevant on voice channel
+  const vb=$('#voicebox');
+  vb.style.opacity = channel==='voice' ? '1':'.92';
+  $('#v-lab').textContent = channel==='voice' ? 'her voice (play)' : 'her voice';
+}
+
+/* ============================================================
+   VOICE PLAYBACK  (in-view only, one at a time)
+   ============================================================ */
+const audio=$('#vaudio'), playBtn=$('#playbtn'), playIco=$('#play-ico');
+const ICON_PLAY='<path d="M7 5l12 7-12 7z"/>';
+const ICON_PAUSE='<path d="M7 5h4v14H7zM13 5h4v14h-4z"/>';
+let inView=true;
+playBtn.addEventListener('click',()=>{
+  if(audio.paused){ audio.play().catch(()=>{}); }
+  else { audio.pause(); }
+});
+audio.addEventListener('play',()=>{ playIco.innerHTML=ICON_PAUSE; });
+audio.addEventListener('pause',()=>{ playIco.innerHTML=ICON_PLAY; });
+audio.addEventListener('ended',()=>{ playIco.innerHTML=ICON_PLAY; });
+
+/* pause audio when preview scrolls out of view (performance / courtesy) */
+if('IntersectionObserver' in window){
+  const io=new IntersectionObserver(es=>{
+    es.forEach(e=>{ inView=e.isIntersecting; if(!inView && !audio.paused) audio.pause(); });
+  },{threshold:.2});
+  io.observe($('#voicebox'));
+}
+
+/* save button */
+$('#savebtn').addEventListener('click',()=>{
+  const ft=$('#foot-txt');
+  ft.textContent='saved. น้องยิ้มหวาน will follow these notes from her next reply.';
+  if(!reduceMotion){ $('#savebtn').animate(
+    [{transform:'rotate(-1deg) scale(1)'},{transform:'rotate(-1deg) scale(.94)'},{transform:'rotate(-1deg) scale(1)'}],
+    {duration:240,easing:'ease-out'}); }
+});
+
+/* ============================================================
+   INIT
+   ============================================================ */
+paintSlider();
+update();
+</script>
+</body>
+</html>

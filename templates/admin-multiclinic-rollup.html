@@ -1,0 +1,928 @@
+<!-- TEMPLATE: Multi-Clinic Rollup | ARCHETYPE: admin-multiclinic-rollup | REF: Vercel teams / multi-property dashboards | WHEN TO USE: owner or agency spanning many clinic locations, compare branches side by side with a summary strip + cards + league table + trend | SWAP: edit the DATA object (clinics[] drives cards, league table and trend) at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Yimwhan - Multi-Clinic Rollup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   YIMWHAN MULTI-CLINIC ROLLUP - owner / agency spanning many
+   locations. Clean light surface, teal brand accent, per-clinic
+   accent dots, status colors, a highlighted league leader row.
+   Inter + tabular figures on every number. Distinct POV: a
+   horizontal summary strip across all clinics, a comparison card
+   row each with its own sparkline + delta, a ranked league table
+   with inline bars, and one combined multi-series SVG trend.
+   All charts hand-built inline SVG (literal hex, no var()).
+   ============================================================ */
+
+:root {
+  --bg:        #f5f7fb;
+  --panel:     #ffffff;
+  --panel-2:   #fbfcfe;
+  --sink:      #eef2f8;
+
+  --ink:       #0c1322;
+  --ink-2:     #384154;
+  --ink-3:     #67718a;
+  --ink-4:     #98a2b6;
+
+  --line:      #e6ebf3;
+  --line-2:    #d9e0eb;
+
+  --teal:      #0e9f9a;
+  --teal-700:  #0a807c;
+  --teal-50:   #e2f5f3;
+  --teal-tint: #eefbf9;
+
+  --green:     #15a05a;
+  --green-50:  #e3f6ec;
+  --amber:     #c4870f;
+  --amber-50:  #faf0d8;
+  --red:       #d84e47;
+  --red-50:    #fbe8e6;
+  --blue:      #3a6df0;
+  --blue-50:   #e7effd;
+  --gold:      #d8a425;
+  --gold-tint: #fdf6e4;
+
+  --shadow-sm: 0 1px 2px rgba(12,19,34,.05), 0 1px 1px rgba(12,19,34,.03);
+  --shadow-md: 0 8px 26px -10px rgba(12,19,34,.18), 0 2px 6px -2px rgba(12,19,34,.06);
+
+  --r:    14px;
+  --r-sm: 10px;
+  --r-xs: 8px;
+  --sidebar-w: 232px;
+
+  --mono: "Inter", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.tab { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1, "cv01" 1; }
+
+a { color: inherit; text-decoration: none; }
+
+:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ---------- shell ---------- */
+.app {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  min-height: 100vh;
+}
+
+/* ---------- sidebar ---------- */
+.side {
+  background: linear-gradient(180deg, #0d1626 0%, #0c1322 100%);
+  color: #cdd6e6;
+  padding: 18px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px 16px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+}
+.brand-mark {
+  width: 30px; height: 30px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--teal) 0%, #14b8a3 100%);
+  display: grid; place-items: center;
+  color: #04201e; font-weight: 800; font-size: 15px;
+  box-shadow: 0 4px 14px -4px rgba(20,184,163,.6);
+  flex-shrink: 0;
+}
+.brand-name { font-weight: 700; font-size: 15px; color: #f4f7fc; letter-spacing: -.01em; }
+.brand-sub { font-size: 11px; color: #7e8aa3; margin-top: -1px; }
+
+.scope {
+  margin: 6px 4px 14px;
+  padding: 11px 12px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: var(--r-sm);
+}
+.scope-label { font-size: 10px; text-transform: uppercase; letter-spacing: .09em; color: #6f7b94; font-weight: 600; }
+.scope-val { display: flex; align-items: center; gap: 7px; margin-top: 5px; font-size: 13px; color: #eef2f9; font-weight: 600; }
+.scope-val svg { color: var(--teal); flex-shrink: 0; }
+.scope-meta { font-size: 11px; color: #828ea7; margin-top: 4px; }
+
+.nav-group { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: #5f6a83; font-weight: 600; padding: 12px 10px 4px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--r-xs);
+  color: #aeb8cc;
+  font-size: 13px; font-weight: 500;
+  cursor: pointer;
+  transition: background .14s, color .14s;
+}
+.nav-item svg { width: 17px; height: 17px; flex-shrink: 0; opacity: .85; }
+.nav-item:hover { background: rgba(255,255,255,.05); color: #f0f3f9; }
+.nav-item.active { background: rgba(20,184,163,.14); color: #6fe7da; }
+.nav-item.active svg { opacity: 1; }
+.nav-count { margin-left: auto; font-size: 11px; color: #6f7b94; background: rgba(255,255,255,.05); padding: 1px 7px; border-radius: 20px; }
+
+.side-foot { margin-top: auto; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.07); }
+.owner { display: flex; align-items: center; gap: 10px; padding: 6px 4px; }
+.owner-av { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg,#3a6df0,#7a5cf0); display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 12px; flex-shrink: 0; }
+.owner-name { font-size: 13px; color: #eef2f9; font-weight: 600; }
+.owner-role { font-size: 11px; color: #7e8aa3; }
+
+/* ---------- main ---------- */
+.main { min-width: 0; display: flex; flex-direction: column; }
+
+.topbar {
+  display: flex; align-items: center; gap: 16px;
+  padding: 14px 28px;
+  background: rgba(255,255,255,.82);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; z-index: 20;
+}
+.crumbs { font-size: 13px; color: var(--ink-3); display: flex; align-items: center; gap: 7px; }
+.crumbs b { color: var(--ink); font-weight: 600; }
+.crumbs .sep { color: var(--ink-4); }
+.topbar-spacer { flex: 1; }
+
+.seg {
+  display: inline-flex;
+  background: var(--sink);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 2px;
+}
+.seg button {
+  border: 0; background: transparent;
+  font: inherit; font-size: 12.5px; font-weight: 500;
+  color: var(--ink-3);
+  padding: 5px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background .14s, color .14s, box-shadow .14s;
+}
+.seg button[aria-pressed="true"] { background: var(--panel); color: var(--ink); box-shadow: var(--shadow-sm); font-weight: 600; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  font: inherit; font-size: 13px; font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 9px;
+  cursor: pointer;
+  border: 1px solid var(--line-2);
+  background: var(--panel);
+  color: var(--ink-2);
+  box-shadow: var(--shadow-sm);
+  transition: border-color .14s, background .14s;
+}
+.btn:hover { border-color: var(--ink-4); }
+.btn.primary { background: var(--teal); border-color: var(--teal); color: #fff; box-shadow: 0 4px 14px -4px rgba(14,159,154,.5); }
+.btn.primary:hover { background: var(--teal-700); border-color: var(--teal-700); }
+.btn svg { width: 15px; height: 15px; }
+
+.content { padding: 22px 28px 56px; max-width: 1440px; width: 100%; }
+
+.page-head { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
+.page-title { font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
+.page-desc { font-size: 13px; color: var(--ink-3); margin-top: 2px; }
+.page-head .right { margin-left: auto; display: flex; gap: 9px; align-items: center; }
+.live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px var(--green-50); display: inline-block; animation: pulse 2.4s ease-in-out infinite; }
+.live-tag { font-size: 12px; color: var(--ink-3); display: inline-flex; align-items: center; gap: 7px; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+
+/* ---------- summary strip ---------- */
+.strip {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-sm);
+  display: grid;
+  grid-template-columns: 1.35fr 1fr 1fr 1fr 1.25fr;
+  overflow: hidden;
+  margin-bottom: 22px;
+}
+.strip-cell { padding: 16px 20px; border-right: 1px solid var(--line); position: relative; }
+.strip-cell:last-child { border-right: 0; }
+.strip-cell.lead {
+  background: linear-gradient(140deg, var(--teal-tint) 0%, #ffffff 70%);
+}
+.strip-k { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-3); font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.strip-k .ico { color: var(--teal); display: inline-flex; }
+.strip-v { font-size: 27px; font-weight: 700; letter-spacing: -.02em; margin-top: 7px; line-height: 1; }
+.strip-v .unit { font-size: 14px; font-weight: 600; color: var(--ink-3); margin-left: 2px; }
+.strip-sub { font-size: 12px; color: var(--ink-3); margin-top: 8px; display: flex; align-items: center; gap: 6px; }
+.delta { display: inline-flex; align-items: center; gap: 3px; font-weight: 600; font-size: 12px; }
+.delta.up { color: var(--green); }
+.delta.down { color: var(--red); }
+.delta svg { width: 12px; height: 12px; }
+.strip-clinics { display: flex; align-items: center; gap: 4px; margin-top: 9px; flex-wrap: wrap; }
+.cdot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; box-shadow: 0 0 0 1.5px #fff, 0 0 0 2.5px var(--line); }
+
+/* ---------- section frame ---------- */
+.section-head { display: flex; align-items: center; gap: 12px; margin: 4px 0 14px; }
+.section-head h2 { font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
+.section-head .hint { font-size: 12px; color: var(--ink-3); }
+.section-head .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+/* ---------- clinic cards ---------- */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.ccard {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-sm);
+  padding: 16px 16px 14px;
+  display: flex; flex-direction: column;
+  position: relative;
+  transition: box-shadow .16s, transform .16s, border-color .16s;
+  overflow: hidden;
+}
+.ccard::before {
+  content: "";
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--accent, var(--teal));
+}
+.ccard:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); border-color: var(--line-2); }
+.ccard:focus-within { box-shadow: var(--shadow-md); border-color: var(--line-2); }
+
+.cc-top { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 13px; }
+.cc-dot { width: 11px; height: 11px; border-radius: 50%; margin-top: 4px; background: var(--accent, var(--teal)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, var(--teal)) 18%, transparent); flex-shrink: 0; }
+.cc-name { font-size: 14.5px; font-weight: 700; letter-spacing: -.01em; line-height: 1.2; }
+.cc-loc { font-size: 11.5px; color: var(--ink-3); margin-top: 2px; display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; }
+.cc-loc svg { width: 11px; height: 11px; opacity: .7; flex-shrink: 0; }
+/* long single-word locations (e.g. Borommaratchachonnani) truncate instead of overflowing the card */
+.cc-loc-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cc-status {
+  margin-left: auto; flex-shrink: 0;
+  font-size: 10.5px; font-weight: 600;
+  padding: 3px 8px; border-radius: 20px;
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.cc-status .sd { width: 6px; height: 6px; border-radius: 50%; }
+.st-ok { background: var(--green-50); color: #0d7a43; }
+.st-ok .sd { background: var(--green); }
+.st-watch { background: var(--amber-50); color: #946309; }
+.st-watch .sd { background: var(--amber); }
+.st-down { background: var(--red-50); color: #b23b35; }
+.st-down .sd { background: var(--red); }
+
+.cc-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 11px 8px; margin-bottom: 13px; }
+.ccm-k { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-4); font-weight: 600; }
+.ccm-v { font-size: 18px; font-weight: 700; letter-spacing: -.02em; margin-top: 1px; }
+.ccm-v small { font-size: 12px; font-weight: 600; color: var(--ink-3); }
+
+.cc-spark { margin: 2px 0 11px; }
+.cc-foot { display: flex; align-items: center; justify-content: space-between; padding-top: 11px; border-top: 1px solid var(--line); }
+.cc-ai { font-size: 12px; color: var(--ink-2); }
+.cc-ai b { color: var(--ink); }
+.cc-pct {
+  font-size: 11px; font-weight: 600;
+  padding: 3px 8px; border-radius: 7px;
+}
+
+/* ---------- two-column layout ---------- */
+.split { display: grid; grid-template-columns: 1.05fr 1.55fr; gap: 22px; align-items: start; }
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.panel-head { padding: 16px 20px 12px; display: flex; align-items: center; gap: 10px; }
+.panel-head h3 { font-size: 14.5px; font-weight: 700; letter-spacing: -.01em; }
+.panel-head .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+/* ---------- league table ---------- */
+.league { width: 100%; border-collapse: collapse; }
+.league thead th {
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); font-weight: 600;
+  text-align: left; padding: 8px 20px; border-bottom: 1px solid var(--line);
+  background: var(--panel-2);
+}
+.league thead th.num { text-align: right; }
+.league tbody td { padding: 12px 20px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.league tbody tr:last-child td { border-bottom: 0; }
+.league tbody tr { transition: background .12s; }
+.league tbody tr:hover { background: var(--panel-2); }
+.league tbody tr.leader { background: var(--gold-tint); }
+.league tbody tr.leader:hover { background: #fbf1d6; }
+
+.rank { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 7px; font-size: 12px; font-weight: 700; background: var(--sink); color: var(--ink-2); }
+tr.leader .rank { background: var(--gold); color: #4a3502; box-shadow: 0 2px 8px -2px rgba(216,164,37,.6); }
+.crown { color: var(--gold); width: 13px; height: 13px; margin-left: 4px; vertical-align: -1px; }
+
+.lname { display: flex; align-items: center; gap: 9px; }
+.lname .ld { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.lname b { font-size: 13.5px; font-weight: 600; letter-spacing: -.01em; }
+.lname span { font-size: 11px; color: var(--ink-3); }
+
+.bar-wrap { display: flex; align-items: center; gap: 10px; }
+.bar-track { flex: 1; height: 7px; background: var(--sink); border-radius: 20px; overflow: hidden; min-width: 60px; }
+.bar-fill { height: 100%; border-radius: 20px; }
+.bar-val { font-size: 13px; font-weight: 700; min-width: 52px; text-align: right; }
+
+.league-foot { padding: 11px 20px; font-size: 11.5px; color: var(--ink-3); border-top: 1px solid var(--line); display: flex; align-items: center; gap: 6px; background: var(--panel-2); }
+
+/* ---------- trend chart ---------- */
+.chart-wrap { padding: 6px 16px 16px; }
+.chart-legend { display: flex; flex-wrap: wrap; gap: 14px; padding: 4px 20px 10px; }
+.leg { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ink-2); font-weight: 500; cursor: default; }
+.leg .swatch { width: 11px; height: 3px; border-radius: 3px; }
+.leg .lv { color: var(--ink-3); font-weight: 600; margin-left: 2px; }
+.chart-svg { width: 100%; height: auto; display: block; }
+.chart-note { padding: 0 20px 14px; font-size: 11.5px; color: var(--ink-3); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* dot ring on summary */
+.mini-ring { vertical-align: middle; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1180px) {
+  .cards { grid-template-columns: repeat(2, 1fr); }
+  .split { grid-template-columns: 1fr; }
+  .strip { grid-template-columns: 1fr 1fr 1fr; }
+  .strip-cell:nth-child(4), .strip-cell:nth-child(5) { border-top: 1px solid var(--line); }
+  .strip-cell:nth-child(3) { border-right: 0; }
+}
+@media (max-width: 960px) {
+  :root { --sidebar-w: 0px; }
+  .app { grid-template-columns: 1fr; }
+  .side { display: none; }
+}
+@media (max-width: 860px) {
+  /* topbar gets crowded - drop the time segment + export label, keep primary action compact */
+  .topbar .seg { display: none; }
+  .topbar .btn .lbl { display: none; }
+  .topbar .btn { padding: 8px 11px; }
+}
+@media (max-width: 760px) {
+  .content { padding: 16px 14px 48px; }
+  .topbar { padding: 12px 14px; gap: 9px; }
+  .crumbs .scope-hide { display: none; }
+  .crumbs b { font-size: 14px; }
+  .strip { grid-template-columns: 1fr 1fr; }
+  .strip-cell { border-right: 1px solid var(--line) !important; border-bottom: 1px solid var(--line); }
+  .strip-cell:nth-child(2n) { border-right: 0 !important; }
+  .strip-cell:nth-child(5) { grid-column: span 2; }
+  .strip-v { font-size: 24px; }
+}
+@media (max-width: 560px) {
+  .cards { grid-template-columns: 1fr; }
+  /* keep the strip 2-up (not 1 tall column) so a populated comparison card
+     peeks into the first 390px screen at scroll=0 */
+  .strip { grid-template-columns: 1fr 1fr; }
+  .strip-cell { padding: 13px 14px; border-right: 1px solid var(--line) !important; }
+  .strip-cell:nth-child(2n) { border-right: 0 !important; }
+  .strip-cell:nth-child(5) { grid-column: span 2; }
+  .strip-v { font-size: 22px; }
+  .page-head { margin-bottom: 12px; }
+  .page-desc { display: none; }
+  .page-title { font-size: 19px; }
+  .seg button { padding: 5px 9px; }
+  .league thead th.hide-sm, .league tbody td.hide-sm { display: none; }
+  .bar-track { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+  .ccard:hover { transform: none; }
+  .draw { stroke-dashoffset: 0 !important; }
+  .rise { opacity: 1 !important; transform: none !important; }
+}
+
+/* entrance (gated by reduced-motion above) */
+.draw { stroke-dasharray: 1400; stroke-dashoffset: 1400; animation: draw 1.5s .25s cubic-bezier(.6,.05,.25,1) forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+.rise { opacity: 0; transform: translateY(8px); animation: rise .5s cubic-bezier(.2,.7,.3,1) forwards; }
+@keyframes rise { to { opacity: 1; transform: none; } }
+</style>
+</head>
+<body>
+<script>
+/* ============================================================
+   DATA - swap everything here. clinics[] drives cards, league
+   table and the combined trend chart. accent = per-clinic dot
+   color. metric values are realistic THB dental-clinic numbers.
+   ============================================================ */
+const DATA = {
+  owner: { name: "Dr. Pim Wattana", role: "Group owner - 6 branches", initials: "PW" },
+  group: "SmileWorks Group",
+  region: "Bangkok metro",
+  period: "Last 30 days",
+  summary: {
+    calls:        { value: 8420,  delta: +12.4 },
+    bookings:     { value: 2174,  delta: +8.1 },
+    aiResolved:   { value: 71.6,  delta: +3.2 },   // percent
+    revenue:      { value: 4.86,  delta: +14.7, unit: "M THB" },
+  },
+  // trend chart x-axis (weekly buckets) - shared across clinics
+  weeks: ["W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8"],
+  clinics: [
+    {
+      name: "SmileWorks Asok", loc: "Sukhumvit, Watthana", accent: "#0e9f9a",
+      status: "ok", statusLabel: "Healthy",
+      calls: 1980, bookings: 542, aiResolved: 78.4, revenue: 1.21,
+      delta: +14.2,
+      spark:  [38, 42, 40, 47, 51, 49, 58, 62],
+      // weekly bookings for the combined trend
+      trend:  [44, 52, 49, 58, 61, 66, 71, 78],
+    },
+    {
+      name: "SmileWorks Thonglor", loc: "Thonglor, Watthana", accent: "#3a6df0",
+      status: "ok", statusLabel: "Healthy",
+      calls: 1745, bookings: 498, aiResolved: 74.1, revenue: 1.08,
+      delta: +9.6,
+      spark:  [40, 39, 44, 46, 45, 52, 55, 59],
+      trend:  [50, 47, 54, 56, 55, 63, 66, 70],
+    },
+    {
+      name: "SmileWorks Ari", loc: "Phahonyothin, Phaya Thai", accent: "#7a5cf0",
+      status: "ok", statusLabel: "Healthy",
+      calls: 1390, bookings: 376, aiResolved: 70.8, revenue: 0.84,
+      delta: +6.3,
+      spark:  [30, 33, 31, 35, 38, 37, 41, 44],
+      trend:  [36, 39, 37, 42, 45, 44, 49, 53],
+    },
+    {
+      name: "SmileWorks Rama 9", loc: "Huai Khwang", accent: "#c4870f",
+      status: "watch", statusLabel: "Watch",
+      calls: 1206, bookings: 318, aiResolved: 64.2, revenue: 0.71,
+      delta: -2.4,
+      spark:  [42, 41, 38, 39, 36, 37, 35, 34],
+      trend:  [50, 49, 46, 47, 44, 45, 43, 41],
+    },
+    {
+      name: "SmileWorks Bangna", loc: "Bang Na, Sukhumvit", accent: "#15a05a",
+      status: "ok", statusLabel: "Healthy",
+      calls: 1142, bookings: 288, aiResolved: 69.5, revenue: 0.66,
+      delta: +5.1,
+      spark:  [26, 28, 30, 29, 33, 35, 34, 38],
+      trend:  [32, 34, 36, 35, 40, 42, 41, 46],
+    },
+    {
+      name: "SmileWorks Pinklao", loc: "Borommaratchachonnani", accent: "#d84e47",
+      status: "down", statusLabel: "Needs review",
+      calls: 957, bookings: 152, aiResolved: 52.8, revenue: 0.36,
+      delta: -11.8,
+      spark:  [40, 37, 33, 34, 28, 27, 24, 22],
+      trend:  [48, 45, 40, 41, 34, 33, 29, 27],
+    },
+  ],
+};
+</script>
+
+<div class="app">
+  <!-- ================= SIDEBAR ================= -->
+  <aside class="side">
+    <div class="brand">
+      <div class="brand-mark">Y</div>
+      <div>
+        <div class="brand-name">Yimwhan</div>
+        <div class="brand-sub">Group console</div>
+      </div>
+    </div>
+
+    <div class="scope" id="scopeBox">
+      <div class="scope-label">Viewing scope</div>
+      <div class="scope-val">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9v.01M9 12v.01M9 15v.01M9 18v.01"/></svg>
+        <span id="scopeName">All clinics</span>
+      </div>
+      <div class="scope-meta" id="scopeMeta"></div>
+    </div>
+
+    <div class="nav-group">Overview</div>
+    <div class="nav-item active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+      Rollup
+    </div>
+    <div class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      Live activity <span class="nav-count">6</span>
+    </div>
+    <div class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
+      Trends
+    </div>
+
+    <div class="nav-group">Branches</div>
+    <div class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 0118 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+      Locations <span class="nav-count">6</span>
+    </div>
+    <div class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 00-4-4H9a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Staff &amp; rooms
+    </div>
+    <div class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      Case inbox <span class="nav-count">23</span>
+    </div>
+
+    <div class="nav-group">Manage</div>
+    <div class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      Bookings
+    </div>
+    <div class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      Settings
+    </div>
+
+    <div class="side-foot">
+      <div class="owner">
+        <div class="owner-av" id="ownerAv">PW</div>
+        <div>
+          <div class="owner-name" id="ownerName">Dr. Pim Wattana</div>
+          <div class="owner-role" id="ownerRole">Group owner</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ================= MAIN ================= -->
+  <div class="main">
+    <header class="topbar">
+      <div class="crumbs">
+        <b id="crumbGroup">SmileWorks Group</b>
+        <span class="sep scope-hide">/</span>
+        <span class="scope-hide" id="crumbScope">All clinics rollup</span>
+      </div>
+      <div class="topbar-spacer" style="flex:1"></div>
+      <div class="seg" role="group" aria-label="Time range">
+        <button aria-pressed="false">7d</button>
+        <button aria-pressed="true">30d</button>
+        <button aria-pressed="false">90d</button>
+      </div>
+      <button class="btn" aria-label="Export">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+        <span class="lbl">Export</span>
+      </button>
+      <button class="btn primary" aria-label="Add branch">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        <span class="lbl">Add branch</span>
+      </button>
+    </header>
+
+    <main class="content">
+      <div class="page-head">
+        <div>
+          <h1 class="page-title">Multi-clinic rollup</h1>
+          <p class="page-desc" id="pageDesc">All branches compared - calls, bookings, AI resolution and revenue</p>
+        </div>
+        <div class="right">
+          <span class="live-tag"><span class="live-dot"></span> Live - synced 2 min ago</span>
+        </div>
+      </div>
+
+      <!-- ===== SUMMARY STRIP (all clinics combined) ===== -->
+      <section class="strip" aria-label="Group totals across all clinics" id="strip"></section>
+
+      <!-- ===== CLINIC CARDS ===== -->
+      <div class="section-head">
+        <h2>Clinics</h2>
+        <span class="hint" id="clinicHint"></span>
+        <div class="right">
+          <span class="live-tag"><span class="cdot" style="--c:var(--green);background:var(--green)"></span> Healthy</span>
+          <span class="live-tag"><span class="cdot" style="background:var(--amber)"></span> Watch</span>
+          <span class="live-tag"><span class="cdot" style="background:var(--red)"></span> Review</span>
+        </div>
+      </div>
+      <section class="cards" id="cards" aria-label="Clinic comparison cards"></section>
+
+      <!-- ===== LEAGUE + TREND ===== -->
+      <div class="split">
+        <!-- league table -->
+        <div class="panel">
+          <div class="panel-head">
+            <h3>League table</h3>
+            <div class="right">
+              <div class="seg" role="group" aria-label="Rank metric" id="leagueSeg">
+                <button data-m="bookings" aria-pressed="true">Bookings</button>
+                <button data-m="aiResolved" aria-pressed="false">AI %</button>
+                <button data-m="revenue" aria-pressed="false">Revenue</button>
+              </div>
+            </div>
+          </div>
+          <table class="league" id="league">
+            <thead>
+              <tr>
+                <th style="width:40px">#</th>
+                <th>Clinic</th>
+                <th class="num" id="metricHead">Bookings</th>
+              </tr>
+            </thead>
+            <tbody id="leagueBody"></tbody>
+          </table>
+          <div class="league-foot">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5Z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            <span id="leagueFoot">Ranked across 6 branches - leader highlighted</span>
+          </div>
+        </div>
+
+        <!-- combined trend -->
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Weekly bookings - all branches</h3>
+            <div class="right">
+              <span class="live-tag" style="font-size:11px">8 weeks</span>
+            </div>
+          </div>
+          <div class="chart-legend" id="legend"></div>
+          <div class="chart-wrap">
+            <svg class="chart-svg" id="trend" viewBox="0 0 760 300" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Weekly bookings trend comparing all clinics"></svg>
+          </div>
+          <div class="chart-note">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0e9f9a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            <span>Asok pulling ahead - Pinklao trending down 4 weeks straight, flagged for review</span>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   RENDER - all charts are hand-built inline SVG with literal
+   hex (never CSS var()) so they capture identically headless.
+   ============================================================ */
+(function () {
+  const fmt   = (n) => n.toLocaleString("en-US");
+  const fmtTHB = (m) => m.toFixed(2);
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const clinics = DATA.clinics;
+
+  /* ---- scope box + owner ---- */
+  document.getElementById("scopeName").textContent = "All clinics (" + clinics.length + ")";
+  document.getElementById("scopeMeta").textContent = DATA.group + " - " + DATA.region;
+  document.getElementById("crumbGroup").textContent = DATA.group;
+  document.getElementById("ownerAv").textContent = DATA.owner.initials;
+  document.getElementById("ownerName").textContent = DATA.owner.name;
+  document.getElementById("ownerRole").textContent = DATA.owner.role;
+  document.getElementById("clinicHint").textContent = clinics.length + " branches - " + DATA.period.toLowerCase();
+  document.getElementById("leagueFoot").textContent = "Ranked across " + clinics.length + " branches - leader highlighted";
+
+  const arrowUp   = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14l5-5 5 5"/></svg>';
+  const arrowDown = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10l5 5 5-5"/></svg>';
+  function deltaTag(d) {
+    const up = d >= 0;
+    return '<span class="delta ' + (up ? 'up' : 'down') + '">' + (up ? arrowUp : arrowDown) +
+           (up ? '+' : '') + d.toFixed(1) + '%</span>';
+  }
+
+  /* ============== SUMMARY STRIP ============== */
+  const dotRing = clinics.map(c =>
+    '<span class="cdot" style="box-shadow:0 0 0 1.5px #fff,0 0 0 2.5px ' + c.accent + '55;background:' + c.accent + '" title="' + c.name + '"></span>'
+  ).join("");
+
+  const s = DATA.summary;
+  const stripCells = [
+    {
+      lead: true,
+      k: "Total calls handled",
+      ico: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92Z"/></svg>',
+      v: fmt(s.calls.value), unit: "", d: s.calls.delta,
+      sub: 'across ' + clinics.length + ' branches', ring: true,
+    },
+    {
+      k: "Total bookings",
+      ico: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M9 16l2 2 4-4"/></svg>',
+      v: fmt(s.bookings.value), unit: "", d: s.bookings.delta, sub: "confirmed appointments",
+    },
+    {
+      k: "AI resolved",
+      ico: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 014 4 4 4 0 011.5 7.7A3.5 3.5 0 0114 20a3.5 3.5 0 01-4 0 3.5 3.5 0 01-3.5-6.3A4 4 0 018 6a4 4 0 014-4Z"/><path d="M12 8v8M9 12h6"/></svg>',
+      v: s.aiResolved.value.toFixed(1), unit: "%", d: s.aiResolved.delta, sub: "no human handoff",
+    },
+    {
+      k: "Group revenue",
+      ico: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>',
+      v: fmtTHB(s.revenue.value), unit: s.revenue.unit, d: s.revenue.delta, sub: "attributed to AI assist",
+    },
+  ];
+
+  document.getElementById("strip").innerHTML = stripCells.map(c => {
+    return '<div class="strip-cell ' + (c.lead ? 'lead' : '') + '">' +
+      '<div class="strip-k"><span class="ico">' + c.ico + '</span>' + c.k + '</div>' +
+      '<div class="strip-v tab">' + c.v + (c.unit ? '<span class="unit">' + c.unit + '</span>' : '') + '</div>' +
+      '<div class="strip-sub">' + deltaTag(c.d) + '<span style="color:var(--ink-4)">vs prev</span>' +
+        (c.ring ? '' : '<span style="margin-left:auto;color:var(--ink-3)">' + c.sub + '</span>') +
+      '</div>' +
+      (c.ring ? '<div class="strip-clinics">' + dotRing + '</div>' : '') +
+    '</div>';
+  }).join("") +
+  /* 5th cell: best/worst snapshot */
+  (function () {
+    const best  = [...clinics].sort((a, b) => b.delta - a.delta)[0];
+    const worst = [...clinics].sort((a, b) => a.delta - b.delta)[0];
+    return '<div class="strip-cell">' +
+      '<div class="strip-k"><span class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 010-5H6m12 5h1.5a2.5 2.5 0 000-5H18M4 22h16M10 14.66V17a2 2 0 11-1.79 1.11M14 14.66V17a2 2 0 101.79 1.11M18 2H6v7a6 6 0 1012 0V2Z"/></svg></span>Movers</div>' +
+      '<div style="margin-top:9px;font-size:12.5px">' +
+        '<div style="display:flex;align-items:center;gap:7px;margin-bottom:7px"><span class="cdot" style="background:' + best.accent + '"></span><b style="font-weight:600">' + best.name.replace("SmileWorks ", "") + '</b>' + deltaTag(best.delta) + '</div>' +
+        '<div style="display:flex;align-items:center;gap:7px"><span class="cdot" style="background:' + worst.accent + '"></span><b style="font-weight:600">' + worst.name.replace("SmileWorks ", "") + '</b>' + deltaTag(worst.delta) + '</div>' +
+      '</div>' +
+    '</div>';
+  })();
+
+  /* ============== SPARKLINE (per card) ============== */
+  function sparkline(vals, color, idx) {
+    const w = 196, h = 38, pad = 3;
+    const min = Math.min(...vals), max = Math.max(...vals);
+    const span = (max - min) || 1;
+    const x = (i) => pad + (i / (vals.length - 1)) * (w - pad * 2);
+    const y = (v) => h - pad - ((v - min) / span) * (h - pad * 2);
+    const pts = vals.map((v, i) => x(i) + "," + y(v).toFixed(1));
+    const line = "M" + pts.join(" L");
+    const area = line + " L" + x(vals.length - 1) + "," + (h - pad) + " L" + x(0) + "," + (h - pad) + " Z";
+    const lastX = x(vals.length - 1), lastY = y(vals[vals.length - 1]);
+    const gid = "spk" + idx;
+    const drawCls = reduced ? "" : "draw";
+    return '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="38" preserveAspectRatio="none" aria-hidden="true">' +
+      '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1">' +
+        '<stop offset="0" stop-color="' + color + '" stop-opacity="0.22"/>' +
+        '<stop offset="1" stop-color="' + color + '" stop-opacity="0"/></linearGradient></defs>' +
+      '<path d="' + area + '" fill="url(#' + gid + ')"/>' +
+      '<path class="' + drawCls + '" d="' + line + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="stroke-dasharray:600;' + (reduced ? '' : 'stroke-dashoffset:600;animation:draw 1.3s ' + (0.2 + idx * 0.08).toFixed(2) + 's cubic-bezier(.6,.05,.25,1) forwards') + '"/>' +
+      '<circle cx="' + lastX.toFixed(1) + '" cy="' + lastY.toFixed(1) + '" r="2.8" fill="' + color + '" stroke="#fff" stroke-width="1.5"/>' +
+    '</svg>';
+  }
+
+  /* ============== CLINIC CARDS ============== */
+  const statusMap = { ok: "st-ok", watch: "st-watch", down: "st-down" };
+  document.getElementById("cards").innerHTML = clinics.map((c, i) => {
+    const pctColor = c.aiResolved >= 70 ? "var(--green)" : c.aiResolved >= 60 ? "var(--amber)" : "var(--red)";
+    const pctBg    = c.aiResolved >= 70 ? "var(--green-50)" : c.aiResolved >= 60 ? "var(--amber-50)" : "var(--red-50)";
+    const riseStyle = reduced ? "" : 'style="animation-delay:' + (i * 0.05).toFixed(2) + 's"';
+    const riseCls   = reduced ? "" : "rise";
+    return '<article class="ccard ' + riseCls + '" tabindex="0" ' + riseStyle + ' style="--accent:' + c.accent + ';' + (reduced ? '' : 'animation-delay:' + (i * 0.05).toFixed(2) + 's') + '">' +
+      '<div class="cc-top">' +
+        '<span class="cc-dot"></span>' +
+        '<div style="min-width:0;flex:1">' +
+          '<div class="cc-name">' + c.name + '</div>' +
+          '<div class="cc-loc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 0118 0Z"/><circle cx="12" cy="10" r="3"/></svg><span class="cc-loc-t" data-lint-ignore>' + c.loc + '</span></div>' +
+        '</div>' +
+        '<span class="cc-status ' + statusMap[c.status] + '"><span class="sd"></span>' + c.statusLabel + '</span>' +
+      '</div>' +
+      '<div class="cc-metrics">' +
+        '<div><div class="ccm-k">Calls</div><div class="ccm-v tab">' + fmt(c.calls) + '</div></div>' +
+        '<div><div class="ccm-k">Bookings</div><div class="ccm-v tab">' + fmt(c.bookings) + '</div></div>' +
+      '</div>' +
+      '<div class="cc-spark">' + sparkline(c.spark, c.accent, i) + '</div>' +
+      '<div class="cc-foot">' +
+        '<div class="cc-ai">AI resolved <b class="tab">' + c.aiResolved.toFixed(1) + '%</b></div>' +
+        '<span class="cc-pct tab" style="color:' + pctColor + ';background:' + pctBg + '">' + deltaInline(c.delta) + '</span>' +
+      '</div>' +
+    '</article>';
+  }).join("");
+
+  function deltaInline(d) {
+    return (d >= 0 ? "+" : "") + d.toFixed(1) + "%";
+  }
+
+  /* ============== LEAGUE TABLE ============== */
+  const metricMeta = {
+    bookings:   { label: "Bookings",  fmt: (c) => fmt(c.bookings),                color: "#0e9f9a", get: (c) => c.bookings },
+    aiResolved: { label: "AI %",      fmt: (c) => c.aiResolved.toFixed(1) + "%",   color: "#3a6df0", get: (c) => c.aiResolved },
+    revenue:    { label: "Revenue",   fmt: (c) => c.revenue.toFixed(2) + "M",      color: "#7a5cf0", get: (c) => c.revenue },
+  };
+
+  function renderLeague(metric) {
+    const meta = metricMeta[metric];
+    const sorted = [...clinics].sort((a, b) => meta.get(b) - meta.get(a));
+    const maxV = meta.get(sorted[0]);
+    document.getElementById("metricHead").textContent = meta.label;
+
+    document.getElementById("leagueBody").innerHTML = sorted.map((c, i) => {
+      const pct = (meta.get(c) / maxV) * 100;
+      const leader = i === 0;
+      const crown = leader ? '<svg class="crown" viewBox="0 0 24 24" fill="currentColor"><path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5Zm0 3h14v2H5v-2Z"/></svg>' : '';
+      return '<tr class="' + (leader ? 'leader' : '') + '">' +
+        '<td><span class="rank">' + (i + 1) + '</span></td>' +
+        '<td>' +
+          '<div class="lname"><span class="ld" style="background:' + c.accent + '"></span>' +
+            '<div><b>' + c.name.replace("SmileWorks ", "SmileWorks ") + crown + '</b><br><span>' + c.loc + '</span></div>' +
+          '</div>' +
+        '</td>' +
+        '<td class="num">' +
+          '<div class="bar-wrap">' +
+            '<div class="bar-track"><div class="bar-fill" style="width:' + (reduced ? pct.toFixed(1) : '0') + '%;background:' + c.accent + '" data-w="' + pct.toFixed(1) + '"></div></div>' +
+            '<span class="bar-val tab">' + meta.fmt(c) + '</span>' +
+          '</div>' +
+        '</td>' +
+      '</tr>';
+    }).join("");
+
+    // animate bars
+    if (!reduced) {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        document.querySelectorAll("#leagueBody .bar-fill").forEach((el, i) => {
+          el.style.transition = "width .8s cubic-bezier(.5,.1,.2,1) " + (i * 0.06).toFixed(2) + "s";
+          el.style.width = el.dataset.w + "%";
+        });
+      }));
+    }
+  }
+  renderLeague("bookings");
+
+  document.querySelectorAll("#leagueSeg button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("#leagueSeg button").forEach(b => b.setAttribute("aria-pressed", "false"));
+      btn.setAttribute("aria-pressed", "true");
+      renderLeague(btn.dataset.m);
+    });
+  });
+
+  /* ============== COMBINED TREND CHART ============== */
+  (function trend() {
+    const W = 760, H = 300;
+    const ml = 38, mr = 16, mt = 18, mb = 34;
+    const iw = W - ml - mr, ih = H - mt - mb;
+    const weeks = DATA.weeks;
+    const all = clinics.flatMap(c => c.trend);
+    const yMax = Math.ceil(Math.max(...all) / 10) * 10;
+    const yMin = 0;
+    const xAt = (i) => ml + (i / (weeks.length - 1)) * iw;
+    const yAt = (v) => mt + ih - ((v - yMin) / (yMax - yMin)) * ih;
+
+    let svg = "";
+
+    // gridlines + y labels
+    const ticks = 4;
+    for (let t = 0; t <= ticks; t++) {
+      const val = (yMax / ticks) * t;
+      const yy = yAt(val);
+      svg += '<line x1="' + ml + '" y1="' + yy.toFixed(1) + '" x2="' + (W - mr) + '" y2="' + yy.toFixed(1) + '" stroke="#eef2f8" stroke-width="1"/>';
+      svg += '<text x="' + (ml - 8) + '" y="' + (yy + 3.5).toFixed(1) + '" text-anchor="end" font-size="10.5" fill="#98a2b6" font-family="Inter, sans-serif" font-weight="500">' + Math.round(val) + '</text>';
+    }
+    // x labels
+    weeks.forEach((wk, i) => {
+      svg += '<text x="' + xAt(i).toFixed(1) + '" y="' + (H - 12) + '" text-anchor="middle" font-size="10.5" fill="#98a2b6" font-family="Inter, sans-serif" font-weight="500">' + wk + '</text>';
+    });
+
+    // series lines
+    clinics.forEach((c, ci) => {
+      const pts = c.trend.map((v, i) => xAt(i).toFixed(1) + "," + yAt(v).toFixed(1));
+      const path = "M" + pts.join(" L");
+      const dim = (c.status === "down" || c.status === "watch") ? 1 : 0;
+      const sw = dim ? 2.2 : 2.4;
+      const drawStyle = reduced ? "" :
+        ' style="stroke-dasharray:900;stroke-dashoffset:900;animation:draw 1.4s ' + (0.2 + ci * 0.1).toFixed(2) + 's cubic-bezier(.6,.05,.25,1) forwards"';
+      svg += '<path d="' + path + '" fill="none" stroke="' + c.accent + '" stroke-width="' + sw + '" stroke-linecap="round" stroke-linejoin="round"' + (dim ? ' stroke-dasharray="' + (reduced ? '5 4' : '') + '"' : '') + drawStyle + ' opacity="' + (dim ? 0.92 : 1) + '"/>';
+      // endpoint marker
+      const lx = xAt(c.trend.length - 1), ly = yAt(c.trend[c.trend.length - 1]);
+      svg += '<circle cx="' + lx.toFixed(1) + '" cy="' + ly.toFixed(1) + '" r="3.4" fill="' + c.accent + '" stroke="#ffffff" stroke-width="1.6"' +
+        (reduced ? '' : ' style="opacity:0;animation:rise .4s ' + (1.1 + ci * 0.08).toFixed(2) + 's forwards"') + '/>';
+    });
+
+    document.getElementById("trend").innerHTML = svg;
+
+    // legend with final value
+    document.getElementById("legend").innerHTML = clinics.map(c => {
+      const last = c.trend[c.trend.length - 1];
+      return '<span class="leg"><span class="swatch" style="background:' + c.accent + '"></span>' +
+        c.name.replace("SmileWorks ", "") + '<span class="lv tab">' + last + '</span></span>';
+    }).join("");
+  })();
+
+})();
+</script>
+</body>
+</html>

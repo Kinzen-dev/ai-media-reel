@@ -1,0 +1,804 @@
+<!-- TEMPLATE: Living Note Case Inbox | ARCHETYPE: living-note hand-drawn case inbox | REF: hand-drawn notebook UI, handwriting fonts, calm minimal helpdesk, journal-entry conversations | WHEN TO USE: calm hand-drawn admin inbox where AI-captured voice/LINE conversations read as handwritten meeting notes with margin annotations | SWAP: edit the CASES DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Living Note - Case Inbox</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Kalam:wght@400;700&family=Nunito+Sans:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   LIVING NOTE - CASE INBOX
+   Native CSS / SVG / JS only. Warm paper + ink + hand-drawn.
+   ============================================================ */
+:root{
+  --paper:#f7f3ea;
+  --paper-2:#fbf8f1;
+  --paper-edge:#efe8d8;
+  --ink:#2a2722;
+  --ink-soft:#6a6358;
+  --ink-faint:#9a9183;
+  --rule:#e4dccb;
+  --sage:#7c8a6e;
+  --sage-soft:#e6ebdd;
+  --terra:#c47b5a;
+  --terra-soft:#f1e0d4;
+  --line-green:#3aa86b;
+  --voice-blue:#5b86c4;
+  --amber:#c79a3a;
+  --shadow:rgba(42,39,34,.10);
+  --focus:#c47b5a;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+html{-webkit-text-size-adjust:100%;}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"Nunito Sans",system-ui,-apple-system,sans-serif;
+  font-size:15px;
+  line-height:1.6;
+  overflow-x:hidden;
+  /* faint paper grain */
+  background-image:
+    radial-gradient(circle at 12% 18%, rgba(196,123,90,.025) 0, transparent 40%),
+    radial-gradient(circle at 88% 78%, rgba(124,138,110,.03) 0, transparent 45%);
+}
+.hand{font-family:"Caveat",cursive;}
+.hand-body{font-family:"Kalam",cursive;}
+
+/* ---- subtle hand-drawn wobble filter applied to borders/rules ---- */
+.wobble{filter:url(#wobble);}
+
+/* ============================== SHELL ============================== */
+.app{
+  max-width:1440px;
+  margin:0 auto;
+  min-height:100vh;
+  padding:22px 26px 40px;
+  display:flex;
+  flex-direction:column;
+}
+@media (max-width:640px){
+  .app{padding:14px 14px 28px;}
+}
+
+/* ---- top band: compact, leaves the two-pane visible at scroll=0 ---- */
+.band{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:18px;
+  padding:2px 4px 16px;
+  border-bottom:2px solid var(--rule);
+  margin-bottom:18px;
+  flex-wrap:wrap;
+}
+.band .mark{display:flex;align-items:center;gap:12px;min-width:0;}
+.band .logo{
+  width:42px;height:42px;flex:0 0 auto;
+  border:2px solid var(--ink);border-radius:50% 48% 52% 50%;
+  display:grid;place-items:center;background:var(--paper-2);
+}
+.band h1{
+  font-family:"Caveat",cursive;
+  font-size:34px;font-weight:700;line-height:.95;margin:0;
+  color:var(--ink);letter-spacing:.3px;
+}
+.band .sub{
+  font-family:"Kalam",cursive;
+  font-size:13px;color:var(--ink-soft);margin-top:1px;
+}
+.band .meta{
+  display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  font-size:12px;color:var(--ink-soft);
+}
+.band .meta .stat{display:flex;flex-direction:column;align-items:flex-end;line-height:1.15;}
+.band .meta .stat b{font-family:"Caveat",cursive;font-size:24px;color:var(--ink);font-weight:700;}
+.band .meta .stat span{font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-faint);}
+@media (max-width:640px){
+  .band h1{font-size:27px;}
+  .band .meta{gap:14px;}
+  .band .meta .stat b{font-size:20px;}
+}
+
+/* ============================== PANES ============================== */
+.panes{
+  display:grid;
+  grid-template-columns:312px 1fr;
+  gap:26px;
+  flex:1 1 auto;
+  min-height:0;
+  align-items:start;
+}
+@media (max-width:980px){
+  .panes{grid-template-columns:268px 1fr;gap:18px;}
+}
+
+/* ----- LEFT: notes-style case list ----- */
+.list{
+  min-width:0;
+  background:var(--paper-2);
+  border:2px solid var(--rule);
+  border-radius:14px 13px 14px 12px;
+  padding:14px 12px 16px;
+  box-shadow:0 2px 0 var(--paper-edge), 0 10px 26px -22px var(--shadow);
+  position:relative;
+}
+.list-head{
+  display:flex;align-items:baseline;justify-content:space-between;gap:8px;
+  padding:2px 6px 10px;min-width:0;
+}
+.list-head .t{font-family:"Caveat",cursive;font-size:22px;font-weight:700;line-height:1;}
+.list-head .c{
+  font-family:"Kalam",cursive;font-size:11.5px;color:var(--ink-faint);
+  white-space:nowrap;
+}
+.list-rule{height:0;border-top:1.5px dashed var(--rule);margin:0 4px 6px;}
+
+ul.cases{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;}
+li.case{
+  position:relative;
+  display:flex;gap:11px;align-items:flex-start;
+  padding:11px 9px 12px;
+  border-radius:10px;
+  cursor:pointer;
+  min-width:0;
+  transition:background .18s ease, transform .18s ease;
+  border:1.5px solid transparent;
+}
+li.case:hover{background:#fffdf7;}
+li.case.active{
+  background:#fffdf7;
+  border-color:var(--paper-edge);
+  box-shadow:inset 3px 0 0 var(--terra);
+}
+li.case:focus-visible{outline:2.5px solid var(--focus);outline-offset:2px;}
+li.case + li.case{border-top:1px solid var(--rule);border-radius:0 0 10px 10px;}
+li.case + li.case{padding-top:12px;}
+
+.case .chan{
+  flex:0 0 auto;width:30px;height:30px;border-radius:50% 47% 50% 48%;
+  display:grid;place-items:center;margin-top:1px;
+  border:1.6px solid currentColor;background:var(--paper-2);
+}
+.case .chan.line{color:var(--line-green);}
+.case .chan.voice{color:var(--voice-blue);}
+.case .body{min-width:0;flex:1 1 auto;}
+.case .name-row{display:flex;align-items:baseline;gap:8px;min-width:0;}
+.case .name{
+  font-family:"Caveat",cursive;font-size:20px;font-weight:700;line-height:1.05;
+  color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  min-width:0;flex:1 1 auto;
+}
+.case .time{font-size:10.5px;color:var(--ink-faint);white-space:nowrap;flex:0 0 auto;}
+.case .snip{
+  font-size:12.5px;color:var(--ink-soft);line-height:1.4;margin-top:2px;
+  display:-webkit-box;-webkit-line-clamp:1;line-clamp:1;-webkit-box-orient:vertical;
+  overflow:hidden;
+}
+.case .tags{display:flex;align-items:center;gap:6px;margin-top:7px;flex-wrap:wrap;}
+.pill{
+  font-size:10.5px;font-weight:700;letter-spacing:.2px;
+  padding:2.5px 8px;border-radius:20px;white-space:nowrap;
+  border:1.4px solid;line-height:1.3;
+}
+.pill.booked{color:#4d7a52;border-color:#bcd2b6;background:var(--sage-soft);}
+.pill.escal{color:#b25a3c;border-color:#e3bda9;background:var(--terra-soft);}
+.pill.captured{color:#9a7716;border-color:#e3d09a;background:#f5ebcf;}
+.pill.open{color:var(--ink-soft);border-color:var(--rule);background:#fff;}
+.case .unread{
+  position:absolute;right:9px;top:14px;width:8px;height:8px;border-radius:50%;
+  background:var(--terra);box-shadow:0 0 0 3px var(--terra-soft);
+}
+
+/* ----- RIGHT: conversation as handwritten meeting notes ----- */
+.note{
+  min-width:0;
+  background:var(--paper-2);
+  border:2px solid var(--rule);
+  border-radius:14px 12px 14px 13px;
+  box-shadow:0 2px 0 var(--paper-edge), 0 16px 40px -30px var(--shadow);
+  position:relative;
+  overflow:hidden;
+}
+/* red margin line + faint ruled feel */
+.note::before{
+  content:"";position:absolute;top:0;bottom:0;left:64px;width:1.5px;
+  background:rgba(196,123,90,.28);pointer-events:none;
+}
+@media (max-width:640px){.note::before{left:34px;}}
+
+.note-head{
+  display:flex;align-items:flex-start;gap:14px;
+  padding:20px 26px 16px 84px;
+  border-bottom:1.5px dashed var(--rule);
+  min-width:0;position:relative;
+}
+@media (max-width:640px){.note-head{padding:16px 16px 14px 50px;}}
+.note-head .who{min-width:0;flex:1 1 auto;}
+.note-head .who h2{
+  font-family:"Caveat",cursive;font-size:32px;font-weight:700;margin:0;line-height:1;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.note-head .who .line2{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  font-family:"Kalam",cursive;font-size:12.5px;color:var(--ink-soft);margin-top:5px;
+}
+.note-head .who .chan-tag{display:inline-flex;align-items:center;gap:5px;}
+.note-head .who .chan-tag svg{width:15px;height:15px;}
+.note-head .back{
+  display:none;flex:0 0 auto;
+  font-family:"Kalam",cursive;font-size:13px;color:var(--ink);
+  background:#fff;border:1.6px solid var(--rule);border-radius:18px;
+  padding:5px 12px 5px 9px;cursor:pointer;align-items:center;gap:5px;
+}
+.note-head .back:focus-visible{outline:2.5px solid var(--focus);outline-offset:2px;}
+
+/* the conversation body + margin annotations live in a 2-col grid */
+.note-body{
+  display:grid;
+  grid-template-columns:1fr 184px;
+  gap:0 22px;
+  padding:18px 26px 26px 84px;
+  min-width:0;
+}
+@media (max-width:980px){.note-body{grid-template-columns:1fr 150px;gap:0 14px;}}
+@media (max-width:640px){
+  .note-body{grid-template-columns:1fr;padding:14px 16px 22px 50px;}
+}
+
+.thread{min-width:0;display:flex;flex-direction:column;}
+.turn{display:flex;flex-direction:column;padding:9px 0;min-width:0;position:relative;}
+.turn + .turn{border-top:1px dotted var(--rule);}
+
+/* speaker label, handwritten */
+.turn .spk{
+  font-family:"Caveat",cursive;font-weight:700;font-size:18px;line-height:1;
+  margin-bottom:3px;display:flex;align-items:center;gap:8px;min-width:0;
+}
+.turn .spk .t{font-size:10px;font-family:"Nunito Sans";color:var(--ink-faint);font-weight:600;letter-spacing:.4px;}
+.turn.patient .spk{color:var(--terra);}
+.turn.ai .spk{color:var(--sage);}
+.turn .said{
+  font-family:"Kalam",cursive;font-size:14.5px;line-height:1.55;color:var(--ink);
+  overflow-wrap:anywhere;word-break:break-word;min-width:0;
+}
+
+/* LINE chat rendered as soft note bubbles */
+.thread.line .turn{padding:7px 0;}
+.thread.line .said{
+  display:inline-block;max-width:100%;
+  padding:8px 13px;border-radius:14px 14px 14px 4px;
+  background:#fff;border:1.4px solid var(--rule);
+  box-shadow:0 1px 0 var(--paper-edge);
+}
+.thread.line .turn.patient{align-items:flex-start;}
+.thread.line .turn.ai{align-items:flex-end;}
+.thread.line .turn.ai .said{
+  border-radius:14px 14px 4px 14px;
+  background:var(--sage-soft);border-color:#cdd8bd;
+}
+.thread.line .turn.ai .spk{flex-direction:row-reverse;}
+
+/* voice transcript: tidy, timestamped lines */
+.thread.voice .turn{padding:8px 0;}
+.thread.voice .ts{
+  font-size:10px;color:var(--ink-faint);font-family:"Nunito Sans";font-weight:600;
+  letter-spacing:.4px;margin-bottom:2px;
+}
+
+/* a small inline voice-clip strip on the voice header turn */
+.clip{
+  display:flex;align-items:center;gap:10px;margin:4px 0 10px;
+  padding:9px 12px;border:1.5px dashed var(--rule);border-radius:12px;
+  background:#fff;min-width:0;
+}
+.clip .play{
+  flex:0 0 auto;width:30px;height:30px;border-radius:50%;
+  border:1.6px solid var(--voice-blue);color:var(--voice-blue);
+  background:var(--paper-2);display:grid;place-items:center;cursor:pointer;
+}
+.clip .play:focus-visible{outline:2.5px solid var(--focus);outline-offset:2px;}
+.clip .wave{flex:1 1 auto;min-width:0;height:26px;display:block;
+  -webkit-mask-image:linear-gradient(to right,transparent,#000 6%,#000 94%,transparent);
+          mask-image:linear-gradient(to right,transparent,#000 6%,#000 94%,transparent);
+}
+.clip .dur{flex:0 0 auto;font-family:"Kalam",cursive;font-size:12px;color:var(--ink-soft);}
+
+/* ---- MARGIN ANNOTATIONS (the signature: AI actions handwritten) ---- */
+.margin{min-width:0;display:flex;flex-direction:column;gap:14px;padding-top:6px;}
+@media (max-width:640px){.margin{order:-1;padding-top:0;padding-bottom:6px;}}
+.anno{
+  position:relative;min-width:0;
+  font-family:"Caveat",cursive;
+  padding:11px 13px 12px 14px;
+  border:1.6px solid var(--rule);
+  border-radius:12px 11px 13px 12px;
+  background:#fffdf7;
+  box-shadow:0 1px 0 var(--paper-edge);
+}
+.anno::before{
+  /* hand-drawn connector arrow into the thread */
+  content:"";position:absolute;left:-22px;top:18px;width:22px;height:14px;
+  border-bottom:1.6px solid var(--ink-faint);
+  border-left:1.6px solid var(--ink-faint);
+  border-radius:0 0 0 10px;opacity:.5;
+}
+@media (max-width:640px){.anno::before{display:none;}}
+.anno .k{
+  display:flex;align-items:center;gap:7px;
+  font-size:11px;font-family:"Nunito Sans";font-weight:700;letter-spacing:.6px;
+  text-transform:uppercase;margin-bottom:4px;
+}
+.anno .k svg{width:16px;height:16px;flex:0 0 auto;}
+.anno .v{font-size:18px;line-height:1.2;font-weight:600;color:var(--ink);overflow-wrap:anywhere;}
+.anno .v .em{color:var(--terra);}
+.anno.booked .k{color:var(--sage);}
+.anno.captured .k{color:var(--amber);}
+.anno.escal .k{color:var(--terra);}
+.anno.note .k{color:var(--ink-soft);}
+.anno .stamp{
+  position:absolute;right:9px;bottom:7px;font-size:10px;color:var(--ink-faint);
+  font-family:"Nunito Sans";font-weight:600;
+}
+
+/* margin section label */
+.margin .ml{
+  font-family:"Caveat",cursive;font-size:18px;color:var(--ink-faint);
+  font-weight:700;line-height:1;padding-left:2px;transform:rotate(-1.2deg);
+}
+
+/* a soft clinic-photo "pinned polaroid" footer detail in note head area */
+.pin{
+  position:absolute;right:18px;top:14px;width:64px;height:62px;
+  transform:rotate(3deg);
+  background:#fff;padding:4px 4px 12px;border-radius:3px;
+  box-shadow:0 6px 14px -8px var(--shadow);border:1px solid var(--paper-edge);
+}
+.pin img{width:100%;height:100%;object-fit:cover;border-radius:2px;display:block;}
+.pin::after{
+  content:"";position:absolute;left:50%;top:-7px;transform:translateX(-50%) rotate(-4deg);
+  width:22px;height:11px;background:rgba(196,123,90,.32);border-radius:2px;
+}
+@media (max-width:1100px){.pin{display:none;}}
+
+/* footer strip */
+.foot{
+  margin-top:18px;padding:10px 8px 0;border-top:1.5px dashed var(--rule);
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  font-family:"Kalam",cursive;font-size:12px;color:var(--ink-faint);
+}
+.foot .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--line-green);margin-right:6px;vertical-align:middle;}
+
+/* mobile: stack panes (NOTE first so the living-note signature peeks at scroll=0, LIST below) */
+.note{display:block;}
+@media (max-width:760px){
+  .panes{grid-template-columns:1fr;}
+  /* both panes always visible; selected note on top carries the signature into the first screen */
+  .panes > .note{order:-1;}
+  .panes > .list{order:0;}
+  body.viewing .panes > .list,
+  body:not(.viewing) .panes > .note{display:block;}
+  .note-head .back{display:none;}
+  .pin{display:none;}
+}
+
+@media (prefers-reduced-motion:reduce){
+  *{transition:none !important;animation:none !important;}
+  .wobble{filter:none !important;}
+}
+</style>
+</head>
+<body class="viewing">
+
+<!-- inline SVG defs: subtle hand-drawn wobble displacement + icons -->
+<svg width="0" height="0" aria-hidden="true" style="position:absolute">
+  <filter id="wobble" x="-2%" y="-2%" width="104%" height="104%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.012 0.014" numOctaves="2" seed="7" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</svg>
+
+<div class="app">
+
+  <!-- ====================== TOP BAND ====================== -->
+  <header class="band">
+    <div class="mark">
+      <span class="logo wobble" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2a2722" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 19c1.5-2 3-9 4-13 .4 4 1.2 9 2 11 .6-1.5 1.4-3 2.5-3 1 0 1.4 1.3 2 1.3"/>
+          <path d="M3.5 20.5c4-1 11-1 17 0"/>
+        </svg>
+      </span>
+      <div style="min-width:0">
+        <h1>Living Note</h1>
+        <div class="sub">Yimwhan dental backoffice - AI captures, books, escalates</div>
+      </div>
+    </div>
+    <div class="meta">
+      <div class="stat"><b id="kpiOpen">3</b><span>open</span></div>
+      <div class="stat"><b id="kpiBooked">2</b><span>booked today</span></div>
+      <div class="stat"><b id="kpiEscal">1</b><span>escalated</span></div>
+    </div>
+  </header>
+
+  <!-- ====================== TWO PANES ====================== -->
+  <div class="panes">
+
+    <!-- LEFT: case list -->
+    <aside class="list" aria-label="Case inbox">
+      <div class="list-head">
+        <span class="t">Cases</span>
+        <span class="c" id="listCount">today &middot; 6 notes</span>
+      </div>
+      <div class="list-rule"></div>
+      <ul class="cases" id="caseList" role="listbox" aria-label="Conversations"></ul>
+    </aside>
+
+    <!-- RIGHT: selected conversation as handwritten meeting notes -->
+    <section class="note" aria-live="polite">
+      <div class="note-head">
+        <button class="back" id="backBtn" aria-label="Back to case list">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2a2722" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          notes
+        </button>
+        <div class="who">
+          <h2 id="noteName">-</h2>
+          <div class="line2" id="noteMeta"></div>
+        </div>
+        <figure class="pin" aria-hidden="true">
+          <img src="../assets/flux-clinic-4k.png" alt="" loading="lazy" />
+        </figure>
+      </div>
+      <div class="note-body">
+        <div class="thread" id="thread"></div>
+        <aside class="margin" id="margin" aria-label="AI actions"></aside>
+      </div>
+    </section>
+
+  </div>
+
+  <footer class="foot">
+    <span><span class="dot"></span>น้องยิ้มหวาน AI &middot; listening on voice + LINE</span>
+    <span>handwritten by the assistant, verbatim &middot; THB</span>
+  </footer>
+</div>
+
+<script>
+/* ============================================================
+   DATA  ->  swap these objects to repopulate the whole inbox.
+   channel: "line" | "voice"
+   status:  booked | escalated | captured | open
+   thread turns: {who:"patient"|"ai", t?:timestamp, text}
+   margin: AI actions as handwritten annotations
+   ============================================================ */
+const CASES = [
+  {
+    id:"c1",
+    name:"คุณนภัสสร",
+    channel:"voice",
+    time:"14:22",
+    status:"booked",
+    snippet:"จองอุดฟัน พฤหัส 10 โมง, เก็บเบอร์ไว้แล้ว",
+    unread:true,
+    sub:"Voice call &middot; 2 min 14 sec &middot; +66 81 234 5xxx",
+    clip:true,
+    turns:[
+      {who:"patient", t:"00:03", text:"สวัสดีค่ะ พอดีฟันกรามล่างขวามันเสียวเวลาเคี้ยว อยากนัดเข้ามาดูหน่อยค่ะ"},
+      {who:"ai", t:"00:09", text:"ได้เลยค่ะ น้องยิ้มหวานช่วยดูคิวให้นะคะ อาการเสียวฟันเป็นมากี่วันแล้วคะ"},
+      {who:"patient", t:"00:15", text:"ประมาณสามวันค่ะ ยังพอทนได้ แต่กลัวมันลาม"},
+      {who:"ai", t:"00:21", text:"เข้าใจค่ะ มีคิวอุดฟันว่างวันพฤหัส 10 โมงเช้า กับวันศุกร์บ่ายสองค่ะ สะดวกวันไหนดีคะ"},
+      {who:"patient", t:"00:34", text:"เอาพฤหัส 10 โมงค่ะ"},
+      {who:"ai", t:"00:38", text:"จองให้เรียบร้อยแล้วนะคะ ขอเบอร์ติดต่อกลับด้วยค่ะ เผื่อหมอเลื่อนคิว"},
+      {who:"patient", t:"00:45", text:"081 234 5678 ค่ะ"},
+      {who:"ai", t:"00:52", text:"รับทราบค่ะ เดี๋ยวส่ง SMS ยืนยันนัดไปที่เบอร์นี้นะคะ ขอบคุณค่ะ"}
+    ],
+    margin:[
+      {kind:"booked", label:"booked", icon:"cal", value:"อุดฟัน &middot; <span class='em'>พฤหัส 10:00</span>", stamp:"auto"},
+      {kind:"captured", label:"phone captured", icon:"phone", value:"081 234 5678", stamp:"verified"},
+      {kind:"note", label:"note", icon:"pen", value:"เสียวฟันกรามล่างขวา 3 วัน", stamp:"AI"}
+    ]
+  },
+  {
+    id:"c2",
+    name:"คุณธีรภัทร",
+    channel:"line",
+    time:"13:48",
+    status:"escalated",
+    snippet:"ปวดบวมหลังถอนฟันคุด อยากคุยหมอด่วน",
+    unread:true,
+    sub:"LINE chat &middot; 6 messages &middot; escalated to หมอแนน",
+    clip:false,
+    turns:[
+      {who:"patient", text:"พี่ครับ ผมถอนฟันคุดไปเมื่อวาน วันนี้แก้มบวมแล้วก็ปวดตุบ ๆ มากเลยครับ"},
+      {who:"ai", text:"สวัสดีค่ะ คุณธีรภัทร น้องยิ้มหวานขอถามนิดนึงนะคะ มีไข้ หรือกลืนน้ำลายลำบากไหมคะ"},
+      {who:"patient", text:"มีไข้นิดหน่อยครับ ตอนเช้าวัดได้ 37.9 กลืนก็เริ่มเจ็บ"},
+      {who:"ai", text:"อาการแบบนี้ควรให้หมอดูโดยเร็วค่ะ น้องยิ้มหวานส่งเคสให้หมอแนนแล้วนะคะ ระหว่างรอ ประคบเย็นไว้ก่อนได้ค่ะ"},
+      {who:"patient", text:"ขอบคุณมากครับ รอหมอติดต่อกลับเลยนะครับ"},
+      {who:"ai", text:"ได้ค่ะ หมอจะติดต่อกลับภายใน 30 นาที ถ้าอาการแย่ลงหรือหายใจลำบาก ให้ไปห้องฉุกเฉินทันทีนะคะ"}
+    ],
+    margin:[
+      {kind:"escal", label:"escalated", icon:"flag", value:"ส่งต่อ <span class='em'>หมอแนน</span> &middot; ด่วน", stamp:"13:51"},
+      {kind:"note", label:"flag", icon:"pen", value:"ไข้ 37.9 + บวม post-extraction", stamp:"AI"},
+      {kind:"captured", label:"safety reply", icon:"phone", value:"แนะนำ ER ถ้าหายใจลำบาก", stamp:"sent"}
+    ]
+  },
+  {
+    id:"c3",
+    name:"คุณพิมพ์ชนก",
+    channel:"line",
+    time:"13:10",
+    status:"booked",
+    snippet:"ขอนัดขูดหินปูน + ราคาฟอกสีฟัน",
+    unread:false,
+    sub:"LINE chat &middot; 5 messages",
+    clip:false,
+    turns:[
+      {who:"patient", text:"สวัสดีค่ะ อยากนัดขูดหินปูน แล้วก็อยากทราบราคาฟอกสีฟันด้วยค่ะ"},
+      {who:"ai", text:"สวัสดีค่ะ ขูดหินปูนพร้อมตรวจสุขภาพช่องปาก 800 บาทค่ะ ฟอกสีฟันแบบในคลินิกเริ่มต้น 3,500 บาทค่ะ"},
+      {who:"patient", text:"งั้นขอนัดขูดหินปูนก่อนค่ะ เสาร์นี้ได้ไหมคะ"},
+      {who:"ai", text:"เสาร์นี้มีคิว 11 โมง กับบ่าย 3 ค่ะ สะดวกช่วงไหนดีคะ"},
+      {who:"patient", text:"บ่าย 3 ค่ะ"},
+      {who:"ai", text:"จองขูดหินปูน เสาร์ บ่าย 3 ให้แล้วนะคะ แล้วเจอกันค่ะ"}
+    ],
+    margin:[
+      {kind:"booked", label:"booked", icon:"cal", value:"ขูดหินปูน &middot; <span class='em'>เสาร์ 15:00</span>", stamp:"auto"},
+      {kind:"captured", label:"quoted", icon:"phone", value:"ฟอกสีฟัน เริ่ม 3,500 THB", stamp:"AI"}
+    ]
+  },
+  {
+    id:"c4",
+    name:"คุณกิตติพงศ์",
+    channel:"voice",
+    time:"12:36",
+    status:"captured",
+    snippet:"ถามที่จอดรถ + เวลาเปิด, ฝากเบอร์ไว้",
+    unread:false,
+    sub:"Voice call &middot; 1 min 02 sec &middot; +66 89 887 6xxx",
+    clip:true,
+    turns:[
+      {who:"patient", t:"00:02", text:"คลินิกมีที่จอดรถไหมครับ แล้ววันอาทิตย์เปิดกี่โมง"},
+      {who:"ai", t:"00:07", text:"มีที่จอดรถหน้าคลินิกค่ะ จอดได้ 4 คัน วันอาทิตย์เปิด 10 โมงถึง 4 โมงเย็นค่ะ"},
+      {who:"patient", t:"00:15", text:"โอเคครับ เดี๋ยวผมปรึกษาที่บ้านก่อน ฝากเบอร์ไว้ได้ไหม เผื่อมีโปร"},
+      {who:"ai", t:"00:23", text:"ได้ค่ะ ขอเบอร์ติดต่อด้วยนะคะ"},
+      {who:"patient", t:"00:27", text:"089 887 6543 ครับ"},
+      {who:"ai", t:"00:31", text:"รับทราบค่ะ เก็บเบอร์ไว้ให้แล้ว ถ้ามีโปรโมชั่นจะแจ้งไปนะคะ ขอบคุณค่ะ"}
+    ],
+    margin:[
+      {kind:"captured", label:"phone captured", icon:"phone", value:"089 887 6543", stamp:"opt-in"},
+      {kind:"note", label:"note", icon:"pen", value:"สนใจโปร &middot; ยังไม่ตัดสินใจ", stamp:"AI"}
+    ]
+  },
+  {
+    id:"c5",
+    name:"คุณอรพรรณ",
+    channel:"line",
+    time:"11:54",
+    status:"open",
+    snippet:"สอบถามจัดฟันใส ราคา + ระยะเวลา",
+    unread:false,
+    sub:"LINE chat &middot; 4 messages",
+    clip:false,
+    turns:[
+      {who:"patient", text:"สนใจจัดฟันแบบใสค่ะ ราคาเท่าไหร่ แล้วใช้เวลานานไหมคะ"},
+      {who:"ai", text:"จัดฟันใสที่คลินิกเริ่มต้น 45,000 บาทค่ะ ระยะเวลาประมาณ 12 ถึง 18 เดือน ขึ้นกับเคสค่ะ"},
+      {who:"patient", text:"ต้องเอ็กซเรย์ก่อนไหมคะ"},
+      {who:"ai", text:"ต้องถ่ายภาพเอ็กซเรย์และพิมพ์ปากในนัดปรึกษาแรกค่ะ ค่าปรึกษา 500 บาท หักออกถ้าตัดสินใจทำค่ะ ต้องการนัดปรึกษาไหมคะ"}
+    ],
+    margin:[
+      {kind:"captured", label:"quoted", icon:"phone", value:"จัดฟันใส เริ่ม 45,000 THB", stamp:"AI"},
+      {kind:"note", label:"awaiting", icon:"pen", value:"รอลูกค้าตอบนัดปรึกษา", stamp:"open"}
+    ]
+  },
+  {
+    id:"c6",
+    name:"คุณสมชาย",
+    channel:"voice",
+    time:"10:31",
+    status:"open",
+    snippet:"เลื่อนนัดตรวจฟันลูก จากเสาร์เป็นอาทิตย์",
+    unread:false,
+    sub:"Voice call &middot; 0 min 48 sec",
+    clip:true,
+    turns:[
+      {who:"patient", t:"00:02", text:"ขอเลื่อนนัดตรวจฟันลูกหน่อยครับ จากเสาร์เป็นอาทิตย์ได้ไหม"},
+      {who:"ai", t:"00:08", text:"ได้ค่ะ ขอชื่อคนไข้และเวลานัดเดิมด้วยนะคะ"},
+      {who:"patient", t:"00:13", text:"น้องปุณณ์ครับ เดิมนัดเสาร์ 9 โมง"},
+      {who:"ai", t:"00:19", text:"พบนัดแล้วค่ะ อาทิตย์มีคิว 9 โมงเช้าตรงกันพอดี ยืนยันเลื่อนเป็นอาทิตย์ 9 โมงนะคะ"},
+      {who:"patient", t:"00:27", text:"ครับ ขอบคุณครับ"}
+    ],
+    margin:[
+      {kind:"note", label:"reschedule", icon:"cal", value:"น้องปุณณ์ &middot; <span class='em'>อาทิตย์ 09:00</span>", stamp:"pending"},
+      {kind:"note", label:"awaiting", icon:"pen", value:"รอ staff ยืนยันคิวว่าง", stamp:"open"}
+    ]
+  }
+];
+
+/* ---- hand-drawn line icons (inline SVG, hex stroke, never var()) ---- */
+function icon(kind, hex){
+  const c = hex || "#2a2722";
+  const a = `fill="none" stroke="${c}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"`;
+  switch(kind){
+    case "line": // LINE-ish speech bubble, hand-drawn
+      return `<svg viewBox="0 0 24 24" ${a}><path d="M4.2 6.3c4-1.3 11.6-1.3 15.6.2 1.4.6 1.6 6.4-.2 7.6-2.8 1.8-7 1.7-9.4 1.3-.9.9-2.4 2-3.6 2.3.3-1 .5-2 .4-2.8C5 13.8 3.5 11 3.6 9c0-1 .2-2.2.6-2.7Z"/></svg>`;
+    case "voice": // phone handset, hand-drawn
+      return `<svg viewBox="0 0 24 24" ${a}><path d="M5 4.4c1.3-.6 2.6-.2 3 .9.3.8.7 1.7 1.1 2.3.3.5.2 1.1-.2 1.5l-.9.9c.9 1.9 2.4 3.4 4.3 4.3l.9-.9c.4-.4 1-.5 1.5-.2.6.4 1.5.8 2.3 1.1 1.1.4 1.5 1.7.9 3-.5 1.1-1.7 1.9-3 1.7C12.6 19.8 5 13.3 4 7.4c-.2-1.3.6-2.5 1-3Z"/></svg>`;
+    case "cal":
+      return `<svg viewBox="0 0 24 24" ${a}><path d="M4.5 6.5c4.6-1 10.4-1 15 0 .4 4.2.4 8.6 0 12.7-4.7 1-10.5 1-15 0-.5-4-.5-8.6 0-12.7Z"/><path d="M4.7 10.4c4.6-.9 10.2-.9 14.7 0"/><path d="M8.5 4.3v3.4M15.5 4.3v3.4"/><path d="M9 14.6l2 1.9 3.4-3.6"/></svg>`;
+    case "phone":
+      return `<svg viewBox="0 0 24 24" ${a}><path d="M5 4.4c1.3-.6 2.6-.2 3 .9.3.8.7 1.7 1.1 2.3.3.5.2 1.1-.2 1.5l-.9.9c.9 1.9 2.4 3.4 4.3 4.3l.9-.9c.4-.4 1-.5 1.5-.2.6.4 1.5.8 2.3 1.1 1.1.4 1.5 1.7.9 3-.5 1.1-1.7 1.9-3 1.7C12.6 19.8 5 13.3 4 7.4c-.2-1.3.6-2.5 1-3Z"/></svg>`;
+    case "flag":
+      return `<svg viewBox="0 0 24 24" ${a}><path d="M6 4.5c0 5.5-.3 11-.6 15.2"/><path d="M6 5c3-1.4 6 .9 9 0 .4 2.7.4 4.6 0 7-3 .9-6-1.4-9 0"/></svg>`;
+    case "pen":
+      return `<svg viewBox="0 0 24 24" ${a}><path d="M16.5 4.6c1 .9 2 1.8 2.9 2.9-3.4 3.7-7 7.2-10.8 10.5-1.3.3-2.7.6-4 .8.2-1.3.5-2.6.9-3.9C8.9 11.4 12.5 7.9 16.5 4.6Z"/><path d="M14.6 6.6l3 2.8"/></svg>`;
+    default:
+      return "";
+  }
+}
+
+/* a faint hand-drawn waveform for the voice clip strip */
+function waveSVG(){
+  const c = "#5b86c4";
+  let bars = "";
+  const heights = [6,11,17,9,21,13,7,16,23,12,8,18,10,22,14,6,15,20,9,12,17,7,13,19,8,11];
+  const w = 6;
+  heights.forEach((h,i)=>{
+    const x = i*w + 3;
+    const y = 13 - h/2;
+    bars += `<rect x="${x}" y="${y.toFixed(1)}" width="2.6" height="${h}" rx="1.3" fill="${c}" opacity="${i%3===0?0.85:0.5}"/>`;
+  });
+  return `<svg class="wave" viewBox="0 0 ${heights.length*w+6} 26" preserveAspectRatio="none" aria-hidden="true">${bars}</svg>`;
+}
+
+/* ----------------- render LEFT case list ----------------- */
+const listEl = document.getElementById("caseList");
+function statusPill(s){
+  const map = {
+    booked:["booked","booked"],
+    escalated:["escal","escalated"],
+    captured:["captured","captured"],
+    open:["open","open"]
+  };
+  const [cls,label] = map[s] || map.open;
+  return `<span class="pill ${cls}">${label}</span>`;
+}
+function chanHex(ch){ return ch==="line" ? "#3aa86b" : "#5b86c4"; }
+
+function renderList(){
+  listEl.innerHTML = CASES.map((c,i)=>`
+    <li class="case${i===0?' active':''}" role="option" tabindex="0"
+        data-id="${c.id}" aria-selected="${i===0?'true':'false'}">
+      ${c.unread?'<span class="unread" aria-label="unread"></span>':''}
+      <span class="chan ${c.channel}" aria-hidden="true">${icon(c.channel, chanHex(c.channel))}</span>
+      <span class="body">
+        <span class="name-row">
+          <span class="name">${c.name}</span>
+          <span class="time">${c.time}</span>
+        </span>
+        <span class="snip">${c.snippet}</span>
+        <span class="tags">
+          ${statusPill(c.status)}
+          <span class="pill open" style="text-transform:capitalize">${c.channel==="line"?"LINE":"voice"}</span>
+        </span>
+      </span>
+    </li>`).join("");
+}
+
+/* ----------------- render RIGHT conversation note ----------------- */
+const nameEl = document.getElementById("noteName");
+const metaEl = document.getElementById("noteMeta");
+const threadEl = document.getElementById("thread");
+const marginEl = document.getElementById("margin");
+
+function renderNote(c){
+  nameEl.textContent = c.name;
+  const chHex = chanHex(c.channel);
+  metaEl.innerHTML = `
+    <span class="chan-tag" style="color:${chHex}">${icon(c.channel, chHex)} ${c.channel==="line"?"LINE chat":"Voice call"}</span>
+    <span>&middot;</span><span>${c.sub}</span>`;
+
+  // thread
+  threadEl.className = "thread " + c.channel;
+  let html = "";
+  if(c.channel==="voice" && c.clip){
+    html += `<div class="clip" role="group" aria-label="Voice clip">
+      <button class="play" aria-label="Play voice clip (demo)" data-noplay>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="#5b86c4" stroke="#5b86c4" stroke-width="1" stroke-linejoin="round"><path d="M8 5.5 18 12 8 18.5Z"/></svg>
+      </button>
+      ${waveSVG()}
+      <span class="dur">${c.sub.match(/\d+ min \d+ sec|\d+ min \d+ sec/)?'':''}clip</span>
+    </div>`;
+  }
+  html += c.turns.map(t=>{
+    const spkName = t.who==="patient" ? c.name : "น้องยิ้มหวาน";
+    const roleTag = t.who==="patient" ? "patient" : "AI";
+    const ts = (c.channel==="voice" && t.t) ? `<span class="ts">${t.t}</span>` : "";
+    return `<div class="turn ${t.who}">
+      ${ts}
+      <span class="spk">${spkName}<span class="t">${roleTag}</span></span>
+      <span class="said">${t.text}</span>
+    </div>`;
+  }).join("");
+  threadEl.innerHTML = html;
+
+  // margin annotations (the signature)
+  const hexFor = {booked:"#7c8a6e", captured:"#c79a3a", escal:"#c47b5a", note:"#6a6358"};
+  marginEl.innerHTML = `<div class="ml">in the margin</div>` + c.margin.map(m=>`
+    <div class="anno ${m.kind}">
+      <div class="k">${icon(m.icon, hexFor[m.kind]||"#6a6358")}${m.label}</div>
+      <div class="v">${m.value}</div>
+      <span class="stamp">${m.stamp}</span>
+    </div>`).join("");
+}
+
+/* ----------------- interactions ----------------- */
+function select(id){
+  const c = CASES.find(x=>x.id===id) || CASES[0];
+  renderNote(c);
+  document.querySelectorAll("li.case").forEach(li=>{
+    const on = li.dataset.id===c.id;
+    li.classList.toggle("active", on);
+    li.setAttribute("aria-selected", on?"true":"false");
+    if(on){ const u = li.querySelector(".unread"); if(u) u.remove(); }
+  });
+  if(window.matchMedia("(max-width:760px)").matches){
+    document.body.classList.add("viewing");
+    threadEl.parentElement.parentElement.scrollIntoView({block:"nearest"});
+  }
+}
+
+listEl.addEventListener("click", e=>{
+  const li = e.target.closest("li.case"); if(li) select(li.dataset.id);
+});
+listEl.addEventListener("keydown", e=>{
+  const li = e.target.closest("li.case"); if(!li) return;
+  if(e.key==="Enter" || e.key===" "){ e.preventDefault(); select(li.dataset.id); }
+  if(e.key==="ArrowDown" || e.key==="ArrowUp"){
+    e.preventDefault();
+    const items = [...listEl.querySelectorAll("li.case")];
+    const idx = items.indexOf(li);
+    const next = items[e.key==="ArrowDown" ? Math.min(idx+1,items.length-1) : Math.max(idx-1,0)];
+    if(next) next.focus();
+  }
+});
+
+document.getElementById("backBtn").addEventListener("click", ()=>{
+  document.body.classList.remove("viewing");
+  const active = listEl.querySelector("li.case.active");
+  if(active) active.focus();
+});
+
+// demo play buttons do nothing audible (no asset autoload); keep silent
+document.addEventListener("click", e=>{
+  const b = e.target.closest("[data-noplay]");
+  if(b){ b.classList.toggle("on"); }
+});
+
+/* on small screens, default to showing the LIST first (not the note) */
+function initView(){
+  if(window.matchMedia("(max-width:760px)").matches){
+    document.body.classList.remove("viewing");
+  } else {
+    document.body.classList.add("viewing");
+  }
+}
+
+/* ----------------- boot ----------------- */
+renderList();
+renderNote(CASES[0]);
+initView();
+
+// keep KPIs honest with the data
+document.getElementById("kpiOpen").textContent = CASES.filter(c=>c.status==="open").length;
+document.getElementById("kpiBooked").textContent = CASES.filter(c=>c.status==="booked").length;
+document.getElementById("kpiEscal").textContent = CASES.filter(c=>c.status==="escalated").length;
+document.getElementById("listCount").innerHTML = "today &middot; " + CASES.length + " notes";
+
+let _t;
+window.addEventListener("resize", ()=>{ clearTimeout(_t); _t=setTimeout(initView,150); });
+</script>
+</body>
+</html>

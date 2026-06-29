@@ -114,6 +114,12 @@ SLUG_CAT = {
     # --- batch 43 (YIMWHAN BACKOFFICE lane, King 2026-06-29) ---
     "admin-owner-overview": "admin", "admin-case-inbox": "admin", "admin-bookings-calendar": "admin",
     "admin-handoff-liveops": "admin", "admin-analytics-report": "admin",
+    # --- batch 44 (Yimwhan backoffice cont.) ---
+    "admin-patient-profile": "admin", "admin-ai-config": "admin", "admin-owner-dark-bento": "admin",
+    "admin-live-activity": "admin", "admin-multiclinic-rollup": "admin",
+    # --- batch 45 (Yimwhan backoffice LIVING-NOTE / hand-drawn aesthetic) ---
+    "living-note-owner-overview": "admin", "living-note-case-inbox": "admin", "living-note-daily-brief": "admin",
+    "living-note-bookings": "admin", "living-note-patient-card": "admin",
 }
 
 KEYWORDS = [  # fallback for any slug not in SLUG_CAT (first match wins)

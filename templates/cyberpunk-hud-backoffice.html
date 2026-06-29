@@ -1,0 +1,607 @@
+<!-- TEMPLATE: NEXUS HUD Owner Overview | ARCHETYPE: Cyberpunk HUD - neon sci-fi owner dashboard | REF: cyberpunk/sci-fi HUD interfaces (neon cyan+magenta, clipped frames, scanlines, reticle) | WHEN TO USE: clinic/SaaS owner KPI overview that wants a high-tech sci-fi command-deck read instead of a generic dark card grid | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NEXUS HUD // Owner Overview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&family=Chakra+Petch:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DATA-DRIVEN CYBERPUNK HUD. Edit the JS DATA array at the very
+   top of <script> to swap all content. Hex inline, no var() for
+   color tokens per brief. Glow capped to <=2 shadow layers.
+   ============================================================ */
+*{margin:0;padding:0;box-sizing:border-box;min-width:0}
+html{scroll-behavior:smooth}
+body{
+  background:#06080f;
+  color:#cfe9ef;
+  font-family:'Chakra Petch',system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+  position:relative;
+}
+/* faint global grid + scanlines ground */
+body::before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(0,240,255,0.035) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,43,214,0.025) 1px,transparent 1px);
+  background-size:46px 46px,46px 46px;
+}
+body::after{
+  content:"";position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,0) 0px,rgba(0,0,0,0) 2px,rgba(0,0,0,0.16) 3px,rgba(0,0,0,0) 4px);
+  mix-blend-mode:overlay;opacity:.5;
+  animation:scan 8s linear infinite;
+}
+@keyframes scan{from{background-position:0 0}to{background-position:0 46px}}
+
+.wrap{position:relative;z-index:2;max-width:1440px;margin:0 auto;padding:20px clamp(14px,3vw,34px) 60px}
+
+/* corner-bracket reticle decoration helper */
+.brackets{position:relative}
+.brackets::before,.brackets::after{
+  content:"";position:absolute;width:16px;height:16px;pointer-events:none;
+}
+.brackets::before{top:-1px;left:-1px;border-top:2px solid #00f0ff;border-left:2px solid #00f0ff}
+.brackets::after{bottom:-1px;right:-1px;border-bottom:2px solid #ff2bd6;border-right:2px solid #ff2bd6}
+
+/* ===== TOP HUD BAR ===== */
+.topbar{
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  padding:14px 18px;margin-bottom:18px;
+  background:linear-gradient(100deg,rgba(0,240,255,0.07),rgba(255,43,214,0.05));
+  border:1px solid rgba(0,240,255,0.35);
+  clip-path:polygon(0 0,calc(100% - 22px) 0,100% 22px,100% 100%,22px 100%,0 calc(100% - 22px));
+  box-shadow:inset 0 0 24px rgba(0,240,255,0.06);
+  position:relative;
+}
+.reticle{
+  width:46px;height:46px;flex:0 0 auto;position:relative;
+}
+.reticle svg{display:block;width:100%;height:100%}
+@media (prefers-reduced-motion:no-preference){
+  .reticle .ring{transform-origin:23px 23px;animation:spin 9s linear infinite}
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.brandblock{min-width:0;flex:1 1 220px}
+.brandblock .sys{
+  font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:3px;
+  color:#00f0ff;text-shadow:0 0 8px rgba(0,240,255,0.6);
+}
+.brandblock h1{
+  font-family:'Orbitron',sans-serif;font-weight:900;
+  font-size:clamp(18px,2.4vw,28px);letter-spacing:1px;line-height:1.05;
+  color:#eafcff;text-shadow:0 0 10px rgba(0,240,255,0.35);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.brandblock .sub{font-size:12px;color:#7fb6c4;letter-spacing:1px}
+.statuspills{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+.pill{
+  font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1px;
+  padding:6px 12px;border:1px solid rgba(0,240,255,0.4);color:#9fe6f0;
+  clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
+  display:flex;align-items:center;gap:7px;white-space:nowrap;
+}
+.pill.live{border-color:rgba(255,176,0,0.55);color:#ffcf66}
+.dot{width:7px;height:7px;border-radius:50%;background:#00f0ff;box-shadow:0 0 8px #00f0ff;flex:0 0 auto}
+.pill.live .dot{background:#ffb000;box-shadow:0 0 8px #ffb000}
+@media (prefers-reduced-motion:no-preference){.dot{animation:blip 1.6s ease-in-out infinite}}
+@keyframes blip{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* ===== KPI ROW ===== */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+.kpi{
+  position:relative;padding:16px 18px 18px;
+  background:linear-gradient(160deg,rgba(10,20,32,0.92),rgba(8,12,22,0.92));
+  border:1px solid rgba(0,240,255,0.28);
+  clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,18px 100%,0 calc(100% - 18px));
+  box-shadow:inset 0 0 20px rgba(0,240,255,0.05);
+  overflow:hidden;
+}
+.kpi.alert{border-color:rgba(255,176,0,0.4)}
+.kpi.alert::after{background:#ffb000;box-shadow:0 0 10px rgba(255,176,0,0.7)}
+.kpi::after{ /* glow edge line */
+  content:"";position:absolute;left:0;top:0;width:3px;height:100%;
+  background:#00f0ff;box-shadow:0 0 10px rgba(0,240,255,0.7);
+}
+.kpi .klabel{
+  font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:2px;
+  color:#6fb1c0;text-transform:uppercase;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.kpi .kval{
+  font-family:'Orbitron',sans-serif;font-weight:700;
+  font-size:clamp(22px,2.6vw,34px);line-height:1.1;margin:6px 0 4px;
+  color:#eafcff;text-shadow:0 0 12px rgba(0,240,255,0.3);
+  display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;
+}
+.kpi .kunit{font-family:'Chakra Petch';font-size:13px;font-weight:500;color:#7fb6c4;letter-spacing:.5px}
+.kpi .kdelta{
+  font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:1px;
+  display:inline-flex;align-items:center;gap:5px;
+}
+.kdelta.up{color:#3affc7}
+.kdelta.down{color:#ff6b9d}
+.kdelta .arr{font-size:13px}
+.kpi .spark{position:absolute;right:14px;bottom:14px;width:62px;height:24px;opacity:.85}
+.kpi .spark svg{display:block;width:100%;height:100%}
+
+/* ===== MAIN GRID ===== */
+.grid{display:grid;grid-template-columns:1.55fr 1fr;gap:14px;align-items:start}
+.panel{
+  position:relative;
+  background:linear-gradient(165deg,rgba(9,16,28,0.94),rgba(7,10,20,0.96));
+  border:1px solid rgba(0,240,255,0.25);
+  clip-path:polygon(0 0,calc(100% - 22px) 0,100% 22px,100% 100%,22px 100%,0 calc(100% - 22px));
+  box-shadow:inset 0 0 26px rgba(0,240,255,0.04);
+  overflow:hidden;
+}
+.phead{
+  display:flex;align-items:center;gap:10px;padding:13px 18px 11px;
+  border-bottom:1px solid rgba(0,240,255,0.18);
+}
+.phead .tick{width:10px;height:10px;flex:0 0 auto;background:#ff2bd6;box-shadow:0 0 8px rgba(255,43,214,0.7);
+  clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
+.phead h2{
+  font-family:'Orbitron',sans-serif;font-weight:700;font-size:14px;letter-spacing:2px;
+  color:#dff7fc;text-transform:uppercase;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;
+}
+.phead .pid{
+  font-family:'Share Tech Mono',monospace;font-size:11px;color:#557a86;letter-spacing:1px;
+  margin-left:auto;white-space:nowrap;flex:0 0 auto;
+}
+.pbody{padding:16px 18px 20px}
+
+/* trend chart */
+.chartwrap{position:relative;width:100%}
+.chartwrap svg{display:block;width:100%;height:auto}
+.legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px}
+.legend span{font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1px;color:#9fc6d0;display:inline-flex;align-items:center;gap:7px}
+.legend i{width:14px;height:3px;display:inline-block;flex:0 0 auto}
+.legend .cy{background:#00f0ff;box-shadow:0 0 6px #00f0ff}
+.legend .mg{background:#ff2bd6;box-shadow:0 0 6px #ff2bd6}
+
+/* donut split */
+.donutrow{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.donutwrap{width:148px;height:148px;flex:0 0 auto;position:relative}
+.donutwrap svg{display:block;width:100%;height:100%}
+.donutcenter{
+  position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+}
+.donutcenter .dtot{font-family:'Orbitron',sans-serif;font-weight:700;font-size:24px;color:#eafcff;text-shadow:0 0 10px rgba(0,240,255,0.3)}
+.donutcenter .dcap{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:#6fb1c0}
+.splitlegend{flex:1 1 130px;min-width:0;display:flex;flex-direction:column;gap:12px}
+.splititem{display:flex;flex-direction:column;gap:5px}
+.splititem .srow{display:flex;align-items:center;gap:8px}
+.splititem .sname{font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:1px;color:#cfe9ef;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.splititem .sval{margin-left:auto;font-family:'Orbitron';font-weight:700;font-size:14px;flex:0 0 auto}
+.splititem .sbar{height:6px;width:100%;background:rgba(255,255,255,0.06);overflow:hidden;
+  clip-path:polygon(0 0,100% 0,calc(100% - 4px) 100%,0 100%)}
+.splititem .sfill{height:100%;display:block}
+
+/* handoff list */
+.handoff-panel{grid-column:1 / -1}
+.hgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.hcard{
+  position:relative;padding:14px 15px 15px;min-width:0;
+  background:linear-gradient(160deg,rgba(28,12,22,0.92),rgba(12,9,18,0.94));
+  border:1px solid rgba(255,43,214,0.32);
+  clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,16px 100%,0 calc(100% - 16px));
+  box-shadow:inset 0 0 18px rgba(255,43,214,0.05);
+  overflow:hidden;
+}
+.hcard.amber{border-color:rgba(255,176,0,0.4);background:linear-gradient(160deg,rgba(30,21,4,0.92),rgba(14,11,6,0.94))}
+.hcard::before{
+  content:"";position:absolute;left:0;top:0;height:100%;width:3px;
+  background:#ff2bd6;box-shadow:0 0 9px rgba(255,43,214,0.7);
+}
+.hcard.amber::before{background:#ffb000;box-shadow:0 0 9px rgba(255,176,0,0.7)}
+.hcard .htop{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.hcard .hchan{
+  font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;
+  padding:3px 8px;border:1px solid rgba(0,240,255,0.4);color:#9fe6f0;white-space:nowrap;flex:0 0 auto;
+  clip-path:polygon(6px 0,100% 0,100% 100%,0 100%,0 6px);
+}
+.hcard .hchan.line{border-color:rgba(58,255,199,0.45);color:#7dffd4}
+.hcard .hsev{
+  margin-left:auto;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;
+  color:#ff2bd6;flex:0 0 auto;white-space:nowrap;text-shadow:0 0 6px rgba(255,43,214,0.5);
+}
+.hcard.amber .hsev{color:#ffb000;text-shadow:0 0 6px rgba(255,176,0,0.5)}
+.hcard .hname{font-family:'Chakra Petch';font-weight:600;font-size:15px;color:#f3e9ef;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
+.hcard .hreason{font-size:13px;line-height:1.4;color:#c7aebb;
+  display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.hcard .hfoot{display:flex;align-items:center;gap:10px;margin-top:11px}
+.hcard .htime{font-family:'Share Tech Mono',monospace;font-size:11px;color:#8a6f7d;white-space:nowrap}
+.hcard .hbtn{
+  margin-left:auto;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1px;
+  padding:6px 12px;background:rgba(255,43,214,0.12);border:1px solid rgba(255,43,214,0.45);color:#ffb3ec;
+  cursor:pointer;text-decoration:none;display:inline-block;white-space:nowrap;flex:0 0 auto;
+  clip-path:polygon(8px 0,100% 0,100% 100%,0 100%,0 8px);transition:background .15s,box-shadow .15s;
+}
+.hcard.amber .hbtn{background:rgba(255,176,0,0.12);border-color:rgba(255,176,0,0.5);color:#ffd98a}
+.hcard .hbtn:hover,.hcard .hbtn:focus-visible{background:rgba(255,43,214,0.26);box-shadow:0 0 12px rgba(255,43,214,0.4)}
+.hcard.amber .hbtn:hover,.hcard.amber .hbtn:focus-visible{background:rgba(255,176,0,0.26);box-shadow:0 0 12px rgba(255,176,0,0.4)}
+
+/* feed strip (small live log) */
+.feed{display:flex;flex-direction:column;gap:9px}
+.feeditem{display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.35;min-width:0}
+.feeditem .ft{font-family:'Share Tech Mono',monospace;font-size:11px;color:#557a86;flex:0 0 auto;padding-top:1px}
+.feeditem .fx{flex:0 0 auto;width:8px;height:8px;margin-top:5px;background:#00f0ff;box-shadow:0 0 6px #00f0ff;
+  clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
+.feeditem.mg .fx{background:#ff2bd6;box-shadow:0 0 6px #ff2bd6}
+.feeditem.am .fx{background:#ffb000;box-shadow:0 0 6px #ffb000}
+.feeditem p{min-width:0;color:#b9d5dc}
+.feeditem b{color:#eafcff;font-weight:600}
+
+/* footer hud */
+.foot{
+  margin-top:18px;padding:11px 16px;display:flex;gap:16px;flex-wrap:wrap;align-items:center;
+  border:1px solid rgba(0,240,255,0.18);
+  clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);
+  font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1px;color:#6fa3b0;
+}
+.foot .fcell{display:flex;align-items:center;gap:7px;white-space:nowrap}
+.foot .fcell b{color:#9fe6f0;font-weight:400}
+
+.section-label{
+  font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:3px;color:#557a86;
+  text-transform:uppercase;margin:22px 2px 10px;display:flex;align-items:center;gap:10px;
+}
+.section-label::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,rgba(0,240,255,0.4),transparent)}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width:1080px){
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .grid{grid-template-columns:1fr}
+  .hgrid{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:640px){
+  .wrap{padding:14px 12px 50px}
+  .topbar{clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,16px 100%,0 calc(100% - 16px))}
+  .statuspills{margin-left:0;width:100%}
+  .kpis{grid-template-columns:1fr 1fr;gap:10px}
+  .kpi .spark{display:none}
+  .hgrid{grid-template-columns:1fr}
+  .brandblock h1{white-space:normal}
+}
+@media (max-width:380px){
+  .kpis{grid-template-columns:1fr}
+}
+
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  body::after{animation:none;opacity:.32}
+  .reticle .ring{animation:none}
+  .dot{animation:none}
+  *{transition:none !important}
+}
+:focus-visible{outline:2px solid #00f0ff;outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ============ TOP HUD BAR ============ -->
+  <header class="topbar brackets">
+    <div class="reticle" aria-hidden="true">
+      <svg viewBox="0 0 46 46">
+        <circle cx="23" cy="23" r="20" fill="none" stroke="#00f0ff" stroke-width="1" opacity="0.35"/>
+        <g class="ring">
+          <circle cx="23" cy="23" r="20" fill="none" stroke="#00f0ff" stroke-width="1.4" stroke-dasharray="10 8" opacity="0.85"/>
+          <line x1="23" y1="1" x2="23" y2="8" stroke="#ff2bd6" stroke-width="1.6"/>
+        </g>
+        <circle cx="23" cy="23" r="9" fill="none" stroke="#ff2bd6" stroke-width="1" opacity="0.6"/>
+        <line x1="14" y1="23" x2="20" y2="23" stroke="#00f0ff" stroke-width="1.4"/>
+        <line x1="26" y1="23" x2="32" y2="23" stroke="#00f0ff" stroke-width="1.4"/>
+        <line x1="23" y1="14" x2="23" y2="20" stroke="#00f0ff" stroke-width="1.4"/>
+        <line x1="23" y1="26" x2="23" y2="32" stroke="#00f0ff" stroke-width="1.4"/>
+        <circle cx="23" cy="23" r="2" fill="#ff2bd6"/>
+      </svg>
+    </div>
+    <div class="brandblock">
+      <div class="sys" id="sys-line">// NEXUS.OPS &nbsp;v4.2 &nbsp;:: ONLINE</div>
+      <h1 id="brand-title">ยิ้มหวาน คลินิก // ภาพรวมเจ้าของ</h1>
+      <div class="sub" id="brand-sub">ศูนย์บัญชาการ AI รับสาย และ LINE</div>
+    </div>
+    <div class="statuspills" id="status-pills"></div>
+  </header>
+
+  <!-- ============ KPI READOUTS ============ -->
+  <section class="kpis" id="kpi-grid" aria-label="ตัวชี้วัดหลัก"></section>
+
+  <!-- ============ MAIN GRID ============ -->
+  <div class="grid">
+
+    <!-- TREND CHART -->
+    <section class="panel">
+      <div class="phead">
+        <span class="tick" aria-hidden="true"></span>
+        <h2 id="trend-title">สายเข้า และ การจอง</h2>
+        <span class="pid">CH-01 / 14D</span>
+      </div>
+      <div class="pbody">
+        <div class="chartwrap" id="trend-chart"></div>
+        <div class="legend">
+          <span><i class="cy"></i> สายเข้า (calls)</span>
+          <span><i class="mg"></i> การจอง (bookings)</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- VOICE vs LINE DONUT -->
+    <section class="panel">
+      <div class="phead">
+        <span class="tick" aria-hidden="true"></span>
+        <h2 id="split-title">ช่องทาง // Voice vs LINE</h2>
+        <span class="pid">CH-02</span>
+      </div>
+      <div class="pbody">
+        <div class="donutrow">
+          <div class="donutwrap" id="donut"></div>
+          <div class="splitlegend" id="split-legend"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ HANDOFF ALERT LIST ============ -->
+  <div class="section-label">ต้องเข้าไปดู // HANDOFF QUEUE</div>
+  <section class="panel handoff-panel">
+    <div class="phead">
+      <span class="tick" aria-hidden="true"></span>
+      <h2>เคสที่ AI ส่งต่อให้คน</h2>
+      <span class="pid" id="handoff-count">--</span>
+    </div>
+    <div class="pbody">
+      <div class="hgrid" id="handoff-grid"></div>
+    </div>
+  </section>
+
+  <!-- ============ LIVE FEED ============ -->
+  <div class="grid" style="margin-top:18px">
+    <section class="panel">
+      <div class="phead">
+        <span class="tick" aria-hidden="true"></span>
+        <h2>กิจกรรมล่าสุด // LIVE FEED</h2>
+        <span class="pid">STREAM</span>
+      </div>
+      <div class="pbody">
+        <div class="feed" id="feed"></div>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="phead">
+        <span class="tick" aria-hidden="true"></span>
+        <h2>สถานะระบบ // SYS</h2>
+        <span class="pid">DIAG</span>
+      </div>
+      <div class="pbody">
+        <div class="feed" id="sysfeed"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ FOOTER HUD ============ -->
+  <footer class="foot" id="foot-bar"></footer>
+
+</div>
+
+<script>
+/* ==================================================================
+   DATA  --  edit this block to swap the entire dashboard content.
+   THB currency, Thai labels OK. Hyphens not em/en dashes in copy.
+   ================================================================== */
+const DATA = {
+  brand: {
+    title: "ยิ้มหวาน คลินิก // ภาพรวมเจ้าของ",
+    sub: "ศูนย์บัญชาการ AI รับสาย และ LINE",
+    sys: "// NEXUS.OPS  v4.2  :: ONLINE"
+  },
+  statusPills: [
+    { label: "AI ONLINE", live: false },
+    { label: "3 รอคน", live: true }
+  ],
+  // KPI readouts. delta: positive = up (good unless invertGood)
+  kpis: [
+    { label: "สายเข้า วันนี้", value: "182", unit: "สาย", delta: 12.4, spark: [4,6,5,8,7,9,11,10,13,12] },
+    { label: "นัดที่ปิดได้", value: "47", unit: "นัด", delta: 8.1, spark: [2,3,3,5,4,6,5,7,6,8] },
+    { label: "รายได้คาดการณ์", value: "฿128.5K", unit: "วันนี้", delta: 5.6, spark: [5,5,6,7,6,8,7,9,8,10] },
+    { label: "รอคนเข้าดู", value: "3", unit: "เคส", delta: 2, invertGood: true, alert: true, spark: [0,1,1,2,1,3,2,3,3,3] }
+  ],
+  // 14-day trend, two series
+  trend: {
+    days: ["18","19","20","21","22","23","24","25","26","27","28","29","30","01"],
+    calls:    [96,108,124,118,141,160,150,138,155,172,168,176,190,182],
+    bookings: [22,26,31,28,35,39,37,33,38,41,40,43,49,47],
+    callsMax: 220
+  },
+  // Voice vs LINE split
+  split: {
+    total: "229",
+    totalCap: "วันนี้",
+    items: [
+      { name: "VOICE", value: 62, color: "#00f0ff" },
+      { name: "LINE",  value: 38, color: "#ff2bd6" }
+    ]
+  },
+  // handoff alert cards
+  handoff: [
+    { channel:"VOICE", line:false, severity:"HIGH", name:"คุณ ปวีณา ส.", reason:"ถามราคารากฟันเทียม + ขอคุยกับทันตแพทย์ก่อนนัด AI กันไว้ให้แล้ว", time:"3 นาทีที่แล้ว", amber:false },
+    { channel:"LINE", line:true, severity:"MED", name:"คุณ ธนกฤต ว.", reason:"ส่งรูปเหงือกอักเสบมาทาง LINE ต้องให้คนดูภาพและประเมิน", time:"11 นาทีที่แล้ว", amber:true },
+    { channel:"VOICE", line:false, severity:"HIGH", name:"คุณ มะลิวัลย์ ก.", reason:"ขอเลื่อนนัดผ่าฟันคุด ระบบหาช่องเวลาว่างไม่ตรงกับที่ลูกค้าต้องการ", time:"24 นาทีที่แล้ว", amber:false }
+  ],
+  feed: [
+    { kind:"cy", time:"14:02", html:"AI รับสายและจองนัด <b>ขูดหินปูน</b> ให้ คุณ สมชาย เรียบร้อย" },
+    { kind:"mg", time:"13:58", html:"LINE: ตอบคำถาม <b>เวลาทำการ</b> และส่งแผนที่คลินิกอัตโนมัติ" },
+    { kind:"am", time:"13:46", html:"ส่งต่อให้คน: เคสราคา <b>รากฟันเทียม</b> เกินขอบเขต AI" },
+    { kind:"cy", time:"13:39", html:"AI ยืนยันนัดพรุ่งนี้ผ่าน LINE ให้ <b>8 ราย</b>" },
+    { kind:"mg", time:"13:31", html:"LINE: เก็บข้อมูล <b>อาการเสียวฟัน</b> ก่อนเข้าคิวคุณหมอ" }
+  ],
+  sys: [
+    { kind:"cy", time:"UP", html:"Voice gateway <b>+66 2 544 0222</b> ปกติ ค่าหน่วง 0.4s" },
+    { kind:"cy", time:"UP", html:"LINE OA webhook ตอบกลับเฉลี่ย <b>320ms</b>" },
+    { kind:"am", time:"WATCH", html:"STT ไทย ความมั่นใจตก <b>2.1%</b> ช่วงเที่ยง ปกติแล้ว" },
+    { kind:"cy", time:"UP", html:"ต้นทุน AI วันนี้ <b>฿1,840</b> ต่ำกว่างบ 18%" }
+  ],
+  foot: [
+    { label:"NODE", value:"clinic-ayutthaya-01" },
+    { label:"SYNC", value:"14:02:31 ICT" },
+    { label:"UPTIME", value:"99.97%" },
+    { label:"BUILD", value:"NEXUS-HUD" }
+  ]
+};
+
+/* ==================================================================
+   RENDER
+   ================================================================== */
+const $ = (id)=>document.getElementById(id);
+const esc = (s)=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+// brand
+$("brand-title").textContent = DATA.brand.title;
+$("brand-sub").textContent = DATA.brand.sub;
+$("sys-line").textContent = DATA.brand.sys;
+
+// status pills
+$("status-pills").innerHTML = DATA.statusPills.map(p=>
+  `<span class="pill${p.live?' live':''}"><span class="dot"></span>${esc(p.label)}</span>`
+).join("");
+
+// sparkline generator (tiny inline svg, capped no glow)
+function sparkSVG(arr, color){
+  const w=62,h=24,pad=2;
+  const mn=Math.min(...arr),mx=Math.max(...arr),rng=(mx-mn)||1;
+  const pts=arr.map((v,i)=>{
+    const x=pad+(i/(arr.length-1))*(w-pad*2);
+    const y=h-pad-((v-mn)/rng)*(h-pad*2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+  </svg>`;
+}
+
+// KPIs
+$("kpi-grid").innerHTML = DATA.kpis.map(k=>{
+  const good = k.invertGood ? (k.delta<=0) : (k.delta>=0);
+  const dir = (k.delta>=0)?"up":"down";
+  const cls = good ? "up":"down";
+  const arr = (k.delta>=0)?"▲":"▼";
+  const sparkColor = k.alert ? "#ffb000" : "#00f0ff";
+  return `<article class="kpi${k.alert?' alert':''}">
+    <div class="klabel">${esc(k.label)}</div>
+    <div class="kval">${esc(k.value)}<span class="kunit">${esc(k.unit)}</span></div>
+    <div class="kdelta ${cls}"><span class="arr">${arr}</span>${Math.abs(k.delta)}% wk</div>
+    <div class="spark">${sparkSVG(k.spark,sparkColor)}</div>
+  </article>`;
+}).join("");
+
+// TREND CHART (dual-series area+line, inline svg, responsive viewBox)
+(function(){
+  const t=DATA.trend, W=560,H=240, padL=8,padR=8,padT=14,padB=26;
+  const n=t.days.length;
+  const ix=(i)=>padL+(i/(n-1))*(W-padL-padR);
+  const callsMax=t.callsMax;
+  const bookMax=Math.max(...t.bookings)*1.25;
+  const cy=(v,max)=>padT+(1-v/max)*(H-padT-padB);
+  function path(series,max){
+    return series.map((v,i)=>`${i?'L':'M'}${ix(i).toFixed(1)} ${cy(v,max).toFixed(1)}`).join(" ");
+  }
+  const callsP=path(t.calls,callsMax);
+  const callsArea=`${callsP} L${ix(n-1).toFixed(1)} ${(H-padB).toFixed(1)} L${ix(0).toFixed(1)} ${(H-padB).toFixed(1)} Z`;
+  const bookP=path(t.bookings,bookMax);
+  // gridlines
+  let grid="";
+  for(let g=0;g<=3;g++){const y=padT+(g/3)*(H-padT-padB);grid+=`<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="#13344a" stroke-width="1" opacity="0.6"/>`;}
+  // x labels (every other)
+  let xl="";t.days.forEach((d,i)=>{if(i%2===0){xl+=`<text x="${ix(i).toFixed(1)}" y="${H-8}" fill="#557a86" font-size="9" font-family="Share Tech Mono,monospace" text-anchor="middle">${d}</text>`;}});
+  // last-point markers
+  const lcx=ix(n-1),lcy=cy(t.calls[n-1],callsMax),lbx=ix(n-1),lby=cy(t.bookings[n-1],bookMax);
+  $("trend-chart").innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="กราฟแนวโน้มสายเข้าและการจอง 14 วัน">
+    <defs>
+      <linearGradient id="cAreaG" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#00f0ff" stop-opacity="0.30"/>
+        <stop offset="1" stop-color="#00f0ff" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    ${grid}
+    <path d="${callsArea}" fill="url(#cAreaG)"/>
+    <path d="${callsP}" fill="none" stroke="#00f0ff" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="${bookP}" fill="none" stroke="#ff2bd6" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="1 0"/>
+    <circle cx="${lcx.toFixed(1)}" cy="${lcy.toFixed(1)}" r="3.5" fill="#06080f" stroke="#00f0ff" stroke-width="2"/>
+    <circle cx="${lbx.toFixed(1)}" cy="${lby.toFixed(1)}" r="3.5" fill="#06080f" stroke="#ff2bd6" stroke-width="2"/>
+    ${xl}
+  </svg>`;
+})();
+
+// DONUT (Voice vs LINE)
+(function(){
+  const s=DATA.split, items=s.items, sum=items.reduce((a,b)=>a+b.value,0);
+  const R=58, C=2*Math.PI*R, cx=74, cy=74;
+  let off=0, segs="";
+  items.forEach(it=>{
+    const frac=it.value/sum, len=C*frac, gap=4;
+    segs+=`<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${it.color}" stroke-width="13"
+      stroke-dasharray="${(len-gap).toFixed(1)} ${(C-len+gap).toFixed(1)}" stroke-dashoffset="${(-off).toFixed(1)}"
+      stroke-linecap="butt" transform="rotate(-90 ${cx} ${cy})"/>`;
+    off+=len;
+  });
+  $("donut").innerHTML=`<svg viewBox="0 0 148 148" role="img" aria-label="สัดส่วนช่องทาง Voice และ LINE">
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#102634" stroke-width="13"/>
+    ${segs}
+    <circle cx="${cx}" cy="${cy}" r="${R+9}" fill="none" stroke="#00f0ff" stroke-width="1" opacity="0.18"/>
+  </svg>
+  <div class="donutcenter"><div class="dtot">${esc(s.total)}</div><div class="dcap">${esc(s.totalCap)}</div></div>`;
+  $("split-legend").innerHTML=items.map(it=>`
+    <div class="splititem">
+      <div class="srow">
+        <span style="width:10px;height:10px;flex:0 0 auto;background:${it.color};box-shadow:0 0 6px ${it.color};clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)"></span>
+        <span class="sname">${esc(it.name)}</span>
+        <span class="sval" style="color:${it.color}">${it.value}%</span>
+      </div>
+      <span class="sbar"><span class="sfill" style="width:${it.value}%;background:${it.color};box-shadow:0 0 8px ${it.color}"></span></span>
+    </div>`).join("");
+})();
+
+// HANDOFF CARDS
+$("handoff-count").textContent = `${DATA.handoff.length} ACTIVE`;
+$("handoff-grid").innerHTML = DATA.handoff.map(h=>`
+  <article class="hcard${h.amber?' amber':''}">
+    <div class="htop">
+      <span class="hchan${h.line?' line':''}">${esc(h.channel)}</span>
+      <span class="hsev">${esc(h.severity)}</span>
+    </div>
+    <div class="hname">${esc(h.name)}</div>
+    <div class="hreason">${esc(h.reason)}</div>
+    <div class="hfoot">
+      <span class="htime">${esc(h.time)}</span>
+      <a class="hbtn" href="#" role="button" tabindex="0">เข้าดู &rsaquo;</a>
+    </div>
+  </article>`).join("");
+
+// FEEDS
+function feedHTML(arr){
+  return arr.map(f=>`<div class="feeditem ${esc(f.kind)}">
+    <span class="fx" aria-hidden="true"></span>
+    <span class="ft">${esc(f.time)}</span>
+    <p>${f.html}</p>
+  </div>`).join("");
+}
+$("feed").innerHTML = feedHTML(DATA.feed);
+$("sysfeed").innerHTML = feedHTML(DATA.sys);
+
+// FOOTER
+$("foot-bar").innerHTML = DATA.foot.map(f=>
+  `<span class="fcell"><span class="dot" style="width:6px;height:6px"></span>${esc(f.label)} <b>${esc(f.value)}</b></span>`
+).join("");
+</script>
+</body>
+</html>

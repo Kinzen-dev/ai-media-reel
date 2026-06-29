@@ -1,0 +1,903 @@
+<!-- TEMPLATE: Memphis Backoffice Owner Dashboard | ARCHETYPE: memphis-backoffice | REF: Ettore Sottsass / Memphis Group 1981, terrazzo + squiggle + confetti postmodern | WHEN TO USE: joyful anti-restraint clinic/SaaS owner OVERVIEW (KPIs with deltas, trend chart, channel donut, needs-a-look handoff list) when you want loud 80s postmodern personality on a working dashboard, not a generic dark card grid | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Yimwhan - Owner Overview (Memphis)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,900&family=Space+Grotesk:wght@400;500;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   MEMPHIS BACKOFFICE  -  postmodern owner overview
+   Palette (inline-SVG <pattern> fills repeat these hex LITERALLY,
+   never var(), because pattern fill cannot resolve CSS custom props)
+     cream    #faf7f0
+     ink      #16110d
+     orange   #e9542f
+     cyan     #2bb0c9
+     yellow   #f4c01f
+     pink     #e36fa8
+     mint     #bfe3c6
+   POV: cream terrazzo ground, black squiggles + confetti dots +
+   triangles, clashing primary/pastel blocks, chunky display face,
+   asymmetric TILTED cards with chunky drop shadows, doodle marks.
+   Joyful anti-restraint. NOT a dark card grid.
+   ============================================================ */
+:root {
+  --paper:  #faf7f0;
+  --paper2: #f3ecdd;
+  --ink:    #16110d;
+  --orange: #e9542f;
+  --cyan:   #2bb0c9;
+  --yellow: #f4c01f;
+  --pink:   #e36fa8;
+  --mint:   #bfe3c6;
+  --shadow:    5px 5px 0 #16110d;
+  --shadow-lg: 8px 8px 0 #16110d;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  min-width: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- the terrazzo + squiggle + confetti + triangle field, fixed behind everything ---- */
+.field { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+.field svg { width: 100%; height: 100%; display: block; }
+
+@keyframes drift {
+  from { transform: translate3d(0,0,0); }
+  to   { transform: translate3d(-80px,-80px,0); }
+}
+.field .layer-a { animation: drift 46s linear infinite; }
+.field .layer-b { animation: drift 72s linear infinite reverse; }
+
+.wrap {
+  position: relative;
+  z-index: 1;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 18px clamp(14px, 2.4vw, 30px) 90px;
+  min-width: 0;
+}
+
+/* ===================== TOP BAR ===================== */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 6px 0 14px;
+  min-width: 0;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-weight: 800;
+  font-size: clamp(18px, 2.2vw, 23px);
+  letter-spacing: -0.4px;
+  min-width: 0;
+}
+.brand .blob {
+  width: 30px; height: 30px;
+  flex: none;
+  background: var(--orange);
+  border: 3px solid var(--ink);
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-8deg);
+  position: relative;
+}
+.brand .blob::after {
+  content: "";
+  position: absolute; inset: 6px;
+  border-radius: 50%;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+}
+.brand small {
+  display: block;
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #5d564b;
+}
+.spacer { flex: 1 1 auto; }
+.pillnav { display: flex; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.pillnav a {
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--ink);
+  text-decoration: none;
+  padding: 7px 12px;
+  border: 2.5px solid var(--ink);
+  background: var(--paper);
+  box-shadow: 3px 3px 0 var(--ink);
+  border-radius: 3px;
+  white-space: nowrap;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.pillnav a.live { background: var(--mint); }
+.pillnav a.range { background: var(--yellow); }
+.pillnav a:hover, .pillnav a:focus-visible {
+  transform: translate(2px,2px) rotate(-1.5deg);
+  box-shadow: 1px 1px 0 var(--ink);
+  outline: none;
+}
+.pillnav a.live::before {
+  content: "";
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--orange);
+  border: 1.5px solid var(--ink);
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+/* ===================== TITLE BAND (compact, mechanic stays in view) ===================== */
+.titleband {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin: 4px 0 16px;
+  min-width: 0;
+}
+.titleblock { min-width: 0; max-width: 100%; }
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 11px;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 5px 12px;
+  transform: rotate(-1deg);
+  border-radius: 2px;
+}
+.kicker .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--pink); flex: none; }
+.headline {
+  font-family: "Fraunces", serif;
+  font-weight: 900;
+  font-size: clamp(34px, 5.6vw, 62px);
+  line-height: 0.92;
+  letter-spacing: -0.015em;
+  margin: 10px 0 0;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+.headline .a { color: var(--ink); }
+.headline .b { color: var(--orange); display: inline-block; transform: rotate(-1.4deg); }
+.headline .squig { display: inline-block; vertical-align: middle; }
+.subline {
+  margin: 9px 0 0;
+  font-weight: 500;
+  font-size: clamp(13px, 1.4vw, 16px);
+  max-width: 560px;
+  line-height: 1.45;
+}
+.subline b { background: var(--mint); padding: 0 4px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+
+/* the big standing stat doodle in the title band */
+.bigstat {
+  flex: none;
+  background: var(--cyan);
+  border: 3.5px solid var(--ink);
+  box-shadow: var(--shadow-lg);
+  padding: 12px 18px 10px;
+  transform: rotate(1.6deg);
+  border-radius: 4px;
+  min-width: 0;
+}
+.bigstat .v {
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-weight: 800;
+  font-size: clamp(30px, 4.2vw, 46px);
+  line-height: 1;
+  color: var(--paper);
+  -webkit-text-stroke: 1.5px var(--ink);
+  letter-spacing: -0.5px;
+}
+.bigstat .k {
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ink);
+  margin-top: 2px;
+}
+
+/* ===================== KPI ROW (tilted clashing blocks, the signature) ===================== */
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: clamp(12px, 1.6vw, 20px);
+  margin-bottom: clamp(18px, 2.4vw, 26px);
+  min-width: 0;
+  /* small inline padding so the tilted end blocks' projecting corners
+     stay inside the padding box (no horizontal overflow); tilt + shadow kept */
+  padding: 0 5px;
+}
+.kpi {
+  position: relative;
+  border: 3.5px solid var(--ink);
+  box-shadow: var(--shadow-lg);
+  border-radius: 5px;
+  padding: 15px 15px 16px;
+  min-width: 0;
+  overflow: hidden;
+  transition: transform .16s cubic-bezier(.2,.7,.3,1), box-shadow .16s ease;
+  will-change: transform;
+}
+.kpi:nth-child(1) { background: var(--orange); transform: rotate(-1.6deg); }
+.kpi:nth-child(2) { background: var(--yellow); transform: rotate(1.2deg); }
+.kpi:nth-child(3) { background: var(--mint);   transform: rotate(-1deg); }
+.kpi:nth-child(4) { background: var(--pink);   transform: rotate(1.8deg); }
+.kpi:hover, .kpi:focus-within {
+  transform: rotate(0deg) translateY(-3px);
+  box-shadow: 11px 11px 0 var(--ink);
+}
+.kpi .topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+.kpi .name {
+  font-weight: 700;
+  font-size: 11.5px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--ink);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.kpi .glyph {
+  width: 26px; height: 26px;
+  flex: none;
+  border: 2.5px solid var(--ink);
+  background: var(--paper);
+  display: grid; place-items: center;
+  border-radius: 50%;
+  transform: rotate(-6deg);
+}
+.kpi .glyph svg { display: block; }
+.kpi .value {
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-weight: 800;
+  font-size: clamp(30px, 4vw, 44px);
+  line-height: 1;
+  letter-spacing: -0.5px;
+  color: var(--ink);
+  margin: 12px 0 0;
+}
+.kpi .value small { font-size: 0.46em; font-weight: 700; letter-spacing: 0; opacity: .82; }
+.kpi .delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  font-weight: 700;
+  font-size: 12px;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 3px 9px 3px 7px;
+  border-radius: 20px;
+}
+.kpi .delta.down { background: var(--paper); color: var(--ink); border: 2px solid var(--ink); }
+.kpi .delta .arrow { font-family: "Space Grotesk"; font-weight: 700; }
+.kpi .foot {
+  margin-top: 7px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #2c2620;
+}
+/* doodle underline scribble under the value */
+.kpi .scribble { position: absolute; left: 12px; pointer-events: none; }
+
+/* ===================== MAIN GRID: chart + donut ===================== */
+.maingrid {
+  display: grid;
+  grid-template-columns: 1.62fr 1fr;
+  gap: clamp(14px, 2vw, 22px);
+  align-items: stretch;
+  margin-bottom: clamp(16px, 2.2vw, 24px);
+  min-width: 0;
+  /* small inline padding so the tilted panels' projecting corners
+     stay inside the padding box (no horizontal overflow); tilt + shadow kept */
+  padding: 0 5px;
+}
+.panel {
+  position: relative;
+  background: var(--paper);
+  border: 3.5px solid var(--ink);
+  box-shadow: var(--shadow-lg);
+  border-radius: 6px;
+  padding: 16px clamp(14px, 1.8vw, 20px) 18px;
+  min-width: 0;
+  overflow: hidden;
+}
+.panel.tilt-l { transform: rotate(-0.7deg); }
+.panel.tilt-r { transform: rotate(0.8deg); }
+.panel .phead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  min-width: 0;
+}
+.panel .ptitle {
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-weight: 800;
+  font-size: clamp(16px, 1.9vw, 21px);
+  letter-spacing: -0.3px;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+.panel .ptitle .tag {
+  width: 16px; height: 16px; flex: none;
+  border: 2.5px solid var(--ink);
+  transform: rotate(12deg);
+}
+.legend { display: flex; gap: 12px; flex-wrap: wrap; min-width: 0; }
+.legend span {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.legend span i {
+  width: 13px; height: 13px; border: 2px solid var(--ink); border-radius: 3px;
+  display: inline-block; flex: none;
+}
+
+/* ---- trend chart ---- */
+.chartbox { width: 100%; min-width: 0; }
+.chartbox svg { width: 100%; height: auto; display: block; overflow: visible; }
+
+/* ---- donut ---- */
+.donutwrap {
+  display: flex;
+  align-items: center;
+  gap: clamp(12px, 1.6vw, 18px);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.donutwrap svg { flex: none; }
+.donutlegend { display: grid; gap: 10px; min-width: 0; flex: 1 1 140px; }
+.donutlegend .row {
+  display: flex; align-items: center; gap: 10px;
+  border: 2.5px solid var(--ink);
+  background: var(--paper);
+  box-shadow: 3px 3px 0 var(--ink);
+  border-radius: 4px;
+  padding: 8px 10px;
+  min-width: 0;
+  transform: rotate(-0.6deg);
+}
+.donutlegend .row:nth-child(2) { transform: rotate(0.7deg); }
+.donutlegend .row .sw { width: 16px; height: 16px; border: 2px solid var(--ink); flex: none; border-radius: 3px; }
+.donutlegend .row .nm { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; min-width: 0; overflow-wrap: anywhere; }
+.donutlegend .row .pc { margin-left: auto; font-family: "Bricolage Grotesque"; font-weight: 800; font-size: 17px; flex: none; }
+.donutlegend .row .ct { font-size: 10.5px; font-weight: 600; color: #5d564b; }
+
+/* ===================== HANDOFF LIST (needs a look) ===================== */
+.handoff {
+  position: relative;
+  background: var(--paper2);
+  border: 3.5px solid var(--ink);
+  box-shadow: var(--shadow-lg);
+  border-radius: 6px;
+  padding: 16px clamp(14px, 1.8vw, 20px) 18px;
+  transform: rotate(-0.4deg);
+  min-width: 0;
+  overflow: hidden;
+}
+.handoff .phead { margin-bottom: 14px; }
+.handoff .count-badge {
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-weight: 800;
+  font-size: 13px;
+  background: var(--orange);
+  color: var(--paper);
+  border: 2.5px solid var(--ink);
+  box-shadow: 3px 3px 0 var(--ink);
+  padding: 4px 11px;
+  border-radius: 20px;
+  transform: rotate(2deg);
+  white-space: nowrap;
+}
+.cases { display: grid; gap: 12px; min-width: 0; }
+.case {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--ink);
+  border-radius: 5px;
+  padding: 12px 14px;
+  min-width: 0;
+  transition: transform .14s ease, box-shadow .14s ease;
+}
+.case:nth-child(odd)  { transform: rotate(-0.5deg); }
+.case:nth-child(even) { transform: rotate(0.5deg); }
+.case:hover, .case:focus-within {
+  transform: rotate(0deg) translateX(3px);
+  box-shadow: 7px 7px 0 var(--ink);
+}
+.case .ava {
+  width: 44px; height: 44px; flex: none;
+  border: 3px solid var(--ink);
+  border-radius: 50% 50% 50% 6px;
+  display: grid; place-items: center;
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-weight: 800;
+  font-size: 17px;
+  color: var(--ink);
+  transform: rotate(-4deg);
+}
+.case .mid { min-width: 0; }
+.case .who {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  font-weight: 700; font-size: 14.5px; min-width: 0;
+}
+.case .who .chan {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+  border: 2px solid var(--ink); padding: 1px 7px; border-radius: 3px; white-space: nowrap;
+}
+.case .who .chan.voice { background: var(--orange); color: var(--paper); }
+.case .who .chan.line  { background: var(--mint); }
+.case .reason {
+  margin-top: 3px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #3a342c;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.case .right { text-align: right; flex: none; }
+.case .flag {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+  padding: 3px 9px; border: 2px solid var(--ink); border-radius: 20px; white-space: nowrap; display: inline-block;
+}
+.case .flag.hot  { background: var(--pink); }
+.case .flag.warm { background: var(--yellow); }
+.case .flag.cool { background: var(--cyan); color: var(--paper); }
+.case .ago { display: block; margin-top: 6px; font-size: 11px; font-weight: 600; color: #5d564b; }
+
+.case .go {
+  display: inline-flex; align-items: center; gap: 5px;
+  margin-top: 6px;
+  font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--ink); text-decoration: none;
+  border-bottom: 2.5px solid var(--ink);
+  padding-bottom: 1px;
+}
+.case .go:hover, .case .go:focus-visible { background: var(--yellow); outline: none; }
+
+/* the columns under main grid stack the handoff full width below */
+.afterrow {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(14px, 2vw, 22px);
+  margin-bottom: 8px;
+  min-width: 0;
+  /* small inline padding so the tilted handoff panel's projecting corner
+     stays inside the padding box (no horizontal overflow); tilt + shadow kept */
+  padding: 0 5px;
+}
+
+.footnote {
+  margin-top: 26px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #5d564b;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.footnote .tri { width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 12px solid var(--orange); flex: none; }
+
+/* focusable ring everywhere */
+a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
+  outline: 3px dashed var(--ink);
+  outline-offset: 2px;
+}
+
+/* ===================== RESPONSIVE ===================== */
+@media (max-width: 1040px) {
+  .maingrid { grid-template-columns: 1fr; }
+  .panel.tilt-l, .panel.tilt-r { transform: rotate(0deg); }
+}
+@media (max-width: 720px) {
+  .kpis { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .kpis { grid-template-columns: 1fr; }
+  .kpi:nth-child(1), .kpi:nth-child(2), .kpi:nth-child(3), .kpi:nth-child(4) { transform: rotate(0deg); }
+  .bigstat { transform: rotate(0deg); width: 100%; }
+  .titleband { align-items: stretch; }
+  .case { grid-template-columns: auto 1fr; }
+  .case .right { grid-column: 1 / -1; text-align: left; }
+  .handoff, .case:nth-child(odd), .case:nth-child(even) { transform: rotate(0deg); }
+}
+
+/* ===================== REDUCED MOTION ===================== */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .field .layer-a, .field .layer-b { animation: none !important; }
+  .kpi, .case, .pillnav a { transition: none !important; }
+  * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===================== DATA (swap this whole block to reuse) ===================== -->
+<script>
+const DATA = {
+  brand:   { name: "ยิ้มหวาน คลินิก", sub: "AI Front Desk - Owner Overview" },
+  range:   "30 วันล่าสุด",
+  headline:{ a: "ภาพรวม", b: "ร้าน" },
+  subline: "ผู้ช่วย AI รับสายและตอบ LINE ให้ทั้งวัน นี่คือสิ่งที่เกิดขึ้น และเคสที่ <b>ควรเหลือบมอง</b>",
+  hero:    { value: "฿284,500", label: "รายได้ที่จองเข้ามาเดือนนี้" },
+
+  // KPI blocks: tilted clashing colour, doodle glyph, delta chip
+  kpis: [
+    { name: "สายเข้า",        value: "1,284", unit: "สาย",  delta: "+12%",  dir: "up",   foot: "AI รับเอง 1,190 สาย", glyph: "phone" },
+    { name: "นัดที่จองได้",   value: "612",   unit: "นัด",  delta: "+8%",   dir: "up",   foot: "อัตราจอง 47.7%",      glyph: "calendar" },
+    { name: "เวลาตอบเฉลี่ย",  value: "1.4",   unit: "วิ",   delta: "-0.3",  dir: "up",   foot: "เร็วกว่าเดือนก่อน",   glyph: "bolt" },
+    { name: "ส่งต่อให้คน",    value: "38",    unit: "เคส",  delta: "+5",    dir: "down", foot: "รอผู้จัดการดู 6 เคส", glyph: "hand" }
+  ],
+
+  // trend chart: calls vs bookings, 12 buckets
+  trend: {
+    labels: ["w1","w2","w3","w4","w5","w6","w7","w8","w9","w10","w11","w12"],
+    calls:    [62, 70, 58, 81, 76, 90, 84, 99, 92, 108, 101, 121],
+    bookings: [28, 33, 25, 38, 36, 44, 41, 49, 45, 54, 50, 61],
+    cap: 130
+  },
+
+  // channel split donut: Voice vs LINE
+  channels: [
+    { name: "Voice (โทร)", value: 64, count: "822 สาย",  color: "#e9542f" },
+    { name: "LINE OA",     value: 36, count: "462 แชต",  color: "#2bb0c9" }
+  ],
+
+  // handoff list - needs a look
+  handoff: [
+    { who: "คุณ ปนัดดา ส.", chan: "voice", reason: "ถามราคาจัดฟันใส รุ่นที่คลินิกยังไม่มีในระบบ", flag: "hot",  flagText: "ด่วน", ago: "8 นาทีก่อน", init: "ป" },
+    { who: "K. James W.",   chan: "line",  reason: "ขอเลื่อนนัดผ่าฟันคุด อยากคุยกับหมอก่อน", flag: "warm", flagText: "รอตอบ", ago: "22 นาทีก่อน", init: "J" },
+    { who: "คุณ สมศรี ม.",  chan: "voice", reason: "ลูกค้าเก่า ปวดหลังรักษาราก ขอเบอร์ฉุกเฉิน", flag: "hot",  flagText: "ด่วน", ago: "41 นาทีก่อน", init: "ส" },
+    { who: "คุณ วีรพล ต.",  chan: "line",  reason: "อยากได้ใบเสร็จย้อนหลังเพื่อเบิกประกัน", flag: "cool", flagText: "ทั่วไป", ago: "1 ชม. ก่อน", init: "ว" },
+    { who: "คุณ มนัสนันท์", chan: "voice", reason: "สอบถามโปรฟอกสีฟันคู่ ขอส่วนลดพิเศษ", flag: "warm", flagText: "รอตอบ", ago: "2 ชม. ก่อน", init: "ม" }
+  ]
+};
+</script>
+
+<!-- ===================== TERRAZZO + SQUIGGLE + CONFETTI FIELD ===================== -->
+<div class="field" aria-hidden="true">
+  <svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <!-- terrazzo chips: subtle pastel speckle over cream -->
+      <pattern id="terr" width="220" height="220" patternUnits="userSpaceOnUse">
+        <rect width="220" height="220" fill="#faf7f0"/>
+        <circle cx="34" cy="48" r="7" fill="#e9542f" opacity="0.14"/>
+        <circle cx="150" cy="30" r="5" fill="#2bb0c9" opacity="0.16"/>
+        <circle cx="190" cy="120" r="9" fill="#f4c01f" opacity="0.18"/>
+        <circle cx="66" cy="150" r="6" fill="#e36fa8" opacity="0.16"/>
+        <circle cx="110" cy="96" r="4" fill="#16110d" opacity="0.10"/>
+        <rect x="14" y="180" width="11" height="11" fill="#2bb0c9" opacity="0.14" transform="rotate(18 19 185)"/>
+        <rect x="175" y="178" width="9" height="9" fill="#e9542f" opacity="0.14" transform="rotate(-22 179 182)"/>
+        <polygon points="120,160 132,182 108,182" fill="#bfe3c6" opacity="0.5"/>
+      </pattern>
+      <!-- squiggle + confetti + triangle accent layer -->
+      <pattern id="squig" width="320" height="320" patternUnits="userSpaceOnUse">
+        <path d="M-10 60 q 30 -34 60 0 t 60 0 t 60 0 t 60 0 t 60 0 t 60 0"
+              fill="none" stroke="#16110d" stroke-width="3" stroke-linecap="round" opacity="0.16"/>
+        <path d="M-10 250 q 30 34 60 0 t 60 0 t 60 0 t 60 0 t 60 0 t 60 0"
+              fill="none" stroke="#16110d" stroke-width="3" stroke-linecap="round" opacity="0.12"/>
+        <circle cx="40" cy="150" r="5" fill="#16110d" opacity="0.18"/>
+        <circle cx="250" cy="120" r="5" fill="#e9542f" opacity="0.4"/>
+        <circle cx="170" cy="290" r="5" fill="#2bb0c9" opacity="0.4"/>
+        <polygon points="290,200 304,224 276,224" fill="none" stroke="#16110d" stroke-width="2.5" opacity="0.2"/>
+        <polygon points="90,210 102,232 78,232" fill="#f4c01f" opacity="0.4"/>
+        <line x1="220" y1="40" x2="236" y2="56" stroke="#16110d" stroke-width="3" stroke-linecap="round" opacity="0.18"/>
+        <line x1="236" y1="40" x2="220" y2="56" stroke="#16110d" stroke-width="3" stroke-linecap="round" opacity="0.18"/>
+      </pattern>
+    </defs>
+    <rect class="layer-a" x="-200" y="-200" width="1840" height="1300" fill="url(#terr)"/>
+    <rect class="layer-b" x="-200" y="-200" width="1840" height="1300" fill="url(#squig)"/>
+  </svg>
+</div>
+
+<div class="wrap">
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="blob" aria-hidden="true"></span>
+      <span id="brandName">ยิ้มหวาน คลินิก<br><small id="brandSub">AI Front Desk</small></span>
+    </div>
+    <span class="spacer"></span>
+    <nav class="pillnav" aria-label="dashboard">
+      <a href="#" class="live">สด</a>
+      <a href="#" class="range" id="rangePill">30 วัน</a>
+      <a href="#">ส่งออก</a>
+    </nav>
+  </header>
+
+  <!-- TITLE BAND -->
+  <section class="titleband">
+    <div class="titleblock">
+      <span class="kicker"><span class="dot"></span> OWNER OVERVIEW</span>
+      <h1 class="headline">
+        <span class="a" id="hlA">ภาพรวม</span>
+        <span class="squig" aria-hidden="true">
+          <svg width="64" height="26" viewBox="0 0 64 26"><path d="M2 16 q 8 -16 16 0 t 16 0 t 16 0 t 14 0" fill="none" stroke="#e9542f" stroke-width="4" stroke-linecap="round"/></svg>
+        </span>
+        <span class="b" id="hlB">ร้าน</span>
+      </h1>
+      <p class="subline" id="subline"></p>
+    </div>
+    <div class="bigstat">
+      <div class="v" id="heroVal">฿284,500</div>
+      <div class="k" id="heroLab">รายได้ที่จองเข้ามา</div>
+    </div>
+  </section>
+
+  <!-- KPI ROW (signature: tilted clashing colour blocks) -->
+  <section class="kpis" id="kpis" aria-label="key metrics"></section>
+
+  <!-- CHART + DONUT -->
+  <section class="maingrid">
+    <div class="panel tilt-l">
+      <div class="phead">
+        <span class="ptitle"><span class="tag" style="background:#f4c01f"></span> สายเข้า vs นัดจอง</span>
+        <span class="legend">
+          <span><i style="background:#e9542f"></i> สายเข้า</span>
+          <span><i style="background:#2bb0c9"></i> นัดจอง</span>
+        </span>
+      </div>
+      <div class="chartbox" id="chartbox"></div>
+    </div>
+
+    <div class="panel tilt-r">
+      <div class="phead">
+        <span class="ptitle"><span class="tag" style="background:#e36fa8"></span> ช่องทาง</span>
+      </div>
+      <div class="donutwrap">
+        <div id="donutbox"></div>
+        <div class="donutlegend" id="donutlegend"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HANDOFF LIST -->
+  <section class="afterrow">
+    <div class="handoff">
+      <div class="phead">
+        <span class="ptitle"><span class="tag" style="background:#e9542f"></span> เคสที่ควรเหลือบมอง</span>
+        <span class="count-badge" id="handoffCount">5 เคสรอ</span>
+      </div>
+      <div class="cases" id="cases"></div>
+    </div>
+  </section>
+
+  <p class="footnote">
+    <span class="tri" aria-hidden="true"></span>
+    ข้อมูลตัวอย่าง - แก้ array <b style="background:#f4c01f;padding:0 4px">DATA</b> ด้านบนเพื่อต่อข้อมูลจริง
+  </p>
+
+</div>
+
+<script>
+/* ===================== RENDER ===================== */
+(function () {
+  "use strict";
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // brand + title
+  document.getElementById("brandName").innerHTML =
+    DATA.brand.name + "<br><small>" + DATA.brand.sub + "</small>";
+  document.getElementById("rangePill").textContent = DATA.range;
+  document.getElementById("hlA").textContent = DATA.headline.a;
+  document.getElementById("hlB").textContent = DATA.headline.b;
+  document.getElementById("subline").innerHTML = DATA.subline;
+  document.getElementById("heroVal").textContent = DATA.hero.value;
+  document.getElementById("heroLab").textContent = DATA.hero.label;
+
+  // ---- doodle glyphs for KPI ----
+  const GLYPH = {
+    phone:    '<svg width="14" height="14" viewBox="0 0 14 14"><path d="M2 2 q0 4 4 7 t6 3 l-1-2 -2 .5 -4-4 .5-2z" fill="none" stroke="#16110d" stroke-width="1.6" stroke-linejoin="round"/></svg>',
+    calendar: '<svg width="14" height="14" viewBox="0 0 14 14"><rect x="2" y="3" width="10" height="9" rx="1" fill="none" stroke="#16110d" stroke-width="1.5"/><path d="M2 6 h10 M5 1.5 v2.5 M9 1.5 v2.5" stroke="#16110d" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    bolt:     '<svg width="14" height="14" viewBox="0 0 14 14"><path d="M8 1 L3 8 h3 l-1 5 5-7 H7z" fill="none" stroke="#16110d" stroke-width="1.5" stroke-linejoin="round"/></svg>',
+    hand:     '<svg width="14" height="14" viewBox="0 0 14 14"><path d="M4 7 V3.5 a1 1 0 012 0 V7 M6 7 V3 a1 1 0 012 0 V7 M8 7 V4 a1 1 0 012 0 V8 q0 4-4 4 -3 0-4-3 l-1-2 q-.5-1 .8-1.3 L4 7" fill="none" stroke="#16110d" stroke-width="1.3" stroke-linejoin="round"/></svg>'
+  };
+
+  // ---- KPI blocks ----
+  const kpiHtml = DATA.kpis.map(function (k) {
+    const dirArrow = k.dir === "up" ? "&#9650;" : "&#9660;";
+    const deltaCls = k.dir === "up" ? "delta" : "delta down";
+    return (
+      '<div class="kpi" tabindex="0">' +
+        '<div class="topline">' +
+          '<span class="name">' + k.name + '</span>' +
+          '<span class="glyph" aria-hidden="true">' + (GLYPH[k.glyph] || "") + '</span>' +
+        '</div>' +
+        '<div class="value">' + k.value + ' <small>' + k.unit + '</small></div>' +
+        '<span class="' + deltaCls + '"><span class="arrow">' + dirArrow + '</span>' + k.delta + '</span>' +
+        '<div class="foot">' + k.foot + '</div>' +
+      '</div>'
+    );
+  }).join("");
+  document.getElementById("kpis").innerHTML = kpiHtml;
+
+  /* ===================== TREND CHART (hand-built SVG) ===================== */
+  (function buildChart() {
+    const t = DATA.trend;
+    const W = 640, H = 260, P = { l: 34, r: 14, t: 16, b: 30 };
+    const iw = W - P.l - P.r, ih = H - P.t - P.b;
+    const n = t.labels.length;
+    const cap = t.cap;
+    const x = i => P.l + (n === 1 ? iw / 2 : (i * iw) / (n - 1));
+    const y = v => P.t + ih - (v / cap) * ih;
+
+    let g = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="trend of calls and bookings">';
+
+    // gridlines + y labels
+    const ticks = [0, 0.25, 0.5, 0.75, 1];
+    ticks.forEach(function (f) {
+      const yy = P.t + ih - f * ih;
+      g += '<line x1="' + P.l + '" y1="' + yy + '" x2="' + (W - P.r) + '" y2="' + yy +
+           '" stroke="#16110d" stroke-width="1" opacity="0.12" stroke-dasharray="2 5"/>';
+      g += '<text x="' + (P.l - 7) + '" y="' + (yy + 3.5) + '" text-anchor="end" font-family="Space Grotesk" ' +
+           'font-size="10" font-weight="600" fill="#5d564b">' + Math.round(f * cap) + '</text>';
+    });
+
+    // calls bars (chunky, ink-outlined orange)
+    const bw = Math.min(20, (iw / n) * 0.42);
+    t.calls.forEach(function (v, i) {
+      const bx = x(i) - bw / 2;
+      const by = y(v);
+      g += '<rect x="' + bx.toFixed(1) + '" y="' + by.toFixed(1) + '" width="' + bw.toFixed(1) +
+           '" height="' + (P.t + ih - by).toFixed(1) + '" fill="#e9542f" stroke="#16110d" stroke-width="2" rx="2"/>';
+    });
+
+    // bookings line (cyan, ink outline) + dots
+    let dPath = "";
+    t.bookings.forEach(function (v, i) {
+      dPath += (i === 0 ? "M" : "L") + x(i).toFixed(1) + " " + y(v).toFixed(1) + " ";
+    });
+    // white halo under line for readability over bars
+    g += '<path d="' + dPath + '" fill="none" stroke="#faf7f0" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>';
+    g += '<path d="' + dPath + '" fill="none" stroke="#2bb0c9" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" class="bk-line"/>';
+    t.bookings.forEach(function (v, i) {
+      g += '<circle cx="' + x(i).toFixed(1) + '" cy="' + y(v).toFixed(1) +
+           '" r="4.5" fill="#f4c01f" stroke="#16110d" stroke-width="2"/>';
+    });
+
+    // x labels (every other to avoid crowding)
+    t.labels.forEach(function (lab, i) {
+      if (i % 2 !== 0 && i !== n - 1) return;
+      g += '<text x="' + x(i).toFixed(1) + '" y="' + (H - 9) + '" text-anchor="middle" font-family="Space Grotesk" ' +
+           'font-size="10" font-weight="600" fill="#5d564b">' + lab + '</text>';
+    });
+
+    // baseline (chunky ink)
+    g += '<line x1="' + P.l + '" y1="' + (P.t + ih) + '" x2="' + (W - P.r) + '" y2="' + (P.t + ih) +
+         '" stroke="#16110d" stroke-width="2.5"/>';
+
+    g += '</svg>';
+    document.getElementById("chartbox").innerHTML = g;
+
+    // animated line dash, gated by reduced-motion
+    if (!reduce) {
+      const ln = document.querySelector(".bk-line");
+      if (ln) {
+        const len = ln.getTotalLength();
+        ln.style.strokeDasharray = len;
+        ln.style.strokeDashoffset = len;
+        ln.style.transition = "stroke-dashoffset 1.1s ease 0.15s";
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () { ln.style.strokeDashoffset = "0"; });
+        });
+      }
+    }
+  })();
+
+  /* ===================== DONUT (Voice vs LINE) ===================== */
+  (function buildDonut() {
+    const ch = DATA.channels;
+    const total = ch.reduce((s, c) => s + c.value, 0);
+    const R = 64, SR = 64, CX = 84, CY = 84, sw = 30;
+    const C = 2 * Math.PI * R;
+    let acc = 0;
+    let s = '<svg width="168" height="168" viewBox="0 0 168 168" role="img" aria-label="channel split">';
+    // background track
+    s += '<circle cx="' + CX + '" cy="' + CY + '" r="' + R + '" fill="none" stroke="#f3ecdd" stroke-width="' + sw + '"/>';
+    ch.forEach(function (c) {
+      const frac = c.value / total;
+      const dash = frac * C;
+      const gap = C - dash;
+      // small visual gap between arcs
+      const offset = -acc * C;
+      s += '<circle cx="' + CX + '" cy="' + CY + '" r="' + R + '" fill="none" stroke="' + c.color +
+           '" stroke-width="' + sw + '" stroke-dasharray="' + (dash - 4) + ' ' + (gap + 4) +
+           '" stroke-dashoffset="' + offset + '" transform="rotate(-90 ' + CX + ' ' + CY + ')" stroke-linecap="butt"/>';
+      acc += frac;
+    });
+    // ink ring outlines for the chunky postmodern look
+    s += '<circle cx="' + CX + '" cy="' + CY + '" r="' + (R + sw / 2) + '" fill="none" stroke="#16110d" stroke-width="2.5"/>';
+    s += '<circle cx="' + CX + '" cy="' + CY + '" r="' + (R - sw / 2) + '" fill="none" stroke="#16110d" stroke-width="2.5"/>';
+    // center label
+    s += '<text x="' + CX + '" y="' + (CY - 2) + '" text-anchor="middle" font-family="Bricolage Grotesque" font-size="26" font-weight="800" fill="#16110d">' + ch[0].value + '%</text>';
+    s += '<text x="' + CX + '" y="' + (CY + 16) + '" text-anchor="middle" font-family="Space Grotesk" font-size="10" font-weight="700" fill="#5d564b" letter-spacing="1">VOICE</text>';
+    s += '</svg>';
+    document.getElementById("donutbox").innerHTML = s;
+
+    document.getElementById("donutlegend").innerHTML = ch.map(function (c) {
+      return (
+        '<div class="row">' +
+          '<span class="sw" style="background:' + c.color + '"></span>' +
+          '<span><span class="nm">' + c.name + '</span><br><span class="ct">' + c.count + '</span></span>' +
+          '<span class="pc">' + c.value + '%</span>' +
+        '</div>'
+      );
+    }).join("");
+  })();
+
+  /* ===================== HANDOFF LIST ===================== */
+  (function buildHandoff() {
+    const avaBg = { hot: "#e36fa8", warm: "#f4c01f", cool: "#2bb0c9" };
+    document.getElementById("handoffCount").textContent = DATA.handoff.length + " เคสรอ";
+    document.getElementById("cases").innerHTML = DATA.handoff.map(function (c) {
+      const chanCls = c.chan === "voice" ? "chan voice" : "chan line";
+      const chanTxt = c.chan === "voice" ? "VOICE" : "LINE";
+      return (
+        '<div class="case" tabindex="0">' +
+          '<span class="ava" style="background:' + (avaBg[c.flag] || "#bfe3c6") + '">' + c.init + '</span>' +
+          '<div class="mid">' +
+            '<div class="who">' + c.who + ' <span class="' + chanCls + '">' + chanTxt + '</span></div>' +
+            '<div class="reason">' + c.reason + '</div>' +
+            '<a class="go" href="#">เปิดเคส &#8594;</a>' +
+          '</div>' +
+          '<div class="right">' +
+            '<span class="flag ' + c.flag + '">' + c.flagText + '</span>' +
+            '<span class="ago">' + c.ago + '</span>' +
+          '</div>' +
+        '</div>'
+      );
+    }).join("");
+  })();
+})();
+</script>
+</body>
+</html>

@@ -123,6 +123,9 @@ SLUG_CAT = {
     # --- batch 46 (living-note backoffice cont.) ---
     "living-note-handoff": "admin", "living-note-analytics": "admin", "living-note-ai-config": "admin",
     "living-note-live-feed": "admin", "living-note-week-review": "admin",
+    # --- batch 47 (living-note FLAVOR variations of the owner overview) ---
+    "living-note-flavor-graphpaper": "admin", "living-note-flavor-bujo": "admin", "living-note-flavor-watercolor": "admin",
+    "living-note-flavor-monoline": "admin", "living-note-flavor-kraft": "admin",
 }
 
 KEYWORDS = [  # fallback for any slug not in SLUG_CAT (first match wins)

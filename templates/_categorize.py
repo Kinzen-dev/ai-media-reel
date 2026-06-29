@@ -126,6 +126,12 @@ SLUG_CAT = {
     # --- batch 47 (living-note FLAVOR variations of the owner overview) ---
     "living-note-flavor-graphpaper": "admin", "living-note-flavor-bujo": "admin", "living-note-flavor-watercolor": "admin",
     "living-note-flavor-monoline": "admin", "living-note-flavor-kraft": "admin",
+    # --- batch 48 (OTHER wow backoffice styles of the owner overview) ---
+    "glass-aurora-backoffice": "admin", "neo-brutalist-backoffice": "admin", "terminal-ops-backoffice": "admin",
+    "bloomberg-data-backoffice": "admin", "editorial-magazine-backoffice": "admin",
+    # --- batch 49 (more wow backoffice styles) ---
+    "dark-luxe-backoffice": "admin", "claymorphism-backoffice": "admin", "swiss-grid-backoffice": "admin",
+    "spatial-depth-backoffice": "admin", "organic-blob-backoffice": "admin",
 }
 
 KEYWORDS = [  # fallback for any slug not in SLUG_CAT (first match wins)

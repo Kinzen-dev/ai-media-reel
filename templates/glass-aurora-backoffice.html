@@ -1,0 +1,727 @@
+<!-- TEMPLATE: Glass Aurora Backoffice | ARCHETYPE: glassmorphism owner dashboard | REF: glassmorphism + aurora gradient-mesh, visionOS/Apple glass, premium modern dashboards | WHEN TO USE: owner/operator overview dashboard wanting a premium frosted-glass look over a vivid aurora background (KPIs, trend, channel split, handoff list) | SWAP: edit the DATA object at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Yimwhan Owner Overview - Glass Aurora</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   DATA lives in the <script> block at the very top of <body>.
+   To re-skin: edit the DATA object (KPIs, trend, channels, handoffs, brand).
+   ============================================================ */
+
+:root{
+  /* aurora blob colors */
+  --aurora-violet: #7c3aed;
+  --aurora-magenta: #d6219b;
+  --aurora-teal: #16c2c2;
+  --aurora-blue: #3b82f6;
+  /* glass system */
+  --glass-fill: rgba(255,255,255,0.10);
+  --glass-fill-strong: rgba(255,255,255,0.16);
+  --glass-border: rgba(255,255,255,0.30);
+  --glass-border-soft: rgba(255,255,255,0.16);
+  --glass-blur: 18px;
+  /* text on glass */
+  --bone: #f6f4ef;
+  --bone-dim: rgba(246,244,239,0.72);
+  --bone-faint: rgba(246,244,239,0.50);
+  --good: #5eead4;
+  --bad: #fda4af;
+  --radius: 22px;
+  --radius-sm: 14px;
+  --maxw: 1240px;
+}
+
+*{ box-sizing: border-box; }
+html,body{ margin:0; padding:0; }
+html{ scroll-behavior:smooth; }
+body{
+  font-family:'Inter', system-ui, -apple-system, sans-serif;
+  color:var(--bone);
+  background:#0a0712;
+  min-height:100vh;
+  overflow-x:hidden;            /* zero page horizontal overflow */
+  -webkit-font-smoothing:antialiased;
+  position:relative;
+}
+
+/* ===================== AURORA BACKGROUND ===================== */
+/* Fixed layer. Mostly-static radial-gradient blobs with a very gentle drift.
+   The blobs are painted as gradient BACKGROUNDS on box-fitting layers (not as
+   oversized child boxes), so they bleed visually past the viewport without ever
+   inflating page scrollWidth. Limited count (4 blobs) and capped blur keep FPS high. */
+.aurora{
+  position:fixed; inset:0;            /* clip box = viewport */
+  z-index:0;
+  pointer-events:none;
+  overflow:hidden;                    /* keep the soft glow contained to the page */
+}
+.aurora-inner{
+  position:absolute; inset:0;         /* fits the viewport box exactly; only the painted gradient drifts */
+  filter:blur(8px);                   /* capped, light blur on the whole mesh */
+}
+.blob-a, .blob-b, .blob-c, .blob-d{
+  position:absolute; inset:0;
+  will-change:transform;
+  background-repeat:no-repeat;
+}
+/* each blob = one radial-gradient sized in vmax, anchored near a corner so the soft
+   falloff bleeds off-screen; the layer itself stays inside the box (no layout overflow). */
+.blob-a{
+  background:radial-gradient(62vmax 62vmax at 14% 6%, var(--aurora-violet) 0%, rgba(124,58,237,0) 62%);
+  opacity:0.85;
+  animation:driftA 26s ease-in-out infinite alternate;
+}
+.blob-b{
+  background:radial-gradient(58vmax 58vmax at 90% 10%, var(--aurora-magenta) 0%, rgba(214,33,155,0) 60%);
+  opacity:0.78;
+  animation:driftB 30s ease-in-out infinite alternate;
+}
+.blob-c{
+  background:radial-gradient(64vmax 64vmax at 10% 104%, var(--aurora-teal) 0%, rgba(22,194,194,0) 60%);
+  opacity:0.62;
+  animation:driftC 34s ease-in-out infinite alternate;
+}
+.blob-d{
+  background:radial-gradient(50vmax 50vmax at 96% 96%, var(--aurora-blue) 0%, rgba(59,130,246,0) 62%);
+  opacity:0.55;
+  animation:driftD 28s ease-in-out infinite alternate;
+}
+/* a faint dark vignette over the mesh keeps the glass readable */
+.aurora-veil{
+  position:fixed; inset:0; z-index:0; pointer-events:none;
+  background:
+    radial-gradient(120% 90% at 50% -10%, rgba(10,7,18,0) 0%, rgba(10,7,18,0.30) 70%, rgba(10,7,18,0.55) 100%);
+}
+
+@keyframes driftA{ from{ transform:translate3d(0,0,0) scale(1);} to{ transform:translate3d(4vmax,3vmax,0) scale(1.06);} }
+@keyframes driftB{ from{ transform:translate3d(0,0,0) scale(1.04);} to{ transform:translate3d(-4vmax,2vmax,0) scale(1);} }
+@keyframes driftC{ from{ transform:translate3d(0,0,0) scale(1);} to{ transform:translate3d(3vmax,-3vmax,0) scale(1.05);} }
+@keyframes driftD{ from{ transform:translate3d(0,0,0) scale(1.03);} to{ transform:translate3d(-3vmax,-2vmax,0) scale(1);} }
+
+/* ===================== LAYOUT SHELL ===================== */
+.shell{
+  position:relative; z-index:2;
+  max-width:var(--maxw);
+  margin:0 auto;
+  padding:26px 28px 64px;
+  min-width:0;
+}
+
+/* ===================== GLASS PRIMITIVE ===================== */
+.glass{
+  position:relative;
+  background:var(--glass-fill);
+  border:1px solid var(--glass-border-soft);
+  border-radius:var(--radius);
+  -webkit-backdrop-filter:blur(var(--glass-blur)) saturate(150%);
+  backdrop-filter:blur(var(--glass-blur)) saturate(150%);
+  box-shadow:
+    0 10px 40px rgba(10,5,25,0.35),
+    inset 0 1px 0 rgba(255,255,255,0.35),         /* top edge gloss */
+    inset 0 0 24px rgba(255,255,255,0.05);        /* soft inner glow */
+  min-width:0;
+}
+/* a 1px bright hairline along the top-left to fake a lit glass edge */
+.glass::before{
+  content:"";
+  position:absolute; inset:0;
+  border-radius:inherit;
+  padding:1px;
+  background:linear-gradient(135deg, rgba(255,255,255,0.55), rgba(255,255,255,0.04) 40%, rgba(255,255,255,0) 70%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;
+          mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask-composite:exclude;
+  pointer-events:none;
+}
+
+/* ===================== TOP BAR ===================== */
+.topbar{
+  display:flex; align-items:center; gap:16px;
+  padding:14px 18px;
+  margin-bottom:20px;
+  min-width:0;
+}
+.brandmark{
+  width:42px; height:42px; flex:0 0 auto;
+  border-radius:13px;
+  display:grid; place-items:center;
+  background:linear-gradient(140deg, rgba(255,255,255,0.30), rgba(255,255,255,0.05));
+  border:1px solid rgba(255,255,255,0.4);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.6);
+}
+.brandmark svg{ width:22px; height:22px; display:block; }
+.brand-meta{ min-width:0; display:flex; flex-direction:column; gap:2px; }
+.brand-name{
+  font-family:'Sora',sans-serif; font-weight:700; font-size:16px; letter-spacing:0.2px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.brand-sub{
+  font-size:12px; color:var(--bone-dim);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.topbar-spacer{ flex:1 1 auto; min-width:0; }
+.pill{
+  flex:0 0 auto;
+  display:inline-flex; align-items:center; gap:7px;
+  padding:8px 14px;
+  border-radius:999px;
+  background:var(--glass-fill-strong);
+  border:1px solid var(--glass-border);
+  font-size:12.5px; font-weight:500; color:var(--bone);
+  white-space:nowrap;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.3);
+}
+.pill .dot{ width:8px; height:8px; border-radius:50%; background:var(--good); box-shadow:0 0 8px var(--good); }
+.pill.muted{ color:var(--bone-dim); }
+.avatar{
+  flex:0 0 auto; width:38px; height:38px; border-radius:50%;
+  background:linear-gradient(140deg,#d6219b,#7c3aed);
+  display:grid; place-items:center; font-weight:600; font-size:14px; color:#fff;
+  border:1px solid rgba(255,255,255,0.45);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.4);
+}
+
+/* ===================== HEADLINE BAND ===================== */
+.headband{ margin:4px 2px 20px; min-width:0; }
+.eyebrow{
+  font-size:12px; font-weight:600; letter-spacing:2.5px; text-transform:uppercase;
+  color:var(--bone-faint); margin:0 0 8px;
+}
+.headline{
+  font-family:'Sora',sans-serif; font-weight:700;
+  font-size:clamp(26px,3.4vw,40px); line-height:1.08; margin:0;
+  letter-spacing:-0.5px;
+}
+.headline .accent{
+  background:linear-gradient(100deg,#a78bfa,#67e8f9 55%,#f0abfc);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.headline-sub{
+  margin:10px 0 0; font-size:14.5px; color:var(--bone-dim); max-width:62ch;
+}
+
+/* ===================== KPI ROW ===================== */
+.kpi-row{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:16px;
+  margin-bottom:18px;
+}
+.kpi{
+  padding:18px 18px 16px;
+  display:flex; flex-direction:column; gap:12px;
+  min-width:0;
+  overflow:hidden;
+}
+.kpi-top{ display:flex; align-items:center; gap:10px; min-width:0; }
+.kpi-ico{
+  width:34px; height:34px; flex:0 0 auto;
+  border-radius:11px; display:grid; place-items:center;
+  background:rgba(255,255,255,0.12);
+  border:1px solid rgba(255,255,255,0.22);
+}
+.kpi-ico svg{ width:18px; height:18px; display:block; }
+.kpi-label{
+  font-size:12.5px; font-weight:500; color:var(--bone-dim);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;
+}
+.kpi-value{
+  font-family:'Sora',sans-serif; font-weight:700;
+  font-size:clamp(28px,3vw,36px); line-height:1; letter-spacing:-0.5px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.kpi-value .unit{ font-size:0.5em; font-weight:500; color:var(--bone-dim); margin-left:4px; }
+.kpi-foot{ display:flex; align-items:center; gap:8px; min-width:0; flex-wrap:wrap; }
+.delta{
+  display:inline-flex; align-items:center; gap:4px;
+  padding:3px 9px; border-radius:999px;
+  font-size:12px; font-weight:600;
+  border:1px solid transparent;
+  white-space:nowrap;
+}
+.delta.up{ color:var(--good); background:rgba(94,234,212,0.12); border-color:rgba(94,234,212,0.25); }
+.delta.down{ color:var(--bad); background:rgba(253,164,175,0.12); border-color:rgba(253,164,175,0.25); }
+.delta svg{ width:11px; height:11px; }
+.kpi-foot-note{
+  font-size:11.5px; color:var(--bone-faint);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;
+}
+
+/* ===================== MAIN GRID ===================== */
+.main-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);
+  gap:16px;
+  margin-bottom:16px;
+}
+.panel{ padding:20px 20px 18px; min-width:0; overflow:hidden; }
+.panel-head{
+  display:flex; align-items:baseline; gap:10px; margin-bottom:14px; min-width:0;
+}
+.panel-title{
+  font-family:'Sora',sans-serif; font-weight:600; font-size:16px; margin:0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;
+}
+.panel-sub{
+  font-size:12px; color:var(--bone-faint); margin-left:auto; flex:0 0 auto; white-space:nowrap;
+}
+
+/* ----- trend chart ----- */
+.chart-legend{ display:flex; gap:16px; margin:0 0 8px; flex-wrap:wrap; }
+.leg{ display:inline-flex; align-items:center; gap:7px; font-size:12px; color:var(--bone-dim); }
+.leg .sw{ width:12px; height:12px; border-radius:4px; flex:0 0 auto; }
+.chart-wrap{ width:100%; min-width:0; }
+.chart-wrap svg{ width:100%; height:auto; display:block; overflow:visible; }
+.x-labels{ display:flex; justify-content:space-between; margin-top:6px; }
+.x-labels span{ font-size:11px; color:var(--bone-faint); }
+
+/* ----- donut / channel split ----- */
+.donut-block{ display:flex; align-items:center; gap:20px; min-width:0; flex-wrap:wrap; }
+.donut-svg{ flex:0 0 auto; }
+.donut-legend{ flex:1 1 160px; min-width:0; display:flex; flex-direction:column; gap:12px; }
+.chan{ display:flex; align-items:center; gap:10px; min-width:0; }
+.chan .sw{ width:11px; height:11px; border-radius:50%; flex:0 0 auto; }
+.chan-name{ font-size:13px; font-weight:500; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.chan-meta{ margin-left:auto; flex:0 0 auto; text-align:right; }
+.chan-pct{ font-family:'Sora',sans-serif; font-weight:600; font-size:15px; }
+.chan-cnt{ font-size:11px; color:var(--bone-faint); }
+
+/* ===================== HANDOFF LIST ===================== */
+.handoff-panel{ padding:20px 20px 12px; min-width:0; }
+.handoff-list{ list-style:none; margin:0; padding:0; }
+.handoff{
+  display:flex; align-items:center; gap:14px;
+  padding:13px 8px;
+  border-top:1px solid rgba(255,255,255,0.10);
+  min-width:0;
+}
+.handoff:first-child{ border-top:none; }
+.h-avatar{
+  width:40px; height:40px; flex:0 0 auto; border-radius:50%;
+  display:grid; place-items:center; font-weight:600; font-size:14px; color:#fff;
+  border:1px solid rgba(255,255,255,0.35);
+}
+.h-body{ min-width:0; flex:1 1 auto; display:flex; flex-direction:column; gap:3px; }
+.h-name-row{ display:flex; align-items:center; gap:8px; min-width:0; overflow:hidden; }
+.h-name{ font-size:14px; font-weight:600; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tag{
+  flex:0 0 auto; font-size:10.5px; font-weight:600; letter-spacing:0.3px;
+  padding:2px 8px; border-radius:999px; white-space:nowrap;
+}
+.tag.urgent{ color:#fecaca; background:rgba(248,113,113,0.16); border:1px solid rgba(248,113,113,0.3); }
+.tag.review{ color:#fde68a; background:rgba(251,191,36,0.14); border:1px solid rgba(251,191,36,0.28); }
+.tag.followup{ color:#bae6fd; background:rgba(56,189,248,0.14); border:1px solid rgba(56,189,248,0.28); }
+.h-reason{ font-size:12.5px; color:var(--bone-dim); min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.h-side{ flex:0 0 auto; text-align:right; display:flex; flex-direction:column; gap:4px; align-items:flex-end; }
+.h-time{ font-size:11.5px; color:var(--bone-faint); white-space:nowrap; }
+.h-chan{
+  font-size:10.5px; font-weight:600; padding:2px 7px; border-radius:6px; white-space:nowrap;
+}
+.h-chan.voice{ color:#ddd6fe; background:rgba(167,139,250,0.16); }
+.h-chan.line{ color:#bbf7d0; background:rgba(74,222,128,0.16); }
+.handoff-foot{
+  text-align:center; padding:14px 0 4px;
+}
+.ghost-btn{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:9px 18px; border-radius:999px;
+  background:rgba(255,255,255,0.08);
+  border:1px solid var(--glass-border);
+  color:var(--bone); font-size:13px; font-weight:500;
+  cursor:pointer; font-family:inherit;
+  transition:background .18s ease, transform .18s ease;
+}
+.ghost-btn:hover{ background:rgba(255,255,255,0.16); transform:translateY(-1px); }
+.ghost-btn:focus-visible{ outline:2px solid #a78bfa; outline-offset:3px; }
+
+/* ===================== BOTTOM STRIP (clinic glimpse) ===================== */
+.strip{
+  display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,2fr);
+  gap:16px;
+}
+.clinic-card{ padding:0; overflow:hidden; min-width:0; position:relative; }
+.clinic-card img{ width:100%; height:100%; min-height:170px; object-fit:cover; display:block; }
+.clinic-overlay{
+  position:absolute; inset:0;
+  background:linear-gradient(180deg, rgba(10,7,18,0) 30%, rgba(10,7,18,0.72) 100%);
+  display:flex; align-items:flex-end; padding:16px 18px;
+}
+.clinic-overlay .ttl{ font-family:'Sora',sans-serif; font-weight:600; font-size:15px; }
+.clinic-overlay .sub{ font-size:12px; color:var(--bone-dim); margin-top:2px; }
+.mini-row{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.mini{ padding:16px 16px 14px; display:flex; flex-direction:column; gap:8px; min-width:0; overflow:hidden; }
+.mini-label{ font-size:11.5px; color:var(--bone-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mini-value{ font-family:'Sora',sans-serif; font-weight:700; font-size:22px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mini-bar{ height:6px; border-radius:999px; background:rgba(255,255,255,0.12); overflow:hidden; }
+.mini-bar > i{ display:block; height:100%; border-radius:999px; }
+.mini-foot{ font-size:11px; color:var(--bone-faint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* ===================== RESPONSIVE ===================== */
+@media (max-width:1080px){
+  .kpi-row{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .main-grid{ grid-template-columns:1fr; }
+  .strip{ grid-template-columns:1fr; }
+}
+@media (max-width:640px){
+  .shell{ padding:18px 14px 48px; }
+  .topbar{ flex-wrap:wrap; padding:12px 14px; gap:12px; }
+  .topbar-spacer{ display:none; }
+  .pill{ font-size:11.5px; }
+  .kpi-row{ grid-template-columns:1fr; gap:12px; }
+  .kpi-value{ font-size:30px; }
+  .mini-row{ grid-template-columns:1fr; }
+  .donut-block{ justify-content:center; }
+  .headline-sub{ font-size:13.5px; }
+  .clinic-card img{ min-height:150px; }
+}
+
+/* ===================== REDUCED MOTION ===================== */
+@media (prefers-reduced-motion:reduce){
+  html{ scroll-behavior:auto; }
+  .blob-a, .blob-b, .blob-c, .blob-d{
+    animation:none !important;
+  }
+  .ghost-btn{ transition:none; }
+  *{ animation-duration:0.001s !important; animation-iteration-count:1 !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- aurora background mesh (4 capped, lightly-blurred blobs) -->
+<div class="aurora" aria-hidden="true"><div class="aurora-inner"><span class="blob-a"></span><span class="blob-b"></span><span class="blob-c"></span><span class="blob-d"></span></div></div>
+<div class="aurora-veil" aria-hidden="true"></div>
+
+<div class="shell">
+
+  <!-- ================= TOP BAR ================= -->
+  <header class="glass topbar" id="topbar">
+    <div class="brandmark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M12 3c-2.2 0-3 1.4-4.4 1.4C5.8 4.4 4 3.6 4 6.5c0 3.4 1.2 6.6 2.4 9.2C7.3 17.7 8 19 9.2 19c1.1 0 1.3-1.6 2.8-1.6S13.7 19 14.8 19c1.2 0 1.9-1.3 2.8-3.3 1.2-2.6 2.4-5.8 2.4-9.2 0-2.9-1.8-2.1-3.6-2.1C14.9 4.4 14.2 3 12 3Z" fill="#fff" fill-opacity="0.92"/>
+      </svg>
+    </div>
+    <div class="brand-meta">
+      <div class="brand-name" id="brandName">Yimwhan Clinic</div>
+      <div class="brand-sub" id="brandSub">Owner overview</div>
+    </div>
+    <div class="topbar-spacer"></div>
+    <span class="pill"><span class="dot"></span><span id="liveLabel">AI assistant live</span></span>
+    <span class="pill muted" id="dateLabel">Today, 30 Jun</span>
+    <div class="avatar" id="ownerInitials" title="Owner">KK</div>
+  </header>
+
+  <!-- ================= HEADLINE BAND ================= -->
+  <section class="headband">
+    <p class="eyebrow" id="eyebrow">Daily snapshot</p>
+    <h1 class="headline">Today at <span class="accent" id="clinicName">Yimwhan Dental</span></h1>
+    <p class="headline-sub" id="subline">A calm read of how the front desk ran while the AI handled the phones and LINE chats. Numbers update through the day.</p>
+  </section>
+
+  <!-- ================= KPI ROW ================= -->
+  <section class="kpi-row" id="kpiRow"><!-- KPI cards injected --></section>
+
+  <!-- ================= MAIN GRID: trend + channel donut ================= -->
+  <section class="main-grid">
+
+    <!-- trend chart -->
+    <div class="glass panel">
+      <div class="panel-head">
+        <h2 class="panel-title">Calls and bookings</h2>
+        <span class="panel-sub" id="trendRange">Last 12 hours</span>
+      </div>
+      <div class="chart-legend">
+        <span class="leg"><span class="sw" style="background:#a78bfa"></span>Calls</span>
+        <span class="leg"><span class="sw" style="background:#5eead4"></span>Bookings</span>
+      </div>
+      <div class="chart-wrap" id="chartWrap"><!-- svg injected --></div>
+      <div class="x-labels" id="xLabels"></div>
+    </div>
+
+    <!-- channel donut -->
+    <div class="glass panel">
+      <div class="panel-head">
+        <h2 class="panel-title">Where it came from</h2>
+        <span class="panel-sub">Voice vs LINE</span>
+      </div>
+      <div class="donut-block">
+        <div class="donut-svg" id="donutSvg"><!-- svg injected --></div>
+        <div class="donut-legend" id="donutLegend"></div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ================= HANDOFF LIST ================= -->
+  <section class="glass handoff-panel">
+    <div class="panel-head">
+      <h2 class="panel-title">Needs a look</h2>
+      <span class="panel-sub" id="handoffCount">4 waiting</span>
+    </div>
+    <ul class="handoff-list" id="handoffList"><!-- items injected --></ul>
+    <div class="handoff-foot">
+      <button class="ghost-btn" type="button">
+        Open the full queue
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <!-- ================= BOTTOM STRIP ================= -->
+  <section class="strip">
+    <div class="glass clinic-card">
+      <img src="../assets/flux-clinic-4k.png" alt="Bright dental clinic interior with mint walls and wood cabinetry" loading="lazy" />
+      <div class="clinic-overlay">
+        <div>
+          <div class="ttl" id="clinicCardTitle">Rama 9 branch</div>
+          <div class="sub" id="clinicCardSub">Open 09:00 to 20:00 - 3 chairs in use now</div>
+        </div>
+      </div>
+    </div>
+    <div class="mini-row" id="miniRow"><!-- mini stats injected --></div>
+  </section>
+
+</div>
+
+<script>
+/* ============================================================
+   DATA  -  edit this single object to re-skin the dashboard.
+   All copy uses hyphen-with-spaces (no em/en dashes).
+   ============================================================ */
+const DATA = {
+  brand: {
+    name: "Yimwhan Clinic",
+    sub: "Owner overview",
+    clinicName: "Yimwhan Dental",
+    ownerInitials: "KK",
+    dateLabel: "Today, 30 Jun",
+    eyebrow: "Daily snapshot",
+    subline: "A calm read of how the front desk ran while the AI handled the phones and LINE chats. Numbers update through the day.",
+    liveLabel: "AI assistant live",
+    clinicCardTitle: "Rama 9 branch",
+    clinicCardSub: "Open 09:00 to 20:00 - 3 chairs in use now"
+  },
+
+  // KPI cards. delta.dir = 'up' | 'down'; good = is this delta a good thing
+  kpis: [
+    { label:"Calls today",     value:"128", unit:"",  icon:"phone",  delta:{ dir:"up",   pct:"12%", good:true },  note:"vs yesterday" },
+    { label:"Bookings",        value:"41",  unit:"",  icon:"calendar", delta:{ dir:"up", pct:"8%",  good:true },  note:"32% of calls" },
+    { label:"AI resolved",     value:"86",  unit:"%", icon:"spark",  delta:{ dir:"up",   pct:"4 pts", good:true },note:"no human needed" },
+    { label:"Avg response",    value:"1.4", unit:"s", icon:"bolt",   delta:{ dir:"down", pct:"0.3s", good:true },note:"first reply" }
+  ],
+
+  // trend: 12 buckets. calls + bookings paired. chart SVG hex is inline (never var()).
+  trend: {
+    range: "Last 12 hours",
+    xLabels: ["9a","10a","11a","12p","1p","2p","3p","4p","5p","6p","7p","8p"],
+    calls:    [4, 9, 14, 11, 7, 6, 12, 16, 13, 10, 8, 5],
+    bookings: [1, 3,  5,  4, 2, 2,  4,  6,  5,  3, 2, 1],
+    callColor: "#a78bfa",
+    bookColor: "#5eead4"
+  },
+
+  // channel split (Voice vs LINE). pct must sum to 100.
+  channels: [
+    { name:"Voice calls", pct:54, count:"128", color:"#a78bfa" },
+    { name:"LINE chats",  pct:46, count:"109", color:"#5eead4" }
+  ],
+
+  // handoff queue. tag = urgent | review | followup ; chan = voice | line
+  handoffs: [
+    { name:"คุณ ศิริพร วงศ์ทอง",  initials:"ศว", reason:"Asked for a refund on a deposit, AI paused", tag:"urgent",   chan:"voice", time:"6 min ago",  hue:"#f87171" },
+    { name:"คุณ ธนกร ภักดีศรี",   initials:"ธภ", reason:"Wants a quote for full braces, needs pricing", tag:"review",  chan:"line",  time:"22 min ago", hue:"#a78bfa" },
+    { name:"คุณ พิมพ์ชนก สุขใจ",  initials:"พส", reason:"Reschedule but the slot is fully booked",      tag:"followup", chan:"line",  time:"40 min ago", hue:"#5eead4" },
+    { name:"คุณ ณัฐวุฒิ แสงเดือน", initials:"ณส", reason:"Complaint about wait time last visit",          tag:"urgent",   chan:"voice", time:"1 hr ago",   hue:"#fb7185" }
+  ],
+
+  // mini stats under the clinic photo
+  mini: [
+    { label:"Revenue today",   value:"฿84,200", bar:72, barColor:"#a78bfa", foot:"68% of daily target" },
+    { label:"New patients",    value:"7",       bar:58, barColor:"#5eead4", foot:"of 24 today" },
+    { label:"No-show rate",    value:"4.1%",    bar:18, barColor:"#f0abfc", foot:"down from 6.0%" }
+  ]
+};
+
+/* ---------- tiny SVG icon set (stroke = currentColor where used) ---------- */
+const ICONS = {
+  phone:    '<svg viewBox="0 0 24 24" fill="none"><path d="M6.5 4h3l1.2 4-2 1.4a12 12 0 0 0 5.4 5.4l1.4-2 4 1.2v3a2 2 0 0 1-2.2 2A16 16 0 0 1 4.5 6.2 2 2 0 0 1 6.5 4Z" stroke="#ddd6fe" stroke-width="1.6" stroke-linejoin="round"/></svg>',
+  calendar: '<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="5.5" width="16" height="14" rx="2.5" stroke="#a7f3d0" stroke-width="1.6"/><path d="M4 9.5h16M8 3.5v3M16 3.5v3" stroke="#a7f3d0" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  spark:    '<svg viewBox="0 0 24 24" fill="none"><path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6L12 3Z" stroke="#fbcfe8" stroke-width="1.5" stroke-linejoin="round"/></svg>',
+  bolt:     '<svg viewBox="0 0 24 24" fill="none"><path d="M13 3 5 13h5l-1 8 8-10h-5l1-8Z" stroke="#bae6fd" stroke-width="1.6" stroke-linejoin="round"/></svg>'
+};
+const ARROW_UP = '<svg viewBox="0 0 24 24" fill="none"><path d="M12 19V5M6 11l6-6 6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const ARROW_DN = '<svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M6 13l6 6 6-6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- brand / header ---------- */
+(function fillBrand(){
+  const b = DATA.brand;
+  $('brandName').textContent   = b.name;
+  $('brandSub').textContent     = b.sub;
+  $('clinicName').textContent   = b.clinicName;
+  $('ownerInitials').textContent= b.ownerInitials;
+  $('dateLabel').textContent    = b.dateLabel;
+  $('eyebrow').textContent      = b.eyebrow;
+  $('subline').textContent       = b.subline;
+  $('liveLabel').textContent     = b.liveLabel;
+  $('clinicCardTitle').textContent = b.clinicCardTitle;
+  $('clinicCardSub').textContent   = b.clinicCardSub;
+})();
+
+/* ---------- KPI cards ---------- */
+(function renderKpis(){
+  $('kpiRow').innerHTML = DATA.kpis.map(k => {
+    const d = k.delta;
+    const cls = d.good ? "up" : "down";
+    const arrow = d.dir === "up" ? ARROW_UP : ARROW_DN;
+    return `<div class="glass kpi">
+      <div class="kpi-top">
+        <span class="kpi-ico">${ICONS[k.icon] || ""}</span>
+        <span class="kpi-label">${esc(k.label)}</span>
+      </div>
+      <div class="kpi-value">${esc(k.value)}<span class="unit">${esc(k.unit)}</span></div>
+      <div class="kpi-foot">
+        <span class="delta ${cls}">${arrow}${esc(d.pct)}</span>
+        <span class="kpi-foot-note">${esc(k.note)}</span>
+      </div>
+    </div>`;
+  }).join("");
+})();
+
+/* ---------- trend chart (inline SVG, hex literals only) ---------- */
+(function renderTrend(){
+  const t = DATA.trend;
+  $('trendRange').textContent = t.range;
+  const W = 560, H = 220, padL = 6, padR = 6, padT = 14, padB = 8;
+  const n = t.calls.length;
+  const maxV = Math.max(...t.calls, ...t.bookings) * 1.12;
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+  const xAt = (i) => padL + (innerW * (i / (n - 1)));
+  const yAt = (v) => padT + innerH - (innerH * (v / maxV));
+
+  // smooth-ish path via line segments (cheap, no GPU cost)
+  function linePath(arr){
+    return arr.map((v,i) => (i===0?"M":"L") + xAt(i).toFixed(1) + " " + yAt(v).toFixed(1)).join(" ");
+  }
+  function areaPath(arr){
+    const base = (padT + innerH).toFixed(1);
+    return "M" + xAt(0).toFixed(1) + " " + base + " " +
+           arr.map((v,i) => "L" + xAt(i).toFixed(1) + " " + yAt(v).toFixed(1)).join(" ") +
+           " L" + xAt(n-1).toFixed(1) + " " + base + " Z";
+  }
+  // gridlines
+  let grid = "";
+  for(let g=1; g<=3; g++){
+    const gy = (padT + innerH * (g/4)).toFixed(1);
+    grid += `<line x1="${padL}" y1="${gy}" x2="${W-padR}" y2="${gy}" stroke="#ffffff" stroke-opacity="0.08" stroke-width="1"/>`;
+  }
+  // dots on call line
+  const dots = t.calls.map((v,i) =>
+    `<circle cx="${xAt(i).toFixed(1)}" cy="${yAt(v).toFixed(1)}" r="3" fill="#0a0712" stroke="${t.callColor}" stroke-width="2"/>`).join("");
+
+  $('chartWrap').innerHTML = `
+  <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Calls and bookings over the last 12 hours">
+    <defs>
+      <linearGradient id="callFill" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${t.callColor}" stop-opacity="0.34"/>
+        <stop offset="100%" stop-color="${t.callColor}" stop-opacity="0"/>
+      </linearGradient>
+      <linearGradient id="bookFill" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${t.bookColor}" stop-opacity="0.28"/>
+        <stop offset="100%" stop-color="${t.bookColor}" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    ${grid}
+    <path d="${areaPath(t.calls)}" fill="url(#callFill)"/>
+    <path d="${areaPath(t.bookings)}" fill="url(#bookFill)"/>
+    <path d="${linePath(t.calls)}" fill="none" stroke="${t.callColor}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="${linePath(t.bookings)}" fill="none" stroke="${t.bookColor}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    ${dots}
+  </svg>`;
+
+  $('xLabels').innerHTML = t.xLabels.map(l => `<span>${esc(l)}</span>`).join("");
+})();
+
+/* ---------- channel donut (inline SVG, hex literals) ---------- */
+(function renderDonut(){
+  const chans = DATA.channels;
+  const cx = 60, cy = 60, r = 44, sw = 18;
+  const C = 2 * Math.PI * r;
+  let offset = 0;
+  const segs = chans.map(ch => {
+    const len = C * (ch.pct / 100);
+    const dash = `${len.toFixed(2)} ${(C - len).toFixed(2)}`;
+    const seg = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none"
+        stroke="${ch.color}" stroke-width="${sw}"
+        stroke-dasharray="${dash}" stroke-dashoffset="${(-offset).toFixed(2)}"
+        stroke-linecap="butt" transform="rotate(-90 ${cx} ${cy})"/>`;
+    offset += len;
+    return seg;
+  }).join("");
+
+  const total = chans.reduce((a,c)=> a + parseInt(c.count,10), 0);
+  $('donutSvg').innerHTML = `
+  <svg width="120" height="120" viewBox="0 0 120 120" role="img" aria-label="Channel split between Voice and LINE">
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="${sw}"/>
+    ${segs}
+    <text x="${cx}" y="${cy-2}" text-anchor="middle" font-family="Sora, sans-serif" font-weight="700" font-size="22" fill="#f6f4ef">${total}</text>
+    <text x="${cx}" y="${cy+15}" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#f6f4ef" fill-opacity="0.6">contacts</text>
+  </svg>`;
+
+  $('donutLegend').innerHTML = chans.map(ch => `
+    <div class="chan">
+      <span class="sw" style="background:${ch.color}"></span>
+      <span class="chan-name">${esc(ch.name)}</span>
+      <span class="chan-meta">
+        <span class="chan-pct">${ch.pct}%</span><br>
+        <span class="chan-cnt">${esc(ch.count)}</span>
+      </span>
+    </div>`).join("");
+})();
+
+/* ---------- handoff list ---------- */
+(function renderHandoffs(){
+  const items = DATA.handoffs;
+  $('handoffCount').textContent = items.length + " waiting";
+  $('handoffList').innerHTML = items.map(h => {
+    const tagLabel = { urgent:"Urgent", review:"Review", followup:"Follow up" }[h.tag] || h.tag;
+    return `<li class="handoff">
+      <span class="h-avatar" style="background:linear-gradient(140deg, ${h.hue}, rgba(124,58,237,0.85))">${esc(h.initials)}</span>
+      <span class="h-body">
+        <span class="h-name-row">
+          <span class="h-name" data-lint-ignore title="${esc(h.name)}">${esc(h.name)}</span>
+          <span class="tag ${h.tag}">${esc(tagLabel)}</span>
+        </span>
+        <span class="h-reason" data-lint-ignore title="${esc(h.reason)}">${esc(h.reason)}</span>
+      </span>
+      <span class="h-side">
+        <span class="h-time">${esc(h.time)}</span>
+        <span class="h-chan ${h.chan}">${h.chan === "voice" ? "Voice" : "LINE"}</span>
+      </span>
+    </li>`;
+  }).join("");
+})();
+
+/* ---------- mini stats ---------- */
+(function renderMini(){
+  $('miniRow').innerHTML = DATA.mini.map(m => `
+    <div class="glass mini">
+      <span class="mini-label">${esc(m.label)}</span>
+      <span class="mini-value">${esc(m.value)}</span>
+      <span class="mini-bar"><i style="width:${m.bar}%;background:${m.barColor}"></i></span>
+      <span class="mini-foot">${esc(m.foot)}</span>
+    </div>`).join("");
+})();
+</script>
+</body>
+</html>

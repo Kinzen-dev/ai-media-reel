@@ -1,0 +1,562 @@
+<!-- TEMPLATE: Terminal Ops Backoffice | ARCHETYPE: terminal-ops-backoffice | REF: htop / k9s / lazygit (phosphor-green TUI ops console) | WHEN TO USE: clinic/AI owner overview dashboard with a hacker-CLI vibe (KPIs, trends, channel split, handoff log) | SWAP: edit the DATA object at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>yimwhan@clinic ~ status</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* =========================================================================
+   TERMINAL OPS BACKOFFICE - phosphor-green TUI console
+   All framing is CSS borders. No box-drawing chars, no em/en dashes.
+   Filled-block chars (#2588 etc) are used inside bar gauges only.
+   ========================================================================= */
+:root{
+  --bg:#0a0e0a;          /* near-black ground */
+  --bg2:#0c130c;         /* panel ground */
+  --grn:#33ff77;         /* phosphor green */
+  --grn-dim:#1f9c4a;     /* dim green frame/labels */
+  --grn-faint:#16451f;   /* faint green hairline */
+  --amber:#ffb000;       /* amber accent */
+  --amber-dim:#7a5400;
+  --red:#ff5c5c;         /* alert */
+  --cyan:#46d6ff;        /* secondary channel */
+  --ink:#cfeede;         /* soft mono body text */
+  --ink-dim:#6f8c7c;     /* dim body */
+  --frame:#1f9c4a;
+}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0;padding:0}
+html{background:#050705}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:13px;
+  line-height:1.5;
+  letter-spacing:.01em;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+/* CRT scanline + vignette overlay, pointer-events none so it never blocks */
+.crt{
+  position:fixed;inset:0;z-index:9;pointer-events:none;
+  background:
+    radial-gradient(120% 90% at 50% 30%,rgba(0,0,0,0) 55%,rgba(0,0,0,.55) 100%),
+    repeating-linear-gradient(0deg,rgba(0,0,0,0) 0px,rgba(0,0,0,0) 2px,rgba(0,0,0,.16) 3px,rgba(0,0,0,0) 4px);
+  mix-blend-mode:multiply;
+}
+.crt::after{
+  content:"";position:absolute;left:0;right:0;height:120px;top:-120px;
+  background:linear-gradient(180deg,rgba(51,255,119,0) 0%,rgba(51,255,119,.06) 50%,rgba(51,255,119,0) 100%);
+  animation:scan 7s linear infinite;
+}
+@keyframes scan{0%{top:-120px}100%{top:100%}}
+
+a{color:var(--grn);text-underline-offset:2px}
+::selection{background:rgba(51,255,119,.3);color:#eafff2}
+
+/* shell wrapper */
+.wrap{max-width:1320px;margin:0 auto;padding:18px 16px 48px;position:relative;z-index:1}
+
+/* ---- command header bar ---- */
+.topbar{
+  border:1px solid var(--frame);
+  background:linear-gradient(180deg,#0d160d,#0a0e0a);
+  border-radius:6px;
+  padding:10px 14px 12px;
+  box-shadow:0 0 0 1px rgba(51,255,119,.06) inset,0 0 28px rgba(51,255,119,.05);
+}
+.tt-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.dots{display:flex;gap:7px;flex:0 0 auto}
+.dot{width:11px;height:11px;border-radius:50%;border:1px solid rgba(0,0,0,.4)}
+.dot.r{background:#ff5f57}.dot.y{background:#febc2e}.dot.g{background:#28c840}
+.tt-title{color:var(--grn-dim);font-size:12px;letter-spacing:.06em;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tt-meta{color:var(--ink-dim);font-size:11px;flex:0 0 auto;white-space:nowrap}
+.prompt{margin-top:12px;font-size:14px;line-height:1.55;overflow-wrap:anywhere}
+.usr{color:var(--grn)}
+.path{color:var(--cyan)}
+.sym{color:var(--amber)}
+.cmd{color:#eafff2}
+.cmd .flag{color:var(--amber)}
+.cur{
+  display:inline-block;width:9px;height:1.05em;vertical-align:-2px;
+  background:var(--grn);margin-left:3px;
+  box-shadow:0 0 8px rgba(51,255,119,.8);
+  animation:blink 1.05s steps(1) infinite;
+}
+@keyframes blink{50%{opacity:0}}
+.outline{margin-top:8px;color:var(--ink-dim);font-size:11.5px;overflow-wrap:anywhere}
+.outline b{color:var(--grn)}
+.ok{color:var(--grn)}.warn{color:var(--amber)}.bad{color:var(--red)}
+
+/* ---- grid of framed panels ---- */
+.grid{
+  display:grid;gap:12px;margin-top:12px;
+  grid-template-columns:repeat(12,1fr);
+}
+.span4{grid-column:span 4}
+.span6{grid-column:span 6}
+.span8{grid-column:span 8}
+.span12{grid-column:span 12}
+
+.panel{
+  border:1px solid var(--grn-faint);
+  background:var(--bg2);
+  border-radius:6px;
+  position:relative;
+  display:flex;flex-direction:column;
+  min-width:0;
+  box-shadow:0 0 22px rgba(0,0,0,.5) inset;
+}
+.panel.live{border-color:var(--frame)}
+.phead{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 12px;
+  border-bottom:1px solid var(--grn-faint);
+  background:linear-gradient(180deg,rgba(51,255,119,.05),rgba(51,255,119,0));
+  font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--grn-dim);
+  min-width:0;
+}
+.phead .tag{color:var(--ink-dim);text-transform:none;letter-spacing:.02em;font-size:10.5px}
+.phead .pidx{color:var(--amber);flex:0 0 auto}
+.phead .pttl{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--grn)}
+.pbody{padding:13px 13px 15px;min-width:0}
+
+/* ---- KPI readouts ---- */
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px 14px}
+.kpi{min-width:0}
+.kpi .klabel{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .kval{font-size:23px;font-weight:700;color:var(--grn);line-height:1.15;margin-top:2px;text-shadow:0 0 10px rgba(51,255,119,.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .kval.amb{color:var(--amber);text-shadow:0 0 10px rgba(255,176,0,.3)}
+.kpi .kdelta{font-size:10.5px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .kdelta .up{color:var(--grn)}.kpi .kdelta .down{color:var(--red)}.kpi .kdelta .flat{color:var(--ink-dim)}
+
+/* ascii bar gauge built from CSS block chars */
+.gauge{margin-top:6px}
+.gauge .grow{display:flex;align-items:center;gap:8px;margin:5px 0;min-width:0}
+.gauge .glab{flex:0 0 92px;font-size:10.5px;color:var(--ink-dim);overflow-wrap:anywhere}
+.gauge .gbar{flex:1 1 auto;min-width:0;font-size:12px;line-height:1.05;letter-spacing:1px;overflow:hidden;word-break:break-all}
+.gauge .gbar .fill{color:var(--grn);text-shadow:0 0 7px rgba(51,255,119,.4)}
+.gauge .gbar.amb .fill{color:var(--amber);text-shadow:0 0 7px rgba(255,176,0,.35)}
+.gauge .gbar.cy .fill{color:var(--cyan);text-shadow:0 0 7px rgba(70,214,255,.35)}
+.gauge .gbar .empty{color:#143a20}
+.gauge .gpct{flex:0 0 auto;font-size:10.5px;color:var(--grn);width:42px;text-align:right}
+.gauge .gpct.amb{color:var(--amber)}
+
+/* channel split */
+.chan .grow .glab{flex:0 0 120px}
+.chan .legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;font-size:10.5px;color:var(--ink-dim)}
+.chan .legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:10px;height:10px;display:inline-block;border-radius:2px}
+.sw.g{background:var(--grn)}.sw.c{background:var(--cyan)}.sw.a{background:var(--amber)}
+
+/* ---- trend chart ---- */
+.chartwrap{position:relative;width:100%}
+.chartwrap svg{display:block;width:100%;height:auto}
+.cax{font-size:9px;fill:#5f7a6b;letter-spacing:.04em}
+.csub{color:var(--ink-dim);font-size:10.5px;margin-top:8px;display:flex;gap:18px;flex-wrap:wrap}
+.csub b{color:var(--grn)}
+.cdot{display:inline-flex;align-items:center;gap:6px}
+
+/* sparkline row */
+.spark{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;line-height:1;color:var(--grn);letter-spacing:1px;margin-top:6px}
+.spark .sl{flex:0 0 auto;font-size:10.5px;color:var(--ink-dim);letter-spacing:.04em}
+.spark>span{min-width:0;overflow-wrap:anywhere}
+.spark .sv{flex:0 0 auto;font-size:11px;color:var(--amber);margin-left:auto}
+
+/* ---- log / handoff list ---- */
+.log{font-size:11.5px;line-height:1.65}
+.log .lrow{display:flex;gap:9px;align-items:flex-start;padding:3px 6px;border-radius:3px;min-width:0}
+.log .lrow:hover{background:rgba(51,255,119,.05)}
+.log .ts{flex:0 0 auto;color:#5f7a6b;font-variant-numeric:tabular-nums}
+.log .lvl{flex:0 0 auto;font-weight:700;width:50px}
+.log .lvl.WARN{color:var(--amber)}
+.log .lvl.CRIT{color:var(--red)}
+.log .lvl.INFO{color:var(--grn)}
+.log .lvl.OK{color:var(--cyan)}
+.log .msg{flex:1 1 auto;min-width:0;color:var(--ink);overflow-wrap:anywhere;word-break:break-word}
+.log .msg .who{color:#eafff2;font-weight:500}
+.log .msg .meta{color:var(--ink-dim)}
+.log .tag2{flex:0 0 auto;font-size:9.5px;padding:1px 6px;border:1px solid var(--grn-faint);border-radius:10px;color:var(--ink-dim);white-space:nowrap}
+.log .tag2.hot{color:var(--amber);border-color:var(--amber-dim)}
+
+/* status strip / footer readout */
+.strip{
+  margin-top:12px;border:1px solid var(--grn-faint);border-radius:6px;background:var(--bg2);
+  display:flex;flex-wrap:wrap;gap:0;overflow:hidden;
+}
+.cell{flex:1 1 150px;min-width:0;padding:10px 13px;border-right:1px solid var(--grn-faint)}
+.cell:last-child{border-right:0}
+.cell .cl{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cell .cv{font-size:15px;font-weight:700;color:var(--grn);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cell .cv.amb{color:var(--amber)}
+.cell .cv .blip{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--grn);box-shadow:0 0 7px var(--grn);margin-right:5px;animation:pulse 1.6s ease-in-out infinite;vertical-align:1px}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+.foot{margin-top:14px;color:#496055;font-size:10.5px;text-align:center;letter-spacing:.04em}
+.foot .sym{color:var(--amber)}
+
+:focus-visible{outline:2px solid var(--amber);outline-offset:2px;border-radius:3px}
+
+/* ---- responsive: single column on phones ---- */
+@media (max-width:900px){
+  .span4,.span6,.span8{grid-column:span 12}
+  .span12{grid-column:span 12}
+}
+@media (max-width:640px){
+  body{font-size:12.5px}
+  .wrap{padding:12px 10px 36px}
+  .prompt{font-size:13px}
+  .kpi-grid{grid-template-columns:1fr 1fr}
+  .kpi .kval{font-size:20px}
+  .gauge .glab{flex-basis:74px}
+  .chan .grow .glab{flex-basis:96px}
+  .cell{flex-basis:50%;border-bottom:1px solid var(--grn-faint)}
+  .log .lvl{width:42px}
+}
+@media (max-width:400px){
+  .kpi-grid{grid-template-columns:1fr}
+  .tt-meta{display:none}
+}
+
+/* reduced motion: kill blink, scanline sweep, pulse */
+@media (prefers-reduced-motion:reduce){
+  .cur{animation:none;opacity:1}
+  .crt::after{display:none}
+  .crt{background:radial-gradient(120% 90% at 50% 30%,rgba(0,0,0,0) 60%,rgba(0,0,0,.5) 100%)}
+  .cell .cv .blip{animation:none}
+}
+</style>
+</head>
+<body>
+<div class="crt" aria-hidden="true"></div>
+
+<main class="wrap">
+
+  <!-- ===================== COMMAND HEADER ===================== -->
+  <header class="topbar" role="banner">
+    <div class="tt-row">
+      <div class="dots" aria-hidden="true"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+      <div class="tt-title" id="ttTitle">yimwhan-ops -- bash -- 132x40</div>
+      <div class="tt-meta" id="ttClock">load 0.42 0.39 0.40</div>
+    </div>
+    <div class="prompt">
+      <span class="usr">yimwhan@clinic</span><span class="cmd">:</span><span class="path">~/overview</span><span class="sym">$</span>
+      <span class="cmd"> ./status <span class="flag">--clinic</span> <span id="clinicName">smilecare-bkk</span> <span class="flag">--range</span> 30d <span class="flag">--watch</span></span><span class="cur" id="cursor" aria-hidden="true"></span>
+    </div>
+    <div class="outline" id="outline">parsing telemetry... <span class="ok">OK</span> <b>4</b> panels <span class="sym">|</span> uptime <span class="ok">99.94%</span> <span class="sym">|</span> 1 case flagged <span class="warn">needs-a-look</span></div>
+  </header>
+
+  <!-- ===================== PANEL GRID ===================== -->
+  <section class="grid" aria-label="clinic overview">
+
+    <!-- KPI READOUTS -->
+    <article class="panel span4 live" aria-labelledby="p1h">
+      <div class="phead"><span class="pidx">[01]</span><span class="pttl" id="p1h">kpi.readout</span><span class="tag">last 30d</span></div>
+      <div class="pbody">
+        <div class="kpi-grid" id="kpiGrid"><!-- injected --></div>
+      </div>
+    </article>
+
+    <!-- TREND CHART -->
+    <article class="panel span8 live" aria-labelledby="p2h">
+      <div class="phead"><span class="pidx">[02]</span><span class="pttl" id="p2h">trend.calls_vs_bookings</span><span class="tag">30d / daily</span></div>
+      <div class="pbody">
+        <div class="chartwrap" id="chartWrap"><!-- svg injected --></div>
+        <div class="csub" id="chartLegend"><!-- injected --></div>
+        <div class="spark" id="sparkRow"><!-- injected --></div>
+      </div>
+    </article>
+
+    <!-- CHANNEL SPLIT -->
+    <article class="panel span4" aria-labelledby="p3h">
+      <div class="phead"><span class="pidx">[03]</span><span class="pttl" id="p3h">channel.split</span><span class="tag">voice / line</span></div>
+      <div class="pbody">
+        <div class="gauge chan" id="chanGauge"><!-- injected --></div>
+        <div class="legend">
+          <span><i class="sw g"></i>voice (call)</span>
+          <span><i class="sw c"></i>line (chat)</span>
+          <span><i class="sw a"></i>missed / queued</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- LOAD / RESOLUTION GAUGES -->
+    <article class="panel span4" aria-labelledby="p4h">
+      <div class="phead"><span class="pidx">[04]</span><span class="pttl" id="p4h">capacity.gauge</span><span class="tag">realtime</span></div>
+      <div class="pbody">
+        <div class="gauge" id="capGauge"><!-- injected --></div>
+      </div>
+    </article>
+
+    <!-- HANDOFF LOG -->
+    <article class="panel span4 live" aria-labelledby="p5h">
+      <div class="phead"><span class="pidx">[05]</span><span class="pttl" id="p5h">handoff.queue</span><span class="tag">needs a look</span></div>
+      <div class="pbody">
+        <div class="log" id="logBox" role="log" aria-live="polite"><!-- injected --></div>
+      </div>
+    </article>
+
+  </section>
+
+  <!-- ===================== STATUS STRIP ===================== -->
+  <section class="strip" aria-label="system status" id="statusStrip"><!-- injected --></section>
+
+  <p class="foot">yimwhan ops console <span class="sym">|</span> phosphor-green TUI <span class="sym">|</span> press <b style="color:#9fd3b8">q</b> to quit (this is a demo) <span class="sym">|</span> data refreshes every 60s</p>
+</main>
+
+<script>
+/* =========================================================================
+   DATA  -  swap everything from here. THB amounts, Thai labels OK.
+   ========================================================================= */
+const DATA = {
+  clinic: "smilecare-bkk",
+  windowTitle: "yimwhan-ops -- bash -- 132x40",
+
+  kpis: [
+    { label:"calls handled",   value:"1,284", delta:"+12.4%", dir:"up",   amber:false },
+    { label:"bookings made",   value:"412",   delta:"+8.1%",  dir:"up",   amber:false },
+    { label:"revenue (THB)",   value:"฿ 1.94M", delta:"+15%", dir:"up", amber:true },
+    { label:"avg handle time", value:"2m 41s", delta:"-9s",   dir:"up",   amber:false },
+    { label:"booking rate",    value:"32.1%", delta:"+2.3pt", dir:"up",   amber:false },
+    { label:"missed calls",    value:"23",    delta:"-31%",   dir:"up",   amber:true }
+  ],
+
+  // daily series, 30 points. calls + bookings (bookings <= calls)
+  calls:    [34,41,38,45,52,49,40,36,44,55,61,58,47,42,50,63,59,54,48,57,66,62,55,49,58,71,68,60,53,64],
+  bookings: [11,13,12,15,17,16,12,11,14,18,20,19,15,13,16,21,19,17,15,18,22,20,18,15,19,24,23,20,17,21],
+
+  // weekly sparklines for the strip
+  sparkCalls:    [40,44,52,49,58,66,71,64],
+  sparkBookings: [12,14,17,16,18,22,24,21],
+
+  // channel split (percent of total interactions)
+  channels: [
+    { label:"voice (call)",  pct:58, cls:"" },     // green
+    { label:"line (chat)",   pct:34, cls:"cy" },   // cyan
+    { label:"missed/queued", pct:8,  cls:"amb" }   // amber
+  ],
+
+  // capacity gauges
+  capacity: [
+    { label:"agent load",   pct:71, amber:false },
+    { label:"AI autopilot", pct:88, amber:false },
+    { label:"queue depth",  pct:34, amber:true  },
+    { label:"sla on-time",  pct:96, amber:false }
+  ],
+
+  // handoff "needs a look" log lines
+  handoff: [
+    { ts:"14:02:11", lvl:"CRIT", who:"คุณมาลี", meta:"refund dispute, 2 calls dropped", tag:"voice", hot:true },
+    { ts:"13:47:55", lvl:"WARN", who:"K. Anan",  meta:"reschedule x3, no confirm", tag:"line", hot:true },
+    { ts:"13:31:08", lvl:"WARN", who:"คุณสมชาย", meta:"price quote outside KB", tag:"voice", hot:false },
+    { ts:"12:58:40", lvl:"INFO", who:"K. Ploy",  meta:"asked for human, sentiment low", tag:"line", hot:false },
+    { ts:"12:20:17", lvl:"INFO", who:"Walk-in",  meta:"insurance question, parked", tag:"voice", hot:false },
+    { ts:"11:44:02", lvl:"OK",   who:"K. Tee",   meta:"booked, auto-resolved", tag:"line", hot:false }
+  ],
+
+  // bottom status strip
+  status: [
+    { label:"uptime",       value:"99.94%", amber:false, live:false },
+    { label:"live sessions",value:"7",      amber:false, live:true  },
+    { label:"in queue",     value:"2",      amber:true,  live:false },
+    { label:"cost / day",   value:"฿ 318", amber:false, live:false },
+    { label:"stt latency",  value:"412ms",  amber:false, live:false },
+    { label:"last sync",    value:"00:43 ago", amber:false, live:false }
+  ]
+};
+
+/* =========================================================================
+   RENDER HELPERS  (block-char gauges, inline SVG line chart)
+   ========================================================================= */
+const FULL = "█";  // full block
+const HALF = "▌";  // left half block
+const EL = (t)=>document.createElement(t);
+const esc = (s)=>String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+// build a block bar string for a percentage over N cells
+function blockBar(pct, cells){
+  pct = Math.max(0, Math.min(100, pct));
+  const exact = (pct/100)*cells;
+  const fullN = Math.floor(exact);
+  const frac  = exact - fullN;
+  let fill = FULL.repeat(fullN);
+  let half = (frac >= 0.4 && fullN < cells) ? HALF : "";
+  const used = fullN + (half?1:0);
+  const empty = FULL.repeat(Math.max(0, cells - used));
+  return { fill: fill+half, empty };
+}
+
+/* ---- window title + clock ---- */
+document.getElementById("ttTitle").textContent = DATA.windowTitle;
+document.getElementById("clinicName").textContent = DATA.clinic;
+
+/* ---- KPIs ---- */
+(function renderKpis(){
+  const g = document.getElementById("kpiGrid");
+  const arrow = (dir)=> dir==="up" ? "▲" : dir==="down" ? "▼" : "▬";
+  const cls   = (dir)=> dir==="up" ? "up" : dir==="down" ? "down" : "flat";
+  DATA.kpis.forEach(k=>{
+    const d = EL("div"); d.className="kpi";
+    d.innerHTML =
+      `<div class="klabel">${esc(k.label)}</div>`+
+      `<div class="kval${k.amber?' amb':''}">${esc(k.value)}</div>`+
+      `<div class="kdelta"><span class="${cls(k.dir)}">${arrow(k.dir)} ${esc(k.delta)}</span></div>`;
+    g.appendChild(d);
+  });
+})();
+
+/* ---- channel split gauges ---- */
+(function renderChannels(){
+  const g = document.getElementById("chanGauge");
+  const cells = 22;
+  DATA.channels.forEach(c=>{
+    const {fill,empty} = blockBar(c.pct, cells);
+    const row = EL("div"); row.className="grow";
+    row.innerHTML =
+      `<span class="glab">${esc(c.label)}</span>`+
+      `<span class="gbar ${c.cls}"><span class="fill">${fill}</span><span class="empty">${empty}</span></span>`+
+      `<span class="gpct${c.cls==='amb'?' amb':''}">${c.pct}%</span>`;
+    g.appendChild(row);
+  });
+})();
+
+/* ---- capacity gauges ---- */
+(function renderCapacity(){
+  const g = document.getElementById("capGauge");
+  const cells = 20;
+  DATA.capacity.forEach(c=>{
+    const {fill,empty} = blockBar(c.pct, cells);
+    const row = EL("div"); row.className="grow";
+    row.innerHTML =
+      `<span class="glab">${esc(c.label)}</span>`+
+      `<span class="gbar ${c.amber?'amb':''}"><span class="fill">${fill}</span><span class="empty">${empty}</span></span>`+
+      `<span class="gpct${c.amber?' amb':''}">${c.pct}%</span>`;
+    g.appendChild(row);
+  });
+})();
+
+/* ---- handoff log ---- */
+(function renderLog(){
+  const box = document.getElementById("logBox");
+  DATA.handoff.forEach(l=>{
+    const r = EL("div"); r.className="lrow";
+    r.innerHTML =
+      `<span class="ts">${esc(l.ts)}</span>`+
+      `<span class="lvl ${esc(l.lvl)}">${esc(l.lvl)}</span>`+
+      `<span class="msg"><span class="who">${esc(l.who)}</span> <span class="meta">${esc(l.meta)}</span></span>`+
+      `<span class="tag2${l.hot?' hot':''}">${esc(l.tag)}</span>`;
+    box.appendChild(r);
+  });
+})();
+
+/* ---- status strip ---- */
+(function renderStrip(){
+  const s = document.getElementById("statusStrip");
+  DATA.status.forEach(c=>{
+    const cell = EL("div"); cell.className="cell";
+    cell.innerHTML =
+      `<div class="cl">${esc(c.label)}</div>`+
+      `<div class="cv${c.amber?' amb':''}">${c.live?'<span class="blip"></span>':''}${esc(c.value)}</div>`;
+    s.appendChild(cell);
+  });
+})();
+
+/* ---- block sparkline (unicode bar chars) ---- */
+function sparkline(arr){
+  const blocks = ["▁","▂","▃","▄","▅","▆","▇","█"];
+  const mn = Math.min(...arr), mx = Math.max(...arr);
+  const span = (mx-mn)||1;
+  return arr.map(v=>blocks[Math.round(((v-mn)/span)*(blocks.length-1))]).join("");
+}
+(function renderSparks(){
+  const row = document.getElementById("sparkRow");
+  const last = (a)=>a[a.length-1];
+  row.innerHTML =
+    `<span class="sl">calls/wk</span><span style="color:#33ff77">${sparkline(DATA.sparkCalls)}</span>`+
+    `<span class="sl" style="margin-left:14px">bookings/wk</span><span style="color:#46d6ff">${sparkline(DATA.sparkBookings)}</span>`+
+    `<span class="sv">peak ${Math.max(...DATA.sparkCalls)} calls</span>`;
+})();
+
+/* ---- inline SVG trend line chart (calls vs bookings) ---- */
+(function renderChart(){
+  const W=720, H=210, PADL=34, PADR=12, PADT=14, PADB=24;
+  const iw = W-PADL-PADR, ih = H-PADT-PADB;
+  const calls=DATA.calls, books=DATA.bookings;
+  const n = calls.length;
+  const maxV = Math.max(...calls, ...books);
+  const yMax = Math.ceil(maxV/10)*10;
+  const x = (i)=> PADL + (i/(n-1))*iw;
+  const y = (v)=> PADT + ih - (v/yMax)*ih;
+
+  const path = (arr)=> arr.map((v,i)=>`${i?'L':'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(" ");
+  const area = (arr)=> `M${x(0).toFixed(1)} ${y(arr[0]).toFixed(1)} `+
+    arr.map((v,i)=>i?`L${x(i).toFixed(1)} ${y(v).toFixed(1)}`:"").join(" ")+
+    ` L${x(n-1).toFixed(1)} ${(PADT+ih).toFixed(1)} L${x(0).toFixed(1)} ${(PADT+ih).toFixed(1)} Z`;
+
+  // y gridlines
+  let grid="";
+  for(let g=0; g<=4; g++){
+    const gv = yMax*g/4;
+    const gy = (PADT+ih-(gv/yMax)*ih).toFixed(1);
+    grid += `<line x1="${PADL}" y1="${gy}" x2="${W-PADR}" y2="${gy}" stroke="#16451f" stroke-width="1" stroke-dasharray="2 4"/>`;
+    grid += `<text class="cax" x="${PADL-6}" y="${(+gy+3)}" text-anchor="end">${Math.round(gv)}</text>`;
+  }
+  // x ticks (every ~6 days)
+  let xticks="";
+  for(let i=0;i<n;i+=6){
+    xticks += `<text class="cax" x="${x(i).toFixed(1)}" y="${H-7}" text-anchor="middle">d${i+1}</text>`;
+  }
+
+  // last-point markers
+  const lcx=x(n-1).toFixed(1), lcy=y(calls[n-1]).toFixed(1), bcy=y(books[n-1]).toFixed(1);
+
+  const svg =
+  `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="30 day calls versus bookings trend">
+    <defs>
+      <linearGradient id="callsFill" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#33ff77" stop-opacity="0.20"/>
+        <stop offset="1" stop-color="#33ff77" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <rect x="${PADL}" y="${PADT}" width="${iw}" height="${ih}" fill="#0a0e0a"/>
+    ${grid}
+    ${xticks}
+    <path d="${area(calls)}" fill="url(#callsFill)"/>
+    <path d="${path(calls)}" fill="none" stroke="#33ff77" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="${path(books)}" fill="none" stroke="#46d6ff" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="1 3"/>
+    <circle cx="${lcx}" cy="${lcy}" r="3" fill="#33ff77"/>
+    <circle cx="${lcx}" cy="${bcy}" r="3" fill="#46d6ff"/>
+  </svg>`;
+  document.getElementById("chartWrap").innerHTML = svg;
+
+  const sum=(a)=>a.reduce((p,c)=>p+c,0);
+  document.getElementById("chartLegend").innerHTML =
+    `<span class="cdot"><i class="sw g"></i>calls <b>${sum(calls).toLocaleString()}</b></span>`+
+    `<span class="cdot"><i class="sw c"></i>bookings <b>${sum(books).toLocaleString()}</b></span>`+
+    `<span class="cdot">conv <b>${((sum(books)/sum(calls))*100).toFixed(1)}%</b></span>`+
+    `<span class="cdot">peak day <b>${Math.max(...calls)}</b></span>`;
+})();
+
+/* ---- live clock + load average in header (gated by reduced-motion) ---- */
+(function liveHeader(){
+  const reduce = window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+  const clock = document.getElementById("ttClock");
+  function jitter(){ return (Math.random()*0.18+0.32).toFixed(2); }
+  function tick(){
+    const now=new Date();
+    const hh=String(now.getHours()).padStart(2,"0");
+    const mm=String(now.getMinutes()).padStart(2,"0");
+    const ss=String(now.getSeconds()).padStart(2,"0");
+    clock.textContent = `${hh}:${mm}:${ss}  load ${jitter()} ${jitter()} ${jitter()}`;
+  }
+  tick();
+  if(!reduce) setInterval(tick, 1000);
+})();
+</script>
+</body>
+</html>

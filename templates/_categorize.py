@@ -120,6 +120,9 @@ SLUG_CAT = {
     # --- batch 45 (Yimwhan backoffice LIVING-NOTE / hand-drawn aesthetic) ---
     "living-note-owner-overview": "admin", "living-note-case-inbox": "admin", "living-note-daily-brief": "admin",
     "living-note-bookings": "admin", "living-note-patient-card": "admin",
+    # --- batch 46 (living-note backoffice cont.) ---
+    "living-note-handoff": "admin", "living-note-analytics": "admin", "living-note-ai-config": "admin",
+    "living-note-live-feed": "admin", "living-note-week-review": "admin",
 }
 
 KEYWORDS = [  # fallback for any slug not in SLUG_CAT (first match wins)

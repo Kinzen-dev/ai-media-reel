@@ -149,6 +149,9 @@ SLUG_CAT = {
     "vesperwerk-uranometria-engraving": "vesperwerk", "vesperwerk-celestial-complication": "vesperwerk",
     "vesperwerk-swiss-grid-serif": "vesperwerk", "vesperwerk-spec-sheet-instrument": "vesperwerk",
     "vesperwerk-bilingual-epigraph": "vesperwerk",
+    # --- batch 55 (backoffice styles, Sonnet-5 builder A/B) ---
+    "gradient-mesh-backoffice": "admin", "brutalist-mono-backoffice": "admin", "sticker-collage-backoffice": "admin",
+    "magazine-broadsheet-backoffice": "admin", "spreadsheet-raw-backoffice": "admin",
 }
 
 KEYWORDS = [  # fallback for any slug not in SLUG_CAT (first match wins)

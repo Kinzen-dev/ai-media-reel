@@ -118,14 +118,22 @@ King wants the next batches as BACKOFFICE ADMIN + OWNER dashboard DESIGN IDEAS f
   departures-board, observatory-instrument, riso-nocturne, art-deco-grand-hotel, geist-console,
   patent-plate, poster-crop, manuscript-quarterly...). Dedup note: swiss/specimen/datasheet families
   overlap - pick one member per family per batch.
-- Batch 54 IN FLIGHT `wgu1drpwm` (lane B, first 5 Vesperwerk registers, 5 different lenses):
-  vesperwerk-uranometria-engraving, vesperwerk-celestial-complication, vesperwerk-swiss-grid-serif,
-  vesperwerk-spec-sheet-instrument, vesperwerk-bilingual-epigraph. Slugs pre-added to SLUG_CAT under
-  NEW category "vesperwerk" ("Vesperwerk Site") - added to _categorize.py ORDER + index.html ORDER.
-  Batch 55 = lane A again (alternate).
+- Batch 54 BUILT `wgu1drpwm` (lane B, first 5 Vesperwerk registers; 10/10 agents clean). MY GATE:
+  FPS 120-121 x5, vlint HIGH:0 MED:0 x5 (1440+390), dash CLEAN x5. Fresh judge `judge-b54` running;
+  on PASS catalog with builtBy "Fable 5" + deploy. Slugs live under new "vesperwerk" category.
+- Batch 55 IN FLIGHT `wf0iwlfni` (lane A + the SONNET-5 BUILDER A/B): gradient-mesh, brutalist-mono,
+  sticker-collage, magazine-broadsheet, spreadsheet-raw backoffice styles, ALL built with
+  buildModel:'sonnet' (_batch-workflow.js now supports per-archetype buildModel). Judge them blind at
+  the same bar; catalog survivors with builtBy "Sonnet 5" so King compares chips in the gallery. If
+  wow-rate holds vs Fable batches, backoffice builders may stay Sonnet; Vesperwerk lane stays Fable.
 - STYLE IDEAS bank for lane A after batch 53: gradient-mesh-vibrant, art-nouveau, brutalist-mono,
   retro-terminal-amber, comic/ben-day, sticker-collage, magazine-broadsheet, pixel-arcade,
   spreadsheet-raw, kanban-board (+ paper-cut/data-noir/gov-civic/minimal-mono/glass-light consumed).
+- STANDING RULES (King 2026-07-02): (1) EVERY batch ends with rsync + commit + push of /tmp/reel-deploy
+  (never skip the deploy). (2) MARK THE BUILDER MODEL: at catalog time set `builtBy` on each new
+  manifest entry to the model that BUILT it ("Fable 5" now; "Sonnet 5" if the A/B batch runs). The
+  gallery card renders it as a gold chip (`.mdl` badge in index.html). Templates from before 2026-07-02
+  predate the marker and stay unmarked.
 - BUILD-BRIEF GEOMETRY GUARD: admin/data-dense templates keep tripping vlint (element overflow) despite agent self-checks - admin/living-note briefs now bake in "GEOMETRY (vlint-checked): min-width:0 on flex children; truncate/wrap; no element wider than container; zero page overflow at 390+1440". ALWAYS run vlint in the gate. Keep producing backoffice until King picks a favorite, THEN return to award lane (parked batch-42 award set + bold/market pools).
 - /loop-me note: King typed /loop-me but it is a workflow-spec GRILLING skill (not "keep the factory looping"); his explicit "keep building batches" instruction wins, so NOT grilling. Flagged to King.
 - PATTERN (2 fixes in a row, both committed-aesthetic): bold/ornate templates sometimes under-deliver on REGISTER on first build (photo-not-comic; pale-not-ornate). The fresh judge catches it; a focused contrast/commitment fix agent + re-judge resolves it. Keep judging for register strength, not just "are the parts present". ~5% need one fix; still 0 parked.

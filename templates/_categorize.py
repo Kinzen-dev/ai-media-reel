@@ -15,6 +15,7 @@ ORDER = [
     ("product",     "Page Purpose & Product UI"),
     ("vertical",    "Industry Verticals"),
     ("admin",       "Admin & Backoffice"),
+    ("vesperwerk",  "Vesperwerk Site"),
     ("document",    "Document & Microsite Artifacts"),
     ("movement",    "Design Movements & Eras"),
     ("editorial",   "Editorial & Typographic"),
@@ -141,6 +142,13 @@ SLUG_CAT = {
     # --- batch 52 (more wow backoffice styles) ---
     "vaporwave-synthwave-backoffice": "admin", "bauhaus-backoffice": "admin", "holographic-foil-backoffice": "admin",
     "transit-signage-backoffice": "admin", "notion-blocks-backoffice": "admin",
+    # --- batch 53 (more wow backoffice styles) ---
+    "glassmorphism-light-backoffice": "admin", "data-noir-backoffice": "admin", "paper-cut-layered-backoffice": "admin",
+    "gov-civic-clean-backoffice": "admin", "minimal-mono-type-backoffice": "admin",
+    # --- batch 54 (Vesperwerk company-site registers) ---
+    "vesperwerk-uranometria-engraving": "vesperwerk", "vesperwerk-celestial-complication": "vesperwerk",
+    "vesperwerk-swiss-grid-serif": "vesperwerk", "vesperwerk-spec-sheet-instrument": "vesperwerk",
+    "vesperwerk-bilingual-epigraph": "vesperwerk",
 }
 
 KEYWORDS = [  # fallback for any slug not in SLUG_CAT (first match wins)

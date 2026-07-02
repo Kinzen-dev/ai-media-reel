@@ -75,10 +75,54 @@ King wants the next batches as BACKOFFICE ADMIN + OWNER dashboard DESIGN IDEAS f
 - spatial-depth depth needed 2 fix rounds: translateZ/perspective does NOT show in a flat scroll=0 thumbnail; the fix that works = SHADOW-elevation tiers (bigger/softer downward shadow = floats higher) + translateY/scale stagger. LESSON for any "depth/float/3D-layer" template in a thumbnail-driven library: fake elevation with shadows+stagger, do not rely on perspective Z.
 - Batch 50 DONE + cataloged (5 wow styles -> 246, Admin & Backoffice = 40). Judge: blueprint #1, neumorphism #2 (beat its contrast trap), duotone #3, riso #4, y2k-chrome #5 (faint chrome numerals - if King picks Y2K, darken KPI fill). y2k+blueprint geometry-fixed.
 - 2026-06-30 CHECKPOINT (AskUserQuestion): asked King the next move now that the dashboard-style menu is exhaustive (26 treatments). King chose "KEEP GENERATING MORE DASHBOARD STYLES." So: continue producing fresh distinct dashboard registers, batch after batch, until he picks one. (Do NOT switch to applying-across-screens or the award lane until King says.)
-- Batch 51 IN FLIGHT `wnpybl752` (5 fresh dashboard styles): art-deco-backoffice (gilded geometric Deco), memphis-backoffice (playful postmodern), cyberpunk-hud-backoffice (neon sci-fi HUD - cap glow for perf), retro-mac-system-backoffice (System 7 pixel), isometric-illustration-backoffice. Slugs pre-added to SLUG_CAT. (Minor: my retro-mac brief had a stray Arabic char in a hex note but clarified '#2b5fff accent' - watch retro-mac dash scan, output should be clean.)
-- STYLE IDEAS still unused for future batches: vaporwave/synthwave, gradient-mesh-vibrant, art-nouveau, glassmorphism-light, brutalist-mono, paper-cut-layered, retro-terminal-amber, bauhaus-grid, comic/ben-day, transit-signage, data-noir, holographic-foil, sticker-collage, magazine-broadsheet, minimal-monochrome-huge-type, pixel-arcade, gov-civic-clean, notion-blocks, spreadsheet-raw, kanban-board.
-- OWNER-OVERVIEW now has ~15 style treatments (5 living-note flavors + 10 wow styles) for King to pick a backoffice STYLE from. Once he picks one, apply it across the suite screens. Keep producing wow styles until King says he found it, THEN return to the AWARD LANE (parked batch-42: architecture-firm-project-grid, pro-sports-club-hero, ai-ml-enterprise-authority, semantic-zoom-universe, torn-paper-cutout-type + bold pool wtgdshms0.output + market pool _backlog-markets-round4.json).
+- Batch 51 DONE + cataloged (art-deco, memphis, cyberpunk-hud, retro-mac-system, isometric-illustration -> 251, Admin & Backoffice = 45). Judge: retro-mac-system #1, isometric #2, cyberpunk #3, art-deco #4, memphis #5. memphis geometry-fixed (3px tilted-block overflow -> padding:0 5px on grid rows preserving Memphis shadows). retro-mac output confirmed clean (no Arabic, dash-clean).
+- Batch 52 DONE + cataloged (vaporwave-synthwave, bauhaus, holographic-foil, transit-signage, notion-blocks -> 256, Admin & Backoffice = 50). Live + CI green (sha e42aab4). vlint caught real bugs the build agents missed: holographic HIGH16+MED16 (foil ::before sheen at inset:-40% inflated scrollWidth/Height -> inset:0 + bg-position sweep; perf 37->120), bauhaus HIGH1 (heading span), transit MED1. Judge taste-fixes (geometry-clean but failed taste): holographic low-contrast pastel-on-pastel -> opaque plates + jewel-ink chart; vaporwave off-brand sports-car block -> on-brand "today's highlights" panel + lifted sublabel contrast; notion KPI row buried under hero photo+paragraph -> compacted hero so KPI database row peeks at scroll=0. Headed FPS: vaporwave 241, holographic 120 (honest catalog values; light 3 = 240). bauhaus uses U+2212 MINUS for negative deltas (correct math glyph, NOT a banned dash; judge misread at thumb scale).
+- STYLE IDEAS still unused for future batches: gradient-mesh-vibrant, art-nouveau, glassmorphism-light, brutalist-mono, paper-cut-layered, retro-terminal-amber, comic/ben-day, data-noir, sticker-collage, magazine-broadsheet, minimal-monochrome-huge-type, pixel-arcade, gov-civic-clean, spreadsheet-raw, kanban-board. (consumed since batch 51: vaporwave/synthwave, bauhaus-grid, holographic-foil, transit-signage, notion-blocks.)
+- OWNER-OVERVIEW now has ~25 style treatments (5 living-note flavors + 20 wow styles across batches 48-52) for King to pick a backoffice STYLE from. Once he picks one, apply it across the suite screens. Keep producing wow styles until King says he found it, THEN return to the AWARD LANE (parked batch-42: architecture-firm-project-grid, pro-sports-club-hero, ai-ml-enterprise-authority, semantic-zoom-universe, torn-paper-cutout-type + bold pool wtgdshms0.output + market pool _backlog-markets-round4.json).
+- PAUSED 2026-06-30 (King): "เดี๋ยวจบ batch นี้แล้ว break ก่อน...พักก่อนค่อยลุยกันต่อทีหลัง" - batch 52 finished, cataloged, deployed, CI green. LOOP PARKED here; do NOT launch batch 53 until King says resume. On resume: keep generating more distinct owner-dashboard styles (his standing pick) from the STYLE IDEAS bank, batch after batch, until he names a favorite; then apply it across all backoffice screens; eventually return to the award lane.
 - HEADED-FPS-SPOTCHECK pattern (validated): for a backdrop-filter/heavy template that reads low FPS in headless, run ONE `QA_HEADED=1 node mediagen-tpl-verify.mjs <slug>` to get the real-GPU number before worrying (it pops one window briefly). glass-aurora 29 headless -> 241 headed.
+
+## RESUMED 2026-07-02 (King): TWO ALTERNATING LANES + WOW MANDATE + MODEL SPLIT
+- King resumed the loop with TWO lanes, ALTERNATED batch by batch until he says brake:
+  (A) YIMWHAN BACKOFFICE: continue owner-dashboard style treatments (his 2026-06-30 standing pick).
+  (B) VESPERWERK COMPANY SITE: Vesperwerk = King's newly REGISTERED company (real!). Logo received
+      (gold 8-point vesper star + charcoal serif VESPERWERK caps, quiet-luxury). Recreated as
+      `showcase/assets/vesperwerk-star.svg` (two-facet gold, eye-verified vs the real logo; Playfair
+      Display = closest wordmark face). Canonical brand + FIXED site copy spec (English, premium
+      software+AI studio, Yimwhan as flagship case) = `showcase/templates/_VESPERWERK-BRAND.md`;
+      every vesperwerk-* build agent reads it so King compares REGISTERS of the same site.
+      ASSUMPTIONS FLAGGED to King: English copy, positioning wording, hello@vesperwerk.com placeholder.
+- WOW MANDATE (King 2026-07-02): every idea/design must be genuinely wow, NEVER AI slop; pull max
+  model capability. Anti-slop clause now goes in every brief + judge prompt; judge grades register
+  commitment hard.
+- QA stays headless (King works in parallel; already the harness default). /qa-loop layers = the gate:
+  qa-harness shots + vlint + fresh judge + FPS (headless conservative-floor rule; headed spot-check only).
+- MODEL SPLIT (King asked for max-quality-per-token, 2026-07-02): BUILD agents = Fable 5 (wow origin;
+  session model, no override). VERIFY agents = Sonnet 5 effort:high (checklist/geometry; set in
+  _batch-workflow.js - taste still gated by judge). JUDGE = Fable (1/batch, cheap, taste-critical).
+  RESEARCH scouts = Sonnet (proven by the 60-direction audit). Mechanical fix agents = Sonnet;
+  register/taste fixes = Fable. Pricing basis: Fable $10/$50 vs Sonnet 5 $3/$15 per MTok (intro $2/$10
+  to Aug 2026). PENDING A/B: one backoffice batch with Sonnet 5 BUILDERS judged blind vs Fable batch;
+  if wow holds, backoffice builders may drop to Sonnet (Vesperwerk lane stays Fable regardless).
+- Batch 53 BUILT `w7noajtu3` (lane A, 10/10 agents; Sonnet-5 verify agents worked fine). MY GATE:
+  qa-harness FPS 74-121 headless (all healthy), vlint HIGH:0 MED:0 on all 5 at 1440+390, Python dash
+  scan CLEAN x5. Fresh judge running; catalog on PASS. Contact email CONFIRMED by King:
+  kittipong.k@vesperwerk.com (spec updated).
+- VESPERWERK AUDIT DONE `wm6lzl5af`: 51 registers across 6 lenses, 8 wow-5. FULL FUEL saved to
+  `_backlog-vesperwerk.json` (lane-B backlog). Wow-5 not yet built: engraved-plate-ledger,
+  nautical-almanac, type-specimen-atlas, star-chart(planisphere), instrument-faceplate + strong-4s
+  (bas-relief-emblem, gold-thread-wayfinding, mono-ink-restraint, maison-editorial, foil-seal-invitation,
+  departures-board, observatory-instrument, riso-nocturne, art-deco-grand-hotel, geist-console,
+  patent-plate, poster-crop, manuscript-quarterly...). Dedup note: swiss/specimen/datasheet families
+  overlap - pick one member per family per batch.
+- Batch 54 IN FLIGHT `wgu1drpwm` (lane B, first 5 Vesperwerk registers, 5 different lenses):
+  vesperwerk-uranometria-engraving, vesperwerk-celestial-complication, vesperwerk-swiss-grid-serif,
+  vesperwerk-spec-sheet-instrument, vesperwerk-bilingual-epigraph. Slugs pre-added to SLUG_CAT under
+  NEW category "vesperwerk" ("Vesperwerk Site") - added to _categorize.py ORDER + index.html ORDER.
+  Batch 55 = lane A again (alternate).
+- STYLE IDEAS bank for lane A after batch 53: gradient-mesh-vibrant, art-nouveau, brutalist-mono,
+  retro-terminal-amber, comic/ben-day, sticker-collage, magazine-broadsheet, pixel-arcade,
+  spreadsheet-raw, kanban-board (+ paper-cut/data-noir/gov-civic/minimal-mono/glass-light consumed).
 - BUILD-BRIEF GEOMETRY GUARD: admin/data-dense templates keep tripping vlint (element overflow) despite agent self-checks - admin/living-note briefs now bake in "GEOMETRY (vlint-checked): min-width:0 on flex children; truncate/wrap; no element wider than container; zero page overflow at 390+1440". ALWAYS run vlint in the gate. Keep producing backoffice until King picks a favorite, THEN return to award lane (parked batch-42 award set + bold/market pools).
 - /loop-me note: King typed /loop-me but it is a workflow-spec GRILLING skill (not "keep the factory looping"); his explicit "keep building batches" instruction wins, so NOT grilling. Flagged to King.
 - PATTERN (2 fixes in a row, both committed-aesthetic): bold/ornate templates sometimes under-deliver on REGISTER on first build (photo-not-comic; pale-not-ornate). The fresh judge catches it; a focused contrast/commitment fix agent + re-judge resolves it. Keep judging for register strength, not just "are the parts present". ~5% need one fix; still 0 parked.

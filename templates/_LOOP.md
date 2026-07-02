@@ -118,14 +118,45 @@ King wants the next batches as BACKOFFICE ADMIN + OWNER dashboard DESIGN IDEAS f
   departures-board, observatory-instrument, riso-nocturne, art-deco-grand-hotel, geist-console,
   patent-plate, poster-crop, manuscript-quarterly...). Dedup note: swiss/specimen/datasheet families
   overlap - pick one member per family per batch.
-- Batch 54 BUILT `wgu1drpwm` (lane B, first 5 Vesperwerk registers; 10/10 agents clean). MY GATE:
-  FPS 120-121 x5, vlint HIGH:0 MED:0 x5 (1440+390), dash CLEAN x5. Fresh judge `judge-b54` running;
-  on PASS catalog with builtBy "Fable 5" + deploy. Slugs live under new "vesperwerk" category.
-- Batch 55 IN FLIGHT `wf0iwlfni` (lane A + the SONNET-5 BUILDER A/B): gradient-mesh, brutalist-mono,
-  sticker-collage, magazine-broadsheet, spreadsheet-raw backoffice styles, ALL built with
-  buildModel:'sonnet' (_batch-workflow.js now supports per-archetype buildModel). Judge them blind at
-  the same bar; catalog survivors with builtBy "Sonnet 5" so King compares chips in the gallery. If
-  wow-rate holds vs Fable batches, backoffice builders may stay Sonnet; Vesperwerk lane stays Fable.
+- Batch 54 DONE + cataloged + DEPLOYED (lane B -> 266 live, Vesperwerk Site = 5, all builtBy Fable 5).
+  Gate: FPS 120-121 x5, vlint 0/0 x5, dash CLEAN x5. Judge: 4/5 first-time PASS; bilingual-epigraph
+  NEEDS-FIX (Thai read as neutral caption vs the Didone Latin) -> PROBED first (Trirong WAS loading;
+  real cause = 22.7px/w500 next to a 90px wordmark = caption presence) -> fixed as a display line
+  (Trirong 600 @ clamp 1.38-2.28rem + section glosses 600) -> re-judged PASS. LESSON: dual-script
+  pairing fails on PRESENCE/hierarchy, not font choice - size the second script as display, not gloss.
+  JUDGE SHIP-RANKING for King's real site: celestial-complication #1 (SHIP THIS: horology dial =
+  "precision that cannot fail" + works as a real homepage), spec-sheet-instrument #2, swiss-grid-serif
+  #3, uranometria #4 (most gorgeous artifact, reads decorative), bilingual-epigraph #5. Deploy also
+  synced the full showcase/assets/ into the live repo.
+- Batch 55 DONE but PARKED (Sonnet-5 builder A/B; NOT cataloged). Gate: FPS 100-121, vlint 0/0 x5,
+  dash CLEAN x5. Blind judge at the raised (SOTD) bar: brutalist-mono 7/10 (strongest), others 6/10;
+  broadsheet NEEDS-FIX (Thai headline mark collision, see lesson below - FIXED + eye-verified).
+  A/B CONCLUSION: Sonnet register-hit-rate ~= Fable at the OLD bar, but the wow ceiling problem is
+  the CONCEPT CLASS (static style-skins), not the builder. King ruled the whole backoffice lane
+  "ยังไม่ว้าว ไม่ผ่านเกณฑ์" -> batch 55 stays OUT of the manifest (files on disk; catalog later only
+  if King wants archives). Experiential batches use FABLE builders.
+- THAI TYPOGRAPHY LESSON (banked into the verify prompt as rule 7): wrapping Thai display text with
+  line-height ~1.1 makes the NEXT line's upper marks (อี+อ้ etc) collide into the previous line and
+  read as stray marks under the baseline (judge saw "นัูดหมาย"; probes proved font + tracking + tnum
+  all innocent - the collision was cross-LINE). Rule: Thai that can wrap needs line-height >= 1.35;
+  never letter-space Thai. Root-caused via control renders, not guessing (3 A/B probes).
+- KING CALIBRATION (2026-07-02, decisive): Vesperwerk batch = "ดูดีในระดับนึง" (ok). Backoffice lane =
+  FAILED his bar. Reference artifact for WOW = ~/Projects/stardust (read + distilled). THE STARDUST
+  FORMULA now mandatory per archetype, fitted to its category: (1) one continuous LIVING WORLD that
+  transforms (not styled sections), (2) narrative arc w/ payoff, (3) the visitor is a PLAYER (cursor
+  force, click events, scrubbing), (4) cinematic chrome + post (HUD, grain, camera), (5) engineering
+  honesty (live counters, real instrumentation), (6) bilingual EN/TH soul, (7) an entrance ritual.
+  King also asked (new): keep MANY STYLES coming for backoffice INCLUDING LUXURY registers.
+- Batch 56 IN FLIGHT `wt8u4q9dl` (lane A EXPERIENTIAL, Fable builders, stardust formula baked into
+  every brief; luxury included per King): private-bank-ledger (light-luxury living ledger),
+  silvered-complication (light haute-horology, live day dial + crown scrub), mission-control-live
+  (Canvas2D particle ops theater + cursor gravity + T+ scrubber), clinic-digital-twin (isometric
+  living diorama, patients move through real schedule), solari-split-flap (heritage-luxury mechanical
+  board, real 3D flap cascades). ALL have: live heartbeat + day scrubber + hover cross-highlight +
+  populated boot state (scroll=0 strong) + reduced-motion = paused populated state. Gate additions:
+  motion filmstrip (mediagen-tpl-motion.mjs) feeds the judge; judge bar = SOTD-class.
+- Motion upgrade agent `motion-vw-dial` still running on vesperwerk-celestial-complication
+  (entrance assembly + scroll choreography + micro-interactions) as the new-bar demonstration.
 - STYLE IDEAS bank for lane A after batch 53: gradient-mesh-vibrant, art-nouveau, brutalist-mono,
   retro-terminal-amber, comic/ben-day, sticker-collage, magazine-broadsheet, pixel-arcade,
   spreadsheet-raw, kanban-board (+ paper-cut/data-noir/gov-civic/minimal-mono/glass-light consumed).
@@ -134,6 +165,15 @@ King wants the next batches as BACKOFFICE ADMIN + OWNER dashboard DESIGN IDEAS f
   manifest entry to the model that BUILT it ("Fable 5" now; "Sonnet 5" if the A/B batch runs). The
   gallery card renders it as a gold chip (`.mdl` badge in index.html). Templates from before 2026-07-02
   predate the marker and stay unmarked.
+- WOW-BAR RECALIBRATION (King 2026-07-02, CRITICAL): King reviewed batches that PASSED the full gate
+  and said "ยังไม่ว้าว" - the internal judge bar is BELOW his bar. Asked which dimension is missing
+  (motion-liveliness / bolder concepts / craft depth / live-vs-thumb gap); NO ANSWER YET - re-ask when
+  he responds. ACTING ON BEST JUDGMENT for batch 56+ until he calibrates: (a) briefs REQUIRE a designed
+  MOTION SYSTEM (entrance choreography w/ stagger, scroll-driven reveals, micro-interactions, one
+  signature motion moment; prefers-reduced-motion still fully honored), (b) gate adds MOTION EVIDENCE:
+  scroll-through filmstrip + hover-state shots to the judge (not static-only), (c) judge harshness up:
+  "would a real Awwwards jury score this SOTD-class? fail borderline", (d) favor bolder concepts over
+  safe reskins. He is reviewing batch 55 (Sonnet A/B) himself as his own test.
 - BUILD-BRIEF GEOMETRY GUARD: admin/data-dense templates keep tripping vlint (element overflow) despite agent self-checks - admin/living-note briefs now bake in "GEOMETRY (vlint-checked): min-width:0 on flex children; truncate/wrap; no element wider than container; zero page overflow at 390+1440". ALWAYS run vlint in the gate. Keep producing backoffice until King picks a favorite, THEN return to award lane (parked batch-42 award set + bold/market pools).
 - /loop-me note: King typed /loop-me but it is a workflow-spec GRILLING skill (not "keep the factory looping"); his explicit "keep building batches" instruction wins, so NOT grilling. Flagged to King.
 - PATTERN (2 fixes in a row, both committed-aesthetic): bold/ornate templates sometimes under-deliver on REGISTER on first build (photo-not-comic; pale-not-ornate). The fresh judge catches it; a focused contrast/commitment fix agent + re-judge resolves it. Keep judging for register strength, not just "are the parts present". ~5% need one fix; still 0 parked.

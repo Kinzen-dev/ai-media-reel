@@ -152,6 +152,10 @@ SLUG_CAT = {
     # --- batch 55 (backoffice styles, Sonnet-5 builder A/B) ---
     "gradient-mesh-backoffice": "admin", "brutalist-mono-backoffice": "admin", "sticker-collage-backoffice": "admin",
     "magazine-broadsheet-backoffice": "admin", "spreadsheet-raw-backoffice": "admin",
+    # --- batch 56 (experiential stardust-formula backoffice, luxury included) ---
+    "private-bank-ledger-backoffice": "admin", "silvered-complication-backoffice": "admin",
+    "mission-control-live-backoffice": "admin", "clinic-digital-twin-backoffice": "admin",
+    "solari-split-flap-backoffice": "admin",
 }
 
 KEYWORDS = [  # fallback for any slug not in SLUG_CAT (first match wins)

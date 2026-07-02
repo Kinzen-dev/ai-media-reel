@@ -104,10 +104,13 @@ King wants the next batches as BACKOFFICE ADMIN + OWNER dashboard DESIGN IDEAS f
   register/taste fixes = Fable. Pricing basis: Fable $10/$50 vs Sonnet 5 $3/$15 per MTok (intro $2/$10
   to Aug 2026). PENDING A/B: one backoffice batch with Sonnet 5 BUILDERS judged blind vs Fable batch;
   if wow holds, backoffice builders may drop to Sonnet (Vesperwerk lane stays Fable regardless).
-- Batch 53 BUILT `w7noajtu3` (lane A, 10/10 agents; Sonnet-5 verify agents worked fine). MY GATE:
-  qa-harness FPS 74-121 headless (all healthy), vlint HIGH:0 MED:0 on all 5 at 1440+390, Python dash
-  scan CLEAN x5. Fresh judge running; catalog on PASS. Contact email CONFIRMED by King:
-  kittipong.k@vesperwerk.com (spec updated).
+- Batch 53 DONE + cataloged + DEPLOYED (lane A -> 261 live, Admin = 55). 5/5 first-time PASS through
+  the full gate (FPS 74-121 headless, vlint 0/0 x5, dash CLEAN x5, fresh judge zero fixes). Judge
+  ranking: minimal-mono-type #1 (instant-read KPIs + gallery-stopping), data-noir #2 (pure wow pick),
+  paper-cut #3, gov-civic #4, glass-light #5. FIRST BATCH with Sonnet-5 verify agents: caught 3 real
+  mobile-chart bugs, fixed them, geometry 0/0 - the model split holds quality. Contact email CONFIRMED
+  by King: kittipong.k@vesperwerk.com (spec updated). Deploy commit also ships the new Vesperwerk
+  gallery category + copies vesperwerk-star.svg into the live /assets/ (batch 54 templates reference it).
 - VESPERWERK AUDIT DONE `wm6lzl5af`: 51 registers across 6 lenses, 8 wow-5. FULL FUEL saved to
   `_backlog-vesperwerk.json` (lane-B backlog). Wow-5 not yet built: engraved-plate-ledger,
   nautical-almanac, type-specimen-atlas, star-chart(planisphere), instrument-faceplate + strong-4s

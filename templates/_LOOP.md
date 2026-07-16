@@ -192,7 +192,32 @@ King wants the next batches as BACKOFFICE ADMIN + OWNER dashboard DESIGN IDEAS f
   Non-blocking polish dispatched (Sonnet): thread chapter-rail anchoring + faceplate scramble cap
   <=1.2s. 4 passes CATALOGED builtBy "Opus 4.8" -> 275 in manifest (Vesperwerk Site = 9). DEPLOY
   after particles re-judge (single push).
-- Batch 58 IN FLIGHT `wmji327z4` (Vesperwerk II, Fable-designed / Opus-built, 5 new axes vs batch 57:
+- Batch 57 DONE + cataloged + DEPLOYED (-> 276 live, Vesperwerk Site = 10, commit 696921f, all 5
+  builtBy "Opus 4.8"). particles fix re-judged PASS (all 3 service glyphs read unaided: oscilloscope
+  wave / iso cube / storefront; two-tier alpha + gold constellation hairlines landed). Thread rail
+  re-anchored (fixed-width labels + gold hairline through dots; root cause = variable label width
+  scattering dot x-positions). Faceplate scramble resolves ~500ms. NON-BLOCKING POLISH BANKED:
+  particles @scroll33 fixed nav wordmark lightly overlaps "AI Systems" heading at one transient
+  offset (judge: passes as-is; nudge heading top offset in a later sweep).
+- OPUS 4.8 BUILDER VERDICT (first full batch): 5/5 shipped, 4/5 judge-PASS first time at the RAISED
+  SOTD bar (vs Fable batch 56 = 4/5 first time at same bar). Opus + Fable-designed briefs + Sonnet
+  verify + Fable judge = holding the bar. Judge: almanac-of-hours is SOTD-SUBMITTABLE TODAY.
+- Batch 58 BUILT 10/10 `wmji327z4` (0 errors; sealed-invitation verify caught the SAME missing
+  DOCTYPE/head wrapper quirk as grand-ascenseur - RECURRING OPUS BUILDER QUIRK, briefs now carry a
+  STRUCTURE GUARD line). MY GATE x5: FPS 94-121 all >50, dash CLEAN x5, filmstrips + captures done.
+  vlint: ledger + specimen CLEAN 0/0; monogram = 3D card front/back stack (by-design, docSW==vw);
+  bas-relief = 13-19px medallion decorative overflow (judge to eyeball); sealed-invitation = rotated
+  seal-half (by-design) + principles ol li overlapping 5-8px vertically (judge told to eyeball for
+  text collision vs layered-paper). Fresh judge `judge-batch58` running.
+- Batch 59 IN FLIGHT `w26s1ffqk` (Vesperwerk III, Fable-designed / Opus-built, 5 new axes: operable
+  celestial instrument / patent document / wow-via-absence / print craft / planetary product-story):
+  vesperwerk-planisphere-instrument (drag-rotate star wheel, REAL sidereal math + bright-star catalog),
+  vesperwerk-patent-plate (FIG.1 self-drawing axonometric of the Yimwhan system, claim cards, REV A
+  stamp), vesperwerk-mono-ink-restraint (two-color absence register; the gold star = bookmark of light
+  that leads scroll; craft bar highest), vesperwerk-riso-nocturne (two-plate riso star chart, breathing
+  misregistration, snap-to-register hover, edition stamp), vesperwerk-terminator-clock (live computed
+  day/night line, after-hours call pings arc to Bangkok = the PRODUCT story planetarily; honest
+  SIMULATION label). All briefs now include the DOCTYPE structure guard. 0 WebGL. (Vesperwerk II, Fable-designed / Opus-built, 5 new axes vs batch 57:
   engraved-document, typographic-craft, object-card, light-as-player, artifact-ritual; 0 WebGL):
   vesperwerk-engraved-ledger (self-engraving copperplate ledger + folio-turn + stroke-count HUD),
   vesperwerk-specimen-lab (living foundry specimen, real Fraunces variable-axis testers + proof mode),

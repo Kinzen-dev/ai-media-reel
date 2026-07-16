@@ -175,6 +175,44 @@ King wants the next batches as BACKOFFICE ADMIN + OWNER dashboard DESIGN IDEAS f
   ritual), vesperwerk-grand-ascenseur (Deco brass elevator ride: working floor indicator, diagonal
   wipes, express-ride buttons), vesperwerk-vesper-particles (2200-particle living dusk morphing
   through 5 chapters, cursor force + click nova - MAKE-OR-BREAK, judge hardest).
+- Batch 57 GATED (all 5 built + Sonnet-verified; rebuild run `wfs9d6h6a` recovered the 3 dropped:
+  first-light-thread ok [knot-on-numeral legibility fixed], almanac-of-hours ok [lazy-load black-gap
+  fixed], vesper-particles ok [HUD scrim added]). MY GATE x5: FPS 92-121 all >50 (particles 100/92
+  expected), dash CLEAN x5, filmstrips + thumbs + mobile captured x5. vlint: real defect = thread HUD
+  13px ellipsis-clip @390 (max-width 64vw->84vw, FIXED by main loop, re-lint CLEAN); rest probed
+  by-design (tracked-wordmark nowrap overflow class: letter-spaced VESPERWERK extends past its
+  centered column, docSW==vw, no glyph cut - BANKED as a false-positive class next to odometers).
+  Fresh Fable judge `judge-batch57` running (SOTD bar + brand fit + particles scrutinized hardest).
+- Batch 57 JUDGED (SOTD bar): 4 PASS + 1 NEEDS-FIX. JUDGE SHIP-RANKING for King's REAL site:
+  almanac-of-hours #1 (SOTD-SUBMITTABLE TODAY: live computed ephemeris IS the brand), atelier-faceplate
+  #2 (clearest "production systems that cannot fail" argument), grand-ascenseur #3 (most memorable,
+  slightly themed), first-light-thread #4 (timeless but least showstopping; rail re-anchor polish),
+  vesper-particles #5 NEEDS-FIX (hero star/rings/horizon read; 2 of 3 SERVICE constellations = soft
+  blobs -> Fable fix agent: tighter targets + two-tier alpha + constellation hairlines + less bloom).
+  Non-blocking polish dispatched (Sonnet): thread chapter-rail anchoring + faceplate scramble cap
+  <=1.2s. 4 passes CATALOGED builtBy "Opus 4.8" -> 275 in manifest (Vesperwerk Site = 9). DEPLOY
+  after particles re-judge (single push).
+- Batch 58 IN FLIGHT `wmji327z4` (Vesperwerk II, Fable-designed / Opus-built, 5 new axes vs batch 57:
+  engraved-document, typographic-craft, object-card, light-as-player, artifact-ritual; 0 WebGL):
+  vesperwerk-engraved-ledger (self-engraving copperplate ledger + folio-turn + stroke-count HUD),
+  vesperwerk-specimen-lab (living foundry specimen, real Fraunces variable-axis testers + proof mode),
+  vesperwerk-monogram-card (embossed 3D club card, cursor raking sheen, flip = articles of membership),
+  vesperwerk-bas-relief-light (whole page carved stone under a cursor-held light; drag light down =
+  evening payoff), vesperwerk-sealed-invitation (wax seal auto-cracks + tri-fold unfolds in entrance;
+  thumbnail = OPEN letter + broken seal, never closed envelope).
+- Batch 56 DONE + cataloged + DEPLOYED (-> 271 live, commit b15befa). Judge (SOTD bar, filmstrips):
+  4/5 first-time PASS; clinic-digital-twin NEEDS-FIX (diorama static after boot: root cause = clock
+  0.7 min/s + terminating at close while transitions are 20-40 min apart -> nothing moved in any
+  capture window) -> fix agent: looping delta-timed day at ~2.4 min/s + pulsing operatory lights +
+  5s-idle scrub auto-resume, RM fully gated -> re-judged PASS (clock 10:40->10:52 across strip, KPI
+  18->19->20, walk events every 3-4s). Judge ship-rank: silvered-complication #1, private-bank #2,
+  solari #3, mission-control #4, clinic #5. vlint false-positive class BANKED: odometer reels /
+  split-flap cells / ellipsis-truncated single-line text ALL trip overflow rules by construction -
+  probe page docSW==vw + eyeball before calling them defects.
+- DEPLOY-CLONE GOTCHA (cost one failed push): a fresh `git clone git@github.com:Kinzen-dev/...`
+  binds the DEFAULT ssh key (= Hum69 account -> push denied). The remote MUST be
+  `git@github-ktpz:Kinzen-dev/ai-media-reel.git` (host alias in ~/.ssh/config with the
+  id_ed25519-kinzen-dev key). Fix: `git remote set-url origin git@github-ktpz:...`.
 - Batch 57 PROGRESS: build run `w1hq50d0c` = 4/5 Opus builders dropped ("Connection closed
   mid-response", transient class). DISK CHECK: atelier-faceplate BUILT+VERIFIED (ok:true; verify
   fixed hash-jump IO reveal bug), grand-ascenseur BUILT (verify-only run `wa5o53h8o` fixed a

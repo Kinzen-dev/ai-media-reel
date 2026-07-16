@@ -1,0 +1,613 @@
+<!-- TEMPLATE: Vesperwerk / Carved in Evening Light | ARCHETYPE: bas-relief stone surface, visitor holds the light | REF: Immersive Garden (Awwwards Agency of the Year 2025), carved-stone signage, raking-light museum photography | WHEN TO USE: premium studio / founder-led agency identity with a single tactile signature material | SWAP: edit the DATA object at top of the script -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vesperwerk / Carved in Evening Light</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Noto+Serif+Thai:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  /* ===== Light-as-material engine =====================================
+     TWO shared custom properties drive EVERY carved element on the page:
+       --lx / --ly  (light direction, -1..1) updated once per rAF frame.
+     Plus --dusk (0 day .. 1 evening) and --enter (per-panel reveal).
+     Raised relief : bright rim toward light, drop shadow away.
+     Incised groove: dark near-lip toward light, bright far-lip away.
+     ==================================================================== */
+  @property --enter { syntax: '<number>'; inherits: false; initial-value: 0; }
+
+  :root{
+    --lx: -0.707;
+    --ly: -0.707;
+    --dusk: 0;
+    --cream: #f2ede3;
+    --dusk-ground: #3a3230;
+    --ink: #2e2a26;
+    --gold: #a8802f;
+    --gold-hi: #c09a4a;
+    --gold-lo: #8a6526;
+    --depth: 1.4px;
+  }
+
+  *{ box-sizing: border-box; }
+  html{ -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  html, body{ overflow-x: clip; }
+  body{
+    margin: 0;
+    min-height: 100svh;
+    font-family: 'EB Garamond', Georgia, serif;
+    color: #34302b;
+    background: #efe8db;
+    background: color-mix(in oklab, var(--cream), var(--dusk-ground) calc(var(--dusk) * 100%));
+    transition: background-color .18s linear;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  @media (prefers-reduced-motion: reduce){
+    html{ scroll-behavior: auto; }
+  }
+
+  /* stone grain + evening vignette (static, cheap) */
+  .grain, .vignette{ position: fixed; inset: 0; pointer-events: none; z-index: 1; }
+  .grain{
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+    mix-blend-mode: multiply;
+    opacity: .06;
+  }
+  .vignette{
+    z-index: 0;
+    background: radial-gradient(120% 90% at 50% 34%, transparent 40%, rgb(30 24 20 / calc(.12 + var(--dusk) * .5)) 100%);
+    transition: none;
+  }
+
+  a{ color: inherit; text-decoration: none; }
+  img{ max-width: 100%; display: block; }
+  :focus-visible{ outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 2px; }
+
+  .wrap{ width: min(1120px, 92vw); margin-inline: auto; }
+  section{ position: relative; z-index: 2; }
+
+  /* ----- carved type -------------------------------------------------- */
+  .carve{
+    color: color-mix(in oklab, #5a534b, #16110d calc(var(--dusk) * 72%));
+    text-shadow:
+      calc(var(--lx) * -1 * var(--depth)) calc(var(--ly) * -1 * var(--depth)) .5px rgba(255,251,244,.85),
+      calc(var(--lx) * var(--depth)) calc(var(--ly) * var(--depth)) .6px rgb(14 10 7 / calc(.42 + var(--dusk) * .34));
+  }
+  .serif{ font-family: 'Playfair Display', Georgia, serif; }
+  .eyebrow{
+    font-family: 'Space Mono', ui-monospace, monospace;
+    font-size: .68rem;
+    letter-spacing: .34em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--gold-lo), var(--gold-hi) calc(var(--dusk) * 100%));
+    margin: 0 0 1.1rem;
+  }
+
+  /* ----- raised relief panel ------------------------------------------ */
+  .relief{
+    position: relative;
+    border-radius: 4px;
+    background: color-mix(in oklab, #efe8db, var(--dusk-ground) calc(var(--dusk) * 66%));
+    box-shadow:
+      calc(var(--lx) * -16px) calc(var(--ly) * -16px) calc(46px - var(--enter) * 16px) rgb(46 42 38 / calc((.08 + var(--enter) * .16) + var(--dusk) * .22)),
+      inset calc(var(--lx) * -3px) calc(var(--ly) * -3px) 3px rgba(255,252,246,.68),
+      inset calc(var(--lx) * 3px) calc(var(--ly) * 3px) 6px rgb(46 42 38 / calc(.14 + var(--dusk) * .12));
+  }
+  /* ----- sunken intaglio panel ---------------------------------------- */
+  .intaglio{
+    position: relative;
+    border-radius: 4px;
+    background: color-mix(in oklab, #e9e1d2, var(--dusk-ground) calc(var(--dusk) * 62%));
+    box-shadow:
+      inset calc(var(--lx) * -5px) calc(var(--ly) * -5px) calc(20px - var(--enter) * 4px) rgb(40 34 28 / calc(.24 + var(--dusk) * .26)),
+      inset calc(var(--lx) * 4px) calc(var(--ly) * 4px) 6px rgba(255,252,246,.5),
+      calc(var(--lx) * 2px) calc(var(--ly) * 2px) 5px rgba(255,252,246,.35);
+  }
+
+  /* ----- scroll reveal (comes into the light) ------------------------- */
+  .reveal{
+    --enter: 0;
+    opacity: 0;
+    transform: translateY(26px);
+    transition: --enter .95s ease, opacity .95s ease, transform .95s cubic-bezier(.2,.7,.2,1);
+  }
+  .reveal.lit{ --enter: 1; opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce){
+    .reveal{ transition: none; opacity: 1; transform: none; --enter: 1; }
+  }
+
+  /* ================= HERO ============================================= */
+  .hero{
+    min-height: 92svh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: clamp(2.4rem, 6vh, 5rem) 1rem 3.4rem;
+    gap: 1.15rem;
+  }
+
+  /* medallion (the signature) */
+  .medallion{
+    position: relative;
+    width: clamp(158px, 23vw, 236px);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: radial-gradient(circle at calc(50% + var(--lx) * 15%) calc(50% + var(--ly) * 15%),
+        color-mix(in oklab, #f4eee1, var(--dusk-ground) calc(var(--dusk) * 68%)),
+        color-mix(in oklab, #ddd3c1, var(--dusk-ground) calc(var(--dusk) * 74%)) 70%,
+        color-mix(in oklab, #c6bba4, var(--dusk-ground) calc(var(--dusk) * 82%)) 100%);
+    box-shadow:
+      inset calc(var(--lx) * -7px) calc(var(--ly) * -7px) 16px rgb(46 42 38 / calc(.34 + var(--dusk) * .3)),
+      inset calc(var(--lx) * 7px) calc(var(--ly) * 7px) 18px rgba(255,252,246,.66),
+      calc(var(--lx) * -3px) calc(var(--ly) * -3px) 14px rgb(46 42 38 / calc(.12 + var(--dusk) * .16));
+    margin-bottom: .3rem;
+  }
+  .medallion-glow{
+    position: absolute; inset: -8%; border-radius: 50%; z-index: 0; pointer-events: none;
+    background: radial-gradient(circle, rgb(168 128 47 / calc(var(--dusk) * .3)), transparent 62%);
+    box-shadow: 0 0 calc(26px + var(--dusk) * 96px) calc(2px + var(--dusk) * 18px) rgb(168 128 47 / calc(var(--dusk) * .5));
+  }
+  .star-relief{
+    position: relative; z-index: 2; width: 60%;
+    filter:
+      drop-shadow(calc(var(--lx) * -4px) calc(var(--ly) * -4px) 3px rgb(38 28 12 / calc(.5 + var(--dusk) * .18)))
+      brightness(calc(1 + var(--dusk) * .55)) saturate(calc(1 + var(--dusk) * .28));
+  }
+  .star-relief svg{ width: 100%; height: auto; display: block; }
+  .sheen{
+    position: absolute; inset: 9%; border-radius: 50%; z-index: 3; pointer-events: none;
+    mix-blend-mode: screen;
+    background: radial-gradient(circle at calc(50% + var(--lx) * 34%) calc(50% + var(--ly) * 34%),
+        rgb(255 246 220 / calc(.72 + var(--dusk) * .2)), transparent 42%);
+  }
+
+  .word{
+    --depth: 2.5px;
+    font-weight: 600;
+    font-size: clamp(2.3rem, 8.4vw, 5.2rem);
+    line-height: .96;
+    letter-spacing: .2em;
+    margin: .2rem 0 0;
+    padding-left: .2em; /* balance the tracking */
+  }
+  .thai{
+    font-family: 'Noto Serif Thai', 'EB Garamond', serif;
+    letter-spacing: 0 !important;
+    line-height: 1.45;
+    font-size: clamp(.92rem, 2.6vw, 1.18rem);
+    font-weight: 500;
+    max-width: 30ch;
+    margin: .1rem auto .2rem;
+  }
+  .positioning{
+    --depth: 1.1px;
+    font-size: clamp(1.02rem, 2.3vw, 1.42rem);
+    line-height: 1.5;
+    max-width: 40ch;
+    margin: .5rem auto 0;
+    color: color-mix(in oklab, #3f382f, #16110d calc(var(--dusk) * 60%));
+    text-shadow:
+      calc(var(--lx) * -.8px) calc(var(--ly) * -.8px) .4px rgba(255,251,244,.7),
+      calc(var(--lx) * .8px) calc(var(--ly) * .8px) .5px rgb(14 10 7 / calc(.24 + var(--dusk) * .2));
+  }
+  .cta-row{ display: flex; flex-wrap: wrap; gap: .9rem; justify-content: center; margin-top: 1.5rem; }
+  .btn{
+    font-family: 'Space Mono', ui-monospace, monospace;
+    font-size: .74rem; letter-spacing: .18em; text-transform: uppercase;
+    padding: .95rem 1.6rem; border-radius: 3px; cursor: pointer;
+    color: color-mix(in oklab, #4a423a, #16110d calc(var(--dusk) * 55%));
+    min-width: 0;
+  }
+  .btn.primary{ color: color-mix(in oklab, var(--gold-lo), var(--gold-hi) calc(var(--dusk) * 100%)); }
+  .btn:hover{ transform: translateY(-1px); }
+
+  /* HUD (engineering honesty) */
+  .hud{
+    position: fixed; left: max(14px, env(safe-area-inset-left)); bottom: max(14px, env(safe-area-inset-bottom));
+    z-index: 40;
+    font-family: 'Space Mono', ui-monospace, monospace;
+    font-size: .64rem; letter-spacing: .12em;
+    color: color-mix(in oklab, #6a6156, #d7cbae calc(var(--dusk) * 100%));
+    padding: .5rem .7rem; border-radius: 3px;
+    background: rgb(46 42 38 / calc(.05 + var(--dusk) * .12));
+    box-shadow: inset calc(var(--lx) * 2px) calc(var(--ly) * 2px) 3px rgb(46 42 38 / .18), inset calc(var(--lx) * -2px) calc(var(--ly) * -2px) 2px rgba(255,252,246,.4);
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  /* ================= generic section head ============================ */
+  .band{ padding: clamp(3.4rem, 9vh, 6.5rem) 0; }
+  .band-head{ margin-bottom: 2.4rem; }
+  .band-head h2{ --depth: 2px; margin: 0; font-weight: 600; font-size: clamp(1.7rem, 4.4vw, 2.7rem); letter-spacing: .02em; }
+
+  /* ================= SERVICES ======================================== */
+  .svc-grid{ display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(1rem, 2.4vw, 1.6rem); }
+  .svc{ padding: 1.8rem 1.6rem 2rem; min-width: 0; }
+  .svc .num{ font-family: 'Space Mono', monospace; font-size: .72rem; letter-spacing: .2em; color: color-mix(in oklab, var(--gold-lo), var(--gold-hi) calc(var(--dusk) * 100%)); }
+  .svc h3{ --depth: 1.5px; font-weight: 600; font-size: 1.34rem; margin: .7rem 0 .8rem; letter-spacing: .01em; }
+  .svc p{ margin: 0; font-size: 1.02rem; line-height: 1.55; color: color-mix(in oklab, #4a423a, #17120d calc(var(--dusk) * 55%)); }
+
+  /* ================= WORK (backstage) ================================ */
+  .work-panel{ padding: clamp(1.6rem, 3.4vw, 2.6rem); }
+  .work-top{ display: grid; grid-template-columns: 1.15fr .85fr; gap: clamp(1.4rem, 3vw, 2.4rem); align-items: center; }
+  .work-copy{ min-width: 0; }
+  .work-copy h3{ --depth: 1.8px; font-weight: 600; font-size: clamp(1.5rem, 3.2vw, 2rem); margin: .2rem 0 .8rem; }
+  .work-copy p{ margin: 0; font-size: 1.06rem; line-height: 1.58; color: color-mix(in oklab, #453e35, #17120d calc(var(--dusk) * 55%)); }
+  .status{ display: inline-flex; align-items: center; gap: .5rem; margin-top: 1.1rem; font-family: 'Space Mono', monospace; font-size: .66rem; letter-spacing: .16em; text-transform: uppercase; color: color-mix(in oklab, var(--gold-lo), var(--gold-hi) calc(var(--dusk) * 100%)); }
+  .status::before{ content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 calc(3px + var(--dusk) * 10px) var(--gold); }
+
+  .plate{
+    min-width: 0; border-radius: 4px; overflow: hidden; aspect-ratio: 3 / 2; position: relative;
+    box-shadow:
+      calc(var(--lx) * -10px) calc(var(--ly) * -10px) 26px rgb(46 42 38 / calc(.2 + var(--dusk) * .2)),
+      inset calc(var(--lx) * -3px) calc(var(--ly) * -3px) 4px rgba(255,252,246,.5),
+      inset calc(var(--lx) * 3px) calc(var(--ly) * 3px) 6px rgb(46 42 38 / .28),
+      inset 0 0 0 1px rgb(46 42 38 / .14);
+  }
+  .plate img{ width: 100%; height: 100%; object-fit: cover; filter: sepia(.14) saturate(.94) brightness(calc(1 - var(--dusk) * .28)); }
+  .plate .cap{ position: absolute; left: 0; right: 0; bottom: 0; padding: .5rem .8rem; font-family: 'Space Mono', monospace; font-size: .58rem; letter-spacing: .14em; text-transform: uppercase; color: #efe7d6; background: linear-gradient(transparent, rgb(24 19 15 / .7)); }
+
+  /* backstage flow diagram */
+  .flow{
+    margin-top: clamp(1.6rem, 3.4vw, 2.4rem);
+    padding-top: clamp(1.4rem, 3vw, 2rem);
+    border-top: 1px solid rgb(46 42 38 / .12);
+    display: flex; align-items: flex-start; justify-content: space-between; gap: .4rem;
+  }
+  .node{ flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; text-align: center; gap: .7rem; }
+  .node .tile{
+    width: clamp(52px, 12vw, 74px); aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center;
+    background: color-mix(in oklab, #ece4d5, var(--dusk-ground) calc(var(--dusk) * 60%));
+    box-shadow:
+      calc(var(--lx) * -6px) calc(var(--ly) * -6px) 14px rgb(46 42 38 / calc(.16 + var(--dusk) * .2)),
+      inset calc(var(--lx) * -2px) calc(var(--ly) * -2px) 2px rgba(255,252,246,.7),
+      inset calc(var(--lx) * 2px) calc(var(--ly) * 2px) 4px rgb(46 42 38 / .2);
+  }
+  .gly{ width: 52%; height: auto; color: color-mix(in oklab, #4a4239, #14100c calc(var(--dusk) * 60%)); filter: drop-shadow(calc(var(--lx) * -1.4px) calc(var(--ly) * -1.4px) 0 rgba(255,251,244,.7)) drop-shadow(calc(var(--lx) * 1.4px) calc(var(--ly) * 1.4px) .5px rgb(14 10 7 / .5)); }
+  .node .lbl{ font-family: 'Space Mono', monospace; font-size: .58rem; letter-spacing: .1em; text-transform: uppercase; line-height: 1.4; color: color-mix(in oklab, #5e564b, #cdbf9f calc(var(--dusk) * 90%)); max-width: 12ch; }
+  .rail{ flex: 0 0 auto; align-self: center; margin-top: clamp(24px, 6vw, 34px); color: color-mix(in oklab, var(--gold-lo), var(--gold-hi) calc(var(--dusk) * 100%)); opacity: .8; }
+  .rail svg{ display: block; filter: drop-shadow(calc(var(--lx) * -1px) calc(var(--ly) * -1px) 0 rgba(255,251,244,.6)); }
+
+  /* ================= APPROACH ======================================== */
+  .appr-grid{ display: grid; grid-template-columns: repeat(2, 1fr); gap: clamp(1.4rem, 3vw, 2.6rem) clamp(2rem, 4vw, 3.4rem); }
+  .appr{ display: grid; grid-template-columns: auto 1fr; gap: 1.2rem; align-items: start; min-width: 0; }
+  .initial{
+    font-family: 'Playfair Display', serif; font-weight: 700; font-size: clamp(3rem, 7vw, 4.4rem); line-height: .8;
+    color: color-mix(in oklab, var(--gold), var(--gold-hi) calc(var(--dusk) * 100%));
+    text-shadow:
+      calc(var(--lx) * -1.6px) calc(var(--ly) * -1.6px) 0 rgba(255,246,220,.7),
+      calc(var(--lx) * 1.8px) calc(var(--ly) * 1.8px) 1px rgb(70 48 12 / calc(.4 + var(--dusk) * .25));
+  }
+  .appr h3{ --depth: 1.4px; font-family: 'Playfair Display', serif; font-weight: 600; font-size: 1.24rem; margin: .35rem 0 .5rem; }
+  .appr p{ margin: 0; font-size: 1.02rem; line-height: 1.55; color: color-mix(in oklab, #4a423a, #17120d calc(var(--dusk) * 55%)); min-width: 0; }
+
+  /* ================= COLOPHON (about + contact) ====================== */
+  .colophon{ padding: clamp(2rem, 4.4vw, 3.4rem); display: grid; grid-template-columns: 1.2fr .8fr; gap: clamp(1.6rem, 3.4vw, 2.8rem); align-items: center; }
+  .colophon .about h3{ --depth: 1.5px; font-family: 'Playfair Display', serif; font-weight: 600; font-size: 1.4rem; margin: 0 0 .8rem; }
+  .colophon .about p{ margin: 0; font-size: 1.08rem; line-height: 1.6; max-width: 46ch; color: color-mix(in oklab, #443d34, #17120d calc(var(--dusk) * 55%)); }
+  .contact{ min-width: 0; }
+  .contact .k{ font-family: 'Space Mono', monospace; font-size: .62rem; letter-spacing: .2em; text-transform: uppercase; color: color-mix(in oklab, var(--gold-lo), var(--gold-hi) calc(var(--dusk) * 100%)); margin: 0 0 .5rem; }
+  .contact .mail{ --depth: 1.3px; font-family: 'Playfair Display', serif; font-size: clamp(1.05rem, 2.6vw, 1.45rem); font-weight: 500; word-break: break-word; }
+  .contact .loc{ margin-top: .8rem; font-size: 1rem; color: color-mix(in oklab, #57503f, #cdbf9f calc(var(--dusk) * 85%)); }
+
+  /* ================= FOOTER ========================================== */
+  footer{ position: relative; z-index: 2; padding: 2.6rem 0 3rem; border-top: 1px solid rgb(46 42 38 / .12); }
+  .foot-in{ display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; justify-content: space-between; }
+  .foot-brand{ display: flex; align-items: center; gap: .8rem; min-width: 0; }
+  .foot-star{ width: 30px; height: 30px; flex: 0 0 auto; filter: drop-shadow(calc(var(--lx) * -2px) calc(var(--ly) * -2px) 1px rgb(40 30 12 / .5)) brightness(calc(1 + var(--dusk) * .4)); }
+  .foot-star svg{ width: 100%; height: 100%; }
+  .foot-word{ --depth: 1.2px; font-family: 'Playfair Display', serif; font-weight: 600; letter-spacing: .22em; font-size: 1rem; }
+  .foot-meta{ font-family: 'Space Mono', monospace; font-size: .62rem; letter-spacing: .12em; text-transform: uppercase; color: color-mix(in oklab, #6a6156, #cdbf9f calc(var(--dusk) * 85%)); }
+
+  /* ================= RESPONSIVE ====================================== */
+  @media (max-width: 900px){
+    .work-top{ grid-template-columns: 1fr; }
+    .appr-grid{ grid-template-columns: 1fr; }
+    .colophon{ grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px){
+    .svc-grid{ grid-template-columns: 1fr; }
+    .flow{ flex-direction: column; align-items: stretch; gap: 0; }
+    .node{ flex-direction: row; justify-content: flex-start; text-align: left; gap: 1rem; padding: .55rem 0; }
+    .node .lbl{ max-width: none; }
+    .rail{ align-self: flex-start; margin: 0 0 0 calc(clamp(52px,12vw,74px) / 2 - 8px); transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+  <div class="vignette" aria-hidden="true"></div>
+
+  <!-- HERO ------------------------------------------------------------ -->
+  <header class="hero">
+    <div class="medallion" role="img" aria-label="Vesperwerk vesper star, carved gold medallion">
+      <span class="medallion-glow" aria-hidden="true"></span>
+      <span class="star-relief" id="star"></span>
+      <span class="sheen" aria-hidden="true"></span>
+    </div>
+    <h1 class="word carve serif" id="wordmark">VESPERWERK</h1>
+    <p class="thai carve" id="thai"></p>
+    <p class="positioning" id="positioning"></p>
+    <nav class="cta-row" aria-label="primary">
+      <a class="btn primary carve" id="ctaA" href="#contact"></a>
+      <a class="btn carve" id="ctaB" href="#work"></a>
+    </nav>
+  </header>
+
+  <div class="hud carve" id="hud" aria-hidden="true">LIGHT 315 DEG / ELEV 18 DEG</div>
+
+  <!-- SERVICES -------------------------------------------------------- -->
+  <section class="band" id="services">
+    <div class="wrap">
+      <div class="band-head reveal">
+        <p class="eyebrow">Services</p>
+        <h2 class="carve serif">What we build</h2>
+      </div>
+      <div class="svc-grid" id="svc-grid"></div>
+    </div>
+  </section>
+
+  <!-- WORK ------------------------------------------------------------ -->
+  <section class="band" id="work">
+    <div class="wrap">
+      <div class="band-head reveal">
+        <p class="eyebrow">Selected work / backstage</p>
+        <h2 class="carve serif">Yimwhan AI, in production</h2>
+      </div>
+      <div class="work-panel relief reveal">
+        <div class="work-top">
+          <div class="work-copy">
+            <h3 class="carve serif" id="work-title"></h3>
+            <p id="work-body"></p>
+            <span class="status" id="work-status"></span>
+          </div>
+          <figure class="plate" id="work-plate" style="margin:0">
+            <img id="work-img" alt="Mint and wood dental clinic interior, the setting Yimwhan AI serves" loading="lazy" decoding="async">
+            <figcaption class="cap">Live clinic / Thailand</figcaption>
+          </figure>
+        </div>
+        <div class="flow" id="flow" aria-label="Voice agent call flow: after-hours call, understands intent, books and reschedules, human handoff"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- APPROACH -------------------------------------------------------- -->
+  <section class="band" id="approach">
+    <div class="wrap">
+      <div class="band-head reveal">
+        <p class="eyebrow">Approach</p>
+        <h2 class="carve serif">Four principles, carved in</h2>
+      </div>
+      <div class="appr-grid" id="appr-grid"></div>
+    </div>
+  </section>
+
+  <!-- COLOPHON -------------------------------------------------------- -->
+  <section class="band" id="contact">
+    <div class="wrap">
+      <div class="colophon intaglio reveal">
+        <div class="about">
+          <p class="eyebrow">About the name</p>
+          <h3 class="carve serif" id="about-title">The evening star</h3>
+          <p id="about-body"></p>
+        </div>
+        <div class="contact">
+          <p class="k">Start a conversation</p>
+          <a class="mail carve serif" id="mail" href="#"></a>
+          <p class="loc" id="loc"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER ---------------------------------------------------------- -->
+  <footer>
+    <div class="wrap foot-in">
+      <div class="foot-brand">
+        <span class="foot-star" id="foot-star" aria-hidden="true"></span>
+        <span class="foot-word carve">VESPERWERK</span>
+      </div>
+      <div class="foot-meta" id="foot-meta"></div>
+    </div>
+  </footer>
+
+  <div class="grain" aria-hidden="true"></div>
+
+<script>
+/* =====================================================================
+   DATA  ->  edit this object to reskin the whole page.
+   (Copy mirrors the Vesperwerk canonical brand spec verbatim.)
+   ===================================================================== */
+const DATA = {
+  wordmark: "VESPERWERK",
+  thaiEpigraph: "ดาวประจำเมือง : แสงแรกที่ใช้นำทางยามค่ำ",
+  positioning: "An independent software and AI studio. We architect, build, and operate production systems for businesses that cannot afford them to fail.",
+  ctaPrimary: "Start a conversation",
+  ctaSecondary: "See our work",
+  services: [
+    { num: "01", title: "AI Systems", body: "Voice agents, LLM assistants, and the evaluation infrastructure that keeps them honest. AI that answers like your best employee, in production, around the clock." },
+    { num: "02", title: "Product Engineering", body: "Full-stack product engineering from architecture to operations: event-driven backends, modern web frontends, and infrastructure that scales without drama." },
+    { num: "03", title: "Commerce and Platforms", body: "Deep Shopify and LINE platform work: storefronts, admin apps, integrations, and the messaging rails Southeast Asian commerce runs on." }
+  ],
+  work: {
+    title: "Yimwhan AI",
+    body: "An AI voice and LINE assistant for dental clinics in Thailand. It answers after-hours calls, books and reschedules appointments, and hands off to staff the moment a human matters. In production at live clinics.",
+    status: "In production at live clinics",
+    image: "../assets/flux-clinic-4k.png",
+    steps: [
+      { glyph: "phone",    label: "After-hours call" },
+      { glyph: "wave",     label: "Understands intent" },
+      { glyph: "calendar", label: "Books and reschedules" },
+      { glyph: "handoff",  label: "Human handoff" }
+    ]
+  },
+  approach: [
+    { initial: "A", title: "Architecture first", body: "We design the system before we write the code." },
+    { initial: "P", title: "Production-worthy", body: "Demos impress; production endures. We build for the second one." },
+    { initial: "S", title: "Scope discipline", body: "The most valuable thing we tell clients is what not to build." },
+    { initial: "S", title: "Senior hands", body: "No juniors learning on your budget. Founder-led, senior hands on every line." }
+  ],
+  about: "Vesperwerk takes its name from the evening star: the first light you can navigate by. We are a founder-led studio in Bangkok building software for businesses across Asia and beyond.",
+  email: "kittipong.k@vesperwerk.com",
+  location: "Bangkok, Thailand",
+  footerMeta: "Bangkok, Thailand  /  (c) 2026 Vesperwerk"
+};
+
+/* Vesperwerk mark: eight-point vesper star, two-facet antique gold (facet colors preserved). */
+const STAR_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Vesperwerk star"><g transform="translate(100,100)"><g><polygon points="0,-86 -11,0 0,0" fill="#c09a4a"/><polygon points="0,-86 11,0 0,0" fill="#8a6526"/></g><g transform="rotate(180)"><polygon points="0,-86 -11,0 0,0" fill="#8a6526"/><polygon points="0,-86 11,0 0,0" fill="#c09a4a"/></g><g transform="rotate(90)"><polygon points="0,-64 -9.5,0 0,0" fill="#c09a4a"/><polygon points="0,-64 9.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(270)"><polygon points="0,-64 -9.5,0 0,0" fill="#8a6526"/><polygon points="0,-64 9.5,0 0,0" fill="#c09a4a"/></g><g transform="rotate(45)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(135)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(225)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g><g transform="rotate(315)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g></g></svg>';
+
+const GLYPHS = {
+  phone: '<svg viewBox="0 0 24 24" class="gly" aria-hidden="true"><path d="M6.5 3.4 9.1 3.7l1.4 4.2-2.3 1.5a10.6 10.6 0 0 0 4.9 4.9l1.5-2.3 4.2 1.4.3 2.6a1.75 1.75 0 0 1-1.9 1.9A15.7 15.7 0 0 1 4.5 5.3 1.75 1.75 0 0 1 6.5 3.4Z" fill="currentColor"/></svg>',
+  wave: '<svg viewBox="0 0 24 24" class="gly" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M2 12h1.2"/><path d="M6 8.5v7"/><path d="M9.6 4.8v14.4"/><path d="M13.2 8v8"/><path d="M16.8 6v12"/><path d="M20.4 9.6v4.8"/><path d="M22.5 12H23"/></g></svg>',
+  calendar: '<svg viewBox="0 0 24 24" class="gly" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.4" y="5" width="17.2" height="15.4" rx="2"/><path d="M3.4 9.6h17.2"/><path d="M8 2.8v3.6"/><path d="M16 2.8v3.6"/><path d="m8.4 14.6 2.2 2.2 4.4-4.4"/></g></svg>',
+  handoff: '<svg viewBox="0 0 24 24" class="gly" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="16.4" cy="7.4" r="3.2"/><path d="M10.7 20.6a5.6 5.6 0 0 1 11.4 0"/><path d="M2 12h6.4"/><path d="m5.6 8.8 3.2 3.2-3.2 3.2"/></g></svg>'
+};
+const RAIL_SVG = '<svg width="30" height="12" viewBox="0 0 30 12" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 6h22"/><path d="m20 2 4 4-4 4"/></g></svg>';
+
+/* ---------- render content from DATA -------------------------------- */
+function el(tag, cls, html){ const n = document.createElement(tag); if(cls) n.className = cls; if(html != null) n.innerHTML = html; return n; }
+function txt(id, v){ const n = document.getElementById(id); if(n) n.textContent = v; }
+
+document.getElementById('star').innerHTML = STAR_SVG;
+document.getElementById('foot-star').innerHTML = STAR_SVG;
+txt('wordmark', DATA.wordmark);
+txt('thai', DATA.thaiEpigraph);
+txt('positioning', DATA.positioning);
+txt('ctaA', DATA.ctaPrimary);
+txt('ctaB', DATA.ctaSecondary);
+txt('work-title', DATA.work.title);
+txt('work-body', DATA.work.body);
+txt('work-status', DATA.work.status);
+txt('about-body', DATA.about);
+txt('loc', DATA.location);
+txt('foot-meta', DATA.footerMeta);
+document.getElementById('work-img').src = DATA.work.image;
+const mail = document.getElementById('mail'); mail.textContent = DATA.email; mail.href = 'mailto:' + DATA.email;
+
+const svcGrid = document.getElementById('svc-grid');
+DATA.services.forEach(s => {
+  const card = el('article', 'svc relief reveal');
+  card.appendChild(el('span', 'num', s.num));
+  card.appendChild(el('h3', 'carve serif', s.title));
+  card.appendChild(el('p', null, s.body));
+  svcGrid.appendChild(card);
+});
+
+const flow = document.getElementById('flow');
+DATA.work.steps.forEach((st, i) => {
+  const node = el('div', 'node');
+  node.appendChild(el('span', 'tile', GLYPHS[st.glyph] || ''));
+  node.appendChild(el('span', 'lbl', st.label));
+  flow.appendChild(node);
+  if(i < DATA.work.steps.length - 1) flow.appendChild(el('span', 'rail', RAIL_SVG));
+});
+
+const apprGrid = document.getElementById('appr-grid');
+DATA.approach.forEach(a => {
+  const item = el('div', 'appr reveal');
+  item.appendChild(el('span', 'initial', a.initial));
+  const body = el('div', null, '');
+  body.appendChild(el('h3', 'carve', a.title));
+  body.appendChild(el('p', null, a.body));
+  item.appendChild(body);
+  apprGrid.appendChild(item);
+});
+
+/* =====================================================================
+   LIGHT ENGINE  ->  one rAF loop, two shared custom properties.
+   ===================================================================== */
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const root = document.documentElement.style;
+const hudEl = document.getElementById('hud');
+const revealEls = Array.from(document.querySelectorAll('.reveal'));
+
+function clamp(v, a, b){ return v < a ? a : v > b ? b : v; }
+function lerp(a, b, t){ return a + (b - a) * t; }
+function easeInOut(t){ return t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2; }
+
+function hudText(lx, ly){
+  const az = (Math.atan2(ly, lx) * 180 / Math.PI + 360) % 360;
+  const dist = Math.min(1, Math.hypot(lx, ly));
+  const elev = Math.round(6 + (1 - dist) * 72);
+  return 'LIGHT ' + String(Math.round(az)).padStart(3, '0') + ' DEG / ELEV ' + String(elev).padStart(2, '0') + ' DEG';
+}
+function apply(lx, ly, dusk){
+  root.setProperty('--lx', lx.toFixed(3));
+  root.setProperty('--ly', ly.toFixed(3));
+  root.setProperty('--dusk', dusk.toFixed(3));
+  hudEl.textContent = hudText(lx, ly);
+}
+
+if(reduced){
+  /* fixed 45 deg raking from top-left, no rAF, no sweep, no idle arc.
+     dusk drag still works but jumps instantly. */
+  apply(-0.707, -0.707, 0);
+  revealEls.forEach(e => e.classList.add('lit'));
+  const jump = y => root.setProperty('--dusk', (y / innerHeight > 0.62) ? '1' : '0');
+  addEventListener('pointermove', e => jump(e.clientY), { passive: true });
+  addEventListener('touchmove', e => { if(e.touches[0]) jump(e.touches[0].clientY); }, { passive: true });
+} else {
+  const cur = { lx: -0.95, ly: -0.05, dusk: 0 };
+  const tgt = { lx: -0.95, ly: -0.05, dusk: 0 };
+  let entranceStart = null, entering = true;
+  let lastInput = performance.now();
+  let running = true, rafId = 0;
+
+  function frame(now){
+    if(!running) return;
+    if(entering){
+      if(entranceStart === null) entranceStart = now;
+      const p = Math.min(1, (now - entranceStart) / 2400);
+      const e = easeInOut(p);
+      cur.lx = lerp(-0.95, 0.32, e);   /* hard-left raking -> settled top-right */
+      cur.ly = lerp(-0.05, -0.5, e);
+      cur.dusk = 0;
+      if(p >= 1){ entering = false; lastInput = now; tgt.lx = cur.lx; tgt.ly = cur.ly; }
+    } else if(now - lastInput > 3000){
+      /* idle: slow automatic light arc keeps the relief alive (dusk decays) */
+      const ang = (now / 1000 / 20) * Math.PI * 2;
+      cur.lx += (Math.cos(ang) * 0.72 - cur.lx) * 0.03;
+      cur.ly += ((-0.32 + Math.sin(ang) * 0.26) - cur.ly) * 0.03;
+      cur.dusk += (0 - cur.dusk) * 0.05;
+    } else {
+      cur.lx += (tgt.lx - cur.lx) * 0.12;
+      cur.ly += (tgt.ly - cur.ly) * 0.12;
+      cur.dusk += (tgt.dusk - cur.dusk) * 0.12;
+    }
+    apply(cur.lx, cur.ly, cur.dusk);
+    rafId = requestAnimationFrame(frame);
+  }
+
+  function fromPoint(x, y){
+    tgt.lx = (x / innerWidth - 0.5) * 1.7;
+    tgt.ly = (y / innerHeight - 0.5) * 1.7;
+    tgt.dusk = clamp((y / innerHeight - 0.58) / 0.4, 0, 1);  /* light at the bottom = evening */
+    lastInput = performance.now();
+  }
+  addEventListener('pointermove', e => fromPoint(e.clientX, e.clientY), { passive: true });
+  addEventListener('touchmove', e => { if(e.touches[0]) fromPoint(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+
+  document.addEventListener('visibilitychange', () => {
+    if(document.hidden){ running = false; if(rafId) cancelAnimationFrame(rafId); }
+    else if(!running){ running = true; rafId = requestAnimationFrame(frame); }
+  });
+
+  /* panels come into the light on scroll */
+  const io = new IntersectionObserver((ents) => {
+    ents.forEach(en => { if(en.isIntersecting){ en.target.classList.add('lit'); io.unobserve(en.target); } });
+  }, { threshold: 0.16, rootMargin: '0px 0px -8% 0px' });
+  revealEls.forEach(e => io.observe(e));
+  /* safety: never leave a panel stuck faded (thumbnail correctness) */
+  setTimeout(() => revealEls.forEach(e => e.classList.add('lit')), 1500);
+
+  rafId = requestAnimationFrame(frame);
+}
+</script>
+</body>
+</html>

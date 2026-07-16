@@ -797,7 +797,7 @@ function scramble(el,text){
   if(RM){ el.textContent=text; return; }
   const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZ+.';
   cancelAnimationFrame(el._sc||0);
-  const start=performance.now(), dur=480;
+  const start=performance.now(), dur=350;
   (function step(now){
     const p=Math.min(1,(now-start)/dur);
     const reveal=Math.floor(p*text.length);
@@ -825,7 +825,7 @@ function setMode(i,opt={}){
   if(opt.scramble===false) roName.textContent=name; else scramble(roName,name);
   roCopy.classList.remove('show'); void roCopy.offsetWidth;
   roCopy.textContent=s.copy; roCopy.classList.add('show');
-  if(!RM){ dialEl.classList.remove('clk'); void dialEl.offsetWidth; dialEl.classList.add('clk'); }
+  if(!RM && opt.clk!==false){ dialEl.classList.remove('clk'); void dialEl.offsetWidth; dialEl.classList.add('clk'); }
 }
 
 function nearest(deg){ let best=0,bd=1e9; DETENTS.forEach((d,i)=>{const dd=Math.abs(d-deg);if(dd<bd){bd=dd;best=i;}}); return best; }
@@ -1053,6 +1053,10 @@ function boot(){
   wave.mode='boot'; wave.bootGain=0;
   sizeCanvas(); startWave();
 
+  // the readout heading resolves early and independently of the slower
+  // needle sweep below, so it is never still mid-scramble seconds later
+  setTimeout(() => setMode(1,{scramble:true, clk:false}), 150);
+
   // needle calibration sweep (JS-driven so it lands exactly on detent 1)
   const start=performance.now(), dur=1750;
   dialEl.classList.add('dragging'); // no CSS transition during sweep
@@ -1070,7 +1074,7 @@ function boot(){
       dialEl.classList.remove('dragging');
       document.body.classList.remove('booting');
       document.body.classList.add('powered');
-      setMode(1,{scramble:true});
+      dialEl.classList.remove('clk'); void dialEl.offsetWidth; dialEl.classList.add('clk');
     }
   })(start);
 

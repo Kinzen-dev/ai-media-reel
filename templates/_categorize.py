@@ -149,6 +149,14 @@ SLUG_CAT = {
     "vesperwerk-uranometria-engraving": "vesperwerk", "vesperwerk-celestial-complication": "vesperwerk",
     "vesperwerk-swiss-grid-serif": "vesperwerk", "vesperwerk-spec-sheet-instrument": "vesperwerk",
     "vesperwerk-bilingual-epigraph": "vesperwerk",
+    # --- batch 57 (Vesperwerk experiential, Opus 4.8 builders) ---
+    "vesperwerk-first-light-thread": "vesperwerk", "vesperwerk-almanac-of-hours": "vesperwerk",
+    "vesperwerk-atelier-faceplate": "vesperwerk", "vesperwerk-grand-ascenseur": "vesperwerk",
+    "vesperwerk-vesper-particles": "vesperwerk",
+    # --- batch 58 (Vesperwerk II, Opus 4.8 builders) ---
+    "vesperwerk-engraved-ledger": "vesperwerk", "vesperwerk-specimen-lab": "vesperwerk",
+    "vesperwerk-monogram-card": "vesperwerk", "vesperwerk-bas-relief-light": "vesperwerk",
+    "vesperwerk-sealed-invitation": "vesperwerk",
     # --- batch 55 (backoffice styles, Sonnet-5 builder A/B) ---
     "gradient-mesh-backoffice": "admin", "brutalist-mono-backoffice": "admin", "sticker-collage-backoffice": "admin",
     "magazine-broadsheet-backoffice": "admin", "spreadsheet-raw-backoffice": "admin",

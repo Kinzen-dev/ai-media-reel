@@ -1,0 +1,946 @@
+<!-- TEMPLATE: Clinic Digital Twin Diorama | ARCHETYPE: Isometric living-diorama owner dashboard (Yimwhan backoffice) | REF: isometric living dioramas, Monument Valley clarity, digital-twin ops dashboards | WHEN TO USE: experiential owner overview where physical occupancy IS the metric (clinics, salons, studios, coworking) | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Yimwhan Digital Twin - Owner View</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* =========================================================================
+   CLINIC DIGITAL TWIN DIORAMA
+   Soft bone ground, mint surgical + wood materials, ink text, one coral for
+   alerts, soft long shadows (shadow = elevation, no perspective transforms).
+   The hero is a pure-SVG isometric twin of the clinic; patient dots live
+   inside it and chair occupancy IS the utilization metric.
+   ========================================================================= */
+:root{
+  --bone:#f2efe8;
+  --bone2:#eae6da;
+  --card:#fbf9f3;
+  --mint:#bfe3d2;
+  --mintD:#4f9d7e;
+  --wood:#d9b98a;
+  --woodD:#a97f4c;
+  --ink:#26221d;
+  --mute:#7c756a;
+  --coral:#e2604a;
+  --line:rgba(38,34,29,.14);
+  --lsh:-18px 22px 44px rgba(38,34,29,.10);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--bone);
+  color:var(--ink);
+  font-family:"IBM Plex Sans Thai","Helvetica Neue",Arial,sans-serif;
+  font-variant-numeric:tabular-nums lining-nums;
+  -webkit-font-smoothing:antialiased;
+  line-height:1.55;
+  min-width:0;
+}
+.tnum{font-variant-numeric:tabular-nums lining-nums}
+.ovl{ /* Latin overline label only: letter-spacing never touches Thai */
+  font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+  font-weight:700;color:var(--mute);line-height:1.2;
+}
+.tth{font-size:15px;font-weight:700;line-height:1.4} /* Thai section title */
+
+.wrap{max-width:1380px;margin:0 auto;padding:22px 34px 30px;min-width:0}
+
+/* ---- header ---- */
+header{
+  display:flex;justify-content:space-between;align-items:flex-end;
+  gap:18px;flex-wrap:wrap;padding-bottom:14px;min-width:0;
+}
+.brand .mark{font-size:21px;font-weight:700;letter-spacing:.02em;line-height:1.15}
+.brand .mark b{color:var(--mintD)}
+.brand .sub{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);font-weight:600}
+.hmeta{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-end;min-width:0}
+.hmeta .it{display:flex;flex-direction:column;gap:1px;min-width:0}
+.hmeta .k{font-size:11px;color:var(--mute)}
+.hmeta .v{font-size:13.5px;font-weight:600;white-space:nowrap}
+.hmeta .v.live{display:flex;align-items:center;gap:7px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--mintD);flex:0 0 auto}
+@media (prefers-reduced-motion:no-preference){
+  .dot.pulse{animation:soft 3s ease-in-out infinite}
+}
+@keyframes soft{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* ---- main grid ---- */
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:20px;min-width:0}
+.panel{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:16px;
+  box-shadow:var(--lsh);
+  padding:16px 18px;
+  min-width:0;
+}
+.sp8{grid-column:span 8}.sp7{grid-column:span 7}.sp5{grid-column:span 5}.sp4{grid-column:span 4}
+.phead{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:8px;min-width:0;flex-wrap:wrap}
+.phead .left{min-width:0}
+
+/* ---- twin stage ---- */
+.legend{display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--mute)}
+.legend .chip{
+  display:inline-flex;align-items:center;gap:7px;
+  background:var(--bone);border:1px solid var(--line);border-radius:999px;
+  padding:3px 11px;font-weight:600;color:var(--ink);white-space:nowrap;
+}
+.legend .chip .n{color:var(--mintD)}
+.stage{position:relative;min-width:0}
+.stage svg{display:block;width:100%;height:auto}
+.hint{font-size:11.5px;color:var(--mute);margin-top:2px}
+
+/* hover cards over the twin */
+.ccard{
+  position:absolute;width:min(238px,62vw);
+  background:var(--card);border:1px solid var(--line);border-radius:12px;
+  box-shadow:-14px 18px 34px rgba(38,34,29,.16);
+  padding:11px 13px;z-index:5;pointer-events:none;
+  opacity:0;visibility:hidden;transform:translate(-50%,16px);
+  transition:opacity .22s ease,transform .22s ease,visibility .22s;
+}
+.ccard.show{opacity:1;visibility:visible;transform:translate(-50%,8px)}
+.ccard h4{margin:0 0 2px;font-size:13px;font-weight:700;display:flex;justify-content:space-between;gap:8px}
+.ccard .st{font-size:11.5px;color:var(--mute);margin-bottom:7px}
+.ccard .st b{color:var(--ink)}
+.ccard ul{list-style:none;margin:0;padding:0}
+.ccard li{
+  display:flex;gap:8px;align-items:baseline;font-size:11.5px;
+  padding:4px 0;border-top:1px dashed var(--line);min-width:0;
+}
+.ccard li .t{font-weight:600;white-space:nowrap}
+.ccard li .nm{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ccard li .tx{color:var(--mute);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ccard li.cur .t{color:var(--mintD)}
+.ccard li.cur::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--mintD);align-self:center;flex:0 0 auto}
+
+/* scrubber */
+.scrub{display:flex;align-items:center;gap:16px;margin-top:10px;flex-wrap:wrap;min-width:0}
+.scrub .clock{display:flex;flex-direction:column;line-height:1.15;flex:0 0 auto}
+.scrub .clock .tv{font-size:26px;font-weight:700;letter-spacing:.01em}
+.scrub .clock .tl{font-size:10.5px;color:var(--mute)}
+.scrub .rail{flex:1 1 220px;min-width:180px}
+.scrub input[type=range]{
+  -webkit-appearance:none;appearance:none;width:100%;height:26px;background:transparent;margin:0;
+}
+.scrub input[type=range]::-webkit-slider-runnable-track{height:5px;border-radius:3px;background:var(--bone2)}
+.scrub input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:18px;height:18px;border-radius:50%;
+  background:var(--mint);border:2.5px solid var(--ink);margin-top:-6.5px;cursor:pointer;
+}
+.scrub input[type=range]::-moz-range-track{height:5px;border-radius:3px;background:var(--bone2)}
+.scrub input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--mint);border:2.5px solid var(--ink);cursor:pointer}
+.ticks{display:flex;justify-content:space-between;font-size:10px;color:var(--mute);margin-top:2px}
+.modebtn{
+  flex:0 0 auto;display:inline-flex;align-items:center;gap:7px;
+  font:inherit;font-size:12px;font-weight:600;color:var(--ink);
+  background:var(--mint);border:1.5px solid var(--ink);border-radius:999px;
+  padding:5px 14px;cursor:pointer;
+}
+.modebtn[data-mode="scrub"]{background:var(--bone);}
+.modebtn .md{width:7px;height:7px;border-radius:50%;background:var(--mintD)}
+.modebtn[data-mode="scrub"] .md{background:var(--woodD)}
+
+/* ---- KPI column ---- */
+.kcol{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-content:start;min-width:0}
+.kpi{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  box-shadow:var(--lsh);padding:13px 15px 12px;cursor:default;min-width:0;
+}
+.kpi .kn{font-size:12px;color:var(--mute);font-weight:600;margin-bottom:6px}
+.kpi .kf{font-size:34px;font-weight:700;line-height:1.05;display:flex;align-items:baseline;gap:5px}
+.kpi .kf .u{font-size:13px;color:var(--mute);font-weight:600}
+.kpi .ks{font-size:11px;color:var(--mute);margin-top:5px}
+.kpi .ks b{color:var(--mintD);font-weight:700}
+.kpi:hover,.kpi:focus-visible{border-color:var(--mintD)}
+.alert{
+  grid-column:span 2;background:var(--card);border:1px solid var(--line);
+  border-left:5px solid var(--coral);border-radius:14px;box-shadow:var(--lsh);
+  padding:12px 15px;min-width:0;
+}
+.alert .al{font-size:11px;font-weight:700;color:var(--coral);letter-spacing:.02em;display:flex;align-items:center;gap:7px}
+.alert .al .adot{width:7px;height:7px;border-radius:50%;background:var(--coral)}
+@media (prefers-reduced-motion:no-preference){.alert .adot{animation:soft 2.2s ease-in-out infinite}}
+.alert p{margin:5px 0 7px;font-size:12.5px;line-height:1.55}
+.alert .am{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:11px;color:var(--mute)}
+.alert a{color:var(--ink);font-weight:700;text-decoration:none;border-bottom:2px solid var(--coral);padding-bottom:1px;white-space:nowrap}
+
+/* ---- appointments table ---- */
+table{width:100%;border-collapse:collapse;table-layout:fixed;min-width:0}
+th{
+  text-align:left;font-size:10.5px;color:var(--mute);font-weight:600;
+  padding:6px 8px 6px 0;border-bottom:1px solid var(--ink);
+}
+td{font-size:12.5px;padding:7px 8px 7px 0;border-bottom:1px dashed var(--line);vertical-align:top}
+td.nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+td.tx{color:var(--mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+tr.cur td{background:rgba(191,227,210,.28)}
+tr.done td{color:var(--mute)}
+tr.done td.nm{font-weight:500}
+.stc{
+  display:inline-block;font-size:10.5px;font-weight:600;border-radius:999px;
+  padding:1px 9px;border:1px solid var(--line);color:var(--mute);white-space:nowrap;
+}
+.stc.now{background:var(--mint);border-color:var(--mintD);color:var(--ink)}
+.stc.wait{background:rgba(217,185,138,.35);border-color:var(--woodD);color:var(--ink)}
+.tbox{max-height:318px;overflow-y:auto;min-width:0}
+.col-time{width:88px}.col-chair{width:66px}.col-st{width:104px}
+
+/* ---- AI feed ---- */
+.feed{list-style:none;margin:0;padding:0;min-width:0}
+.feed li{display:flex;gap:10px;align-items:baseline;padding:8px 0;border-bottom:1px dashed var(--line);min-width:0}
+.feed .ft{font-size:12px;font-weight:700;white-space:nowrap;flex:0 0 auto}
+.feed .ftx{font-size:12.5px;line-height:1.55;min-width:0}
+.chip{
+  display:inline-block;font-size:9.5px;letter-spacing:.08em;font-weight:700;
+  border-radius:4px;padding:0 6px;border:1.5px solid var(--mintD);color:var(--mintD);
+  flex:0 0 auto;vertical-align:1px;
+}
+.chip.voice{border-color:var(--woodD);color:var(--woodD)}
+.feed .new .ft{color:var(--mintD)}
+
+/* ---- footer ---- */
+footer{
+  margin-top:24px;padding-top:12px;border-top:1px solid var(--line);
+  display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;
+  font-size:11px;color:var(--mute);
+}
+footer b{color:var(--ink);font-weight:700}
+
+/* ---- twin SVG behaviour ---- */
+.chairG{cursor:pointer;outline:none}
+.chairG .lift{transition:transform .3s cubic-bezier(.3,.9,.35,1.2)}
+.chairG:hover .lift,.chairG.open .lift{transform:translateY(-5px)}
+.chairG .hitring{opacity:0;transition:opacity .2s}
+.chairG:focus-visible .hitring{opacity:1}
+.zone{opacity:0;transition:opacity .35s ease}
+.zone.glow{opacity:.55}
+.pt{transition:transform 1.15s cubic-bezier(.5,.06,.28,.99),opacity .6s ease}
+.scrubbing .pt{transition:none}
+@media (prefers-reduced-motion:no-preference){
+  .bob{animation:bob 3.4s ease-in-out infinite}
+  @keyframes bob{50%{transform:translateY(-1.6px)}}
+  .docklight{animation:soft 5s ease-in-out infinite}
+  /* operatory light : pulses only while a chair is in active treatment */
+  .inst.on .instbulb{animation:instP 1.15s ease-in-out infinite}
+  .inst.on .instglow{animation:instP 1.15s ease-in-out infinite}
+  @keyframes instP{0%,100%{opacity:.55;transform:scale(.72)}50%{opacity:1;transform:scale(1.24)}}
+  .blinkon{animation:blinkA .45s ease-in-out 4 !important}
+  @keyframes blinkA{50%{opacity:.15}}
+  .pulseGo{animation:doorP .95s ease-out 1}
+  @keyframes doorP{0%{opacity:.9;transform:scale(.35)}100%{opacity:0;transform:scale(1.9)}}
+  /* entrance: tiles slide, furniture drops + settles, patients fade, panels rise */
+  .tl{animation:tileIn .5s cubic-bezier(.2,.7,.3,1) both}
+  @keyframes tileIn{from{opacity:0;transform:translate(-12px,7px)}to{opacity:1;transform:none}}
+  .drop{animation:dropIn .62s cubic-bezier(.3,.8,.3,1) both}
+  @keyframes dropIn{0%{opacity:0;transform:translateY(-30px)}62%{opacity:1;transform:translateY(2.5px)}100%{opacity:1;transform:none}}
+  .fdin{animation:fadeIn .55s ease both}
+  @keyframes fadeIn{from{opacity:0}}
+  .rise{animation:riseIn .55s cubic-bezier(.2,.7,.3,1) both}
+  @keyframes riseIn{from{opacity:0;transform:translateY(14px)}}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none !important;transition:none !important}
+}
+
+/* ---- focus ---- */
+a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visible{
+  outline:2px solid var(--coral);outline-offset:3px;
+}
+.skip{position:absolute;left:-9999px;top:0;background:var(--ink);color:var(--bone);padding:8px 14px;font-size:12px;z-index:99}
+.skip:focus{left:8px;top:8px}
+
+/* ---- responsive ---- */
+@media (max-width:1080px){
+  .sp8,.sp7,.sp5,.sp4{grid-column:span 12}
+  .kcol{grid-template-columns:repeat(4,1fr)}
+  .alert{grid-column:span 4}
+}
+@media (max-width:760px){
+  .wrap{padding:16px 16px 24px}
+  .grid{gap:14px}
+  .kcol{grid-template-columns:1fr 1fr;gap:12px}
+  .alert{grid-column:span 2}
+  .kpi .kf{font-size:28px}
+  .col-time{width:74px}.col-st{width:96px}
+  .hide-sm{display:none}
+}
+@media (max-width:640px){
+  .ccard{left:50% !important;top:6px !important;transform:translate(-50%,0)}
+  .ccard.show{transform:translate(-50%,0)}
+  .scrub .clock .tv{font-size:22px}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">ข้ามไปที่เนื้อหา</a>
+
+<!-- =====================================================================
+     DATA : swap this object to repurpose the template.
+     Times are minutes from midnight (600 = 10:00). Every placement in the
+     diorama is DERIVED from appointments, so the twin always tells the
+     truth of this data. arr = arrival time at the door.
+     ===================================================================== -->
+<script>
+const DATA = {
+  brand:  "YIMWHAN",
+  clinic: "คลินิกทันตกรรมยิ้มหวาน",
+  branch: "สาขาพระราม 9",
+  dateLabel: "พฤหัสบดี 2 ก.ค. 2569",
+  openMin: 420,           // 07:00
+  closeMin: 1140,         // 19:00
+  bootMin: 640,           // 10:40 mid-morning : 2 chairs busy, 2 waiting
+  syncLabel: "ซิงก์ล่าสุด 10:40 น.",
+
+  chairs: [
+    { id:"A", label:"เก้าอี้ 1", sub:"ยูนิตทำฟันทั่วไป" },
+    { id:"B", label:"เก้าอี้ 2", sub:"ยูนิตรักษาราก" },
+    { id:"C", label:"เก้าอี้ 3", sub:"ยูนิตศัลยกรรม" }
+  ],
+
+  // chair, arr(ival), start, end, patient, treatment
+  appointments: [
+    { chair:"A", arr:438, start:450, end:490,  name:"คุณพิมพ์ชนก ส.", tx:"ตรวจสุขภาพฟัน" },
+    { chair:"A", arr:515, start:540, end:585,  name:"คุณอาทิตย์ บ.",  tx:"ขูดหินปูน" },
+    { chair:"A", arr:570, start:600, end:660,  name:"คุณนภัสสร ว.",  tx:"อุดฟัน 2 ซี่" },
+    { chair:"A", arr:630, start:665, end:710,  name:"คุณวรัทยา ก.",  tx:"เอกซเรย์ + ปรึกษา" },
+    { chair:"A", arr:792, start:810, end:855,  name:"คุณธนกร ม.",    tx:"อุดฟัน" },
+    { chair:"A", arr:880, start:900, end:960,  name:"คุณศิรินทร์ จ.", tx:"รักษารากฟัน" },
+    { chair:"A", arr:1010,start:1030,end:1080, name:"คุณปาริชาต ท.", tx:"ขูดหินปูน" },
+    { chair:"A", arr:1040,start:1090,end:1135, name:"คุณเมธาวี ล.",  tx:"ฟอกสีฟัน" },
+
+    { chair:"B", arr:465, start:480, end:520,  name:"คุณจิราพร น.",   tx:"ตรวจ + เอกซเรย์" },
+    { chair:"B", arr:530, start:555, end:600,  name:"คุณกิตติพงศ์ ร.", tx:"อุดฟัน" },
+    { chair:"B", arr:585, start:615, end:675,  name:"คุณธีรภัทร อ.",  tx:"รักษารากฟัน" },
+    { chair:"B", arr:665, start:690, end:735,  name:"คุณสุทธิดา พ.",  tx:"ขูดหินปูน" },
+    { chair:"B", arr:850, start:870, end:915,  name:"คุณอนันต์ ช.",   tx:"ถอนฟัน" },
+    { chair:"B", arr:955, start:975, end:1020, name:"คุณพลอยไพลิน ว.",tx:"ตรวจสุขภาพฟัน" },
+    { chair:"B", arr:1020,start:1035,end:1110, name:"คุณณัฐวุฒิ ส.",  tx:"ครอบฟัน" },
+
+    { chair:"C", arr:490, start:510, end:570,  name:"คุณเบญจวรรณ ห.", tx:"รักษารากฟัน" },
+    { chair:"C", arr:560, start:580, end:620,  name:"คุณสมชาย ต.",    tx:"ขูดหินปูน" },
+    { chair:"C", arr:625, start:670, end:720,  name:"คุณกมลชนก พ.",  tx:"จัดฟัน ปรับลวด" },
+    { chair:"C", arr:760, start:780, end:825,  name:"คุณวีรยา อ.",    tx:"อุดฟัน" },
+    { chair:"C", arr:905, start:930, end:990,  name:"คุณภาสกร ด.",    tx:"ถอนฟันคุด" },
+    { chair:"C", arr:1030,start:1050,end:1125, name:"คุณชลธิชา บ.",   tx:"รักษารากฟัน" }
+  ],
+
+  // in-palette patient tones (coral reserved for alerts)
+  patientColors: ["#4f9d7e","#c08a4a","#64808f","#8d9358"],
+
+  // calls arriving per hour 07:00 - 18:59 (cumulative KPI is derived live)
+  callsByHour: [3,5,6,7,5,4,2,3,4,5,6,4],
+
+  kpis: {
+    calls:   { name:"สายโทรเข้าวันนี้", unit:"สาย", sub:"ตอบอัตโนมัติ <b>91%</b>", zone:"dock" },
+    booked:  { name:"นัดหมายวันนี้",   unit:"นัด", zone:"wait" },
+    chairs:  { name:"เก้าอี้กำลังใช้งาน", unit:"", sub:"เฉลี่ยทั้งวัน <b>74%</b>", zone:"chairs" },
+    respond: { name:"เวลาตอบเฉลี่ย",  unit:"วิ", value:"3.2", sub:"เร็วขึ้น <b>16%</b> จากเดือนก่อน", zone:"dock" }
+  },
+
+  // what the AI assistant did through the day (t = minutes)
+  feed: [
+    { t:422,  ch:"voice", txt:"รับสายก่อนเปิดคลินิก แจ้งเวลาเปิดและรับจองให้อัตโนมัติ" },
+    { t:492,  ch:"line",  txt:"ยืนยันนัดช่วงบ่ายให้คนไข้ 6 ราย ผ่าน LINE" },
+    { t:561,  ch:"voice", txt:"จองนัดขูดหินปูนให้คุณสมหญิง พรุ่งนี้ 14:00 น." },
+    { t:598,  ch:"line",  txt:"ตอบคำถามค่ารักษาฟอกสีฟัน ส่งช่วงราคาให้แล้ว" },
+    { t:624,  ch:"voice", txt:"คุณกมลชนก แจ้งแพ้ยาชา ส่งต่อทีมก่อนยืนยันนัด" },
+    { t:636,  ch:"line",  txt:"เตือนนัด 11:10 น. ให้คุณกมลชนก ยืนยันแล้ว" },
+    { t:725,  ch:"voice", txt:"รับสายช่วงพักเที่ยง 4 สาย จองได้ 2 นัด" },
+    { t:822,  ch:"line",  txt:"ส่งใบประเมินค่ารักษาครอบฟันให้คุณณัฐวุฒิ" },
+    { t:910,  ch:"voice", txt:"เลื่อนนัดคุณพีรพล จากพรุ่งนี้เป็นศุกร์ 16:00 น." },
+    { t:1000, ch:"line",  txt:"ตอบคำถามหลังถอนฟันคุด ส่งคำแนะนำดูแลแผลให้แล้ว" },
+    { t:1075, ch:"voice", txt:"จองคิวฟอกสีฟันสัปดาห์หน้าให้ 2 ราย" },
+    { t:1115, ch:"line",  txt:"สรุปภาพรวมวันนี้ เตรียมส่งรายงานให้เจ้าของคืนนี้" }
+  ],
+
+  alert: {
+    label:"ต้องดูด้วยตา · ด่วน",
+    body:"#4417 คุณนภัสสร ว. ขอเลื่อนนัดถอนฟันคุด แต่ช่วงเวลาที่ขอเต็มหมด ทีมต้องโทรกลับภายในวันนี้",
+    meta:"VOICE · 7 นาทีที่แล้ว",
+    cta:"เปิดเคส"
+  },
+
+  footNote:"ตัวเลขประเมินจากระบบ กระทบยอดกับบิลของคลินิกทุกคืน"
+};
+</script>
+
+<!-- =====================================================================
+     LAYOUT
+     ===================================================================== -->
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <div class="mark">YIM<b>·</b>WHAN</div>
+      <div class="sub">Digital Twin · Owner View</div>
+    </div>
+    <div class="hmeta">
+      <div class="it"><span class="k">สาขา</span><span class="v" id="hBranch"></span></div>
+      <div class="it"><span class="k">วันนี้</span><span class="v tnum" id="hDate"></span></div>
+      <div class="it"><span class="k">สถานะระบบ</span>
+        <span class="v live"><span class="dot pulse" aria-hidden="true"></span><span id="hSync"></span></span>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="grid">
+
+    <!-- TWIN -->
+    <section class="panel sp8" aria-labelledby="twinTitle">
+      <div class="phead">
+        <div class="left">
+          <div class="ovl">Live digital twin</div>
+          <div class="tth" id="twinTitle">ภาพจำลองคลินิกสด</div>
+        </div>
+        <div class="legend">
+          <span class="chip"><span class="dot" aria-hidden="true"></span>ในคลินิกตอนนี้ <b class="n tnum" id="lgCount">0</b> คน</span>
+          <span id="lgSync"></span>
+        </div>
+      </div>
+
+      <div class="stage" id="stage">
+        <!-- SVG twin is built by script from DATA -->
+      </div>
+      <p class="hint">ชี้ที่เก้าอี้เพื่อดูคิวของยูนิตนั้น · เลื่อนแถบเวลาเพื่อย้อนดูทั้งวัน</p>
+
+      <div class="scrub">
+        <div class="clock">
+          <span class="tv tnum" id="tView">10:40</span>
+          <span class="tl">เวลาที่กำลังดู</span>
+        </div>
+        <div class="rail">
+          <input type="range" id="timeRange" min="420" max="1140" step="5" value="640"
+                 aria-label="เลื่อนดูเหตุการณ์ในคลินิกตั้งแต่ 07:00 ถึง 19:00">
+          <div class="ticks tnum" aria-hidden="true">
+            <span>07:00</span><span>10:00</span><span>13:00</span><span>16:00</span><span>19:00</span>
+          </div>
+        </div>
+        <button class="modebtn" id="modeBtn" data-mode="live" aria-pressed="true">
+          <span class="md" aria-hidden="true"></span><span id="modeTxt">กำลังเล่นสด</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- KPI COLUMN -->
+    <section class="sp4 kcol rise" style="animation-delay:1.35s" aria-label="ตัวเลขสำคัญวันนี้">
+      <div class="kpi" data-zone="dock" tabindex="0">
+        <div class="kn" id="kn1"></div>
+        <div class="kf tnum"><span id="vCalls">0</span><span class="u" id="ku1"></span></div>
+        <div class="ks" id="ks1"></div>
+      </div>
+      <div class="kpi" data-zone="wait" tabindex="0">
+        <div class="kn" id="kn2"></div>
+        <div class="kf tnum"><span id="vBooked">0</span><span class="u" id="ku2"></span></div>
+        <div class="ks" id="ks2"></div>
+      </div>
+      <div class="kpi" data-zone="chairs" tabindex="0">
+        <div class="kn" id="kn3"></div>
+        <div class="kf tnum"><span id="vOcc">0/3</span></div>
+        <div class="ks" id="ks3"></div>
+      </div>
+      <div class="kpi" data-zone="dock" tabindex="0">
+        <div class="kn" id="kn4"></div>
+        <div class="kf tnum"><span id="vResp"></span><span class="u" id="ku4"></span></div>
+        <div class="ks" id="ks4"></div>
+      </div>
+      <div class="alert">
+        <div class="al"><span class="adot" aria-hidden="true"></span><span id="alLabel"></span></div>
+        <p id="alBody"></p>
+        <div class="am"><span id="alMeta"></span><a href="#main" id="alCta"></a></div>
+      </div>
+    </section>
+
+    <!-- APPOINTMENTS -->
+    <section class="panel sp7 rise" style="animation-delay:1.5s" aria-labelledby="tblTitle">
+      <div class="phead">
+        <div class="left">
+          <div class="ovl">Today schedule</div>
+          <div class="tth" id="tblTitle">ตารางนัดวันนี้</div>
+        </div>
+        <span class="ovl tnum" id="tblCount"></span>
+      </div>
+      <div class="tbox">
+        <table>
+          <colgroup>
+            <col class="col-time"><col><col class="hide-sm"><col class="col-chair hide-sm"><col class="col-st">
+          </colgroup>
+          <thead>
+            <tr><th>เวลา</th><th>คนไข้</th><th class="hide-sm">การรักษา</th><th class="hide-sm">เก้าอี้</th><th>สถานะ</th></tr>
+          </thead>
+          <tbody id="tblBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- AI FEED -->
+    <section class="panel sp5 rise" style="animation-delay:1.62s" aria-labelledby="feedTitle">
+      <div class="phead">
+        <div class="left">
+          <div class="ovl">Assistant feed</div>
+          <div class="tth" id="feedTitle">ผู้ช่วย AI ทำอะไรไปบ้าง</div>
+        </div>
+        <span class="ovl" id="feedCount"></span>
+      </div>
+      <ul class="feed" id="feedList"></ul>
+    </section>
+
+  </main>
+
+  <footer>
+    <span><b>YIMWHAN AI</b> · <span id="ftNote"></span></span>
+    <span>Diorama: isometric SVG · shadow = elevation · mint <span class="tnum">#bfe3d2</span> / wood <span class="tnum">#d9b98a</span> / coral <span class="tnum">#e2604a</span></span>
+  </footer>
+
+</div>
+
+<!-- =====================================================================
+     RENDER : builds the isometric twin from DATA and runs the day engine
+     ===================================================================== -->
+<script>
+(function(){
+"use strict";
+const RM = window.matchMedia && window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+const $ = id => document.getElementById(id);
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));}
+function fmt(m){const h=Math.floor(m/60),mm=m%60;return (h<10?"0":"")+h+":"+(mm<10?"0":"")+mm;}
+
+/* ---------- palette + shading ---------- */
+const INK="#26221d";
+function mix(hexA,hexB,f){
+  const a=parseInt(hexA.slice(1),16),b=parseInt(hexB.slice(1),16);
+  const ch=(sa,sb)=>Math.round(sa+(sb-sa)*f);
+  const r=ch(a>>16,b>>16),g=ch((a>>8)&255,(b>>8)&255),bl=ch(a&255,b&255);
+  return "#"+((1<<24)+(r<<16)+(g<<8)+bl).toString(16).slice(1);
+}
+const shade=(hex,f)=>mix(hex,INK,f);
+const tint =(hex,f)=>mix(hex,"#ffffff",f);
+const mat = hex => ({t:hex,l:shade(hex,.10),r:shade(hex,.24)});
+const M = {
+  wood: mat("#d9b98a"), woodD: mat("#b98f57"),
+  mint: mat("#bfe3d2"), mintD: mat("#9fd0ba"),
+  bone: mat("#f7f4ea"), wall: mat("#e9e4d6"),
+  slate: mat("#3e4f47")
+};
+
+/* ---------- isometric helpers (2:1 dimetric, no perspective) ---------- */
+const TW=32, TH=16;
+const ix=(gx,gy)=>(gx-gy)*TW;
+const iy=(gx,gy,gz)=>(gx+gy)*TH-(gz||0);
+const P=(gx,gy,gz)=>ix(gx,gy).toFixed(1)+","+iy(gx,gy,gz||0).toFixed(1);
+function quad(a,b,c,d,fill,extra){return '<polygon points="'+a+' '+b+' '+c+' '+d+'" fill="'+fill+'"'+(extra||"")+'/>';}
+function flat(gx,gy,w,d,fill,extra){return quad(P(gx,gy),P(gx+w,gy),P(gx+w,gy+d),P(gx,gy+d),fill,extra);}
+function box(gx,gy,gz,w,d,h,m,extra){
+  return '<g'+(extra||"")+'>'
+    + quad(P(gx,gy+d,gz+h),P(gx+w,gy+d,gz+h),P(gx+w,gy+d,gz),P(gx,gy+d,gz),m.l)
+    + quad(P(gx+w,gy,gz+h),P(gx+w,gy+d,gz+h),P(gx+w,gy+d,gz),P(gx+w,gy,gz),m.r)
+    + quad(P(gx,gy,gz+h),P(gx+w,gy,gz+h),P(gx+w,gy+d,gz+h),P(gx,gy+d,gz+h),m.t)
+    + '</g>';
+}
+/* soft long shadow: two stacked ellipses cast to screen-left (elevation, not Z) */
+function shadowE(gx,gy,w,d,h){
+  const cx=ix(gx+w/2,gy+d/2), cy=iy(gx+w/2,gy+d/2,0);
+  const rx=(w+d)*TW*.42+h*.55, ry=rx*.36;
+  return '<ellipse cx="'+(cx-h*.55).toFixed(1)+'" cy="'+(cy+h*.16+3).toFixed(1)+'" rx="'+rx.toFixed(1)+'" ry="'+ry.toFixed(1)+'" fill="'+INK+'" opacity=".05"/>'
+       + '<ellipse cx="'+(cx-h*.3).toFixed(1)+'" cy="'+(cy+h*.1+2).toFixed(1)+'" rx="'+(rx*.72).toFixed(1)+'" ry="'+(ry*.72).toFixed(1)+'" fill="'+INK+'" opacity=".06"/>';
+}
+
+/* ---------- clinic plan (grid units) ---------- */
+const GX=11, GY=9;
+const CHX=[3.7,6.3,8.9], CHY=1.15;                 // three treatment chairs
+const SEATS=[1.51,2.48,3.45,4.42].map(gy=>({x:1.05,y:gy,z:15}));  // sofa cushions
+const AN = {                                        // patient anchors
+  out:  {x:-1.6,y:6.35,z:0},
+  door: {x:.45, y:6.35,z:0},
+  recv: {x:1.05,y:6.3, z:0},
+  stand:[{x:2.3,y:4.7,z:0},{x:2.9,y:5.3,z:0}]
+};
+const chairAnchor=i=>({x:CHX[i]+.58,y:1.72,z:20});
+const RING_R=10.5, CIRC=2*Math.PI*RING_R;
+
+/* ---------- build the diorama ---------- */
+function buildTwin(){
+  let s="";
+  /* slab sides (floating diorama base) */
+  s+='<g class="drop" style="animation-delay:.05s">';
+  s+=quad(P(0,GY,0),P(GX,GY,0),P(GX,GY,-7),P(0,GY,-7),shade("#e4dfd0",.08));
+  s+=quad(P(GX,0,0),P(GX,GY,0),P(GX,GY,-7),P(GX,0,-7),shade("#e4dfd0",.2));
+  s+='</g>';
+  /* floor tiles, staggered entrance */
+  s+='<g>';
+  for(let gx=0;gx<GX;gx++)for(let gy=0;gy<GY;gy++){
+    const f=(gx+gy)%2?"#efebe0":"#f4f1e9";
+    s+=flat(gx,gy,1,1,f,' class="tl" style="animation-delay:'+(.05+(gx+gy)*.032).toFixed(2)+'s" stroke="#e6e1d3" stroke-width=".6"');
+  }
+  s+='</g>';
+  /* zone rugs */
+  s+='<g class="fdin" style="animation-delay:.72s">';
+  s+=flat(.4,.75,1.75,4.45,"#d9ece1");                       // waiting rug (mint)
+  s+=flat(3.15,.75,7.4,2.2,"#ecdfc6");                       // treatment rug (wood)
+  s+=flat(-1.05,5.7,1.05,1.3,"#e6d1ab");                     // door mat (outside)
+  s+='</g>';
+  /* KPI hover glow zones */
+  const zn=(id,gx,gy,rx,ry)=>'<ellipse id="'+id+'" class="zone" cx="'+ix(gx,gy)+'" cy="'+iy(gx,gy,0)+'" rx="'+rx+'" ry="'+ry+'" fill="#bfe3d2"/>';
+  s+=zn("zone-chairs",7.0,1.9,235,92)+zn("zone-wait",1.25,2.9,115,72)+zn("zone-dock",2.05,6.3,112,66);
+  /* long soft shadows */
+  s+='<g class="fdin" style="animation-delay:.95s">';
+  s+=shadowE(.5,1,0.95,3.9,24);                              // sofa
+  CHX.forEach(cx=>{s+=shadowE(cx,1.0,1.15,1.5,15);});        // chairs
+  s+=shadowE(1.5,5.5,1.1,1.7,15);                            // desk
+  s+=shadowE(.42,8.05,.75,.75,16);                           // plant
+  s+='</g>';
+  /* walls with door gap (Monument Valley plinths) */
+  s+='<g class="drop" style="animation-delay:.55s">';
+  s+=box(0,-.32,0,GX,.32,30,M.wall);
+  /* two mint windows on the back wall face */
+  const win=(x1,x2)=>quad(P(x1,0,24),P(x2,0,24),P(x2,0,10),P(x1,0,10),"#cdeadb",' stroke="#f7f4ea" stroke-width="1.4"');
+  s+=win(2.2,4.2)+win(6.4,8.4);
+  s+=box(-.32,0,0,.32,5.29,30,M.wall);
+  s+=box(-.32,7.41,0,.32,1.59,30,M.wall);
+  s+=box(-.32,5.29,0,.32,.26,36,M.wood);                     // door posts
+  s+=box(-.32,7.15,0,.32,.26,36,M.wood);
+  s+='</g>';
+  /* waiting sofa x4 */
+  s+='<g class="drop" style="animation-delay:.7s">';
+  s+=box(.5,1.0,0,.95,3.9,9,M.wood);
+  s+=box(.34,1.0,0,.18,3.9,24,M.woodD);
+  s+=box(.5,.8,0,.95,.2,15,M.woodD)+box(.5,4.9,0,.95,.2,15,M.woodD);
+  for(let k=0;k<4;k++) s+=box(.56,1.12+k*.97,9,.82,.78,6,M.mint);
+  s+='</g>';
+  /* reception desk + AI dock */
+  s+='<g class="drop" style="animation-delay:.85s">';
+  s+=box(1.5,5.5,0,1.1,1.7,13,M.wood);
+  s+=box(1.4,5.4,13,1.3,1.9,2.5,M.bone);
+  s+=box(1.62,5.62,15.5,.5,.55,6,M.slate);                   // dock body
+  s+=quad(P(1.66,6.17,21),P(2.08,6.17,21),P(2.08,6.17,16.4),P(1.66,6.17,16.4),"#bfe3d2"); // dock screen
+  s+='</g>';
+  /* dock light + signal arcs (blinks when the assistant answers) */
+  const dlx=ix(1.87,5.9), dly=iy(1.87,5.9,23.5);
+  s+='<g id="dock" class="fdin" style="animation-delay:1.0s" transform="translate('+dlx.toFixed(1)+','+dly.toFixed(1)+')">'
+    +'<circle class="docklight" r="3.4" fill="#4f9d7e"/>'
+    +'<path class="docklight" d="M 5 -4 a 7 7 0 0 1 2 5" fill="none" stroke="#4f9d7e" stroke-width="1.6" stroke-linecap="round"/>'
+    +'<path class="docklight" d="M 8 -7 a 11 11 0 0 1 3 8" fill="none" stroke="#4f9d7e" stroke-width="1.6" stroke-linecap="round" opacity=".6"/>'
+    +'</g>';
+  /* plant near the far corner */
+  s+='<g class="drop" style="animation-delay:.95s">';
+  s+=box(.42,8.05,0,.75,.75,10,M.wood);
+  const px=ix(.8,8.42), py=iy(.8,8.42,16);
+  s+='<circle cx="'+px+'" cy="'+py+'" r="12" fill="#9fd0ba"/><circle cx="'+(px-7)+'" cy="'+(py-8)+'" r="9" fill="#bfe3d2"/><circle cx="'+(px+8)+'" cy="'+(py-6)+'" r="8" fill="#8cc4ab"/>';
+  s+='</g>';
+  /* three treatment chairs (hover = lift + queue card) */
+  DATA.chairs.forEach((c,i)=>{
+    const cx=CHX[i];
+    s+='<g class="chairG" id="chair-'+i+'" tabindex="0" role="button" aria-label="'+esc(c.label)+' ดูคิวของยูนิตนี้">';
+    s+='<ellipse class="hitring" cx="'+ix(cx+.6,1.8)+'" cy="'+iy(cx+.6,1.8,0)+'" rx="58" ry="26" fill="none" stroke="#e2604a" stroke-width="2" stroke-dasharray="5 5"/>';
+    s+='<g class="lift"><g class="drop" style="animation-delay:'+(0.72+i*.12).toFixed(2)+'s">';
+    s+=box(cx+.35,1.55,0,.55,.45,5,M.woodD);                 // pedestal
+    s+=box(cx,1.35,7,1.15,.85,7,M.mint,' id="seatBox-'+i+'"');
+    s+=quad(P(cx,1.35,14),P(cx+1.15,1.35,14),P(cx+1.15,2.2,14),P(cx,2.2,14),"#bfe3d2",' id="seatTop-'+i+'"');
+    s+=box(cx+.2,2.2,7,.75,.7,5,M.mintD);                    // legrest
+    s+=box(cx+.08,1.0,7,1.0,.3,15,M.mint);                   // backrest
+    s+=box(cx+.32,.95,22,.5,.22,4.5,M.mintD);                // headrest
+    s+=box(cx+1.32,1.5,0,.55,.55,11,M.wood);                 // cart
+    s+=box(cx+1.28,1.46,11,.63,.63,1.5,M.bone);
+    s+='</g></g>';
+    /* fat invisible hit area for reliable hover */
+    s+='<ellipse cx="'+ix(cx+.6,1.8)+'" cy="'+iy(cx+.6,1.8,8)+'" rx="60" ry="34" fill="#fff" opacity="0"/>';
+    s+='</g>';
+  });
+  /* progress rings above chairs */
+  DATA.chairs.forEach((c,i)=>{
+    const rx=ix(CHX[i]+.58,1.05), ry=iy(CHX[i]+.58,1.05,40);
+    s+='<g class="ring" id="ring-'+i+'" transform="translate('+rx.toFixed(1)+','+ry.toFixed(1)+')" opacity="0">'
+      +'<circle r="'+(RING_R+3)+'" fill="#fbf9f3"/>'
+      +'<circle r="'+RING_R+'" fill="none" stroke="#e3ddd0" stroke-width="3.5"/>'
+      +'<circle class="rp" id="rp-'+i+'" r="'+RING_R+'" fill="none" stroke="#4f9d7e" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="0 '+CIRC.toFixed(1)+'" transform="rotate(-90)"/>'
+      +'</g>';
+  });
+  /* operatory light above each chair : lit + pulsing only while in use */
+  DATA.chairs.forEach((c,i)=>{
+    const lx=ix(CHX[i]+.52,1.12), ly=iy(CHX[i]+.52,1.12,29), d=(i*.37).toFixed(2);
+    s+='<g class="inst" id="inst-'+i+'" transform="translate('+lx.toFixed(1)+','+ly.toFixed(1)+')" opacity="0">'
+      +'<circle class="instglow" r="8.5" fill="#bfe3d2" opacity=".18" style="animation-delay:'+d+'s"/>'
+      +'<circle class="instbulb" r="3.1" fill="#4f9d7e" style="animation-delay:'+d+'s"/>'
+      +'</g>';
+  });
+  /* door arrival pulse */
+  s+='<g transform="translate('+ix(.45,6.35)+','+iy(.45,6.35,0)+')"><ellipse id="doorPulse" cx="0" cy="0" rx="16" ry="8" fill="none" stroke="#4f9d7e" stroke-width="2.5" opacity="0"/></g>';
+  /* patients live here */
+  s+='<g id="ptsLayer" class="fdin" style="animation-delay:1.28s"></g>';
+  return '<svg viewBox="-324 -80 716 436" role="img" aria-label="ภาพจำลองคลินิกแบบไอโซเมตริก แสดงคนไข้ที่กำลังรอและกำลังรักษาแบบสด">'+s+'</svg>';
+}
+$("stage").innerHTML=buildTwin();
+
+/* ---------- patient dots ---------- */
+const appts=DATA.appointments.map((a,i)=>Object.assign({},a,{
+  i, color:DATA.patientColors[i%DATA.patientColors.length],
+  chairIdx:DATA.chairs.findIndex(c=>c.id===a.chair)
+}));
+const layer=$("ptsLayer");
+const NS="http://www.w3.org/2000/svg";
+const ptEls=appts.map(a=>{
+  const g=document.createElementNS(NS,"g");
+  g.setAttribute("class","pt");
+  g.innerHTML='<g class="bob" style="animation-delay:-'+((a.i%7)*.47).toFixed(2)+'s">'
+    +'<ellipse cx="0" cy="2.5" rx="7.5" ry="3" fill="'+INK+'" opacity=".14"/>'
+    +'<rect x="-5.5" y="-13" width="11" height="12" rx="5.5" fill="'+a.color+'"/>'
+    +'<circle cx="0" cy="-16.5" r="4.2" fill="'+shade(a.color,.28)+'"/></g>';
+  g.style.opacity="0";
+  layer.appendChild(g);
+  return g;
+});
+function place(el,p,op){
+  el.style.transform="translate("+ix(p.x,p.y).toFixed(1)+"px,"+iy(p.x,p.y,p.z||0).toFixed(1)+"px)";
+  el.style.opacity=op;
+}
+
+/* ---------- day engine : everything derives from appointments ---------- */
+let viewMin=DATA.bootMin, mode="live", lastSig="";
+function stateOf(a,t){
+  if(t<a.arr) return "pre";
+  if(t<a.arr+4) return "recv";
+  if(t<a.start) return "wait";
+  if(t<a.end) return "chair";
+  if(t<a.end+6) return "leave";
+  return "post";
+}
+function apply(t){
+  const st=appts.map(a=>stateOf(a,t));
+  const waiting=appts.filter((a,i)=>st[i]==="wait").sort((a,b)=>a.arr-b.arr);
+  const recv=appts.filter((a,i)=>st[i]==="recv").sort((a,b)=>a.arr-b.arr);
+  const occ=[null,null,null];
+  appts.forEach((a,i)=>{if(st[i]==="chair")occ[a.chairIdx]=a;});
+
+  appts.forEach((a,i)=>{
+    const el=ptEls[i], s=st[i];
+    if(s==="pre"||s==="post"){place(el,AN.out,"0");}
+    else if(s==="recv"){const k=recv.indexOf(a);place(el,{x:AN.recv.x-k*.55,y:AN.recv.y+k*.3,z:0},"1");}
+    else if(s==="wait"){
+      const k=waiting.indexOf(a);
+      place(el,k<4?SEATS[k]:AN.stand[Math.min(k-4,1)],"1");
+    }
+    else if(s==="chair"){place(el,chairAnchor(a.chairIdx),"1");}
+    else{place(el,AN.out,"0");}
+  });
+
+  /* chairs: seat fill = presence, ring = progress */
+  DATA.chairs.forEach((c,i)=>{
+    const seat=$("seatTop-"+i), ring=$("ring-"+i), rp=$("rp-"+i), inst=$("inst-"+i), a=occ[i];
+    if(a){
+      seat.setAttribute("fill",tint(a.color,.42));
+      ring.setAttribute("opacity","1");
+      rp.setAttribute("stroke",a.color);
+      const p=Math.min(1,Math.max(0,(t-a.start)/(a.end-a.start)));
+      rp.setAttribute("stroke-dasharray",(p*CIRC).toFixed(1)+" "+CIRC.toFixed(1));
+      inst.setAttribute("opacity","1");inst.classList.add("on");
+    }else{
+      seat.setAttribute("fill","#bfe3d2");
+      ring.setAttribute("opacity","0");
+      inst.setAttribute("opacity","0");inst.classList.remove("on");
+    }
+  });
+
+  /* honest chrome + live KPIs */
+  const inClinic=st.filter(s=>s==="recv"||s==="wait"||s==="chair").length;
+  $("lgCount").textContent=inClinic;
+  $("tView").textContent=fmt(t);
+  const hFull=Math.floor((t-DATA.openMin)/60), frac=((t-DATA.openMin)%60)/60;
+  let calls=0;for(let h=0;h<hFull;h++)calls+=DATA.callsByHour[h]||0;
+  calls+=Math.floor((DATA.callsByHour[hFull]||0)*frac);
+  $("vCalls").textContent=calls;
+  const done=appts.filter(a=>a.end<=t).length;
+  $("ks2").innerHTML='เสร็จแล้ว <b>'+done+'</b> จาก '+appts.length+' นัด';
+  const nOcc=occ.filter(Boolean).length;
+  $("vOcc").textContent=nOcc+"/3";
+
+  /* table + feed rebuild only when statuses change */
+  const feedVis=DATA.feed.filter(f=>f.t<=t);
+  const sig=st.join("")+"|"+feedVis.length;
+  if(sig!==lastSig){
+    lastSig=sig;
+    const rows=appts.slice().sort((a,b)=>a.start-b.start).map((a,ri)=>{
+      const s=stateOf(a,viewMin);
+      let chip,cls="";
+      if(s==="chair"){chip='<span class="stc now">กำลังรักษา</span>';cls="cur";}
+      else if(s==="wait"||s==="recv"){chip='<span class="stc wait">รอในคลินิก</span>';}
+      else if(a.end<=viewMin){chip='<span class="stc">เสร็จแล้ว</span>';cls="done";}
+      else{chip='<span class="stc">ยังไม่ถึงเวลา</span>';}
+      return '<tr class="'+cls+'"><td class="tnum">'+fmt(a.start)+' - '+fmt(a.end)+'</td>'
+        +'<td class="nm">'+esc(a.name)+'</td><td class="tx hide-sm">'+esc(a.tx)+'</td>'
+        +'<td class="hide-sm tnum">'+esc(a.chair)+'</td><td>'+chip+'</td></tr>';
+    }).join("");
+    $("tblBody").innerHTML=rows;
+    const items=feedVis.slice(-6).reverse().map((f,k)=>
+      '<li class="'+(k===0?"new":"")+'"><span class="ft tnum">'+fmt(f.t)+'</span>'
+      +'<span class="chip '+(f.ch==="voice"?"voice":"")+'">'+(f.ch==="voice"?"VOICE":"LINE")+'</span>'
+      +'<span class="ftx">'+esc(f.txt)+'</span></li>').join("");
+    $("feedList").innerHTML=items||'<li><span class="ftx">ยังไม่มีเหตุการณ์ก่อนเวลานี้</span></li>';
+    $("feedCount").textContent=feedVis.length+" / "+DATA.feed.length+" events";
+    const cur=appts.filter((a,i)=>st[i]==="chair"||st[i]==="wait").length;
+    $("tblCount").textContent=appts.length+" appointments";
+    if(openCard>=0)fillCard(openCard);
+  }
+}
+
+/* ---------- pulses (live mode only) ---------- */
+function doorPulse(){
+  if(RM)return;
+  const e=$("doorPulse");e.classList.remove("pulseGo");void e.getBoundingClientRect();e.classList.add("pulseGo");
+}
+function dockBlink(){
+  if(RM)return;
+  const d=$("dock");
+  d.querySelectorAll(".docklight").forEach(n=>{n.classList.remove("blinkon");});
+  void d.getBoundingClientRect();
+  d.querySelectorAll(".docklight").forEach(n=>{n.classList.add("blinkon");});
+}
+
+/* ---------- tick : believable cadence seeded from the data ---------- */
+function setTime(t,live){
+  t=Math.max(DATA.openMin,Math.min(DATA.closeMin,t));
+  if(live&&!RM){
+    appts.forEach(a=>{
+      if(a.arr>viewMin&&a.arr<=t)doorPulse();
+      if(a.end>viewMin&&a.end<=t)doorPulse();
+    });
+    DATA.feed.forEach(f=>{if(f.t>viewMin&&f.t<=t)dockBlink();});
+  }
+  viewMin=t;
+  apply(t);
+  if(mode==="live"&&!dragging)$("timeRange").value=t;
+}
+/* ambient life : one delta-timed rAF loop advances the demo clock and loops the
+   day, so patient figures keep walking and chairs keep changing occupancy. rAF
+   auto-pauses when the tab is hidden; an observer pauses it when the diorama
+   scrolls out of view. reduced-motion skips it entirely (static populated twin). */
+if(!RM){
+  const DEMO_MPS=2.4;                 // schedule-minutes advanced per real second
+  const START=performance.now()+1700; // let the entrance settle before life begins
+  let onScreen=true, acc=viewMin, prev=0;
+  if("IntersectionObserver" in window){
+    new IntersectionObserver(es=>{onScreen=es[0].isIntersecting;},{threshold:.04}).observe($("stage"));
+  }
+  const frame=ts=>{
+    requestAnimationFrame(frame);
+    if(ts<START||mode!=="live"||dragging||!onScreen){prev=ts;acc=viewMin;return;}
+    if(!prev){prev=ts;return;}
+    acc+=Math.min(0.12,(ts-prev)/1000)*DEMO_MPS;   // clamp long gaps (tab refocus)
+    prev=ts;
+    if(acc>=DATA.closeMin)acc=DATA.openMin+(acc-DATA.closeMin);
+    const t=Math.round(acc);
+    if(t!==viewMin)setTime(t,true);
+  };
+  requestAnimationFrame(frame);
+}
+
+/* ---------- scrubber + mode button ---------- */
+let dragging=false, resumeT;
+const range=$("timeRange"), modeBtn=$("modeBtn");
+function setMode(m){
+  mode=m;
+  modeBtn.dataset.mode=m;
+  modeBtn.setAttribute("aria-pressed",m==="live"?"true":"false");
+  $("modeTxt").textContent=m==="live"?"กำลังเล่นสด":"เล่นสดต่อจากตรงนี้";
+}
+range.addEventListener("input",()=>{
+  dragging=true;
+  clearTimeout(resumeT);
+  document.body.classList.add("scrubbing");
+  if(mode!=="scrub")setMode("scrub");
+  setTime(+range.value,false);
+});
+range.addEventListener("change",()=>{
+  dragging=false;
+  requestAnimationFrame(()=>document.body.classList.remove("scrubbing"));
+  clearTimeout(resumeT);
+  if(!RM)resumeT=setTimeout(()=>{if(mode==="scrub")setMode("live");},5000);  // resume demo after idle
+});
+modeBtn.addEventListener("click",()=>{
+  clearTimeout(resumeT);
+  if(mode==="scrub"){setMode("live");}
+});
+
+/* ---------- chair hover cards ---------- */
+const stage=$("stage");
+const VB={x:-324,y:-80,w:716,h:436};
+let openCard=-1;
+const cards=DATA.chairs.map((c,i)=>{
+  const el=document.createElement("div");
+  el.className="ccard";el.setAttribute("role","status");
+  const ax=ix(CHX[i]+.6,2.45), ay=iy(CHX[i]+.6,2.45,0);
+  let lp=(ax-VB.x)/VB.w*100, tp=(ay-VB.y)/VB.h*100;
+  lp=Math.max(24,Math.min(66,lp));
+  el.style.left=lp.toFixed(1)+"%";el.style.top=tp.toFixed(1)+"%";
+  stage.appendChild(el);
+  return el;
+});
+function fillCard(i){
+  const c=DATA.chairs[i];
+  const list=appts.filter(a=>a.chairIdx===i).sort((a,b)=>a.start-b.start);
+  const cur=list.find(a=>stateOf(a,viewMin)==="chair");
+  const upcoming=list.filter(a=>a.end>viewMin).slice(0,4);
+  let stLine=cur
+    ? 'ตอนนี้: <b>'+esc(cur.name)+'</b> · '+esc(cur.tx)+' ถึง '+fmt(cur.end)
+    : 'ตอนนี้ว่าง · คิวถัดไป '+(upcoming[0]?fmt(upcoming[0].start):"หมดวันแล้ว");
+  cards[i].innerHTML='<h4>'+esc(c.label)+'<span class="ovl">'+esc(c.id)+' unit</span></h4>'
+    +'<div class="st">'+stLine+'</div>'
+    +'<ul>'+(upcoming.length?upcoming.map(a=>
+      '<li class="'+(cur===a?"cur":"")+'"><span class="t tnum">'+fmt(a.start)+'</span>'
+      +'<span class="nm">'+esc(a.name)+'</span><span class="tx">'+esc(a.tx)+'</span></li>').join("")
+      :'<li><span class="tx">ไม่มีคิวเหลือแล้ววันนี้</span></li>')+'</ul>';
+}
+DATA.chairs.forEach((c,i)=>{
+  const g=$("chair-"+i);
+  const show=()=>{openCard=i;fillCard(i);cards.forEach((cd,k)=>cd.classList.toggle("show",k===i));};
+  const hide=()=>{openCard=-1;cards[i].classList.remove("show");g.classList.remove("open");};
+  g.addEventListener("mouseenter",show);
+  g.addEventListener("mouseleave",hide);
+  g.addEventListener("focus",show);
+  g.addEventListener("blur",hide);
+  g.addEventListener("click",()=>{ // touch toggle
+    if(g.classList.contains("open")){hide();}
+    else{DATA.chairs.forEach((x,k)=>$("chair-"+k).classList.remove("open"));g.classList.add("open");show();}
+  });
+});
+
+/* ---------- KPI hover -> zone glow ---------- */
+document.querySelectorAll(".kpi[data-zone]").forEach(k=>{
+  const z=$("zone-"+k.dataset.zone);
+  const on=()=>z.classList.add("glow"), off=()=>z.classList.remove("glow");
+  k.addEventListener("mouseenter",on);k.addEventListener("mouseleave",off);
+  k.addEventListener("focus",on);k.addEventListener("blur",off);
+});
+
+/* ---------- static copy from DATA ---------- */
+$("hBranch").textContent=DATA.branch;
+$("hDate").textContent=DATA.dateLabel;
+$("hSync").textContent=DATA.syncLabel;
+$("lgSync").textContent=DATA.syncLabel;
+$("kn1").textContent=DATA.kpis.calls.name; $("ku1").textContent=DATA.kpis.calls.unit;
+$("ks1").innerHTML=DATA.kpis.calls.sub;
+$("kn2").textContent=DATA.kpis.booked.name;$("ku2").textContent=DATA.kpis.booked.unit;
+$("vBooked").textContent=appts.length;
+$("kn3").textContent=DATA.kpis.chairs.name;$("ks3").innerHTML=DATA.kpis.chairs.sub;
+$("kn4").textContent=DATA.kpis.respond.name;$("ku4").textContent=DATA.kpis.respond.unit;
+$("vResp").textContent=DATA.kpis.respond.value;$("ks4").innerHTML=DATA.kpis.respond.sub;
+$("alLabel").textContent=DATA.alert.label;
+$("alBody").textContent=DATA.alert.body;
+$("alMeta").textContent=DATA.alert.meta;
+$("alCta").textContent=DATA.alert.cta;
+$("ftNote").textContent=DATA.footNote;
+document.title=DATA.clinic+" - Digital Twin";
+
+/* ---------- boot : populated mid-morning, zero-jump placement ---------- */
+document.body.classList.add("scrubbing");   // place instantly, no glide
+apply(DATA.bootMin);
+requestAnimationFrame(()=>requestAnimationFrame(()=>document.body.classList.remove("scrubbing")));
+})();
+</script>
+</body>
+</html>

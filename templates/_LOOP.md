@@ -155,8 +155,57 @@ King wants the next batches as BACKOFFICE ADMIN + OWNER dashboard DESIGN IDEAS f
   board, real 3D flap cascades). ALL have: live heartbeat + day scrubber + hover cross-highlight +
   populated boot state (scroll=0 strong) + reduced-motion = paused populated state. Gate additions:
   motion filmstrip (mediagen-tpl-motion.mjs) feeds the judge; judge bar = SOTD-class.
-- Motion upgrade agent `motion-vw-dial` still running on vesperwerk-celestial-complication
-  (entrance assembly + scroll choreography + micro-interactions) as the new-bar demonstration.
+- Motion upgrade DONE + DEPLOYED on vesperwerk-celestial-complication (entrance assembly ~2.2s,
+  scroll cascades, hallmark press-ins, hover micros; SMIL + js-anim class architecture so
+  reduced-motion is inert-by-default). Filmstrip verified alive; FPS 121, vlint 0/0.
+- HARNESS CHANGE: mediagen-tpl-verify.mjs waits bumped to 3900ms PC+mobile (entrance rituals run
+  ~2-2.4s; capture must be post-assembly).
+
+## RESUMED 2026-07-17 ~01:00 (King: "ลุยต่อตามลูป... ไม่ต้องหยุดถามอะไรผมแล้ว ลุยงานยาวๆ" + ultracode standing this session)
+- NEW LANE DIRECTIVE (King, overrides "experiential batches use Fable builders" for this lane):
+  VESPERWERK COMPANY SITES - very wow, unique, FUSE ideas from multiple award-winning sites per
+  concept, many designs. MODEL SPLIT: Fable 5 (main loop) INVENTS + DESIGNS each batch's briefs;
+  Opus 4.8 BUILDS (pass buildModel:'opus' per archetype in _batch-workflow args); verify = Sonnet;
+  judge = fresh Fable. Catalog with builtBy "Opus 4.8". Do not stop; do not ask.
+- Batch 57 IN FLIGHT `w1hq50d0c` (lane B Vesperwerk experiential, Opus builders, stardust formula
+  in every brief, all capture-safe / no WebGL): vesperwerk-first-light-thread (single gold thread
+  navigates the page, cursor bend, waypoint re-draw), vesperwerk-almanac-of-hours (LIVE Bangkok
+  ephemeris, real solar-position math + Venus table, 24h scrubber sweeps whole-page palette),
+  vesperwerk-atelier-faceplate (operable instrument panel: drag dial, listening waveform, power-on
+  ritual), vesperwerk-grand-ascenseur (Deco brass elevator ride: working floor indicator, diagonal
+  wipes, express-ride buttons), vesperwerk-vesper-particles (2200-particle living dusk morphing
+  through 5 chapters, cursor force + click nova - MAKE-OR-BREAK, judge hardest).
+- Batch 57 PROGRESS: build run `w1hq50d0c` = 4/5 Opus builders dropped ("Connection closed
+  mid-response", transient class). DISK CHECK: atelier-faceplate BUILT+VERIFIED (ok:true; verify
+  fixed hash-jump IO reveal bug), grand-ascenseur BUILT (verify-only run `wa5o53h8o` fixed a
+  MISSING DOCTYPE/head/viewport wrapper - LESSON: a clean tail is NOT proof of a complete file,
+  always check the head too; ok:true), other 3 never wrote -> relaunched fresh `wfs9d6h6a`.
+  MY GATE both: FPS 120-121, dash CLEAN, thumbs+mobile+filmstrips captured; vlint HIGHs all
+  probed BY-DESIGN (faceplate: corner-cropped rear star clipped by overflow:hidden; ascenseur:
+  crown star-on-fan composition + oversized wipe/grille panels clipped by parents; page docSW==vw
+  at 1440+390 on both). Judge when all 5 ready.
+- Batch 56 gate RESUMED: qa-harness re-run OK (idle FPS 120-121 x5; silvered scroll 73 > 50 bar).
+  Dash scan x5 CLEAN (python codepoint scan). vlint: silvered + clinic-digital-twin 0/0;
+  private-bank-ledger MED x12 = INTENTIONAL odometer digit reels (overflow-y-clipped on od-* spans;
+  judge to eyeball div#ticks); mission-control-live HIGH x6 @390 (feed line clipping) + solari HIGH
+  (alertText both viewports, rows @390) -> two Sonnet fix agents dispatched. Remaining: re-vlint,
+  motion filmstrips x5, fresh SOTD judge (filmstrips + thumbs + mobile), catalog builtBy "Fable 5",
+  rsync + commit + push. /tmp/reel-deploy re-cloned fresh (old clone + /tmp/mediagen-preview were
+  wiped during the pause; mobile shots + filmstrips regenerate).
+
+## PAUSED 2026-07-03 ~00:40 (King: "paused งานไว้ก่อนครับ เดี๋ยวผมค่อยบอกให้เริ่มต่อทีหลัง") [SUPERSEDED by resume above]
+DO NOT launch new batches until King resumes. EXACT RESUME POINT:
+- Batch 56 (experiential backoffice, Fable, stardust formula) BUILT 10/10 `wt8u4q9dl` (~3h, heavy
+  throttling near King's 5h limit but zero failures). Files on disk: private-bank-ledger,
+  silvered-complication, mission-control-live, clinic-digital-twin, solari-split-flap (-backoffice).
+  GATE PROGRESS: qa-harness DONE (FPS 120-121 x5, thumbs + mobile shots regenerated post-3.9s-wait).
+  REMAINING on resume: (1) vlint x5 (1440+390, MED), (2) Python dash scan x5, (3) motion filmstrips
+  x5 (mediagen-tpl-motion.mjs), (4) fresh judge at SOTD bar w/ filmstrips (these WERE briefed for
+  liveliness - judge it fully), (5) catalog PASSes with builtBy "Fable 5" (slugs already in SLUG_CAT
+  as admin), (6) rsync + commit + push /tmp/reel-deploy, (7) next batch = lane B (Vesperwerk
+  experiential from _backlog-vesperwerk.json, stardust formula + motion systems now mandatory).
+- Batch 55 stays PARKED (Sonnet A/B, not cataloged; broadsheet Thai fix applied on disk).
+- Local :8765 server may still be running (idempotent restart per drill).
 - STYLE IDEAS bank for lane A after batch 53: gradient-mesh-vibrant, art-nouveau, brutalist-mono,
   retro-terminal-amber, comic/ben-day, sticker-collage, magazine-broadsheet, pixel-arcade,
   spreadsheet-raw, kanban-board (+ paper-cut/data-noir/gov-civic/minimal-mono/glass-light consumed).

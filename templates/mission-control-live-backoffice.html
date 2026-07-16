@@ -1,0 +1,1356 @@
+<!-- TEMPLATE: Mission Control Live Ops Theater | ARCHETYPE: Living-simulation owner dashboard (Yimwhan backoffice) | REF: NASA/SpaceX mission control cinematics, stardust particle agency, ops-room HUD chrome | WHEN TO USE: experiential live-ops overview where inbound work streams through an AI core with human handoff, replayable across the day | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Yimwhan Mission Control - Live Ops</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* =========================================================================
+   MISSION CONTROL LIVE OPS THEATER
+   deep space ink, phosphor cyan data, warm amber alerts, thin HUD lines
+   ========================================================================= */
+:root{
+  --bg:#0a0e14;
+  --panel:rgba(13,20,30,.72);
+  --panel2:rgba(10,15,23,.85);
+  --line:rgba(109,232,242,.15);
+  --line2:rgba(109,232,242,.42);
+  --cyan:#6de8f2;
+  --cyan-dim:rgba(109,232,242,.55);
+  --amber:#e0a43c;
+  --amber-dim:rgba(224,164,60,.5);
+  --txt:#e9eff3;
+  --dim:#7e8c98;
+  --white:#f5f9fb;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:"IBM Plex Sans Thai","Noto Sans Thai",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:
+    radial-gradient(1100px 480px at 46% 220px, rgba(109,232,242,.045), transparent 68%),
+    var(--bg);
+  color:var(--txt);
+  font-family:var(--sans);
+  font-size:14px;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:clip;
+  min-width:0;
+}
+.mono{font-family:var(--mono)}
+/* latin-only HUD labels get tracking; Thai text NEVER gets letter-spacing */
+.lat{
+  font-family:var(--mono);
+  font-size:10px;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--cyan-dim);
+  font-weight:500;
+  white-space:nowrap;
+}
+.lat.dim{color:var(--dim)}
+.lat.amb{color:var(--amber)}
+.wrap{max-width:1560px;margin:0 auto;padding:16px 22px 30px;min-width:0}
+
+a:focus-visible,button:focus-visible,input:focus-visible{
+  outline:2px solid var(--cyan);
+  outline-offset:2px;
+}
+button{font-family:inherit;color:inherit}
+
+/* --- HUD frame with corner brackets ----------------------------------- */
+.frame{
+  position:relative;
+  border:1px solid var(--line);
+  background:var(--panel);
+  min-width:0;
+}
+.frame::before,.frame::after,
+.frame .cor::before,.frame .cor::after{
+  content:"";
+  position:absolute;
+  width:11px;height:11px;
+  border:0 solid var(--line2);
+  pointer-events:none;
+}
+.frame::before{top:-1px;left:-1px;border-top-width:1px;border-left-width:1px}
+.frame::after{top:-1px;right:-1px;border-top-width:1px;border-right-width:1px}
+.frame .cor::before{bottom:-1px;left:-1px;border-bottom-width:1px;border-left-width:1px}
+.frame .cor::after{bottom:-1px;right:-1px;border-bottom-width:1px;border-right-width:1px}
+
+/* --- entrance: systems power on ---------------------------------------- */
+html.boot .up{opacity:0;transform:translateY(9px)}
+html.boot .up.on{
+  opacity:1;transform:none;
+  transition:opacity .45s ease,transform .6s cubic-bezier(.2,.7,.2,1);
+}
+
+/* =========================================================================
+   MASTHEAD CHROME
+   ========================================================================= */
+.mast{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px 26px;
+  flex-wrap:wrap;
+  padding:6px 2px 12px;
+  border-bottom:1px solid var(--line);
+  min-width:0;
+}
+.m-brand{display:flex;flex-direction:column;gap:2px;min-width:0}
+.m-mark{
+  font-family:var(--mono);
+  font-weight:600;
+  font-size:17px;
+  letter-spacing:.08em;
+  color:var(--white);
+  white-space:nowrap;
+}
+.m-mark b{color:var(--cyan);font-weight:600}
+.m-th{font-size:11.5px;color:var(--dim);line-height:1.5}
+.m-clock{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0}
+.m-t{
+  font-size:clamp(21px,2.4vw,27px);
+  font-weight:600;
+  color:var(--white);
+  line-height:1.15;
+  white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.m-wall{font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums}
+.m-status{display:flex;flex-direction:column;align-items:flex-end;gap:5px;min-width:0}
+.badge{
+  display:inline-flex;align-items:center;gap:7px;
+  font-family:var(--mono);font-size:10px;letter-spacing:.16em;font-weight:600;
+  padding:3px 10px;border:1px solid var(--line2);color:var(--cyan);
+  white-space:nowrap;
+}
+.badge .dot{width:7px;height:7px;border-radius:50%;background:var(--cyan);flex:0 0 auto}
+.badge.replay{color:var(--amber);border-color:var(--amber-dim)}
+.badge.replay .dot{background:var(--amber)}
+@media (prefers-reduced-motion:no-preference){
+  .badge.live .dot{animation:blink 2.2s ease-in-out infinite}
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* =========================================================================
+   ALERT KLAXON STRIP
+   ========================================================================= */
+.klaxon{
+  display:flex;align-items:center;gap:12px;
+  margin-top:12px;
+  padding:7px 14px;
+  border:1px solid var(--line);
+  background:var(--panel2);
+  min-width:0;
+}
+.klaxon .k-dot{width:8px;height:8px;flex:0 0 auto;background:var(--dim);border-radius:50%}
+.klaxon.on{border-color:var(--amber-dim)}
+.klaxon.on .k-dot{background:var(--amber)}
+@media (prefers-reduced-motion:no-preference){
+  .klaxon.on .k-dot{animation:blink 1.1s ease-in-out infinite}
+}
+.klaxon .k-lat{font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--dim);flex:0 0 auto}
+.klaxon.on .k-lat{color:var(--amber)}
+.klaxon .k-tx{
+  font-size:12.5px;color:var(--txt);line-height:1.5;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1 1 auto;
+}
+.klaxon .k-t{font-family:var(--mono);font-size:10.5px;color:var(--dim);flex:0 0 auto;font-variant-numeric:tabular-nums}
+
+/* =========================================================================
+   OPS THEATER + HUMAN QUEUE DOCK
+   ========================================================================= */
+.stage{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 300px;
+  gap:14px;
+  margin-top:14px;
+  min-width:0;
+}
+.theater{
+  position:relative;
+  height:clamp(330px,50vh,480px);
+  overflow:hidden;
+  background:#080b11;
+}
+.theater canvas{
+  position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair;
+}
+.hudc{
+  position:absolute;
+  font-family:var(--mono);
+  font-size:10px;letter-spacing:.14em;
+  color:var(--cyan-dim);
+  pointer-events:none;
+  z-index:2;
+  white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.hudc b{color:var(--cyan);font-weight:600}
+.hudc.tl{top:10px;left:12px}
+.hudc.tr{top:10px;right:12px;text-align:right}
+.hudc.bl{bottom:10px;left:12px}
+.hudc.br{bottom:10px;right:12px;text-align:right}
+.hudc .amb{color:var(--amber)}
+.simtag{
+  position:absolute;left:50%;bottom:10px;transform:translateX(-50%);
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;
+  color:var(--amber);border:1px solid var(--amber-dim);
+  padding:2px 9px;background:rgba(10,14,20,.8);
+  pointer-events:none;z-index:2;white-space:nowrap;
+}
+.simtag[hidden]{display:none}
+
+/* dock */
+.dock{display:flex;flex-direction:column;min-width:0}
+.dock-h{
+  display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+  padding:10px 12px 8px;border-bottom:1px solid var(--line);min-width:0;
+}
+.dock-h .t{display:flex;flex-direction:column;gap:1px;min-width:0}
+.dock-h .lat{color:var(--amber)}
+.dock-h .th{font-size:11px;color:var(--dim);line-height:1.45}
+.dock-n{
+  font-family:var(--mono);font-size:26px;font-weight:600;color:var(--amber);
+  line-height:1;font-variant-numeric:tabular-nums;flex:0 0 auto;
+}
+.dock-n.blip{text-shadow:0 0 14px rgba(224,164,60,.9)}
+.cap-list{
+  flex:1 1 auto;min-height:0;overflow-y:auto;
+  display:flex;flex-direction:column;gap:8px;padding:10px;
+  scrollbar-width:thin;scrollbar-color:rgba(224,164,60,.3) transparent;
+}
+.cap{
+  border:1px solid rgba(224,164,60,.32);
+  background:rgba(224,164,60,.06);
+  min-width:0;flex:0 0 auto;
+}
+.cap.urgent{border-color:rgba(224,164,60,.75)}
+.cap-h{
+  display:grid;
+  grid-template-columns:auto auto 1fr auto;
+  align-items:baseline;
+  gap:4px 9px;
+  width:100%;padding:8px 10px;
+  background:none;border:0;cursor:pointer;text-align:left;min-width:0;
+}
+.cap-h:hover{background:rgba(224,164,60,.08)}
+.cap-id{font-family:var(--mono);font-size:11px;color:var(--amber);font-weight:600}
+.cap-ch{
+  font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;
+  padding:1px 5px;border:1px solid rgba(224,164,60,.4);color:var(--amber);
+}
+.cap-ch.line{border-color:var(--line2);color:var(--cyan)}
+.cap-urg{font-size:10px;color:var(--amber);font-weight:700;justify-self:start}
+.cap-age{
+  grid-column:4;font-family:var(--mono);font-size:10.5px;color:var(--dim);
+  white-space:nowrap;font-variant-numeric:tabular-nums;
+}
+.cap.urgent .cap-age{color:var(--amber)}
+.cap-who{
+  grid-column:1 / -1;
+  font-size:12.5px;font-weight:600;color:var(--txt);line-height:1.45;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;
+}
+.cap-d{padding:0 10px 10px;min-width:0}
+.cap-d .why{font-size:12px;color:#c3ccd4;line-height:1.6}
+.cap-d .act{
+  margin-top:7px;font-size:11.5px;color:var(--amber);line-height:1.55;
+  padding-left:9px;border-left:2px solid var(--amber-dim);
+}
+.cap-d .row{display:flex;gap:8px;margin-top:9px;flex-wrap:wrap}
+.btn{
+  font-size:11.5px;font-weight:600;line-height:1.4;
+  padding:5px 12px;cursor:pointer;
+  border:1px solid var(--amber-dim);background:rgba(224,164,60,.12);color:var(--amber);
+}
+.btn:hover:not(:disabled){background:rgba(224,164,60,.22)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.dock-f{
+  padding:8px 12px;border-top:1px solid var(--line);
+  font-size:10.5px;color:var(--dim);line-height:1.5;
+}
+.dock-f b{color:var(--cyan);font-weight:600;font-family:var(--mono)}
+.cap-empty{font-size:12px;color:var(--dim);padding:14px 6px;text-align:center;line-height:1.6}
+
+/* =========================================================================
+   KPI ROW
+   ========================================================================= */
+.kpis{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:14px;margin-top:14px;min-width:0;
+}
+.kpi{padding:12px 14px 11px;min-width:0}
+.kpi .no{position:absolute;top:8px;right:10px;font-family:var(--mono);font-size:9px;color:rgba(126,140,152,.6)}
+.kpi .name{font-size:11.5px;color:var(--dim);line-height:1.5;margin-top:3px}
+.kpi .fig{
+  display:flex;align-items:baseline;gap:6px;margin-top:6px;
+  font-family:var(--mono);font-size:clamp(24px,2.4vw,32px);font-weight:600;
+  color:var(--white);line-height:1.05;font-variant-numeric:tabular-nums;min-width:0;
+}
+.kpi .fig .u{font-size:12px;color:var(--dim);font-weight:500}
+.kpi.cy .fig{color:var(--cyan)}
+.kpi.am .fig{color:var(--amber)}
+.kpi .sub{font-size:11px;color:var(--dim);margin-top:6px;line-height:1.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kpi .sub b{color:var(--txt);font-weight:600}
+
+/* =========================================================================
+   MISSION TIMELINE SCRUBBER
+   ========================================================================= */
+.scrub-frame{margin-top:14px;padding:12px 16px 30px}
+.sc-grid{
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;
+  gap:8px 18px;align-items:center;min-width:0;
+}
+.sc-left{display:flex;flex-direction:column;gap:1px;min-width:0}
+.sc-t{font-size:15px;font-weight:600;color:var(--white);font-variant-numeric:tabular-nums;white-space:nowrap}
+.sc-track{position:relative;min-width:0;padding-top:6px}
+input.scrub{
+  -webkit-appearance:none;appearance:none;
+  width:100%;height:26px;background:transparent;margin:0;display:block;cursor:pointer;
+}
+input.scrub::-webkit-slider-runnable-track{
+  height:2px;
+  background:linear-gradient(90deg,rgba(109,232,242,.55),rgba(109,232,242,.14));
+}
+input.scrub::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;
+  width:13px;height:13px;margin-top:-5.5px;
+  background:var(--amber);border:2px solid #0a0e14;
+  box-shadow:0 0 0 1px var(--amber);
+}
+input.scrub::-moz-range-track{
+  height:2px;
+  background:linear-gradient(90deg,rgba(109,232,242,.55),rgba(109,232,242,.14));
+}
+input.scrub::-moz-range-thumb{
+  width:11px;height:11px;border-radius:0;
+  background:var(--amber);border:2px solid #0a0e14;
+  box-shadow:0 0 0 1px var(--amber);
+}
+.sc-marks{position:absolute;left:0;right:0;top:0;height:100%;pointer-events:none}
+.sc-marks .mk{position:absolute;top:0;transform:translateX(-50%);text-align:center}
+.sc-marks .mk i{display:block;width:1px;height:7px;background:var(--line2);margin:0 auto}
+.sc-marks .mk span{
+  display:block;margin-top:23px;
+  font-family:var(--mono);font-size:8.5px;letter-spacing:.12em;color:var(--dim);
+  white-space:nowrap;
+}
+.sc-marks .now{position:absolute;top:4px;transform:translateX(-50%);width:2px;height:14px;background:var(--cyan)}
+.sc-ends{
+  position:absolute;left:0;right:0;top:36px;
+  display:flex;justify-content:space-between;
+  font-size:9px;color:rgba(126,140,152,.7);font-variant-numeric:tabular-nums;
+}
+.sc-right{display:flex;align-items:center;gap:10px;justify-content:flex-end;min-width:0}
+.btn-live{
+  font-size:11.5px;font-weight:600;line-height:1.4;
+  padding:5px 12px;cursor:pointer;white-space:nowrap;
+  border:1px solid var(--line2);background:rgba(109,232,242,.1);color:var(--cyan);
+}
+.btn-live:hover{background:rgba(109,232,242,.2)}
+.btn-live[hidden],.badge[hidden]{display:none}
+
+/* =========================================================================
+   LOWER PANELS: MANIFEST + COMMS LOG + SITE VISUAL
+   ========================================================================= */
+.lower{
+  display:grid;
+  grid-template-columns:minmax(0,5fr) minmax(0,4fr) minmax(0,3fr);
+  gap:14px;margin-top:14px;min-width:0;
+}
+.p-head{
+  display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+  padding:9px 12px 7px;border-bottom:1px solid var(--line);min-width:0;
+}
+.p-head .th{font-size:11px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.mf-rows{padding:4px 12px 8px;min-width:0}
+.mf-row{
+  display:grid;grid-template-columns:46px minmax(0,1fr) auto;
+  gap:2px 12px;align-items:baseline;
+  padding:8px 0;border-bottom:1px solid rgba(109,232,242,.07);min-width:0;
+}
+.mf-row:last-child{border-bottom:0}
+.mf-t{font-family:var(--mono);font-size:11.5px;color:var(--cyan);font-variant-numeric:tabular-nums}
+.mf-b{min-width:0}
+.mf-who{font-size:12.5px;font-weight:600;color:var(--txt);line-height:1.45;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mf-tx{font-size:11px;color:var(--dim);line-height:1.45;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mf-tx .via{font-family:var(--mono);font-size:8.5px;letter-spacing:.12em;color:var(--cyan-dim);margin-right:6px}
+.mf-st{
+  font-size:10px;font-weight:600;padding:2px 8px;white-space:nowrap;
+  border:1px solid var(--line);color:var(--dim);
+}
+.mf-st.now{border-color:var(--line2);color:var(--cyan)}
+.mf-st.done{opacity:.55}
+.mf-foot{
+  padding:8px 12px;border-top:1px solid var(--line);
+  font-size:11px;color:var(--dim);line-height:1.5;
+}
+.mf-foot b{color:var(--white);font-family:var(--mono);font-weight:600;font-variant-numeric:tabular-nums}
+
+.feed{list-style:none;margin:0;padding:6px 12px 10px;min-width:0}
+.feed li{
+  display:flex;gap:9px;align-items:baseline;
+  padding:6.5px 0;border-bottom:1px solid rgba(109,232,242,.07);min-width:0;
+}
+.feed li:last-child{border-bottom:0}
+.feed .ft{font-family:var(--mono);font-size:10px;color:var(--dim);flex:0 0 auto;font-variant-numeric:tabular-nums}
+.feed .tag{
+  font-family:var(--mono);font-size:8.5px;letter-spacing:.12em;font-weight:600;
+  padding:1px 5px;flex:0 0 auto;
+  border:1px solid var(--line);color:var(--cyan-dim);
+}
+.feed .tag.HANDOFF,.feed .tag.OPS{border-color:rgba(224,164,60,.45);color:var(--amber)}
+.feed .tag.BOOK{border-color:var(--line2);color:var(--cyan)}
+.feed .tag.SYS{color:var(--dim)}
+.feed .tx{
+  font-size:12px;color:#c3ccd4;line-height:1.55;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+
+.sitecam{display:flex;flex-direction:column;margin:0}
+.sitecam .shot{position:relative;flex:1 1 auto;min-height:150px;overflow:hidden;background:#060a0f}
+.sitecam img{
+  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;
+  filter:saturate(.8) brightness(.88);
+}
+.sitecam .rec{
+  position:absolute;top:8px;left:10px;
+  display:flex;align-items:center;gap:6px;
+  font-family:var(--mono);font-size:9px;letter-spacing:.16em;color:var(--white);
+  background:rgba(8,11,17,.65);padding:2px 8px;
+}
+.sitecam .rec i{width:6px;height:6px;border-radius:50%;background:var(--amber)}
+@media (prefers-reduced-motion:no-preference){
+  .sitecam .rec i{animation:blink 1.6s ease-in-out infinite}
+}
+.sitecam .cap{border:0;background:none}
+.sitecam .capn{
+  padding:7px 12px;border-top:1px solid var(--line);
+  font-size:10.5px;color:var(--dim);line-height:1.5;
+}
+.sitecam .capn b{color:var(--txt);font-weight:600}
+
+/* =========================================================================
+   COLOPHON
+   ========================================================================= */
+.colophon{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:14px;margin-top:20px;padding-top:12px;
+  border-top:1px solid var(--line);
+  font-size:10.5px;color:var(--dim);line-height:1.6;min-width:0;
+}
+.colophon b{color:var(--txt);font-weight:600}
+.skip{
+  position:absolute;left:-9999px;top:0;background:var(--cyan);color:#0a0e14;
+  padding:8px 14px;font-size:12px;z-index:99;
+}
+.skip:focus{left:8px;top:8px}
+
+/* =========================================================================
+   RESPONSIVE
+   ========================================================================= */
+@media (max-width:1180px){
+  .lower{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .sitecam{grid-column:1 / -1}
+  .sitecam .shot{min-height:180px;aspect-ratio:16/6}
+}
+@media (max-width:960px){
+  .stage{grid-template-columns:minmax(0,1fr)}
+  .theater{height:clamp(300px,44vh,400px)}
+  .dock .cap-list{max-height:300px}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:700px){
+  .wrap{padding:12px 14px 24px}
+  .mast{gap:10px 18px}
+  .m-clock{align-items:flex-start}
+  .m-status{align-items:flex-start}
+  .sc-grid{grid-template-columns:minmax(0,1fr)}
+  .sc-right{justify-content:flex-start}
+  .lower{grid-template-columns:minmax(0,1fr)}
+  .sitecam .shot{aspect-ratio:16/8;min-height:0}
+  .colophon{grid-template-columns:minmax(0,1fr)}
+  .klaxon .k-t{display:none}
+  .klaxon .k-tx{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:break-word}
+  .feed .tx{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:break-word}
+}
+@media (max-width:430px){
+  .theater{height:300px}
+  .kpi .fig{font-size:22px}
+  .m-t{font-size:20px}
+}
+
+/* =========================================================================
+   REDUCED MOTION: simulation holds a still frame, zero motion
+   ========================================================================= */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none !important;transition:none !important}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">ข้ามไปที่ภาพรวม</a>
+
+<!-- =====================================================================
+     DATA : swap this object to repurpose the template
+     ===================================================================== -->
+<script>
+const DATA = {
+  brand: "YIMWHAN",
+  clinicTH: "คลินิกทันตกรรมยิ้มหวาน · ศูนย์ปฏิบัติการ AI",
+  branch: "RAMA 9 BRANCH",
+  missionDay: 142,
+  epochMin: 480,            // wall clock 08:00 = T+00:00:00
+  dayMinutes: 720,          // mission runs 08:00 to 20:00
+  bootSec: 12371,           // boot at T+03:26:11 (11:26 mid-morning, theater busy)
+  avgTicket: 3990,          // THB per booked appointment (revenue estimate)
+
+  milestones: [
+    { t: 60,  label: "OPEN"  },
+    { t: 120, label: "RUSH"  },
+    { t: 300, label: "LUNCH" },
+    { t: 570, label: "PEAK"  }
+  ],
+
+  // Human-handoff cases. ts = mission minute it entered the queue,
+  // hold = minutes it stays queued before the team clears it.
+  cases: [
+    { id:"#4372", ts:38,  hold:34,  ch:"line",  who:"คุณสุภาวดี ม.",
+      why:"สอบถามงบจัดฟันแบบใส ระบบให้ช่วงราคาแล้ว แต่ต้องการคุยเรื่องโปรผ่อนกับทีมโดยตรง",
+      act:"โทรกลับพร้อมรายละเอียดผ่อน 0% 6 เดือน" },
+    { id:"#4381", ts:74,  hold:25,  ch:"voice", who:"คุณชลธิชา พ.",
+      why:"แจ้งแพ้ยาชาชนิดฉีด ต้องการคำยืนยันจากทันตแพทย์ก่อนทำนัดถอนฟัน",
+      act:"ส่งประวัติแพ้ยาให้ทันตแพทย์ตรวจก่อนยืนยันนัด" },
+    { id:"#4388", ts:105, hold:40,  ch:"voice", who:"ไม่ระบุชื่อ (เบอร์ใหม่)",
+      why:"สายไม่ชัด ระบบจับใจความได้บางส่วน อาจเป็นเคสปวดฟันเฉียบพลัน",
+      act:"โทรกลับตรวจสอบอาการภายใน 10 นาที" },
+    { id:"#4395", ts:126, hold:35,  ch:"line",  who:"คุณณัฐดนัย ว.",
+      why:"ขอใบเสนอราคารากฟันเทียม 3 ตำแหน่ง พร้อมทางเลือกวัสดุหลายระดับ",
+      act:"ให้ทีมประเมินจากฟิล์มเดิมแล้วส่งใบเสนอราคา" },
+    { id:"#4401", ts:142, hold:112, ch:"line",  who:"คุณกมลชนก พ.",
+      why:"ยืนยันนัดจัดฟันแต่แจ้งว่าแพ้ยาชา ต้องส่งต่อทันตแพทย์ก่อนยืนยัน",
+      act:"ส่งเวชระเบียนให้ทันตแพทย์ตรวจ แล้วยืนยันนัดอีกครั้ง" },
+    { id:"#4408", ts:173, hold:84,  ch:"voice", who:"ไม่ระบุชื่อ (เบอร์ใหม่)",
+      why:"พูดไม่ชัด ระบบจับใจความได้บางส่วน อาจเป็นเคสฉุกเฉินปวดฟัน",
+      act:"โทรกลับเช็คอาการปวด เผื่อคิวฉุกเฉินบ่ายนี้" },
+    { id:"#4413", ts:187, hold:62,  ch:"line",  who:"คุณธีรภัทร อ.",
+      why:"สอบถามค่ารักษารากฟันหลายซี่ ระบบให้ช่วงราคากว้างเกินไป",
+      act:"ให้ทีมประเมินจากฟิล์ม X-ray เดิม แล้วส่งราคาที่แคบลง" },
+    { id:"#4417", ts:199, hold:46,  ch:"voice", who:"คุณนภัสสร ว.", urgent:true,
+      why:"ขอเลื่อนนัดถอนฟันคุดด่วน แต่ช่วงเวลาที่ขอเต็มหมด ต้องการให้ทีมโทรกลับ",
+      act:"โทรกลับเสนอคิวแทรกพรุ่งนี้ 09:30" },
+    { id:"#4426", ts:232, hold:41,  ch:"line",  who:"คุณพลอยไพลิน จ.",
+      why:"ขอปรึกษาวีเนียร์ ต้องการรูปตัวอย่างเคสจริงเพิ่มเติมก่อนตัดสินใจ",
+      act:"ส่งอัลบั้มเคสจริง 5 เคสพร้อมช่วงราคา" },
+    { id:"#4431", ts:268, hold:38,  ch:"line",  who:"คุณวีรภัทร ก.",
+      why:"ใช้ประกันกลุ่มของบริษัท ต้องตรวจสอบวงเงินทันตกรรมคงเหลือ",
+      act:"เช็ควงเงินกับบริษัทประกันแล้วแจ้งกลับ" },
+    { id:"#4438", ts:318, hold:52,  ch:"voice", who:"คุณมนัสนันท์ อ.",
+      why:"ลูก 6 ขวบกลัวหมอฟันมาก ขอคำแนะนำการเตรียมตัวเป็นพิเศษ",
+      act:"ให้ผู้ช่วยทันตแพทย์เด็กโทรแนะนำการเตรียมตัว" },
+    { id:"#4447", ts:409, hold:44,  ch:"line",  who:"คุณจักรพันธ์ ส.",
+      why:"ขอใบรับรองแพทย์ย้อนหลังสำหรับเบิกประกันของบริษัท",
+      act:"ออกใบรับรองแล้วส่งไฟล์ผ่าน LINE" },
+    { id:"#4455", ts:473, hold:36,  ch:"line",  who:"คุณอริสรา ต.",
+      why:"สอบถามผ่อนชำระจัดฟัน 0% ต้องใช้เอกสารอะไรบ้าง",
+      act:"ส่งรายการเอกสารและขั้นตอนสมัครผ่อน" },
+    { id:"#4462", ts:548, hold:58,  ch:"voice", who:"คุณภาคิน ร.", urgent:true,
+      why:"ฟันหน้าแตกจากอุบัติเหตุ ขอคิวด่วนที่สุดวันนี้หรือพรุ่งนี้เช้า",
+      act:"เปิดคิวฉุกเฉิน 19:00 วันนี้ แจ้งทันตแพทย์เวร" },
+    { id:"#4470", ts:577, hold:49,  ch:"line",  who:"คุณรมิดา ค.",
+      why:"ขอเลื่อนนัดพรุ่งนี้เช้าทั้งครอบครัว 3 คนเป็นช่วงบ่าย",
+      act:"จัดคิวบ่ายพรุ่งนี้ให้ติดกัน 3 ช่วง" },
+    { id:"#4476", ts:610, hold:40,  ch:"line",  who:"คุณศุภกฤต ด.",
+      why:"รีเทนเนอร์หาย สอบถามทำใหม่ใช้เวลากี่วันและราคาเท่าไร",
+      act:"แจ้งราคาและนัดพิมพ์ปากเร็วที่สุด" },
+    { id:"#4483", ts:655, hold:45,  ch:"voice", who:"คุณเบญญาภา น.",
+      why:"ยืนยันสิทธิ์ประกันสังคมทันตกรรม วงเงินคงเหลือปีนี้",
+      act:"ตรวจสอบสิทธิ์แล้วโทรยืนยันกลับ" }
+  ],
+
+  // Comms log (AI feed). ts = mission minute.
+  feed: [
+    { ts:38,  type:"HANDOFF", tx:"ส่งต่อ #4372 : สอบถามงบจัดฟันแบบใส ต้องการคุยกับทีม" },
+    { ts:52,  type:"AUTO",    tx:"ตอบราคาฟอกสีฟันอัตโนมัติ (LINE) ใช้เวลา 3.8 วิ" },
+    { ts:61,  type:"SYS",     tx:"เปิดรับสายอัตโนมัติ คลินิกเริ่มทำการ 09:00" },
+    { ts:66,  type:"BOOK",    tx:"ยืนยันนัดขูดหินปูน คุณศิรินทร์ ก. 09:00 วันนี้" },
+    { ts:74,  type:"HANDOFF", tx:"ส่งต่อ #4381 : เคสแพ้ยาชา ขอคำยืนยันจากทันตแพทย์" },
+    { ts:88,  type:"BOOK",    tx:"จองนัดใหม่ อุดฟัน คุณวรัทยา ส. พรุ่งนี้ 10:30" },
+    { ts:105, type:"HANDOFF", tx:"ส่งต่อ #4388 : สายไม่ชัด อาจเป็นเคสปวดฟันเฉียบพลัน" },
+    { ts:118, type:"AUTO",    tx:"ช่วงเร่งด่วน ตอบอัตโนมัติ 41 ครั้งใน 30 นาทีที่ผ่านมา" },
+    { ts:126, type:"HANDOFF", tx:"ส่งต่อ #4395 : ขอใบเสนอราคารากฟันเทียมหลายตำแหน่ง" },
+    { ts:133, type:"BOOK",    tx:"ยืนยันเลื่อนนัด คุณจิราพร บ. จาก 15:00 เป็น 16:00" },
+    { ts:142, type:"HANDOFF", tx:"ส่งต่อ #4401 : แจ้งแพ้ยาชา ต้องให้ทันตแพทย์ยืนยันก่อน" },
+    { ts:158, type:"BOOK",    tx:"จองนัดตรวจสุขภาพฟัน คุณกฤตภาส น. ศุกร์นี้ 11:15" },
+    { ts:173, type:"HANDOFF", tx:"ส่งต่อ #4408 : ระบบจับใจความได้บางส่วน อาจเป็นเคสฉุกเฉิน" },
+    { ts:187, type:"HANDOFF", tx:"ส่งต่อ #4413 : ช่วงราคารักษารากฟันกว้างเกินไป" },
+    { ts:196, type:"AUTO",    tx:"ตอบคำถามหลังจัดฟัน 6 ข้อความ อัตโนมัติทั้งหมด" },
+    { ts:199, type:"HANDOFF", tx:"ส่งต่อ #4417 : ขอเลื่อนนัดถอนฟันคุดด่วน ช่วงเวลาที่ขอเต็ม" },
+    { ts:203, type:"BOOK",    tx:"ยืนยันนัดถอนฟันคุด คุณปริญญ์ ท. 13:30 วันนี้" },
+    { ts:232, type:"HANDOFF", tx:"ส่งต่อ #4426 : ขอปรึกษาวีเนียร์ ต้องการรูปตัวอย่างเพิ่ม" },
+    { ts:251, type:"BOOK",    tx:"จองนัดฟอกสีฟัน คุณเมธาวี ร. เสาร์นี้ 10:30" },
+    { ts:268, type:"HANDOFF", tx:"ส่งต่อ #4431 : ประกันกลุ่มบริษัท ต้องตรวจสอบวงเงิน" },
+    { ts:300, type:"SYS",     tx:"ช่วงพักเที่ยง อัตราการติดต่อลดลงตามคาด" },
+    { ts:318, type:"HANDOFF", tx:"ส่งต่อ #4438 : เด็ก 6 ขวบกลัวหมอฟัน ขอคำแนะนำพิเศษ" },
+    { ts:352, type:"BOOK",    tx:"ยืนยันนัดอุดฟัน 2 ซี่ คุณอนันดา ช. 16:00 วันนี้" },
+    { ts:409, type:"HANDOFF", tx:"ส่งต่อ #4447 : ขอใบรับรองแพทย์ย้อนหลังเพื่อเบิกประกัน" },
+    { ts:473, type:"HANDOFF", tx:"ส่งต่อ #4455 : สอบถามผ่อนชำระจัดฟัน 0%" },
+    { ts:548, type:"HANDOFF", tx:"ส่งต่อ #4462 : เคสฟันแตกจากอุบัติเหตุ ขอคิวด่วน" },
+    { ts:570, type:"SYS",     tx:"ช่วงพีคเย็น ระบบขยายคู่สายอัตโนมัติ" },
+    { ts:577, type:"HANDOFF", tx:"ส่งต่อ #4470 : ขอเลื่อนนัดพรุ่งนี้เช้าทั้งครอบครัว" },
+    { ts:610, type:"HANDOFF", tx:"ส่งต่อ #4476 : รีเทนเนอร์หาย สอบถามทำใหม่กี่วัน" },
+    { ts:655, type:"HANDOFF", tx:"ส่งต่อ #4483 : ยืนยันสิทธิ์ประกันสังคมทันตกรรม" }
+  ],
+
+  // Today's appointment manifest (status derives from mission time).
+  manifest: [
+    { time:"09:00", who:"คุณศิรินทร์ ก.",   tx:"ขูดหินปูน",        via:"LINE"  },
+    { time:"09:45", who:"คุณธนกร พ.",      tx:"อุดฟัน (ซี่ 36)",   via:"VOICE" },
+    { time:"10:30", who:"คุณพิมพ์ลภัส ช.", tx:"ตรวจ + X-ray",     via:"LINE"  },
+    { time:"11:15", who:"คุณวรินทร ม.",    tx:"ฟอกสีฟัน",         via:"LINE"  },
+    { time:"13:30", who:"คุณปริญญ์ ท.",    tx:"ถอนฟันคุด",        via:"VOICE" },
+    { time:"14:30", who:"คุณพิมพ์ชนก ล.",  tx:"ขูดหินปูน",        via:"LINE"  },
+    { time:"16:00", who:"คุณอนันดา ช.",    tx:"อุดฟัน 2 ซี่",      via:"LINE"  },
+    { time:"18:30", who:"คุณกฤติน จ.",     tx:"ปรึกษาจัดฟัน",     via:"VOICE" }
+  ]
+};
+</script>
+
+<!-- =====================================================================
+     LAYOUT
+     ===================================================================== -->
+<div class="wrap">
+
+  <!-- MASTHEAD CHROME -->
+  <header class="mast">
+    <div class="m-brand">
+      <span class="m-mark">YIM<b>·</b>WHAN <b>MISSION CONTROL</b></span>
+      <span class="m-th" id="clinicTH">คลินิกทันตกรรมยิ้มหวาน · ศูนย์ปฏิบัติการ AI</span>
+    </div>
+    <div class="m-clock">
+      <span class="lat dim" id="mday">MISSION DAY 142</span>
+      <span class="m-t mono" id="clockT">T+03:26:11</span>
+      <span class="m-wall" id="clockWall">นาฬิกาคลินิก 11:26:11</span>
+    </div>
+    <div class="m-status">
+      <span class="badge live" id="modeBadge"><i class="dot"></i>LIVE</span>
+      <span class="lat dim" id="branch">RAMA 9 BRANCH</span>
+    </div>
+  </header>
+
+  <!-- ALERT KLAXON STRIP -->
+  <div class="klaxon up" id="klaxon" role="status">
+    <span class="k-dot" aria-hidden="true"></span>
+    <span class="k-lat" id="kLat">ALERT</span>
+    <span class="k-tx" id="kTx" aria-live="polite"></span>
+    <span class="k-t mono" id="kT"></span>
+  </div>
+
+  <main id="main">
+
+    <!-- OPS THEATER + HUMAN QUEUE DOCK -->
+    <section class="stage" aria-label="โรงละครปฏิบัติการสด">
+      <div class="frame theater up" id="theaterBox">
+        <i class="cor" aria-hidden="true"></i>
+        <canvas id="cv" role="img"
+          aria-label="ภาพจำลองสด: การติดต่อจากลูกค้าไหลเข้าสู่แกน AI กลางจอ ส่วนใหญ่ถูกตอบอัตโนมัติ ส่วนน้อยถูกส่งไปคิวเจ้าหน้าที่ด้านขวา"></canvas>
+        <span class="hudc tl">PARTICLES <b id="hudP">000</b></span>
+        <span class="hudc tr">ABSORB <b id="hudA">88.6%</b> AUTO</span>
+        <span class="hudc bl">FPS <b id="hudF">60</b></span>
+        <span class="hudc br">FLOW <b id="hudFlow">55</b>/HR · <span class="amb">HANDOFF LANE</span></span>
+        <span class="simtag" id="simTag" hidden>SIM PAUSED</span>
+      </div>
+
+      <aside class="frame dock up" aria-label="คิวส่งต่อให้เจ้าหน้าที่">
+        <i class="cor" aria-hidden="true"></i>
+        <div class="dock-h">
+          <div class="t">
+            <span class="lat">HUMAN QUEUE</span>
+            <span class="th">คิวที่ AI ส่งต่อให้คน · คลิกเพื่อเปิดสำนวนเคส</span>
+          </div>
+          <span class="dock-n" id="dockN">4</span>
+        </div>
+        <div class="cap-list" id="capList"></div>
+        <div class="dock-f">AUTO ABSORB <b id="dockAb">88.6%</b> · เคสส่วนใหญ่ AI ปิดเองที่แกนกลาง เหลือเฉพาะเคสที่ต้องใช้คนจริง</div>
+      </aside>
+    </section>
+
+    <!-- KPI ROW -->
+    <section class="kpis" aria-label="ตัวเลขสำคัญวันนี้">
+      <div class="frame kpi up"><i class="cor" aria-hidden="true"></i>
+        <span class="no">K.01</span>
+        <span class="lat dim">INBOUND</span>
+        <div class="name">การติดต่อเข้าวันนี้</div>
+        <div class="fig"><span id="kv1">0</span><span class="u">ครั้ง</span></div>
+        <div class="sub" id="ks1">LINE 64% · VOICE 36%</div>
+      </div>
+      <div class="frame kpi up"><i class="cor" aria-hidden="true"></i>
+        <span class="no">K.02</span>
+        <span class="lat dim">AUTO RESOLVED</span>
+        <div class="name">AI ตอบจบเอง</div>
+        <div class="fig"><span id="kv2">0</span><span class="u">ครั้ง</span></div>
+        <div class="sub" id="ks2"><b>88.6%</b> ของทั้งหมด</div>
+      </div>
+      <div class="frame kpi cy up"><i class="cor" aria-hidden="true"></i>
+        <span class="no">K.03</span>
+        <span class="lat dim">BOOKED</span>
+        <div class="name">นัดหมายที่จองได้</div>
+        <div class="fig"><span id="kv3">0</span><span class="u">นัด</span></div>
+        <div class="sub" id="ks3">เฉลี่ย 3,990 บาท/นัด</div>
+      </div>
+      <div class="frame kpi am up"><i class="cor" aria-hidden="true"></i>
+        <span class="no">K.04</span>
+        <span class="lat dim">HUMAN HANDOFF</span>
+        <div class="name">ส่งต่อให้คน</div>
+        <div class="fig"><span id="kv4">0</span><span class="u">เคส</span></div>
+        <div class="sub" id="ks4">ค้างในคิว <b>4</b> เคส</div>
+      </div>
+    </section>
+
+    <!-- MISSION TIMELINE SCRUBBER -->
+    <section class="frame scrub-frame up" aria-label="ไทม์ไลน์ภารกิจ">
+      <i class="cor" aria-hidden="true"></i>
+      <div class="sc-grid">
+        <div class="sc-left">
+          <span class="lat dim">MISSION REPLAY</span>
+          <span class="sc-t mono" id="scrubT">T+03:26:11</span>
+        </div>
+        <div class="sc-track">
+          <input id="scrub" class="scrub" type="range" min="0" max="720" step="1" value="206"
+            aria-label="เลื่อนดูเหตุการณ์ของวันย้อนหลัง">
+          <div class="sc-marks" id="marks" aria-hidden="true"></div>
+          <div class="sc-ends mono" aria-hidden="true"><span>08:00</span><span>20:00</span></div>
+        </div>
+        <div class="sc-right">
+          <span class="badge replay" id="replayBadge" hidden><i class="dot"></i>REPLAY</span>
+          <button class="btn-live" id="btnLive" hidden type="button">กลับสู่ LIVE</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- MANIFEST + COMMS LOG + SITE VISUAL -->
+    <section class="lower" aria-label="รายละเอียดปฏิบัติการ">
+      <div class="frame up"><i class="cor" aria-hidden="true"></i>
+        <div class="p-head">
+          <span class="lat">APPOINTMENT MANIFEST</span>
+          <span class="th">นัดหมายวันนี้ · สถานะตามเวลาภารกิจ</span>
+        </div>
+        <div class="mf-rows" id="mfRows"></div>
+        <div class="mf-foot">ประเมินรายได้จากนัดที่จองได้วันนี้ <b id="mfRev">฿0</b> · เฉลี่ย ฿3,990 ต่อนัด</div>
+      </div>
+
+      <div class="frame up"><i class="cor" aria-hidden="true"></i>
+        <div class="p-head">
+          <span class="lat">COMMS LOG</span>
+          <span class="th">บันทึกการทำงานของ AI · ล่าสุดขึ้นก่อน</span>
+        </div>
+        <ol class="feed" id="feed"></ol>
+      </div>
+
+      <figure class="frame sitecam up"><i class="cor" aria-hidden="true"></i>
+        <div class="p-head">
+          <span class="lat">SITE VISUAL</span>
+          <span class="th">กล้องหน้าคลินิก</span>
+        </div>
+        <div class="shot">
+          <img src="../assets/flux-clinic.png" alt="ภาพภายในคลินิกทันตกรรมโทนมินต์และไม้" loading="lazy">
+          <span class="rec"><i aria-hidden="true"></i>CAM 01 · LOBBY</span>
+        </div>
+        <figcaption class="capn"><b>Rama 9 Lobby</b> · สภาพหน้างานปกติ ไม่มีคิวสะสมหน้าเคาน์เตอร์</figcaption>
+      </figure>
+    </section>
+
+  </main>
+
+  <!-- COLOPHON -->
+  <footer class="colophon">
+    <div><b>YIMWHAN AI</b> mission control · ตัวเลขเป็นการประเมินของระบบ กระทบยอดทุกคืนกับระบบเวชระเบียนและบิลของคลินิก</div>
+    <div><b>Theater</b> · Canvas2D particle simulation · การติดต่อ 1 ครั้ง = อนุภาค 1 ดวง · สีฟ้า LINE · สีขาว VOICE · สีเหลืองอำพัน = ส่งต่อให้คน</div>
+    <div><b>Replay</b> · เลื่อนแถบเวลาเพื่อย้อนดูทุกช่วงของวัน ความหนาแน่นของอนุภาค ตัวเลข คิว และบันทึกจะย้อนตาม</div>
+  </footer>
+
+</div>
+
+<!-- =====================================================================
+     ENGINE
+     ===================================================================== -->
+<script>
+(function(){
+"use strict";
+const RM = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+if(!RM) document.documentElement.classList.add("boot");
+
+const $ = id => document.getElementById(id);
+const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+const pad = n => String(n).padStart(2,"0");
+const fmt = n => Math.round(n).toLocaleString("en-US");
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+
+/* ---------- the day's rhythm (contacts per minute, raw shape) ---------- */
+function g(t,c,s){const d=t-c;return Math.exp(-(d*d)/(2*s*s));}
+function sig(x){return 1/(1+Math.exp(-x));}
+function rateRaw(t){
+  const base = 0.35 + 0.9*sig((t-58)/6) + 3.1*g(t,120,42) + 2.4*g(t,570,58);
+  return base * (1 - 0.72*g(t,300,48)) * (0.25 + 0.75*sig((t-58)/6));
+}
+const absorbP = t => 0.885 + 0.02*Math.sin(t/97);          // 86.5% to 90.5%
+const bookP   = t => 0.355 + 0.02*Math.sin(t/131+2);
+
+/* ---------- cumulative day stats, minute grid ---------- */
+const NMIN = DATA.dayMinutes+1;
+const cumC=new Float64Array(NMIN), cumA=new Float64Array(NMIN),
+      cumB=new Float64Array(NMIN), cumH=new Float64Array(NMIN);
+(function(){
+  let c=0,a=0,b=0,h=0;
+  for(let m=1;m<NMIN;m++){
+    for(let k=0;k<4;k++){
+      const t=m-1+(k+0.5)/4, r=rateRaw(t)*0.62/4;
+      c+=r; a+=r*absorbP(t); b+=r*bookP(t); h+=r*(1-absorbP(t));
+    }
+    cumC[m]=c; cumA[m]=a; cumB[m]=b; cumH[m]=h;
+  }
+})();
+function statsAt(min){
+  const m=clamp(min,0,DATA.dayMinutes), i=Math.floor(m), f=m-i, j=Math.min(i+1,DATA.dayMinutes);
+  const L=(arr)=>arr[i]+(arr[j]-arr[i])*f;
+  return {c:L(cumC), a:L(cumA), b:L(cumB), h:L(cumH)};
+}
+
+/* ---------- mission state ---------- */
+const S = {
+  liveSec: DATA.bootSec,
+  replaySec: DATA.bootSec,
+  mode: "live",
+  bootF: RM?1:0
+};
+const simSec = ()=> S.mode==="live" ? S.liveSec : S.replaySec;
+const simMin = ()=> simSec()/60;
+const maxSec = DATA.dayMinutes*60;
+
+function tPlus(sec){
+  sec=Math.max(0,Math.round(sec));
+  return "T+"+pad(Math.floor(sec/3600))+":"+pad(Math.floor(sec/60)%60)+":"+pad(sec%60);
+}
+function wall(sec){
+  const tm=DATA.epochMin*60+Math.round(sec);
+  return pad(Math.floor(tm/3600)%24)+":"+pad(Math.floor(tm/60)%60)+":"+pad(tm%60);
+}
+function wallHM(min){
+  const tm=DATA.epochMin+min;
+  return pad(Math.floor(tm/60)%24)+":"+pad(Math.round(tm%60));
+}
+function ageTH(min){
+  min=Math.max(0,Math.round(min));
+  if(min<60) return min+" นาที";
+  return Math.floor(min/60)+" ชม. "+(min%60)+" นาที";
+}
+
+/* ---------- queue model ---------- */
+function activeCases(t){
+  return DATA.cases
+    .filter(cs => cs.ts<=t && t < (cs.doneAt!=null ? cs.doneAt : cs.ts+cs.hold))
+    .sort((x,y)=>y.ts-x.ts);
+}
+const urgentAt = t => activeCases(t).find(c=>c.urgent);
+
+/* =========================================================================
+   DOM RENDERERS
+   ========================================================================= */
+const extraFeed=[];
+let openCase=null;
+
+function renderKPIs(t){
+  const st=statsAt(t), f=S.bootF, q=activeCases(t).length;
+  $("kv1").textContent=fmt(st.c*f);
+  $("kv2").textContent=fmt(st.a*f);
+  $("kv3").textContent=fmt(st.b*f);
+  $("kv4").textContent=fmt(st.h*f);
+  const pct=st.c>1?(st.a/st.c*100):88.6;
+  $("ks2").innerHTML="<b>"+pct.toFixed(1)+"%</b> ของทั้งหมด";
+  $("ks4").innerHTML="ค้างในคิว <b>"+q+"</b> เคส";
+  $("hudA").textContent=pct.toFixed(1)+"%";
+  $("dockAb").textContent=pct.toFixed(1)+"%";
+  $("hudFlow").textContent=String(Math.round(rateRaw(t)*0.62*60));
+  $("mfRev").textContent="฿"+fmt(st.b*f*DATA.avgTicket);
+}
+
+let queueKey="";
+function renderQueue(t){
+  const act=activeCases(t);
+  const key=act.map(c=>c.id).join(",")+"|"+openCase+"|"+Math.floor(t);
+  if(key===queueKey) return;
+  queueKey=key;
+  $("dockN").textContent=String(act.length);
+  const host=$("capList");
+  if(!act.length){
+    host.innerHTML='<div class="cap-empty">ไม่มีเคสค้าง<br>AI รับมือการติดต่อทั้งหมดได้เอง</div>';
+    return;
+  }
+  host.innerHTML=act.map(cs=>{
+    const open=openCase===cs.id;
+    const chCls=cs.ch==="line"?"line":"voice";
+    const chTx=cs.ch==="line"?"LINE":"VOICE";
+    return '<div class="cap'+(cs.urgent?' urgent':'')+'" data-id="'+esc(cs.id)+'">'
+      +'<button type="button" class="cap-h" aria-expanded="'+open+'">'
+      +  '<span class="cap-id">'+esc(cs.id)+'</span>'
+      +  '<span class="cap-ch '+chCls+'">'+chTx+'</span>'
+      +  '<span class="cap-urg">'+(cs.urgent?'ด่วน':'')+'</span>'
+      +  '<span class="cap-age">'+ageTH(t-cs.ts)+'</span>'
+      +  '<span class="cap-who">'+esc(cs.who)+'</span>'
+      +'</button>'
+      +(open?'<div class="cap-d">'
+        +'<div class="why">'+esc(cs.why)+'</div>'
+        +'<div class="act">แนวทางที่แนะนำ : '+esc(cs.act)+'</div>'
+        +'<div class="row"><button type="button" class="btn accept" '
+        +(S.mode!=="live"?'disabled title="กลับสู่ LIVE เพื่อรับเคส"':'')
+        +'>รับเคสนี้</button></div>'
+        +'</div>':'')
+      +'</div>';
+  }).join("");
+}
+$("capList").addEventListener("click",e=>{
+  const acc=e.target.closest(".accept");
+  if(acc){
+    const id=acc.closest(".cap").dataset.id;
+    const cs=DATA.cases.find(c=>c.id===id);
+    if(cs && S.mode==="live"){
+      cs.doneAt=simMin();
+      extraFeed.push({ts:simMin(),type:"OPS",tx:"เจ้าหน้าที่รับเคส "+id+" ออกจากคิวแล้ว"});
+      openCase=null; queueKey=""; feedKey="";
+      renderQueue(simMin()); renderFeed(simMin()); renderKPIs(simMin()); renderKlaxon(simMin());
+    }
+    return;
+  }
+  const head=e.target.closest(".cap-h");
+  if(head){
+    const id=head.closest(".cap").dataset.id;
+    openCase = openCase===id ? null : id;
+    queueKey="";
+    renderQueue(simMin());
+  }
+});
+
+let feedKey="";
+function renderFeed(t){
+  const items=DATA.feed.concat(extraFeed).filter(f=>f.ts<=t).sort((a,b)=>b.ts-a.ts).slice(0,7);
+  const key=items.map(i=>i.ts+i.type).join(",");
+  if(key===feedKey) return;
+  feedKey=key;
+  $("feed").innerHTML=items.map(f=>
+    '<li><span class="ft">T+'+pad(Math.floor(f.ts/60))+':'+pad(Math.floor(f.ts%60))+'</span>'
+    +'<span class="tag '+f.type+'">'+f.type+'</span>'
+    +'<span class="tx">'+esc(f.tx)+'</span></li>'
+  ).join("");
+}
+
+let mfKey="";
+function renderManifest(t){
+  const key=String(Math.floor(t/5));
+  if(key===mfKey) return;
+  mfKey=key;
+  $("mfRows").innerHTML=DATA.manifest.map(a=>{
+    const parts=a.time.split(":"), m=(+parts[0])*60+(+parts[1])-DATA.epochMin;
+    let st,cls;
+    if(t>m+40){st="เสร็จสิ้น";cls="done";}
+    else if(t>=m-10){st="อยู่ในคลินิก";cls="now";}
+    else{st="ยืนยันแล้ว";cls="";}
+    return '<div class="mf-row">'
+      +'<span class="mf-t">'+esc(a.time)+'</span>'
+      +'<div class="mf-b"><div class="mf-who">'+esc(a.who)+'</div>'
+      +'<div class="mf-tx"><span class="via">'+esc(a.via)+'</span>'+esc(a.tx)+'</div></div>'
+      +'<span class="mf-st '+cls+'">'+st+'</span>'
+      +'</div>';
+  }).join("");
+}
+
+function renderKlaxon(t){
+  const u=urgentAt(t), k=$("klaxon"), q=activeCases(t).length;
+  if(u){
+    k.classList.add("on");
+    $("kLat").textContent="ALERT";
+    $("kTx").textContent="เคสด่วน "+u.id+" : "+u.why.split(" แต่")[0]+" · รอเจ้าหน้าที่ "+ageTH(t-u.ts);
+    $("kT").textContent="T+"+pad(Math.floor(u.ts/60))+":"+pad(Math.floor(u.ts%60));
+  }else if(q>=5){
+    k.classList.add("on");
+    $("kLat").textContent="NOTICE";
+    $("kTx").textContent="คิวส่งต่อหนาแน่น "+q+" เคสค้าง · แนะนำเพิ่มเจ้าหน้าที่รับสาย 1 คน";
+    $("kT").textContent=tPlus(t*60).slice(0,8);
+  }else{
+    k.classList.remove("on");
+    $("kLat").textContent="NOMINAL";
+    $("kTx").textContent="ระบบตอบอัตโนมัติทำงานปกติ ไม่มีเคสด่วนค้างในคิว";
+    $("kT").textContent="";
+  }
+}
+
+function renderClock(){
+  const s=simSec();
+  $("clockT").textContent=tPlus(s);
+  $("scrubT").textContent=tPlus(s);
+  $("clockWall").textContent="นาฬิกาคลินิก "+wall(s);
+  const scrub=$("scrub");
+  if(S.mode==="live"){ scrub.value=String(Math.round(s/60)); }
+  scrub.setAttribute("aria-valuetext",tPlus(s)+" ("+wall(s).slice(0,5)+" น.)");
+  const nowMk=$("nowMk");
+  if(nowMk) nowMk.style.left=(S.liveSec/maxSec*100)+"%";
+}
+
+function renderAll(){
+  const t=simMin();
+  renderClock();
+  renderKPIs(t);
+  renderQueue(t);
+  renderFeed(t);
+  renderManifest(t);
+  renderKlaxon(t);
+}
+
+/* ---------- scrubber marks ---------- */
+(function(){
+  let html=DATA.milestones.map(m=>
+    '<span class="mk" style="left:'+(m.t/DATA.dayMinutes*100)+'%"><i></i><span>'+m.label+'</span></span>'
+  ).join("");
+  html+='<span class="now" id="nowMk" style="left:'+(DATA.bootSec/maxSec*100)+'%"></span>';
+  $("marks").innerHTML=html;
+})();
+
+/* ---------- mode switching ---------- */
+function goLive(){
+  S.mode="live";
+  $("modeBadge").innerHTML='<i class="dot"></i>LIVE';
+  $("modeBadge").classList.remove("replay");$("modeBadge").classList.add("live");
+  $("replayBadge").hidden=true; $("btnLive").hidden=true;
+  queueKey="";feedKey="";mfKey="";
+  renderAll();
+  if(RM) still.build(simMin());
+}
+function goReplay(min){
+  S.mode="replay"; S.replaySec=min*60;
+  $("modeBadge").innerHTML='<i class="dot"></i>REPLAY';
+  $("modeBadge").classList.add("replay");$("modeBadge").classList.remove("live");
+  $("replayBadge").hidden=false; $("btnLive").hidden=false;
+  queueKey="";feedKey="";mfKey="";
+  renderAll();
+  if(RM) still.build(simMin());
+}
+$("scrub").addEventListener("input",e=>{
+  const v=+e.target.value;
+  if(v>=S.liveSec/60-0.75) goLive(); else goReplay(v);
+});
+$("btnLive").addEventListener("click",goLive);
+
+/* =========================================================================
+   OPS THEATER : Canvas2D particle simulation
+   LINE = cyan comets, VOICE = white, handoff = amber arc to the dock.
+   ========================================================================= */
+const cv=$("cv"), ctx=cv.getContext("2d");
+const box=$("theaterBox");
+let W=0,H=0,DPR=1;
+const core={x:0,y:0,r:24};
+const dockA={x:0,y:0};
+let particles=[], flashes=[], dust=[], spawnAcc=0, coreGlow=0, tSim=0;
+const MAXP=200;
+let mouse=null;
+
+function resize(){
+  const r=box.getBoundingClientRect();
+  DPR=Math.min(window.devicePixelRatio||1,2);
+  W=Math.max(1,r.width); H=Math.max(1,r.height);
+  cv.width=Math.round(W*DPR); cv.height=Math.round(H*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  core.x=W*0.46; core.y=H*0.52;
+  dockA.x=W+10; dockA.y=H*0.30;
+  ctx.fillStyle="#080b11"; ctx.fillRect(0,0,W,H);
+  dust=[];
+  for(let i=0;i<54;i++)dust.push({
+    x:Math.random()*W,y:Math.random()*H,
+    vx:(Math.random()-0.5)*7,vy:(Math.random()-0.5)*7
+  });
+}
+
+function bez(p,u){
+  const v=1-u;
+  return {
+    x:v*v*p.x0+2*v*u*p.x1+u*u*p.x2,
+    y:v*v*p.y0+2*v*u*p.y1+u*u*p.y2
+  };
+}
+function makePath(x0,y0,x2,y2,curve){
+  const mx=(x0+x2)/2,my=(y0+y2)/2;
+  const dx=x2-x0,dy=y2-y0,d=Math.hypot(dx,dy)||1;
+  const px=-dy/d,py=dx/d,off=d*curve;
+  return {x0,y0,x1:mx+px*off,y1:my+py*off,x2,y2,d};
+}
+function spawn(t){
+  const line=Math.random()<0.64;
+  let x,y;
+  const e=Math.random();
+  if(e<0.45){x=-12;y=Math.random()*H;}
+  else if(e<0.75){x=Math.random()*W*0.72;y=-12;}
+  else{x=Math.random()*W*0.72;y=H+12;}
+  const p=makePath(x,y,core.x+(Math.random()-0.5)*14,core.y+(Math.random()-0.5)*14,
+    (Math.random()-0.5)*0.7);
+  p.u=0;
+  p.dur=clamp(p.d/(120+Math.random()*70),2.4,5.0);
+  p.line=line; p.mode="in"; p.ox=0; p.oy=0; p.px=null; p.py=null;
+  particles.push(p);
+}
+function toDock(p,pos){
+  const np=makePath(pos.x,pos.y,dockA.x,dockA.y,-0.25-Math.random()*0.2);
+  np.u=0; np.dur=clamp(np.d/240,0.8,1.7);
+  np.mode="out"; np.line=p.line; np.ox=p.ox; np.oy=p.oy; np.px=pos.x; np.py=pos.y;
+  return np;
+}
+function spawnRate(t){
+  return Math.min(18,(2.2+rateRaw(t)*4.6)*clamp(W/900,0.72,1.15));
+}
+
+function step(dt){
+  const t=simMin();
+  spawnAcc+=spawnRate(t)*dt;
+  while(spawnAcc>=1){spawnAcc-=1;if(particles.length<MAXP)spawn(t);}
+  for(const d of dust){
+    d.x+=d.vx*dt;d.y+=d.vy*dt;
+    if(d.x<0)d.x+=W;if(d.x>W)d.x-=W;if(d.y<0)d.y+=H;if(d.y>H)d.y-=H;
+  }
+  const next=[];
+  for(const p of particles){
+    p.u+=dt/p.dur;
+    if(p.u>=1){
+      if(p.mode==="in"){
+        if(Math.random()<absorbP(t)){
+          flashes.push({r:core.r*0.7,a:0.32,w:1.2});
+          coreGlow=1;
+        }else{
+          const pos=bez(p,1);
+          next.push(toDock(p,pos));
+        }
+      }else{
+        const n=$("dockN");n.classList.add("blip");
+        setTimeout(()=>n.classList.remove("blip"),300);
+      }
+      continue;
+    }
+    next.push(p);
+  }
+  particles=next;
+  for(const f of flashes){f.r+=150*dt;f.a*=Math.pow(0.03,dt);}
+  flashes=flashes.filter(f=>f.a>0.02);
+  coreGlow*=Math.pow(0.05,dt);
+  tSim+=dt;
+}
+
+function drawBase(){
+  /* faint radar rings + handoff lane, redrawn every frame over the fade */
+  ctx.strokeStyle="rgba(109,232,242,.05)";
+  ctx.lineWidth=1;
+  for(const r of [70,130,200]){
+    ctx.beginPath();ctx.arc(core.x,core.y,r,0,6.2832);ctx.stroke();
+  }
+  ctx.setLineDash([2,7]);
+  ctx.strokeStyle="rgba(224,164,60,.13)";
+  ctx.beginPath();ctx.moveTo(core.x+core.r+6,core.y);
+  ctx.quadraticCurveTo((core.x+dockA.x)/2,dockA.y-30,dockA.x,dockA.y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle="rgba(109,232,242,.22)";
+  for(const d of dust)ctx.fillRect(d.x,d.y,1.3,1.3);
+}
+function drawCore(pulseT){
+  const pr=core.r+2*Math.sin(pulseT*2.2);
+  ctx.lineWidth=1.5;
+  ctx.strokeStyle="rgba(109,232,242,"+(0.6+coreGlow*0.4)+")";
+  ctx.beginPath();ctx.arc(core.x,core.y,pr,0,6.2832);ctx.stroke();
+  ctx.lineWidth=1;
+  ctx.strokeStyle="rgba(109,232,242,.18)";
+  ctx.beginPath();ctx.arc(core.x,core.y,pr+7,0,6.2832);ctx.stroke();
+  const a0=pulseT*0.9;
+  ctx.strokeStyle="rgba(109,232,242,.4)";
+  ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(core.x,core.y,pr+13,a0,a0+0.9);ctx.stroke();
+  ctx.fillStyle="rgba(223,248,251,"+(0.65+coreGlow*0.35)+")";
+  ctx.beginPath();ctx.arc(core.x,core.y,6+coreGlow*3,0,6.2832);ctx.fill();
+}
+function drawParticles(){
+  ctx.lineCap="round";
+  for(const p of particles){
+    const w=p.u*(0.55+0.45*p.u);
+    const pos=bez(p,w);
+    /* cursor gravity well: bend the drawn path toward the pointer */
+    let tox=0,toy=0;
+    if(mouse && p.mode==="in"){
+      const dx=mouse.x-pos.x,dy=mouse.y-pos.y,d=Math.hypot(dx,dy);
+      if(d<160&&d>1){const k=(1-d/160)*20;tox=dx/d*k;toy=dy/d*k;}
+    }
+    p.ox+=(tox-p.ox)*0.18;p.oy+=(toy-p.oy)*0.18;
+    const x=pos.x+p.ox,y=pos.y+p.oy;
+    if(p.px!=null){
+      ctx.lineWidth=1.8;
+      ctx.strokeStyle=p.mode==="out"?"rgba(224,164,60,.95)"
+        :(p.line?"rgba(109,232,242,.95)":"rgba(245,249,251,.95)");
+      ctx.beginPath();ctx.moveTo(p.px,p.py);ctx.lineTo(x,y);ctx.stroke();
+    }
+    p.px=x;p.py=y;
+  }
+}
+function drawFlashes(){
+  for(const f of flashes){
+    ctx.lineWidth=f.w;
+    ctx.strokeStyle="rgba(109,232,242,"+f.a.toFixed(3)+")";
+    ctx.beginPath();ctx.arc(core.x,core.y,f.r,0,6.2832);ctx.stroke();
+  }
+}
+let lastDT=1/60;
+function drawFrame(){
+  /* time-based fade so comet-trail length is frame-rate independent */
+  const a=clamp(1-Math.exp(-lastDT*8),0.03,0.3);
+  ctx.fillStyle="rgba(8,11,17,"+a.toFixed(3)+")";
+  ctx.fillRect(0,0,W,H);
+  drawBase();
+  drawFlashes();
+  drawParticles();
+  drawCore(tSim);
+}
+
+/* ---------- reduced motion: still constellation, believable + busy ------ */
+const still={
+  build(t){
+    resizeIfNeeded();
+    ctx.fillStyle="#080b11";ctx.fillRect(0,0,W,H);
+    drawBase();
+    const n=Math.round(clamp(spawnRate(t)*4.2,14,54));
+    for(let i=0;i<n;i++){
+      const line=Math.random()<0.64;
+      let x,y;const e=Math.random();
+      if(e<0.45){x=-12;y=Math.random()*H;}
+      else if(e<0.75){x=Math.random()*W*0.72;y=-12;}
+      else{x=Math.random()*W*0.72;y=H+12;}
+      const p=makePath(x,y,core.x,core.y,(Math.random()-0.5)*0.7);
+      this.trail(p,0.12+Math.random()*0.82,
+        line?"109,232,242":"245,249,251");
+    }
+    for(let i=0;i<4;i++){
+      const sx=core.x+20+Math.random()*30,sy=core.y+(Math.random()-0.5)*40;
+      const p=makePath(sx,sy,dockA.x,dockA.y,-0.3);
+      this.trail(p,0.25+Math.random()*0.6,"224,164,60");
+    }
+    ctx.lineWidth=1.2;
+    ctx.strokeStyle="rgba(109,232,242,.3)";
+    ctx.beginPath();ctx.arc(core.x,core.y,core.r+16,0,6.2832);ctx.stroke();
+    drawCore(1.2);
+    $("hudP").textContent=pad(n+4).padStart(3,"0");
+  },
+  trail(p,u,rgb){
+    const STEPS=9;
+    ctx.lineCap="round";
+    for(let s=0;s<STEPS;s++){
+      const u0=Math.max(0,u-0.085*(1-s/STEPS)),u1=Math.max(0,u-0.085*(1-(s+1)/STEPS));
+      const a=bez(p,u0),b=bez(p,u1);
+      ctx.lineWidth=1.6;
+      ctx.strokeStyle="rgba("+rgb+","+(0.12+0.75*(s/STEPS)).toFixed(2)+")";
+      ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+    }
+  }
+};
+let lastW=0,lastH=0;
+function resizeIfNeeded(){
+  const r=box.getBoundingClientRect();
+  if(Math.abs(r.width-lastW)>1||Math.abs(r.height-lastH)>1){
+    lastW=r.width;lastH=r.height;resize();
+  }
+}
+
+/* ---------- run loop, honest FPS, pause offscreen/hidden ---------- */
+let inView=true, frames=0, fps=60, rafId=0, lastT=0, running=false;
+
+function loop(ts){
+  rafId=requestAnimationFrame(loop);
+  const dt=Math.min(0.05,(ts-lastT)/1000||0.016);
+  lastT=ts;lastDT=dt;
+  step(dt);
+  drawFrame();
+  frames++;
+  $("hudP").textContent=String(particles.length).padStart(3,"0");
+}
+function setRunning(on){
+  if(on===running)return;
+  running=on;
+  if(on){lastT=performance.now();rafId=requestAnimationFrame(loop);$("simTag").hidden=true;}
+  else{cancelAnimationFrame(rafId);$("simTag").hidden=false;
+    $("simTag").textContent="SIM PAUSED · OFFSCREEN";$("hudF").textContent="0";}
+}
+if(!RM){
+  setInterval(()=>{
+    if(running){fps=frames*2;frames=0;$("hudF").textContent=String(fps);}
+  },500);
+  document.addEventListener("visibilitychange",()=>{
+    setRunning(!document.hidden&&inView);
+  });
+  if("IntersectionObserver" in window){
+    new IntersectionObserver(es=>{
+      inView=es[0].isIntersecting;
+      setRunning(!document.hidden&&inView);
+    },{threshold:0.05}).observe(box);
+  }
+  window.addEventListener("resize",()=>{resizeIfNeeded();});
+  cv.addEventListener("pointermove",e=>{
+    const r=cv.getBoundingClientRect();
+    mouse={x:e.clientX-r.left,y:e.clientY-r.top};
+  });
+  cv.addEventListener("pointerleave",()=>{mouse=null;});
+}
+
+/* =========================================================================
+   BOOT : systems power on, theater already busy, counters spin to now
+   ========================================================================= */
+resize();lastW=W;lastH=H;
+
+if(RM){
+  /* still frame at NOW, all counters final, zero motion */
+  S.bootF=1;
+  still.build(simMin());
+  $("hudF").textContent="0";
+  $("simTag").hidden=false;
+  $("simTag").textContent="REDUCED MOTION · STILL FRAME";
+  renderAll();
+}else{
+  /* prewarm so the theater is visibly mid-flow at first paint */
+  for(let i=0;i<110;i++)step(1/60);
+  for(let i=0;i<30;i++){step(1/60);drawFrame();}
+  renderAll();
+  setRunning(true);
+
+  /* counters spin up */
+  const t0=performance.now();
+  (function cu(){
+    const k=clamp((performance.now()-t0)/1100,0,1);
+    S.bootF=1-Math.pow(1-k,3);
+    renderKPIs(simMin());
+    if(k<1)requestAnimationFrame(cu);
+  })();
+
+  /* HUD frames power on in sequence */
+  const ups=document.querySelectorAll(".up");
+  ups.forEach((el,i)=>setTimeout(()=>el.classList.add("on"),90+i*110));
+  setTimeout(()=>document.documentElement.classList.remove("boot"),90+ups.length*110+700);
+
+  /* live mission clock */
+  setInterval(()=>{
+    S.liveSec=Math.min(maxSec,S.liveSec+1);
+    if(S.mode==="live")renderAll();else renderClock();
+  },1000);
+}
+})();
+</script>
+</body>
+</html>

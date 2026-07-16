@@ -209,7 +209,81 @@ King wants the next batches as BACKOFFICE ADMIN + OWNER dashboard DESIGN IDEAS f
   bas-relief = 13-19px medallion decorative overflow (judge to eyeball); sealed-invitation = rotated
   seal-half (by-design) + principles ol li overlapping 5-8px vertically (judge told to eyeball for
   text collision vs layered-paper). Fresh judge `judge-batch58` running.
-- Batch 59 IN FLIGHT `w26s1ffqk` (Vesperwerk III, Fable-designed / Opus-built, 5 new axes: operable
+- Batch 58 DONE + cataloged + DEPLOYED (-> 281 live, Vesperwerk Site = 15, commit 6970c8f, all 5
+  builtBy "Opus 4.8"). JUDGE: 5/5 FIRST-TIME PASS at SOTD bar - "stronger on average than the
+  ephemeris standout". SUBMIT-READY TODAY: bas-relief-light (#1, evening-star payoff = jury moment)
+  + sealed-invitation (#2 ritual). Ship-rank for King's REAL site: bas-relief-light > engraved-ledger
+  > sealed-invitation > monogram-card > specimen-lab. FLAGSHIP CANDIDATE = bas-relief-light. Judge
+  tradeoff flag: invitation/card exclusivity framing is bold positioning, may read pretentious for a
+  studio chasing customers 2-to-N (surface to King). Both lint flags confirmed by-design by eye.
+  POLISH DISPATCHED (Sonnet): specimen-lab entrance wght-sweep breathing (judge's optional lift;
+  lands with batch 59 deploy). BANKED minor: dark service-card sections in monogram + specimen are
+  the least-committed surfaces batch-wide.
+- Batch 59 GATED: build `w26s1ffqk` 4/5 + patent-plate build dropped (connection) but file COMPLETE
+  on disk -> verify-only `wv86bsk29` ok (fixed REAL mobile defect: REV A stamp floated over the
+  phone drawing at 390 -> static stacking). specimen-lab breathing polish DONE + verified (entrance
+  wght 320->700->400 sweep, cancel-on-touch, RM static). MY GATE x5: FPS 102-123, dash CLEAN x5,
+  captures + filmstrips done. vlint: planisphere CLEAN 0/0, patent 1 MED, mono-ink 1 MED, riso 2
+  MED (plate offsets); terminator HIGHs probed = cHit/cDot hit-halo pairs (by-design) + ticker
+  ellipsis false-positive (docSW==390, judge told to eyeball). Fresh judge `judge-batch59` running.
+- Batch 59 JUDGED: 4 PASS (planisphere = new flagship candidate, terminator = best converter, riso +
+  patent also submit-ready; FOUR of five submit-ready) + mono-ink NEEDS-FIX (scroll=0 gate: the
+  traveling star reads as a static bullet at rest; hero measure too wide, rag loose) -> Fable
+  craftsman agent `fix-monoink-rail` dispatched (margin-rail + ticks + tighter measure; canonical
+  copy untouched). 4 passes CATALOGED builtBy "Opus 4.8" -> 285 (Vesperwerk Site = 19). SLUG_CAT
+  extended for batches 59+60. Judge: batch matches-to-exceeds the bas-relief/almanac bar on its top 3.
+- Batch 60 GATED (built 10/10 `w6op84131`, 0 errors): jeweled-vitrine NO EDITS NEEDED (WebGL painted
+  first frame, 68-75fps headless, static SVG fallback verified); auction-lot verify fixed a REAL
+  wheel-trap bug (preventDefault blocked native scroll in overflowing panels at short viewports);
+  evening-service verify fixed a mobile ribbon overlap; observatory-log + field-notes clean. MY GATE:
+  FPS 53-121 (vitrine 76/53 = software WebGL, above bar), dash CLEAN x5, captures + filmstrips done.
+  vlint: observatory + evening-service CLEAN 0/0; vitrine = glass-pane bleed + tracked wordmark
+  (by-design, docSW==vw); auction @390 = plates strip (by-design slide) + ellipsized colophon +
+  Next-plate button confirmed hittable via elementFromPoint; field-notes = rotated polaroid. Fresh
+  judge `judge-batch60` running (vitrine scrutinized hardest: jewelry-grade or FAIL).
+- mono-ink re-judged PASS (rail sells the mechanic at rest; 7-line authored rag; dropcap clip
+  confirmed invisible with this copy) -> CATALOGED -> 289 (Vesperwerk = 23). BATCH 59 COMPLETE 5/5.
+  Optional nit banked: authored mobile hero breaks (lone "software" line at 390).
+- Batch 60 JUDGED: 3 clean PASS (observatory-log + field-notes SUBMIT-READY; evening-service passes
+  on craft; field-notes = best SMB-conversion fit) + 2 one-fix-away -> fix agents dispatched:
+  vitrine mobile SVG jewel (Fable: kill blown white hotspot, antique facet shading) + auction-lot
+  scroll-driven plate-flip (Sonnet: real document scroll height drives plates; wheel-hijack removed;
+  makes the flip provable to the filmstrip harness). 3 passes CATALOGED -> Vesperwerk = 23 total so
+  far. STRATEGIC NOTE for King (judge): brand tension = quiet-luxury prestige (vitrine /
+  evening-service / auction) vs warm SMB conversion (field-notes); observatory-log wins pure wow
+  either way. Lane submit-ready count now 10+ treatments.
+- Batch 60 re-judges: vitrine mobile jewel PASS (facet-normal shading vs one key light killed the
+  clip-art read) -> CATALOGED -> 290 (Vesperwerk = 24). auction-lot: flip MECHANIC PROVEN (5 distinct
+  plates across scroll stops; scroll-track rework = real document height, native wheel/touch) but
+  NEW mobile defect judged: Plate I clips its note mid-sentence + both CTAs behind the deck footer
+  at 390 -> Sonnet fix agent `fix-auction-mobile-plate1` dispatched (fit or internal scroll; check
+  all 5 plates + 390x700).
+- ROUND-2 VESPERWERK AUDIT `w2yy1om48` launched (research-breadth rule: build-ready fuel dropped to
+  ~4-6 < 8 threshold). Six NEW lenses blind to round 1: thai-cultural-craft (untouched home ground),
+  cinema-title-sequence, voice-sound (the product IS voice AI), digital-native-artifacts,
+  space-architecture, excluded-space (probe what the lane avoided: color/wit/illustration/photo/
+  brutalism/info-density). Script: _audit-vesperwerk2.js. Batch 62 picks from its results.
+- Batch 61 GATED (built 10/10 `wmlu5jv6k`, 0 errors, ZERO verify fixes needed - first all-clean
+  batch; structure guard + accumulated brief lessons paying off). MY GATE x5: FPS 54-121 (bibliophile
+  55/54 = heavy turbulence marbling in software render, above bar but the lane's closest - flag if a
+  future judge sees sluggishness), dash CLEAN x5, captures + filmstrips done. vlint: broadsheet CLEAN
+  0/0, bibliophile MEDs only; illuminated star-crown margin overhang + poster-crop stage-clipped
+  letterform + insignia 3D face = all probed by-design (docSW==vw). Fresh judge `judge-batch61`
+  running.
+- Batch 61 WAS IN FLIGHT as `wmlu5jv6k` (Vesperwerk V, Fable-designed / Opus-built; axes: journalistic /
+  illuminated manuscript / poster scale / bookbinding / aerospace): vesperwerk-broadsheet-evening
+  (front page goes to press, real ICT clock, LATE EDITION palette toggle), vesperwerk-illuminated-hours
+  (Book of Hours, drop cap gilds itself, vines grow, cursor-tracked leaf shimmer),
+  vesperwerk-poster-crop (WERK bleeding off all four edges, scroll re-crops the giant letterform,
+  overflow-hidden stage), vesperwerk-bibliophile-spread (open book, LIVING marbled endpaper flows,
+  gilt tabs, tissue-guard hover), vesperwerk-mission-insignia (patch embroiders itself, T+ clock
+  from registration epoch, trajectory phases). All structure-guarded, 0 WebGL. (Vesperwerk IV, Fable-designed / Opus-built; axes: WebGL jewel /
+  curatorial / observatory / handmade / hospitality): vesperwerk-jeweled-vitrine (THE lane's one
+  WebGL: three.js jeweled star under museum glass, capture-safe rules baked in, static CSS fallback
+  = mobile + RM state), vesperwerk-auction-lot (Lot 01 catalogue with 3D page-flip plates),
+  vesperwerk-observatory-log (dome cross-section opens + tracks the star's real azimuth, night-log
+  entries), vesperwerk-field-notes (warm stapled logbook, taped polaroid, courts Thai SMB warmth),
+  vesperwerk-evening-service (candlelit degustation menu, courses served on scroll, ribbon progress). (Vesperwerk III, Fable-designed / Opus-built, 5 new axes: operable
   celestial instrument / patent document / wow-via-absence / print craft / planetary product-story):
   vesperwerk-planisphere-instrument (drag-rotate star wheel, REAL sidereal math + bright-star catalog),
   vesperwerk-patent-plate (FIG.1 self-drawing axonometric of the Yimwhan system, claim cards, REV A

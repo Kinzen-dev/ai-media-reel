@@ -1,0 +1,773 @@
+<!-- TEMPLATE: Riso Nocturne | ARCHETYPE: hand-pulled two-plate risograph star chart that breathes | REF: Risotto Studio + Risolve riso print culture, Starrymaps personalized star maps, zine print-craft | WHEN TO USE: studio / atelier / craft brand wanting a physical two-color print register with a living misregistration signature | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vesperwerk - Riso Nocturne</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Space+Mono:wght@400;700&family=Noto+Serif+Thai:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DATA is defined in <script> at the very bottom for trivial
+   content swapping; the static markup below mirrors it 1:1 so
+   the print is fully visible with no JS and under reduced motion.
+   ============================================================ */
+
+/* two-plate riso registration multiplier (0 = perfect register) */
+@property --reg { syntax: '<number>'; inherits: true; initial-value: 1; }
+
+:root{
+  --stock:#f7f2e8;      /* grainy cream press stock */
+  --stock-2:#efe7d4;
+  --ink:#33302b;        /* ink plate: deep warm charcoal */
+  --ink-soft:#4b463e;
+  --gold:#a8802f;       /* gold plate */
+  --gold-lite:#c09a4a;
+  --gold-deep:#8a6526;
+  --edge:#cbbfa3;
+  --dx:0; --dy:0;       /* live drift, set by rAF per section */
+}
+
+*{ box-sizing:border-box; }
+html{ -webkit-text-size-adjust:100%; }
+body{
+  margin:0;
+  background:var(--stock);
+  color:var(--ink);
+  font-family:'Cormorant Garamond', Georgia, serif;
+  font-size:18px;
+  line-height:1.5;
+  overflow-x:clip;
+  position:relative;
+}
+img{ max-width:100%; display:block; }
+a{ color:inherit; }
+h1,h2,h3{ margin:0; font-family:'Playfair Display', Georgia, serif; font-weight:600; }
+.mono{ font-family:'Space Mono', ui-monospace, monospace; }
+
+/* ---------- paper grain (one shared static SVG turbulence) ---------- */
+.grain{
+  position:fixed; inset:0; z-index:60; pointer-events:none;
+  mix-blend-mode:multiply; opacity:.5;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
+}
+/* faint second fibre layer for stock warmth */
+.grain::after{
+  content:""; position:absolute; inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='340' height='340'%3E%3Cfilter id='m'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.012' numOctaves='2'/%3E%3C/filter%3E%3Crect width='340' height='340' filter='url(%23m)' opacity='0.25'/%3E%3C/svg%3E");
+  mix-blend-mode:multiply; opacity:.5;
+}
+
+/* ---------- shared halftone dot fills ---------- */
+.ht-ink{
+  background-color:var(--stock);
+  background-image:radial-gradient(circle, var(--ink) 1.55px, transparent 1.85px);
+  background-size:4.5px 4.5px;
+}
+.ht-gold{
+  background-color:var(--gold);
+  background-image:radial-gradient(circle, var(--gold-deep) 1.15px, transparent 1.5px);
+  background-size:5px 5px;
+}
+
+/* ---------- the two-plate gold layer transform ----------
+   applied to every gold plate element: static per-element base
+   offset (--ox/--oy) + live drift (--dx/--dy), all scaled by --reg
+   so :hover can snap the plates into perfect register.          */
+.plate-shift{
+  transform:translate(
+    calc((var(--ox, 2) + var(--dx)) * var(--reg) * 1px),
+    calc((var(--oy, 2.4) + var(--dy)) * var(--reg) * 1px)
+  );
+  will-change:transform;
+}
+
+/* ---------- riso two-colour text (ink body + offset gold plate) ---------- */
+.riso{ position:relative; display:inline-block; color:var(--ink); }
+.riso::after{
+  content:attr(data-text);
+  position:absolute; left:0; top:0; z-index:-1;
+  color:var(--gold);
+  mix-blend-mode:multiply;
+  transform:translate(
+    calc((var(--ox, 2.4) + var(--dx)) * var(--reg) * 1px),
+    calc((var(--oy, -1.8) + var(--dy)) * var(--reg) * 1px)
+  );
+  pointer-events:none;
+}
+
+/* ---------- layout shell ---------- */
+.wrap{ max-width:1180px; margin:0 auto; padding:0 clamp(18px,4vw,52px); }
+.sec{ position:relative; }
+.plate-label{
+  font-family:'Space Mono', monospace; font-size:11px; letter-spacing:.32em;
+  text-transform:uppercase; color:var(--gold-deep);
+}
+
+/* ---------- corner registration + trim marks ---------- */
+.regmark{ position:fixed; width:26px; height:26px; z-index:58; pointer-events:none; opacity:.7; }
+.regmark.tl{ top:12px; left:12px; } .regmark.tr{ top:12px; right:12px; }
+.regmark.bl{ bottom:12px; left:12px; } .regmark.br{ bottom:12px; right:12px; }
+
+/* ---------- full page constellation route (draws on scroll) ---------- */
+.route{ position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none; }
+.route svg{ width:100%; height:100%; }
+.route .route-line{ fill:none; stroke:var(--ink); stroke-width:1.2; stroke-linecap:round; opacity:.42;
+  vector-effect:non-scaling-stroke; stroke-dasharray:1; stroke-dashoffset:0; }
+.route .route-gold{ fill:none; stroke:var(--gold); stroke-width:1.2; stroke-linecap:round; opacity:.5;
+  vector-effect:non-scaling-stroke; stroke-dasharray:1; stroke-dashoffset:0; }
+
+/* =================================================================
+   HERO  -  the chart with a title cartouche
+   ================================================================= */
+.hero{ position:relative; min-height:96vh; display:flex; align-items:center;
+  padding:78px 0 46px; overflow:hidden; }
+.sky{ position:absolute; inset:0; z-index:0; }
+.sky::after{ /* central density so the field reads as night */
+  content:""; position:absolute; inset:0;
+  background:radial-gradient(ellipse 70% 60% at 50% 42%, rgba(51,48,43,.22), transparent 72%);
+}
+.hero-const{ position:absolute; inset:0; z-index:1; width:100%; height:100%; }
+.cline-ink{ fill:none; stroke:var(--ink); stroke-width:2.1; stroke-linecap:round; stroke-linejoin:round; opacity:.82; }
+.cline-gold{ fill:none; stroke:var(--gold); stroke-width:2.1; stroke-linecap:round; stroke-linejoin:round; opacity:.9; }
+.star-dot{ fill:var(--gold); }
+.star-bright{ fill:var(--gold-lite); stroke:var(--gold-deep); stroke-width:.6; }
+.star-ray{ stroke:var(--gold); stroke-width:1; opacity:.7; }
+.star-lbl{ fill:var(--gold-deep); font-family:'Space Mono', monospace; font-size:9px; letter-spacing:.12em; }
+
+.cartouche-slot{ position:relative; z-index:3; margin:0 auto; max-width:640px; width:100%; }
+.cartouche{
+  position:relative; background:var(--stock);
+  border:1.5px solid var(--ink);
+  padding:clamp(26px,4vw,46px) clamp(22px,4vw,48px) clamp(30px,4vw,44px);
+  text-align:center; box-shadow:0 1px 0 rgba(51,48,43,.25);
+}
+.cartouche .goldplate{
+  position:absolute; inset:0; z-index:-1;
+  background:var(--gold);
+  border:1.5px solid var(--gold-deep);
+}
+.kicker{ margin-bottom:18px; }
+.mark{ width:60px; height:60px; margin:0 auto 14px; position:relative; }
+.mark svg{ width:100%; height:100%; overflow:visible; }
+.mark .mk-gold{ transform:translate(calc(var(--dx)*.5px + 1.6px), calc(var(--dy)*.5px - 1.4px)); }
+.wordmark{
+  font-family:'Playfair Display', serif; font-weight:600;
+  font-size:clamp(34px, 7.3vw, 64px); line-height:1;
+  letter-spacing:.18em; text-indent:.18em; margin:2px 0 20px;
+}
+.positioning{
+  font-size:clamp(17px,2.3vw,22px); line-height:1.42; color:var(--ink-soft);
+  max-width:30em; margin:0 auto 26px; font-style:italic;
+}
+.cta-row{ display:flex; gap:14px; justify-content:center; flex-wrap:wrap; }
+.btn{
+  position:relative; font-family:'Space Mono', monospace; font-size:12.5px;
+  letter-spacing:.16em; text-transform:uppercase; text-decoration:none;
+  padding:13px 22px; border:1.5px solid var(--ink); color:var(--ink);
+  background:transparent; cursor:pointer; min-width:0;
+}
+.btn.primary{ isolation:isolate; background:var(--gold); color:var(--stock);
+  border-color:var(--gold-deep); }
+.btn.primary::before{ /* offset ink plate = riso misregistration behind the label */
+  content:""; position:absolute; inset:-1.5px; z-index:-1;
+  border:1.5px solid var(--ink);
+  transform:translate(calc((-2.4 + var(--dx)) * var(--reg) * 1px),
+                      calc((2.6 + var(--dy)) * var(--reg) * 1px)); }
+.btn:focus-visible{ outline:3px solid var(--gold-deep); outline-offset:3px; }
+.hero-foot{ position:absolute; left:0; right:0; bottom:20px; z-index:3;
+  display:flex; justify-content:space-between; align-items:flex-end;
+  padding:0 clamp(18px,4vw,52px); gap:12px; }
+.hero-foot .mono{ font-size:10.5px; letter-spacing:.24em; color:var(--gold-deep); text-transform:uppercase; }
+
+/* =================================================================
+   EDITION STAMP (fixed)
+   ================================================================= */
+.stamp{
+  position:fixed; top:20px; right:22px; z-index:59; text-align:center;
+  transform:rotate(-8deg); user-select:none;
+}
+.stamp .ring{
+  border:2px solid var(--gold-deep); border-radius:50%;
+  width:98px; height:98px; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:1px;
+  background:rgba(247,242,232,.55);
+}
+.stamp .ring::before{ content:""; position:absolute; width:110px; height:110px;
+  border:1px solid var(--ink); border-radius:50%; opacity:.35; }
+.stamp .no{ font-family:'Space Mono', monospace; font-weight:700; font-size:19px;
+  letter-spacing:.06em; color:var(--gold-deep); line-height:1; }
+.stamp .of{ font-family:'Space Mono', monospace; font-size:9px; letter-spacing:.18em;
+  color:var(--ink); text-transform:uppercase; }
+.stamp .tag{ font-family:'Space Mono', monospace; font-size:7.5px; letter-spacing:.14em;
+  color:var(--ink-soft); text-transform:uppercase; margin-top:1px; }
+
+/* =================================================================
+   SERVICES  -  three hand-labelled constellation groups
+   ================================================================= */
+.services{ padding:clamp(56px,9vw,110px) 0 clamp(40px,6vw,70px); position:relative; z-index:2; }
+.sec-head{ text-align:center; margin-bottom:clamp(34px,5vw,58px); }
+.sec-head h2{ font-size:clamp(26px,4.6vw,44px); letter-spacing:.01em; margin-top:8px; }
+.svc-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:clamp(20px,3vw,34px); }
+.svc{ position:relative; min-width:0; }
+.svc-const{ height:118px; margin-bottom:6px; }
+.svc-const svg{ width:100%; height:100%; overflow:visible; }
+.svc-const .l-ink{ fill:none; stroke:var(--ink); stroke-width:1.2; opacity:.55; }
+.svc-card{
+  position:relative; background:var(--stock);
+  border:1.4px solid var(--ink); padding:24px 22px 26px; min-width:0;
+}
+.svc-card .goldplate{ position:absolute; inset:0; z-index:-1; background:var(--gold);
+  border:1.4px solid var(--gold-deep); }
+.svc-grp{ margin-bottom:12px; }
+.svc h3{ font-size:22px; margin-bottom:9px; letter-spacing:.01em; }
+.svc p{ margin:0; font-size:16.5px; line-height:1.46; color:var(--ink-soft); }
+
+/* =================================================================
+   WORK  -  taped-in print proof
+   ================================================================= */
+.work{ padding:clamp(40px,6vw,72px) 0; position:relative; z-index:2; }
+.proof-slot{ max-width:940px; margin:0 auto; }
+.proof{
+  position:relative; background:var(--stock); border:1.4px solid var(--ink);
+  padding:16px 16px 20px; transform:rotate(-.5deg);
+}
+.proof .goldplate{ position:absolute; inset:0; z-index:-1; background:var(--gold);
+  border:1.4px solid var(--gold-deep); }
+.proof-frame{ position:relative; overflow:hidden; background:var(--ink);
+  aspect-ratio:16/8.4; }
+.proof-frame img{
+  width:100%; height:100%; object-fit:cover; object-position:center;
+  filter:grayscale(1) sepia(.42) saturate(1.55) hue-rotate(-8deg) contrast(1.14) brightness(1.02);
+}
+.proof-frame::after{ /* halftone print screen over the photo */
+  content:""; position:absolute; inset:0; mix-blend-mode:multiply; opacity:.42;
+  background-image:radial-gradient(circle, var(--ink) 1.25px, transparent 1.6px);
+  background-size:4px 4px;
+}
+.proof-frame::before{ /* gold plate tint */
+  content:""; position:absolute; inset:0; z-index:1; mix-blend-mode:multiply; opacity:.16;
+  background:var(--gold);
+}
+.tape{ position:absolute; width:96px; height:26px; background:rgba(168,128,47,.28);
+  border:1px solid rgba(138,101,38,.4); z-index:4; }
+.tape.t1{ top:-9px; left:26px; transform:rotate(-6deg); }
+.tape.t2{ top:-9px; right:26px; transform:rotate(5deg); }
+.proof-cap{ display:flex; justify-content:space-between; gap:16px; margin-top:14px; flex-wrap:wrap; }
+.proof-cap .txt{ min-width:0; flex:1 1 260px; }
+.proof-cap h3{ font-size:23px; margin-bottom:7px; }
+.proof-cap p{ margin:0; font-size:16px; line-height:1.46; color:var(--ink-soft); }
+.proof-cap .meta{ flex:0 0 auto; text-align:right; }
+.proof-cap .meta .mono{ font-size:10px; letter-spacing:.2em; color:var(--gold-deep);
+  text-transform:uppercase; line-height:1.9; }
+
+/* =================================================================
+   APPROACH  -  numbered margin notes with wobbly ink underlines
+   ================================================================= */
+.approach{ padding:clamp(48px,7vw,84px) 0; position:relative; z-index:2; }
+.notes{ max-width:900px; margin:0 auto; border-left:1.5px dotted var(--gold-deep); }
+.note{ position:relative; padding:20px 8px 22px clamp(20px,5vw,64px); display:flex;
+  gap:clamp(16px,3vw,30px); align-items:baseline; min-width:0; }
+.note + .note{ border-top:1px dashed rgba(51,48,43,.28); }
+.note .num{ position:relative; font-family:'Playfair Display', serif; font-weight:700;
+  font-size:clamp(30px,5vw,52px); color:var(--gold); line-height:.9; flex:0 0 auto; min-width:1.6em; }
+.note .body{ min-width:0; }
+.note h3{ font-size:clamp(19px,2.6vw,25px); display:inline;
+  padding-bottom:6px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='7'%3E%3Cpath d='M0 4 Q15 1 30 4 T60 4 T90 4 T120 4' fill='none' stroke='%23a8802f' stroke-width='1.7'/%3E%3C/svg%3E");
+  background-repeat:repeat-x; background-position:0 100%; }
+.note p{ margin:9px 0 0; font-size:16.5px; line-height:1.5; color:var(--ink-soft); }
+
+/* =================================================================
+   COLOPHON  -  about + contact as the print colophon
+   ================================================================= */
+.colophon{ padding:clamp(52px,8vw,96px) 0 clamp(30px,5vw,54px); position:relative; z-index:2; }
+.colo-slot{ max-width:1000px; margin:0 auto; }
+.colo-inner{ position:relative; background:var(--stock); border:1.5px solid var(--ink);
+  padding:clamp(28px,4vw,52px); }
+.colo-inner .goldplate{ position:absolute; inset:0; z-index:-1; background:var(--gold);
+  border:1.5px solid var(--gold-deep); }
+.colo-grid{ display:grid; grid-template-columns:1.15fr .85fr; gap:clamp(28px,5vw,60px); }
+.colo-about{ min-width:0; }
+.colo-about h2{ font-size:clamp(22px,3.4vw,34px); margin-bottom:16px; }
+.colo-about p{ margin:0 0 18px; font-size:17px; line-height:1.5; color:var(--ink-soft); }
+.epigraph{ border-top:1px solid rgba(51,48,43,.3); padding-top:18px; margin-top:6px; }
+.epigraph .thai{ font-family:'Noto Serif Thai', serif; font-weight:500;
+  font-size:19px; line-height:1.5; letter-spacing:0; color:var(--ink); }
+.epigraph .lat{ font-family:'Space Mono', monospace; font-size:10px; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--gold-deep); margin-top:8px; }
+.colo-specs{ min-width:0; border-left:1px solid rgba(51,48,43,.25); padding-left:clamp(20px,3vw,34px); }
+.spec-row{ display:flex; justify-content:space-between; gap:12px; padding:9px 0;
+  border-bottom:1px dotted rgba(51,48,43,.3); font-family:'Space Mono', monospace;
+  font-size:11px; letter-spacing:.06em; }
+.spec-row .k{ color:var(--gold-deep); text-transform:uppercase; letter-spacing:.14em; }
+.spec-row .v{ color:var(--ink); text-align:right; min-width:0; }
+.spec-row .v a{ text-decoration:none; border-bottom:1.5px solid var(--gold); }
+.spec-note{ margin-top:14px; font-family:'Space Mono', monospace; font-size:9.5px;
+  letter-spacing:.1em; color:var(--ink-soft); text-transform:uppercase; }
+
+/* =================================================================
+   FOOTER
+   ================================================================= */
+.foot{ padding:34px 0 46px; text-align:center; position:relative; z-index:2; }
+.foot .fmark{ width:34px; height:34px; margin:0 auto 12px; }
+.foot .fmark svg{ width:100%; height:100%; }
+.foot .fword{ font-family:'Playfair Display', serif; font-weight:600; letter-spacing:.24em;
+  font-size:15px; }
+.foot .fmeta{ font-family:'Space Mono', monospace; font-size:10px; letter-spacing:.18em;
+  color:var(--gold-deep); text-transform:uppercase; margin-top:8px; }
+
+/* =================================================================
+   MOTION  -  entrance ritual + scroll reveal (only when allowed)
+   ================================================================= */
+html.anim .sec .pl-ink{ opacity:0; transform:translateY(12px);
+  transition:opacity .6s ease, transform .6s ease; transition-delay:calc(var(--i,0)*.07s); }
+html.anim .sec .pl-gold{ opacity:0;
+  transition:opacity .55s ease; transition-delay:.34s; }
+html.anim .sec.inview .pl-ink{ opacity:1; transform:none; }
+html.anim .sec.inview .pl-gold{ opacity:1; }
+
+html.anim .hero-const .cline-ink,
+html.anim .hero-const .cline-gold{ stroke-dashoffset:1; }
+html.anim .hero.inview .cline-ink{ transition:stroke-dashoffset 1.5s ease .2s; stroke-dashoffset:0; }
+html.anim .hero.inview .cline-gold{ transition:stroke-dashoffset 1.5s ease .45s; stroke-dashoffset:0; }
+
+html.anim .stamp{ opacity:0; transform:rotate(-18deg) scale(1.5); }
+html.anim .stamp.thunk{ opacity:1; transform:rotate(-8deg) scale(1);
+  transition:opacity .12s ease, transform .34s cubic-bezier(.2,1.5,.4,1); }
+
+@media (prefers-reduced-motion: no-preference){
+  .snap{ transition:--reg .24s ease; }
+  .snap:hover{ --reg:0; }
+}
+
+/* =================================================================
+   RESPONSIVE
+   ================================================================= */
+@media (max-width:860px){
+  .svc-grid{ grid-template-columns:1fr; gap:34px; }
+  .colo-grid{ grid-template-columns:1fr; gap:30px; }
+  .colo-specs{ border-left:0; padding-left:0; border-top:1px solid rgba(51,48,43,.25); padding-top:20px; }
+}
+@media (max-width:640px){
+  body{ font-size:17px; }
+  .hero{ min-height:88vh; padding:70px 0 64px; }
+  .wordmark{ letter-spacing:.14em; text-indent:.14em; }
+  .stamp{ top:14px; right:14px; }
+  .stamp .ring{ width:76px; height:76px; }
+  .stamp .ring::before{ width:86px; height:86px; }
+  .stamp .no{ font-size:15px; }
+  .hero-foot{ bottom:14px; }
+  .hero-foot .mono{ font-size:9px; letter-spacing:.16em; }
+  .proof-cap .meta{ text-align:left; }
+  .tape.t1{ left:14px; } .tape.t2{ right:14px; }
+  .regmark{ width:18px; height:18px; }
+}
+@media (max-width:380px){
+  .cta-row{ flex-direction:column; }
+  .btn{ text-align:center; }
+}
+</style>
+</head>
+<body>
+
+<!-- shared paper grain + registration marks -->
+<div class="grain" aria-hidden="true"></div>
+<svg class="regmark tl" viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r="7" fill="none" stroke="#8a6526" stroke-width="1"/><path d="M13 1v24M1 13h24" stroke="#33302b" stroke-width="1"/></svg>
+<svg class="regmark tr" viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r="7" fill="none" stroke="#8a6526" stroke-width="1"/><path d="M13 1v24M1 13h24" stroke="#33302b" stroke-width="1"/></svg>
+<svg class="regmark bl" viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r="7" fill="none" stroke="#8a6526" stroke-width="1"/><path d="M13 1v24M1 13h24" stroke="#33302b" stroke-width="1"/></svg>
+<svg class="regmark br" viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r="7" fill="none" stroke="#8a6526" stroke-width="1"/><path d="M13 1v24M1 13h24" stroke="#33302b" stroke-width="1"/></svg>
+
+<!-- fixed edition stamp -->
+<div class="stamp snap" aria-hidden="true">
+  <div class="ring">
+    <div class="no"><span id="ed-no">037</span></div>
+    <div class="of">/ 100</div>
+    <div class="tag">Vesper Ed.</div>
+  </div>
+</div>
+
+<!-- full page constellation route: draws as you scroll -->
+<div class="route" aria-hidden="true">
+  <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+    <path class="route-gold" pathLength="1" d="M50 3 Q30 9 40 15 T62 24 Q78 30 60 36 T44 47 Q26 53 48 60 T66 71 Q82 78 56 84 T50 97"/>
+    <path class="route-line" pathLength="1" d="M50 3 Q30 9 40 15 T62 24 Q78 30 60 36 T44 47 Q26 53 48 60 T66 71 Q82 78 56 84 T50 97"/>
+  </svg>
+</div>
+
+<!-- ===================== HERO ===================== -->
+<header class="hero sec" id="hero" data-drift>
+  <div class="sky ht-ink pl-ink" style="--i:0"></div>
+
+  <!-- hand-drawn vesper eight-point constellation (ink + offset gold plate) -->
+  <svg class="hero-const" viewBox="0 0 1000 640" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <!-- scattered edition star field -->
+    <g class="pl-gold" style="--i:1">
+      <circle class="star-dot" cx="120" cy="90" r="1.6"/>
+      <circle class="star-dot" cx="215" cy="180" r="1.2"/>
+      <circle class="star-dot" cx="95" cy="300" r="2"/>
+      <circle class="star-dot" cx="180" cy="470" r="1.4"/>
+      <circle class="star-dot" cx="300" cy="560" r="1.7"/>
+      <circle class="star-dot" cx="820" cy="120" r="1.5"/>
+      <circle class="star-dot" cx="905" cy="230" r="2"/>
+      <circle class="star-dot" cx="860" cy="420" r="1.3"/>
+      <circle class="star-dot" cx="770" cy="540" r="1.7"/>
+      <circle class="star-dot" cx="680" cy="90" r="1.2"/>
+      <circle class="star-dot" cx="420" cy="70" r="1.4"/>
+      <circle class="star-dot" cx="560" cy="600" r="1.5"/>
+      <circle class="star-dot" cx="40" cy="180" r="1.2"/>
+      <circle class="star-dot" cx="960" cy="330" r="1.4"/>
+    </g>
+    <!-- gold plate of the constellation line (slightly misregistered) -->
+    <g class="cline-gold plate-shift pl-gold" style="--ox:2.6;--oy:-2;--i:2">
+      <path pathLength="1" d="M498 72 L500 310 L752 308 L500 310 L501 551 L500 310 L248 313 L500 310 L607 203 L500 310 L608 417 L500 310 L393 414 L500 310 L392 205 Z"/>
+    </g>
+    <!-- ink plate of the constellation line -->
+    <g class="pl-ink" style="--i:1">
+      <path class="cline-ink" pathLength="1" d="M498 72 L500 310 L752 308 L500 310 L501 551 L500 310 L248 313 L500 310 L607 203 L500 310 L608 417 L500 310 L393 414 L500 310 L392 205 Z"/>
+    </g>
+    <!-- the eight tip stars + centre (gold) -->
+    <g class="pl-gold" style="--i:3">
+      <g><circle class="star-bright" cx="498" cy="72" r="5"/><path class="star-ray" d="M498 60v24M486 72h24"/><text class="star-lbl" x="508" y="66">VES a</text></g>
+      <g><circle class="star-bright" cx="752" cy="308" r="4.5"/><path class="star-ray" d="M752 297v22M741 308h22"/><text class="star-lbl" x="762" y="304">VES b</text></g>
+      <g><circle class="star-bright" cx="501" cy="551" r="5"/><path class="star-ray" d="M501 540v22M490 551h22"/></g>
+      <g><circle class="star-bright" cx="248" cy="313" r="4.5"/><path class="star-ray" d="M248 302v22M237 313h22"/><text class="star-lbl" x="196" y="308">VES d</text></g>
+      <circle class="star-dot" cx="607" cy="203" r="3.4"/>
+      <circle class="star-dot" cx="608" cy="417" r="3.4"/>
+      <circle class="star-dot" cx="393" cy="414" r="3.4"/>
+      <circle class="star-dot" cx="392" cy="205" r="3.4"/>
+      <g><circle class="star-bright" cx="500" cy="310" r="6"/><path class="star-ray" d="M500 296v28M486 310h28"/><text class="star-lbl" x="512" y="330">VESPER</text></g>
+    </g>
+  </svg>
+
+  <!-- title cartouche -->
+  <div class="wrap">
+    <div class="cartouche-slot">
+      <div class="cartouche snap pl-ink" style="--i:2">
+        <div class="goldplate plate-shift pl-gold" style="--ox:3;--oy:3.4"></div>
+        <div class="kicker plate-label riso" data-text="Celestial Chart No. VII" style="--ox:1.6;--oy:-1.2">Celestial Chart No. VII</div>
+        <div class="mark" aria-label="Vesperwerk star">
+          <svg viewBox="0 0 200 200" overflow="visible" aria-hidden="true">
+            <!-- gold plate copy of the mark, misregistered -->
+            <g class="mk-gold" opacity=".55">
+              <g transform="translate(100,100)">
+                <polygon points="0,-86 -11,0 0,0" fill="#a8802f"/><polygon points="0,-86 11,0 0,0" fill="#a8802f"/>
+                <g transform="rotate(90)"><polygon points="0,-64 -9.5,0 0,0" fill="#a8802f"/><polygon points="0,-64 9.5,0 0,0" fill="#a8802f"/></g>
+                <g transform="rotate(180)"><polygon points="0,-86 -11,0 0,0" fill="#a8802f"/><polygon points="0,-86 11,0 0,0" fill="#a8802f"/></g>
+                <g transform="rotate(270)"><polygon points="0,-64 -9.5,0 0,0" fill="#a8802f"/><polygon points="0,-64 9.5,0 0,0" fill="#a8802f"/></g>
+                <g transform="rotate(45)"><polygon points="0,-44 -7.5,0 0,0" fill="#a8802f"/><polygon points="0,-44 7.5,0 0,0" fill="#a8802f"/></g>
+                <g transform="rotate(135)"><polygon points="0,-44 -7.5,0 0,0" fill="#a8802f"/><polygon points="0,-44 7.5,0 0,0" fill="#a8802f"/></g>
+                <g transform="rotate(225)"><polygon points="0,-44 -7.5,0 0,0" fill="#a8802f"/><polygon points="0,-44 7.5,0 0,0" fill="#a8802f"/></g>
+                <g transform="rotate(315)"><polygon points="0,-44 -7.5,0 0,0" fill="#a8802f"/><polygon points="0,-44 7.5,0 0,0" fill="#a8802f"/></g>
+              </g>
+            </g>
+            <!-- ink-registered facet mark (canonical facet colours) -->
+            <g transform="translate(100,100)">
+              <g><polygon points="0,-86 -11,0 0,0" fill="#c09a4a"/><polygon points="0,-86 11,0 0,0" fill="#8a6526"/></g>
+              <g transform="rotate(180)"><polygon points="0,-86 -11,0 0,0" fill="#8a6526"/><polygon points="0,-86 11,0 0,0" fill="#c09a4a"/></g>
+              <g transform="rotate(90)"><polygon points="0,-64 -9.5,0 0,0" fill="#c09a4a"/><polygon points="0,-64 9.5,0 0,0" fill="#8a6526"/></g>
+              <g transform="rotate(270)"><polygon points="0,-64 -9.5,0 0,0" fill="#8a6526"/><polygon points="0,-64 9.5,0 0,0" fill="#c09a4a"/></g>
+              <g transform="rotate(45)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g>
+              <g transform="rotate(135)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g>
+              <g transform="rotate(225)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g>
+              <g transform="rotate(315)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g>
+            </g>
+          </svg>
+        </div>
+        <h1 class="wordmark riso" data-text="VESPERWERK" style="--ox:3;--oy:-2.4">VESPERWERK</h1>
+        <p class="positioning">An independent software and AI studio. We architect, build, and operate production systems for businesses that cannot afford them to fail.</p>
+        <div class="cta-row">
+          <a class="btn primary snap" href="#colophon">Start a conversation</a>
+          <a class="btn snap" href="#work">See our work</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hero-foot pl-gold" style="--i:4">
+    <span class="mono">Two plates : ink + gold</span>
+    <span class="mono">Nocturne edition</span>
+  </div>
+</header>
+
+<!-- ===================== SERVICES ===================== -->
+<section class="services sec" id="services" data-drift>
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="plate-label pl-ink" style="--i:0">Plate II : the working constellations</div>
+      <h2 class="riso pl-ink" data-text="What we make" style="--ox:2;--oy:-1.6;--i:1">What we make</h2>
+    </div>
+    <div class="svc-grid">
+
+      <article class="svc snap">
+        <div class="svc-const pl-gold">
+          <svg viewBox="0 0 200 120" aria-hidden="true">
+            <path class="l-ink" d="M30 88 L70 40 L120 62 L168 26"/>
+            <circle class="star-dot" cx="30" cy="88" r="3"/><circle class="star-bright" cx="70" cy="40" r="4"/>
+            <circle class="star-dot" cx="120" cy="62" r="3"/><circle class="star-dot" cx="168" cy="26" r="2.4"/>
+          </svg>
+        </div>
+        <div class="svc-grp plate-label pl-ink" style="--i:0">Group I : Vox</div>
+        <div class="svc-card pl-ink" style="--i:1">
+          <div class="goldplate plate-shift pl-gold" style="--ox:2.6;--oy:2.8"></div>
+          <h3 class="riso" data-text="AI Systems" style="--ox:1.8;--oy:-1.4">AI Systems</h3>
+          <p>Voice agents, LLM assistants, and the evaluation infrastructure that keeps them honest. AI that answers like your best employee, in production, around the clock.</p>
+        </div>
+      </article>
+
+      <article class="svc snap">
+        <div class="svc-const pl-gold">
+          <svg viewBox="0 0 200 120" aria-hidden="true">
+            <path class="l-ink" d="M26 30 L86 58 L100 96 L150 70 L176 34"/>
+            <circle class="star-dot" cx="26" cy="30" r="2.6"/><circle class="star-dot" cx="86" cy="58" r="3"/>
+            <circle class="star-bright" cx="100" cy="96" r="4"/><circle class="star-dot" cx="150" cy="70" r="3"/>
+            <circle class="star-dot" cx="176" cy="34" r="2.4"/>
+          </svg>
+        </div>
+        <div class="svc-grp plate-label pl-ink" style="--i:0">Group II : Fabrica</div>
+        <div class="svc-card pl-ink" style="--i:1">
+          <div class="goldplate plate-shift pl-gold" style="--ox:-2.4;--oy:2.6"></div>
+          <h3 class="riso" data-text="Product Engineering" style="--ox:1.8;--oy:-1.4">Product Engineering</h3>
+          <p>Full-stack product engineering from architecture to operations: event-driven backends, modern web frontends, and infrastructure that scales without drama.</p>
+        </div>
+      </article>
+
+      <article class="svc snap">
+        <div class="svc-const pl-gold">
+          <svg viewBox="0 0 200 120" aria-hidden="true">
+            <path class="l-ink" d="M34 60 L78 30 L128 44 L118 92 L170 78"/>
+            <circle class="star-dot" cx="34" cy="60" r="3"/><circle class="star-dot" cx="78" cy="30" r="2.6"/>
+            <circle class="star-bright" cx="128" cy="44" r="4"/><circle class="star-dot" cx="118" cy="92" r="3"/>
+            <circle class="star-dot" cx="170" cy="78" r="2.4"/>
+          </svg>
+        </div>
+        <div class="svc-grp plate-label pl-ink" style="--i:0">Group III : Mercatus</div>
+        <div class="svc-card pl-ink" style="--i:1">
+          <div class="goldplate plate-shift pl-gold" style="--ox:2.4;--oy:-2.6"></div>
+          <h3 class="riso" data-text="Commerce and Platforms" style="--ox:1.8;--oy:-1.4">Commerce and Platforms</h3>
+          <p>Deep Shopify and LINE platform work: storefronts, admin apps, integrations, and the messaging rails Southeast Asian commerce runs on.</p>
+        </div>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<!-- ===================== WORK ===================== -->
+<section class="work sec" id="work" data-drift>
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="plate-label pl-ink" style="--i:0">Plate III : print proof, tipped in</div>
+      <h2 class="riso pl-ink" data-text="Selected work" style="--ox:2;--oy:-1.6;--i:1">Selected work</h2>
+    </div>
+    <div class="proof-slot">
+      <div class="proof snap pl-ink" style="--i:1">
+        <div class="goldplate plate-shift pl-gold" style="--ox:2.8;--oy:3"></div>
+        <span class="tape t1"></span><span class="tape t2"></span>
+        <div class="proof-frame">
+          <img src="../assets/flux-clinic-4k.png" alt="Duotone print proof of a bright dental clinic interior, mint and wood tones rendered as a two-colour riso photograph" loading="lazy" decoding="async">
+        </div>
+        <div class="proof-cap">
+          <div class="txt">
+            <h3 class="riso" data-text="Yimwhan AI" style="--ox:1.8;--oy:-1.4">Yimwhan AI</h3>
+            <p>An AI voice and LINE assistant for dental clinics in Thailand. It answers after-hours calls, books and reschedules appointments, and hands off to staff the moment a human matters. In production at live clinics.</p>
+          </div>
+          <div class="meta pl-gold">
+            <div class="mono">Proof 04 / 12</div>
+            <div class="mono">Voice + LINE</div>
+            <div class="mono">In production</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== APPROACH ===================== -->
+<section class="approach sec" id="approach" data-drift>
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="plate-label pl-ink" style="--i:0">Plate IV : marginalia</div>
+      <h2 class="riso pl-ink" data-text="How we work" style="--ox:2;--oy:-1.6;--i:1">How we work</h2>
+    </div>
+    <div class="notes">
+      <div class="note snap pl-ink" style="--i:0">
+        <div class="num riso pl-gold" data-text="01" style="--ox:2.4;--oy:-2">01</div>
+        <div class="body"><h3>Architecture first</h3><p>We design the system before we write the code.</p></div>
+      </div>
+      <div class="note snap pl-ink" style="--i:1">
+        <div class="num riso pl-gold" data-text="02" style="--ox:2.4;--oy:-2">02</div>
+        <div class="body"><h3>Production-worthy</h3><p>Demos impress; production endures. We build for the second one.</p></div>
+      </div>
+      <div class="note snap pl-ink" style="--i:2">
+        <div class="num riso pl-gold" data-text="03" style="--ox:2.4;--oy:-2">03</div>
+        <div class="body"><h3>Scope discipline</h3><p>The most valuable thing we tell clients is what not to build.</p></div>
+      </div>
+      <div class="note snap pl-ink" style="--i:3">
+        <div class="num riso pl-gold" data-text="04" style="--ox:2.4;--oy:-2">04</div>
+        <div class="body"><h3>Senior hands</h3><p>No juniors learning on your budget. Founder-led, senior hands on every line.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== COLOPHON (about + contact) ===================== -->
+<section class="colophon sec" id="colophon" data-drift>
+  <div class="wrap">
+    <div class="colo-slot">
+      <div class="colo-inner snap pl-ink" style="--i:1">
+        <div class="goldplate plate-shift pl-gold" style="--ox:3;--oy:3.2"></div>
+        <div class="colo-grid">
+          <div class="colo-about">
+            <div class="plate-label" style="margin-bottom:12px;">The colophon</div>
+            <h2 class="riso" data-text="Vesperwerk" style="--ox:2;--oy:-1.6">Vesperwerk</h2>
+            <p>Vesperwerk takes its name from the evening star: the first light you can navigate by. We are a founder-led studio in Bangkok building software for businesses across Asia and beyond.</p>
+            <div class="epigraph">
+              <div class="thai">ดาวประจำเมือง : แสงแรกที่ใช้นำทางยามค่ำ</div>
+              <div class="lat">City star : the first light to steer by at dusk</div>
+            </div>
+          </div>
+          <div class="colo-specs pl-gold">
+            <div class="spec-row"><span class="k">Stock</span><span class="v">Grainy cream, 148gsm</span></div>
+            <div class="spec-row"><span class="k">Plates</span><span class="v">2 : ink + gold</span></div>
+            <div class="spec-row"><span class="k">Ink</span><span class="v">Warm charcoal</span></div>
+            <div class="spec-row"><span class="k">Registration</span><span class="v">Hand, 2 to 3 px</span></div>
+            <div class="spec-row"><span class="k">Edition</span><span class="v">No. <span id="ed-no-2">037</span> / 100</span></div>
+            <div class="spec-row"><span class="k">Studio</span><span class="v">Bangkok, Thailand</span></div>
+            <div class="spec-row"><span class="k">Contact</span><span class="v"><a href="mailto:kittipong.k@vesperwerk.com">kittipong.k@vesperwerk.com</a></span></div>
+            <div class="spec-note">Simulated edition : the print number is generated per page load and is not a physical run.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FOOTER ===================== -->
+<footer class="foot sec" data-drift>
+  <div class="wrap">
+    <div class="fmark pl-gold">
+      <svg viewBox="0 0 200 200" aria-label="Vesperwerk star">
+        <g transform="translate(100,100)">
+          <g><polygon points="0,-86 -11,0 0,0" fill="#c09a4a"/><polygon points="0,-86 11,0 0,0" fill="#8a6526"/></g>
+          <g transform="rotate(180)"><polygon points="0,-86 -11,0 0,0" fill="#8a6526"/><polygon points="0,-86 11,0 0,0" fill="#c09a4a"/></g>
+          <g transform="rotate(90)"><polygon points="0,-64 -9.5,0 0,0" fill="#c09a4a"/><polygon points="0,-64 9.5,0 0,0" fill="#8a6526"/></g>
+          <g transform="rotate(270)"><polygon points="0,-64 -9.5,0 0,0" fill="#8a6526"/><polygon points="0,-64 9.5,0 0,0" fill="#c09a4a"/></g>
+          <g transform="rotate(45)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g>
+          <g transform="rotate(135)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g>
+          <g transform="rotate(225)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g>
+          <g transform="rotate(315)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g>
+        </g>
+      </svg>
+    </div>
+    <div class="fword riso pl-ink" data-text="VESPERWERK" style="--ox:1.8;--oy:-1.4">VESPERWERK</div>
+    <div class="fmeta">Bangkok, Thailand &nbsp; : &nbsp; (c) 2026 Vesperwerk</div>
+  </div>
+</footer>
+
+<script>
+/* =====================================================================
+   DATA  -  edit here to reskin the print; markup above mirrors it.
+   ===================================================================== */
+const DATA = {
+  wordmark: "VESPERWERK",
+  hero: {
+    kicker: "Celestial Chart No. VII",
+    positioning: "An independent software and AI studio. We architect, build, and operate production systems for businesses that cannot afford them to fail.",
+    ctas: [ { label: "Start a conversation", href: "#colophon" }, { label: "See our work", href: "#work" } ]
+  },
+  services: [
+    { group: "Group I : Vox",       name: "AI Systems",             copy: "Voice agents, LLM assistants, and the evaluation infrastructure that keeps them honest. AI that answers like your best employee, in production, around the clock." },
+    { group: "Group II : Fabrica",  name: "Product Engineering",    copy: "Full-stack product engineering from architecture to operations: event-driven backends, modern web frontends, and infrastructure that scales without drama." },
+    { group: "Group III : Mercatus",name: "Commerce and Platforms", copy: "Deep Shopify and LINE platform work: storefronts, admin apps, integrations, and the messaging rails Southeast Asian commerce runs on." }
+  ],
+  work: {
+    name: "Yimwhan AI",
+    copy: "An AI voice and LINE assistant for dental clinics in Thailand. It answers after-hours calls, books and reschedules appointments, and hands off to staff the moment a human matters. In production at live clinics.",
+    image: "../assets/flux-clinic-4k.png"
+  },
+  approach: [
+    { n: "01", title: "Architecture first",  copy: "We design the system before we write the code." },
+    { n: "02", title: "Production-worthy",   copy: "Demos impress; production endures. We build for the second one." },
+    { n: "03", title: "Scope discipline",    copy: "The most valuable thing we tell clients is what not to build." },
+    { n: "04", title: "Senior hands",        copy: "No juniors learning on your budget. Founder-led, senior hands on every line." }
+  ],
+  about: "Vesperwerk takes its name from the evening star: the first light you can navigate by. We are a founder-led studio in Bangkok building software for businesses across Asia and beyond.",
+  epigraphThai: "ดาวประจำเมือง : แสงแรกที่ใช้นำทางยามค่ำ",
+  contact: { email: "kittipong.k@vesperwerk.com", location: "Bangkok, Thailand" },
+  colophon: { stock: "Grainy cream, 148gsm", plates: "2 : ink + gold", registration: "Hand, 2 to 3 px", editionTotal: 100 }
+};
+
+(function(){
+  var root = document.documentElement;
+  var motionOK = window.matchMedia('(prefers-reduced-motion: no-preference)').matches;
+
+  /* edition number: randomised per page load within the simulated edition */
+  var n = String(Math.floor(Math.random() * DATA.colophon.editionTotal) + 1).padStart(3, '0');
+  var a = document.getElementById('ed-no'); if (a) a.textContent = n;
+  var b = document.getElementById('ed-no-2'); if (b) b.textContent = n;
+
+  if (!motionOK){
+    /* reduced motion : final print, no drift, no reveals, no rAF loop.
+       static per-element misregistration stays (it is the printed state). */
+    return;
+  }
+
+  root.classList.add('anim');
+
+  /* two-pass print reveal per section, printed as sections enter view */
+  var sections = [].slice.call(document.querySelectorAll('.sec'));
+  if ('IntersectionObserver' in window){
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if (e.isIntersecting){ e.target.classList.add('inview'); io.unobserve(e.target); }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+    sections.forEach(function(s){ io.observe(s); });
+  } else {
+    sections.forEach(function(s){ s.classList.add('inview'); });
+  }
+
+  /* edition stamp thunks in after the ink + gold passes settle */
+  var stamp = document.querySelector('.stamp');
+  setTimeout(function(){ if (stamp) stamp.classList.add('thunk'); }, 1550);
+
+  /* ---- the living mechanic : the gold plate offset breathes ----
+     rAF updates only --dx/--dy on each drifting section (cheap), and a
+     scroll progress value draws the full-page constellation route.
+     transforms read these vars, so all motion is transform-only.       */
+  var drifters = [].slice.call(document.querySelectorAll('[data-drift]'));
+  var routeInk = document.querySelector('.route-line');
+  var routeGold = document.querySelector('.route-gold');
+  var docEl = document.documentElement;
+  var running = true;
+
+  function frame(t){
+    if (!running) return;
+    var s = t / 1000;
+    for (var i = 0; i < drifters.length; i++){
+      var ph = i * 1.7;
+      var dx = Math.sin(s * 0.72 + ph) * 1.15;          /* ~9s cycle, few px */
+      var dy = Math.cos(s * 0.55 + ph * 1.3) * 0.95;
+      drifters[i].style.setProperty('--dx', dx.toFixed(3));
+      drifters[i].style.setProperty('--dy', dy.toFixed(3));
+    }
+    var max = (docEl.scrollHeight - window.innerHeight) || 1;
+    var p = Math.min(1, Math.max(0, window.pageYOffset / max));
+    if (routeInk) routeInk.style.strokeDashoffset = (1 - p).toFixed(4);
+    if (routeGold) routeGold.style.strokeDashoffset = (1 - Math.min(1, p + 0.02)).toFixed(4);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  /* pause the breathing while the tab is hidden (perf hygiene) */
+  document.addEventListener('visibilitychange', function(){
+    if (document.hidden){ running = false; }
+    else if (!running){ running = true; requestAnimationFrame(frame); }
+  });
+})();
+</script>
+</body>
+</html>

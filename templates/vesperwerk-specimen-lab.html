@@ -595,6 +595,55 @@ function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<
   [sW,sO,sS].forEach(el=> el.addEventListener('input', apply));
   apply();
 
+  /* ---------- entrance breathing sweep (wght only, plays once) ----------
+     Demonstrates the live axis mechanic before any touch: sweeps the weight
+     axis down through 300, up through 700, then settles back at the default,
+     driving the same slider + readout the user would otherwise drive by hand.
+     Cancels the instant the user touches any slider and hands over control. */
+  (function entranceSweep(){
+    if(!root.classList.contains('can-animate')) return;
+
+    const KEYFRAMES = [ {t:0, w:400}, {t:300, w:300}, {t:1800, w:700}, {t:2800, w:400} ];
+    const easeInOutSine = t=> -(Math.cos(Math.PI*t)-1)/2;
+    function weightAt(elapsed){
+      const last = KEYFRAMES[KEYFRAMES.length-1];
+      if(elapsed <= 0) return KEYFRAMES[0].w;
+      if(elapsed >= last.t) return last.w;
+      for(let i=0;i<KEYFRAMES.length-1;i++){
+        const a = KEYFRAMES[i], b = KEYFRAMES[i+1];
+        if(elapsed >= a.t && elapsed <= b.t){
+          return a.w + (b.w - a.w) * easeInOutSine((elapsed - a.t) / (b.t - a.t));
+        }
+      }
+      return last.w;
+    }
+
+    let cancelled = false, raf = null, start = null;
+    function cancelSweep(){
+      if(cancelled) return;
+      cancelled = true;
+      if(raf) cancelAnimationFrame(raf);
+    }
+    [sW,sO,sS].forEach(el=>{
+      ['pointerdown','touchstart','input'].forEach(evt=> el.addEventListener(evt, cancelSweep, { once:true }));
+    });
+
+    function tick(now){
+      if(cancelled) return;
+      if(start === null) start = now;
+      const elapsed = now - start;
+      sW.value = Math.round(weightAt(elapsed));
+      apply();
+      if(elapsed < KEYFRAMES[KEYFRAMES.length - 1].t){
+        raf = requestAnimationFrame(tick);
+      } else if(!cancelled){
+        sW.value = 400;
+        apply();
+      }
+    }
+    raf = requestAnimationFrame(tick);
+  })();
+
   /* proof toggle */
   const pb = document.getElementById('proofBtn');
   pb.addEventListener('click', ()=>{

@@ -153,6 +153,16 @@ SLUG_CAT = {
     "vesperwerk-first-light-thread": "vesperwerk", "vesperwerk-almanac-of-hours": "vesperwerk",
     "vesperwerk-atelier-faceplate": "vesperwerk", "vesperwerk-grand-ascenseur": "vesperwerk",
     "vesperwerk-vesper-particles": "vesperwerk",
+    # --- batch 59+60 (Vesperwerk III/IV, Opus 4.8 builders) ---
+    "vesperwerk-planisphere-instrument": "vesperwerk", "vesperwerk-patent-plate": "vesperwerk",
+    "vesperwerk-mono-ink-restraint": "vesperwerk", "vesperwerk-riso-nocturne": "vesperwerk",
+    "vesperwerk-terminator-clock": "vesperwerk", "vesperwerk-jeweled-vitrine": "vesperwerk",
+    "vesperwerk-auction-lot": "vesperwerk", "vesperwerk-observatory-log": "vesperwerk",
+    "vesperwerk-field-notes": "vesperwerk", "vesperwerk-evening-service": "vesperwerk",
+    # --- batch 61 (Vesperwerk V, Opus 4.8 builders) ---
+    "vesperwerk-broadsheet-evening": "vesperwerk", "vesperwerk-illuminated-hours": "vesperwerk",
+    "vesperwerk-poster-crop": "vesperwerk", "vesperwerk-bibliophile-spread": "vesperwerk",
+    "vesperwerk-mission-insignia": "vesperwerk",
     # --- batch 58 (Vesperwerk II, Opus 4.8 builders) ---
     "vesperwerk-engraved-ledger": "vesperwerk", "vesperwerk-specimen-lab": "vesperwerk",
     "vesperwerk-monogram-card": "vesperwerk", "vesperwerk-bas-relief-light": "vesperwerk",

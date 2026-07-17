@@ -159,6 +159,14 @@ SLUG_CAT = {
     "vesperwerk-terminator-clock": "vesperwerk", "vesperwerk-jeweled-vitrine": "vesperwerk",
     "vesperwerk-auction-lot": "vesperwerk", "vesperwerk-observatory-log": "vesperwerk",
     "vesperwerk-field-notes": "vesperwerk", "vesperwerk-evening-service": "vesperwerk",
+    # --- batch 66 (Vesperwerk X) ---
+    "vesperwerk-mudmee-loom-resolve": "vesperwerk", "vesperwerk-spectrogram-waterfall": "vesperwerk",
+    "vesperwerk-end-crawl": "vesperwerk", "vesperwerk-readme-manifesto": "vesperwerk",
+    "vesperwerk-kranok-flame-frame": "vesperwerk",
+    # --- batch 65 (Vesperwerk IX, Opus 4.8 + Fable builders) ---
+    "vesperwerk-ramakien-cloister-walk": "vesperwerk", "vesperwerk-mastering-lathe": "vesperwerk",
+    "vesperwerk-aperture-wipe": "vesperwerk", "vesperwerk-editorial-index": "vesperwerk",
+    "vesperwerk-manpage": "vesperwerk",
     # --- batch 64 (Vesperwerk VIII, first full AD-stage batch) ---
     "vesperwerk-api-console": "vesperwerk", "vesperwerk-lai-rot-nam-gilding": "vesperwerk",
     "vesperwerk-voiceprint-monogram": "vesperwerk", "vesperwerk-material-cabinet": "vesperwerk",

@@ -326,6 +326,32 @@ King wants the next batches as BACKOFFICE ADMIN + OWNER dashboard DESIGN IDEAS f
   stroke + monotonic rooms + floor reflection). Notable: switchboard agent caught its own CSS
   transition-race (dashoffset transition snapped; rebuilt as @keyframes - BANK: SVG line-draw
   entrances should use keyframes, not transitions).
+- Batch 64 DONE + DEPLOYED (-> 310 live, Vesperwerk = 44, commit d692587). FIRST FULL AD-PIPELINE
+  BATCH: 5/5 shipped (4 first-time PASS + cabinet fixed once [espresso carcass + seeded oak figure
+  + milled brass] and re-judged "SOTD-class"). JUDGE FLOOR CHECK CONFIRMED THE HYPOTHESIS: "average
+  visibly higher - the pipeline's fingerprint" - lai-rot-nam (FABLE-BUILT via concept-risk routing)
+  = batch standout + premium-not-kitsch; soft-brutalism = judge's #1 pick for King's REAL site.
+  AD stage caught 2 real scroll=0 defects verify missed (lai-rot-nam fragmenting hero card +
+  unreadable text override) = the stage pays for itself. Elevation notes applied to all passes; AD
+  agent correctly SKIPPED the blueprint-blue note (palette discipline over trope).
+- TOKEN MEASUREMENT (King-requested, FINAL): batch 64 workflow = 1,700,725 vs baselines 62 = 1.20M /
+  63 = 1.25M -> RAW +39% (above the +25-35% prediction). BUT post-judge spend collapsed: batch 63
+  needed 7 post-judge agents + re-judges; batch 64 needed 2 (1 fix + 1 combined elevation pass).
+  ALL-IN cost per shipped template ~ parity or slightly better, with a visibly higher floor.
+  VERDICT REPORTED TO KING: keep the 3-stage pipeline.
+- Batch 65 GATED (built 15/15 `wrhqr6mjc`, 1.65M tokens - pipeline cost stable; AD stage caught
+  TOOL-CALL LEAKAGE text corrupting the ramakien DOM + corrected a stage-2 FALSE CLAIM: the gold
+  sky band only spanned the first 1440px on desktop [flex container never grew; width:max-content
+  fix] - BANK: verify agents' scroll=0 confirmations can be viewport-local; AD's independent
+  capture is the safety net). MY GATE x5: FPS 107-123, dash CLEAN x5, lathe + index vlint 0/0,
+  ramakien HIGH = frieze rail by-design (A/B-proven). Judge `judge-batch65` running (ramakien
+  mural grammar = make-or-break).
+- Batch 66 IN FLIGHT `wbvyu87k2` (Vesperwerk X): mudmee-loom-resolve (Thai ikat weave, Fable build,
+  entrance resolves hero to crisp register per the parked-shoji rule), spectrogram-waterfall (SDR
+  waterfall w/ the 300Hz-3.4kHz voice band as the gold ridge), end-crawl (site as cinema end
+  credits, THE END -> THE BEGINNING payoff), readme-manifesto (Monospace Web discipline, VIEW
+  SOURCE toggle flips rendered/raw), kranok-flame-frame (breathing ember frame, density follows
+  focus). SLUG_CAT pre-added.
 - Batch 63 FIX RESULTS: corridor door clickability FIXED (root cause = sibling stacking contexts,
   .stage z-index could never escape .scroll + an invisible faded .vinyl still ate clicks;
   pointer-events:none default + opt-in restore; occluded findings 0/0, fast-walk fires); isometric

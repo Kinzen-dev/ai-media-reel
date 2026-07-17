@@ -1,0 +1,918 @@
+<!-- TEMPLATE: Vesperwerk Spectrogram Waterfall | ARCHETYPE: The Voice Band - a frequency waterfall with one gold ridge | REF: Indigo Laboratory (Awwwards SOTD Jun 2026) + SDR waterfall display + telephony voice band 300Hz-3.4kHz | WHEN TO USE: founder-led software/AI studio site where one technical signature (the voice band) carries the brand | SWAP: edit the DATA and CFG objects at the top of the script -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vesperwerk - Spectrogram Waterfall</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&family=Noto+Serif+Thai:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1d1a16; --ink-0:#151310; --ink-panel:#211c17;
+    --cream:#efe7d7; --cream-dim:#c6bda9; --cream-soft:#9a917f;
+    --gold:#a8802f; --gold-lite:#c09a4a; --gold-bright:#d8b45c;
+    --line:rgba(192,154,74,0.22);
+    --maxw:1200px;
+    --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --serif:'Playfair Display',Georgia,'Times New Roman',serif;
+    --sans:'Inter',system-ui,-apple-system,Segoe UI,sans-serif;
+    --thai:'Noto Serif Thai',var(--serif);
+  }
+  *{box-sizing:border-box}
+  html{overflow-x:clip;-webkit-text-size-adjust:100%}
+  body{
+    margin:0;background:var(--ink-0);color:var(--cream);
+    font-family:var(--sans);font-size:16px;line-height:1.5;
+    overflow-x:clip;-webkit-font-smoothing:antialiased;
+  }
+  img{max-width:100%;display:block}
+  a{color:inherit;text-decoration:none}
+  h1,h2,h3{margin:0;font-family:var(--serif);font-weight:600;line-height:1.06}
+  p{margin:0}
+  button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+  ::selection{background:rgba(192,154,74,0.32);color:#fff}
+  :focus-visible{outline:2px solid var(--gold-bright);outline-offset:3px;border-radius:2px}
+
+  /* ---------- waterfall + overlays ---------- */
+  #wf{position:fixed;inset:0;width:100%;height:100%;z-index:0;display:block;opacity:0;transition:opacity 1.1s ease;background:var(--ink-0)}
+  #wf.lit{opacity:1}
+  .vignette{position:fixed;inset:0;z-index:1;pointer-events:none;
+    background:radial-gradient(125% 82% at 50% 38%, rgba(0,0,0,0) 52%, rgba(9,8,6,0.62) 100%);}
+  .freq-cursor{position:fixed;top:0;left:0;z-index:40;pointer-events:none;
+    transform:translate(-50%,-140%);font-family:var(--mono);font-size:11px;letter-spacing:.08em;
+    color:var(--ink-0);background:var(--gold-bright);padding:3px 7px;border-radius:2px;
+    white-space:nowrap;opacity:0;transition:opacity .18s ease;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+  .freq-cursor.on{opacity:1}
+  .freq-cursor::after{content:'';position:absolute;left:50%;top:100%;transform:translateX(-50%);
+    border:5px solid transparent;border-top-color:var(--gold-bright)}
+
+  /* ---------- nav ---------- */
+  .nav{position:fixed;top:0;left:0;right:0;z-index:20;
+    display:flex;align-items:center;justify-content:space-between;gap:16px;
+    padding:16px clamp(16px,4vw,40px);
+    background:linear-gradient(180deg,rgba(15,13,11,0) 0%,rgba(15,13,11,0) 100%);
+    transition:background .4s ease,box-shadow .4s ease}
+  .nav.scrolled{background:linear-gradient(180deg,rgba(17,15,12,0.92) 0%,rgba(17,15,12,0.72) 78%,rgba(17,15,12,0) 100%)}
+  .brandmark{display:flex;align-items:center;gap:11px;min-width:0}
+  .star{display:inline-block;flex:0 0 auto;line-height:0;filter:drop-shadow(0 1px 4px rgba(168,128,47,.35))}
+  .star svg{display:block;width:100%;height:100%}
+  .nav .star{width:24px;height:24px}
+  .wordmark-sm{font-family:var(--serif);font-weight:600;font-size:15px;letter-spacing:.22em;color:var(--cream);white-space:nowrap}
+  .navlinks{display:flex;gap:clamp(14px,2vw,28px);min-width:0}
+  .navlinks a{font-size:13px;letter-spacing:.04em;color:var(--cream-dim);transition:color .2s ease;
+    text-shadow:0 1px 8px rgba(10,8,6,.65)}
+  .navlinks a:hover{color:var(--gold-bright)}
+  .cta{flex:0 0 auto;font-size:12.5px;letter-spacing:.06em;color:var(--ink-0);
+    background:var(--gold-lite);padding:9px 16px;border-radius:2px;font-weight:600;
+    transition:background .2s ease,transform .2s ease}
+  .cta:hover{background:var(--gold-bright);transform:translateY(-1px)}
+
+  /* ---------- layout shells ---------- */
+  .page{position:relative;z-index:2}
+  .section{position:relative;padding:clamp(72px,12vh,150px) clamp(16px,5vw,40px)}
+  .wrap{max-width:var(--maxw);margin:0 auto;min-width:0}
+  .eyebrow{display:inline-block;font-family:var(--mono);font-size:11.5px;letter-spacing:.2em;
+    text-transform:uppercase;color:var(--gold-lite)}
+  .mono{font-family:var(--mono);letter-spacing:.06em}
+  .section-head{max-width:720px;margin:0 0 clamp(30px,5vw,56px)}
+  .section-head h2{font-size:clamp(1.9rem,4.4vw,3.1rem);margin-top:14px;
+    text-shadow:0 2px 20px rgba(12,10,8,.7)}
+  .section-head .eyebrow{text-shadow:0 1px 12px rgba(12,10,8,.8)}
+
+  /* ---------- hero ---------- */
+  .hero{min-height:100svh;display:flex;flex-direction:column;justify-content:center;align-items:center;
+    text-align:center;padding:120px clamp(16px,5vw,40px) 96px;position:relative}
+  .hero-inner{position:relative;max-width:940px;width:100%;padding:20px 0}
+  .hero-inner::before{content:'';position:absolute;inset:-10% -14%;z-index:-1;
+    background:radial-gradient(ellipse 66% 74% at 50% 50%, rgba(17,15,12,.86) 0%, rgba(17,15,12,.6) 44%, rgba(17,15,12,0) 76%)}
+  .vb-annot{font-family:var(--mono);font-size:clamp(10.5px,1.5vw,13px);letter-spacing:.22em;
+    padding-left:.22em;color:var(--gold-bright);margin-bottom:clamp(16px,3vw,26px);min-height:1.2em}
+  .vb-annot .caret{color:var(--gold-lite);animation:blink 1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+  .vb-annot.locked{opacity:1;animation:lockPulse 1.1s cubic-bezier(.2,.7,.2,1) 1}
+  @keyframes lockPulse{
+    0%{text-shadow:0 0 0 rgba(216,180,92,0)}
+    30%{text-shadow:0 0 16px rgba(216,180,92,.8),0 0 40px rgba(216,180,92,.38)}
+    100%{text-shadow:0 0 0 rgba(216,180,92,0)}}
+  .wordmark{font-size:clamp(2.7rem,10vw,8.4rem);font-weight:600;letter-spacing:.14em;
+    padding-left:.14em;color:var(--cream);line-height:.98;white-space:nowrap;
+    text-shadow:0 4px 40px rgba(10,8,6,.55),0 1px 0 rgba(255,248,235,.06)}
+  .positioning{max-width:660px;margin:clamp(22px,3.5vw,32px) auto 0;
+    font-size:clamp(1.02rem,1.55vw,1.3rem);line-height:1.55;color:var(--cream-dim)}
+  .hero-cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:clamp(26px,4vw,38px)}
+  .btn{font-size:14px;letter-spacing:.04em;padding:13px 24px;border-radius:2px;font-weight:600;
+    transition:background .2s ease,color .2s ease,border-color .2s ease;display:inline-block}
+  .btn-gold{background:var(--gold-lite);color:var(--ink-0)}
+  .btn-gold:hover{background:var(--gold-bright)}
+  .btn-ghost{border:1px solid var(--line);color:var(--cream-dim)}
+  .btn-ghost:hover{border-color:var(--gold-lite);color:var(--cream)}
+  .bandjump{display:flex;align-items:center;gap:8px;justify-content:center;flex-wrap:wrap;
+    margin-top:clamp(28px,4vw,42px)}
+  .bandjump-label{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--cream-soft)}
+  .bandjump button{font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;color:var(--cream-dim);
+    border:1px solid var(--line);padding:7px 13px;border-radius:2px;transition:all .2s ease}
+  .bandjump button:hover{border-color:var(--gold-lite);color:var(--gold-bright);background:rgba(168,128,47,.08)}
+  .readout{position:absolute;left:clamp(16px,5vw,40px);bottom:clamp(20px,4vh,40px);
+    font-family:var(--mono);font-size:11.5px;letter-spacing:.13em;color:var(--gold-lite);
+    text-shadow:0 1px 10px rgba(10,8,6,.9)}
+  .readout .dim{color:var(--cream-soft)}
+  .scrollcue{position:absolute;right:clamp(16px,5vw,40px);bottom:clamp(20px,4vh,40px);
+    font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--cream-soft);
+    text-transform:uppercase;display:flex;align-items:center;gap:9px}
+  .scrollcue::after{content:'';width:34px;height:1px;background:linear-gradient(90deg,var(--gold-lite),transparent);
+    animation:pulseline 2.4s ease-in-out infinite}
+  @keyframes pulseline{0%,100%{opacity:.3}50%{opacity:1}}
+
+  /* ---------- panels / services ---------- */
+  .panels{display:flex;flex-direction:column;gap:clamp(18px,3vw,30px);max-width:760px;margin:0 auto}
+  .panel{position:relative;background:rgba(27,23,19,0.93);border:1px solid var(--line);
+    border-left:3px solid var(--gold);border-radius:3px;
+    padding:clamp(20px,3.4vw,34px);box-shadow:0 18px 50px -30px rgba(0,0,0,.9);min-width:0}
+  .panel .band-tag{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--gold-lite);display:block;margin-bottom:12px}
+  .panel h3{font-size:clamp(1.4rem,2.6vw,1.95rem);color:var(--cream);margin-bottom:10px}
+  .panel p{color:var(--cream-dim);font-size:clamp(.98rem,1.35vw,1.08rem);line-height:1.6;max-width:56ch}
+  .miniband{position:relative;height:8px;margin:16px 0 6px;border-radius:5px;
+    background:linear-gradient(90deg,rgba(120,110,92,.16),rgba(120,110,92,.28),rgba(120,110,92,.16));overflow:hidden}
+  .miniband .seg{position:absolute;top:0;bottom:0;border-radius:5px;
+    background:linear-gradient(90deg,rgba(168,128,47,0),var(--gold-bright),rgba(168,128,47,0));
+    box-shadow:0 0 12px rgba(216,180,92,.5)}
+  .miniband-scale{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;
+    letter-spacing:.08em;color:var(--cream-soft)}
+  .panel-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;flex-wrap:wrap}
+  .panel-note{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:var(--cream-soft);text-transform:uppercase}
+  .tone-btn{font-family:var(--mono);font-size:11px;letter-spacing:.09em;color:var(--gold-lite);
+    border:1px solid var(--line);padding:6px 12px;border-radius:2px;transition:all .2s ease;flex:0 0 auto}
+  .tone-btn:hover{border-color:var(--gold-lite);color:var(--gold-bright);background:rgba(168,128,47,.08)}
+
+  /* ---------- case ---------- */
+  .case-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(20px,3vw,40px);align-items:stretch}
+  .case-grid>*{min-width:0}
+  .case-copy{display:flex;flex-direction:column;gap:14px}
+  .case-copy p{color:var(--cream-dim);font-size:clamp(1rem,1.4vw,1.14rem);line-height:1.62}
+  .case-readout{font-family:var(--mono);font-size:11px;letter-spacing:.11em;color:var(--gold-lite);
+    border-top:1px solid var(--line);padding-top:14px;margin-top:auto;text-transform:uppercase}
+  .case-card{margin:0;display:flex;flex-direction:column;gap:10px;
+    background:rgba(21,19,16,0.9);border:1px solid var(--line);border-radius:3px;padding:12px}
+  .obs-frame{position:relative;aspect-ratio:16/10;background:var(--ink-0);border-radius:2px;overflow:hidden;
+    display:flex;align-items:center;justify-content:center}
+  .obs-frame img{width:100%;height:100%;object-fit:contain}
+  .obs-frame::after{content:'';position:absolute;inset:0;pointer-events:none;
+    box-shadow:inset 0 0 60px rgba(9,8,6,.6);
+    background:linear-gradient(180deg,rgba(21,19,16,.1),rgba(21,19,16,0) 22%)}
+  .case-card figcaption{font-family:var(--mono);font-size:10.5px;letter-spacing:.11em;
+    color:var(--cream-soft);text-transform:uppercase}
+
+  /* ---------- principles ---------- */
+  .calib{list-style:none;margin:0;padding:0;max-width:900px;position:relative}
+  .calib::before{content:'';position:absolute;inset:-34px 0 -34px -40px;z-index:-1;pointer-events:none;
+    background:linear-gradient(180deg,rgba(17,15,12,0),rgba(17,15,12,.76) 7%,rgba(17,15,12,.76) 93%,rgba(17,15,12,0));
+    -webkit-mask:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);
+    mask:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)}
+  .calib-line{display:grid;grid-template-columns:auto 1fr auto;align-items:baseline;gap:clamp(16px,3vw,34px);
+    padding:clamp(20px,3vw,30px) 0;border-top:1px dashed rgba(192,154,74,.32);position:relative}
+  .calib-line:last-child{border-bottom:1px dashed rgba(192,154,74,.32)}
+  .calib-line::before{content:'';position:absolute;top:-1px;left:0;width:38px;height:1px;background:var(--gold-bright)}
+  .calib-idx{font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--gold-lite);padding-top:4px;
+    text-shadow:0 1px 10px rgba(10,8,6,.9)}
+  .calib-body h3{font-size:clamp(1.25rem,2.3vw,1.7rem);color:var(--cream);margin-bottom:6px;
+    text-shadow:0 2px 16px rgba(10,8,6,.92),0 0 3px rgba(10,8,6,.7)}
+  .calib-body p{color:var(--cream-dim);font-size:clamp(.96rem,1.3vw,1.06rem);line-height:1.55;max-width:52ch;
+    text-shadow:0 1px 12px rgba(10,8,6,.95),0 0 2px rgba(10,8,6,.85)}
+  .calib-hz{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:var(--cream-soft);
+    text-transform:uppercase;white-space:nowrap;padding-top:6px;
+    text-shadow:0 1px 10px rgba(10,8,6,.9)}
+
+  /* ---------- about ---------- */
+  .about-inner{max-width:760px;margin:0 auto;text-align:center;
+    background:rgba(27,23,19,0.9);border:1px solid var(--line);border-radius:3px;
+    padding:clamp(30px,5vw,56px)}
+  .about-inner .star{width:44px;height:44px;margin:0 auto 18px}
+  .about-inner .eyebrow{padding-left:.2em}
+  .about-copy{font-family:var(--serif);font-weight:500;font-size:clamp(1.2rem,2.4vw,1.75rem);
+    line-height:1.5;color:var(--cream);margin-top:16px}
+
+  /* ---------- contact ---------- */
+  .contact{min-height:88svh;display:flex;align-items:center;justify-content:center;text-align:center}
+  .contact-inner{max-width:760px;margin:0 auto;position:relative;padding:20px 0}
+  .contact-inner::before{content:'';position:absolute;inset:-12% -10%;z-index:-1;
+    background:radial-gradient(ellipse 62% 68% at 50% 50%, rgba(17,15,12,.86) 0%, rgba(17,15,12,.5) 48%, rgba(17,15,12,0) 76%)}
+  .contact-inner .eyebrow{padding-left:.2em}
+  .email{display:inline-block;font-family:var(--serif);font-weight:600;
+    font-size:clamp(1.5rem,5vw,2.9rem);color:var(--gold-bright);letter-spacing:.01em;
+    margin:18px 0 4px;overflow-wrap:anywhere;
+    text-shadow:0 0 34px rgba(216,180,92,.34)}
+  .email:hover{color:#eec872}
+  .thai-epigraph{font-family:var(--thai);font-weight:500;font-size:clamp(1.05rem,2.5vw,1.42rem);
+    line-height:1.5;letter-spacing:normal;color:var(--cream-dim);margin:22px auto 0;max-width:38ch}
+  .loc{font-size:11.5px;letter-spacing:.16em;padding-left:.16em;color:var(--cream-soft);text-transform:uppercase;margin:20px 0 26px}
+
+  /* ---------- footer ---------- */
+  .footer{position:relative;z-index:2;border-top:1px solid var(--line);
+    padding:clamp(30px,5vw,52px) clamp(16px,5vw,40px);
+    background:linear-gradient(180deg,rgba(15,13,11,0.5),rgba(15,13,11,0.94));
+    display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px}
+  .foot-brand{display:flex;align-items:center;gap:11px;min-width:0}
+  .foot-brand .star{width:22px;height:22px}
+  .foot-brand .wordmark-sm{font-size:14px}
+  .foot-meta{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--cream-soft)}
+  .colophon{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:var(--cream-soft);
+    text-transform:uppercase;width:100%;padding-top:8px;border-top:1px solid rgba(192,154,74,.12)}
+
+  .anim{opacity:0}
+  .lit-in{animation:riseIn .95s cubic-bezier(.2,.7,.2,1) forwards}
+  @keyframes riseIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+
+  /* ---------- responsive ---------- */
+  @media (max-width:820px){
+    .case-grid{grid-template-columns:1fr}
+    .navlinks{display:none}
+  }
+  @media (max-width:640px){
+    .wordmark{font-size:clamp(1.85rem,8.4vw,2.7rem);letter-spacing:.04em;padding-left:.04em}
+    .calib-line{grid-template-columns:auto 1fr;gap:14px}
+    .calib-hz{grid-column:1/-1;padding-top:0}
+    .calib::before{inset:-24px 0 -24px -18px}
+    .scrollcue{display:none}
+    .hero{padding-top:104px}
+    .section-head{margin-bottom:26px}
+    .hero-cta{flex-direction:column;align-items:center;gap:12px}
+    .hero-cta .btn{width:min(100%,280px);text-align:center}
+    .bandjump{gap:10px}
+    .bandjump-label{flex-basis:100%;text-align:center}
+    .readout{font-size:10px;letter-spacing:.08em}
+  }
+  @media (hover:none){ .freq-cursor{display:none} }
+
+  @media (prefers-reduced-motion:reduce){
+    #wf{opacity:1 !important;transition:none}
+    .anim{opacity:1 !important;transform:none !important;animation:none !important}
+    .scrollcue::after,.vb-annot .caret,.vb-annot.locked{animation:none}
+    *{scroll-behavior:auto !important}
+  }
+  html{scroll-behavior:smooth}
+</style>
+</head>
+<body>
+<canvas id="wf" role="img" aria-label="Frequency waterfall. The telephony voice band, 300 Hz to 3.4 kHz, glows in gold as the brand signature. Move the pointer to read a frequency; click the background to send a visual test tone."></canvas>
+<div class="vignette" aria-hidden="true"></div>
+<div class="freq-cursor" id="freqCursor" aria-hidden="true"><span id="freqReadout">1.00 kHz</span></div>
+
+<header class="nav" id="nav">
+  <a class="brandmark" href="#hero" aria-label="Vesperwerk home">
+    <span class="star" data-star aria-hidden="true"></span>
+    <span class="wordmark-sm">VESPERWERK</span>
+  </a>
+  <nav class="navlinks" id="navlinks" aria-label="Primary"></nav>
+  <a class="cta" href="#contact" id="navCta">Start a conversation</a>
+</header>
+
+<main class="page">
+  <!-- HERO -->
+  <section id="hero" class="hero">
+    <div class="hero-inner">
+      <div class="vb-annot anim lit-in" id="vbAnnot" style="animation-delay:.15s"></div>
+      <h1 class="wordmark anim lit-in" id="wordmark" style="animation-delay:.28s">VESPERWERK</h1>
+      <p class="positioning anim lit-in" id="positioning" style="animation-delay:.5s"></p>
+      <div class="hero-cta anim lit-in" style="animation-delay:.66s">
+        <a class="btn btn-gold" href="#contact" id="ctaPrimary">Start a conversation</a>
+        <a class="btn btn-ghost" href="#work" id="ctaSecondary">See our work</a>
+      </div>
+      <div class="bandjump anim lit-in" role="group" aria-label="Tune to a frequency band" style="animation-delay:.8s">
+        <span class="bandjump-label">Tune</span>
+        <button type="button" data-jump="low" data-target="#services">Fundamentals</button>
+        <button type="button" data-jump="voice" data-target="#services">Voice band</button>
+        <button type="button" data-jump="harm" data-target="#services">Harmonics</button>
+      </div>
+    </div>
+    <div class="readout" id="readout"></div>
+    <div class="scrollcue" aria-hidden="true">scroll to tune the spectrum</div>
+  </section>
+
+  <!-- SERVICES -->
+  <section id="services" class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">Services . three bands</span>
+        <h2 id="servicesHead"></h2>
+      </div>
+      <div class="panels" id="panels"></div>
+    </div>
+  </section>
+
+  <!-- CASE -->
+  <section id="work" class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow" id="caseKicker"></span>
+        <h2 id="caseTitle"></h2>
+      </div>
+      <div class="case-grid">
+        <div class="panel case-copy">
+          <span class="band-tag">Voice band activity . live</span>
+          <p id="caseBody"></p>
+          <div class="case-readout" id="caseReadout"></div>
+        </div>
+        <figure class="case-card">
+          <div class="obs-frame">
+            <img id="caseImg" src="../assets/flux-clinic-4k.png" alt="" loading="lazy" decoding="async">
+          </div>
+          <figcaption id="caseCaption"></figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRINCIPLES -->
+  <section id="approach" class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">Approach . calibration lines</span>
+        <h2 id="approachHead"></h2>
+      </div>
+      <ol class="calib" id="calib"></ol>
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section id="about" class="section">
+    <div class="wrap">
+      <div class="about-inner">
+        <span class="star" data-star aria-hidden="true"></span>
+        <span class="eyebrow" id="aboutKicker"></span>
+        <p class="about-copy" id="aboutCopy"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTACT -->
+  <section id="contact" class="section contact">
+    <div class="contact-inner">
+      <span class="eyebrow" id="contactKicker"></span>
+      <a class="email" id="email" href="#"></a>
+      <p class="thai-epigraph" id="epigraph" lang="th"></p>
+      <p class="loc mono" id="location"></p>
+      <a class="btn btn-gold" id="contactCta" href="#">Start a conversation</a>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="foot-brand">
+    <span class="star" data-star aria-hidden="true"></span>
+    <span class="wordmark-sm">VESPERWERK</span>
+  </div>
+  <div class="foot-meta" id="footMeta"></div>
+  <div class="colophon" id="colophon"></div>
+</footer>
+
+<script>
+/* ============================================================================
+   DATA - all copy. Edit here to swap content (mirrors the Vesperwerk brand).
+   ========================================================================== */
+const DATA = {
+  brand:'VESPERWERK',
+  nav:[['Services','#services'],['Work','#work'],['Approach','#approach'],['About','#about']],
+  cta:'Start a conversation',
+  ctaSecondary:'See our work',
+  heroAnnot:'300 Hz - 3.4 kHz  .  THE VOICE BAND',
+  positioning:'An independent software and AI studio. We architect, build, and operate production systems for businesses that cannot afford them to fail.',
+  servicesHead:'Three bands, one signal',
+  services:[
+    {band:'voice', tag:'Voice band . 300 Hz - 3.4 kHz', title:'AI Systems',
+     body:'Voice agents, LLM assistants, and the evaluation infrastructure that keeps them honest. AI that answers like your best employee, in production, around the clock.',
+     note:'on the voice band itself', range:[300,3400]},
+    {band:'low', tag:'The fundamentals . 60 Hz - 150 Hz', title:'Product Engineering',
+     body:'Full-stack product engineering from architecture to operations: event-driven backends, modern web frontends, and infrastructure that scales without drama.',
+     note:'a low, stable band', range:[60,150]},
+    {band:'harm', tag:'Harmonic stack . 4 kHz - 12 kHz', title:'Commerce and Platforms',
+     body:'Deep Shopify and LINE platform work: storefronts, admin apps, integrations, and the messaging rails Southeast Asian commerce runs on.',
+     note:'a stack of harmonics', range:[4000,13000]},
+  ],
+  caseKicker:'Selected work . call event',
+  caseTitle:'Yimwhan AI',
+  caseBody:'An AI voice and LINE assistant for dental clinics in Thailand. It answers after-hours calls, books and reschedules appointments, and hands off to staff the moment a human matters. In production at live clinics.',
+  caseReadout:'Event . inbound call . after hours . handoff ready',
+  caseCaption:'Observation . live clinic . Thailand',
+  caseAlt:'A calm mint and wood dental clinic interior, the observation card for the Yimwhan case',
+  approachHead:'Four lines we hold',
+  principles:[
+    {t:'Architecture first', b:'We design the system before we write the code.'},
+    {t:'Production-worthy', b:'Demos impress; production endures. We build for the second one.'},
+    {t:'Scope discipline', b:'The most valuable thing we tell clients is what not to build.'},
+    {t:'Senior hands', b:'No juniors learning on your budget. Founder-led, senior hands on every line.'},
+  ],
+  aboutKicker:'The name',
+  about:'Vesperwerk takes its name from the evening star: the first light you can navigate by. We are a founder-led studio in Bangkok building software for businesses across Asia and beyond.',
+  contactKicker:'Contact . the voice band still glowing',
+  email:'kittipong.k@vesperwerk.com',
+  epigraph:'ดาวประจำเมือง : แสงแรกที่ใช้นำทางยามค่ำ',
+  location:'Bangkok, Thailand',
+  colophon:'waterfall: canvas2d, seeded . no microphone . no audio',
+  copyright:'(c) 2026 Vesperwerk',
+};
+
+/* ============================================================================
+   CFG - waterfall / signal parameters. Edit to re-tune the spectrum.
+   ========================================================================== */
+const CFG = {
+  seed:8421, fmin:40, fmax:16000,
+  voiceLo:300, voiceHi:3400,
+  lowLo:55, lowHi:160,
+  harm:[4500,6300,8800,12000], harmLo:4000, harmHi:13000,
+  driftBase:0.42, driftMobile:0.26, fft:2048, dprCap:2,
+};
+
+/* frequency <-> normalized-x helpers (log scale), used by hydrate + engine */
+const LOGMIN = Math.log(CFG.fmin), LOGMAX = Math.log(CFG.fmax), LSPAN = LOGMAX - LOGMIN;
+function frToX(f){ return (Math.log(f) - LOGMIN) / LSPAN; }
+function xToFr(u){ return Math.exp(LOGMIN + u * LSPAN); }
+
+/* Inline Vesperwerk star (facet colors preserved) */
+const STAR_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Vesperwerk star"><g transform="translate(100,100)"><g><polygon points="0,-86 -11,0 0,0" fill="#c09a4a"/><polygon points="0,-86 11,0 0,0" fill="#8a6526"/></g><g transform="rotate(180)"><polygon points="0,-86 -11,0 0,0" fill="#8a6526"/><polygon points="0,-86 11,0 0,0" fill="#c09a4a"/></g><g transform="rotate(90)"><polygon points="0,-64 -9.5,0 0,0" fill="#c09a4a"/><polygon points="0,-64 9.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(270)"><polygon points="0,-64 -9.5,0 0,0" fill="#8a6526"/><polygon points="0,-64 9.5,0 0,0" fill="#c09a4a"/></g><g transform="rotate(45)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(135)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(225)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g><g transform="rotate(315)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g></g></svg>';
+</script>
+<script>
+/* ============================================================================
+   HYDRATE - fill DOM from DATA
+   ========================================================================== */
+(function hydrate(){
+  const $ = s => document.querySelector(s);
+  document.querySelectorAll('[data-star]').forEach(el => el.innerHTML = STAR_SVG);
+
+  // nav
+  const nl = document.getElementById('navlinks');
+  nl.innerHTML = DATA.nav.map(([t,h]) => '<a href="'+h+'">'+t+'</a>').join('');
+  document.getElementById('navCta').textContent = DATA.cta;
+  document.getElementById('ctaPrimary').textContent = DATA.cta;
+  document.getElementById('ctaSecondary').textContent = DATA.ctaSecondary;
+  document.getElementById('positioning').textContent = DATA.positioning;
+  document.getElementById('servicesHead').textContent = DATA.servicesHead;
+
+  // readout (styled)
+  document.getElementById('readout').innerHTML =
+    'FFT '+CFG.fft+'<span class="dim">  .  </span>DRIFT '+CFG.driftBase.toFixed(1)+
+    ' px/f<span class="dim">  .  </span>SEED '+CFG.seed+' <span class="dim">(sim)</span>';
+
+  // services
+  const freqToXpct = f => (frToX(f)*100);
+  document.getElementById('panels').innerHTML = DATA.services.map(s=>{
+    const l = freqToXpct(s.range[0]);
+    const w = freqToXpct(s.range[1]) - l;
+    return '<article class="panel" data-panel-band="'+s.band+'">'+
+      '<span class="band-tag">'+s.tag+'</span>'+
+      '<h3>'+s.title+'</h3>'+
+      '<p>'+s.body+'</p>'+
+      '<div class="miniband"><span class="seg" style="left:'+l.toFixed(1)+'%;width:'+w.toFixed(1)+'%"></span></div>'+
+      '<div class="miniband-scale"><span>'+CFG.fmin+' Hz</span><span>'+(CFG.fmax/1000)+' kHz</span></div>'+
+      '<div class="panel-foot"><span class="panel-note">'+s.note+'</span>'+
+      '<button type="button" class="tone-btn" data-tone-band="'+s.band+'">play test tone</button></div>'+
+      '</article>';
+  }).join('');
+
+  // case
+  document.getElementById('caseKicker').textContent = DATA.caseKicker;
+  document.getElementById('caseTitle').textContent = DATA.caseTitle;
+  document.getElementById('caseBody').textContent = DATA.caseBody;
+  document.getElementById('caseReadout').textContent = DATA.caseReadout;
+  document.getElementById('caseCaption').textContent = DATA.caseCaption;
+  document.getElementById('caseImg').alt = DATA.caseAlt;
+
+  // principles
+  document.getElementById('approachHead').textContent = DATA.approachHead;
+  document.getElementById('calib').innerHTML = DATA.principles.map((p,i)=>
+    '<li class="calib-line"><span class="calib-idx">'+String(i+1).padStart(2,'0')+'</span>'+
+    '<div class="calib-body"><h3>'+p.t+'</h3><p>'+p.b+'</p></div>'+
+    '<span class="calib-hz">line '+String(i+1).padStart(2,'0')+' / 04</span></li>').join('');
+
+  // about
+  document.getElementById('aboutKicker').textContent = DATA.aboutKicker;
+  document.getElementById('aboutCopy').textContent = DATA.about;
+
+  // contact
+  document.getElementById('contactKicker').textContent = DATA.contactKicker;
+  const em = document.getElementById('email');
+  em.textContent = DATA.email; em.href = 'mailto:'+DATA.email;
+  document.getElementById('epigraph').textContent = DATA.epigraph;
+  document.getElementById('location').textContent = DATA.location;
+  document.getElementById('contactCta').textContent = DATA.cta;
+  document.getElementById('contactCta').href = 'mailto:'+DATA.email;
+
+  // footer
+  document.getElementById('footMeta').textContent = DATA.location + '  .  ' + DATA.copyright;
+  document.getElementById('colophon').textContent = DATA.colophon;
+})();
+</script>
+<script>
+/* ============================================================================
+   WATERFALL ENGINE - Canvas2D, seeded, frequency-domain logic.
+   Rolling offscreen ping-pong buffer: shift up + draw one block of new rows
+   per frame, blit to screen, then paint live overlays (band glows, calm veil,
+   grid lines, test-tone bursts, frequency cursor). No microphone. No audio.
+   ========================================================================== */
+(function engine(){
+  const canvas = document.getElementById('wf');
+  const mctx = canvas.getContext('2d', { alpha:false });
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const SEED = CFG.seed|0;
+
+  // ---- palette (rgb) ----
+  const INK  = [20,17,14];
+  const dCr  = [190,182,164];   // cream delta from ink (structure / noise floor)
+  const dGd  = [206,166,84];    // gold delta from ink (voice band + highlights)
+
+  // ---- state ----
+  let W=0,H=0,DPR=1;
+  let bufs=[], idx=0, mainImg=null;
+  let tilt,vbEnv,lowEnv,harmEnv;         // per-column Float32Array (device px)
+  let phaseDev=0, rowCounter=-1;
+  let driftBase=CFG.driftBase, drift=driftBase, scrollVel=0, lastScroll=0;
+  let running=false, raf=null;
+
+  const bands = {
+    voice:{ lo:0, hi:0, glow:0.05, target:0.55 },
+    low:  { lo:0, hi:0, glow:0,   target:0 },
+    harm: { lo:0, hi:0, glow:0,   target:0 },
+  };
+  let calmGlow=0, calmTarget=0, gridGlow=0, gridTarget=0, callEvent=0, callTarget=0;
+  const pointer = { u:null, active:false };
+  let bursts=[]; let staticTone=null;
+
+  // ---- seeded hash + value noise ----
+  function hashN(i,j){
+    let h = Math.imul(i|0,0x27d4eb2d) ^ Math.imul(j|0,0x165667b1) ^ Math.imul(SEED,0x9e3779b1);
+    h = Math.imul(h ^ (h>>>15), 0x85ebca6b);
+    h = Math.imul(h ^ (h>>>13), 0xc2b2ae35);
+    h ^= h>>>16;
+    return (h>>>0) / 4294967295;
+  }
+  function fnoise(cx, r){
+    const cell = 9; const g = cx/cell; const gi = g|0; const f = g-gi;
+    const sf = f*f*(3-2*f);
+    const a = hashN(gi, r), b = hashN(gi+1, r);
+    return a + (b-a)*sf;
+  }
+  const smooth = (e0,e1,x)=>{ let t=(x-e0)/(e1-e0); t=t<0?0:t>1?1:t; return t*t*(3-2*t); };
+
+  // ---- authored spectral envelopes (column -> energy) ----
+  function voiceEnvAt(u){
+    const a=frToX(CFG.voiceLo), b=frToX(CFG.voiceHi);
+    if(u<a||u>b) return 0;
+    const t=(u-a)/(b-a);
+    const edge=smooth(0,0.06,t)*smooth(1,0.94,1-Math.abs(1-t))*smooth(0,1,1); // fade both edges
+    const eg = smooth(0,0.07,t) * smooth(0,0.07,1-t);
+    const F=[[0.16,0.05,1],[0.4,0.06,0.9],[0.66,0.05,0.75],[0.86,0.045,0.55]];
+    let s=0; for(const[c,w,amp] of F) s += amp*Math.exp(-((t-c)*(t-c))/(2*w*w));
+    return eg * (0.5 + 0.5*Math.min(1,s));
+  }
+  function plateau(u,fa,fb){
+    const a=frToX(fa), b=frToX(fb);
+    if(u<a||u>b) return 0;
+    const t=(u-a)/(b-a);
+    return smooth(0,0.2,t)*smooth(0,0.2,1-t);
+  }
+  function harmEnvAt(u){
+    let s=0; const w=0.012;
+    for(const hf of CFG.harm){ const c=frToX(hf); s += Math.exp(-((u-c)*(u-c))/(2*w*w)); }
+    return Math.min(1,s)*0.85;
+  }
+
+  function voiceFlicker(r){
+    let v = 0.72 + 0.16*Math.sin(r*0.05) + 0.10*Math.sin(r*0.017+1.3) + 0.06*fnoise(0, r*5);
+    v += callEvent * 0.55 * (0.55 + 0.45*Math.sin(r*0.11));
+    return v<0.35?0.35:v>1.5?1.5:v;
+  }
+
+  function buildEnv(){
+    tilt=new Float32Array(W); vbEnv=new Float32Array(W);
+    lowEnv=new Float32Array(W); harmEnv=new Float32Array(W);
+    for(let cx=0; cx<W; cx++){
+      const u = cx/(W-1||1);
+      tilt[cx]  = 0.25 + 0.7*Math.pow(1-u,1.15);
+      vbEnv[cx] = voiceEnvAt(u);
+      lowEnv[cx]= plateau(u, CFG.lowLo, CFG.lowHi)*0.9;
+      harmEnv[cx]= harmEnvAt(u);
+    }
+    bands.voice.lo=frToX(CFG.voiceLo); bands.voice.hi=frToX(CFG.voiceHi);
+    bands.low.lo=frToX(CFG.lowLo);     bands.low.hi=frToX(CFG.lowHi);
+    bands.harm.lo=frToX(CFG.harmLo);   bands.harm.hi=frToX(CFG.harmHi);
+  }
+
+  // ---- fill a block of rows into a buffer context (ImageData) ----
+  function fillRows(ctx, yStart, count, rTop){
+    if(count<=0) return;
+    const img = ctx.createImageData(W, count);
+    const d = img.data;
+    for(let ly=0; ly<count; ly++){
+      const r = rTop + ly;
+      const vf = voiceFlicker(r);
+      let o = ly*W*4;
+      for(let cx=0; cx<W; cx++){
+        const n  = fnoise(cx, r);
+        const n2 = fnoise(cx, r*2+7);
+        const floorV = tilt[cx]*(0.06 + 0.16*n);
+        const lowV   = lowEnv[cx]*(0.30 + 0.22*n2);
+        const harmV  = harmEnv[cx]*(0.26 + 0.20*n2);
+        const vbV    = vbEnv[cx]*vf*0.9;
+        let creamC = floorV+lowV+harmV; if(creamC>1.1) creamC=1.1;
+        let goldC  = vbV; if(goldC>1.3) goldC=1.3;
+        let R = INK[0] + dCr[0]*creamC + dGd[0]*goldC;
+        let G = INK[1] + dCr[1]*creamC + dGd[1]*goldC;
+        let B = INK[2] + dCr[2]*creamC + dGd[2]*goldC;
+        d[o]   = R>255?255:R;
+        d[o+1] = G>255?255:G;
+        d[o+2] = B>255?255:B;
+        d[o+3] = 255;
+        o+=4;
+      }
+    }
+    ctx.putImageData(img, 0, yStart);
+  }
+
+  function initFrame(){
+    rowCounter = -1;
+    fillRows(bufs[idx].getContext('2d'), 0, H, 0);
+    rowCounter = H-1;
+  }
+
+  function shiftUpAdd(rows){
+    rows = Math.min(rows, H);
+    const src = bufs[idx], dst = bufs[1-idx], dc = dst.getContext('2d');
+    dc.drawImage(src, 0, -rows);
+    fillRows(dc, H-rows, rows, rowCounter+1);
+    rowCounter += rows;
+    idx = 1-idx;
+  }
+  function shiftDownAdd(rows){
+    rows = Math.min(rows, H);
+    const src = bufs[idx], dst = bufs[1-idx], dc = dst.getContext('2d');
+    dc.drawImage(src, 0, rows);
+    fillRows(dc, 0, rows, rowCounter+1);
+    rowCounter += rows;
+    idx = 1-idx;
+  }
+
+  // ---- overlays ----
+  function bandGlowStripe(b, gain){
+    const g = b.glow*gain; if(g<0.012) return;
+    const x0=b.lo*W, x1=b.hi*W;
+    const grad = mctx.createLinearGradient(x0,0,x1,0);
+    grad.addColorStop(0,'rgba(200,154,74,0)');
+    grad.addColorStop(0.5,'rgba(216,178,92,'+(0.17*g).toFixed(3)+')');
+    grad.addColorStop(1,'rgba(200,154,74,0)');
+    mctx.fillStyle=grad; mctx.fillRect(x0,0,x1-x0,H);
+  }
+
+  function composite(){
+    // ground + waterfall blit (fractional sub-pixel offset for smooth drift)
+    mctx.fillStyle='rgb(20,17,14)';
+    mctx.fillRect(0,0,W,H);
+    mctx.drawImage(bufs[idx], 0, -phaseDev);
+
+    // calm veil: darken everything except the voice band (payoff at contact)
+    if(calmGlow>0.01){
+      const a=(0.72*calmGlow);
+      const g=mctx.createLinearGradient(0,0,W,0);
+      const c='rgba(17,15,12,'+a.toFixed(3)+')', c0='rgba(17,15,12,0)';
+      const lo=bands.voice.lo, hi=bands.voice.hi, m=0.05;
+      g.addColorStop(0,c);
+      g.addColorStop(Math.max(0,lo-m),c);
+      g.addColorStop(lo,c0); g.addColorStop(hi,c0);
+      g.addColorStop(Math.min(1,hi+m),c);
+      g.addColorStop(1,c);
+      mctx.fillStyle=g; mctx.fillRect(0,0,W,H);
+    }
+
+    // additive band glows
+    mctx.globalCompositeOperation='lighter';
+    bandGlowStripe(bands.voice, 1);
+    bandGlowStripe(bands.low, 1);
+    bandGlowStripe(bands.harm, 1);
+    // test-tone bursts (rising bright segment)
+    const now=performance.now();
+    for(let i=bursts.length-1;i>=0;i--){
+      const bt=bursts[i]; const p=(now-bt.start)/bt.dur;
+      if(p>=1){ bursts.splice(i,1); continue; }
+      const x=bt.u*W, headY=H*(1-p), segH=H*0.24, al=(1-p)*0.9;
+      const gr=mctx.createLinearGradient(0,headY,0,headY+segH);
+      gr.addColorStop(0,'rgba(232,198,120,'+al.toFixed(3)+')');
+      gr.addColorStop(1,'rgba(232,198,120,0)');
+      mctx.fillStyle=gr; mctx.fillRect(x-2*DPR,headY,4*DPR,segH);
+      mctx.fillStyle='rgba(246,224,152,'+al.toFixed(3)+')';
+      mctx.fillRect(x-2.5*DPR,headY-2*DPR,5*DPR,4*DPR);
+    }
+    mctx.globalCompositeOperation='source-over';
+
+    // static tone marker (reduced-motion)
+    if(staticTone){
+      const x=staticTone.u*W;
+      mctx.save(); mctx.globalCompositeOperation='lighter';
+      mctx.fillStyle='rgba(232,198,120,0.5)';
+      mctx.fillRect(x-1.5*DPR,0,3*DPR,H);
+      mctx.restore();
+    }
+
+    // calibration grid lines (principles)
+    if(gridGlow>0.01){
+      mctx.save();
+      mctx.strokeStyle='rgba(200,158,80,'+(0.42*gridGlow).toFixed(3)+')';
+      mctx.lineWidth=Math.max(1,DPR); mctx.setLineDash([6*DPR,10*DPR]);
+      for(let i=1;i<=4;i++){ const y=Math.round(H*i/5)+0.5; mctx.beginPath(); mctx.moveTo(0,y); mctx.lineTo(W,y); mctx.stroke(); }
+      mctx.restore();
+    }
+
+    // frequency cursor hairline
+    if(pointer.active && pointer.u!=null){
+      const x=pointer.u*W;
+      mctx.save();
+      mctx.strokeStyle='rgba(233,224,205,0.55)'; mctx.lineWidth=Math.max(1,DPR);
+      mctx.setLineDash([2*DPR,4*DPR]);
+      mctx.beginPath(); mctx.moveTo(x,0); mctx.lineTo(x,H); mctx.stroke();
+      mctx.restore();
+    }
+  }
+
+  // ---- easing ----
+  function ease(){
+    for(const k in bands){ const b=bands[k]; b.glow += (b.target-b.glow)*0.07; }
+    calmGlow += (calmTarget-calmGlow)*0.06;
+    gridGlow += (gridTarget-gridGlow)*0.06;
+    callEvent += (callTarget-callEvent)*0.05;
+  }
+
+  // ---- motion loop ----
+  function loop(){
+    if(!running){ raf=null; return; }
+    drift = driftBase + scrollVel*0.05;
+    if(drift>2.4) drift=2.4; if(drift<-1.0) drift=-1.0;
+    scrollVel *= 0.9;
+    ease();
+    phaseDev += drift*DPR;
+    if(phaseDev>=1){ const rows=Math.min(Math.floor(phaseDev),40); phaseDev-=rows; if(rows>0) shiftUpAdd(rows); }
+    else if(phaseDev<=-1){ const rows=Math.min(Math.floor(-phaseDev),40); phaseDev+=rows; if(rows>0) shiftDownAdd(rows); }
+    composite();
+    raf=requestAnimationFrame(loop);
+  }
+  function start(){ if(reduced||running) return; running=true; if(!raf) raf=requestAnimationFrame(loop); }
+  function stop(){ running=false; if(raf){ cancelAnimationFrame(raf); raf=null; } }
+
+  // ---- setup / resize ----
+  function setup(){
+    DPR = Math.min(CFG.dprCap, window.devicePixelRatio||1);
+    const cw=window.innerWidth, ch=window.innerHeight;
+    driftBase = (cw<=640 ? CFG.driftMobile : CFG.driftBase);
+    W=Math.max(2,Math.round(cw*DPR)); H=Math.max(2,Math.round(ch*DPR));
+    canvas.width=W; canvas.height=H;
+    canvas.style.width=cw+'px'; canvas.style.height=ch+'px';
+    bufs=[document.createElement('canvas'),document.createElement('canvas')];
+    for(const b of bufs){ b.width=W; b.height=H; }
+    idx=0; phaseDev=0;
+    buildEnv();
+    initFrame();
+    composite();
+  }
+
+  // ---- interactions ----
+  const fc = document.getElementById('freqCursor');
+  const fr = document.getElementById('freqReadout');
+  const fineHover = window.matchMedia('(hover: hover)').matches;
+  function fmtHz(f){ return f<1000 ? Math.round(f)+' Hz' : (f/1000).toFixed(2)+' kHz'; }
+
+  function onMove(e){
+    const u = Math.min(1,Math.max(0,(e.clientX)/window.innerWidth));
+    pointer.u=u; pointer.active=true;
+    if(fineHover){
+      fr.textContent = fmtHz(xToFr(u));
+      fc.style.left=e.clientX+'px'; fc.style.top=e.clientY+'px';
+      fc.classList.add('on');
+    }
+    if(reduced) composite();
+  }
+  function onLeave(){ pointer.active=false; fc.classList.remove('on'); if(reduced) composite(); }
+
+  function fireTone(u){
+    u=Math.min(1,Math.max(0,u));
+    if(reduced){
+      staticTone={u}; composite();
+      clearTimeout(fireTone._t);
+      fireTone._t=setTimeout(()=>{ staticTone=null; composite(); }, 900);
+    } else {
+      bursts.push({ u, start:performance.now(), dur:850 });
+      if(bursts.length>28) bursts.shift();
+    }
+  }
+  const NON_TONE = 'a,button,input,textarea,select,label,summary,[role="button"]';
+  function onDown(e){
+    if(e.target.closest(NON_TONE)) return;
+    const u=(e.clientX)/window.innerWidth;
+    fireTone(u);
+  }
+
+  window.addEventListener('pointermove', onMove, {passive:true});
+  window.addEventListener('pointerleave', onLeave, {passive:true});
+  window.addEventListener('pointerdown', onDown, {passive:true});
+
+  // band-jump + tone buttons
+  const bandCenter = { voice:Math.sqrt(CFG.voiceLo*CFG.voiceHi), low:Math.sqrt(CFG.lowLo*CFG.lowHi), harm:Math.sqrt(CFG.harmLo*CFG.harmHi) };
+  function bandU(b){ return frToX(bandCenter[b]); }
+  document.querySelectorAll('[data-jump]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const b=btn.getAttribute('data-jump'); const t=btn.getAttribute('data-target');
+      if(bands[b]){ bands[b].target=1; if(reduced){ bands[b].glow=1; } }
+      fireTone(bandU(b));
+      const el=t&&document.querySelector(t); if(el) el.scrollIntoView({behavior:reduced?'auto':'smooth'});
+    });
+  });
+  document.querySelectorAll('[data-tone-band]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const b=btn.getAttribute('data-tone-band');
+      if(bands[b]){ bands[b].target=1; if(reduced){ bands[b].glow=1; } }
+      fireTone(bandU(b));
+    });
+  });
+
+  // ---- scroll: parallax drift + nav state ----
+  const nav=document.getElementById('nav');
+  lastScroll=window.scrollY;
+  window.addEventListener('scroll',()=>{
+    const y=window.scrollY;
+    scrollVel += (y-lastScroll)*0.02;
+    lastScroll=y;
+    nav.classList.toggle('scrolled', y>40);
+    if(reduced) composite();
+  }, {passive:true});
+
+  // ---- section observers (band targets per section) ----
+  const setState = t => {
+    bands.voice.target=t.voice; bands.low.target=t.low; bands.harm.target=t.harm;
+    calmTarget=t.calm; gridTarget=t.grid; callTarget=t.call;
+    if(reduced){
+      bands.voice.glow=t.voice; bands.low.glow=t.low; bands.harm.glow=t.harm;
+      calmGlow=t.calm; gridGlow=t.grid; callEvent=t.call; composite();
+    }
+  };
+  const STATES = {
+    hero:    {voice:1.0, low:0, harm:0, calm:0, grid:0, call:0},
+    services:{voice:0.55,low:0, harm:0, calm:0, grid:0, call:0},
+    work:    {voice:1.0, low:0, harm:0, calm:0, grid:0, call:1},
+    approach:{voice:0.5, low:0, harm:0, calm:0, grid:1, call:0},
+    about:   {voice:0.6, low:0, harm:0, calm:0, grid:0, call:0},
+    contact: {voice:1.0, low:0, harm:0, calm:1, grid:0, call:0},
+  };
+  const secObs = new IntersectionObserver((ents)=>{
+    ents.forEach(en=>{ if(en.isIntersecting){ const s=STATES[en.target.id]; if(s) setState(s); } });
+  }, { rootMargin:'-45% 0px -45% 0px', threshold:0 });
+  ['hero','services','work','approach','about','contact'].forEach(id=>{
+    const el=document.getElementById(id); if(el) secObs.observe(el);
+  });
+
+  // per-panel band highlight inside services
+  const panelObs = new IntersectionObserver((ents)=>{
+    ents.forEach(en=>{
+      const b=en.target.getAttribute('data-panel-band'); if(!bands[b]) return;
+      if(en.isIntersecting){ bands[b].target=1; if(reduced){ bands[b].glow=1; composite(); } }
+      else { bands[b].target = (b==='voice'?0.55:0); if(reduced){ bands[b].glow=bands[b].target; composite(); } }
+    });
+  }, { rootMargin:'-42% 0px -42% 0px', threshold:0 });
+  document.querySelectorAll('[data-panel-band]').forEach(p=>panelObs.observe(p));
+
+  // ---- entrance: type the voice-band annotation ----
+  function typeAnnot(){
+    const el=document.getElementById('vbAnnot');
+    const txt=DATA.heroAnnot;
+    if(reduced){ el.textContent=txt; return; }
+    el.innerHTML='<span class="caret">_</span>';
+    let i=0;
+    (function tick(){
+      i++;
+      el.innerHTML = txt.slice(0,i) + (i<txt.length?'<span class="caret">_</span>':'');
+      if(i<txt.length) setTimeout(tick, 34);
+      else el.classList.add('locked');
+    })();
+  }
+
+  // ---- resize (debounced) ----
+  let rz=null;
+  window.addEventListener('resize',()=>{ clearTimeout(rz); rz=setTimeout(()=>{ setup(); if(!reduced) start(); }, 180); });
+
+  // ---- visibility ----
+  document.addEventListener('visibilitychange',()=>{ if(document.hidden) stop(); else start(); });
+
+  // ---- boot ----
+  setup();
+  nav.classList.toggle('scrolled', window.scrollY>40);
+  if(reduced){
+    canvas.style.opacity='1';
+    // snap current section state
+    setState(STATES.hero);
+    typeAnnot();
+  } else {
+    requestAnimationFrame(()=>canvas.classList.add('lit'));
+    setTimeout(typeAnnot, 380);
+    start();
+  }
+})();
+</script>
+</body>
+</html>

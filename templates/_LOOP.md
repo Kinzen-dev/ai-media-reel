@@ -317,6 +317,15 @@ King wants the next batches as BACKOFFICE ADMIN + OWNER dashboard DESIGN IDEAS f
   luminance check (hero 55-70% of payoff). RULE: if round 3 fails re-judge, PARK shoji-ma.
 - Non-blocking polish notes banked (batch 62): benjarong = bring one fired medallion above the fold;
   liquid-ink = add specular gloss to settled ink + smooth entrance blobs.
+- DEPLOYED commit a02cca3 -> 305 live, Vesperwerk = 39. Batch 62 closed (4 shipped + shoji parked);
+  Batch 63 COMPLETE 5/5 ("strongest batch yet" - switchboard + gallery-corridor = new lane leaders;
+  commit-log = sharpest identity fit for King's real site; isometric ink-weight fix re-judged PASS
+  "SOTD-class now"). ELEVATION-NOTES POLICY PROVED OUT round 1: all 4 passes got judge-directed
+  Fable elevations applied + verified (commit-log centered column + hash recede; numbers needle-first
+  light hierarchy; switchboard entrance cord-reel + trunk hierarchy + parked plug; corridor CTA
+  stroke + monotonic rooms + floor reflection). Notable: switchboard agent caught its own CSS
+  transition-race (dashoffset transition snapped; rebuilt as @keyframes - BANK: SVG line-draw
+  entrances should use keyframes, not transitions).
 - Batch 63 FIX RESULTS: corridor door clickability FIXED (root cause = sibling stacking contexts,
   .stage z-index could never escape .scroll + an invisible faded .vinyl still ate clicks;
   pointer-events:none default + opt-in restore; occluded findings 0/0, fast-walk fires); isometric

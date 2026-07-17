@@ -87,6 +87,7 @@
   .dim.h .lbl{left:0;bottom:calc(50% + 4px)}
   .dim.v .lbl{top:-2px;left:calc(50% + 9px)}
   .dim .lbl b{font-weight:700;color:var(--ink)}
+  #dimMargin .lbl{left:11px}
 
   /* ---------- HERO STAGE ---------- */
   .stage{
@@ -102,7 +103,7 @@
     flex:0 0 auto;
     font-family:var(--serif);
     font-weight:800;
-    font-size:clamp(3.2rem,16.5vw,190px);
+    font-size:clamp(3.2rem,12.55vw,190px);
     line-height:.85;
     letter-spacing:-.012em;
     color:var(--ink);
@@ -156,7 +157,8 @@
   .btn{
     font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;
     text-decoration:none;padding:13px 20px;border:1px solid var(--ink);color:var(--ink);
-    background:transparent;display:inline-flex;align-items:center;gap:9px;transition:background .2s,color .2s;
+    background:transparent;display:inline-flex;align-items:center;gap:9px;
+    transition:background .22s cubic-bezier(.2,.75,.2,1),color .22s cubic-bezier(.2,.75,.2,1);
   }
   .btn::before{content:"";width:6px;height:6px;background:var(--gold);flex:0 0 auto}
   .btn:hover,.btn:focus-visible{background:var(--ink);color:var(--concrete)}
@@ -203,13 +205,13 @@
   .spec .srow{display:grid;grid-template-columns:118px 1fr;gap:12px;padding:11px 0;border-bottom:1px solid rgba(35,31,25,.13)}
   .spec dt{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:var(--gold-d);text-transform:uppercase;padding-top:2px}
   .spec dd{font-family:var(--mono);font-size:12px;letter-spacing:.02em;color:var(--ink)}
-  .wleader{position:absolute;top:44%;left:54%;width:96px;height:12px;z-index:3;pointer-events:none;display:flex;align-items:center;gap:0}
+  .wleader{position:absolute;top:65%;left:53%;width:clamp(48px,5vw,70px);height:12px;z-index:3;pointer-events:none;display:flex;align-items:center;gap:0}
   .wleader .wl-dot{width:6px;height:6px;background:var(--gold);flex:0 0 auto}
   .wleader .wl-line{height:1px;background:var(--gold);flex:1;transform:scaleX(0);transform-origin:left center;transition:transform .8s cubic-bezier(.2,.75,.2,1) .15s}
   .surveyed .wleader .wl-line{transform:scaleX(1)}
   .wleader .wl-arw{width:6px;height:6px;border-top:1px solid var(--gold);border-right:1px solid var(--gold);transform:rotate(45deg);flex:0 0 auto;opacity:0;transition:opacity .3s .72s}
   .surveyed .wleader .wl-arw{opacity:1}
-  .wleader .wl-tag{position:absolute;left:0;top:calc(50% + 8px);font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--gold-d);white-space:nowrap;text-transform:uppercase}
+  .wleader .wl-tag{position:absolute;right:calc(100% + 8px);top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--gold-d);white-space:nowrap;text-transform:uppercase;background:var(--concrete);padding:3px 7px}
 
   /* approach: board-formed inscriptions */
   .insc-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:var(--gap)}
@@ -268,7 +270,33 @@
   #surveyTag u{display:block;text-decoration:none;font-size:10px;letter-spacing:.08em;color:#d8cfba;margin-top:3px}
   #surveyTag::after{content:"";position:absolute;right:-1px;bottom:-6px;width:5px;height:5px;background:var(--gold)}
 
-  [data-survey]{cursor:default}
+  /* survey leader: a dimension line draws across the measured element's top edge before the tag lands */
+  #surveyLeader{position:fixed;z-index:19;pointer-events:none;height:11px;opacity:0}
+  #surveyLeader .sl-ln{position:absolute;left:0;right:0;top:5px;height:1px;background:var(--gold);transform:scaleX(0);transform-origin:left center;transition:transform .2s cubic-bezier(.2,.75,.2,1)}
+  #surveyLeader .sl-t{position:absolute;top:0;width:1px;height:11px;background:var(--gold);opacity:0;transition:opacity .16s .1s}
+  #surveyLeader .sl-t.a{left:0}
+  #surveyLeader .sl-t.b{right:0}
+  #surveyLeader.on{opacity:1}
+  #surveyLeader.on .sl-ln{transform:scaleX(1)}
+  #surveyLeader.on .sl-t{opacity:1}
+
+  /* live station readout: true scroll depth, ticking on the sheet's bottom edge */
+  #depthGauge{
+    position:fixed;left:50%;bottom:11px;transform:translateX(-50%);z-index:7;pointer-events:none;
+    display:flex;gap:7px;align-items:baseline;
+    font-family:var(--mono);font-size:10px;letter-spacing:.11em;text-transform:uppercase;
+    color:var(--ink-soft);background:rgba(232,226,214,.74);
+    border:1px solid rgba(35,31,25,.16);padding:4px 11px;
+    -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);
+  }
+  #depthGauge .dg-k{color:var(--gold-d);font-weight:700}
+  #depthGauge .dg-v{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums;min-width:4ch;text-align:right}
+  #depthGauge .dg-sep{color:var(--gold);opacity:.7}
+  #depthGauge .dg-pct{color:var(--ink-soft);font-variant-numeric:tabular-nums;min-width:3ch;text-align:right}
+  /* mobile is single-column; a fixed centered readout would overlap content, so it stays a desktop survey instrument (matches #surveyTag) */
+  @media (max-width:760px){ #depthGauge{display:none} }
+
+  [data-survey]{cursor:default;transition:box-shadow .18s cubic-bezier(.2,.75,.2,1)}
   [data-survey]:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
   a:focus-visible,.btn:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 
@@ -282,9 +310,12 @@
   }
   @media (max-width:760px){
     .stage{min-height:auto;padding:var(--margin) var(--margin) calc(var(--margin) + 8px)}
-    .mega{order:1}
+    .mega{order:1;font-size:clamp(2.2rem,11vw,3.4rem)}
     .hero-foot{order:2;flex-direction:column;align-items:stretch;margin-top:34px;gap:32px}
-    .benchmark{position:static;order:3;width:64px;height:64px;margin:32px 0 4px}
+    #dimHeadline,#dimMargin{display:none}
+    .benchmark{position:relative;right:auto;top:auto;order:3;width:max-content;height:auto;margin:32px 0 4px}
+    .benchmark > svg{width:64px;height:64px}
+    .benchmark .bm-star{left:32px;top:32px}
     .benchmark .bm-cap{position:static;transform:none;display:block;margin-top:10px;text-align:left}
     .hero-right{align-items:flex-start;max-width:100%;order:1;gap:26px}
     .hero-promise{text-align:left}
@@ -307,6 +338,7 @@
   @media (prefers-reduced-motion:reduce){
     .mega{animation:none}
     .dim .ln,.dim .arw,.leader path{transition:none}
+    #surveyLeader .sl-ln,#surveyLeader .sl-t{transition:none}
     *{scroll-behavior:auto}
   }
 </style>
@@ -481,6 +513,8 @@
   </main>
 
   <div id="surveyTag" aria-hidden="true"></div>
+  <div id="surveyLeader" aria-hidden="true"><span class="sl-t a"></span><span class="sl-ln"></span><span class="sl-t b"></span></div>
+  <div id="depthGauge" class="mono" aria-hidden="true"><span class="dg-k">DEPTH</span><span class="dg-v" id="dgVal">0</span><span class="dg-u">PX</span><span class="dg-sep">.</span><span class="dg-pct" id="dgPct">0%</span></div>
 
   <script>
   /* =====================================================================
@@ -673,7 +707,8 @@
 
   /* ---------- hover / focus survey tag ---------- */
   const tag = $('#surveyTag');
-  let hideTimer;
+  const leader = $('#surveyLeader');
+  let hideTimer, tagT;
   function clockNow(){
     const d = new Date();
     return pad2(d.getHours())+':'+pad2(d.getMinutes())+':'+pad2(d.getSeconds());
@@ -688,6 +723,7 @@
   }
   function showTag(el){
     if(window.innerWidth <= 760) return;
+    el.classList.add('surv-on');
     const r = el.getBoundingClientRect();
     tag.innerHTML =
       '<b>' + Math.round(r.width) + ' x ' + Math.round(r.height) + '</b>' +
@@ -697,18 +733,28 @@
     let top = Math.max(tag.offsetHeight + 8, r.top);
     tag.style.left = left + 'px';
     tag.style.top = top + 'px';
-    tag.classList.add('on');
     clearTimeout(hideTimer);
+    // the measurement moment: draw the dimension line across the element, then the tag lands
+    leader.style.left = r.left + 'px';
+    leader.style.top = Math.max(2, r.top - 9) + 'px';
+    leader.style.width = Math.round(r.width) + 'px';
+    leader.classList.remove('on'); void leader.offsetWidth; leader.classList.add('on');
+    clearTimeout(tagT);
+    if(RM){ tag.classList.add('on'); }
+    else { tagT = setTimeout(()=> tag.classList.add('on'), 170); }
   }
-  function hideTag(){
+  function hideTag(el){
+    if(el) el.classList.remove('surv-on');
+    clearTimeout(tagT);
+    leader.classList.remove('on');
     hideTimer = setTimeout(()=> tag.classList.remove('on'), 70);
   }
   function bindSurvey(){
     $$('[data-survey]').forEach(el => {
       el.addEventListener('pointerenter', ()=> showTag(el));
-      el.addEventListener('pointerleave', hideTag);
+      el.addEventListener('pointerleave', ()=> hideTag(el));
       el.addEventListener('focus', ()=> showTag(el));
-      el.addEventListener('blur', hideTag);
+      el.addEventListener('blur', ()=> hideTag(el));
     });
   }
 
@@ -752,6 +798,21 @@
         applyHeroLabels(nv, false);
       }, 160);
     });
+
+    // live station readout: true scroll depth, ticking as you survey the sheet
+    const dgVal = $('#dgVal'), dgPct = $('#dgPct');
+    let dgRaf = 0;
+    function updateDepth(){
+      dgRaf = 0;
+      const y = Math.round(window.scrollY || window.pageYOffset || 0);
+      const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+      if(dgVal) dgVal.textContent = y;
+      if(dgPct) dgPct.textContent = Math.min(100, Math.round(y / max * 100)) + '%';
+    }
+    function onDepth(){ if(!dgRaf) dgRaf = requestAnimationFrame(updateDepth); }
+    window.addEventListener('scroll', onDepth, { passive:true });
+    window.addEventListener('resize', onDepth);
+    updateDepth();
   }
 
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

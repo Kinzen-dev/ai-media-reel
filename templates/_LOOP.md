@@ -400,6 +400,19 @@ King wants the next batches as BACKOFFICE ADMIN + OWNER dashboard DESIGN IDEAS f
   sparse->dense->grand). Batch 66 closes 4 shipped + 1 parked -> CATALOGED with trailer -> 320 in
   manifest (Vesperwerk = 54). LESSON BANKED as builder SCROLL ROOT RULE in _batch-workflow.js:
   page scrolls on the document root, never an inner overflow container.
+- Batch 67 COMPLETE 5/5 + DEPLOYED (-> 324 live, Vesperwerk = 58, commit e0cba64). mukku PASSED its
+  deciding re-judge ("Ship it" - abalone fracture material landed; composition + glide already
+  passed); stele shipped with idle raking light + drag nudge + deepened weathering; cutaway gained
+  the traveling comet + drawn ground-line nav; shell-session gained the catchable star morph +
+  paper grain. Structural-variation era verdict stands: architecture-level variation defeats
+  convergence.
+- BATCH 68 IN FLIGHT `wdv96r01h` - THE FINAL BATCH (3 concepts, per two-judge convergence: only
+  architectures that COMMUNICATE the offer): vesperwerk-bangkok-atlas (hand-drawn Bangkok map,
+  districts = services, the night-call route as geography), vesperwerk-passport (paged booklet,
+  visas = services, entry stamps = the case timeline, MRZ wit), vesperwerk-one-take (single
+  unbroken camera move through a connected diorama: studio -> street -> clinic -> rooftop star).
+  AFTER batch 68: STOP the lane and produce the CONSOLIDATION DELIVERABLE (real-site flagship
+  shortlist from all judge rankings) unless King redirects.
 - ENDGAME CONVERGENCE (two judges agree): AT MOST ONE more architecture batch (only architectures
   that also COMMUNICATE the offer: map/atlas of Bangkok districts=services, paged physical artifact
   [passport/letterpress you page through], continuous-camera diorama) then STOP and consolidate

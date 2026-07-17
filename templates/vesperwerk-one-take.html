@@ -1,0 +1,1069 @@
+<!-- TEMPLATE: The One Take | ARCHETYPE: single unbroken camera move (plan-sequence) through a connected miniature world | REF: plan-sequence cinematography (the unbroken tracking shot) + miniature diorama films + scroll-driven single-take sites | WHEN TO USE: founder-led studio or narrative brand site where the whole offer should read as one continuous cinematic take with no sections or cuts | SWAP: edit the DATA object at the top of the script -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Vesperwerk - The One Take</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&family=Noto+Serif+Thai:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --cream:#f7f0e3;
+    --cream-2:#efe4cf;
+    --ink:#2e2a26;
+    --ink-soft:#6f675b;
+    --paper:#f4ecdd;
+    --gold:#a8802f;
+    --gold-lt:#d8b25e;
+    --gold-dk:#8a6526;
+    --indigo:#3a3f66;
+    --indigo-dk:#242a4a;
+    --mint:#bfe0d3;
+    --mint-dk:#7fae9c;
+    --wood:#a9764a;
+    --night:#0c1020;
+    --night-2:#151a30;
+    --ease:cubic-bezier(.22,.68,.24,1);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  html{ overflow-x:hidden; background:var(--night); }
+  body{
+    overflow-x:hidden;
+    background:var(--night);
+    color:var(--ink);
+    font-family:'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.5;
+  }
+
+  /* ============================ THE TAKE (default, motion on) ============ */
+  #scene-root{ position:relative; }
+
+  /* pinned stage: the camera frame. World clipped inside; scroll lives on root. */
+  #stage{
+    position:fixed; inset:0; z-index:1;
+    overflow:hidden;
+    background:radial-gradient(120% 90% at 30% 40%, #241a12 0%, #120e14 60%, #0a0812 100%);
+  }
+  #lens{ position:absolute; inset:0; will-change:transform; }
+  #world{
+    position:absolute; left:0; top:0; width:0; height:0;
+    transform-origin:0 0; will-change:transform;
+  }
+
+  /* one continuous backdrop so no environment ever shows a void seam */
+  .backdrop{
+    position:absolute; left:-400px; top:-1200px; width:6400px; height:2600px;
+    background:
+      linear-gradient(180deg, rgba(9,11,24,0) 42%, rgba(9,11,24,0.0) 55%, rgba(9,11,24,0.35) 100%),
+      linear-gradient(97deg,
+        #3a2a16 0%, #4a3312 9%,
+        #2f2a44 24%, #262a4c 34%,
+        #2b3a48 48%, #385247 58%,
+        #24324a 74%, #141a30 86%, #0b0f1f 100%);
+  }
+  /* night sky panel behind the rooftop crane */
+  .sky-night{
+    position:absolute; left:3700px; top:-1240px; width:2000px; height:1500px;
+    background:radial-gradient(130% 100% at 60% 100%, #1a2140 0%, #0f1730 46%, #070a18 100%);
+  }
+  .stars{
+    position:absolute; inset:0;
+    background-image:
+      radial-gradient(1.4px 1.4px at 12% 22%, rgba(255,247,224,.9), transparent 60%),
+      radial-gradient(1.2px 1.2px at 28% 12%, rgba(255,247,224,.7), transparent 60%),
+      radial-gradient(1.6px 1.6px at 46% 30%, rgba(255,247,224,.85), transparent 60%),
+      radial-gradient(1.1px 1.1px at 63% 16%, rgba(255,247,224,.6), transparent 60%),
+      radial-gradient(1.5px 1.5px at 78% 26%, rgba(255,247,224,.8), transparent 60%),
+      radial-gradient(1.2px 1.2px at 88% 12%, rgba(255,247,224,.65), transparent 60%),
+      radial-gradient(1.3px 1.3px at 36% 44%, rgba(255,247,224,.5), transparent 60%),
+      radial-gradient(1.2px 1.2px at 70% 40%, rgba(255,247,224,.55), transparent 60%);
+  }
+
+  /* atmospheric parallax layers (subtle; never carry a threshold) */
+  .layer{ position:absolute; left:0; top:0; width:0; height:0; will-change:transform; }
+  .far  .citybg{
+    position:absolute; left:1400px; top:520px; width:2600px; height:360px;
+    background:
+      linear-gradient(180deg, transparent, rgba(20,16,34,.0) 40%, rgba(16,14,30,.65));
+    -webkit-mask:repeating-linear-gradient(90deg, #000 0 60px, transparent 60px 66px);
+            mask:repeating-linear-gradient(90deg, #000 0 60px, transparent 60px 66px);
+    opacity:.5;
+  }
+
+  /* -------- shared environment scaffolding -------- */
+  .env{ position:absolute; }
+  .env-studio{ left:0; top:0; width:1500px; height:1040px; }
+  .env-street{ left:1500px; top:0; width:2100px; height:1040px; }
+  .env-clinic{ left:3600px; top:0; width:1500px; height:1040px; }
+  .env-roof{ left:3860px; top:-1080px; width:1660px; height:1140px; }
+
+  .floor{ position:absolute; left:0; right:0; bottom:0; height:280px; }
+
+  /* ===================== ENV 1 : STUDIO INTERIOR (evening gold) ========= */
+  .studio-wall{
+    position:absolute; left:60px; top:60px; width:1380px; height:720px;
+    background:linear-gradient(180deg,#4a3a22 0%, #3f3018 55%, #352610 100%);
+    border-radius:6px;
+    box-shadow:inset 0 0 120px rgba(0,0,0,.45), inset 0 60px 90px rgba(216,178,94,.10);
+  }
+  .studio .floor{
+    background:linear-gradient(180deg,#2c2012 0%, #241a0e 100%);
+    box-shadow:inset 0 40px 80px rgba(0,0,0,.4);
+  }
+  .lamp-pool{
+    position:absolute; width:520px; height:360px; border-radius:50%;
+    background:radial-gradient(circle, rgba(216,178,94,.34) 0%, rgba(216,178,94,.10) 45%, transparent 72%);
+    pointer-events:none;
+  }
+  .wall-sign{
+    position:absolute; left:420px; top:190px; width:auto; white-space:nowrap; text-align:center;
+    font-family:'Playfair Display', serif; font-weight:600;
+    letter-spacing:.2em; font-size:54px; color:#f4e6c4;
+    text-shadow:0 0 2px rgba(255,239,200,.9), 0 0 16px rgba(216,178,94,.55), 0 0 34px rgba(216,178,94,.30);
+  }
+  .wall-sign small{
+    display:block; font-family:'Inter',sans-serif; font-weight:500;
+    letter-spacing:.42em; font-size:13px; color:rgba(216,178,94,.85);
+    text-shadow:0 0 10px rgba(216,178,94,.4); margin-top:16px;
+  }
+  .diagram{ position:absolute; left:150px; top:300px; width:560px; height:300px; }
+  .diagram svg{ width:100%; height:100%; overflow:visible; }
+  .diag-edge{ fill:none; stroke:var(--gold-lt); stroke-width:1.6; opacity:.55; }
+  .diag-node{ fill:#3a2c14; stroke:var(--gold-lt); stroke-width:1.6; }
+  .diag-node-lit{ fill:rgba(216,178,94,.22); stroke:var(--gold-lt); stroke-width:1.8; }
+  .diag-glow{ filter:drop-shadow(0 0 6px rgba(216,178,94,.55)); }
+  .diag-label{ font-family:'Space Mono',monospace; font-size:12px; fill:#e7d6ab; letter-spacing:.06em; }
+  .painted-note{
+    position:absolute; left:150px; top:632px; width:600px;
+    font-family:'Space Mono',monospace; font-size:15px; letter-spacing:.14em;
+    color:rgba(216,178,94,.72); text-shadow:0 1px 0 rgba(0,0,0,.4);
+  }
+  .desk{
+    position:absolute; height:20px; border-radius:3px;
+    background:linear-gradient(180deg,#6a4a26,#43301a);
+    box-shadow:0 18px 30px rgba(0,0,0,.4);
+  }
+  .desk::after{
+    content:""; position:absolute; left:14px; bottom:-96px; width:8px; height:96px;
+    background:#3a2a16; box-shadow:520px 0 0 #3a2a16;
+  }
+  .monitor{
+    position:absolute; width:150px; height:96px; border-radius:6px;
+    background:linear-gradient(180deg,#20303a,#16232c);
+    border:3px solid #241a10;
+    box-shadow:0 0 26px rgba(120,180,190,.30), inset 0 0 24px rgba(150,210,220,.22);
+  }
+  .monitor::after{
+    content:""; position:absolute; left:50%; bottom:-26px; width:44px; height:26px;
+    transform:translateX(-50%);
+    background:#241a10; clip-path:polygon(20% 0,80% 0,100% 100%,0 100%);
+  }
+  .deskchair{
+    position:absolute; width:74px; height:120px; border-radius:14px 14px 8px 8px;
+    background:linear-gradient(180deg,#3a2c18,#2a1f10);
+    box-shadow:0 20px 26px rgba(0,0,0,.4);
+  }
+  .window{
+    position:absolute; left:1120px; top:110px; width:320px; height:520px;
+    border:14px solid #3a2a16; border-radius:6px;
+    background:linear-gradient(180deg,#3d3f63 0%, #4a4670 40%, #6a5a72 100%);
+    box-shadow:inset 0 0 60px rgba(0,0,0,.35), 0 0 40px rgba(120,110,150,.25);
+    overflow:hidden;
+  }
+  .window::before{
+    content:""; position:absolute; inset:0;
+    background:
+      linear-gradient(180deg, transparent 60%, rgba(20,16,30,.6)),
+      repeating-linear-gradient(90deg, transparent 0 40px, rgba(255,240,210,.10) 40px 44px);
+  }
+  .window::after{ /* mullions */
+    content:""; position:absolute; left:50%; top:0; width:8px; height:100%;
+    background:#3a2a16; transform:translateX(-50%);
+    box-shadow:0 254px 0 -246px #3a2a16;
+  }
+  .win-glow{
+    position:absolute; left:1120px; top:110px; width:320px; height:520px;
+    background:radial-gradient(60% 50% at 50% 30%, rgba(120,120,180,.28), transparent 70%);
+    pointer-events:none;
+  }
+  /* set rigging above the studio: only enters frame in the taller phone framing,
+     selling the miniature film-set conceit at the top of the opening shot */
+  .rig-bar{
+    position:absolute; left:-200px; top:-238px; width:1700px; height:10px; border-radius:5px;
+    background:linear-gradient(180deg,#2a2013,#160f07);
+    box-shadow:0 6px 18px rgba(0,0,0,.45);
+  }
+  .rig-lamp{
+    position:absolute; top:-228px; width:200px; margin-left:-100px; pointer-events:none;
+    background:linear-gradient(90deg, transparent calc(50% - 1px), #191207 calc(50% - 1px), #191207 calc(50% + 1px), transparent calc(50% + 1px));
+  }
+  .rig-lamp::after{ /* shade */
+    content:""; position:absolute; left:50%; bottom:-24px; margin-left:-19px;
+    width:38px; height:26px; background:linear-gradient(180deg,#33270f,#1b1207);
+    clip-path:polygon(26% 0,74% 0,100% 100%,0 100%);
+  }
+  .rig-lamp::before{ /* warm pool */
+    content:""; position:absolute; left:0; bottom:-150px;
+    width:200px; height:132px; border-radius:50%;
+    background:radial-gradient(ellipse at 50% 6%, rgba(216,178,94,.26), rgba(216,178,94,.06) 55%, transparent 76%);
+  }
+
+  /* ===================== ENV 2 : STREET AT DUSK (indigo) =============== */
+  .street .floor{
+    background:linear-gradient(180deg,#2a2c46 0%, #1e2038 100%);
+    box-shadow:inset 0 30px 60px rgba(0,0,0,.4);
+  }
+  .street-wet{
+    position:absolute; left:0; right:0; bottom:0; height:150px;
+    background:linear-gradient(180deg, transparent, rgba(216,178,94,.10) 60%, rgba(120,130,180,.14));
+    opacity:.55;
+  }
+  .shophouse{
+    position:absolute; bottom:280px; width:150px;
+    background:linear-gradient(180deg,#31355a,#282c4c);
+    border-radius:4px 4px 0 0;
+    box-shadow:inset 0 0 40px rgba(0,0,0,.3);
+  }
+  .shophouse i{
+    position:absolute; width:26px; height:34px; border-radius:2px;
+    background:rgba(216,178,94,.55); box-shadow:0 0 10px rgba(216,178,94,.4);
+  }
+  .line-tower{
+    position:absolute; left:1720px; bottom:280px; width:66px; height:520px;
+    background:linear-gradient(180deg,#3b407a,#2b2f56);
+    clip-path:polygon(30% 0,70% 0,100% 100%,0 100%);
+    box-shadow:inset 0 0 30px rgba(0,0,0,.35);
+  }
+  .line-tower::before{
+    content:""; position:absolute; left:50%; top:-16px; width:5px; height:26px;
+    transform:translateX(-50%); background:#3b407a;
+  }
+  .tower-beacon{
+    position:absolute; left:1743px; bottom:790px; width:14px; height:14px; border-radius:50%;
+    background:#e8563b; box-shadow:0 0 18px 4px rgba(232,86,59,.7);
+  }
+  .lamp-post{
+    position:absolute; bottom:280px; width:8px; height:230px;
+    background:#20233c;
+  }
+  .lamp-post::before{
+    content:""; position:absolute; left:-9px; top:-16px; width:26px; height:16px; border-radius:8px;
+    background:radial-gradient(circle,#ffe6ac,#c79a44);
+    box-shadow:0 0 22px 8px rgba(216,178,94,.5);
+  }
+  .street-pool{
+    position:absolute; bottom:120px; width:240px; height:120px; border-radius:50%;
+    background:radial-gradient(circle, rgba(216,178,94,.26), transparent 70%);
+  }
+  /* three lit shopfronts = the services */
+  .shopfront{
+    position:absolute; bottom:280px; width:300px; height:330px;
+    background:linear-gradient(180deg,#3a3358 0%, #2c2748 100%);
+    border-radius:6px 6px 0 0;
+    box-shadow:inset 0 0 50px rgba(0,0,0,.35);
+  }
+  .shopfront .glass{
+    position:absolute; left:22px; right:22px; bottom:0; top:110px;
+    background:linear-gradient(180deg, rgba(216,178,94,.30), rgba(216,178,94,.12));
+    border:3px solid #4a3f22; border-bottom:none; border-radius:5px 5px 0 0;
+    box-shadow:inset 0 0 40px rgba(216,178,94,.35);
+    overflow:hidden;
+  }
+  .shopfront .glass::before{
+    content:""; position:absolute; inset:0;
+    background:repeating-linear-gradient(180deg, transparent 0 22px, rgba(0,0,0,.12) 22px 24px);
+  }
+  .shopfront .awn{
+    position:absolute; left:6px; right:6px; top:96px; height:16px;
+    background:repeating-linear-gradient(90deg,#8a6526 0 20px,#c7a24d 20px 40px);
+    border-radius:2px;
+  }
+  .hang-sign{
+    position:absolute; left:50%; top:-14px; transform:translateX(-50%);
+    width:230px; padding:14px 16px 16px; border-radius:6px;
+    background:linear-gradient(180deg,#f4ecdd,#e6d8bd);
+    color:var(--ink); text-align:center;
+    box-shadow:0 14px 26px rgba(0,0,0,.4), inset 0 0 0 2px rgba(138,101,38,.35);
+    transform-origin:top center;
+  }
+  .hang-sign::before{ /* the hanging bracket */
+    content:""; position:absolute; left:50%; top:-34px; width:2px; height:34px;
+    background:#8a6526; transform:translateX(-50%);
+    box-shadow:-70px 0 0 #8a6526, 70px 0 0 #8a6526;
+  }
+  .hang-sign .num{
+    font-family:'Space Mono',monospace; font-size:12px; letter-spacing:.24em; color:var(--gold-dk);
+  }
+  .hang-sign .ttl{
+    font-family:'Playfair Display',serif; font-weight:600; font-size:23px; line-height:1.15; margin-top:4px;
+  }
+
+  /* ===================== ENV 3 : CLINIC (mint + wood) ================== */
+  .clinic-wall{
+    position:absolute; left:40px; top:60px; width:1420px; height:720px;
+    background:linear-gradient(180deg,#cfe6db 0%, #bcdccc 60%, #a9cbba 100%);
+    border-radius:6px;
+    box-shadow:inset 0 0 100px rgba(120,150,140,.4), inset 0 40px 60px rgba(255,255,255,.25);
+  }
+  .clinic .floor{
+    background:linear-gradient(180deg,#c8a06a 0%, #a9764a 100%);
+    box-shadow:inset 0 30px 60px rgba(0,0,0,.25);
+  }
+  .wood-strip{
+    position:absolute; left:40px; right:40px; bottom:250px; height:26px;
+    background:repeating-linear-gradient(90deg,#a9764a 0 60px,#9a6a40 60px 62px);
+    border-radius:3px;
+  }
+  .clinic-frame{
+    position:absolute; left:180px; top:118px; width:760px; height:420px;
+    border:18px solid #8a6526; border-radius:8px;
+    background:#0e1220;
+    box-shadow:0 26px 50px rgba(0,0,0,.35), inset 0 0 0 3px rgba(216,178,94,.4);
+    overflow:hidden;
+  }
+  .clinic-frame img{
+    width:100%; height:100%; object-fit:cover; display:block;
+    /* grade the live photo into the evening-star world: warm it, drop the
+       stock-bright exposure, so entering the clinic reads as the camera
+       crossing a threshold, not a cut to a cooler, brighter still */
+    filter:sepia(.46) saturate(1.16) brightness(.82) contrast(1.06) hue-rotate(-9deg);
+  }
+  /* gold duotone wash + gentle vignette, matching the other beats' framing.
+     scoped to the image container only (the frame), above the photo, below the caption */
+  .clinic-frame::after{
+    content:""; position:absolute; inset:0; z-index:1; pointer-events:none;
+    mix-blend-mode:multiply;
+    background:
+      radial-gradient(120% 102% at 50% 35%, transparent 38%, rgba(9,7,15,.58) 100%),
+      linear-gradient(180deg, rgba(208,158,66,.34) 0%, rgba(150,110,44,.26) 42%, rgba(60,42,18,.44) 100%);
+  }
+  .clinic-frame .caption{
+    position:absolute; left:0; right:0; bottom:0; z-index:2; padding:10px 16px;
+    font-family:'Space Mono',monospace; font-size:12px; letter-spacing:.14em;
+    color:#f4ecdd; background:linear-gradient(180deg,transparent,rgba(10,14,24,.8));
+  }
+  .clinic-plant{
+    position:absolute; right:70px; bottom:250px; width:70px; height:150px;
+    background:linear-gradient(180deg,#6f9a7f,#4f7a63);
+    border-radius:50% 50% 8px 8px / 60% 60% 8px 8px;
+    box-shadow:0 16px 24px rgba(0,0,0,.2);
+  }
+  .clinic-plant::after{
+    content:""; position:absolute; left:14px; bottom:-52px; width:42px; height:54px;
+    background:#8a6526; border-radius:4px;
+  }
+  .reception-glow{
+    position:absolute; left:180px; top:118px; width:760px; height:420px;
+    background:radial-gradient(60% 60% at 50% 40%, rgba(191,224,211,.25), transparent 72%);
+    pointer-events:none;
+  }
+
+  /* ===================== ENV 4 : ROOFTOP (night + star) =============== */
+  .roof-deck{
+    position:absolute; left:0; right:0; bottom:0; height:280px;
+    background:linear-gradient(180deg,#1b2038 0%, #10152a 100%);
+    box-shadow:inset 0 24px 50px rgba(0,0,0,.5);
+  }
+  .roof-parapet{
+    position:absolute; left:0; right:0; bottom:278px; height:20px;
+    background:#242a4a;
+  }
+  .water-tank{
+    position:absolute; bottom:280px; width:202px; height:164px; border-radius:10px 10px 4px 4px;
+    background:
+      linear-gradient(180deg,#2a3050 0%, #232948 100%);
+    box-shadow:inset 0 0 40px rgba(0,0,0,.4), 0 -6px 0 #343b62;
+    border:2px solid #343b62;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding:14px;
+  }
+  .water-tank::before{ /* legs */
+    content:""; position:absolute; left:16px; bottom:-40px; width:8px; height:40px;
+    background:#242a4a; box-shadow:170px 0 0 #242a4a;
+  }
+  .water-tank .tnum{
+    font-family:'Space Mono',monospace; font-size:12px; letter-spacing:.24em; color:var(--gold-lt);
+  }
+  .water-tank .ttl{
+    font-family:'Playfair Display',serif; font-weight:600; font-size:22px; line-height:1.1;
+    color:#f4e6c4; margin:5px 0 6px;
+    text-shadow:0 0 12px rgba(216,178,94,.4);
+  }
+  .water-tank .body{ font-size:12.5px; color:#c9d0e6; line-height:1.35; }
+
+  .star-wrap{
+    position:absolute; left:720px; top:365px; width:220px; height:220px;
+  }
+  .star-wrap svg{ width:100%; height:100%; overflow:visible;
+    filter:drop-shadow(0 0 26px rgba(216,178,94,.65)) drop-shadow(0 0 60px rgba(216,178,94,.35)); }
+  .star-halo{
+    position:absolute; left:650px; top:285px; width:400px; height:400px; border-radius:50%;
+    background:radial-gradient(circle, rgba(216,178,94,.30) 0%, rgba(216,178,94,.08) 40%, transparent 68%);
+    pointer-events:none;
+    animation:haloBreathe 5.2s ease-in-out infinite alternate;
+  }
+  @keyframes haloBreathe{
+    from{ opacity:.72; transform:scale(.97); }
+    to{ opacity:1; transform:scale(1.05); }
+  }
+  .epigraph-neon{
+    position:absolute; left:510px; top:595px; width:640px; text-align:center;
+    font-family:'Noto Serif Thai', serif; font-weight:500; font-size:30px;
+    line-height:1.4; color:#f2ead6; letter-spacing:normal;
+    text-shadow:0 0 3px rgba(255,239,200,.9), 0 0 18px rgba(216,178,94,.6), 0 0 40px rgba(216,178,94,.32);
+  }
+
+  /* ============================ FLOATING SLATES ======================== */
+  .slate{
+    position:absolute;
+    background:linear-gradient(180deg, rgba(247,240,227,.97), rgba(238,228,207,.95));
+    color:var(--ink); border-radius:9px;
+    padding:26px 28px;
+    box-shadow:0 6px 16px rgba(0,0,0,.25), 0 26px 54px rgba(0,0,0,.42), inset 0 0 0 1px rgba(138,101,38,.30), 0 1px 0 rgba(255,255,255,.5);
+  }
+  .slate.dark{
+    background:linear-gradient(180deg, rgba(24,28,48,.94), rgba(16,20,38,.94));
+    color:#f2ead6; box-shadow:0 6px 16px rgba(0,0,0,.32), 0 26px 54px rgba(0,0,0,.5), inset 0 0 0 1px rgba(216,178,94,.35);
+  }
+  .slate .kicker{
+    font-family:'Space Mono',monospace; font-size:11px; letter-spacing:.28em; text-transform:uppercase;
+    color:var(--gold-dk); margin-bottom:10px;
+  }
+  .slate.dark .kicker{ color:var(--gold-lt); }
+  .slate h2{
+    font-family:'Playfair Display',serif; font-weight:600; font-size:34px; line-height:1.08; margin:0 0 12px;
+  }
+  .slate h3{
+    font-family:'Playfair Display',serif; font-weight:600; font-size:26px; line-height:1.1; margin:0 0 8px;
+  }
+  .slate p{ font-size:16px; line-height:1.5; margin:0; color:var(--ink-soft); }
+  .slate.dark p{ color:#c9d0e6; }
+  .slate .status{
+    display:inline-block; margin-top:14px; font-family:'Space Mono',monospace;
+    font-size:11.5px; letter-spacing:.14em; color:var(--gold-dk);
+    padding:5px 12px; border:1px solid rgba(138,101,38,.4); border-radius:20px;
+  }
+  .slate.dark .status{ color:var(--gold-lt); border-color:rgba(216,178,94,.4); }
+  .slate .cta-row{ display:flex; gap:12px; margin-top:20px; flex-wrap:wrap; }
+  .slate a.btn{
+    font-family:'Inter',sans-serif; font-weight:600; font-size:14px; letter-spacing:.02em;
+    text-decoration:none; padding:11px 20px; border-radius:6px; cursor:pointer;
+    transition:transform .22s var(--ease), background .22s var(--ease), box-shadow .22s var(--ease), border-color .22s var(--ease), color .22s var(--ease);
+  }
+  .slate a.btn:active{ transform:translateY(0) scale(.99); transition-duration:.09s; }
+  .btn-primary{ background:var(--gold); color:#1c1508; box-shadow:0 6px 18px rgba(168,128,47,.4); }
+  .btn-primary:hover{ background:var(--gold-lt); transform:translateY(-2px); box-shadow:0 10px 26px rgba(168,128,47,.5); }
+  .btn-ghost{ background:transparent; color:var(--ink); border:1px solid rgba(46,42,38,.35); }
+  .slate.dark .btn-ghost{ color:#f2ead6; border-color:rgba(242,234,214,.4); }
+  .btn-ghost:hover{ transform:translateY(-2px); border-color:var(--gold); color:var(--gold-dk); }
+  .slate.dark .btn-ghost:hover{ color:var(--gold-lt); }
+  .slate .tag{
+    font-family:'Space Mono',monospace; font-size:11px; letter-spacing:.2em; color:var(--gold-dk);
+    display:block; margin-top:16px;
+  }
+  .slate .tag-row{
+    display:flex; justify-content:space-between; align-items:baseline; gap:14px; flex-wrap:wrap;
+    margin-top:14px; padding-top:12px; border-top:1px solid rgba(216,178,94,.22);
+  }
+  .slate .tag-row .tag{ margin-top:0; font-size:10.5px; letter-spacing:.1em; white-space:nowrap; }
+  .slate a.mail{ color:var(--gold-dk); text-decoration:none; border-bottom:1px solid rgba(138,101,38,.4); }
+  .slate.dark a.mail{ color:var(--gold-lt); border-color:rgba(216,178,94,.4); }
+  a:focus-visible, button:focus-visible{ outline:2px solid var(--gold-lt); outline-offset:3px; border-radius:4px; }
+
+  /* slate world placement */
+  .s-hero{ left:500px; top:578px; width:430px; }
+  .s-svc-body{ width:272px; }
+  .s-svc1{ left:124px; top:560px; }
+  .s-svc2{ left:724px; top:560px; }
+  .s-svc3{ left:1324px; top:560px; }
+  .s-clinic{ left:180px; top:584px; width:640px; }
+  .s-roof{ left:510px; top:854px; width:640px; padding:24px 28px 18px; }
+
+  /* the golden call-signal wires (SVG lives in world space) */
+  #wires{ position:absolute; left:1560px; top:300px; width:2140px; height:520px; overflow:visible; }
+  .wire{ fill:none; stroke:#5a6089; stroke-width:2; opacity:.7; }
+  .wire-lit{ fill:none; stroke:rgba(216,178,94,.22); stroke-width:2.4; }
+  #signal-glow{ fill:rgba(216,178,94,.9); filter:drop-shadow(0 0 10px rgba(216,178,94,.9)) drop-shadow(0 0 22px rgba(216,178,94,.6)); }
+  #signal-core{ fill:#fff4d6; }
+
+  /* ============================ FIXED OVERLAYS ========================= */
+  #vignette{
+    position:fixed; inset:0; z-index:6; pointer-events:none;
+    background:radial-gradient(130% 110% at 50% 46%, transparent 52%, rgba(6,8,16,.5) 100%);
+  }
+  #grain{
+    position:fixed; inset:0; z-index:7; pointer-events:none; opacity:.045;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  #intro-veil{
+    position:fixed; inset:0; z-index:8; pointer-events:none;
+    background:radial-gradient(120% 90% at 30% 45%, rgba(30,20,10,.35), rgba(6,6,12,.96));
+    opacity:1; animation:lightsUp 1.8s cubic-bezier(.22,.7,.2,1) forwards;
+  }
+  @keyframes lightsUp{ 0%{opacity:1;} 100%{opacity:0;} }
+
+  /* corner HUD wordmark */
+  #hud{
+    position:fixed; left:clamp(16px,3vw,34px); top:clamp(14px,2.6vw,26px); z-index:12;
+    display:flex; align-items:center; gap:12px; pointer-events:none;
+    padding:8px 16px 8px 12px; border-radius:999px;
+    background:linear-gradient(180deg, rgba(14,16,28,.62), rgba(10,12,22,.56));
+    box-shadow:inset 0 0 0 1px rgba(216,178,94,.16), 0 6px 18px rgba(0,0,0,.25);
+    backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  }
+  #hud .star{ width:26px; height:26px; }
+  #hud .star svg{ width:100%; height:100%; }
+  #hud .wm{
+    font-family:'Space Mono',monospace; font-weight:400; font-size:11px; letter-spacing:.26em; text-transform:uppercase;
+    color:rgba(244,230,196,.82); text-shadow:0 1px 3px rgba(0,0,0,.55), 0 0 10px rgba(216,178,94,.35);
+  }
+
+  /* filmstrip progress rail (the four frames + playhead) */
+  #rail{
+    position:fixed; right:clamp(14px,2.4vw,26px); top:50%; transform:translateY(-50%);
+    z-index:13; display:flex; flex-direction:column; gap:12px;
+    padding:12px 10px; border-radius:12px;
+    background:linear-gradient(180deg, rgba(14,16,28,.93), rgba(10,12,22,.93));
+    box-shadow:0 12px 30px rgba(0,0,0,.4), inset 0 0 0 1px rgba(216,178,94,.16);
+  }
+  #rail .sprocket{ display:flex; justify-content:space-between; padding:0 3px; }
+  #rail .sprocket i{ width:5px; height:6px; border-radius:1px; background:rgba(216,178,94,.28); }
+  .frame{
+    position:relative; display:block; width:112px; height:58px; border:none; cursor:pointer;
+    border-radius:5px; padding:0; overflow:hidden;
+    box-shadow:inset 0 0 0 1px rgba(216,178,94,.22);
+    filter:saturate(.85) brightness(.8); transition:filter .25s var(--ease), box-shadow .25s var(--ease), transform .25s var(--ease);
+  }
+  .frame:hover{ filter:saturate(1) brightness(1); transform:translateX(-2px); }
+  .frame[aria-current="true"]{ filter:saturate(1.05) brightness(1.06); box-shadow:inset 0 0 0 2px var(--gold-lt), 0 0 16px rgba(216,178,94,.4); }
+  .frame .lbl{
+    position:absolute; left:7px; bottom:5px; z-index:2;
+    font-family:'Space Mono',monospace; font-size:9.5px; letter-spacing:.12em; color:#f4ecdd;
+    text-shadow:0 1px 3px rgba(0,0,0,.8);
+  }
+  .frame .fnum{
+    position:absolute; right:7px; top:5px; z-index:2;
+    font-family:'Space Mono',monospace; font-size:9.5px; color:rgba(216,178,94,.9);
+    text-shadow:0 1px 3px rgba(0,0,0,.8);
+  }
+  .fr-studio{ background:linear-gradient(135deg,#5a4022,#2c2012); }
+  .fr-street{ background:linear-gradient(135deg,#3a3f66,#242a4a); }
+  .fr-clinic{ background:linear-gradient(135deg,#8bbfa8,#6b4a2c); }
+  .fr-roof{ background:linear-gradient(135deg,#1a2140,#0a0e1e); }
+  .frame .dotstar{ position:absolute; right:9px; bottom:7px; width:9px; height:9px; z-index:2; }
+
+  #playhead-track{ position:absolute; left:-9px; top:12px; bottom:12px; width:2px; background:rgba(216,178,94,.2); border-radius:2px; }
+  #playhead{ position:absolute; left:-12px; width:8px; height:8px; border-radius:50%; background:var(--gold-lt); box-shadow:0 0 12px rgba(216,178,94,.8); transform:translateY(-50%); transition:top .12s linear; }
+
+  #hint{
+    position:fixed; left:50%; bottom:26px; transform:translateX(-50%); z-index:12;
+    font-family:'Space Mono',monospace; font-size:11px; letter-spacing:.28em; text-transform:uppercase;
+    color:rgba(244,236,221,.72); pointer-events:none; white-space:nowrap;
+    display:flex; align-items:center; gap:10px; transition:opacity .5s ease;
+  }
+  #hint .bar{ width:34px; height:1px; background:rgba(216,178,94,.6); position:relative; overflow:hidden; }
+  #hint .bar::after{ content:""; position:absolute; left:-40%; top:0; width:40%; height:100%; background:var(--gold-lt); animation:hintSlide 1.9s ease-in-out infinite; }
+  @keyframes hintSlide{ 0%{left:-40%;} 100%{left:100%;} }
+  body.moved #hint{ opacity:0; }
+
+  /* ============================ REDUCED-MOTION FALLBACK ================ */
+  #rm{ display:none; }
+  #rm .panel{
+    min-height:100vh; padding:clamp(28px,7vw,90px) clamp(20px,6vw,80px);
+    display:flex; flex-direction:column; justify-content:center; gap:22px; position:relative;
+  }
+  #rm .panel .eyebrow{ font-family:'Space Mono',monospace; font-size:12px; letter-spacing:.28em; text-transform:uppercase; }
+  #rm .rm-studio{ background:linear-gradient(160deg,#4a3620,#2c2012); color:#f4e6c4; }
+  #rm .rm-street{ background:linear-gradient(160deg,#3a3f66,#20243c); color:#eef0fb; }
+  #rm .rm-clinic{ background:linear-gradient(160deg,#cfe6db,#a9764a); color:#26221c; }
+  #rm .rm-roof{ background:linear-gradient(160deg,#141a30,#080c18); color:#f2ead6; }
+  #rm h1{ font-family:'Playfair Display',serif; font-weight:600; letter-spacing:.2em; font-size:clamp(30px,6vw,54px); margin:0; }
+  #rm h2{ font-family:'Playfair Display',serif; font-weight:600; font-size:clamp(22px,4vw,32px); margin:0; }
+  #rm p{ max-width:640px; font-size:clamp(15px,2.2vw,18px); line-height:1.55; }
+  #rm .rm-card{ background:rgba(0,0,0,.16); border-radius:10px; padding:20px 22px; max-width:640px; }
+  #rm .rm-clinic .rm-card{ background:rgba(255,255,255,.35); }
+  #rm .rm-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px; max-width:820px; }
+  #rm img{ width:100%; max-width:640px; border-radius:8px; display:block; border:6px solid rgba(138,101,38,.5); }
+  #rm .rm-thai{ font-family:'Noto Serif Thai',serif; line-height:1.4; font-size:clamp(20px,3.4vw,30px); }
+  #rm .rm-star{ width:120px; height:120px; }
+  #rm a{ color:inherit; }
+
+  @media (prefers-reduced-motion: reduce){
+    #scene-root, #rail, #hint, #intro-veil, #hud{ display:none !important; }
+    #rm{ display:block !important; }
+    #vignette, #grain{ display:none; }
+    html,body{ background:var(--night); }
+  }
+
+  /* mobile: filmstrip moves to a bottom horizontal strip so it never covers the take */
+  @media (max-width:640px){
+    #rail{
+      right:auto; left:50%; top:auto; bottom:14px; transform:translateX(-50%);
+      flex-direction:row; gap:8px; padding:8px 10px;
+    }
+    #rail .sprocket, #playhead-track{ display:none; }
+    .frame{ width:70px; height:38px; }
+    .frame:hover{ transform:none; }
+    #hud .wm{ font-size:11px; letter-spacing:.2em; }
+    #hint{ bottom:64px; font-size:10px; letter-spacing:.18em; }
+    #hint .bar{ width:24px; }
+    /* narrower phone framing crops the studio wall tighter: nudge the systems
+       diagram right so its leftmost visible node clears the frame edge instead of
+       being bisected (INGEST/LINE fall cleanly off-frame, AGENT/CORE sit inside) */
+    .diagram{ left:192px; }
+  }
+</style>
+</head>
+<body>
+<div id="grain"></div>
+
+<!-- ============ REDUCED-MOTION FALLBACK: four still establishing shots ============ -->
+<main id="rm"></main>
+
+<!-- ============ THE TAKE ============ -->
+<div id="scene-root">
+  <div id="stage" aria-label="A single continuous camera move through the Vesperwerk world">
+    <div id="lens">
+      <div id="world"></div>
+    </div>
+  </div>
+  <div id="scroll-track" aria-hidden="true"></div>
+</div>
+
+<header id="hud">
+  <span class="star" id="hud-star"></span>
+  <span class="wm">The One Take</span>
+</header>
+
+<nav id="rail" aria-label="Scene navigation. Jump the take to a room."></nav>
+
+<div id="hint"><span class="bar"></span> scroll to run the take <span class="bar"></span></div>
+
+<div id="vignette"></div>
+<div id="intro-veil"></div>
+
+<script>
+/* =========================================================================
+   DATA - edit this object to reskin the site. All copy lives here.
+   ========================================================================= */
+const DATA = {
+  brand: { name: 'VESPERWERK' },
+  hero: {
+    positioning: 'An independent software and AI studio. We architect, build, and operate production systems for businesses that cannot afford them to fail.',
+    ctaPrimary: 'Start a conversation',
+    ctaSecondary: 'See our work'
+  },
+  painted: 'one take . four rooms . no cuts . css parallax',
+  services: [
+    { n:'01', title:'AI Systems', body:'Voice agents, LLM assistants, and the evaluation infrastructure that keeps them honest. AI that answers like your best employee, in production, around the clock.' },
+    { n:'02', title:'Product Engineering', body:'Full-stack product engineering from architecture to operations: event-driven backends, modern web frontends, and infrastructure that scales without drama.' },
+    { n:'03', title:'Commerce and Platforms', body:'Deep Shopify and LINE platform work: storefronts, admin apps, integrations, and the messaging rails Southeast Asian commerce runs on.' }
+  ],
+  work: {
+    name:'Yimwhan AI',
+    body:'An AI voice and LINE assistant for dental clinics in Thailand. It answers after-hours calls, books and reschedules appointments, and hands off to staff the moment a human matters.',
+    status:'In production at live clinics',
+    image:'../assets/flux-clinic-4k.png',
+    alt:'Interior of a bright mint and wood dental clinic'
+  },
+  approach: [
+    { n:'01', title:'Architecture first', body:'We design the system before we write the code.' },
+    { n:'02', title:'Production-worthy', body:'Demos impress; production endures. We build for the second one.' },
+    { n:'03', title:'Scope discipline', body:'The most valuable thing we tell clients is what not to build.' },
+    { n:'04', title:'Senior hands', body:'No juniors learning on your budget. Founder-led, senior hands on every line.' }
+  ],
+  about:'Vesperwerk takes its name from the evening star: the first light you can navigate by. We are a founder-led studio in Bangkok building software for businesses across Asia and beyond.',
+  contact:{ email:'kittipong.k@vesperwerk.com', location:'Bangkok, Thailand' },
+  epigraphThai:'ดาวประจำเมือง : แสงแรกที่ใช้นำทางยามค่ำ',
+  footer:{ copy:'(c) 2026 Vesperwerk' },
+  frames:[
+    { key:'studio', label:'STUDIO',  num:'01', p:0.03 },
+    { key:'street', label:'STREET',  num:'02', p:0.40 },
+    { key:'clinic', label:'CLINIC',  num:'03', p:0.74 },
+    { key:'roof',   label:'ROOFTOP', num:'04', p:0.99 }
+  ]
+};
+
+/* Vesper star mark (facet colours preserved) */
+const STAR_SVG = '<svg viewBox="0 0 200 200" role="img" aria-label="Vesperwerk star"><g transform="translate(100,100)"><g><polygon points="0,-86 -11,0 0,0" fill="#c09a4a"/><polygon points="0,-86 11,0 0,0" fill="#8a6526"/></g><g transform="rotate(180)"><polygon points="0,-86 -11,0 0,0" fill="#8a6526"/><polygon points="0,-86 11,0 0,0" fill="#c09a4a"/></g><g transform="rotate(90)"><polygon points="0,-64 -9.5,0 0,0" fill="#c09a4a"/><polygon points="0,-64 9.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(270)"><polygon points="0,-64 -9.5,0 0,0" fill="#8a6526"/><polygon points="0,-64 9.5,0 0,0" fill="#c09a4a"/></g><g transform="rotate(45)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(135)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(225)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g><g transform="rotate(315)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g></g></svg>';
+
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+/* =========================================================================
+   BUILD THE WORLD (one continuous diorama; copy injected from DATA)
+   ========================================================================= */
+function buildWorld(){
+  const S = DATA.services, W = DATA.work, A = DATA.approach, C = DATA.contact;
+
+  // studio wall systems diagram (glowing gold nodes + edges)
+  const diagram = `
+    <div class="diagram">
+      <svg viewBox="0 0 560 300" aria-hidden="true">
+        <g class="diag-glow">
+          <path class="diag-edge" d="M70,60 L250,60"/>
+          <path class="diag-edge" d="M250,60 L250,170"/>
+          <path class="diag-edge" d="M250,60 L440,60"/>
+          <path class="diag-edge" d="M250,170 L120,240"/>
+          <path class="diag-edge" d="M250,170 L440,170"/>
+          <path class="diag-edge" d="M440,60 L440,170"/>
+          <path class="diag-edge" d="M440,170 L440,250"/>
+          <rect class="diag-node" x="30" y="44" width="80" height="32" rx="5"/>
+          <rect class="diag-node-lit" x="210" y="44" width="80" height="32" rx="5"/>
+          <rect class="diag-node" x="400" y="44" width="80" height="32" rx="5"/>
+          <circle class="diag-node-lit" cx="250" cy="170" r="20"/>
+          <rect class="diag-node" x="70" y="224" width="90" height="30" rx="5"/>
+          <rect class="diag-node" x="400" y="154" width="80" height="32" rx="5"/>
+          <rect class="diag-node-lit" x="404" y="234" width="72" height="28" rx="5"/>
+          <text class="diag-label" x="42" y="64">INGEST</text>
+          <text class="diag-label" x="222" y="64">AGENT</text>
+          <text class="diag-label" x="412" y="64">EVAL</text>
+          <text class="diag-label" x="232" y="174">CORE</text>
+          <text class="diag-label" x="84" y="243">LINE</text>
+          <text class="diag-label" x="412" y="174">STORE</text>
+          <text class="diag-label" x="414" y="252">SHIP</text>
+        </g>
+      </svg>
+    </div>`;
+
+  // desks / props
+  const studioProps = `
+    <div class="rig-bar"></div>
+    <div class="rig-lamp" style="left:392px;height:104px;"></div>
+    <div class="rig-lamp" style="left:716px;height:150px;"></div>
+    <div class="rig-lamp" style="left:1046px;height:88px;"></div>
+    <div class="lamp-pool" style="left:120px;top:520px;"></div>
+    <div class="lamp-pool" style="left:640px;top:560px;width:400px;height:280px;"></div>
+    <div class="desk" style="left:180px;top:730px;width:360px;"></div>
+    <div class="monitor" style="left:230px;top:640px;"></div>
+    <div class="deskchair" style="left:250px;top:770px;"></div>
+    <div class="desk" style="left:640px;top:760px;width:340px;"></div>
+    <div class="monitor" style="left:700px;top:672px;"></div>
+    <div class="deskchair" style="left:720px;top:800px;"></div>`;
+
+  const studio = `
+    <section class="env env-studio studio">
+      <div class="floor"></div>
+      <div class="studio-wall"></div>
+      <div class="wall-sign">${esc(DATA.brand.name)}<small>evening star . software and ai</small></div>
+      ${diagram}
+      ${studioProps}
+      <div class="painted-note">${esc(DATA.painted)}</div>
+      <div class="win-glow"></div>
+      <div class="window"></div>
+      <div class="slate s-hero">
+        <div class="kicker">The one take begins</div>
+        <p style="font-size:19px;color:var(--ink);font-family:'Playfair Display',serif;line-height:1.42;margin-bottom:6px;">${esc(DATA.hero.positioning)}</p>
+        <div class="cta-row">
+          <a class="btn btn-primary" data-nav="3" tabindex="0" role="button">${esc(DATA.hero.ctaPrimary)}</a>
+          <a class="btn btn-ghost" data-nav="2" tabindex="0" role="button">${esc(DATA.hero.ctaSecondary)}</a>
+        </div>
+      </div>
+    </section>`;
+
+  // street: shophouses, tower, lamps, three shopfronts (services)
+  let shophouses = '';
+  const shPos = [[120,360],[300,300],[1180,340],[1360,420],[1560,300]];
+  shPos.forEach(([x,h])=>{
+    shophouses += `<div class="shophouse" style="left:${x}px;height:${h}px;">
+      <i style="left:26px;top:30px;"></i><i style="left:88px;top:60px;"></i><i style="left:40px;top:120px;"></i><i style="left:96px;top:150px;"></i></div>`;
+  });
+  const shopfrontXs = [110, 710, 1310]; // within street env local coords
+  const shopfronts = S.map((it,i)=>`
+    <div class="shopfront" style="left:${shopfrontXs[i]}px;">
+      <div class="awn"></div>
+      <div class="glass"></div>
+      <div class="hang-sign">
+        <div class="num">SERVICE ${esc(it.n)}</div>
+        <div class="ttl">${esc(it.title)}</div>
+      </div>
+    </div>`).join('');
+  const svcSlates = S.map((it,i)=>`
+    <div class="slate dark s-svc-body s-svc${i+1}">
+      <div class="kicker">${esc(it.n)} . ${esc(it.title)}</div>
+      <p>${esc(it.body)}</p>
+    </div>`).join('');
+
+  const street = `
+    <section class="env env-street street">
+      <div class="floor"></div>
+      <div class="street-wet"></div>
+      ${shophouses}
+      <div class="line-tower"></div>
+      <div class="tower-beacon" id="beacon"></div>
+      <div class="lamp-post" style="left:520px;"></div>
+      <div class="street-pool" style="left:400px;"></div>
+      <div class="lamp-post" style="left:1120px;"></div>
+      <div class="street-pool" style="left:1000px;"></div>
+      <div class="lamp-post" style="left:1720px;"></div>
+      <div class="street-pool" style="left:1600px;"></div>
+      ${shopfronts}
+      ${svcSlates}
+    </section>`;
+
+  const clinic = `
+    <section class="env env-clinic clinic">
+      <div class="floor"></div>
+      <div class="clinic-wall"></div>
+      <div class="wood-strip"></div>
+      <div class="clinic-frame">
+        <img src="${esc(W.image)}" alt="${esc(W.alt)}" loading="lazy" decoding="async" />
+        <div class="caption">the call arrives . live clinic view</div>
+      </div>
+      <div class="reception-glow"></div>
+      <div class="clinic-plant"></div>
+      <div class="slate s-clinic">
+        <div class="kicker">Selected work</div>
+        <h3>${esc(W.name)}</h3>
+        <p>${esc(W.body)}</p>
+        <span class="status">${esc(W.status)}</span>
+      </div>
+    </section>`;
+
+  // rooftop: water tanks (principles), star, epigraph, final slate
+  const tankXs = [251, 491, 731, 971];
+  const tanks = A.map((it,i)=>`
+    <div class="water-tank" style="left:${tankXs[i]}px;">
+      <div class="tnum">${esc(it.n)}</div>
+      <div class="ttl">${esc(it.title)}</div>
+      <div class="body">${esc(it.body)}</div>
+    </div>`).join('');
+
+  const roof = `
+    <section class="env env-roof roof">
+      <div class="roof-parapet"></div>
+      <div class="roof-deck"></div>
+      ${tanks}
+      <div class="star-halo"></div>
+      <div class="star-wrap">${STAR_SVG}</div>
+      <div class="epigraph-neon">${esc(DATA.epigraphThai)}</div>
+      <div class="slate dark s-roof">
+        <div class="kicker">About . Contact</div>
+        <p style="color:#f2ead6;font-size:17px;line-height:1.5;">${esc(DATA.about)}</p>
+        <div class="cta-row" style="margin-top:12px;">
+          <a class="btn btn-primary" href="mailto:${esc(C.email)}">${esc(DATA.hero.ctaPrimary)}</a>
+        </div>
+        <div class="tag-row">
+          <span class="tag">${esc(C.email)} &nbsp; . &nbsp; ${esc(C.location)}</span>
+          <span class="tag" style="color:rgba(216,178,94,.6);">${esc(DATA.footer.copy)}</span>
+        </div>
+      </div>
+    </section>`;
+
+  // wires SVG (drawn in local coords; sits inside world so it dollies with the camera)
+  const wires = `
+    <svg id="wires" viewBox="0 0 2140 520" preserveAspectRatio="none" aria-hidden="true">
+      <path class="wire-lit" id="wire-lit-path" d="M40,60 C520,150 900,150 1200,120 C1560,84 1860,150 2100,150"/>
+      <path class="wire" id="wire-path" d="M40,60 C520,150 900,150 1200,120 C1560,84 1860,150 2100,150"/>
+      <path class="wire" d="M40,96 C520,186 900,186 1200,156 C1560,120 1860,186 2100,186" opacity="0.4"/>
+      <circle id="signal-glow" cx="40" cy="60" r="9"/>
+      <circle id="signal-core" cx="40" cy="60" r="3.4"/>
+    </svg>`;
+
+  const world = document.getElementById('world');
+  world.innerHTML = `
+    <div class="backdrop"></div>
+    <div class="sky-night"><div class="stars"></div></div>
+    <div class="layer far" id="far"><div class="citybg"></div></div>
+    ${studio}
+    ${street}
+    ${wires}
+    ${clinic}
+    ${roof}
+  `;
+}
+
+/* build the reduced-motion fallback (four still establishing shots, all copy) */
+function buildRM(){
+  const S=DATA.services, W=DATA.work, A=DATA.approach, C=DATA.contact;
+  const svc = S.map(it=>`<div class="rm-card"><strong>${esc(it.n)} . ${esc(it.title)}</strong><p>${esc(it.body)}</p></div>`).join('');
+  const app = A.map(it=>`<div class="rm-card"><strong>${esc(it.n)} . ${esc(it.title)}</strong><p>${esc(it.body)}</p></div>`).join('');
+  document.getElementById('rm').innerHTML = `
+    <section class="panel rm-studio">
+      <div class="eyebrow">Establishing shot 01 . the studio, evening</div>
+      <h1>${esc(DATA.brand.name)}</h1>
+      <p style="font-family:'Playfair Display',serif;font-size:clamp(20px,3.4vw,28px);line-height:1.35;">${esc(DATA.hero.positioning)}</p>
+      <div class="rm-card"><p style="font-family:'Space Mono',monospace;letter-spacing:.14em;">${esc(DATA.painted)}</p></div>
+      <div><a class="btn btn-primary" href="mailto:${esc(C.email)}" style="text-decoration:none;padding:11px 20px;border-radius:6px;background:var(--gold);color:#1c1508;font-weight:600;">${esc(DATA.hero.ctaPrimary)}</a></div>
+    </section>
+    <section class="panel rm-street">
+      <div class="eyebrow">Establishing shot 02 . down the street, dusk</div>
+      <h2>Three lit shopfronts</h2>
+      <div class="rm-grid">${svc}</div>
+    </section>
+    <section class="panel rm-clinic">
+      <div class="eyebrow">Establishing shot 03 . into the clinic, the call arrives</div>
+      <h2>${esc(W.name)}</h2>
+      <img src="${esc(W.image)}" alt="${esc(W.alt)}" loading="lazy" />
+      <div class="rm-card"><p>${esc(W.body)}</p><p style="margin-top:8px;font-family:'Space Mono',monospace;font-size:12px;letter-spacing:.14em;">${esc(W.status)}</p></div>
+    </section>
+    <section class="panel rm-roof">
+      <div class="eyebrow">Establishing shot 04 . the rooftop, night</div>
+      <span class="rm-star">${STAR_SVG}</span>
+      <p class="rm-thai">${esc(DATA.epigraphThai)}</p>
+      <div class="rm-grid">${app}</div>
+      <div class="rm-card"><p>${esc(DATA.about)}</p></div>
+      <p><a class="mail" href="mailto:${esc(C.email)}" style="border-bottom:1px solid rgba(216,178,94,.5);text-decoration:none;color:var(--gold-lt);">${esc(C.email)}</a> . ${esc(C.location)}</p>
+      <p style="opacity:.6;font-size:13px;">${esc(DATA.footer.copy)}</p>
+    </section>`;
+}
+
+/* build the filmstrip rail */
+function buildRail(){
+  const rail = document.getElementById('rail');
+  const sprocket = '<div class="sprocket"><i></i><i></i><i></i><i></i></div>';
+  const frames = DATA.frames.map((f,i)=>`
+    <button class="frame fr-${f.key}" data-nav="${i}" aria-label="Go to scene ${f.num}: ${f.label}" aria-current="false">
+      <span class="fnum">${f.num}</span>
+      <span class="lbl">${f.label}</span>
+      ${f.key==='roof' ? `<span class="dotstar">${STAR_SVG}</span>` : ''}
+    </button>`).join('');
+  rail.innerHTML = `
+    <div id="playhead-track"><div id="playhead"></div></div>
+    ${sprocket}${frames}${sprocket}`;
+  document.getElementById('hud-star').innerHTML = STAR_SVG;
+}
+
+/* =========================================================================
+   CAMERA
+   ========================================================================= */
+// keyframes: camera CENTER in world coords + relative zoom. Eased between.
+const CAM = [
+  { p:0.00, x:720,  y:520,  z:1.02 },  // studio mid-shot (scroll=0 signature)
+  { p:0.20, x:1360, y:520,  z:0.98 },  // drift to the window, street reveals
+  { p:0.38, x:2010, y:560,  z:0.95 },  // service shopfront 01/02
+  { p:0.54, x:2960, y:560,  z:0.95 },  // service shopfront 03 + tower
+  { p:0.70, x:4160, y:452,  z:1.02 },  // into the clinic, the call arrives
+  { p:0.84, x:4200, y:452,  z:1.02 },  // hold on the reception slate
+  { p:1.00, x:4680, y:-356, z:0.965 }  // crane up to the rooftop star
+];
+const NAV_TARGETS = DATA.frames.map(f=>f.p);
+const RMq = matchMedia('(prefers-reduced-motion: reduce)');
+let RM = RMq.matches;
+
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+function camAt(p){
+  const K=CAM;
+  if(p<=K[0].p) return {x:K[0].x,y:K[0].y,z:K[0].z};
+  const last=K[K.length-1];
+  if(p>=last.p) return {x:last.x,y:last.y,z:last.z};
+  for(let i=0;i<K.length-1;i++){
+    const a=K[i], b=K[i+1];
+    if(p>=a.p && p<=b.p){
+      let t=(p-a.p)/(b.p-a.p);
+      t=t*t*(3-2*t); // smoothstep for weighty easing
+      return { x:a.x+(b.x-a.x)*t, y:a.y+(b.y-a.y)*t, z:a.z+(b.z-a.z)*t };
+    }
+  }
+  return {x:last.x,y:last.y,z:last.z};
+}
+
+let stageEl, worldEl, lensEl, farEl, railEl, playheadEl, frameEls=[];
+let stageW=0, stageH=0, baseZoom=1, range=1;
+let wirePath=null, wireLen=0, signalGlow=null, signalCore=null;
+let raf=0, lastP=-1, moved=false;
+
+function measure(){
+  stageW = stageEl.clientWidth;
+  stageH = stageEl.clientHeight;
+  const focal = stageW<=640 ? 720 : 1180;      // narrower framing on phones
+  baseZoom = stageW / focal;
+  range = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+}
+
+function updateSignal(p){
+  if(!wirePath) return;
+  // the golden call travels the line from the street into the clinic
+  const t = clamp((p - 0.30) / 0.46, 0, 1);
+  const pt = wirePath.getPointAtLength(t * wireLen);
+  signalGlow.setAttribute('cx', pt.x); signalGlow.setAttribute('cy', pt.y);
+  signalCore.setAttribute('cx', pt.x); signalCore.setAttribute('cy', pt.y);
+  const vis = p > 0.24 ? 1 : 0;
+  signalGlow.style.opacity = vis; signalCore.style.opacity = vis;
+}
+
+function updateRail(p){
+  let idx=0;
+  if(p>=0.90) idx=3; else if(p>=0.62) idx=2; else if(p>=0.24) idx=1; else idx=0;
+  // playhead vertical position across the four frames
+  const trackTop=12, trackH=(railEl.clientHeight-24);
+  playheadEl.style.top = (trackTop + clamp(p,0,1)*trackH) + 'px';
+  frameEls.forEach((f,i)=>f.setAttribute('aria-current', i===idx ? 'true' : 'false'));
+}
+
+function frame(now){
+  const p = clamp(window.scrollY / range, 0, 1);
+  const c = camAt(p);
+  const z = baseZoom * c.z;
+  const tx = stageW/2 - c.x*z;
+  const ty = stageH/2 - c.y*z;
+  worldEl.style.transform = `translate3d(${tx}px,${ty}px,0) scale(${z})`;
+  // subtle atmospheric parallax (bounded so seams never shear)
+  if(farEl) farEl.style.transform = `translate(${c.x*0.10}px, ${c.y*0.10}px)`;
+  // camera breath (life; disabled in reduced motion)
+  const b = now*0.001;
+  lensEl.style.transform = `translate(${Math.sin(b*0.55)*7}px, ${Math.cos(b*0.4)*5}px)`;
+  updateSignal(p);
+  updateRail(p);
+  if(!moved && window.scrollY>40){ moved=true; document.body.classList.add('moved'); }
+  raf = requestAnimationFrame(frame);
+}
+
+function goTo(i){
+  const top = NAV_TARGETS[i]*range;
+  window.scrollTo({ top, behavior: RM ? 'auto' : 'smooth' });
+}
+
+function initTake(){
+  buildWorld();
+  buildRail();
+  stageEl=document.getElementById('stage');
+  worldEl=document.getElementById('world');
+  lensEl=document.getElementById('lens');
+  farEl=document.getElementById('far');
+  railEl=document.getElementById('rail');
+  playheadEl=document.getElementById('playhead');
+  frameEls=[...document.querySelectorAll('.frame')];
+  wirePath=document.getElementById('wire-path');
+  signalGlow=document.getElementById('signal-glow');
+  signalCore=document.getElementById('signal-core');
+  if(wirePath) wireLen=wirePath.getTotalLength();
+
+  // scroll track height defines the length of the take
+  document.getElementById('scroll-track').style.height = '640vh';
+
+  measure();
+  // wire up navigation (rail frames + hero CTAs)
+  document.body.addEventListener('click', e=>{
+    const nav=e.target.closest('[data-nav]');
+    if(nav){ e.preventDefault(); goTo(parseInt(nav.getAttribute('data-nav'),10)); }
+  });
+  document.body.addEventListener('keydown', e=>{
+    if((e.key==='Enter'||e.key===' ') && e.target.classList && e.target.classList.contains('btn') && e.target.hasAttribute('data-nav')){
+      e.preventDefault(); goTo(parseInt(e.target.getAttribute('data-nav'),10));
+    }
+  });
+  window.addEventListener('resize', ()=>{ measure(); }, {passive:true});
+  raf=requestAnimationFrame(frame);
+}
+
+function applyMode(){
+  RM = RMq.matches;
+  if(RM){
+    if(raf) cancelAnimationFrame(raf);
+    buildRM();
+  } else {
+    if(!worldEl) initTake();
+  }
+}
+RMq.addEventListener && RMq.addEventListener('change', ()=>{ location.reload(); });
+
+// boot
+if(RM){ buildRM(); }
+else { initTake(); }
+</script>
+</body>
+</html>

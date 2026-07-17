@@ -1,0 +1,954 @@
+<!-- TEMPLATE: Vesperwerk Bangkok Atlas | ARCHETYPE: The Atlas (a hand-drawn city you navigate by the evening star) | REF: Herb Lester / Anderson Design Group hand-drawn city-map cartography + pannable map registers | WHEN TO USE: studio/agency site that maps its offer as geography, one framed hand-drawn city instead of stacked sections | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vesperwerk - Bangkok Atlas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Noto+Serif+Thai:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#2e2a26; --ink2:#4a443c; --gold:#a8802f; --goldL:#c09a4a; --goldD:#8a6526;
+  --cream:#f3ecd9; --paper:#efe6cf; --paper2:#e9dfc6;
+  --teal:#4a6a70; --tealD:#3a565b; --tealL:#6b8b8f;
+  --pw:0px; --railh:56px;
+}
+*{box-sizing:border-box}
+html,body{margin:0; overflow-x:hidden; background:var(--cream); color:var(--ink);
+  font-family:'Cormorant Garamond',Georgia,serif; -webkit-font-smoothing:antialiased;}
+:focus-visible{outline:2px solid var(--gold); outline-offset:3px}
+#track{width:100%}
+
+/* ---------- STAGE + WORLD (the map camera) ---------- */
+.stage{position:fixed; inset:0; overflow:hidden; touch-action:pan-y; cursor:grab;
+  background:radial-gradient(130% 100% at 50% 30%, #f7f1e2 0%, var(--cream) 46%, #e7dcc2 100%);}
+.stage.grabbing{cursor:grabbing}
+.world{position:absolute; left:0; top:0; width:1600px; height:1040px; transform-origin:0 0;
+  will-change:transform; transition:transform .95s cubic-bezier(.62,.02,.2,1);}
+.rm .world{transition:none}
+svg.scene{width:1600px; height:1040px; display:block; opacity:0; transition:opacity .4s ease}
+.ready svg.scene{opacity:1}
+
+/* ---------- INK / GOLD / RIVER LINEWORK (self-drawing) ---------- */
+.ink,.gold,.rivbank,.riv,.riverline,.vink,.wave{fill:none; stroke-linecap:round; stroke-linejoin:round;
+  stroke-dasharray:1 1.02; stroke-dashoffset:1}
+.ink{stroke:var(--ink)}
+.sw1{stroke-width:3.4} .sw2{stroke-width:2.4} .sw3{stroke-width:1.7} .sw4{stroke-width:1.1}
+.gold{stroke:var(--gold); stroke-width:1.8}
+.rivbank{stroke:#6b5f4a; stroke-width:126; opacity:.5}
+.riv{stroke:var(--teal); stroke-width:118}
+.riverline{stroke:var(--tealL); stroke-width:1.6; opacity:.7}
+.wave{stroke:var(--tealD); stroke-width:1.6; opacity:.55}
+.grid{stroke:var(--ink); stroke-width:.8; opacity:.07}
+
+/* fills */
+.paint{opacity:0}
+.f-paper{fill:#efe6cf} .f-paper2{fill:#e7dcc2} .f-teal{fill:var(--teal)}
+.f-gold{fill:var(--gold)} .f-goldL{fill:var(--goldL)} .f-ink{fill:var(--ink)}
+.f-night{fill:#2b3550} .f-cream{fill:#f6f0e2} .f-mint{fill:#e6efe6} .f-red{fill:#9c4b39}
+.node{fill:var(--gold)} .halo{fill:var(--gold); opacity:.16}
+
+/* labels + lettering */
+.lbl{font-family:'Cormorant Garamond',serif; font-weight:600; font-size:19px; letter-spacing:.2em;
+  fill:var(--ink); transition:fill .3s ease; paint-order:stroke; stroke:#f3ecd9; stroke-width:3px}
+.lbl.sm{font-size:15px; letter-spacing:.16em}
+.tiny{font-family:'Cormorant Garamond',serif; font-style:italic; font-size:12px; letter-spacing:.01em; fill:#7a6f5c}
+.dirl{font-family:'Cormorant Garamond',serif; font-weight:600; font-size:17px; letter-spacing:.1em; fill:var(--goldD)}
+.numl{font-family:'Playfair Display',serif; font-weight:600; font-size:13px; fill:var(--goldD)}
+
+/* ---------- ROOMS (district openers) ---------- */
+.room{cursor:pointer}
+.hit{fill:transparent; pointer-events:all}
+.lift{transition:transform .35s cubic-bezier(.3,.7,.2,1); transform-box:fill-box; transform-origin:center bottom}
+.room:hover .lift,.room:focus-visible .lift,.landmark:hover .lift,.landmark:focus-visible .lift{transform:translateY(-5px) scale(1.035)}
+.rm .lift{transition:none}
+.focusring{fill:none; stroke:var(--gold); stroke-width:1.6; stroke-dasharray:5 7; rx:14;
+  opacity:0; transition:opacity .35s; pointer-events:none}
+.room:hover .focusring{opacity:.5}
+.room.is-active .focusring{opacity:.95}
+.room:focus{outline:none}
+.room:focus-visible .focusring{opacity:.95; stroke-width:2.2}
+.room:hover .lbl,.room:focus-visible .lbl,.room.is-active .lbl{fill:var(--goldD)}
+.room{transition:opacity .55s ease}
+.focused #rooms .room:not(.is-active){opacity:.4}
+.focused #rooms .room:not(.is-active):hover,
+.focused #rooms .room:not(.is-active):focus-visible{opacity:.82}
+.focused #landmarks,.focused #decolabels{opacity:.32; transition:opacity .55s ease}
+.rm .room,.rm #landmarks{transition:none}
+.landmark{cursor:default}
+
+/* ---------- NIGHT-CALL ROUTE ---------- */
+.routeglow{fill:none; stroke:var(--goldL); stroke-width:8; stroke-linecap:round; opacity:0;
+  stroke-dasharray:2 8}
+.route{fill:none; stroke:var(--gold); stroke-width:3; stroke-linecap:round; stroke-dasharray:2 8; opacity:0}
+.comet{fill:none; stroke:#f6e19a; stroke-width:5.5; stroke-linecap:round;
+  stroke-dasharray:0.05 2; stroke-dashoffset:0.1; opacity:0}
+.comet-glow{fill:none; stroke:#faedc0; stroke-width:11; stroke-linecap:round;
+  stroke-dasharray:0.035 2; stroke-dashoffset:0.11; opacity:0}
+.route-node{fill:var(--gold)} .route-halo{fill:var(--gold); opacity:.2}
+.landring{fill:none; stroke:var(--goldL); stroke-width:2.4; opacity:0;
+  transform-box:fill-box; transform-origin:center}
+.landring.go{animation:landpulse .85s cubic-bezier(.2,.6,.3,1) 1.5s both}
+@keyframes landpulse{0%{opacity:0; transform:scale(.3)}22%{opacity:.85}100%{opacity:0; transform:scale(2.3)}}
+.route,.routeglow,.comet,.comet-glow,.route-node,.route-halo,.landring{pointer-events:none}
+
+/* ---------- COMPASS ---------- */
+.compass{cursor:pointer}
+.compass .hit{fill:transparent}
+.cring{fill:none; stroke:var(--ink); stroke-width:1.6}
+.cring.g{stroke:var(--gold); stroke-width:1.2; opacity:.85}
+.ctick{stroke:var(--ink); stroke-width:1.4}
+.cletter{font-family:'Cormorant Garamond',serif; font-weight:600; font-size:16px; letter-spacing:.06em; fill:var(--goldD)}
+.cglint{opacity:0; transform-box:fill-box; transform-origin:center}
+.compass:hover .cring.g,.compass:focus-visible .cring.g{opacity:1; stroke-width:1.8}
+.compass:focus{outline:none}
+.compass:focus-visible .cring{stroke:var(--gold)}
+
+/* ---------- DRAW / FADE ANIMATIONS ---------- */
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes fin{from{opacity:0}to{opacity:1}}
+@keyframes routein{from{opacity:0; stroke-dashoffset:130}to{opacity:1; stroke-dashoffset:0}}
+@keyframes routeglowin{from{opacity:0}to{opacity:.5}}
+@keyframes glint{0%{opacity:0; transform:scale(.25)}45%{opacity:.95}100%{opacity:0; transform:scale(1.75)}}
+@keyframes travel{0%{opacity:0; stroke-dashoffset:0.1}12%{opacity:1}84%{opacity:1}100%{opacity:0; stroke-dashoffset:-1.05}}
+@keyframes travelg{0%{opacity:0; stroke-dashoffset:0.11}12%{opacity:.55}84%{opacity:.55}100%{opacity:0; stroke-dashoffset:-1.06}}
+.play .ink,.play .gold,.play .vink,.play .riverline{animation:draw .62s ease forwards}
+.play .rivbank,.play .riv{animation:draw .72s ease forwards}
+.play .wave,.play .grid{animation:fin .5s ease forwards}
+.play .paint{animation:fin .55s ease forwards}
+.play .l1{animation-delay:0s} .play .l2{animation-delay:.42s} .play .l3{animation-delay:.82s}
+.play .l4{animation-delay:1.18s} .play .l5{animation-delay:1.55s}
+.play .route{animation:routein .95s ease 1.35s both}
+.play .routeglow{animation:routeglowin .95s ease 1.35s both}
+.play .cglint{animation:glint 1s ease 2.05s both}
+.comet.go{animation:travel 1.65s cubic-bezier(.42,0,.5,1) both}
+.comet-glow.go{animation:travelg 1.65s cubic-bezier(.42,0,.5,1) both}
+/* fully-drawn / reduced-motion resting state */
+.drawn .ink,.drawn .gold,.drawn .vink,.drawn .riverline,.drawn .rivbank,.drawn .riv{stroke-dashoffset:0}
+.drawn .paint,.drawn .wave,.drawn .grid{opacity:1}
+.drawn .route{opacity:1; stroke-dashoffset:0}
+.drawn .routeglow{opacity:.42; stroke-dashoffset:0}
+.drawn .comet,.drawn .comet-glow,.drawn .cglint{opacity:0}
+
+/* ---------- CARTOUCHE (map-title plate, hero) ---------- */
+.cartouche{position:fixed; left:22px; bottom:22px; z-index:32; width:min(400px,42vw);
+  transition:opacity .5s ease}
+.cart-frame{position:relative; background:linear-gradient(180deg,#f6f0e2,#ece1c7);
+  border:1.5px solid var(--ink); border-radius:3px; padding:20px 22px 16px;
+  box-shadow:0 2px 6px rgba(46,42,38,.12), 0 16px 40px rgba(46,42,38,.15), inset 0 0 0 3px rgba(46,42,38,.06);}
+.cart-frame:before{content:""; position:absolute; inset:5px; border:1px solid rgba(46,42,38,.35); border-radius:2px; pointer-events:none}
+.cart-corner{position:absolute; width:13px; height:13px; border:1.4px solid var(--gold); opacity:.85}
+.cc1{left:9px; top:9px; border-right:0; border-bottom:0}
+.cc2{right:9px; top:9px; border-left:0; border-bottom:0}
+.cc3{left:9px; bottom:9px; border-right:0; border-top:0}
+.cc4{right:9px; bottom:9px; border-left:0; border-top:0}
+.cart-home{display:flex; align-items:center; gap:11px; background:none; border:0; padding:2px 0 0; cursor:pointer; color:var(--ink)}
+.cart-home .ic-star{width:28px; height:28px; flex:0 0 auto}
+.wordmark{font-family:'Playfair Display',serif; font-weight:600; letter-spacing:.24em; font-size:22px; line-height:1}
+.cart-rule{height:1px; background:linear-gradient(90deg,var(--gold),rgba(168,128,47,0)); margin:12px 0 11px}
+.cart-pos{font-size:17px; line-height:1.48; color:#3c372f; margin:0 0 12px; max-width:34ch}
+.cart-motto{font-family:'Noto Serif Thai',serif; font-weight:400; font-size:15.5px; line-height:1.5;
+  color:var(--goldD); margin:0 0 12px}
+.cart-ctas{display:flex; gap:9px; flex-wrap:wrap; margin-bottom:12px}
+.cta{font-family:'Cormorant Garamond',serif; font-size:15.5px; font-weight:600; letter-spacing:.02em;
+  padding:8px 15px; border-radius:2px; border:1px solid var(--ink); background:transparent; color:var(--ink);
+  cursor:pointer; min-width:0; transition:background .25s,color .25s,border-color .25s}
+.cta.pri{background:var(--ink); color:var(--cream)}
+.cta:hover{background:var(--gold); border-color:var(--gold); color:#241f14}
+.cart-foot{font-family:'Cormorant Garamond',serif; font-style:italic; font-size:12.5px; letter-spacing:.04em;
+  color:#8a7f6c; margin:0; padding-top:10px; border-top:1px solid rgba(46,42,38,.2)}
+
+/* ---------- DISTRICT NAV (chips) ---------- */
+.toolbar{position:fixed; top:16px; left:50%; transform:translateX(-50%); z-index:38;
+  display:flex; align-items:center; gap:2px; padding:6px 8px; max-width:calc(100vw - 32px);
+  background:rgba(246,240,226,.92); backdrop-filter:blur(7px);
+  border:1px solid rgba(46,42,38,.2); border-radius:999px; overflow-x:auto; scrollbar-width:none;
+  box-shadow:0 1px 3px rgba(46,42,38,.1), 0 10px 28px rgba(46,42,38,.12)}
+.toolbar::-webkit-scrollbar{display:none}
+.chip{position:relative; flex:0 0 auto; font-family:'Cormorant Garamond',serif; font-size:15px; font-weight:600;
+  letter-spacing:.02em; padding:6px 14px; border-radius:999px; border:1px solid transparent; background:transparent;
+  color:var(--ink); cursor:pointer; white-space:nowrap; opacity:.72; transition:opacity .2s,background .2s,color .2s}
+.chip:after{content:""; position:absolute; left:12px; right:12px; bottom:3px; height:5px; opacity:0; transition:opacity .2s;
+  background:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='6' viewBox='0 0 60 6'><path d='M2 4 Q15 1 30 4 T58 3' fill='none' stroke='%23a8802f' stroke-width='2' stroke-linecap='round'/></svg>") center/100% 100% no-repeat}
+.chip:hover{opacity:1}
+.chip:hover:after,.chip:focus-visible:after{opacity:.9}
+.chip.active{background:var(--ink); color:var(--cream); opacity:1}
+.chip.active:after{opacity:0}
+
+/* ---------- LEGEND CARD ---------- */
+.legend{position:fixed; top:0; right:0; height:100svh; width:min(418px,36vw); z-index:36;
+  background:linear-gradient(180deg,#f4eddd,#ece1c7);
+  border-left:1.5px solid var(--ink); box-shadow:-22px 0 54px rgba(46,42,38,.14);
+  transform:translateX(101%); transition:transform .8s cubic-bezier(.62,.02,.2,1);
+  padding:52px 34px 30px; overflow:auto; overscroll-behavior:contain}
+.legend.open{transform:none}
+.rm .legend{transition:none}
+.legend:before{content:""; position:absolute; left:13px; top:13px; bottom:13px; width:1px; background:rgba(46,42,38,.22)}
+.legend:after{content:""; position:absolute; right:13px; top:13px; bottom:13px; width:1px; background:rgba(46,42,38,.12)}
+.art{display:none}
+.art.active{display:block; animation:artin .5s ease}
+@keyframes artin{from{opacity:0; transform:translateY(10px)}to{opacity:1; transform:none}}
+.rm .art.active{animation:none}
+.ahead{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; min-width:0}
+.aidx{font-family:'Cormorant Garamond',serif; font-size:12.5px; letter-spacing:.28em; text-transform:uppercase;
+  color:var(--goldD); font-weight:600}
+.close{width:34px; height:34px; border-radius:50%; border:1px solid rgba(46,42,38,.3); background:transparent;
+  color:var(--ink); font-size:19px; line-height:1; cursor:pointer; flex:0 0 auto; transition:background .25s,color .25s}
+.close:hover{background:var(--ink); color:var(--cream)}
+.vig{margin:8px 0 4px}
+.vig svg{width:88px; height:56px; overflow:visible; display:block}
+.vink{stroke:var(--ink); stroke-width:2}
+.vink.vg{stroke:var(--gold)}
+.rm .vink{stroke-dashoffset:0}
+.play .art.active .vink{animation:draw .6s ease .06s forwards}
+.kick{display:block; font-size:12.5px; letter-spacing:.24em; text-transform:uppercase; color:var(--goldD); font-weight:600; margin-top:6px}
+.art h2{font-family:'Playfair Display',serif; font-weight:600; font-size:clamp(25px,3.2vw,32px); letter-spacing:.01em; margin:5px 0 0; line-height:1.1}
+.body,.about{font-size:clamp(17px,2.2vw,20px); line-height:1.55; margin:15px 0 0; color:#3c372f}
+.note{font-size:14.5px; font-style:italic; color:#857a68; margin-top:11px}
+.prin{list-style:none; padding:0; margin:16px 0 0; counter-reset:p}
+.prin li{padding:13px 0; border-top:1px solid rgba(46,42,38,.16); counter-increment:p}
+.prin li:first-child{border-top:0}
+.prin li:before{content:counter(p,decimal-leading-zero); display:block; font-family:'Playfair Display',serif; color:var(--goldD); font-size:12.5px; letter-spacing:.14em}
+.pt{display:block; font-family:'Playfair Display',serif; font-weight:600; font-size:18px; margin:2px 0 2px}
+.pb{display:block; font-size:16px; line-height:1.45; color:#3c372f}
+.email{display:inline-block; margin:16px 0 4px; font-family:'Playfair Display',serif; font-size:clamp(17px,2.2vw,21px);
+  color:var(--ink); text-decoration:none; border-bottom:2px solid var(--gold); padding-bottom:2px; transition:color .25s}
+.email:hover{color:var(--gold)}
+.pmeta{font-size:15px; color:#6f6555; margin:6px 0 0}
+.lfoot{display:flex; align-items:center; gap:10px; margin-top:24px; padding-top:15px; border-top:1px solid rgba(46,42,38,.16)}
+.lfoot .ic-star{width:20px; height:20px; flex:0 0 auto}
+.lfoot span{font-family:'Playfair Display',serif; letter-spacing:.2em; font-size:13.5px}
+.lfoot small{margin-left:auto; color:#8a7f6c; font-size:12.5px}
+/* pinned clinic photograph (letterboxed, never cropped) */
+.pinned{position:relative; margin:16px 0 2px}
+.pinned .frame{background:#efe6cf; border:1px solid rgba(46,42,38,.4); padding:8px; border-radius:2px;
+  box-shadow:0 8px 20px rgba(46,42,38,.16); transform:rotate(-1.4deg)}
+.pinned .win{aspect-ratio:16/10; background:#221f1b; border-radius:1px; overflow:hidden; display:flex}
+.pinned img{width:100%; height:100%; object-fit:contain; display:block}
+.pinned .pin{position:absolute; left:50%; top:-7px; transform:translateX(-50%); width:16px; height:16px; z-index:2}
+.pinned figcaption{font-family:'Cormorant Garamond',serif; font-style:italic; font-size:13px; color:#7a6f5c; text-align:center; margin-top:7px; letter-spacing:.06em}
+
+/* ---------- HINT ---------- */
+.hint{position:fixed; bottom:20px; right:24px; z-index:31; font-family:'Cormorant Garamond',serif;
+  font-style:italic; font-size:13.5px; letter-spacing:.03em; color:#7a6f5c; pointer-events:none;
+  display:flex; align-items:center; gap:7px; transition:opacity .5s ease}
+.hint svg{width:22px; height:14px}
+.cardopen .hint{opacity:0}
+
+/* ---------- MOBILE ---------- */
+@media(max-width:640px){
+  .stage{cursor:default}
+  /* map labels are unreadable at overview scale on a phone; promote the district
+     tab-nav as the primary path instead - bolder bar, and every chip shows its
+     hand-drawn underline at rest so it reads as a tap target */
+  .toolbar{top:auto; bottom:0; left:0; transform:none; max-width:100%; width:100%;
+    border-radius:14px 14px 0 0; border-left:0; border-right:0; border-bottom:0; justify-content:flex-start; padding:9px 12px;
+    background:rgba(243,236,222,.98); box-shadow:0 -9px 28px rgba(46,42,38,.2)}
+  .chip{font-size:16px; padding:8px 15px; opacity:.9}
+  .chip:after{opacity:.42}
+  .chip.active{opacity:1}
+  .chip.active:after{opacity:0}
+  .cartouche{left:12px; right:12px; bottom:calc(var(--railh) + var(--cart-gap,12px)); width:auto; max-width:none}
+  .cart-frame{padding:14px 16px 12px}
+  .wordmark{font-size:18px; letter-spacing:.2em}
+  .cart-home .ic-star{width:23px; height:23px}
+  .cart-pos{font-size:14.5px; max-width:none; margin-bottom:8px}
+  .cart-motto{font-size:14px; margin-bottom:0}
+  .cart-ctas,.cart-foot{display:none}
+  .cardopen .cartouche{opacity:0; pointer-events:none}
+  .hint{display:none}
+  .legend{top:auto; bottom:var(--railh); left:0; right:0; width:auto; height:52svh; transform:translateY(103%);
+    border-left:0; border-top:1.5px solid var(--ink); border-radius:14px 14px 0 0; padding:20px 20px 22px;
+    box-shadow:0 -18px 42px rgba(46,42,38,.18)}
+  .legend:before,.legend:after{display:none}
+}
+
+@media (prefers-reduced-motion: reduce){
+  .world{transition:none!important}
+  .legend,.chip,.art.active,.close,.cta,.email,.room,.landmark,.lbl,.lift,.cartouche,.hint,.focusring{transition:none!important; animation:none!important}
+}
+</style>
+</head>
+<body>
+<div id="track"></div>
+
+<div class="stage" id="stage">
+  <div class="world" id="world">
+    <svg class="scene" id="scene" viewBox="0 0 1600 1040" preserveAspectRatio="xMidYMid meet" role="img"
+         aria-label="A hand-drawn atlas of a stylized Bangkok. The Chao Phraya river curves through cream paper. Districts stand for the studio's work: a temple-and-signal quarter for AI Systems, a bridgeworks for Product Engineering, a river market for Commerce, a pinned clinic for the Yimwhan case with a gold night-call route arcing across the whole city, a pilgrim path of four shrines for the studio's approach, and the studio's own building crowned by the vesper star. A gold compass rose sits at the northeast corner.">
+      <defs>
+        <symbol id="vstar" viewBox="0 0 200 200">
+          <g transform="translate(100,100)">
+            <g><polygon points="0,-86 -11,0 0,0" fill="#c09a4a"/><polygon points="0,-86 11,0 0,0" fill="#8a6526"/></g>
+            <g transform="rotate(180)"><polygon points="0,-86 -11,0 0,0" fill="#8a6526"/><polygon points="0,-86 11,0 0,0" fill="#c09a4a"/></g>
+            <g transform="rotate(90)"><polygon points="0,-64 -9.5,0 0,0" fill="#c09a4a"/><polygon points="0,-64 9.5,0 0,0" fill="#8a6526"/></g>
+            <g transform="rotate(270)"><polygon points="0,-64 -9.5,0 0,0" fill="#8a6526"/><polygon points="0,-64 9.5,0 0,0" fill="#c09a4a"/></g>
+            <g transform="rotate(45)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g>
+            <g transform="rotate(135)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g>
+            <g transform="rotate(225)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g>
+            <g transform="rotate(315)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g>
+          </g>
+        </symbol>
+      </defs>
+
+      <!-- ============ MAP FACE + NEATLINE ============ -->
+      <rect class="f-paper paint l1" x="24" y="24" width="1552" height="992" rx="3"/>
+      <rect class="ink sw2 l1" x="24" y="24" width="1552" height="992" rx="3" fill="none"/>
+      <rect class="ink sw4 l1" x="36" y="36" width="1528" height="968" rx="2" fill="none"/>
+      <path class="gold l2" d="M40 58 h20 M40 58 v20 M1560 58 h-20 M1560 58 v20 M40 982 h20 M40 982 v-20 M1560 982 h-20 M1560 982 v-20"/>
+
+      <!-- graticule -->
+      <g class="l2">
+        <path class="grid" d="M320 36 V1004 M600 36 V1004 M880 36 V1004 M1160 36 V1004 M1440 36 V1004"/>
+        <path class="grid" d="M36 220 H1564 M36 440 H1564 M36 660 H1564 M36 880 H1564"/>
+      </g>
+
+      <!-- ============ RIVER : Chao Phraya ============ -->
+      <g id="river">
+        <path class="rivbank l1" d="M742 -30 C 726 110 604 190 622 322 C 638 442 806 470 774 588 C 748 686 560 726 540 838 C 528 918 588 992 606 1070"/>
+        <path class="riv l1" d="M742 -30 C 726 110 604 190 622 322 C 638 442 806 470 774 588 C 748 686 560 726 540 838 C 528 918 588 992 606 1070"/>
+        <!-- two-tone: a lighter mid-channel over the deep teal so the water has a lit centre, not a flat fill -->
+        <path class="riverline l1" style="stroke:#7d9ea1; stroke-width:74; opacity:.5" d="M742 -30 C 726 110 604 190 622 322 C 638 442 806 470 774 588 C 748 686 560 726 540 838 C 528 918 588 992 606 1070"/>
+        <path class="riverline l2" d="M742 -30 C 726 110 604 190 622 322 C 638 442 806 470 774 588 C 748 686 560 726 540 838 C 528 918 588 992 606 1070"/>
+        <g class="wave l2">
+          <path d="M700 70 q6 -5 12 0 q6 5 12 0"/><path d="M642 176 q6 -5 12 0 q6 5 12 0"/>
+          <path d="M614 296 q6 -5 12 0 q6 5 12 0"/><path d="M672 404 q6 -5 12 0 q6 5 12 0"/>
+          <path d="M756 484 q6 -5 12 0 q6 5 12 0"/><path d="M736 566 q6 -5 12 0 q6 5 12 0"/>
+          <path d="M648 646 q6 -5 12 0 q6 5 12 0"/><path d="M560 726 q6 -5 12 0 q6 5 12 0"/>
+          <path d="M548 812 q6 -5 12 0 q6 5 12 0"/><path d="M566 896 q6 -5 12 0 q6 5 12 0"/>
+          <path d="M594 968 q6 -5 12 0 q6 5 12 0"/>
+        </g>
+        <!-- denser ripple hatching (dark), lighter surface ripples, and sparse gold reflections
+             of the evening star, so the Chao Phraya reads as hand-drawn moving water -->
+        <g class="wave l2" style="stroke:#37545a; stroke-width:2; opacity:.5; stroke-dasharray:none; stroke-dashoffset:0">
+          <path d="M672 120 q7 -5 14 0 q7 5 14 0 q7 -5 14 0"/>
+          <path d="M636 236 q7 -5 14 0 q7 5 14 0 q7 -5 14 0"/>
+          <path d="M652 356 q7 -5 14 0 q7 5 14 0 q7 -5 14 0"/>
+          <path d="M726 452 q7 -5 14 0 q7 5 14 0 q7 -5 14 0"/>
+          <path d="M744 566 q7 -5 14 0 q7 5 14 0 q7 -5 14 0"/>
+          <path d="M636 672 q7 -5 14 0 q7 5 14 0 q7 -5 14 0"/>
+          <path d="M556 780 q7 -5 14 0 q7 5 14 0 q7 -5 14 0"/>
+          <path d="M560 866 q7 -5 14 0 q7 5 14 0 q7 -5 14 0"/>
+          <path d="M594 946 q7 -5 14 0 q7 5 14 0 q7 -5 14 0"/>
+        </g>
+        <g class="wave l3" style="stroke:#a4c0c2; stroke-width:1.5; opacity:.5; stroke-dasharray:none; stroke-dashoffset:0">
+          <path d="M700 176 q6 -4 12 0 q6 4 12 0"/><path d="M690 300 q6 -4 12 0 q6 4 12 0"/>
+          <path d="M772 512 q6 -4 12 0 q6 4 12 0"/><path d="M604 628 q6 -4 12 0 q6 4 12 0"/>
+          <path d="M544 826 q6 -4 12 0 q6 4 12 0"/>
+        </g>
+        <g class="wave l3" style="stroke:#b79544; stroke-width:1.6; opacity:.34; stroke-dasharray:none; stroke-dashoffset:0">
+          <path d="M712 210 q7 -5 14 0 q7 5 14 0"/><path d="M760 548 q7 -5 14 0 q7 5 14 0"/>
+        </g>
+        <!-- a khlong (canal) branching east toward the inland districts -->
+        <path class="ink sw3 l2" d="M770 560 q120 30 240 20 q120 -8 210 44"/>
+        <path class="ink sw4 l2" d="M1010 578 l-6 12 M1120 594 l-5 12"/>
+      </g>
+
+      <!-- ============ ROADS ============ -->
+      <g id="roads" class="ink sw4 l2">
+        <path d="M400 470 q120 90 340 90 q160 0 260 120"/>
+        <path d="M1000 690 q140 -110 250 -190"/>
+        <path d="M1250 300 q-30 100 -20 200"/>
+        <path d="M520 780 q-40 -160 -120 -300"/>
+      </g>
+
+      <!-- ============ DECORATIVE LANDMARKS (charm; hover-lift) ============ -->
+      <g id="landmarks">
+        <!-- Giant Swing (Sao Ching Cha) : iconic red frame, center-north -->
+        <g class="landmark" tabindex="-1" aria-hidden="true">
+          <g class="lift">
+            <path class="ink sw2 l3" d="M868 470 L878 336 M934 470 L924 336"/>
+            <path class="f-red paint l3" d="M864 470 h18 v-134 h-18 z M920 470 h18 v-134 h-18 z"/>
+            <path class="ink sw3 l3" d="M856 340 h90 M860 352 h82"/>
+            <path class="ink sw3 l3" d="M878 342 q23 -18 46 0"/>
+            <path class="ink sw4 l3" d="M901 356 v40 M894 396 h14 v14 h-14 z"/>
+          </g>
+        </g>
+        <!-- lone chedi cluster, west -->
+        <g class="landmark" tabindex="-1" aria-hidden="true"><g class="lift">
+          <path class="f-cream paint l3" d="M214 626 l22 -74 l22 74 z"/>
+          <path class="ink sw3 l3" d="M214 626 l22 -74 l22 74 M236 552 v-20 M232 532 l4 -12 l4 12"/>
+          <path class="ink sw4 l3" d="M222 604 h28 M226 588 h16"/>
+        </g></g>
+        <!-- small chedi, east -->
+        <g class="landmark" tabindex="-1" aria-hidden="true"><g class="lift">
+          <path class="f-cream paint l3" d="M1372 372 l17 -58 l17 58 z"/>
+          <path class="ink sw3 l3" d="M1372 372 l17 -58 l17 58 M1389 314 v-14 M1386 300 l3 -9 l3 9"/>
+        </g></g>
+        <!-- a longtail boat drifting the lower river -->
+        <g class="landmark" tabindex="-1" aria-hidden="true"><g class="lift">
+          <path class="ink sw3 l3" d="M470 912 q54 26 108 2 l-10 20 h-88 z"/>
+          <path class="ink sw4 l3" d="M566 914 l40 -22 M524 900 v-24"/>
+          <path class="f-cream paint l3" d="M494 890 h40 v-14 h-40 z"/>
+        </g></g>
+        <!-- little trees dotted about -->
+        <g class="paint l3">
+          <circle class="f-mint" cx="300" cy="770" r="15"/><circle class="f-mint" cx="1130" cy="810" r="14"/>
+          <circle class="f-mint" cx="1420" cy="640" r="14"/><circle class="f-mint" cx="900" cy="880" r="13"/>
+        </g>
+        <g class="ink sw4 l3">
+          <circle cx="300" cy="770" r="15" fill="none"/><path d="M300 785 v14"/>
+          <circle cx="1130" cy="810" r="14" fill="none"/><path d="M1130 824 v13"/>
+          <circle cx="1420" cy="640" r="14" fill="none"/><path d="M1420 654 v13"/>
+          <circle cx="900" cy="880" r="13" fill="none"/><path d="M900 893 v12"/>
+        </g>
+        <!-- a small flock in the sky -->
+        <g class="ink sw4 l4"><path d="M1180 176 q8 -7 16 0 q8 -7 16 0 M1240 200 q7 -6 14 0 q7 -6 14 0 M1150 220 q6 -5 12 0 q6 -5 12 0"/></g>
+      </g>
+      <g id="decolabels" class="l3">
+        <text class="tiny" x="236" y="648" text-anchor="middle">Old Town</text>
+        <text class="tiny" x="470" y="956" text-anchor="middle">khlong</text>
+        <text class="tiny" x="901" y="322" text-anchor="middle" style="letter-spacing:.14em">CHAO PHRAYA</text>
+      </g>
+
+      <!-- ============ ROOMS (districts) ============ -->
+      <g id="rooms">
+
+        <!-- ===== AI SYSTEMS : temple-and-signal district ===== -->
+        <g class="room" id="room-ai" data-key="ai" data-go="1" tabindex="0" role="button" aria-label="AI Systems, the temple and signal district">
+          <rect class="hit" x="200" y="200" width="360" height="300"/>
+          <rect class="focusring" x="208" y="212" width="344" height="286"/>
+          <g class="lift">
+            <!-- prang spire -->
+            <path class="f-cream paint l3" d="M360 430 l-26 0 l0 -30 l6 0 l0 -26 l6 0 l0 -70 l8 -34 l8 34 l0 70 l6 0 l0 26 l6 0 l0 30 z"/>
+            <path class="ink sw2 l2" d="M334 430 v-30 h6 v-26 h6 v-70 l8 -34 l8 34 v70 h6 v26 h6 v30"/>
+            <path class="ink sw4 l3" d="M340 400 h20 M342 374 h16 M346 304 h12 M350 270 v-16 M347 254 l3 -12 l3 12"/>
+            <!-- flanking chedis -->
+            <path class="f-cream paint l3" d="M300 430 l14 -50 l14 50 z"/>
+            <path class="ink sw3 l3" d="M300 430 l14 -50 l14 50 M314 380 v-12 M311 368 l3 -10 l3 10"/>
+            <path class="f-cream paint l3" d="M392 430 l13 -46 l13 46 z"/>
+            <path class="ink sw3 l3" d="M392 430 l13 -46 l13 46 M405 384 v-11 M402 373 l3 -9 l3 9"/>
+            <!-- sala platform / ground -->
+            <path class="ink sw3 l3" d="M286 430 h150 M292 442 h138"/>
+            <!-- shell-horn (conch) broadcasting gilt rays -->
+            <path class="ink sw3 l3" d="M262 372 q-16 -6 -14 -24 q2 -16 18 -16 q16 0 16 16 q0 12 -10 16 l-2 12 z"/>
+            <path class="ink sw4 l3" d="M256 336 q6 -3 10 2 M258 350 q5 -2 8 2"/>
+            <path class="gold l4" d="M280 344 l30 -14 M282 352 l32 -6 M282 360 l30 4 M278 330 l16 -24 M286 336 l26 -16"/>
+            <circle class="node paint l5" cx="248" cy="352" r="3.4"/>
+          </g>
+          <path class="gold l4" d="M244 236 q60 -8 120 0"/>
+          <text class="lbl l3 paint" x="304" y="230" text-anchor="middle">AI SYSTEMS</text>
+        </g>
+
+        <!-- ===== PRODUCT ENGINEERING : the bridgeworks ===== -->
+        <g class="room" id="room-eng" data-key="eng" data-go="2" tabindex="0" role="button" aria-label="Product Engineering, the bridgeworks district">
+          <rect class="hit" x="600" y="370" width="300" height="290"/>
+          <rect class="focusring" x="608" y="382" width="284" height="266"/>
+          <g class="lift">
+            <!-- two bridge towers across the river -->
+            <path class="ink sw2 l2" d="M672 620 L672 452 M672 452 L688 452 M680 452 L680 420 M818 620 L818 452 M818 452 L834 452 M826 452 L826 420"/>
+            <!-- deck -->
+            <path class="ink sw2 l2" d="M628 560 L900 560 M628 574 L900 574"/>
+            <path class="f-paper2 paint l3" d="M628 560 h272 v14 h-272 z"/>
+            <!-- cable stays (gold) -->
+            <path class="gold l4" d="M680 424 L636 558 M680 424 L668 558 M680 424 L724 558 M680 424 L760 558"/>
+            <path class="gold l4" d="M826 424 L764 558 M826 424 L800 558 M826 424 L862 558 M826 424 L892 558"/>
+            <!-- half-built span : scaffolding + open girders on the right -->
+            <path class="ink sw3 l3" d="M866 560 h40 v-46 h-40 z M866 537 h40 M886 514 v46"/>
+            <path class="ink sw4 l3" d="M866 514 l40 46 M906 514 l-40 46"/>
+            <!-- a crane -->
+            <path class="ink sw2 l2" d="M760 560 L760 400 M760 400 L864 400 M760 400 L720 420 M760 420 L740 420"/>
+            <path class="ink sw3 l3" d="M840 400 L840 434 M840 434 l-8 12 h16 z"/>
+            <path class="ink sw4 l3" d="M760 560 l-14 0 l0 -14 l14 0"/>
+          </g>
+          <path class="gold l4" d="M676 368 q80 -8 150 0"/>
+          <text class="lbl l3 paint" x="750" y="364" text-anchor="middle">PRODUCT ENGINEERING</text>
+        </g>
+
+        <!-- ===== COMMERCE AND PLATFORMS : the river market ===== -->
+        <g class="room" id="room-commerce" data-key="commerce" data-go="3" tabindex="0" role="button" aria-label="Commerce and Platforms, the river market district">
+          <rect class="hit" x="340" y="680" width="480" height="300"/>
+          <rect class="focusring" x="348" y="692" width="464" height="286"/>
+          <g class="lift">
+            <!-- riverside stall row with awnings -->
+            <path class="ink sw3 l3" d="M392 900 h230 M392 900 v-34 M462 900 v-34 M532 900 v-34 M622 900 v-34"/>
+            <path class="ink sw3 l2" d="M384 866 l20 -22 h54 l-16 22 M454 866 l20 -22 h54 l-16 22 M524 866 l20 -22 h70 l-16 22"/>
+            <path class="f-red paint l3" d="M384 866 l20 -22 h54 l-16 22 z M524 866 l20 -22 h70 l-16 22 z"/>
+            <path class="f-paper2 paint l3" d="M454 866 l20 -22 h54 l-16 22 z"/>
+            <!-- lanterns -->
+            <circle class="f-gold paint l4" cx="428" cy="852" r="5"/><circle class="f-gold paint l4" cx="500" cy="852" r="5"/><circle class="f-gold paint l4" cx="572" cy="852" r="5"/>
+            <path class="ink sw4 l3" d="M428 847 v-6 M500 847 v-6 M572 847 v-6"/>
+            <!-- two sampan boats laden with goods, on the water -->
+            <path class="ink sw2 l2" d="M486 946 q56 28 112 2 l-12 24 h-92 z"/>
+            <path class="f-cream paint l3" d="M512 928 h34 v-16 h-34 z"/>
+            <path class="ink sw3 l3" d="M512 928 h34 v-16 h-34 z M520 912 v-8 h18 v8"/>
+            <circle class="f-goldL paint l4" cx="529" cy="920" r="4"/>
+            <path class="ink sw3 l3" d="M600 950 l30 -16 M470 940 l-28 -14"/>
+          </g>
+          <path class="gold l4" d="M550 724 q140 -8 260 0"/>
+          <text class="lbl l3 paint" x="680" y="720" text-anchor="middle">COMMERCE AND PLATFORMS</text>
+        </g>
+
+        <!-- ===== YIMWHAN CLINIC : selected work (route lands here) ===== -->
+        <g class="room" id="room-work" data-key="work" data-go="4" tabindex="0" role="button" aria-label="Selected work, the Yimwhan clinic">
+          <rect class="hit" x="1135" y="400" width="295" height="260"/>
+          <rect class="focusring" x="1143" y="412" width="279" height="236"/>
+          <g class="lift">
+            <!-- map pin -->
+            <path class="ink sw2 l2" d="M1250 452 a26 26 0 1 0 -52 0 c0 22 26 54 26 54 c0 0 26 -32 26 -54 z"/>
+            <path class="f-mint paint l3" d="M1249 452 a25 25 0 1 0 -50 0 c0 21 25 52 25 52 c0 0 25 -31 25 -52 z"/>
+            <!-- clinic building inside pin head -->
+            <path class="ink sw3 l3" d="M1206 462 v-20 h36 v20 M1206 442 l18 -13 l18 13"/>
+            <path class="gold l4" d="M1224 446 v14 M1217 453 h14"/>
+            <!-- gold node where the night-call lands -->
+            <circle class="route-halo paint l5" cx="1224" cy="506" r="15"/>
+            <circle class="route-node paint l5" cx="1224" cy="506" r="5.5"/>
+          </g>
+          <path class="gold l4" d="M1150 430 q78 -8 150 0"/>
+          <text class="lbl l3 paint sm" x="1224" y="426" text-anchor="middle">YIMWHAN CLINIC</text>
+          <text class="tiny paint l4" x="1224" y="532" text-anchor="middle">the call lands here</text>
+        </g>
+
+        <!-- ===== APPROACH : four waypoint shrines along a pilgrim path ===== -->
+        <g class="room" id="room-approach" data-key="approach" data-go="5" tabindex="0" role="button" aria-label="Approach, four waypoint shrines along a pilgrim path">
+          <rect class="hit" x="1080" y="150" width="340" height="230"/>
+          <rect class="focusring" x="1088" y="162" width="324" height="206"/>
+          <g class="lift">
+            <!-- the pilgrim path (dotted) -->
+            <path class="gold l4" style="stroke-dasharray:2 7" d="M1110 340 q40 -60 100 -60 q56 0 80 -50 q22 -46 90 -60"/>
+            <!-- four small spirit-house shrines along it -->
+            <g class="ink sw3 l3">
+              <path d="M1110 340 v-24 h18 v24 M1108 316 l9 -10 l9 10"/>
+              <path d="M1204 280 v-24 h18 v24 M1202 256 l9 -10 l9 10"/>
+              <path d="M1286 230 v-22 h16 v22 M1284 208 l8 -9 l8 9"/>
+              <path d="M1372 214 v-22 h16 v22 M1370 192 l8 -9 l8 9"/>
+            </g>
+            <g class="gold l4"><path d="M1119 306 v-6 M1213 246 v-6 M1294 198 v-6 M1380 182 v-6"/></g>
+            <g class="numl paint l4">
+              <text x="1119" y="360" text-anchor="middle">I</text>
+              <text x="1213" y="300" text-anchor="middle">II</text>
+              <text x="1294" y="250" text-anchor="middle">III</text>
+              <text x="1380" y="234" text-anchor="middle">IV</text>
+            </g>
+          </g>
+          <text class="lbl l3 paint sm" x="1250" y="182" text-anchor="middle">THE PILGRIM PATH</text>
+        </g>
+
+        <!-- ===== CONTACT : the studio, vesper star as rooftop beacon ===== -->
+        <g class="room" id="room-contact" data-key="contact" data-go="6" tabindex="0" role="button" aria-label="Contact, the Vesperwerk studio">
+          <rect class="hit" x="900" y="560" width="225" height="250"/>
+          <rect class="focusring" x="908" y="572" width="209" height="226"/>
+          <g class="lift">
+            <!-- shophouse -->
+            <path class="f-paper2 paint l3" d="M960 780 v-96 h96 v96 z"/>
+            <path class="ink sw2 l2" d="M960 780 v-96 h96 v96 M948 684 l60 -34 l60 34"/>
+            <path class="ink sw3 l3" d="M976 780 v-40 h20 v40 M1016 700 h24 v22 h-24 z M976 700 h20 v20 h-20 z"/>
+            <path class="ink sw4 l3" d="M986 780 v-40 M1028 700 v22"/>
+            <!-- rooftop beacon : vesper star glowing -->
+            <circle class="route-halo paint l5" cx="1008" cy="632" r="17"/>
+            <use href="#vstar" class="paint l4" x="988" y="612" width="40" height="40"/>
+            <path class="gold l4" d="M1008 650 v6"/>
+            <!-- small sign -->
+            <path class="ink sw4 l3" d="M960 744 h96"/>
+          </g>
+          <path class="gold l4" d="M948 570 q64 -8 122 0"/>
+          <text class="lbl l3 paint sm" x="1008" y="566" text-anchor="middle">THE STUDIO</text>
+        </g>
+      </g>
+
+      <!-- ============ NIGHT-CALL ROUTE (already drawn at rest) ============ -->
+      <g id="route-layer">
+        <!-- caller's house, western edge (the after-hours call begins here) -->
+        <g id="caller">
+          <g class="lift">
+            <path class="f-paper2 paint l3" d="M120 498 v-58 h64 v58 z"/>
+            <path class="ink sw2 l3" d="M120 498 v-58 h64 v58 M110 440 l42 -30 l42 30"/>
+            <rect class="f-night paint l3" x="136" y="456" width="30" height="26" rx="1"/>
+            <path class="ink sw4 l3" d="M136 456 h30 v26 h-30 z M151 456 v26 M136 469 h30"/>
+            <path class="gold l4" d="M144 448 l0 -6 M141 445 l6 0"/>
+          </g>
+          <text class="tiny paint l4" x="152" y="520" text-anchor="middle">after hours</text>
+        </g>
+        <path class="routeglow" d="M152 414 C 360 210 660 150 900 190 C 1060 220 1160 400 1224 500"/>
+        <path class="route" d="M152 414 C 360 210 660 150 900 190 C 1060 220 1160 400 1224 500"/>
+        <path class="comet-glow" d="M152 414 C 360 210 660 150 900 190 C 1060 220 1160 400 1224 500"/>
+        <path class="comet" d="M152 414 C 360 210 660 150 900 190 C 1060 220 1160 400 1224 500"/>
+        <circle class="route-node paint l5" cx="152" cy="414" r="4.5"/>
+        <circle class="route-node paint l5" cx="900" cy="190" r="3"/>
+        <circle class="landring" cx="1224" cy="506" r="9"/>
+      </g>
+
+      <!-- ============ COMPASS ROSE (vesper star) ============ -->
+      <g class="compass" id="compass" transform="translate(-10 0)" data-go="0" tabindex="0" role="button" aria-label="View the whole map">
+        <rect class="hit" x="1408" y="72" width="152" height="164"/>
+        <circle class="cring l2" cx="1484" cy="154" r="66" fill="none"/>
+        <circle class="cring l2" cx="1484" cy="154" r="54" fill="none"/>
+        <circle class="cring g l4" cx="1484" cy="154" r="60" fill="none"/>
+        <g class="ctick l2">
+          <path d="M1484 88 v14 M1484 220 v-14 M1418 154 h14 M1550 154 h-14"/>
+          <path d="M1437 107 l9 9 M1531 107 l-9 9 M1437 201 l9 -9 M1531 201 l-9 -9"/>
+        </g>
+        <use href="#vstar" class="paint l3" x="1434" y="104" width="100" height="100"/>
+        <g class="cletter paint l4">
+          <text x="1484" y="82" text-anchor="middle">N</text>
+          <text x="1566" y="160" text-anchor="middle">E</text>
+          <text x="1484" y="240" text-anchor="middle">S</text>
+          <text x="1402" y="160" text-anchor="middle">W</text>
+        </g>
+        <g class="cglint">
+          <path d="M1484 154 L1484 118 M1484 154 L1484 190 M1484 154 L1448 154 M1484 154 L1520 154" stroke="#f6e19a" stroke-width="2.4" stroke-linecap="round"/>
+          <circle cx="1484" cy="154" r="6" fill="#faedc0"/>
+        </g>
+      </g>
+
+      <!-- ============ SCALE BAR (charm) ============ -->
+      <g id="scalebar" class="l4">
+        <path class="ink sw4" d="M1180 972 h96 M1180 966 v12 M1228 968 v8 M1276 966 v12"/>
+        <path class="f-ink paint" d="M1180 972 h24 v4 h-24 z M1228 972 h24 v4 h-24 z"/>
+        <text class="tiny paint" x="1180" y="962" text-anchor="middle">0</text>
+        <text class="tiny paint" x="1276" y="962" text-anchor="middle">5 km</text>
+      </g>
+    </svg>
+  </div>
+</div>
+
+<!-- CARTOUCHE (hero / map-title plate) -->
+<div class="cartouche" id="cartouche">
+  <div class="cart-frame">
+    <span class="cart-corner cc1"></span><span class="cart-corner cc2"></span><span class="cart-corner cc3"></span><span class="cart-corner cc4"></span>
+    <button class="cart-home" id="homeBtn" aria-label="Vesperwerk, view the whole map">
+      <svg class="ic-star" viewBox="0 0 200 200" aria-hidden="true"><use href="#vstar"/></svg>
+      <span class="wordmark">VESPERWERK</span>
+    </button>
+    <div class="cart-rule"></div>
+    <p class="cart-pos">An independent software and AI studio. We architect, build, and operate production systems for businesses that cannot afford them to fail.</p>
+    <p class="cart-motto" lang="th">ดาวประจำเมือง : แสงแรกที่ใช้นำทางยามค่ำ</p>
+    <div class="cart-ctas">
+      <button class="cta pri" data-go="6">Start a conversation</button>
+      <button class="cta" data-go="4">See our work</button>
+    </div>
+    <p class="cart-foot">not to scale . drawn in svg . the city is real</p>
+  </div>
+</div>
+
+<!-- DISTRICT NAV -->
+<nav class="toolbar" id="toolbar" aria-label="Districts"></nav>
+
+<!-- LEGEND CARD -->
+<aside class="legend" id="legend" aria-label="District legend"><div id="articles"></div></aside>
+
+<!-- HINT -->
+<div class="hint" aria-hidden="true">
+  <svg viewBox="0 0 40 14" fill="none"><path d="M4 7 h32 M4 7 l5 -4 M4 7 l5 4 M36 7 l-5 -4 M36 7 l-5 4" stroke="#7a6f5c" stroke-width="1.4" stroke-linecap="round"/></svg>
+  <span>scroll, drag, or tap a district to travel</span>
+</div>
+
+<script>
+/* =========================================================================
+   DATA  (swap copy + focus coordinates here)
+   ========================================================================= */
+const DATA = {
+  brand:{ name:'VESPERWERK', place:'Bangkok, Thailand', copyright:'(c) 2026 Vesperwerk',
+          email:'kittipong.k@vesperwerk.com' },
+  spokes:[
+    { key:'home', label:'Whole map', focus:null },
+
+    { key:'ai', label:'AI Systems', idx:'01', focus:{x:360,y:340},
+      kicker:'Temple and signal district', title:'AI Systems',
+      body:'Voice agents, LLM assistants, and the evaluation infrastructure that keeps them honest. AI that answers like your best employee, in production, around the clock.',
+      note:'The shell-horn broadcasts gilt rays across the quarter.' },
+
+    { key:'eng', label:'Product Engineering', idx:'02', focus:{x:750,y:520},
+      kicker:'The bridgeworks', title:'Product Engineering',
+      body:'Full-stack product engineering from architecture to operations: event-driven backends, modern web frontends, and infrastructure that scales without drama.' },
+
+    { key:'commerce', label:'Commerce', idx:'03', focus:{x:520,y:820},
+      kicker:'The river market', title:'Commerce and Platforms',
+      body:'Deep Shopify and LINE platform work: storefronts, admin apps, integrations, and the messaging rails Southeast Asian commerce runs on.' },
+
+    { key:'work', label:'Yimwhan', idx:'04', focus:{x:1240,y:500},
+      kicker:'Selected work . the clinic', title:'Yimwhan AI',
+      body:'An AI voice and LINE assistant for dental clinics in Thailand. It answers after-hours calls, books and reschedules appointments, and hands off to staff the moment a human matters. In production at live clinics.',
+      photo:true },
+
+    { key:'approach', label:'Approach', idx:'05', focus:{x:1250,y:280},
+      kicker:'The pilgrim path', title:'Approach',
+      principles:[
+        ['Architecture first','We design the system before we write the code.'],
+        ['Production-worthy','Demos impress; production endures. We build for the second one.'],
+        ['Scope discipline','The most valuable thing we tell clients is what not to build.'],
+        ['Senior hands','No juniors learning on your budget. Founder-led, senior hands on every line.'] ] },
+
+    { key:'contact', label:'Contact', idx:'06', focus:{x:1006,y:686},
+      kicker:'The studio', title:'Start a conversation',
+      about:'Vesperwerk takes its name from the evening star: the first light you can navigate by. We are a founder-led studio in Bangkok building software for businesses across Asia and beyond.',
+      email:'kittipong.k@vesperwerk.com', place:'Bangkok, Thailand', foot:'(c) 2026 Vesperwerk' }
+  ]
+};
+
+/* =========================================================================
+   SMALL DRAWN EMBLEMS for legend cards (same hand as the map)
+   ========================================================================= */
+const STAR = '<svg class="ic-star" viewBox="0 0 200 200" aria-hidden="true"><use href="#vstar"/></svg>';
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const VIG = {
+  ai:'<svg viewBox="0 0 92 56" aria-hidden="true"><path class="vink" d="M22 44 q-16 -6 -14 -26 q2 -14 18 -14 q16 0 16 15 q0 12 -12 16 l-2 12 z"/><path class="vink vg" d="M40 30 l22 -12 M42 38 l24 -4 M42 46 l22 6 M38 22 l12 -16"/></svg>',
+  eng:'<svg viewBox="0 0 92 56" aria-hidden="true"><path class="vink" d="M8 46 h76 M18 46 v-24 M74 46 v-24 M18 22 l14 -12 M74 22 l-14 -12"/><path class="vink vg" d="M32 10 L22 44 M32 10 L44 44 M60 10 L48 44 M60 10 L70 44"/></svg>',
+  commerce:'<svg viewBox="0 0 92 56" aria-hidden="true"><path class="vink" d="M12 34 q34 18 68 0 l-8 16 h-52 z"/><path class="vink" d="M32 34 v-16 h28 v16"/><path class="vink vg" d="M32 18 h28 M46 18 v16"/></svg>',
+  work:'<svg viewBox="0 0 92 56" aria-hidden="true"><path class="vink" d="M46 8 a20 20 0 1 0 0.1 0 M30 26 v-6 h32 v6 M30 20 l16 -11 l16 11"/><path class="vink vg" d="M46 15 v10 M40 20 h12"/></svg>',
+  approach:'<svg viewBox="0 0 92 56" aria-hidden="true"><path class="vink vg" style="stroke-dasharray:2 6" d="M8 48 q26 -6 40 -22 q14 -16 36 -18"/><path class="vink" d="M20 40 v-14 h14 v14 M18 26 l7 -8 l7 8 M62 20 v-14 h14 v14 M60 6 l7 -8 l7 8"/></svg>',
+  contact:'<svg viewBox="0 0 92 56" aria-hidden="true"><path class="vink" d="M28 50 v-26 h36 v26 M20 24 l26 -16 l26 16"/><path class="vink vg" d="M46 6 l2.6 8 8 2.6 -8 2.6 -2.6 8 -2.6 -8 -8 -2.6 8 -2.6 z"/></svg>'
+};
+
+function buildArticles(){
+  const box = document.getElementById('articles');
+  DATA.spokes.forEach((sp,i)=>{
+    if(sp.key==='home') return;
+    const a = document.createElement('article');
+    a.className='art'; a.dataset.i=i; a.setAttribute('aria-hidden','true');
+    let h = '<div class="ahead"><span class="aidx">'+(sp.idx? 'District&nbsp;'+sp.idx+'&nbsp;/&nbsp;06':esc(DATA.brand.place))+
+            '</span><button class="close" aria-label="Close and view the whole map">&#215;</button></div>';
+    if(VIG[sp.key]) h += '<div class="vig">'+VIG[sp.key]+'</div>';
+    if(sp.principles){
+      if(sp.kicker) h += '<span class="kick">'+esc(sp.kicker)+'</span>';
+      h += '<h2>'+esc(sp.title)+'</h2>';
+      h += '<ol class="prin">'+sp.principles.map(p=>'<li><span class="pt">'+esc(p[0])+'</span><span class="pb">'+esc(p[1])+'</span></li>').join('')+'</ol>';
+    } else if(sp.key==='contact'){
+      if(sp.kicker) h += '<span class="kick">'+esc(sp.kicker)+'</span>';
+      h += '<h2>'+esc(sp.title)+'</h2>';
+      h += '<p class="about">'+esc(sp.about)+'</p>';
+      h += '<a class="email" href="mailto:'+sp.email+'">'+esc(sp.email)+'</a>';
+      h += '<p class="pmeta">'+esc(sp.place)+'</p>';
+      h += '<div class="lfoot">'+STAR+'<span>'+esc(DATA.brand.name)+'</span><small>'+esc(sp.foot)+'</small></div>';
+    } else {
+      if(sp.kicker) h += '<span class="kick">'+esc(sp.kicker)+'</span>';
+      h += '<h2>'+esc(sp.title)+'</h2>';
+      h += '<p class="body">'+esc(sp.body)+'</p>';
+      if(sp.photo){
+        h += '<figure class="pinned"><span class="pin">'+STAR+'</span>'
+           + '<div class="frame"><div class="win"><img src="../assets/flux-clinic-4k.png" loading="lazy" alt="The Yimwhan clinic interior"></div></div>'
+           + '<figcaption>Yimwhan . pinned on the map . in production</figcaption></figure>';
+      }
+      if(sp.note) h += '<p class="note">'+esc(sp.note)+'</p>';
+    }
+    a.innerHTML = h;
+    box.appendChild(a);
+  });
+}
+
+function buildChips(){
+  const bar = document.getElementById('toolbar');
+  DATA.spokes.forEach((sp,i)=>{
+    const b = document.createElement('button');
+    b.className='chip'; b.dataset.go=i; b.textContent=sp.label;
+    bar.appendChild(b);
+  });
+}
+
+/* =========================================================================
+   CAMERA + STATE
+   ========================================================================= */
+const WORLD = {w:1600, h:1040}, FRAME = 660, MAXZOOM = 1.9;
+const world = document.getElementById('world');
+const stage = document.getElementById('stage');
+const legend = document.getElementById('legend');
+const cartoucheEl = document.getElementById('cartouche');
+const rootEl = document.documentElement;
+const arts  = ()=>document.querySelectorAll('.art');
+const chips = ()=>document.querySelectorAll('.chip');
+const rooms = document.querySelectorAll('.room');
+
+let RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const state = { i:0, closed:true };
+let cam = {s:1, tx:0, ty:0};
+let dragging=false, sx=0, sy=0, startCam=null;
+
+const isMobile = ()=> window.matchMedia('(max-width:640px)').matches;
+const cardW = ()=> Math.min(418, Math.round(window.innerWidth*0.36));
+const railH = ()=> isMobile()? 56 : 0;
+const sheetH= ()=> Math.round(window.innerHeight*0.52);
+const stopPx= ()=> window.innerHeight;
+
+function layout(focus, open){
+  const sw=window.innerWidth, sh=window.innerHeight, mob=isMobile();
+  let availX0=0, availY0=0, availW=sw, availH=sh - railH();
+  if(mob){
+    availH = open ? (sh - sheetH() - railH()) : (sh - railH());
+  } else if(open){
+    availW = sw - cardW();
+  }
+  let s, tx, ty;
+  if(!focus){
+    s = Math.min(availW/WORLD.w, availH/WORLD.h) * 0.95;
+    tx = availX0 + (availW - s*WORLD.w)/2;
+    if(mob){
+      // on mobile the cartouche plate sits fixed below the map; split the leftover height
+      // into three even bands (above map, map-to-card, card-to-rail) so rest state reads
+      // as one composed poster instead of a map floating over a dead void
+      const cartH = cartoucheEl ? cartoucheEl.getBoundingClientRect().height : 0;
+      const mapH = s*WORLD.h;
+      const gap = Math.max(12, (sh - railH() - mapH - cartH) / 3);
+      rootEl.style.setProperty('--cart-gap', gap.toFixed(1)+'px');
+      ty = availY0 + gap;
+    } else {
+      ty = availY0 + (availH - s*WORLD.h) * 0.5;
+    }
+  } else {
+    s = Math.min(availW/FRAME, availH/FRAME, MAXZOOM);
+    tx = availX0 + availW/2 - s*focus.x;
+    ty = availY0 + availH/2 - s*focus.y;
+  }
+  return {s, tx, ty};
+}
+function applyTransform(t){
+  world.style.transform = 'translate('+t.tx.toFixed(1)+'px,'+t.ty.toFixed(1)+'px) scale('+t.s.toFixed(4)+')';
+}
+function setCam(t, animate){
+  world.style.transition = (animate && !RM) ? '' : 'none';
+  applyTransform(t); cam = {s:t.s, tx:t.tx, ty:t.ty};
+}
+function clampPan(tx,ty,s){
+  const sw=window.innerWidth, sh=window.innerHeight, pad=110;
+  const W=s*WORLD.w, H=s*WORLD.h;
+  if(W<=sw) tx=(sw-W)/2; else tx=Math.min(pad, Math.max(sw-W-pad, tx));
+  if(H<=sh) ty=(sh-H)/2; else ty=Math.min(pad, Math.max(sh-H-pad, ty));
+  return [tx,ty];
+}
+
+function showArticle(i){
+  arts().forEach(a=>{ const on=(+a.dataset.i===i);
+    a.classList.toggle('active',on); a.setAttribute('aria-hidden', on?'false':'true'); });
+}
+function setActiveRoom(key){ rooms.forEach(r=> r.classList.toggle('is-active', r.dataset.key===key)); }
+function updateChips(i){
+  chips().forEach(c=>{ const on=(+c.dataset.go===i);
+    c.classList.toggle('active',on);
+    if(on) c.setAttribute('aria-current','true'); else c.removeAttribute('aria-current'); });
+}
+
+let cometKey='';
+function fireComet(){
+  if(RM) return;
+  ['comet-glow','comet','landring'].forEach(cl=>{
+    const p=document.querySelector('.'+cl); if(!p) return;
+    p.classList.remove('go'); void p.getBBox(); p.classList.add('go');
+  });
+}
+
+function render(){
+  const sp = DATA.spokes[state.i];
+  const open = !state.closed;
+  legend.classList.toggle('open', open);
+  rootEl.classList.toggle('cardopen', open);
+  rootEl.style.setProperty('--railh', railH()+'px');
+  if(open) showArticle(state.i);
+  if(!dragging) setCam(layout(open? sp.focus:null, open), true);
+  setActiveRoom(open && sp.focus ? sp.key : null);
+  rootEl.classList.toggle('focused', open && !!sp.focus);
+  updateChips(state.i);
+  const ck = (open && sp.key==='work') ? 'work' : '';
+  if(ck && ck!==cometKey) fireComet();
+  cometKey = ck;
+}
+
+/* =========================================================================
+   NAVIGATION  (document scroll drives the camera; scroll-only = full tour)
+   ========================================================================= */
+function goTo(i){
+  i = Math.max(0, Math.min(DATA.spokes.length-1, i));
+  state.i=i; state.closed=(i===0);
+  window.scrollTo({ top:i*stopPx(), behavior: RM?'auto':'smooth' });
+  render();
+}
+let ticking=false;
+function onScroll(){
+  if(ticking) return; ticking=true;
+  requestAnimationFrame(()=>{
+    ticking=false;
+    const i=Math.max(0, Math.min(DATA.spokes.length-1, Math.round(window.scrollY/stopPx())));
+    const closed=(i===0);
+    if(i!==state.i || closed!==state.closed){ state.i=i; state.closed=closed; render(); }
+  });
+}
+function sizeTrack(){ document.getElementById('track').style.height=(DATA.spokes.length*window.innerHeight)+'px'; }
+
+/* =========================================================================
+   WIRING
+   ========================================================================= */
+function wire(){
+  document.getElementById('homeBtn').addEventListener('click', ()=> goTo(0));
+  document.getElementById('toolbar').addEventListener('click', e=>{
+    const b=e.target.closest('[data-go]'); if(b) goTo(+b.dataset.go);
+  });
+  document.querySelector('.cart-ctas').addEventListener('click', e=>{
+    const b=e.target.closest('[data-go]'); if(b) goTo(+b.dataset.go);
+  });
+  document.getElementById('articles').addEventListener('click', e=>{
+    if(e.target.closest('.close')){ goTo(0); return; }
+  });
+  rooms.forEach(r=>{
+    r.addEventListener('click', ()=> goTo(+r.dataset.go));
+    r.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); goTo(+r.dataset.go); } });
+  });
+  const comp=document.getElementById('compass');
+  comp.addEventListener('click', ()=> goTo(0));
+  comp.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); goTo(0); } });
+
+  window.addEventListener('scroll', onScroll, {passive:true});
+  window.addEventListener('keydown', e=>{
+    if(e.key==='Escape'){ goTo(0); }
+    else if(e.key==='ArrowDown'||e.key==='PageDown'){ e.preventDefault(); goTo(state.i+1); }
+    else if(e.key==='ArrowUp'||e.key==='PageUp'){ e.preventDefault(); goTo(state.i-1); }
+  });
+
+  /* free-pan drag (only meaningful when zoomed into a district) */
+  stage.addEventListener('pointerdown', e=>{
+    if(e.target.closest('.room,.compass,.cartouche,.toolbar,.legend,button,a')) return;
+    dragging=true; sx=e.clientX; sy=e.clientY; startCam={...cam};
+    world.style.transition='none'; stage.classList.add('grabbing');
+    try{ stage.setPointerCapture(e.pointerId); }catch(_){}
+  });
+  stage.addEventListener('pointermove', e=>{
+    if(!dragging) return;
+    let [tx,ty]=clampPan(startCam.tx+(e.clientX-sx), startCam.ty+(e.clientY-sy), cam.s);
+    applyTransform({s:cam.s,tx,ty}); cam.tx=tx; cam.ty=ty;
+  });
+  const endDrag=()=>{ if(dragging){ dragging=false; stage.classList.remove('grabbing'); } };
+  window.addEventListener('pointerup', endDrag);
+  window.addEventListener('pointercancel', endDrag);
+
+  window.addEventListener('resize', ()=>{ sizeTrack(); render(); });
+}
+
+/* =========================================================================
+   BOOT
+   ========================================================================= */
+function boot(){
+  buildArticles();
+  buildChips();
+  sizeTrack();
+  wire();
+
+  // normalise draw lengths on every self-drawing stroke
+  document.querySelectorAll('.ink,.gold,.rivbank,.riv,.riverline,.vink,.route,.routeglow,.comet,.comet-glow')
+    .forEach(el=> el.setAttribute('pathLength','1'));
+
+  if(RM){
+    rootEl.classList.add('rm','drawn','ready');
+    state.i=0; state.closed=true; render();
+  } else {
+    rootEl.classList.add('play');
+    requestAnimationFrame(()=> rootEl.classList.add('ready'));
+    state.i=0; state.closed=true; render();
+    setTimeout(fireComet, 1750);   // first call travels the route once the map settles
+  }
+  // web fonts can change the cartouche's measured height after first paint; resync the
+  // mobile rest-state gap (no transition) once fonts finish so it never jumps visibly
+  if(document.fonts && document.fonts.ready){
+    document.fonts.ready.then(()=>{ if(state.closed) setCam(layout(null,false), false); });
+  }
+
+  const mq=window.matchMedia('(prefers-reduced-motion: reduce)');
+  (mq.addEventListener? mq.addEventListener.bind(mq,'change') : mq.addListener.bind(mq))(e=>{
+    RM=e.matches; rootEl.classList.toggle('rm',RM);
+    if(RM){ rootEl.classList.remove('play'); rootEl.classList.add('drawn'); }
+    render();
+  });
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot);
+else boot();
+</script>
+</body>
+</html>

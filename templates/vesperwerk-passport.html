@@ -1,0 +1,1086 @@
+<!-- TEMPLATE: The Passport | ARCHETYPE: paged-artifact passport booklet (visa pages, entry stamps, MRZ, guilloche security) | REF: passport/booklet security design + visa stamp heraldry + paged 3D page-turn navigation | WHEN TO USE: a founder-led studio or heritage brand that wants its offer to read as a document you are issued and page through | SWAP: edit the DATA object at top of the script -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vesperwerk . The Passport</title>
+<meta name="description" content="Vesperwerk is an independent software and AI studio in Bangkok. We architect, build, and operate production systems for businesses that cannot afford them to fail.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Noto+Serif+Thai:wght@400;500;600&family=Roboto+Mono:wght@400;500;700&family=Sacramento&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   THE PASSPORT - Vesperwerk issued as a booklet you page through.
+   Desktop: real 3D two-page spread with leaves turning at the spine.
+   Mobile: single half-spread deck, swipe/scroll turns.
+   Scroll lives on the DOCUMENT (a tall spacer); the book stage is
+   fixed and pinned. Scroll, arrows, keyboard and swipe all advance.
+   ============================================================ */
+:root{
+  --navy:#1d2233; --navy-2:#171b29; --navy-3:#12151f;
+  --gold:#a8802f; --gold-lt:#c9a24a; --gold-hi:#e7cd86; --gold-dk:#8a6526; --gold-pale:#d8c48a;
+  --cream:#f5efe0; --cream-2:#ece1c9; --cream-edge:#e3d6ba;
+  --ink:#2e2a26; --ink-soft:#6a5f52; --ink-faint:#9a8d78;
+  --red:#b23a2e; --sage:#657153; --stgold:#9c7a2c;
+  --bw:960px; --bh:640px; --pw:480px;
+  --mcw:380px; --mch:520px;
+  --guilloche:none; --grain:none;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+html{background:#0c0e16}
+body{
+  font-family:'EB Garamond',Georgia,serif;
+  color:var(--ink);
+  background:
+    radial-gradient(120% 100% at 50% 38%, #262c40 0%, #171c2b 46%, #0c0e16 100%);
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+}
+#spacer{width:1px;pointer-events:none}
+
+/* ---------- scene ---------- */
+.scene{
+  position:fixed; inset:0; z-index:1;
+  display:grid; place-items:center;
+  overflow:hidden;
+}
+.vignette{
+  position:absolute; inset:0; pointer-events:none; z-index:5;
+  background:
+    radial-gradient(70% 62% at 50% 42%, transparent 40%, rgba(6,8,14,.55) 100%);
+  mix-blend-mode:multiply;
+}
+.shimmer{
+  position:absolute; inset:0; pointer-events:none; z-index:4;
+  opacity:0; transition:opacity .5s ease;
+  background:radial-gradient(180px 180px at var(--sx,50%) var(--sy,45%),
+     rgba(231,205,134,.16), transparent 68%);
+  mix-blend-mode:soft-light;
+}
+
+/* ---------- desktop book ---------- */
+.stage{
+  position:relative;
+  width:var(--bw); height:var(--bh);
+  perspective:2400px; perspective-origin:50% 44%;
+  transform-style:preserve-3d;
+}
+.book{
+  position:relative; width:var(--bw); height:var(--bh);
+  transform-style:preserve-3d;
+  will-change:transform;
+  box-shadow:0 34px 46px rgba(0,0,0,.55), 0 6px 14px rgba(0,0,0,.42);
+}
+.leaf{
+  position:absolute; top:0; left:var(--pw);
+  width:var(--pw); height:var(--bh);
+  transform-origin:left center;
+  transform-style:preserve-3d;
+  will-change:transform;
+}
+.face{
+  position:absolute; inset:0;
+  backface-visibility:hidden; -webkit-backface-visibility:hidden;
+  overflow:hidden;
+  border-radius:3px 10px 10px 3px;
+}
+.face.back{ transform:rotateY(180deg); border-radius:10px 3px 3px 10px; }
+
+/* fore-edges: gilt page block + stamps peeking */
+.fore{
+  position:absolute; top:5%; height:90%; width:12px; z-index:1;
+  background:repeating-linear-gradient(180deg,#e9dcbf 0 1.5px,#c9b892 1.5px 3px);
+  pointer-events:none;
+}
+.fore--r{ right:-11px; border-radius:0 4px 4px 0;
+  background:repeating-linear-gradient(180deg,#eaddc0 0 1.5px,#c9b892 1.5px 3px);
+  box-shadow:inset -2px 0 4px rgba(0,0,0,.25); }
+.fore--l{ left:-11px; border-radius:4px 0 0 4px;
+  background:repeating-linear-gradient(180deg,#e4d6b6 0 1.5px,#c3b18a 1.5px 3px);
+  box-shadow:inset 2px 0 4px rgba(0,0,0,.25); }
+.fore .tick{ position:absolute; right:2px; width:7px; height:5px; border-radius:1px; opacity:.7 }
+.fore .tick.a{ top:26%; background:var(--red) }
+.fore .tick.b{ top:48%; background:var(--stgold) }
+.fore .tick.c{ top:70%; background:var(--sage) }
+
+/* ---------- cream page ---------- */
+.face--cream{ background:var(--cream); }
+.paper{
+  position:absolute; inset:0; z-index:0;
+  background:
+    linear-gradient(90deg, var(--cream-2), var(--cream) 12%, var(--cream) 88%, var(--cream-2)),
+    var(--cream);
+}
+.paper::after{
+  content:""; position:absolute; inset:0;
+  background:var(--grain); background-size:120px 120px;
+  opacity:.05; mix-blend-mode:multiply;
+}
+.guilloche{
+  position:absolute; inset:0; z-index:1; pointer-events:none;
+  background-image:var(--guilloche); background-size:190px 190px;
+  opacity:.5; mix-blend-mode:multiply;
+  -webkit-mask-image:linear-gradient(#000,#000);
+}
+.gutter{
+  position:absolute; top:0; bottom:0; width:20%; z-index:2; pointer-events:none;
+}
+.face--L .gutter{ right:0; background:linear-gradient(90deg,transparent, rgba(58,44,20,.20)); }
+.face--R .gutter{ left:0; background:linear-gradient(270deg,transparent, rgba(58,44,20,.20)); }
+.pinlight{
+  position:absolute; inset:0; z-index:2; pointer-events:none;
+  background:radial-gradient(120% 80% at 50% 8%, rgba(255,251,240,.5), transparent 46%);
+  mix-blend-mode:screen; opacity:.5;
+}
+.shade{
+  position:absolute; inset:0; z-index:8; pointer-events:none; opacity:0;
+  /* hairline page-curl shadow hard against the gutter + a soft turn wash, so a
+     turning leaf reads as paper bending into the spine rather than a flat plane */
+  background:
+    linear-gradient(90deg, rgba(0,0,0,.55) 0, rgba(0,0,0,0) 2.4%),
+    linear-gradient(90deg, rgba(0,0,0,.30), rgba(0,0,0,0) 55%);
+}
+.face--L .shade{ background:
+    linear-gradient(270deg, rgba(0,0,0,.55) 0, rgba(0,0,0,0) 2.4%),
+    linear-gradient(270deg, rgba(0,0,0,.30), rgba(0,0,0,0) 55%); }
+.folio{
+  position:absolute; bottom:14px; z-index:5;
+  font-family:'Roboto Mono',monospace; font-size:10px; letter-spacing:.14em;
+  color:var(--ink-faint);
+}
+.face--L .folio{ left:26px } .face--R .folio{ right:26px }
+
+.page-body{
+  position:absolute; inset:0; z-index:4;
+  padding:min(6.2%,42px);
+  display:flex; flex-direction:column;
+  min-width:0;
+}
+
+/* ---------- cover ---------- */
+.face--cover{
+  background:
+    radial-gradient(130% 120% at 50% 16%, #262c42 0%, var(--navy) 44%, var(--navy-2) 78%, var(--navy-3) 100%);
+  border-radius:3px 12px 12px 3px;
+}
+.face--cover::after{
+  content:""; position:absolute; inset:0; opacity:.5; mix-blend-mode:soft-light;
+  background:var(--grain); background-size:120px 120px;
+}
+.cover-body{ position:absolute; inset:0; z-index:2;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  text-align:center; padding:8% 10%; }
+.cover-frame{
+  position:absolute; inset:22px; border:1px solid rgba(201,162,74,.45);
+  border-radius:6px;
+  box-shadow:inset 0 0 0 4px rgba(201,162,74,.10), inset 0 0 0 5px rgba(201,162,74,.28);
+  z-index:1; pointer-events:none;
+}
+.cover-frame::after{
+  content:""; position:absolute; inset:7px; border:1px solid rgba(201,162,74,.22); border-radius:3px;
+}
+.cover-top,.cover-bottom{
+  font-family:'Roboto Mono',monospace; font-size:clamp(8px,1.05vw,12px);
+  letter-spacing:.42em; text-indent:.42em;
+  color:var(--gold-lt);
+}
+.cover-top{ margin-bottom:auto }
+.cover-bottom{ margin-top:auto }
+.cover-emblem{ position:relative; width:min(26%,148px); aspect-ratio:1; margin:2px auto 20px;
+  filter:drop-shadow(0 2px 1px rgba(0,0,0,.6)) drop-shadow(0 -1px 0 rgba(231,205,134,.4)); }
+.cover-emblem .star .foil-lt{ fill:var(--gold-hi) }
+/* a single specular glint travels the foil star as the passport is issued (load) */
+.cover-emblem::after{
+  content:""; position:absolute; inset:-14%; z-index:3; pointer-events:none;
+  mix-blend-mode:screen;
+  background:linear-gradient(114deg,
+    transparent 40%, rgba(255,246,216,0) 46%, rgba(255,247,220,.9) 50%, rgba(255,246,216,0) 54%, transparent 60%);
+  transform:translateX(-115%);
+  animation:foilSweep 1.5s cubic-bezier(.35,.1,.2,1) .85s 1 both;
+}
+@keyframes foilSweep{
+  0%{ transform:translateX(-115%); opacity:0 }
+  18%{ opacity:1 }
+  82%{ opacity:1 }
+  100%{ transform:translateX(115%); opacity:0 }
+}
+.is-reduced .cover-emblem::after{ display:none }
+@media (prefers-reduced-motion: reduce){ .cover-emblem::after{ display:none } }
+.cover-word{
+  font-family:'Playfair Display',serif; font-weight:600;
+  font-size:clamp(20px,3.5vw,40px); letter-spacing:.24em; text-indent:.24em;
+  background:linear-gradient(180deg,#f3dfa4,#c9a24a 42%,#8a6526 62%,#e7cd86);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  filter:drop-shadow(0 1px 0 rgba(0,0,0,.5)) drop-shadow(0 -1px 0 rgba(247,225,164,.35));
+}
+.cover-sub{
+  margin-top:14px; font-style:italic; color:rgba(216,196,138,.82);
+  font-size:clamp(11px,1.3vw,15px); letter-spacing:.06em;
+}
+.cover-chip{
+  width:44px; height:32px; margin:24px auto 0; border-radius:5px;
+  background:linear-gradient(135deg,#d8c48a,#8a6526);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.35);
+  position:relative; opacity:.9;
+}
+.cover-chip::before{ content:""; position:absolute; inset:6px 8px;
+  background:
+   linear-gradient(90deg,transparent 45%,rgba(20,20,20,.5) 45% 55%,transparent 55%),
+   linear-gradient(0deg,transparent 40%,rgba(20,20,20,.5) 40% 60%,transparent 60%);
+}
+
+/* ---------- shared type ---------- */
+.star{ width:100%; height:100%; display:block }
+.star .foil-lt{ fill:var(--gold-lt) } .star .foil-dk{ fill:var(--gold-dk) }
+.lbl{
+  font-family:'Roboto Mono',monospace; font-size:10px; letter-spacing:.26em;
+  text-transform:uppercase; color:var(--ink-faint);
+}
+.rule{ height:1px; background:linear-gradient(90deg,transparent,rgba(138,101,38,.5),transparent); border:0; margin:0; }
+.sig{ font-family:'Sacramento',cursive; color:var(--gold-dk); font-size:30px; line-height:.7; }
+.mrz{
+  font-family:'Roboto Mono',monospace; font-weight:500;
+  letter-spacing:.06em; color:#3b352c;
+  background:linear-gradient(180deg,#efe5cd,#e7dabc);
+  border-top:1px solid rgba(138,101,38,.35); border-bottom:1px solid rgba(138,101,38,.35);
+  padding:9px 4px; border-radius:3px; overflow:hidden;
+}
+.mrz div{ white-space:nowrap; font-size:clamp(9px,1.15vw,13px); line-height:1.5; }
+
+/* ---------- identity spread ---------- */
+.idL{ position:relative; height:100%; display:flex; flex-direction:column; align-items:center; text-align:center; }
+.watermark{ position:absolute; inset:0; display:grid; place-items:center; z-index:0; opacity:.08; }
+.watermark .star{ width:74%; }
+.idL .crest{ width:84px; aspect-ratio:1; margin-top:6px; z-index:1;
+  filter:drop-shadow(0 2px 2px rgba(80,60,20,.3)); }
+.motto-en{ margin-top:14px; z-index:1;
+  font-family:'Roboto Mono',monospace; font-size:11px; letter-spacing:.24em; color:var(--gold-dk); }
+.motto-th{ margin-top:12px; z-index:1;
+  font-family:'Noto Serif Thai',serif; font-weight:500; line-height:1.45;
+  font-size:clamp(15px,2vw,21px); color:var(--ink); max-width:24ch; }
+.idL .spacer{ flex:1 }
+.issue-grid{ z-index:1; width:100%; display:grid; grid-template-columns:1fr 1fr; gap:12px 18px;
+  border-top:1px solid rgba(138,101,38,.3); padding-top:16px; margin-top:auto; text-align:left; }
+.issue-grid dt{ font-family:'Roboto Mono',monospace; font-size:9px; letter-spacing:.2em; color:var(--ink-faint); }
+.issue-grid dd{ margin:2px 0 0; font-family:'Playfair Display',serif; font-size:18px; color:var(--ink); }
+
+.idR{ height:100%; display:flex; flex-direction:column; }
+.idR .top-fields{ display:grid; grid-template-columns:auto auto 1fr; gap:6px 20px; align-items:end; }
+.idR .top-fields .v{ font-family:'Playfair Display',serif; font-size:20px; }
+.bearer-label{ margin-top:26px }
+.bearer{ margin-top:10px; font-size:clamp(17px,2.3vw,24px); line-height:1.42;
+  font-style:italic; color:#3d372e; }
+.idR .sign{ margin-top:18px; display:flex; align-items:flex-end; gap:14px; }
+.idR .sign .line{ flex:1; border-bottom:1px solid rgba(138,101,38,.5); padding-bottom:4px; }
+.idR .sign .sig{ transform:rotate(-3.5deg); transform-origin:0 100%; margin-bottom:-2px; }
+.idR .fill{ flex:1 }
+/* an engraved endorsement earns the space under the signature: a faint intaglio
+   seal + hairline rule + microtext, so the lower page reads as issued, not empty */
+.idR .official{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:11px; text-align:center; }
+.idR .official .off-seal{ width:64px; height:64px; opacity:.11; }
+.idR .official .off-rule{ width:56%; height:1px;
+  background:linear-gradient(90deg,transparent,rgba(138,101,38,.55),transparent); }
+.idR .official .off-micro{ margin:0; max-width:32ch; text-transform:uppercase;
+  font-family:'Roboto Mono',monospace; font-size:9px; letter-spacing:.2em; line-height:1.65; color:var(--ink-faint); }
+.idR .mrz{ margin-top:auto }
+
+/* ---------- visa spreads ---------- */
+.visaL{ height:100%; display:flex; flex-direction:column; }
+.visa-top{ display:flex; justify-content:space-between; align-items:baseline; }
+.visa-top .k{ font-family:'Playfair Display',serif; font-weight:700; font-size:clamp(22px,3vw,34px);
+  letter-spacing:.16em; color:var(--gold-dk); }
+.visa-arch{ margin-top:4px; text-align:center;
+  font-family:'Roboto Mono',monospace; font-size:10px; letter-spacing:.3em; color:var(--ink-soft); }
+.visa-portrait{ position:relative; width:112px; height:132px; margin:20px auto 4px;
+  border:1px solid rgba(138,101,38,.55); border-radius:3px; overflow:hidden;
+  display:grid; place-items:center; background:linear-gradient(180deg,#efe6cf,#e6d9ba); }
+.visa-portrait .g{ position:absolute; inset:0; background-image:var(--guilloche); background-size:150px;
+  opacity:.7; mix-blend-mode:multiply; }
+.visa-portrait .star{ width:64%; position:relative; opacity:.9;
+  filter:drop-shadow(0 1px 1px rgba(80,60,20,.35)); }
+.visa-cat{ text-align:center; margin-top:12px;
+  font-family:'Playfair Display',serif; font-size:clamp(16px,2vw,21px); letter-spacing:.04em; }
+.visa-fields{ margin:16px 0 0; display:grid; grid-template-columns:1fr 1fr; gap:11px 16px; }
+.visa-fields dt{ font-family:'Roboto Mono',monospace; font-size:9px; letter-spacing:.16em; color:var(--ink-faint); }
+.visa-fields dd{ margin:2px 0 0; font-size:15px; color:var(--ink); }
+.visaL .mrz{ margin-top:auto }
+
+.visaR{ height:100%; display:flex; flex-direction:column; position:relative; }
+.stamp-zone{ position:relative; height:44%; display:grid; place-items:center; }
+.cond-label{ text-align:center }
+.cond-copy{ margin-top:12px; font-size:clamp(16px,2.1vw,21px); line-height:1.5; color:#3d372e; }
+.cond-foot{ margin-top:auto; display:flex; justify-content:space-between; align-items:flex-end; }
+.cond-foot .stamp-mini{ width:74px; height:74px; opacity:.9; transform:rotate(-9deg) }
+.cond-foot .sig{ transform:rotate(-2.5deg); transform-origin:0 100%; margin-top:8px; }
+
+/* ---------- stamps (svg) ---------- */
+.stamp{ opacity:0; mix-blend-mode:multiply; }
+.stamp svg{ display:block; width:100%; height:100% }
+.ink-red .ink{ stroke:var(--red); color:var(--red) }
+.ink-sage .ink{ stroke:var(--sage); color:var(--sage) }
+.ink-gold .ink{ stroke:var(--stgold); color:var(--stgold) }
+.stamp .arc{ font-family:'Roboto Mono',monospace; font-weight:500; letter-spacing:.14em; }
+.stamp-circle{ width:min(58%,190px); aspect-ratio:1 }
+.stamp-rect{ width:min(72%,240px); aspect-ratio:220/150 }
+.stamp-river{ width:min(60%,196px); aspect-ratio:1 }
+.stamp-bleed{ position:absolute; inset:0; filter:blur(1.4px); opacity:.28 }
+
+/* thud animation */
+.face.is-open .stamp{ animation:thud .5s cubic-bezier(.2,1.5,.4,1) both; }
+.face.is-open .stamp{ animation-delay:var(--d,0s) }
+@keyframes thud{
+  0%{ opacity:0; transform:scale(1.42) rotate(calc(var(--jr,0deg) - 10deg)); filter:blur(2.2px) }
+  55%{ opacity:1; transform:scale(.97) rotate(calc(var(--jr,0deg) + 1.5deg)); filter:blur(.2px) }
+  100%{ opacity:1; transform:scale(1) rotate(var(--jr,0deg)); filter:blur(0) }
+}
+
+/* ---------- entry stamps (yimwhan) ---------- */
+.entryL{ height:100%; display:flex; flex-direction:column; }
+.entry-head{ text-align:left }
+.entry-title{ margin-top:6px; font-family:'Playfair Display',serif; font-size:clamp(22px,2.8vw,30px); }
+.entry-copy{ margin-top:10px; font-size:clamp(14px,1.7vw,17px); line-height:1.5; color:#403a30; max-width:44ch; }
+.stamp-field{ position:relative; flex:1; margin-top:8px; }
+.rstamp{ position:absolute; width:41%; aspect-ratio:1; mix-blend-mode:multiply; opacity:0;
+  --jr:0deg; }
+.rstamp.a{ left:2%; top:4%; --jr:-9deg; --d:.02s } .rstamp.a .ring{ border-color:var(--red); color:var(--red) }
+.rstamp.b{ right:4%; top:26%; --jr:7deg; --d:.14s } .rstamp.b .ring{ border-color:var(--stgold); color:var(--stgold) }
+.rstamp.c{ left:16%; bottom:2%; --jr:-4deg; --d:.26s } .rstamp.c .ring{ border-color:var(--red); color:var(--red) }
+.face.is-open .rstamp{ animation:thud .5s cubic-bezier(.2,1.5,.4,1) both; animation-delay:var(--d) }
+.ring{ position:absolute; inset:0; border:2.5px solid; border-radius:50%; text-align:center;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  font-family:'Roboto Mono',monospace; box-shadow:inset 0 0 0 4px transparent, inset 0 0 0 5px currentColor; }
+.ring::before{ content:""; position:absolute; inset:9px; border:1px solid currentColor; border-radius:50%; opacity:.7 }
+.ring .yr{ font-size:12px; letter-spacing:.14em; opacity:.85 }
+.ring .lb{ font-weight:700; font-size:clamp(11px,1.5vw,15px); letter-spacing:.08em; margin:3px 0; }
+.ring .sb{ font-size:9px; letter-spacing:.1em; opacity:.8 }
+
+/* ---------- clinic photo page ---------- */
+.photoR{ height:100%; display:flex; flex-direction:column; }
+.photo-frame{ position:relative; flex:1; min-height:0; margin:2px 0 12px;
+  background:#22252e; border:1px solid rgba(138,101,38,.4);
+  display:grid; place-items:center; overflow:hidden; border-radius:2px; }
+.photo-frame img{ max-width:100%; max-height:100%; width:auto; height:auto; object-fit:contain; display:block; }
+.photo-frame .corner{ position:absolute; width:20px; height:20px; border:2px solid var(--gold-pale); opacity:.75 }
+.corner.tl{ top:7px; left:7px; border-right:0; border-bottom:0 }
+.corner.tr{ top:7px; right:7px; border-left:0; border-bottom:0 }
+.corner.bl{ bottom:7px; left:7px; border-right:0; border-top:0 }
+.corner.br{ bottom:7px; right:7px; border-left:0; border-top:0 }
+.photo-over{ position:absolute; right:-6px; bottom:-6px; width:96px; height:96px; opacity:0;
+  mix-blend-mode:multiply; --jr:-12deg; }
+.face.is-open .photo-over{ animation:thud .5s cubic-bezier(.2,1.5,.4,1) both; animation-delay:.18s }
+.photo-cap{ font-family:'EB Garamond',serif; font-style:italic; color:#443c30; font-size:15px }
+.photo-perf{ margin-top:8px; font-family:'Roboto Mono',monospace; font-size:9px; letter-spacing:.24em;
+  color:var(--ink-faint); border-top:1px dashed rgba(138,101,38,.45); padding-top:8px; }
+
+/* ---------- endorsements ---------- */
+.endorse{ height:100%; display:flex; flex-direction:column; gap:6px; }
+.endorse-head{ margin-bottom:8px }
+.endo{ display:flex; gap:16px; align-items:flex-start; padding:14px 0; border-top:1px solid rgba(138,101,38,.28); }
+.endo:first-of-type{ border-top:0 }
+.endo .seal{ flex:0 0 auto; width:64px; height:64px; opacity:0; mix-blend-mode:multiply; --jr:-6deg; }
+.face.is-open .endo .seal{ animation:thud .5s cubic-bezier(.2,1.5,.4,1) both; }
+.endo:nth-of-type(1) .seal{ animation-delay:.04s } .endo:nth-of-type(2) .seal{ animation-delay:.16s; --jr:5deg }
+.endo .txt{ min-width:0 }
+.endo .t{ font-family:'Playfair Display',serif; font-size:clamp(17px,2vw,21px); }
+.endo .d{ margin-top:5px; font-size:15px; line-height:1.45; color:#433c30; }
+
+/* ---------- back cover spread ---------- */
+.backL{ height:100%; display:flex; flex-direction:column; }
+.about-copy{ margin-top:12px; font-size:clamp(16px,2.1vw,21px); line-height:1.5; color:#3d372e; }
+.backL .crest{ width:70px; aspect-ratio:1; margin:auto auto 0; opacity:.9 }
+.c-city{ margin-top:18px; font-family:'Roboto Mono',monospace; font-size:12px; letter-spacing:.2em; color:var(--gold-dk); }
+
+.backR{ height:100%; display:flex; flex-direction:column; align-items:flex-start; }
+.cta{ display:inline-block; font-family:'Roboto Mono',monospace; font-size:11px; letter-spacing:.26em;
+  color:var(--gold-dk); text-decoration:none; border:1px solid rgba(138,101,38,.5); border-radius:2px;
+  padding:10px 16px; }
+.cta:hover{ background:rgba(168,128,47,.08) }
+.email-emboss{
+  margin-top:22px; font-family:'Playfair Display',serif; font-size:clamp(19px,2.6vw,28px);
+  letter-spacing:.02em; text-decoration:none; color:var(--cream-2);
+  text-shadow:0 1px 0 rgba(255,252,244,.9), 0 -1px 1px rgba(120,96,40,.55), 0 2px 3px rgba(90,70,30,.25);
+  -webkit-text-stroke:.4px rgba(120,96,40,.35);
+}
+.email-emboss:hover{ color:var(--cream) }
+.see-work{ margin-top:14px; font-style:italic; color:var(--gold-dk); background:none; border:0; cursor:pointer;
+  font-family:'EB Garamond',serif; font-size:16px; padding:0; text-decoration:underline; text-underline-offset:3px; }
+.backR .spacer{ flex:1 }
+.colophon{ font-family:'Roboto Mono',monospace; font-size:10px; letter-spacing:.1em; color:var(--ink-faint);
+  line-height:1.7; border-top:1px solid rgba(138,101,38,.3); padding-top:12px; width:100%; }
+.footer-mark{ margin-top:12px; display:flex; align-items:center; gap:10px; color:var(--ink-soft);
+  font-size:12px; letter-spacing:.06em; }
+.footer-mark .star{ width:22px; height:22px; flex:0 0 auto }
+.footer-mark b{ font-family:'Playfair Display',serif; font-weight:600; letter-spacing:.16em; color:var(--ink); }
+
+/* navy back face (unused visible) */
+.face--navy{ background:var(--navy); }
+
+/* ---------- controls ---------- */
+.controls{
+  position:fixed; z-index:40; left:50%; bottom:22px; transform:translateX(-50%);
+  display:flex; align-items:center; gap:18px;
+  background:rgba(18,21,31,.62); backdrop-filter:blur(6px);
+  border:1px solid rgba(201,162,74,.35); border-radius:40px; padding:8px 12px;
+}
+.nav-btn{
+  width:42px; height:42px; border-radius:50%; cursor:pointer;
+  background:radial-gradient(120% 120% at 40% 30%, #2a3049, #191d2b);
+  border:1px solid rgba(201,162,74,.55); color:var(--gold-lt);
+  display:grid; place-items:center; padding:0;
+}
+.nav-btn:hover{ border-color:var(--gold-hi); color:var(--gold-hi) }
+.nav-btn:disabled{ opacity:.3; cursor:default }
+.nav-btn svg{ width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
+.indicator{ text-align:center; min-width:180px; color:#e7dcc4 }
+.ind-name{ font-family:'Roboto Mono',monospace; font-size:11px; letter-spacing:.22em; }
+.ind-count{ font-family:'Playfair Display',serif; font-size:12px; color:var(--gold-pale); letter-spacing:.1em; margin-top:2px }
+.hint{
+  position:fixed; z-index:40; left:50%; top:20px; transform:translateX(-50%);
+  font-family:'Roboto Mono',monospace; font-size:10px; letter-spacing:.3em; color:rgba(216,196,138,.75);
+  transition:opacity .6s ease; pointer-events:none; white-space:nowrap;
+  text-decoration:underline; text-underline-offset:3px;
+}
+:focus-visible{ outline:2px solid var(--gold-hi); outline-offset:3px; }
+
+/* pointer discipline: stage passes through except real controls on the
+   CURRENTLY OPEN face. Un-scoped auto here would let clicks bleed through
+   the pointer-events:none paper of covering (unopened) leaves straight to
+   a control on a hidden leaf underneath (ghost hot-zone). */
+.stage,.mstage{ pointer-events:none }
+.face.is-open .page-body a, .face.is-open .page-body button{ pointer-events:auto }
+
+/* ---------- mobile deck ---------- */
+.mstage{
+  position:relative; width:var(--mcw); height:var(--mch);
+  perspective:1700px; perspective-origin:50% 46%;
+  transform-style:preserve-3d;
+}
+.mpage{
+  position:absolute; top:0; left:0; width:var(--mcw); height:var(--mch);
+  transform-origin:0% 50%; transform-style:preserve-3d;
+  backface-visibility:hidden; -webkit-backface-visibility:hidden;
+  border-radius:4px 9px 9px 4px; overflow:hidden;
+  will-change:transform;
+  box-shadow:0 22px 34px rgba(0,0,0,.5);
+}
+.mpage .page-body{ padding:26px 22px }
+
+/* ---------- reduced motion ---------- */
+.is-reduced .book,.is-reduced .leaf,.is-reduced .mpage{ transition:none !important }
+.is-reduced .shimmer{ display:none }
+.is-reduced .stamp,.is-reduced .rstamp,.is-reduced .endo .seal,.is-reduced .photo-over{
+  opacity:1 !important; animation:none !important;
+  transform:rotate(var(--jr,0deg)) !important; filter:none !important;
+}
+/* ---------- responsive tuning ---------- */
+@media (max-width:760px){
+  .scene{ align-items:center }
+  .mrz div{ font-size:11px }
+  .bearer,.cond-copy,.about-copy{ font-size:18px }
+  .controls{ bottom:16px; gap:10px; padding:6px 10px }
+  .indicator{ min-width:120px }
+  .ind-name{ font-size:9px; letter-spacing:.16em }
+  .hint{ font-size:9px; letter-spacing:.22em }
+}
+</style>
+</head>
+<body>
+<span class="hint" id="hint" aria-hidden="true">SCROLL TO PAGE THROUGH</span>
+<div class="scene" id="scene">
+  <div id="stageHolder"></div>
+  <div class="shimmer" id="shimmer"></div>
+  <div class="vignette"></div>
+</div>
+
+<nav class="controls" aria-label="Passport navigation">
+  <button class="nav-btn" id="prevBtn" aria-label="Previous spread"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+  <div class="indicator">
+    <div class="ind-name" id="indName">IDENTITY</div>
+    <div class="ind-count" id="indCount">01 / 07</div>
+  </div>
+  <button class="nav-btn" id="nextBtn" aria-label="Next spread"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+</nav>
+
+<div id="spacer"></div>
+
+<!-- global ink filters -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <filter id="inkedge" x="-8%" y="-8%" width="116%" height="116%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="2.1" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+  <filter id="inkedge2" x="-8%" y="-8%" width="116%" height="116%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="2" seed="19" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="1.6"/>
+  </filter>
+</defs></svg>
+
+<script>
+/* ============================================================
+   DATA  (swap this to reskin the passport)
+   ============================================================ */
+const STAR = `<svg class="star" viewBox="0 0 200 200" role="img" aria-label="Vesperwerk star"><g transform="translate(100,100)">
+<g><polygon class="foil-lt" points="0,-86 -11,0 0,0"/><polygon class="foil-dk" points="0,-86 11,0 0,0"/></g>
+<g transform="rotate(180)"><polygon class="foil-dk" points="0,-86 -11,0 0,0"/><polygon class="foil-lt" points="0,-86 11,0 0,0"/></g>
+<g transform="rotate(90)"><polygon class="foil-lt" points="0,-64 -9.5,0 0,0"/><polygon class="foil-dk" points="0,-64 9.5,0 0,0"/></g>
+<g transform="rotate(270)"><polygon class="foil-dk" points="0,-64 -9.5,0 0,0"/><polygon class="foil-lt" points="0,-64 9.5,0 0,0"/></g>
+<g transform="rotate(45)"><polygon class="foil-lt" points="0,-44 -7.5,0 0,0"/><polygon class="foil-dk" points="0,-44 7.5,0 0,0"/></g>
+<g transform="rotate(135)"><polygon class="foil-lt" points="0,-44 -7.5,0 0,0"/><polygon class="foil-dk" points="0,-44 7.5,0 0,0"/></g>
+<g transform="rotate(225)"><polygon class="foil-dk" points="0,-44 -7.5,0 0,0"/><polygon class="foil-lt" points="0,-44 7.5,0 0,0"/></g>
+<g transform="rotate(315)"><polygon class="foil-dk" points="0,-44 -7.5,0 0,0"/><polygon class="foil-lt" points="0,-44 7.5,0 0,0"/></g>
+</g></svg>`;
+
+const DATA = {
+  brand:'VESPERWERK',
+  cover:{ top:'REPUBLIC OF GOOD WORK', sub:'The Studio of the Evening Star', bottom:'PASSPORT' },
+  motto_th:'ดาวประจำเมือง : แสงแรกที่ใช้นำทางยามค่ำ',
+  motto_en:'THE STUDIO OF THE EVENING STAR',
+  positioning:'An independent software and AI studio. We architect, build, and operate production systems for businesses that cannot afford them to fail.',
+  passportNo:'VW-000001',
+  issue:{ authority:'BKK', est:'EST 2026' },
+  mrz:['P<BGWVESPERWERK<<STUDIO<OF<THE<EVENING<STAR','VW<<PRODUCTION<<SYSTEMS<<THAT<<CANNOT<<FAIL'],
+  services:[
+    { no:'AI-01', cat:'AI Systems', kind:'circle', ink:'ink-red', mrz:'V<BGWAISYSTEMS<<VOICE<LLM<EVALUATION<<<<<<',
+      copy:'Voice agents, LLM assistants, and the evaluation infrastructure that keeps them honest. AI that answers like your best employee, in production, around the clock.' },
+    { no:'PE-02', cat:'Product Engineering', kind:'rect', ink:'ink-sage', mrz:'V<BGWPRODUCTENG<<BACKEND<WEB<INFRA<<<<<<<<',
+      copy:'Full-stack product engineering from architecture to operations: event-driven backends, modern web frontends, and infrastructure that scales without drama.' },
+    { no:'CO-03', cat:'Commerce and Platforms', kind:'river', ink:'ink-gold', mrz:'V<BGWCOMMERCE<<SHOPIFY<LINE<PLATFORMS<<<<<',
+      copy:'Deep Shopify and LINE platform work: storefronts, admin apps, integrations, and the messaging rails Southeast Asian commerce runs on.' },
+  ],
+  work:{
+    title:'Yimwhan AI',
+    copy:'An AI voice and LINE assistant for dental clinics in Thailand. It answers after-hours calls, books and reschedules appointments, and hands off to staff the moment a human matters. In production at live clinics.',
+    stamps:[ {yr:'2025', lb:'BUILD', sb:'ARCHITECTURE'}, {yr:'2025', lb:'PILOT', sb:'FIRST CLINIC'}, {yr:'2026', lb:'IN PRODUCTION', sb:'LIVE CLINICS'} ],
+    photo:'../assets/flux-clinic-4k.png',
+    caption:'Attached: a clinic in production, Bangkok.',
+  },
+  principles:[
+    {n:'I', t:'Architecture first', d:'We design the system before we write the code.'},
+    {n:'II', t:'Production-worthy', d:'Demos impress; production endures. We build for the second one.'},
+    {n:'III', t:'Scope discipline', d:'The most valuable thing we tell clients is what not to build.'},
+    {n:'IV', t:'Senior hands', d:'No juniors learning on your budget. Founder-led, senior hands on every line.'},
+  ],
+  about:'Vesperwerk takes its name from the evening star: the first light you can navigate by. We are a founder-led studio in Bangkok building software for businesses across Asia and beyond.',
+  contact:{ email:'kittipong.k@vesperwerk.com', city:'Bangkok, Thailand' },
+  colophon:'this document grants unlimited entry to good engineering . pages: css . stamps: authored',
+  footer:'(c) 2026 Vesperwerk',
+};
+const SPREAD_NAMES = ['IDENTITY','VISA . AI SYSTEMS','VISA . PRODUCT ENGINEERING','VISA . COMMERCE','ENTRY RECORD','ENDORSEMENTS','ISSUING OFFICE'];
+</script>
+<script>
+/* ============================================================
+   BUILD + MECHANIC
+   ============================================================ */
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const easeOutCubic=t=>1-Math.pow(1-t,3);
+const easeInOutCubic=t=>t<0.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2;
+const mrzEsc=s=>s.replace(/</g,'&lt;');
+
+/* ---- guilloche + grain generators ---- */
+function hypo(cx,cy,A,B,D,steps){ let p=''; for(let i=0;i<=steps;i++){ const t=i/steps*2*Math.PI;
+  const x=cx+A*Math.cos(t)+D*Math.cos((A/B)*t), y=cy+A*Math.sin(t)-D*Math.sin((A/B)*t);
+  p+=(i?'L':'M')+x.toFixed(1)+','+y.toFixed(1);} return p; }
+function makeGuilloche(){
+  const s=340,c=170,st='#a8802f';
+  const svg=`<svg xmlns='http://www.w3.org/2000/svg' width='${s}' height='${s}' viewBox='0 0 ${s} ${s}'>`+
+    `<g fill='none' stroke='${st}' stroke-width='0.65' opacity='0.6'>`+
+    `<path d='${hypo(c,c,90,18,30,720)}'/>`+
+    `<path d='${hypo(c,c,84,12,34,720)}'/>`+
+    `<path d='${hypo(c,c,96,32,24,700)}'/>`+
+    `<circle cx='${c}' cy='${c}' r='118' stroke-width='0.5'/>`+
+    `</g></svg>`;
+  return "url(\"data:image/svg+xml,"+encodeURIComponent(svg)+"\")";
+}
+function makeGrain(){
+  const svg=`<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'>`+
+    `<filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='4'/>`+
+    `<feColorMatrix type='saturate' values='0'/></filter>`+
+    `<rect width='120' height='120' filter='url(#g)' opacity='0.6'/></svg>`;
+  return "url(\"data:image/svg+xml,"+encodeURIComponent(svg)+"\")";
+}
+
+/* ---- stamp svg builders ---- */
+function starTiny(){ return STAR; }
+function stampCircle(sv){
+  const R=100;
+  return `<div class="stamp stamp-circle ${sv.ink}"><svg viewBox="0 0 200 200">
+    <defs>
+      <path id="atop-${sv.no}" d="M40,100 A60,60 0 0 1 160,100"/>
+      <path id="abot-${sv.no}" d="M162,100 A62,62 0 0 1 38,100"/>
+    </defs>
+    <g class="ink" fill="none" filter="url(#inkedge)">
+      <circle cx="100" cy="100" r="92" stroke-width="2.2"/>
+      <circle cx="100" cy="100" r="84" stroke-width="1"/>
+      <circle cx="100" cy="100" r="55" stroke-width="1"/>
+      ${guillocheRing(100,100,70,48)}
+      <g transform="translate(78,74) scale(0.22)" fill="currentColor" stroke="none" opacity="0.9">${starPaths()}</g>
+      <text class="arc" fill="currentColor" stroke="none" font-size="13.5" text-anchor="middle"><textPath href="#atop-${sv.no}" startOffset="50%">REPUBLIC OF GOOD WORK</textPath></text>
+      <text class="arc" fill="currentColor" stroke="none" font-size="13" text-anchor="middle"><textPath href="#abot-${sv.no}" startOffset="50%">AI SYSTEMS</textPath></text>
+      <text x="100" y="132" class="arc" fill="currentColor" stroke="none" font-size="10" text-anchor="middle" letter-spacing="2">BANGKOK</text>
+      <text x="100" y="146" class="arc" fill="currentColor" stroke="none" font-size="9" text-anchor="middle" letter-spacing="2">EST 2026</text>
+    </g>
+  </svg></div>`;
+}
+function stampRect(sv){
+  return `<div class="stamp stamp-rect ${sv.ink}"><svg viewBox="0 0 220 150">
+    <g class="ink" fill="none" filter="url(#inkedge)">
+      <rect x="8" y="8" width="204" height="134" rx="3" stroke-width="3"/>
+      <rect x="15" y="15" width="190" height="120" rx="2" stroke-width="1"/>
+      <text x="110" y="42" fill="currentColor" stroke="none" font-family="'Roboto Mono',monospace" font-weight="700" font-size="20" letter-spacing="3" text-anchor="middle">ENTRY PERMIT</text>
+      <line x1="26" y1="54" x2="194" y2="54" stroke-width="1"/>
+      <text x="110" y="80" fill="currentColor" stroke="none" font-family="'Roboto Mono',monospace" font-size="13" letter-spacing="2.5" text-anchor="middle">PRODUCT ENGINEERING</text>
+      <text x="26" y="112" fill="currentColor" stroke="none" font-family="'Roboto Mono',monospace" font-size="11" letter-spacing="1.5">NO ${sv.no}</text>
+      <text x="194" y="112" fill="currentColor" stroke="none" font-family="'Roboto Mono',monospace" font-size="11" letter-spacing="1.5" text-anchor="end">ADMITTED</text>
+      <g transform="translate(96,88) scale(0.12)" fill="currentColor" stroke="none" opacity="0.9">${starPaths()}</g>
+    </g>
+  </svg></div>`;
+}
+function stampRiver(sv){
+  return `<div class="stamp stamp-river ${sv.ink}"><svg viewBox="0 0 200 200">
+    <defs>
+      <path id="rtop-${sv.no}" d="M42,100 A58,58 0 0 1 158,100"/>
+      <path id="rbot-${sv.no}" d="M160,100 A60,60 0 0 1 40,100"/>
+    </defs>
+    <g class="ink" fill="none" filter="url(#inkedge2)">
+      ${scallop(100,100,92,26)}
+      <circle cx="100" cy="100" r="80" stroke-width="1.6"/>
+      <circle cx="100" cy="100" r="52" stroke-width="1"/>
+      <path d="M60,108 q10,-9 20,0 t20,0 t20,0 t20,0" stroke-width="1.4"/>
+      <path d="M64,118 q9,-8 18,0 t18,0 t18,0" stroke-width="1"/>
+      <path d="M70,94 q30,-20 60,0" stroke-width="1.6"/>
+      <path d="M100,74 v14" stroke-width="1.4"/>
+      <path d="M100,74 l14,6 -14,4z" fill="currentColor" stroke="none"/>
+      <text class="arc" fill="currentColor" stroke="none" font-size="12.5" text-anchor="middle"><textPath href="#rtop-${sv.no}" startOffset="50%">REPUBLIC OF GOOD WORK</textPath></text>
+      <text class="arc" fill="currentColor" stroke="none" font-size="11" text-anchor="middle"><textPath href="#rbot-${sv.no}" startOffset="50%">COMMERCE AND PLATFORMS</textPath></text>
+    </g>
+  </svg></div>`;
+}
+function overStamp(){
+  return `<div class="photo-over stamp ink-red"><svg viewBox="0 0 120 120">
+    <defs><path id="otop" d="M28,60 A32,32 0 0 1 92,60"/></defs>
+    <g class="ink" fill="none" filter="url(#inkedge)">
+      <circle cx="60" cy="60" r="52" stroke-width="2.4"/>
+      <circle cx="60" cy="60" r="44" stroke-width="0.9"/>
+      <g transform="translate(48,44) scale(0.12)" fill="currentColor" stroke="none" opacity="0.9">${starPaths()}</g>
+      <text class="arc" fill="currentColor" stroke="none" font-size="9" text-anchor="middle"><textPath href="#otop" startOffset="50%">OFFICIAL . BANGKOK</textPath></text>
+      <text x="60" y="86" fill="currentColor" stroke="none" font-family="'Roboto Mono',monospace" font-size="10" letter-spacing="2" text-anchor="middle">2026</text>
+    </g>
+  </svg></div>`;
+}
+function seal(n){
+  return `<div class="seal stamp ink-gold"><svg viewBox="0 0 90 90">
+    <defs><path id="stop${n}" d="M18,45 A27,27 0 0 1 72,45"/><path id="sbot${n}" d="M74,45 A29,29 0 0 1 16,45"/></defs>
+    <g class="ink" fill="none" filter="url(#inkedge)">
+      ${scallop(45,45,40,18)}
+      <circle cx="45" cy="45" r="33" stroke-width="0.8"/>
+      <text x="45" y="52" fill="currentColor" stroke="none" font-family="'Playfair Display',serif" font-weight="700" font-size="20" text-anchor="middle">${n}</text>
+      <text class="arc" fill="currentColor" stroke="none" font-size="6.5" text-anchor="middle"><textPath href="#stop${n}" startOffset="50%">VESPERWERK</textPath></text>
+      <text class="arc" fill="currentColor" stroke="none" font-size="6.5" text-anchor="middle"><textPath href="#sbot${n}" startOffset="50%">ENDORSED</textPath></text>
+    </g>
+  </svg></div>`;
+}
+function guillocheRing(cx,cy,rO,rI){ let p='<g stroke-width="0.7">'; const N=72;
+  for(let i=0;i<N;i++){ const a=i/N*2*Math.PI; const x1=cx+rI*Math.cos(a),y1=cy+rI*Math.sin(a);
+    const x2=cx+rO*Math.cos(a+0.09),y2=cy+rO*Math.sin(a+0.09);
+    p+=`<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`;}
+  return p+'</g>'; }
+function scallop(cx,cy,r,n){ let d=''; for(let i=0;i<=n;i++){ const a=i/n*2*Math.PI;
+  const rr=r+(i%2?0:5); const x=cx+rr*Math.cos(a),y=cy+rr*Math.sin(a);
+  d+=(i?'L':'M')+x.toFixed(1)+','+y.toFixed(1);} return `<path d="${d}Z" stroke-width="2"/>`; }
+function starPaths(){ return STAR.replace(/^<svg[^>]*>/,'').replace(/<\/svg>$/,''); }
+
+/* ---- face body html ---- */
+function coverHTML(){ const d=DATA.cover; return `
+  <div class="cover-frame"></div>
+  <div class="cover-body">
+    <div class="cover-top">${d.top}</div>
+    <div class="cover-emblem">${STAR}</div>
+    <div class="cover-word">${DATA.brand}</div>
+    <div class="cover-sub">${d.sub}</div>
+    <div class="cover-chip" aria-hidden="true"></div>
+    <div class="cover-bottom">${d.bottom}</div>
+  </div>`; }
+
+function id_L(){ return `
+  <div class="idL">
+    <div class="watermark" aria-hidden="true">${STAR}</div>
+    <div class="crest">${STAR}</div>
+    <div class="motto-en">${DATA.motto_en}</div>
+    <div class="motto-th">${DATA.motto_th}</div>
+    <div class="spacer" style="flex:1"></div>
+    <dl class="issue-grid">
+      <div><dt>ISSUING AUTHORITY</dt><dd>${DATA.issue.authority}</dd></div>
+      <div><dt>ESTABLISHED</dt><dd>${DATA.issue.est}</dd></div>
+    </dl>
+  </div>`; }
+
+function id_R(){ return `
+  <div class="idR">
+    <div class="lbl">TYPE / CODE / PASSPORT NO</div>
+    <div class="top-fields"><span class="v">P</span><span class="v">BGW</span><span class="v" style="text-align:right">${DATA.passportNo}</span></div>
+    <div class="lbl bearer-label">BEARER STATEMENT</div>
+    <div class="bearer">${DATA.positioning}</div>
+    <div class="sign">
+      <div class="line"><div class="lbl">SIGNATURE OF THE ISSUING STUDIO</div></div>
+      <div class="sig">Vesperwerk</div>
+    </div>
+    <div class="official">
+      <div class="off-seal">${STAR}</div>
+      <div class="off-rule"></div>
+      <p class="off-micro">Issued under the authority of the evening star . valid for unlimited entry to good engineering</p>
+    </div>
+    <div class="mrz">
+      <div>${mrzEsc(DATA.mrz[0])}</div>
+      <div>${mrzEsc(DATA.mrz[1])}</div>
+    </div>
+  </div>`; }
+
+function visa_L(sv){ return `
+  <div class="visaL">
+    <div class="visa-top"><span class="lbl">VISA</span><span class="k">${sv.no}</span></div>
+    <div class="visa-arch">REPUBLIC OF GOOD WORK</div>
+    <div class="visa-portrait"><div class="g"></div>${STAR}</div>
+    <div class="visa-cat">${sv.cat}</div>
+    <dl class="visa-fields">
+      <div><dt>TYPE</dt><dd>MULTIPLE ENTRY</dd></div>
+      <div><dt>ISSUED AT</dt><dd>BANGKOK</dd></div>
+      <div><dt>VALIDITY</dt><dd>PERPETUAL</dd></div>
+      <div><dt>STATUS</dt><dd>IN PRODUCTION</dd></div>
+    </dl>
+    <div class="mrz"><div>${mrzEsc(sv.mrz)}</div></div>
+  </div>`; }
+
+function visa_R(sv){ let s; if(sv.kind==='circle')s=stampCircle(sv); else if(sv.kind==='rect')s=stampRect(sv); else s=stampRiver(sv);
+  return `
+  <div class="visaR">
+    <div class="stamp-zone">${s}</div>
+    <div class="lbl cond-label">CONDITIONS OF ENTRY</div>
+    <div class="cond-copy">${sv.copy}</div>
+    <div class="cond-foot">
+      <div><div class="lbl">ENDORSING OFFICER</div><div class="sig">V. Werk</div></div>
+      <div class="stamp-mini">${STAR}</div>
+    </div>
+  </div>`; }
+
+function entry_L(){ const w=DATA.work; const cls=['a','b','c'];
+  const stamps=w.stamps.map((s,i)=>`
+    <div class="rstamp ${cls[i]}"><div class="ring"><span class="yr">${s.yr}</span><span class="lb">${s.lb}</span><span class="sb">${s.sb}</span></div></div>`).join('');
+  return `
+  <div class="entryL">
+    <div class="lbl entry-head">SELECTED WORK . ENTRY RECORD</div>
+    <div class="entry-title">${w.title}</div>
+    <div class="entry-copy">${w.copy}</div>
+    <div class="stamp-field">${stamps}</div>
+  </div>`; }
+
+function photo_R(){ const w=DATA.work; return `
+  <div class="photoR">
+    <div class="lbl">ATTACHED PHOTOGRAPH</div>
+    <div class="photo-frame">
+      <img src="${w.photo}" alt="Dental clinic in production, Bangkok" loading="lazy" decoding="async">
+      <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      ${overStamp()}
+    </div>
+    <div class="photo-cap">${w.caption}</div>
+    <div class="photo-perf">PHOTOGRAPH . DO NOT REMOVE</div>
+  </div>`; }
+
+function endo_page(items,head){
+  const rows=items.map(p=>`
+    <div class="endo">${seal(p.n)}<div class="txt"><div class="t">${p.t}</div><div class="d">${p.d}</div></div></div>`).join('');
+  return `<div class="endorse">${head?`<div class="lbl endorse-head">OFFICIAL ENDORSEMENTS</div>`:''}${rows}</div>`; }
+
+function back_L(){ return `
+  <div class="backL">
+    <div class="lbl">ABOUT THE BEARER</div>
+    <div class="about-copy">${DATA.about}</div>
+    <div class="c-city">${DATA.contact.city}</div>
+    <div class="crest">${STAR}</div>
+  </div>`; }
+
+function back_R(){ return `
+  <div class="backR">
+    <div class="lbl">ENTRY GRANTED . CONTACT THE ISSUING OFFICE</div>
+    <a class="cta" href="mailto:${DATA.contact.email}" style="margin-top:12px">Start a conversation</a>
+    <a class="email-emboss" href="mailto:${DATA.contact.email}">${DATA.contact.email}</a>
+    <button class="see-work" id="seeWork">See our work</button>
+    <div class="spacer"></div>
+    <div class="colophon">${DATA.colophon}</div>
+    <div class="footer-mark"><span class="star-wrap">${STAR}</span><b>VESPERWERK</b> . ${DATA.contact.city} . ${DATA.footer}</div>
+  </div>`; }
+
+/* face registry (linear order = cover, then 7 spreads x 2) */
+const BODY = {
+  cover:{ type:'cover' },
+  s1L:{ type:'cream', side:'L', folio:'i',  html:id_L },
+  s1R:{ type:'cream', side:'R', folio:'ii', html:id_R },
+  s2L:{ type:'cream', side:'L', folio:'01', html:()=>visa_L(DATA.services[0]) },
+  s2R:{ type:'cream', side:'R', folio:'02', html:()=>visa_R(DATA.services[0]) },
+  s3L:{ type:'cream', side:'L', folio:'03', html:()=>visa_L(DATA.services[1]) },
+  s3R:{ type:'cream', side:'R', folio:'04', html:()=>visa_R(DATA.services[1]) },
+  s4L:{ type:'cream', side:'L', folio:'05', html:()=>visa_L(DATA.services[2]) },
+  s4R:{ type:'cream', side:'R', folio:'06', html:()=>visa_R(DATA.services[2]) },
+  s5L:{ type:'cream', side:'L', folio:'07', html:entry_L },
+  s5R:{ type:'cream', side:'R', folio:'08', html:photo_R },
+  s6L:{ type:'cream', side:'L', folio:'09', html:()=>endo_page(DATA.principles.slice(0,2),true) },
+  s6R:{ type:'cream', side:'R', folio:'10', html:()=>endo_page(DATA.principles.slice(2,4),false) },
+  bcL:{ type:'cream', side:'L', folio:'11', html:back_L },
+  bcR:{ type:'cream', side:'R', folio:'12', html:back_R },
+};
+const ORDER = ['cover','s1L','s1R','s2L','s2R','s3L','s3R','s4L','s4R','s5L','s5R','s6L','s6R','bcL','bcR'];
+
+function makeFaceEl(id){
+  const spec=BODY[id]; const el=document.createElement('div');
+  el.dataset.fid=id;
+  if(spec.type==='cover'){ el.className='face face--cover'; el.innerHTML=coverHTML(); return el; }
+  el.className='face face--cream face--'+spec.side;
+  el.innerHTML=
+    '<div class="paper"></div><div class="guilloche"></div><div class="gutter"></div><div class="pinlight"></div>'+
+    '<div class="page-body">'+spec.html()+'</div>'+
+    '<div class="folio">'+(spec.folio||'')+'</div><div class="shade"></div>';
+  return el;
+}
+function makeNavyEl(){ const el=document.createElement('div'); el.className='face face--navy'; return el; }
+
+/* ============================================================
+   STATE + LAYOUT
+   ============================================================ */
+const mqMobile = matchMedia('(max-width:760px)');
+const mqReduce = matchMedia('(prefers-reduced-motion: reduce)');
+let mode = mqMobile.matches ? 'm' : 'd';
+let reduce = mqReduce.matches;
+if(reduce) document.documentElement.classList.add('is-reduced');
+
+const scene=document.getElementById('scene');
+const holder=document.getElementById('stageHolder');
+const spacer=document.getElementById('spacer');
+const shimmer=document.getElementById('shimmer');
+const hint=document.getElementById('hint');
+const indName=document.getElementById('indName');
+const indCount=document.getElementById('indCount');
+const prevBtn=document.getElementById('prevBtn');
+const nextBtn=document.getElementById('nextBtn');
+
+let leaves=[], mpages=[], bookEl=null, mstageEl=null, lastShift=null;
+let bookW=960,bookH=640,pageW=480, mcw=380,mch=520;
+let spacerH=1;
+const DESK_SPREADS=7;                 // k in [1..7]
+const MOB_LAST=ORDER.length-1;        // 14
+let entranceStart=performance.now(), entranceDone=reduce, entranceProg=reduce?1:0;
+const ENT_HOLD=320, ENT_DUR=1900;   /* beat on the foil cover, then a weighted swing */
+let lastSettled=-1;
+let mouseX=0.5, mouseY=0.44, shimmerOn=false;
+
+document.documentElement.style.setProperty('--guilloche', makeGuilloche());
+document.documentElement.style.setProperty('--grain', makeGrain());
+
+function buildStructure(){
+  holder.innerHTML=''; leaves=[]; mpages=[]; bookEl=null; mstageEl=null; lastShift=null;
+  if(mode==='d'){
+    const stage=document.createElement('div'); stage.className='stage';
+    const book=document.createElement('div'); book.className='book'; bookEl=book;
+    for(let i=0;i<8;i++){
+      const leaf=document.createElement('div'); leaf.className='leaf';
+      const frontId=ORDER[2*i]; const backId=ORDER[2*i+1];
+      const front=makeFaceEl(frontId); front.classList.add('front');
+      const back = backId? makeFaceEl(backId) : makeNavyEl(); back.classList.add('back');
+      leaf.appendChild(front); leaf.appendChild(back);
+      book.appendChild(leaf);
+      leaves.push({el:leaf, front, back, index:i, shades:[front.querySelector('.shade'),back.querySelector('.shade')].filter(Boolean)});
+    }
+    const foreR=document.createElement('div'); foreR.className='fore fore--r';
+    foreR.innerHTML='<span class="tick a"></span><span class="tick b"></span><span class="tick c"></span>';
+    const foreL=document.createElement('div'); foreL.className='fore fore--l';
+    book.appendChild(foreL); book.appendChild(foreR);
+    stage.appendChild(book); holder.appendChild(stage);
+  } else {
+    const mstage=document.createElement('div'); mstage.className='mstage'; mstageEl=mstage;
+    ORDER.forEach((id,i)=>{
+      const p=makeFaceEl(id); p.classList.add('mpage'); p.style.zIndex=String(ORDER.length-i);
+      mstage.appendChild(p);
+      mpages.push({el:p, index:i, shade:p.querySelector('.shade')});
+    });
+    holder.appendChild(mstage);
+  }
+  bindInFace();
+  layout();
+}
+
+function bindInFace(){
+  const sw=document.getElementById('seeWork');
+  if(sw) sw.addEventListener('click',()=>goToSpread(5));
+}
+
+function layout(){
+  const vw=window.innerWidth, vh=window.innerHeight;
+  if(mode==='d'){
+    bookH=Math.min(vh*0.80, 660); bookW=bookH*1.44;
+    const maxW=vw*0.94; if(bookW>maxW){ bookW=maxW; bookH=bookW/1.44; }
+    pageW=bookW/2;
+    document.documentElement.style.setProperty('--bw',bookW+'px');
+    document.documentElement.style.setProperty('--bh',bookH+'px');
+    document.documentElement.style.setProperty('--pw',pageW+'px');
+    const perTurn=vh*0.9; spacerH=vh + (DESK_SPREADS-1)*perTurn;
+  } else {
+    mcw=Math.min(vw*0.90, 420); mch=Math.min(mcw*1.42, vh*0.84);
+    document.documentElement.style.setProperty('--mcw',mcw+'px');
+    document.documentElement.style.setProperty('--mch',mch+'px');
+    const perTurn=vh*0.82; spacerH=vh + (MOB_LAST-1)*perTurn;
+  }
+  spacer.style.height=spacerH+'px';
+}
+
+/* ============================================================
+   RENDER LOOP
+   ============================================================ */
+function scrollProgress(){
+  const scrollable=Math.max(1, spacerH - window.innerHeight);
+  return clamp(window.scrollY/scrollable, 0, 1);
+}
+function setOpen(faceEls){
+  document.querySelectorAll('.face.is-open').forEach(f=>f.classList.remove('is-open'));
+  void document.body.offsetWidth;
+  faceEls.forEach(f=>{ if(f) f.classList.add('is-open'); });
+}
+function renderDesktop(k){
+  const shift=-(pageW/2)*(1-clamp(k,0,1));
+  if(shift!==lastShift){ lastShift=shift; bookEl.style.transform='translateX('+shift+'px)'; }
+  for(const lf of leaves){
+    let prog=clamp(k-lf.index,0,1);
+    if(reduce) prog=prog>=0.5?1:0;
+    if(prog===lf.prog) continue;   /* memo: settled leaves cost nothing per frame */
+    lf.prog=prog;
+    lf.el.style.transform='rotateY('+(-180*prog)+'deg)';
+    let z; if(prog<=0.001) z=20-lf.index; else if(prog>=0.999) z=20+lf.index; else z=60;
+    lf.el.style.zIndex=String(z);
+    const o=reduce?0:(Math.sin(prog*Math.PI)*0.6);
+    lf.shades.forEach(s=>s.style.opacity=o.toFixed(3));
+  }
+  const sp=clamp(Math.round(k),1,DESK_SPREADS);
+  if(sp!==lastSettled){
+    lastSettled=sp;
+    setOpen([leaves[sp-1] && leaves[sp-1].back, leaves[sp] && leaves[sp].front]);
+    indName.textContent=SPREAD_NAMES[sp-1];
+    indCount.textContent=String(sp).padStart(2,'0')+' / 0'+DESK_SPREADS;
+    prevBtn.disabled=(sp<=1); nextBtn.disabled=(sp>=DESK_SPREADS);
+  }
+}
+function renderMobile(mi){
+  for(const mp of mpages){
+    let prog=clamp(mi-mp.index,0,1);
+    if(reduce) prog=prog>=0.5?1:0;
+    if(prog===mp.prog) continue;
+    mp.prog=prog;
+    mp.el.style.transform='rotateY('+(-180*prog)+'deg)';
+    let z; if(prog<=0.001) z=20-mp.index; else if(prog>=0.999) z=20+mp.index; else z=60;
+    mp.el.style.zIndex=String(z);
+    if(mp.shade) mp.shade.style.opacity=reduce?0:(Math.sin(prog*Math.PI)*0.5).toFixed(3);
+  }
+  const si=clamp(Math.round(mi),1,MOB_LAST);
+  if(si!==lastSettled){
+    lastSettled=si;
+    setOpen([mpages[si] && mpages[si].el]);
+    const spr=Math.max(1,Math.ceil(si/2));
+    indName.textContent=SPREAD_NAMES[clamp(spr-1,0,SPREAD_NAMES.length-1)];
+    indCount.textContent=String(si).padStart(2,'0')+' / '+MOB_LAST;
+    prevBtn.disabled=(si<=1); nextBtn.disabled=(si>=MOB_LAST);
+  }
+}
+function frame(now){
+  if(!entranceDone){
+    let t=(now-entranceStart-ENT_HOLD)/ENT_DUR;
+    if(t<0) t=0;
+    if(t>=1){ t=1; entranceDone=true; }
+    entranceProg=easeInOutCubic(t);
+  }
+  const p=scrollProgress();
+  if(mode==='d'){
+    const k = entranceDone ? (1 + p*(DESK_SPREADS-1)) : entranceProg;
+    renderDesktop(k);
+  } else {
+    const mi = entranceDone ? (1 + p*(MOB_LAST-1)) : entranceProg;
+    renderMobile(mi);
+  }
+  if(shimmerOn && !reduce){
+    shimmer.style.setProperty('--sx',(mouseX*100).toFixed(1)+'%');
+    shimmer.style.setProperty('--sy',(mouseY*100).toFixed(1)+'%');
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ============================================================
+   NAV: scroll / keyboard / swipe / arrows
+   ============================================================ */
+function currentIndex(){
+  const p=scrollProgress();
+  if(mode==='d') return Math.round(entranceDone?(1+p*(DESK_SPREADS-1)):1);
+  return Math.round(entranceDone?(1+p*(MOB_LAST-1)):1);
+}
+function yForTarget(target){
+  const scrollable=Math.max(1, spacerH-window.innerHeight);
+  if(mode==='d'){ const pp=clamp((target-1)/(DESK_SPREADS-1),0,1); return pp*scrollable; }
+  const pp=clamp((target-1)/(MOB_LAST-1),0,1); return pp*scrollable;
+}
+let tween=null;
+function smoothTo(y){
+  if(tween) cancelAnimationFrame(tween);
+  const start=window.scrollY, dist=y-start, t0=performance.now(), dur=reduce?0:600;
+  if(dur===0){ window.scrollTo(0,y); return; }
+  (function step(now){
+    const t=clamp((now-t0)/dur,0,1); const e=1-Math.pow(1-t,3);
+    window.scrollTo(0, start+dist*e);
+    if(t<1) tween=requestAnimationFrame(step);
+  })(t0);
+}
+function nav(delta){ const max=(mode==='d')?DESK_SPREADS:MOB_LAST;
+  const next=clamp(currentIndex()+delta,1,max); smoothTo(yForTarget(next)); dismissHint(); }
+function goToSpread(sp){
+  if(mode==='d'){ smoothTo(yForTarget(clamp(sp,1,DESK_SPREADS))); }
+  else { smoothTo(yForTarget(clamp(sp*2-1,1,MOB_LAST))); }
+  dismissHint();
+}
+prevBtn.addEventListener('click',()=>nav(-1));
+nextBtn.addEventListener('click',()=>nav(1));
+window.addEventListener('keydown',e=>{
+  if(['ArrowRight','ArrowDown','PageDown',' '].includes(e.key)){ e.preventDefault(); nav(1); }
+  else if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){ e.preventDefault(); nav(-1); }
+  else if(e.key==='Home'){ e.preventDefault(); smoothTo(0); }
+  else if(e.key==='End'){ e.preventDefault(); smoothTo(yForTarget((mode==='d')?DESK_SPREADS:MOB_LAST)); }
+});
+let tsx=0,tsy=0,tst=0;
+window.addEventListener('touchstart',e=>{ const t=e.changedTouches[0]; tsx=t.clientX; tsy=t.clientY; tst=Date.now(); },{passive:true});
+window.addEventListener('touchend',e=>{ const t=e.changedTouches[0]; const dx=t.clientX-tsx, dy=t.clientY-tsy;
+  if(Math.abs(dx)>52 && Math.abs(dx)>Math.abs(dy)*1.4 && (Date.now()-tst)<600){ nav(dx<0?1:-1); }
+},{passive:true});
+
+let hintGone=false;
+function dismissHint(){ if(hintGone) return; hintGone=true; hint.style.opacity='0'; }
+window.addEventListener('scroll',()=>{ if(window.scrollY>20) dismissHint(); },{passive:true});
+window.addEventListener('mousemove',e=>{
+  if(reduce) return;
+  mouseX=e.clientX/window.innerWidth; mouseY=e.clientY/window.innerHeight;
+  if(!shimmerOn){ shimmerOn=true; shimmer.style.opacity='1'; }
+});
+
+/* resize + mode switch */
+let rT=null;
+window.addEventListener('resize',()=>{
+  clearTimeout(rT);
+  rT=setTimeout(()=>{
+    const nm=mqMobile.matches?'m':'d';
+    if(nm!==mode){ mode=nm; lastSettled=-1; buildStructure(); }
+    else layout();
+  },160);
+});
+
+/* boot */
+buildStructure();
+requestAnimationFrame(frame);
+if(reduce){ hint.textContent='USE THE ARROWS OR SCROLL TO PAGE THROUGH'; }
+</script>
+</body>
+</html>

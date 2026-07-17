@@ -406,13 +406,18 @@ King wants the next batches as BACKOFFICE ADMIN + OWNER dashboard DESIGN IDEAS f
   the traveling comet + drawn ground-line nav; shell-session gained the catchable star morph +
   paper grain. Structural-variation era verdict stands: architecture-level variation defeats
   convergence.
-- BATCH 68 IN FLIGHT `wdv96r01h` - THE FINAL BATCH (3 concepts, per two-judge convergence: only
-  architectures that COMMUNICATE the offer): vesperwerk-bangkok-atlas (hand-drawn Bangkok map,
-  districts = services, the night-call route as geography), vesperwerk-passport (paged booklet,
-  visas = services, entry stamps = the case timeline, MRZ wit), vesperwerk-one-take (single
-  unbroken camera move through a connected diorama: studio -> street -> clinic -> rooftop star).
-  AFTER batch 68: STOP the lane and produce the CONSOLIDATION DELIVERABLE (real-site flagship
-  shortlist from all judge rankings) unless King redirects.
+- BATCH 68 DONE - THE FINAL BATCH, 3/3 PASS first-judge (bangkok-atlas, passport, one-take).
+  Closing judge on passport: "lane-leader-class... submit as-is, lead with it - arguably the single
+  best 'the object IS the brand' piece in the lane". Final polish applied (one-take clinic photo
+  graded into the world + INGEST un-clipped on mobile; passport engraved endorsement + gutter
+  page-curl + foil sweep; atlas hand-hatched river + label nudges + mobile tab-nav). Cataloged +
+  deployed commit `c02f1c1` -> 327 total live, Vesperwerk = 61.
+- LANE CLOSED 2026-07-17 at 61 shipped treatments (2 parked: shoji-ma, kranok-flame-frame), per
+  three-judge convergence ("you end on your strongest note"). CONSOLIDATION DELIVERABLE written:
+  `_VESPERWERK-SHORTLIST.md` (Tier-1 flagships = transcript-screenplay [strategic], passport
+  [showpiece], cutaway-illustration, soft-brutalism, mudmee-loom-resolve; composition + Awwwards
+  submission order inside). Loop IDLES awaiting King's direction - next natural step is picking a
+  flagship and building the production vesperwerk.com from it. Do NOT start new batches unprompted.
 - ENDGAME CONVERGENCE (two judges agree): AT MOST ONE more architecture batch (only architectures
   that also COMMUNICATE the offer: map/atlas of Bangkok districts=services, paged physical artifact
   [passport/letterpress you page through], continuous-camera diorama) then STOP and consolidate

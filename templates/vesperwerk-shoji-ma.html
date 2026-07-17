@@ -1,0 +1,806 @@
+<!-- TEMPLATE: Shoji Ma | ARCHETYPE: Shoji Ma - rooms of light behind sliding paper panels | REF: kkaa.co.jp, Dezeen shoji interiors (Jan 2026), Tadao Ando | WHEN TO USE: quiet-luxury studio / architecture / craft brand where restraint and the reveal are the story | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vesperwerk . Shoji Ma</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+Thai:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================= *
+ *  SHOJI MA - rooms of light behind sliding washi panels
+ *  Palette: warm cream ground, washi paper panels, warm backlight,
+ *  ink type, the gold vesper star as the only saturated element.
+ * ============================================================= */
+:root{
+  --cream:#faf7f1;        /* page ground */
+  --cream-deep:#f2ecdf;   /* room floor light */
+  --washi:#f4eddc;        /* paper panel base */
+  --washi-hi:#fbf5e7;     /* paper highlight */
+  --washi-lo:#e9dfc7;     /* paper shade */
+  --glow:#e8ca86;         /* warm light behind paper */
+  --ink:#2e2a26;          /* type */
+  --ink-soft:rgba(46,42,38,.56);
+  --ink-faint:rgba(46,42,38,.34);
+  --line:rgba(46,42,38,.16);
+  --gold:#a8802f;
+  --gold-lo:#8a6526;
+  --gold-hi:#c09a4a;
+  --warmth:0;             /* set by JS: current room warmth 0..1 */
+  --serif:"Playfair Display", Georgia, serif;
+  --body:"Cormorant Garamond", Georgia, serif;
+  --mono:"IBM Plex Mono", ui-monospace, monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+html{scroll-behavior:smooth; -webkit-text-size-adjust:100%}
+body{
+  background:var(--cream);
+  color:var(--ink);
+  font-family:var(--body);
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+img{max-width:100%;display:block}
+a{color:inherit}
+::selection{background:rgba(168,128,47,.22)}
+
+/* ---- global warmth wash (follows the room you occupy) ---- */
+.warm-wash{
+  position:fixed; inset:0; z-index:1; pointer-events:none;
+  background:
+    radial-gradient(120% 80% at 50% 42%, rgba(232,202,134,.18), transparent 60%);
+  opacity:calc(.25 + var(--warmth)*.75);
+  transition:opacity .6s ease;
+  mix-blend-mode:multiply;
+}
+.grain-fixed{
+  position:fixed; inset:0; z-index:2; pointer-events:none; opacity:.5;
+  background-image:var(--noise);
+  background-size:150px 150px;
+  mix-blend-mode:multiply;
+}
+
+/* ================= fixed header ================= */
+.mast{
+  position:fixed; top:0; left:0; right:0; z-index:40;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:22px clamp(20px,4.5vw,64px);
+  pointer-events:none;
+}
+.mast .brand{display:flex; align-items:center; gap:13px; pointer-events:auto}
+.mast .star-mini{width:20px; height:20px; flex:none}
+.wordmark{
+  font-family:var(--serif); font-weight:600;
+  letter-spacing:.24em; font-size:14px; color:var(--ink);
+  padding-left:.24em;
+}
+.mast .now{
+  font-family:var(--mono); font-size:11px; letter-spacing:.28em;
+  color:var(--ink-soft); text-align:right; line-height:1.5;
+  pointer-events:auto;
+}
+.mast .now b{display:block; color:var(--ink); font-weight:500}
+
+/* ================= room index rail (right) ================= */
+.rail{
+  position:fixed; z-index:40; right:clamp(16px,2.4vw,34px); top:50%;
+  transform:translateY(-50%);
+  display:flex; flex-direction:column; gap:15px; align-items:flex-end;
+  pointer-events:none;
+}
+.rail button{
+  pointer-events:auto; appearance:none; border:0; background:none; cursor:pointer;
+  display:flex; align-items:center; gap:9px; padding:2px; color:var(--ink-faint);
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.2em;
+}
+.rail .tick{width:16px; height:1.5px; background:currentColor; transition:width .35s ease, background .35s ease}
+.rail .rn{opacity:0; transform:translateX(4px); transition:opacity .3s ease, transform .3s ease; white-space:nowrap}
+.rail button:hover{color:var(--ink-soft)}
+.rail button:hover .rn{opacity:1; transform:none}
+.rail button.on{color:var(--gold)}
+.rail button.on .tick{width:30px; background:var(--gold)}
+.rail button.on .rn{opacity:1; transform:none}
+.rail button:focus-visible{outline:2px solid var(--gold); outline-offset:3px; border-radius:2px}
+
+/* ================= rooms ================= */
+#rooms{position:relative; z-index:5}
+.room{position:relative; height:185vh}
+.room--light{height:auto; min-height:100vh}
+.stage{
+  position:sticky; top:0; height:100vh; overflow:hidden;
+  background:
+    radial-gradient(140% 100% at 62% 58%, var(--cream) 0%, var(--cream-deep) 70%, #ece4d4 100%);
+}
+.scene{position:absolute; inset:0; display:grid; z-index:1}
+/* the room's content stays behind the paper until the panel actually slides:
+   without this, dark ink text reads clearly through the 80%-opacity washi and
+   the "reveal" never pays off (copy is already legible before any scrolling) */
+.scene>*{opacity:var(--reveal,1)}
+/* light pool inside the room, brightens with the panel opening */
+.scene::before{
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(90% 70% at 34% 46%, rgba(232,202,134,.30), transparent 62%);
+  opacity:var(--lit,.2);
+}
+
+/* ---------------- scene: hero ---------------- */
+.scene--hero{grid-template-columns:1fr; align-content:center;
+  padding:0 clamp(24px,7vw,140px)}
+.scene--hero .lead{
+  max-width:15ch; font-family:var(--serif); font-weight:500;
+  font-size:clamp(30px,5.2vw,68px); line-height:1.08; letter-spacing:-.01em;
+  margin:0 0 .5em;
+}
+.scene--hero .sub{
+  max-width:34ch; font-size:clamp(17px,2.2vw,23px); line-height:1.5;
+  color:var(--ink-soft); font-weight:500; margin:0 0 2.1em;
+}
+.cta{display:flex; gap:16px; flex-wrap:wrap; align-items:center}
+.btn{
+  font-family:var(--mono); font-size:12px; letter-spacing:.16em; text-transform:uppercase;
+  text-decoration:none; padding:14px 26px; border-radius:2px; white-space:nowrap;
+  transition:background .3s ease, color .3s ease, box-shadow .3s ease;
+}
+.btn--p{background:var(--ink); color:var(--cream); box-shadow:0 8px 30px -14px rgba(46,42,38,.7)}
+.btn--p:hover{background:var(--gold-lo)}
+.btn--s{color:var(--ink); border:1px solid var(--line)}
+.btn--s:hover{border-color:var(--gold); color:var(--gold-lo)}
+.btn:focus-visible{outline:2px solid var(--gold); outline-offset:3px}
+
+/* ---------------- scene: service ---------------- */
+.scene--service{
+  grid-template-columns:1fr; align-content:center;
+  padding:0 clamp(24px,7vw,150px);
+}
+.scene--service .s-ix{
+  font-family:var(--mono); font-size:12px; letter-spacing:.3em; color:var(--gold);
+  margin-bottom:1.4em;
+}
+.scene--service .s-title{
+  font-family:var(--serif); font-weight:500; font-size:clamp(30px,5.4vw,62px);
+  line-height:1.06; margin:0 0 .55em; max-width:16ch; letter-spacing:-.01em;
+}
+.scene--service .s-body{
+  max-width:40ch; font-size:clamp(17px,2.15vw,22px); line-height:1.55;
+  color:var(--ink-soft); font-weight:500; margin:0;
+}
+/* asymmetric ma: push the copy block off the left edge */
+.scene--service .s-inner{margin-left:clamp(0px,10vw,220px)}
+
+/* ---------------- scene: work ---------------- */
+.scene--work{
+  grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);
+  align-items:center; gap:clamp(24px,4vw,72px);
+  padding:0 clamp(24px,6vw,120px);
+}
+.frame{
+  position:relative; min-width:0; border:1px solid var(--line);
+  padding:12px; background:rgba(251,245,231,.5);
+  box-shadow:0 30px 70px -40px rgba(60,44,20,.5);
+}
+.frame::after{content:""; position:absolute; inset:12px; border:1px solid rgba(168,128,47,.28); pointer-events:none}
+.frame .shot{width:100%; aspect-ratio:16/10; object-fit:cover; display:block; filter:saturate(.96) brightness(calc(.86 + var(--lit,.2)*.3))}
+.work-copy{min-width:0}
+.work-copy .s-ix{font-family:var(--mono); font-size:12px; letter-spacing:.3em; color:var(--gold); margin-bottom:1.3em}
+.work-copy .s-title{font-family:var(--serif); font-weight:500; font-size:clamp(28px,4vw,46px); margin:0 0 .5em; line-height:1.08}
+.work-copy .s-body{font-size:clamp(16px,1.7vw,20px); line-height:1.55; color:var(--ink-soft); font-weight:500; margin:0 0 1.4em; max-width:40ch}
+.work-copy .tag{font-family:var(--mono); font-size:11px; letter-spacing:.22em; color:var(--ink-faint)}
+
+/* ================= panels (the washi doors) ================= */
+.panel{
+  position:absolute; inset:0; z-index:3; overflow:hidden;
+  will-change:transform;
+  box-shadow:12px 0 60px -14px rgba(60,44,20,.30);
+  transform:translate3d(0,0,0);
+  pointer-events:none; /* visual paper sheet only; never a hit target over revealed content */
+}
+/* warm light behind the paper - the room's lamp: bright core, wide amber field */
+.panel-light{
+  position:absolute; inset:0;
+  background:
+    radial-gradient(30% 27% at var(--gx,38%) var(--gy,34%), rgba(244,213,146,.95), rgba(234,196,120,.58) 55%, transparent 82%),
+    radial-gradient(66% 58% at var(--gx,38%) var(--gy,34%), rgba(228,190,112,.72), rgba(224,186,106,.3) 52%, transparent 80%),
+    radial-gradient(130% 100% at var(--gx,38%) var(--gy,34%), rgba(224,190,116,.44), transparent 74%);
+  opacity:calc(.52 + var(--glow-i,.4)*.48);
+  transition:opacity .5s ease;
+}
+/* the star OBJECT behind the sheet - the backlight pushes its eight-point
+   silhouette through the paper as a soft-edged shape (hero only) */
+.panel-halo{
+  position:absolute; left:var(--gx,38%); top:var(--gy,34%);
+  width:min(46vh,400px); aspect-ratio:1; transform:translate(-50%,-50%);
+  filter:blur(4px) saturate(1.62) brightness(1.5);
+  opacity:calc(.78 + var(--glow-i,.4)*.22);
+}
+/* the washi sheet: warm base + fine fiber grain, translucent so the lamp bleeds through */
+.panel-paper{
+  position:absolute; inset:0;
+  background:
+    var(--noise),
+    repeating-linear-gradient(94deg, rgba(255,255,255,.09) 0 2px, rgba(46,42,38,.05) 2px 4px),
+    linear-gradient(103deg, var(--washi-hi), var(--washi) 46%, var(--washi-lo));
+  background-size:150px 150px, 6px 100%, cover;
+  background-blend-mode:overlay, soft-light, normal;
+  opacity:.72;
+}
+/* light blooming ON the paper surface = "through paper" (hero): tight core + amber halo */
+.panel-bloom{
+  position:absolute; inset:0; pointer-events:none;
+  background:
+    radial-gradient(13% 12% at var(--gx,38%) var(--gy,34%), rgba(252,234,182,.66), rgba(250,224,160,.34) 55%, transparent 76%),
+    radial-gradient(34% 30% at var(--gx,38%) var(--gy,34%), rgba(246,216,150,.42), transparent 74%),
+    radial-gradient(60% 54% at var(--gx,38%) var(--gy,34%), rgba(240,206,138,.26), transparent 76%);
+  mix-blend-mode:screen; opacity:calc(.5 + var(--glow-i,.4)*.4);
+}
+/* hero only: a warm evening vignette so the room reads dim and the star glow
+   commands by contrast (also keeps the hero luminance under the payoff) */
+.panel-shade{
+  position:absolute; inset:0; pointer-events:none;
+  background:
+    radial-gradient(56% 60% at var(--gx,38%) var(--gy,34%),
+      transparent 12%, rgba(52,39,20,.32) 26%, rgba(38,28,15,.56) 62%, rgba(26,19,9,.68) 100%),
+    linear-gradient(0deg, rgba(40,30,16,.25), rgba(40,30,16,.25));
+  mix-blend-mode:multiply;
+}
+/* hero paper a touch more translucent so the lamp + star silhouette read through it */
+.panel--hero .panel-paper{opacity:.64}
+/* the luminous star bleeding through the paper (hero only), screen-blended on top */
+.panel-star{
+  position:absolute; left:var(--gx,38%); top:var(--gy,34%);
+  width:min(37vh,320px); aspect-ratio:1; transform:translate(-50%,-50%);
+  filter:blur(3px) saturate(1.4) brightness(1.55);
+  mix-blend-mode:screen;
+  opacity:calc(.55 + var(--glow-i,.4)*.45);
+}
+/* soft warm reflection of the glow pooling on the floor at the panel base */
+.panel-floor{
+  position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(60% 26% at var(--gx,38%) 104%, rgba(243,214,152,.6), transparent 72%);
+  mix-blend-mode:screen; opacity:calc(.35 + var(--glow-i,.4)*.45);
+}
+/* slender kumiko lattice ribs (raised: highlight + ink shadow) */
+.panel-lattice{
+  position:absolute; inset:0;
+  background-image:
+    repeating-linear-gradient(90deg, transparent 0 calc(100%/7 - 2px),
+      rgba(255,250,238,.5) calc(100%/7 - 2px), rgba(255,250,238,.5) calc(100%/7),
+      rgba(58,44,26,.46) calc(100%/7), rgba(58,44,26,.46) calc(100%/7 + 3.5px),
+      transparent calc(100%/7 + 3.5px)),
+    repeating-linear-gradient(0deg, transparent 0 calc(100%/5 - 1.5px),
+      rgba(255,250,238,.42) calc(100%/5 - 1.5px), rgba(255,250,238,.42) calc(100%/5),
+      rgba(58,44,26,.4) calc(100%/5), rgba(58,44,26,.4) calc(100%/5 + 3px),
+      transparent calc(100%/5 + 3px));
+}
+/* outer wooden stile / rail + edge light where the room opens */
+.panel-frame{position:absolute; inset:0;
+  background:radial-gradient(95% 85% at var(--gx,38%) var(--gy,34%), transparent 42%, rgba(120,102,68,.11) 100%);
+  box-shadow:inset 0 0 0 2px rgba(46,42,38,.18), inset 0 0 60px rgba(46,42,38,.09)}
+.panel-edge{position:absolute; top:0; right:0; bottom:0; width:34px; background:linear-gradient(90deg, transparent, rgba(255,243,214,.6) 60%, rgba(255,249,236,.95)); pointer-events:none}
+.panel-edge::after{content:""; position:absolute; top:0; right:0; bottom:0; width:3.5px; background:linear-gradient(90deg, rgba(196,154,74,0), rgba(205,162,80,.72)); box-shadow:0 0 14px rgba(200,158,86,.5)}
+/* the mono room label printed on the paper */
+.panel-label{
+  position:absolute; left:clamp(22px,4vw,54px); top:clamp(96px,13vh,140px);
+  font-family:var(--mono); font-size:11px; letter-spacing:.32em;
+  color:rgba(46,42,38,.5);
+}
+.panel-label b{color:rgba(46,42,38,.78); font-weight:500}
+/* hero wordmark printed low + wide on the first paper sheet */
+.panel-word{
+  position:absolute; left:0; right:0; bottom:clamp(52px,10vh,96px); text-align:center;
+  font-family:var(--serif); font-weight:600; color:rgba(46,42,38,.66);
+  font-size:clamp(16px,2.5vw,30px); letter-spacing:clamp(.22em,1.4vw,.34em);
+  padding-left:clamp(.22em,1.4vw,.34em);
+}
+.panel-word small{
+  display:block; margin-top:1.6em; font-family:var(--mono); font-weight:400;
+  font-size:11px; letter-spacing:.34em; color:rgba(46,42,38,.5);
+}
+
+/* ================= final room: the light ================= */
+.room--light{
+  position:relative; z-index:5;
+  background:
+    radial-gradient(120% 90% at 50% 30%, #fdfaf2 0%, var(--cream) 46%, var(--cream-deep) 100%);
+  padding:clamp(90px,15vh,170px) clamp(24px,7vw,140px) clamp(56px,8vh,90px);
+}
+.light-inner{max-width:1120px; margin:0 auto}
+.approach-head{
+  font-family:var(--mono); font-size:11px; letter-spacing:.34em; color:var(--gold);
+  margin:0 0 clamp(36px,6vh,64px);
+}
+.scrolls{
+  display:grid; grid-template-columns:repeat(4,1fr); gap:clamp(16px,2.2vw,30px);
+  margin-bottom:clamp(90px,15vh,170px);
+}
+.scroll{
+  min-width:0; position:relative; padding:clamp(22px,2.4vw,34px) clamp(16px,1.8vw,24px) clamp(30px,4vh,46px);
+  background:
+    var(--noise),
+    linear-gradient(180deg, var(--washi-hi), var(--washi) 30%, var(--washi-lo));
+  background-size:150px 150px, cover;
+  background-blend-mode:soft-light, normal;
+  box-shadow:0 26px 60px -38px rgba(60,44,20,.55), inset 0 0 0 1px rgba(46,42,38,.1);
+  min-height:clamp(230px,34vh,340px);
+}
+.scroll::before{  /* hanging cord + peg */
+  content:""; position:absolute; top:-26px; left:50%; width:1px; height:26px;
+  background:linear-gradient(rgba(46,42,38,.4), rgba(46,42,38,.15));
+}
+.scroll::after{content:""; position:absolute; top:-30px; left:50%; width:7px; height:7px; margin-left:-3.5px; border-radius:50%; background:var(--gold); box-shadow:0 0 10px rgba(168,128,47,.6)}
+.scroll .sn{font-family:var(--mono); font-size:10px; letter-spacing:.28em; color:var(--gold); display:block; margin-bottom:1.4em}
+.scroll .st{font-family:var(--serif); font-weight:500; font-size:clamp(19px,1.7vw,24px); line-height:1.15; margin:0 0 .7em}
+.scroll .sd{font-size:clamp(15px,1.15vw,17px); line-height:1.5; color:var(--ink-soft); font-weight:500; margin:0}
+
+/* the payoff: star unobstructed, direct */
+.payoff{
+  display:grid; grid-template-columns:auto 1fr; gap:clamp(30px,5vw,74px);
+  align-items:center; margin-bottom:clamp(64px,10vh,110px);
+}
+.beacon{position:relative; width:clamp(120px,15vw,190px); aspect-ratio:1; flex:none}
+.beacon .halo{
+  position:absolute; inset:-40%; border-radius:50%;
+  background:radial-gradient(circle, rgba(232,202,134,.6), rgba(232,202,134,.14) 46%, transparent 70%);
+  animation:breathe 5.5s ease-in-out infinite;
+}
+.beacon svg{position:relative; width:100%; height:100%; filter:drop-shadow(0 6px 26px rgba(168,128,47,.4))}
+@keyframes breathe{0%,100%{opacity:.7; transform:scale(1)}50%{opacity:1; transform:scale(1.06)}}
+.payoff-txt{min-width:0}
+.payoff-txt .about{
+  font-family:var(--serif); font-weight:400; font-style:italic;
+  font-size:clamp(20px,2.5vw,30px); line-height:1.4; margin:0 0 1em; max-width:26ch;
+}
+.payoff-txt .thai{
+  font-family:"Noto Sans Thai", var(--body); font-weight:400;
+  font-size:clamp(15px,1.5vw,18px); line-height:1.5; color:var(--gold-lo);
+  letter-spacing:normal; margin:0;
+}
+.contact{
+  display:flex; flex-wrap:wrap; align-items:baseline; gap:clamp(14px,3vw,44px);
+  padding-top:clamp(30px,5vh,52px); border-top:1px solid var(--line);
+}
+.contact .mail{
+  font-family:var(--serif); font-weight:500; font-size:clamp(22px,4vw,44px);
+  text-decoration:none; color:var(--ink); letter-spacing:-.01em;
+  border-bottom:1px solid transparent; transition:border-color .3s ease, color .3s ease;
+  word-break:break-word;
+}
+.contact .mail:hover{color:var(--gold-lo); border-color:var(--gold)}
+.contact .mail:focus-visible{outline:2px solid var(--gold); outline-offset:4px}
+.contact .place{font-family:var(--mono); font-size:12px; letter-spacing:.2em; color:var(--ink-soft)}
+
+.honesty{
+  margin-top:clamp(60px,10vh,110px); padding-top:clamp(28px,4vh,40px);
+  border-top:1px solid var(--line);
+  display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:20px;
+}
+.honesty .line{font-family:var(--mono); font-size:11px; letter-spacing:.28em; color:var(--ink-faint)}
+.foot{display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; font-family:var(--mono); font-size:11px; letter-spacing:.22em; color:var(--ink-soft)}
+.foot .star-mini{width:16px; height:16px}
+.foot .wm{font-family:var(--serif); font-weight:600; letter-spacing:.22em; color:var(--ink); font-size:13px; padding-left:.22em}
+.foot .sep{color:var(--ink-faint)}
+
+/* ================= intro ritual ================= */
+body.intro .panel--hero{animation:heroSlide 2.15s cubic-bezier(.5,.02,.2,1) forwards}
+body.intro .panel--hero .panel-light,
+body.intro .panel--hero .panel-halo,
+body.intro .panel--hero .panel-bloom,
+body.intro .panel--hero .panel-star,
+body.intro .panel--hero .panel-floor{animation:bloom 1.6s ease-out forwards}
+@keyframes heroSlide{
+  0%{transform:translate3d(0,0,0)}
+  40%{transform:translate3d(0,0,0)}
+  100%{transform:translate3d(-15%,0,0)}
+}
+/* the lamp warms up from dim to full bloom (not a hard on/off) */
+@keyframes bloom{
+  0%{opacity:.16}
+  100%{opacity:1}
+}
+
+/* ================= reduced motion: everything ajar + readable ================= */
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto}
+  .room{height:auto !important}
+  .stage{position:static !important; height:auto !important; min-height:auto; overflow:visible;
+    display:grid; grid-template-columns:minmax(0,1fr) clamp(180px,27vw,320px); gap:clamp(20px,4vw,56px);
+    align-items:center; padding:clamp(90px,12vh,150px) clamp(24px,6vw,90px) clamp(50px,8vh,90px)}
+  .panel{position:relative !important; inset:auto !important; transform:none !important; overflow:hidden;
+    animation:none !important; height:auto; min-height:330px; box-shadow:0 26px 60px -38px rgba(60,44,20,.55)}
+  .panel-word{position:static; text-align:left; padding:clamp(18px,3vw,32px); bottom:auto;
+    font-size:clamp(18px,2.4vw,28px); letter-spacing:.14em}
+  .panel-light{opacity:.62}
+  .panel--hero .panel-light{opacity:.92}
+  .panel--hero .panel-halo{opacity:.85}
+  .panel--hero .panel-bloom{opacity:.85}
+  .panel--hero .panel-star{opacity:.8}
+  .panel--hero .panel-floor{opacity:.6}
+  .panel--hero .panel-halo,.panel--hero .panel-star{width:min(58%,220px)}
+  .scene{position:relative !important; inset:auto !important}
+  .scene::before{opacity:.25}
+  .scene--hero,.scene--service{padding:clamp(6px,1vw,10px) 0; align-content:center}
+  .scene--service .s-inner{margin-left:0}
+  .scene--work{grid-template-columns:1fr; gap:26px}
+  .beacon .halo{animation:none}
+  body.intro .panel--hero,
+  body.intro .panel--hero .panel-light,
+  body.intro .panel--hero .panel-halo,
+  body.intro .panel--hero .panel-bloom,
+  body.intro .panel--hero .panel-star,
+  body.intro .panel--hero .panel-floor{animation:none}
+}
+
+/* ================= mobile ================= */
+@media (max-width:760px){
+  .rail{display:none}
+  .mast{padding:16px 20px}
+  .mast .now b{font-size:11px}
+  .scene--work{grid-template-columns:1fr; gap:22px; align-content:center; padding:0 24px}
+  .frame .shot{aspect-ratio:16/11}
+  .scene--service .s-inner{margin-left:0}
+  .payoff{grid-template-columns:1fr; gap:24px; text-align:left}
+  .beacon{width:clamp(96px,30vw,140px)}
+  .scrolls{grid-template-columns:repeat(2,1fr); gap:14px; margin-bottom:clamp(70px,12vh,120px)}
+  .scroll{min-height:200px}
+  .panel-word{bottom:clamp(48px,10vh,90px)}
+  .panel--hero .panel-star{width:min(52vw,250px)}
+  .panel--hero .panel-halo{width:min(60vw,290px)}
+}
+@media (max-width:420px){
+  .scrolls{grid-template-columns:1fr}
+  .scroll{min-height:auto}
+}
+/* reduced motion on a phone: stack each room (panel sheet, then room content) */
+@media (prefers-reduced-motion: reduce) and (max-width:760px){
+  .stage{grid-template-columns:1fr !important; gap:clamp(20px,5vw,30px); align-items:start !important;
+    padding:clamp(80px,12vh,120px) 22px clamp(40px,7vh,70px) !important}
+  .panel{order:-1; min-height:190px; width:100%}
+  .panel-word{font-size:clamp(20px,6.4vw,30px); padding:clamp(16px,5vw,24px)}
+  .scene--hero .lead{font-size:clamp(28px,8.2vw,40px)}
+  .scene--service .s-title{font-size:clamp(26px,7.6vw,38px)}
+}
+</style>
+</head>
+<body>
+<div class="warm-wash" aria-hidden="true"></div>
+<div class="grain-fixed" aria-hidden="true"></div>
+
+<header class="mast">
+  <div class="brand">
+    <span class="star-mini" data-star aria-hidden="true"></span>
+    <span class="wordmark">VESPERWERK</span>
+  </div>
+  <div class="now"><b id="nowTag">THE STUDIO</b><span id="nowNum">ROOM 01 / 06</span></div>
+</header>
+
+<nav class="rail" id="rail" aria-label="Rooms"></nav>
+
+<main id="rooms"></main>
+
+<script>
+/* =====================================================================
+ *  DATA  -  swap copy here; layout stays.  (mirrors the Vesperwerk brand)
+ * ===================================================================== */
+const DATA = {
+  brand: "VESPERWERK",
+  rooms: [
+    { n:"01", tag:"THE STUDIO", kind:"hero",
+      lead:"An independent software and AI studio.",
+      sub:"We architect, build, and operate production systems for businesses that cannot afford them to fail.",
+      cta:[{t:"Start a conversation", href:"mailto:kittipong.k@vesperwerk.com", p:true},
+           {t:"See our work", href:"#room-5", p:false}] },
+
+    { n:"02", tag:"AI SYSTEMS", kind:"service", ix:"SERVICE 01",
+      title:"AI Systems",
+      body:"Voice agents, LLM assistants, and the evaluation infrastructure that keeps them honest. AI that answers like your best employee, in production, around the clock." },
+
+    { n:"03", tag:"PRODUCT ENGINEERING", kind:"service", ix:"SERVICE 02",
+      title:"Product Engineering",
+      body:"Full-stack product engineering from architecture to operations: event-driven backends, modern web frontends, and infrastructure that scales without drama." },
+
+    { n:"04", tag:"COMMERCE AND PLATFORMS", kind:"service", ix:"SERVICE 03",
+      title:"Commerce and Platforms",
+      body:"Deep Shopify and LINE platform work: storefronts, admin apps, integrations, and the messaging rails Southeast Asian commerce runs on." },
+
+    { n:"05", tag:"THE WORK", kind:"work", ix:"SELECTED WORK",
+      title:"Yimwhan AI",
+      body:"An AI voice and LINE assistant for dental clinics in Thailand. It answers after-hours calls, books and reschedules appointments, and hands off to staff the moment a human matters. In production at live clinics.",
+      media:"../assets/flux-clinic-4k.png", mtag:"IN PRODUCTION . LIVE CLINICS" },
+
+    { n:"06", tag:"THE LIGHT", kind:"light",
+      approachHead:"APPROACH . FOUR PRINCIPLES",
+      approach:[
+        { t:"Architecture first", d:"We design the system before we write the code." },
+        { t:"Production-worthy", d:"Demos impress; production endures. We build for the second one." },
+        { t:"Scope discipline", d:"The most valuable thing we tell clients is what not to build." },
+        { t:"Senior hands", d:"No juniors learning on your budget. Founder-led, senior hands on every line." }
+      ],
+      about:"Vesperwerk takes its name from the evening star: the first light you can navigate by. We are a founder-led studio in Bangkok building software for businesses across Asia and beyond.",
+      thai:"ดาวประจำเมือง : แสงแรกที่ใช้นำทางยามค่ำ",
+      email:"kittipong.k@vesperwerk.com",
+      place:"Bangkok, Thailand",
+      honesty:"six rooms . five panels . one light" }
+  ]
+};
+
+/* The vesper star (facet colors preserved from ../assets/vesperwerk-star.svg) */
+const STAR = `<svg viewBox="0 0 200 200" role="img" aria-label="Vesperwerk star"><g transform="translate(100,100)">
+<g><polygon points="0,-86 -11,0 0,0" fill="#c09a4a"/><polygon points="0,-86 11,0 0,0" fill="#8a6526"/></g>
+<g transform="rotate(180)"><polygon points="0,-86 -11,0 0,0" fill="#8a6526"/><polygon points="0,-86 11,0 0,0" fill="#c09a4a"/></g>
+<g transform="rotate(90)"><polygon points="0,-64 -9.5,0 0,0" fill="#c09a4a"/><polygon points="0,-64 9.5,0 0,0" fill="#8a6526"/></g>
+<g transform="rotate(270)"><polygon points="0,-64 -9.5,0 0,0" fill="#8a6526"/><polygon points="0,-64 9.5,0 0,0" fill="#c09a4a"/></g>
+<g transform="rotate(45)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g>
+<g transform="rotate(135)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g>
+<g transform="rotate(225)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g>
+<g transform="rotate(315)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g>
+</g></svg>`;
+
+/* fine washi grain, generated once as an SVG noise data URI */
+const NOISE = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E\")";
+document.documentElement.style.setProperty("--noise", NOISE);
+
+/* inject star mark instances */
+document.querySelectorAll("[data-star]").forEach(el=>{ el.innerHTML = STAR; });
+
+/* =====================================================================
+ *  BUILD DOM from DATA
+ * ===================================================================== */
+const esc = s => String(s).replace(/[&<>]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+function panelHTML(r, hero){
+  return `<div class="panel ${hero?"panel--hero":""}" data-panel style="--gx:59%;--gy:39%">
+    <div class="panel-light"></div>
+    ${hero?`<div class="panel-halo" data-star></div>`:""}
+    <div class="panel-paper"></div>
+    ${hero?`<div class="panel-bloom"></div>`:""}
+    ${hero?`<div class="panel-shade"></div>`:""}
+    <div class="panel-floor"></div>
+    <div class="panel-lattice"></div>
+    <div class="panel-frame"></div>
+    <div class="panel-edge"></div>
+    ${hero?"":`<div class="panel-label">ROOM <b>${r.n}</b> . ${esc(r.tag)}</div>`}
+    ${hero?`<div class="panel-word">${esc(DATA.brand)}<small>ROOM 01 . THE STUDIO</small></div>`:""}
+  </div>`;
+}
+
+function heroScene(r){
+  const b = r.cta.map(c=>`<a class="btn ${c.p?"btn--p":"btn--s"}" href="${c.href}">${esc(c.t)}</a>`).join("");
+  return `<div class="scene scene--hero">
+    <div>
+      <h1 class="lead">${esc(r.lead)}</h1>
+      <p class="sub">${esc(r.sub)}</p>
+      <div class="cta">${b}</div>
+    </div>
+  </div>`;
+}
+function serviceScene(r){
+  return `<div class="scene scene--service"><div class="s-inner">
+    <div class="s-ix">${esc(r.ix)}</div>
+    <h2 class="s-title">${esc(r.title)}</h2>
+    <p class="s-body">${esc(r.body)}</p>
+  </div></div>`;
+}
+function workScene(r){
+  return `<div class="scene scene--work">
+    <div class="frame"><img class="shot" src="${r.media}" alt="Yimwhan AI: a dental clinic interior in mint and wood" loading="lazy"></div>
+    <div class="work-copy">
+      <div class="s-ix">${esc(r.ix)}</div>
+      <h2 class="s-title">${esc(r.title)}</h2>
+      <p class="s-body">${esc(r.body)}</p>
+      <div class="tag">${esc(r.mtag)}</div>
+    </div>
+  </div>`;
+}
+function lightRoom(r){
+  const scrolls = r.approach.map((a,i)=>`<div class="scroll">
+    <span class="sn">0${i+1}</span>
+    <h3 class="st">${esc(a.t)}</h3>
+    <p class="sd">${esc(a.d)}</p>
+  </div>`).join("");
+  return `<section class="room room--light" id="room-6" data-room="6">
+    <div class="light-inner">
+      <div class="approach-head">${esc(r.approachHead)}</div>
+      <div class="scrolls">${scrolls}</div>
+      <div class="payoff">
+        <div class="beacon"><span class="halo"></span><span data-star></span></div>
+        <div class="payoff-txt">
+          <p class="about">${esc(r.about)}</p>
+          <p class="thai" lang="th">${r.thai}</p>
+        </div>
+      </div>
+      <div class="contact">
+        <a class="mail" href="mailto:${r.email}">${esc(r.email)}</a>
+        <span class="place">${esc(r.place)}</span>
+      </div>
+      <div class="honesty">
+        <span class="line">${esc(r.honesty)}</span>
+        <div class="foot">
+          <span class="star-mini" data-star></span>
+          <span class="wm">VESPERWERK</span>
+          <span class="sep">/</span><span>${esc(r.place)}</span>
+          <span class="sep">/</span><span>(c) 2026 Vesperwerk</span>
+        </div>
+      </div>
+    </div>
+  </section>`;
+}
+
+const root = document.getElementById("rooms");
+let html = "";
+DATA.rooms.forEach((r,i)=>{
+  if(r.kind==="light"){ html += lightRoom(r); return; }
+  let scene = r.kind==="hero" ? heroScene(r) : r.kind==="service" ? serviceScene(r) : workScene(r);
+  const hero = r.kind==="hero";
+  html += `<section class="room" id="room-${i+1}" data-room="${i+1}">
+    <div class="stage">${scene}${panelHTML(r,hero)}</div>
+  </section>`;
+});
+root.innerHTML = html;
+document.querySelectorAll("[data-star]").forEach(el=>{ if(!el.innerHTML.trim()) el.innerHTML = STAR; });
+
+/* build the room rail */
+const rail = document.getElementById("rail");
+DATA.rooms.forEach((r,i)=>{
+  const b = document.createElement("button");
+  b.innerHTML = `<span class="rn">${esc(r.tag)}</span><span class="tick"></span>`;
+  b.setAttribute("aria-label", `Room ${r.n}: ${r.tag}`);
+  b.addEventListener("click", ()=> gotoRoom(i));
+  rail.appendChild(b);
+});
+const railBtns = [...rail.children];
+
+/* =====================================================================
+ *  MOTION  -  scroll slides each panel; proximity lights the room
+ * ===================================================================== */
+const RM = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const finePointer = window.matchMedia("(pointer:fine)").matches;
+const panelRooms = [...document.querySelectorAll(".room")].filter(s=>s.querySelector(".panel"));
+const panels = panelRooms.map(s=>s.querySelector(".panel"));
+const allRooms = [...document.querySelectorAll(".room")];
+const nowTag = document.getElementById("nowTag");
+const nowNum = document.getElementById("nowNum");
+
+let tops = [];        // absolute top of each panel-room
+let heights = [];     // heights
+let lightTop = Infinity; // absolute top of the final (panel-less) light room
+let vh = window.innerHeight;
+let introDone = RM;   // in RM there is no intro
+let nudge = 0, nudgeTarget = 0, activeIdx = 0;
+let pointerInside = -1;
+
+function measure(){
+  vh = window.innerHeight;
+  tops = panelRooms.map(s=> s.getBoundingClientRect().top + window.scrollY);
+  heights = panelRooms.map(s=> s.offsetHeight);
+  const li = document.getElementById("room-6");
+  lightTop = li ? li.getBoundingClientRect().top + window.scrollY : Infinity;
+}
+function clamp(v,a,b){ return v<a?a:v>b?b:v; }
+
+function gotoRoom(i){
+  const el = document.getElementById("room-"+(i+1));
+  if(el) el.scrollIntoView({behavior: RM?"auto":"smooth", block:"start"});
+}
+
+let needsRender = false, rafId = null;
+function request(){ if(!rafId){ rafId = requestAnimationFrame(render); } }
+
+function render(){
+  rafId = null;
+  const y = window.scrollY;
+  let best = 0, bestNear = -1;
+
+  for(let i=0;i<panelRooms.length;i++){
+    const top = tops[i], range = Math.max(1, heights[i]-vh);
+    const p = clamp((y-top)/range, 0, 1);
+
+    // proximity/near 0..1: peaks while pinned, ramps on approach + fade on exit
+    let near;
+    if(y < top) near = clamp(1-(top-y)/vh, 0, 1);
+    else if(y > top+range) near = clamp(1-(y-(top+range))/vh, 0, 1);
+    else near = 1;
+    if(near > bestNear){ bestNear = near; best = i; }
+
+    // open fraction: hero starts ajar 15%
+    const minOpen = (i===0)?0.15:0.0;
+    const open = minOpen + p*(1-minOpen);
+
+    // glow: bright as you approach, dims after passing (and as paper opens)
+    const glow = near*(0.45+0.55*(1-Math.min(p,0.85)));
+    panels[i].style.setProperty("--glow-i", glow.toFixed(3));
+
+    // light pool inside the room grows with the opening
+    const scene = panelRooms[i].querySelector(".scene");
+    if(scene) scene.style.setProperty("--lit", (near*(0.18+0.62*p)).toFixed(3));
+    // room content itself fades in with the slide, so the panel is doing the reveal
+    if(scene) scene.style.setProperty("--reveal", (0.05+0.95*p).toFixed(3));
+
+    // during intro, CSS owns the hero panel transform
+    if(i===0 && !introDone) continue;
+
+    const extra = (i===best ? nudge : 0);
+    panels[i].style.transform = `translate3d(calc(${(-open*100).toFixed(2)}% - ${extra.toFixed(1)}px), 0, 0)`;
+  }
+
+  // the final light room takes over the header once it crosses viewport mid
+  if(window.scrollY + vh*0.5 >= lightTop){ best = DATA.rooms.length-1; bestNear = 1; }
+
+  activeIdx = best;
+  // header + rail
+  const r = DATA.rooms[best];
+  if(nowTag.textContent !== r.tag){ nowTag.textContent = r.tag; nowNum.textContent = `ROOM ${r.n} / 06`; }
+  railBtns.forEach((b,i)=> b.classList.toggle("on", i===best));
+  // whole-page warmth follows current room
+  document.body.style.setProperty("--warmth", bestNear.toFixed(3));
+
+  // cursor nudge spring
+  nudge += (nudgeTarget - nudge)*0.18;
+  if(Math.abs(nudgeTarget - nudge) > 0.05){ needsRender = true; }
+  if(needsRender){ needsRender = false; request(); }
+}
+
+if(!RM){
+  measure();
+  window.addEventListener("scroll", ()=>{ needsRender=false; request(); }, {passive:true});
+  window.addEventListener("resize", ()=>{ measure(); request(); }, {passive:true});
+  window.addEventListener("load", ()=>{ measure(); request(); });
+
+  // ---- desktop cursor "peek": nudge the active panel toward opening ----
+  if(finePointer){
+    window.addEventListener("pointermove", (e)=>{
+      const idx = activeIdx;
+      const stage = panelRooms[idx] && panelRooms[idx].querySelector(".stage");
+      if(!stage){ nudgeTarget = 0; return; }
+      const rc = stage.getBoundingClientRect();
+      const inside = e.clientX>=rc.left && e.clientX<=rc.right && e.clientY>=rc.top && e.clientY<=rc.bottom;
+      if(inside){
+        // closer to the leading (right) edge = a bigger peek, capped small
+        const fx = clamp((e.clientX-rc.left)/rc.width, 0, 1);
+        nudgeTarget = 4 + fx*8;   // 4 .. 12 px
+      } else {
+        nudgeTarget = 0;
+      }
+      needsRender = true; request();
+    }, {passive:true});
+    window.addEventListener("pointerleave", ()=>{ nudgeTarget=0; needsRender=true; request(); });
+  }
+
+  // ---- keyboard: arrows advance rooms ----
+  window.addEventListener("keydown", (e)=>{
+    if(["ArrowDown","ArrowRight","PageDown"].includes(e.key)){ e.preventDefault(); gotoRoom(Math.min(activeIdx+1, DATA.rooms.length-1)); }
+    else if(["ArrowUp","ArrowLeft","PageUp"].includes(e.key)){ e.preventDefault(); gotoRoom(Math.max(activeIdx-1, 0)); }
+    else if(e.key==="Home"){ e.preventDefault(); gotoRoom(0); }
+    else if(e.key==="End"){ e.preventDefault(); gotoRoom(DATA.rooms.length-1); }
+  });
+
+  // ---- entrance ritual: hand off to scroll after the slide settles ----
+  document.body.classList.add("intro");
+  window.addEventListener("DOMContentLoaded", ()=>{}); // no-op guard
+  setTimeout(()=>{
+    document.body.classList.remove("intro");
+    introDone = true;
+    request();
+  }, 2200);
+} else {
+  // reduced motion: mark the active room in the rail on scroll, no transforms/rAF
+  document.body.style.setProperty("--warmth", "0.5");
+  const io = new IntersectionObserver((ents)=>{
+    ents.forEach(en=>{
+      if(en.isIntersecting){
+        const idx = allRooms.indexOf(en.target);
+        if(idx>=0){
+          const r = DATA.rooms[idx];
+          nowTag.textContent = r.tag; nowNum.textContent = `ROOM ${r.n} / 06`;
+          railBtns.forEach((b,i)=> b.classList.toggle("on", i===idx));
+        }
+      }
+    });
+  }, {threshold:.5});
+  allRooms.forEach(s=> io.observe(s));
+}
+</script>
+</body>
+</html>

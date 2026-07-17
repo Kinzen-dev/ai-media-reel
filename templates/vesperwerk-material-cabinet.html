@@ -1,0 +1,934 @@
+<!-- TEMPLATE: Vesperwerk - The Material Cabinet | ARCHETYPE: The Material Cabinet (a wall of drawers holding what the studio is made of) | REF: Material Bank, Swatchbook, architecture-studio material walls (Snohetta, Herzog and de Meuron) | WHEN TO USE: studio / craft-led brand that proves substance by letting visitors open drawers of real material samples | SWAP: edit the CABINET data array at top of the script -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vesperwerk - The Material Cabinet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Trirong:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     VESPERWERK - THE MATERIAL CABINET
+     A wall of shallow oak drawers with brass hardware. Each drawer
+     holds a material swatch of what the studio is made of.
+     Oak + brass + linen + cream, all CSS. One drawer open at a time.
+     ============================================================ */
+
+  :root{
+    --ink:#2e2a26;
+    --cream:#faf7f1;
+    --card:#f4ecdd;
+    --linen:#e9ddc6;
+    --gold:#a8802f;
+    --gold-lite:#c09a4a;
+    --gold-dark:#8a6526;
+    --brass-hi:#f2dc98;
+    --oak-hi:#c8a06a;
+    --oak:#b6884f;
+    --oak-mid:#a9784a;
+    --oak-dark:#8a6038;
+    --oak-deep:#5f4123;
+    --shadow:#241a10;
+    --ink-70:rgba(46,42,38,.74);
+    --ink-52:rgba(46,42,38,.55);
+    --ink-38:rgba(46,42,38,.4);
+    --serif:"Cormorant Garamond", Georgia, serif;
+    --display:"Playfair Display", Georgia, serif;
+    --thai:"Trirong", "Cormorant Garamond", serif;
+    --mono:ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --pad:clamp(16px, 3.4vw, 40px);
+    --N:6;
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; }
+  html{ scroll-behavior:smooth; }
+  body{
+    font-family:var(--serif);
+    color:var(--ink);
+    background:#ded4c2;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    overflow-x:hidden;
+  }
+  img{ max-width:100%; display:block; }
+  a{ color:inherit; }
+  button{ font:inherit; color:inherit; }
+  :focus-visible{ outline:2px solid var(--gold); outline-offset:3px; border-radius:2px; }
+
+  /* ---- ambient studio room + cabinet light -------------------- */
+  .room{
+    position:fixed; inset:0; z-index:-2;
+    background:
+      radial-gradient(120% 80% at 50% -8%, #efe6d3 0%, #ddd2be 34%, #c8bca4 70%, #b3a688 100%);
+  }
+  .room::after{
+    content:""; position:absolute; inset:0;
+    background:
+      radial-gradient(80% 55% at 50% 0%, rgba(255,244,214,.55), rgba(255,244,214,0) 60%);
+    mix-blend-mode:soft-light;
+  }
+
+  /* ============================================================
+     SCROLL SECTION + STICKY STAGE
+     Desktop: the cabinet is pinned; scrolling walks the drawers.
+     Mobile: static; tap a drawer to open it.
+     ============================================================ */
+  .cabinet-scroll{ position:relative; }
+  .stage{
+    display:flex; flex-direction:column;
+    padding:clamp(18px,3vw,30px) var(--pad) clamp(22px,3vw,34px);
+    min-height:100svh;
+  }
+
+  /* the cabinet carcass */
+  .cabinet{
+    position:relative;
+    width:min(1120px, 100%);
+    margin:0 auto;
+    flex:1 1 auto; min-height:0;
+    display:flex; flex-direction:column;
+    border-radius:12px;
+    padding:clamp(14px,2vw,22px) clamp(14px,2.2vw,26px) clamp(12px,1.6vw,18px);
+    background:
+      linear-gradient(180deg, rgba(255,244,220,.5), rgba(255,244,220,0) 16%),
+      repeating-linear-gradient(90deg, rgba(90,60,28,.05) 0 2px, rgba(90,60,28,0) 2px 7px),
+      linear-gradient(180deg, #a6763f 0%, #8f6435 60%, #7c5730 100%);
+    box-shadow:
+      0 2px 0 rgba(255,240,214,.35) inset,
+      0 40px 80px -30px rgba(36,26,16,.7),
+      0 12px 26px -14px rgba(36,26,16,.55),
+      0 0 0 1px rgba(60,40,18,.5);
+  }
+  /* brass corner brackets */
+  .cabinet::before, .cabinet::after{
+    content:""; position:absolute; width:26px; height:26px; top:8px; pointer-events:none;
+    border-top:2px solid rgba(240,214,150,.7); opacity:.85;
+  }
+  .cabinet::before{ left:8px; border-left:2px solid rgba(240,214,150,.7); border-top-left-radius:6px; }
+  .cabinet::after{ right:8px; border-right:2px solid rgba(240,214,150,.7); border-top-right-radius:6px; }
+
+  /* soft warm cabinet light that "warms up" on entrance */
+  .cabinet-light{
+    position:absolute; left:6%; right:6%; top:-2px; height:46%;
+    border-radius:12px; pointer-events:none; z-index:3;
+    background:radial-gradient(120% 100% at 50% 0%, rgba(255,238,198,.9), rgba(255,238,198,0) 62%);
+    mix-blend-mode:soft-light;
+    opacity:.28; transition:opacity 1s ease;
+  }
+  .stage.lit .cabinet-light{ opacity:1; }
+
+  /* ============================================================
+     CROWN: pinned card + nameplate escutcheon + about origin
+     ============================================================ */
+  .crown{
+    position:relative; z-index:4;
+    display:grid; gap:clamp(12px,2vw,22px);
+    grid-template-columns:1fr auto 1fr;
+    align-items:center;
+    padding:clamp(8px,1.2vw,14px) clamp(6px,1vw,14px) clamp(14px,1.8vw,20px);
+    border-bottom:2px solid rgba(60,40,18,.4);
+    box-shadow:0 1px 0 rgba(240,214,150,.4);
+  }
+
+  /* pinned cream card */
+  .pinned-card{
+    justify-self:start; align-self:start;
+    max-width:340px; position:relative;
+    padding:clamp(12px,1.4vw,17px) clamp(14px,1.6vw,19px);
+    border-radius:4px;
+    background:linear-gradient(180deg,#fffdf7,#f2ead9);
+    box-shadow:0 8px 18px -10px rgba(36,26,16,.6), 0 0 0 1px rgba(120,96,48,.18);
+    transform:rotate(-.6deg);
+  }
+  .pinned-card::before{ /* brass pin */
+    content:""; position:absolute; top:-7px; left:22px; width:13px; height:13px; border-radius:50%;
+    background:radial-gradient(circle at 34% 30%, #ffeeb8, #c09a4a 45%, #7a5a1f 100%);
+    box-shadow:0 2px 3px rgba(30,18,4,.5), 0 0 0 1px rgba(70,50,18,.4);
+  }
+  .eyebrow{
+    margin:0 0 7px; font-family:var(--mono); font-size:10.5px; letter-spacing:.26em;
+    text-transform:uppercase; color:var(--gold-dark);
+  }
+  .positioning{
+    margin:0 0 13px; font-family:var(--display); font-weight:500; line-height:1.28;
+    font-size:clamp(15px,1.35vw,18px); color:var(--ink);
+  }
+  .cta{ display:flex; flex-wrap:wrap; gap:8px; }
+  .btn{
+    display:inline-block; text-decoration:none; cursor:pointer; border:0;
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.18em; text-transform:uppercase;
+    padding:9px 15px; border-radius:3px; transition:transform .2s ease, box-shadow .2s ease, background .2s ease;
+  }
+  .btn-primary{
+    color:#3a2c10;
+    background:linear-gradient(180deg,#f2dc98,#c9a24f 46%,#a8802f 78%,#8a6526);
+    box-shadow:inset 0 1px 0 rgba(255,248,220,.8), inset 0 -1px 0 rgba(50,32,6,.5), 0 4px 9px -4px rgba(60,40,10,.7);
+  }
+  .btn-primary:hover{ transform:translateY(-1px); box-shadow:inset 0 1px 0 rgba(255,248,220,.9), inset 0 -1px 0 rgba(50,32,6,.5), 0 7px 14px -5px rgba(60,40,10,.7); }
+  .btn-ghost{
+    color:var(--gold-dark); background:transparent; box-shadow:inset 0 0 0 1px rgba(138,101,38,.6);
+  }
+  .btn-ghost:hover{ background:rgba(168,128,47,.1); transform:translateY(-1px); }
+
+  /* nameplate escutcheon (center) */
+  .nameplate-group{ justify-self:center; text-align:center; max-width:440px; }
+  .escutcheon{ width:clamp(34px,4vw,50px); margin:0 auto 8px; filter:drop-shadow(0 3px 5px rgba(36,26,16,.4)); }
+  .escutcheon svg{ width:100%; height:auto; display:block; }
+  .nameplate{
+    display:inline-block; position:relative;
+    padding:clamp(6px,.9vw,10px) clamp(16px,2.4vw,30px);
+    border-radius:5px;
+    background:linear-gradient(180deg,#f0d78f 0%,#d4ad5c 30%,#b1873c 58%,#8a6526 82%,#6d4f1c 100%);
+    box-shadow:inset 0 1px 0 rgba(255,250,224,.85), inset 0 -2px 3px rgba(50,32,6,.5), 0 6px 14px -7px rgba(40,26,6,.7), 0 0 0 1px rgba(70,50,18,.5);
+  }
+  .nameplate-text{
+    font-family:var(--display); font-weight:600; letter-spacing:.24em;
+    font-size:clamp(17px,2.5vw,30px); color:#4a380f;
+    text-shadow:0 1px 0 rgba(255,246,210,.55);
+  }
+  .origin{
+    margin:12px auto 0; max-width:400px; font-style:italic;
+    font-size:clamp(13.5px,1.2vw,15.5px); line-height:1.4; color:var(--ink-70);
+  }
+
+  /* index plate (right) */
+  .index-plate{
+    justify-self:end; align-self:start; text-align:right;
+    font-family:var(--mono); font-size:9.5px; letter-spacing:.2em; text-transform:uppercase;
+    color:var(--gold-dark); line-height:1.9;
+    padding:9px 12px; border-radius:3px;
+    background:linear-gradient(180deg, rgba(255,244,214,.5), rgba(233,221,198,.3));
+    box-shadow:inset 0 0 0 1px rgba(138,101,38,.35);
+  }
+  .index-plate b{ color:var(--ink); font-weight:600; }
+
+  /* ============================================================
+     THE WALL: stacked oak drawer fronts
+     ============================================================ */
+  .wall{
+    position:relative; z-index:2;
+    display:flex; flex-direction:column; gap:6px;
+    padding:clamp(10px,1.4vw,16px) 0 clamp(8px,1vw,12px);
+  }
+  .front{
+    position:relative; display:flex; align-items:center; gap:clamp(10px,1.4vw,16px);
+    width:100%; min-width:0; text-align:left; cursor:pointer;
+    padding:clamp(9px,1.1vw,13px) clamp(12px,1.5vw,18px);
+    border-radius:4px; border:0; overflow:hidden;
+    background:transparent;
+    transition:transform .5s cubic-bezier(.16,1,.3,1), box-shadow .5s cubic-bezier(.16,1,.3,1);
+  }
+  .front-oak{
+    position:absolute; inset:0; border-radius:4px; z-index:-1;
+    background:
+      linear-gradient(180deg, rgba(255,244,214,.42), rgba(255,244,214,0) 24%),
+      linear-gradient(0deg, rgba(60,36,12,.34), rgba(60,36,12,0) 32%),
+      repeating-linear-gradient(91deg,
+        rgba(88,54,24,.11) 0 1px, rgba(88,54,24,0) 1px 4px,
+        rgba(120,78,38,.07) 4px 5px, rgba(120,78,38,0) 5px 11px,
+        rgba(70,42,18,.10) 11px 12px, rgba(70,42,18,0) 12px 20px),
+      radial-gradient(140% 42% at 28% 50%, rgba(150,100,52,.2), rgba(150,100,52,0) 62%),
+      radial-gradient(140% 60% at 78% 50%, rgba(120,78,38,.18), rgba(120,78,38,0) 56%),
+      linear-gradient(180deg, var(--oak-hi), var(--oak) 46%, var(--oak-mid));
+    box-shadow:inset 0 1px 0 rgba(255,246,222,.5), inset 0 -2px 3px rgba(60,36,12,.3), inset 0 0 0 1px rgba(80,48,20,.28);
+  }
+  .front-runner{
+    position:absolute; left:0; right:0; bottom:-3px; height:3px; z-index:-1;
+    background:linear-gradient(90deg, transparent, rgba(40,26,10,.4), transparent);
+    opacity:0; transition:opacity .5s ease;
+  }
+  .front-num{
+    flex:none; font-family:var(--mono); font-size:11px; letter-spacing:.14em;
+    color:#5c440f; width:22px;
+    text-shadow:0 1px 0 rgba(255,246,214,.4);
+  }
+  .front-label{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:1px; }
+  .front-name{
+    font-family:var(--display); font-weight:500; font-size:clamp(15px,1.5vw,19px); line-height:1.12;
+    color:#3a2c12; letter-spacing:.01em;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    text-shadow:0 1px 0 rgba(255,246,214,.35);
+  }
+  .front-lead{
+    font-family:var(--serif); font-size:clamp(11.5px,1vw,13.5px); font-style:italic; line-height:1.15;
+    color:rgba(58,38,14,.72);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .front-hint{
+    flex:none; width:34px; height:24px; border-radius:2px;
+    box-shadow:inset 0 0 0 1px rgba(50,32,10,.35), 0 1px 2px rgba(30,18,4,.3);
+  }
+  .hint-brass-coupon{ background:linear-gradient(135deg,#f0d78f,#b1873c 60%,#7a5a1f); }
+  .hint-oak-chip{ background:repeating-linear-gradient(88deg,#c8a06a 0 2px,#a9784a 2px 4px,#b6884f 4px 7px); }
+  .hint-canvas{ background:
+      repeating-linear-gradient(0deg, rgba(120,96,58,.5) 0 1px, transparent 1px 3px),
+      repeating-linear-gradient(90deg, rgba(120,96,58,.5) 0 1px, transparent 1px 3px), #ded0b2; }
+  .hint-case{ background:linear-gradient(135deg,#bfd0c7,#7fa090 55%,#5c7a6a); }
+  .hint-principles{ background:linear-gradient(135deg,#fbf6ea,#e6dcc6 60%,#cdbf9f); }
+  .hint-contact{ background:linear-gradient(135deg,#f2dc98,#a8802f); }
+
+  /* brass bar pull */
+  .pull{
+    flex:none; position:relative; width:clamp(46px,5vw,66px); height:14px; border-radius:8px; overflow:hidden;
+    background:linear-gradient(180deg,#f0d78f 0%,#d4ad5c 26%,#b1873c 52%,#8a6526 78%,#6d4f1c 100%);
+    box-shadow:inset 0 1px 0 rgba(255,250,222,.85), inset 0 -1px 0 rgba(50,32,6,.6),
+               inset 1px 0 0 rgba(255,250,222,.4), inset -1px 0 0 rgba(50,32,6,.4), 0 2px 3px rgba(30,18,4,.4);
+  }
+  .pull-glint{
+    position:absolute; top:0; bottom:0; width:44%; transform:translateX(-180%);
+    background:linear-gradient(100deg, transparent, rgba(255,252,236,.9), transparent);
+  }
+  .booting .pull-glint{ animation:glint 1s ease-out forwards; animation-delay:var(--gd,0s); }
+  @keyframes glint{ 0%{ transform:translateX(-180%);} 100%{ transform:translateX(320%);} }
+
+  .front-caret{
+    flex:none; font-family:var(--mono); font-size:8.5px; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--gold-dark); opacity:0; transition:opacity .4s ease; width:26px; text-align:right;
+  }
+
+  /* open drawer front: pulls forward, brightens, casts a runner shadow */
+  .front.is-open{
+    transform:translateX(clamp(4px,.8vw,10px)) translateY(1px);
+    box-shadow:0 14px 26px -12px rgba(36,26,16,.6);
+  }
+  .front.is-open .front-runner{ opacity:1; }
+  .front.is-open .front-name{ color:#2b1f0a; }
+  .front.is-open .front-caret{ opacity:1; }
+  .front:hover .front-oak{ filter:brightness(1.04); }
+
+  /* ============================================================
+     THE SHELF: the open drawer's linen bed (crossfades content)
+     ============================================================ */
+  .shelf{
+    position:relative; z-index:1; flex:1 1 auto; min-height:0;
+    margin-top:clamp(4px,.8vw,8px);
+    border-radius:6px;
+    background:
+      repeating-linear-gradient(0deg, rgba(150,126,86,.06) 0 1px, transparent 1px 3px),
+      repeating-linear-gradient(90deg, rgba(150,126,86,.06) 0 1px, transparent 1px 3px),
+      linear-gradient(180deg, #efe6d1, #e6dbc2);
+    box-shadow:
+      inset 0 3px 10px rgba(60,42,18,.28),
+      inset 0 0 0 1px rgba(120,96,52,.28),
+      inset 0 0 0 7px rgba(150,110,58,.16);
+    overflow:hidden;
+  }
+  /* oak drawer-box sides around the linen bed */
+  .shelf::before{
+    content:""; position:absolute; inset:0; border-radius:6px; pointer-events:none;
+    border:clamp(5px,.8vw,9px) solid transparent;
+    border-image:linear-gradient(180deg,#b6884f,#8a6038) 1;
+    opacity:.5;
+  }
+
+  .interior{
+    position:absolute; inset:0;
+    padding:clamp(14px,2vw,26px);
+    opacity:0; visibility:hidden; transform:translateY(14px);
+    transition:opacity .55s ease, transform .55s cubic-bezier(.16,1,.3,1), visibility 0s linear .55s;
+    overflow:auto;
+  }
+  .interior.is-open{
+    opacity:1; visibility:visible; transform:none;
+    transition:opacity .6s ease .08s, transform .6s cubic-bezier(.16,1,.3,1) .08s, visibility 0s;
+  }
+
+  /* generic swatch + copy layout */
+  .interior-inner{
+    display:grid; gap:clamp(16px,2.4vw,34px); align-items:center; min-height:100%;
+    grid-template-columns:minmax(0, clamp(180px,26vw,300px)) minmax(0,1fr);
+  }
+
+  .swatch{ position:relative; min-width:0; display:flex; flex-direction:column; gap:9px; align-items:flex-start; }
+  .swatch-cap{
+    font-family:var(--mono); font-size:9.5px; letter-spacing:.2em; text-transform:uppercase; color:var(--gold-dark);
+  }
+  .plate{ min-width:0; }
+  .kicker{
+    margin:0 0 8px; font-family:var(--mono); font-size:10px; letter-spacing:.22em; text-transform:uppercase;
+    color:var(--gold-dark);
+  }
+  .kicker .dot{ color:var(--gold); padding:0 3px; }
+  .plate-name{
+    margin:0 0 11px; font-family:var(--display); font-weight:600; line-height:1.05;
+    font-size:clamp(23px,3vw,38px); color:var(--ink);
+  }
+  .plate-copy{
+    margin:0; font-size:clamp(15px,1.5vw,19px); line-height:1.5; color:var(--ink-70); max-width:52ch;
+  }
+
+  /* -- swatch: engraved brass coupon (AI) -- */
+  .coupon{
+    position:relative; width:100%; aspect-ratio:8/5; border-radius:5px; overflow:hidden;
+    background:linear-gradient(150deg,#e9cd82 0%,#c9a24f 34%,#a8802f 66%,#87641e 100%);
+    box-shadow:inset 0 1px 0 rgba(255,250,224,.7), inset 0 -2px 4px rgba(50,32,6,.5),
+               inset 0 0 0 1px rgba(70,50,18,.5), 0 8px 18px -10px rgba(40,26,6,.7);
+  }
+  .coupon .circuit{ position:absolute; inset:9%; width:82%; height:82%; filter:drop-shadow(0 1px 0 rgba(255,248,214,.4)); }
+  .coupon-stamp{
+    position:absolute; right:9%; bottom:8%; font-family:var(--display); font-weight:700; font-size:clamp(15px,2vw,22px);
+    color:#5a420f; text-shadow:0 1px 0 rgba(255,248,214,.5); letter-spacing:.05em;
+  }
+  .coupon-edge{ position:absolute; inset:0; border-radius:5px; box-shadow:inset 0 0 0 2px rgba(255,244,206,.22); pointer-events:none; }
+
+  /* -- swatch: oak veneer chip (Product Engineering) -- */
+  .veneer{
+    position:relative; width:100%; aspect-ratio:8/5; border-radius:4px; overflow:hidden;
+    background:
+      radial-gradient(120% 60% at 20% 50%, rgba(90,58,26,.28), rgba(90,58,26,0) 60%),
+      radial-gradient(120% 70% at 78% 50%, rgba(70,44,20,.26), rgba(70,44,20,0) 55%),
+      repeating-linear-gradient(87deg,
+        rgba(84,52,22,.24) 0 1px, rgba(84,52,22,0) 1px 3px,
+        rgba(150,102,54,.2) 3px 4px, rgba(150,102,54,0) 4px 9px,
+        rgba(66,40,18,.2) 9px 10px, rgba(66,40,18,0) 10px 16px),
+      linear-gradient(180deg,#cba46c,#b6884f 50%,#9c6f3f);
+    box-shadow:inset 0 1px 0 rgba(255,246,218,.55), inset 0 -2px 4px rgba(60,36,12,.36),
+               inset 0 0 0 1px rgba(80,48,20,.4), 0 8px 18px -10px rgba(40,26,6,.6);
+  }
+  .veneer-tack{
+    position:absolute; top:10px; right:12px; width:11px; height:11px; border-radius:50%;
+    background:radial-gradient(circle at 34% 30%, #ffeeb8, #c09a4a 46%, #7a5a1f 100%);
+    box-shadow:0 1px 2px rgba(30,18,4,.5), inset 0 0 0 1px rgba(70,50,18,.4);
+  }
+
+  /* -- swatch: woven canvas (Commerce) -- */
+  .weave{
+    position:relative; width:100%; aspect-ratio:8/5; border-radius:3px; overflow:hidden;
+    background:
+      repeating-linear-gradient(0deg, rgba(120,96,58,.5) 0 1.5px, rgba(233,221,196,.2) 1.5px 4px),
+      repeating-linear-gradient(90deg, rgba(140,112,68,.45) 0 1.5px, rgba(233,221,196,.15) 1.5px 4px),
+      linear-gradient(180deg,#e4d6b8,#d8c8a4);
+    box-shadow:inset 0 0 0 1px rgba(120,96,52,.4), inset 0 2px 6px rgba(90,66,30,.14), 0 8px 18px -10px rgba(60,42,14,.5);
+  }
+  .weave::after{ /* frayed stitched edge */
+    content:""; position:absolute; inset:5px; border:1px dashed rgba(120,96,52,.5); border-radius:2px;
+  }
+
+  /* -- interior: THE CASE (Yimwhan) -- */
+  .interior.type-case .interior-inner{ grid-template-columns:minmax(0, clamp(220px,34vw,400px)) minmax(0,1fr); }
+  .case-media{ position:relative; min-width:0; }
+  .photo-card{
+    position:relative; width:100%; border-radius:3px; overflow:hidden;
+    background:#fff; padding:8px 8px 30px; transform:rotate(-1.4deg);
+    box-shadow:0 14px 30px -14px rgba(36,26,16,.7), 0 0 0 1px rgba(120,96,48,.2);
+  }
+  .photo-card img{ width:100%; aspect-ratio:16/10; object-fit:cover; border-radius:2px; }
+  .photo-cap{
+    position:absolute; left:0; right:0; bottom:8px; text-align:center;
+    font-family:var(--mono); font-size:9px; letter-spacing:.16em; text-transform:uppercase; color:rgba(58,38,14,.6);
+  }
+  .photo-tape{
+    position:absolute; top:-10px; left:50%; width:74px; height:20px; transform:translateX(-50%) rotate(-2deg);
+    background:linear-gradient(180deg, rgba(200,168,96,.5), rgba(168,128,47,.32));
+    box-shadow:0 1px 2px rgba(30,18,4,.25);
+  }
+  .case-motifs{ position:absolute; right:-6px; bottom:8px; display:flex; gap:8px; align-items:flex-end; }
+  .blueprint{ width:clamp(58px,7vw,84px); height:auto; opacity:.85; filter:drop-shadow(0 3px 5px rgba(36,26,16,.3)); }
+  .tray-motif{ width:clamp(48px,6vw,68px); height:auto; opacity:.9; }
+  .case-badge{
+    display:inline-block; margin-top:14px;
+    font-family:var(--mono); font-size:9.5px; letter-spacing:.18em; text-transform:uppercase; color:#3a2c10;
+    padding:6px 12px; border-radius:3px;
+    background:linear-gradient(180deg,#f2dc98,#c9a24f 60%,#a8802f);
+    box-shadow:inset 0 1px 0 rgba(255,248,220,.7), 0 3px 7px -3px rgba(60,40,10,.6);
+  }
+
+  /* -- interior: PRINCIPLES (4 stamped tags) -- */
+  .interior.type-principles .interior-inner{ grid-template-columns:1fr; gap:clamp(12px,1.6vw,18px); }
+  .principles-head{ display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 14px; }
+  .principles-head .plate-name{ margin:0; font-size:clamp(21px,2.6vw,30px); }
+  .tags{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:clamp(9px,1.4vw,15px); }
+  .spec-tag{
+    position:relative; min-width:0; border-radius:3px;
+    padding:clamp(11px,1.4vw,16px) clamp(12px,1.5vw,17px) clamp(11px,1.4vw,15px);
+    background:linear-gradient(180deg,#fffdf7,#efe6d2);
+    box-shadow:0 6px 14px -9px rgba(36,26,16,.5), inset 0 0 0 1px rgba(120,96,48,.24);
+  }
+  .spec-tag::before{ /* stamped ink number ring */
+    content:attr(data-n); position:absolute; top:9px; right:11px;
+    font-family:var(--mono); font-size:9px; letter-spacing:.1em; color:rgba(138,101,38,.75);
+    width:19px; height:19px; line-height:17px; text-align:center; border-radius:50%;
+    border:1px solid rgba(138,101,38,.5); transform:rotate(-8deg);
+  }
+  .eyelet{
+    position:absolute; top:-6px; left:14px; width:14px; height:14px; border-radius:50%;
+    background:radial-gradient(circle at 36% 32%, #fff2ce, #c09a4a 50%, #7a5a1f 100%);
+    box-shadow:0 1px 2px rgba(30,18,4,.4), inset 0 0 0 3px rgba(233,221,196,.9);
+  }
+  .spec-tag h4{
+    margin:4px 34px 6px 0; font-family:var(--display); font-weight:600; font-size:clamp(15px,1.5vw,18px);
+    color:var(--ink); line-height:1.1;
+  }
+  .spec-tag p{ margin:0; font-size:clamp(13px,1.15vw,15px); line-height:1.34; color:var(--ink-70); }
+
+  /* -- interior: CONTACT (brass calling-card tray) -- */
+  .interior.type-contact .interior-inner{ grid-template-columns:minmax(0, clamp(240px,38vw,420px)) minmax(0,1fr); }
+  .tray{
+    position:relative; min-width:0; border-radius:8px;
+    padding:clamp(16px,2vw,26px) clamp(14px,1.8vw,22px) clamp(14px,1.8vw,20px);
+    background:linear-gradient(160deg,#e6cd85 0%,#c9a24f 40%,#a8802f 72%,#8a6526 100%);
+    box-shadow:inset 0 1px 0 rgba(255,250,224,.7), inset 0 -3px 6px rgba(50,32,6,.5),
+               inset 0 0 0 1px rgba(70,50,18,.5), 0 14px 30px -14px rgba(40,26,6,.7);
+  }
+  .tray-epigraph{
+    margin:0 0 14px; text-align:center; font-family:var(--thai);
+    font-size:clamp(13.5px,1.4vw,17px); line-height:1.5; color:#4a380f;
+    text-shadow:0 1px 0 rgba(255,248,214,.45);
+  }
+  .calling-card{
+    position:relative; text-align:center; border-radius:4px;
+    padding:clamp(16px,2vw,24px) clamp(14px,1.8vw,20px);
+    background:linear-gradient(180deg,#fffdf7,#f3ecdc);
+    box-shadow:0 8px 18px -10px rgba(36,26,16,.55), inset 0 0 0 1px rgba(120,96,48,.2);
+  }
+  .card-star{ width:26px; margin:0 auto 8px; }
+  .card-mark{ font-family:var(--display); font-weight:600; letter-spacing:.24em; font-size:14px; color:var(--ink); margin-bottom:12px; }
+  .card-email{
+    display:inline-block; font-family:var(--display); font-weight:500; font-style:italic;
+    font-size:clamp(16px,1.8vw,22px); color:var(--gold-dark); text-decoration:none; letter-spacing:.01em;
+    border-bottom:1px solid rgba(138,101,38,.4); padding-bottom:2px; word-break:break-word;
+  }
+  .card-email:hover{ color:var(--gold); }
+  .card-place{ margin:12px 0 0; font-family:var(--mono); font-size:9.5px; letter-spacing:.2em; text-transform:uppercase; color:var(--ink-52); }
+  .contact-cta{ margin-top:16px; }
+
+  /* ============================================================
+     BOTTOM RAIL: engineering-honesty specimen tag
+     ============================================================ */
+  .cabinet-rail{
+    position:relative; z-index:2; margin-top:clamp(8px,1.2vw,14px); padding-top:clamp(9px,1.2vw,13px);
+    border-top:2px solid rgba(60,40,18,.4); box-shadow:0 -1px 0 rgba(240,214,150,.35);
+    display:flex; justify-content:center;
+  }
+  .specimen-tag{
+    font-family:var(--mono); font-size:9px; letter-spacing:.2em; text-transform:uppercase; color:var(--gold-dark);
+    padding:6px 14px; border-radius:2px; text-align:center;
+    background:linear-gradient(180deg,#fffdf7,#efe6d2);
+    box-shadow:0 4px 10px -6px rgba(36,26,16,.5), inset 0 0 0 1px rgba(138,101,38,.3);
+    position:relative;
+  }
+  .specimen-tag::before, .specimen-tag::after{
+    content:""; position:absolute; top:50%; width:6px; height:6px; border-radius:50%; transform:translateY(-50%);
+    background:radial-gradient(circle at 36% 32%, #fff2ce, #c09a4a 50%, #7a5a1f 100%);
+  }
+  .specimen-tag::before{ left:-3px; } .specimen-tag::after{ right:-3px; }
+
+  /* ============================================================
+     FOOTER
+     ============================================================ */
+  .site-footer{
+    position:relative; z-index:1; text-align:center;
+    padding:clamp(34px,6vw,66px) var(--pad);
+    background:linear-gradient(180deg, rgba(0,0,0,0), rgba(90,65,35,.12));
+  }
+  .foot-star{ width:34px; margin:0 auto 14px; filter:drop-shadow(0 3px 5px rgba(36,26,16,.35)); }
+  .foot-mark{ font-family:var(--display); font-weight:600; letter-spacing:.26em; font-size:16px; color:var(--ink); }
+  .foot-line{ margin-top:10px; font-family:var(--mono); font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:var(--ink-52); }
+  .foot-line span{ color:var(--gold); padding:0 8px; }
+
+  /* ============================================================
+     RESPONSIVE
+     ============================================================ */
+  @media (min-width:880px){
+    .cabinet-scroll{ height:calc(100vh + 260vh); }
+    .stage{ position:sticky; top:0; height:100vh; min-height:0; overflow:hidden; }
+  }
+
+  @media (max-width:879.98px){
+    .crown{ grid-template-columns:1fr; justify-items:center; text-align:center; gap:14px; }
+    .pinned-card{ justify-self:center; order:2; max-width:min(420px,100%); transform:none; }
+    .pinned-card::before{ left:50%; margin-left:-6px; }
+    .nameplate-group{ order:1; }
+    .index-plate{ justify-self:center; order:3; text-align:center; }
+    .shelf{ flex:none; min-height:clamp(360px, 74vw, 460px); }
+    .interior-inner,
+    .interior.type-case .interior-inner,
+    .interior.type-contact .interior-inner{ grid-template-columns:1fr; align-content:start; }
+    .swatch{ align-items:stretch; }
+    .coupon, .veneer, .weave{ max-width:min(320px,72vw); }
+    .photo-card{ max-width:min(360px,80vw); margin:0 auto; }
+    .case-motifs{ position:static; margin-top:12px; justify-content:center; }
+    .tray{ max-width:min(420px,100%); margin:0 auto; }
+  }
+
+  @media (max-width:520px){
+    .tags{ grid-template-columns:1fr; }
+    .front-hint{ display:none; }
+    .front-caret{ display:none; }
+  }
+
+  /* ============================================================
+     REDUCED MOTION
+     ============================================================ */
+  @media (prefers-reduced-motion: reduce){
+    html{ scroll-behavior:auto; }
+    *,*::before,*::after{ transition:none !important; animation:none !important; }
+    .cabinet-light{ opacity:1; }
+    .interior.is-open{ transform:none; }
+  }
+</style>
+</head>
+<body>
+<div class="room" aria-hidden="true"></div>
+
+<main>
+  <section class="cabinet-scroll" id="cabinetScroll" aria-label="Vesperwerk material cabinet">
+    <div class="stage" id="stage">
+      <div class="cabinet">
+        <div class="cabinet-light" aria-hidden="true"></div>
+
+        <header class="crown">
+          <div class="pinned-card">
+            <p class="eyebrow">Software and AI studio . Bangkok</p>
+            <p class="positioning">An independent software and AI studio. We architect, build, and operate production systems for businesses that cannot afford them to fail.</p>
+            <div class="cta">
+              <a class="btn btn-primary" href="mailto:kittipong.k@vesperwerk.com">Start a conversation</a>
+              <button class="btn btn-ghost" type="button" id="seeWork">See our work</button>
+            </div>
+          </div>
+
+          <div class="nameplate-group">
+            <div class="escutcheon" id="escutcheon" aria-hidden="true"></div>
+            <div class="nameplate"><span class="nameplate-text">VESPERWERK</span></div>
+            <p class="origin">Named for the evening star: the first light you can navigate by. A founder-led studio in Bangkok building software for businesses across Asia and beyond.</p>
+          </div>
+
+          <div class="index-plate">
+            <b>The Material Cabinet</b><br>
+            Six drawers . Oak and brass<br>
+            Bangkok . Est 2026
+          </div>
+        </header>
+
+        <div class="wall" id="wall" role="tablist" aria-label="Material drawers"></div>
+
+        <div class="shelf" id="shelf"></div>
+
+        <div class="cabinet-rail">
+          <p class="specimen-tag">CABINET VW . 6 DRAWERS . OAK: CSS GRADIENTS . BRASS: HONEST</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="foot-star" id="footStar" aria-hidden="true"></div>
+    <div class="foot-mark">VESPERWERK</div>
+    <p class="foot-line">Bangkok, Thailand <span>.</span> (c) 2026 Vesperwerk</p>
+  </footer>
+</main>
+
+<script>
+/* ==============================================================
+   CABINET DATA  -  swap content here (text is data; visual
+   treatment per drawer is keyed by `type`).
+   ============================================================== */
+const CABINET = [
+  {
+    no:'01', name:'AI Systems', type:'brass-coupon',
+    lead:'Voice agents and evaluation infrastructure',
+    kicker:'Material . Engraved brass',
+    copy:'Voice agents, LLM assistants, and the evaluation infrastructure that keeps them honest. AI that answers like your best employee, in production, around the clock.'
+  },
+  {
+    no:'02', name:'Product Engineering', type:'oak-chip',
+    lead:'Architecture through to operations',
+    kicker:'Material . Oak veneer',
+    copy:'Full-stack product engineering from architecture to operations: event-driven backends, modern web frontends, and infrastructure that scales without drama.'
+  },
+  {
+    no:'03', name:'Commerce and Platforms', type:'canvas',
+    lead:'Shopify and LINE platform work',
+    kicker:'Material . Woven canvas',
+    copy:'Deep Shopify and LINE platform work: storefronts, admin apps, integrations, and the messaging rails Southeast Asian commerce runs on.'
+  },
+  {
+    no:'04', name:'Selected Work', type:'case',
+    lead:'Yimwhan AI, in production at live clinics',
+    kicker:'Specimen . The flagship case',
+    name2:'Yimwhan AI',
+    copy:'An AI voice and LINE assistant for dental clinics in Thailand. It answers after-hours calls, books and reschedules appointments, and hands off to staff the moment a human matters. In production at live clinics.',
+    photo:'../assets/flux-clinic-4k.png',
+    photoAlt:'Mint and warm-wood dental clinic interior',
+    badge:'In production'
+  },
+  {
+    no:'05', name:'Approach', type:'principles',
+    lead:'Four principles, stamped',
+    kicker:'Specimen tags . How we work',
+    points:[
+      { t:'Architecture first', d:'We design the system before we write the code.' },
+      { t:'Production-worthy', d:'Demos impress; production endures. We build for the second one.' },
+      { t:'Scope discipline', d:'The most valuable thing we tell clients is what not to build.' },
+      { t:'Senior hands', d:'No juniors learning on your budget. Founder-led, senior hands on every line.' }
+    ]
+  },
+  {
+    no:'06', name:'Contact', type:'contact',
+    lead:'Pull the drawer, take a card',
+    kicker:'Calling-card tray',
+    email:'kittipong.k@vesperwerk.com',
+    place:'Bangkok, Thailand',
+    thai:'ดาวประจำเมือง : แสงแรกที่ใช้นำทางยามค่ำ',
+    copy:'Start a conversation and we will tell you honestly whether we are the right studio for the work. Founder-led, senior hands, from the first call.'
+  }
+];
+
+/* Vesperwerk mark (eight-point vesper star, two-facet antique gold). */
+const STAR = `<svg viewBox="0 0 200 200" role="img" aria-label="Vesperwerk star"><g transform="translate(100,100)"><g><polygon points="0,-86 -11,0 0,0" fill="#c09a4a"/><polygon points="0,-86 11,0 0,0" fill="#8a6526"/></g><g transform="rotate(180)"><polygon points="0,-86 -11,0 0,0" fill="#8a6526"/><polygon points="0,-86 11,0 0,0" fill="#c09a4a"/></g><g transform="rotate(90)"><polygon points="0,-64 -9.5,0 0,0" fill="#c09a4a"/><polygon points="0,-64 9.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(270)"><polygon points="0,-64 -9.5,0 0,0" fill="#8a6526"/><polygon points="0,-64 9.5,0 0,0" fill="#c09a4a"/></g><g transform="rotate(45)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(135)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(225)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g><g transform="rotate(315)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g></g></svg>`;
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ==============================================================
+   SWATCH MARKUP  -  one builder per material type
+   ============================================================== */
+const CIRCUIT = `<svg class="circuit" viewBox="0 0 240 150" fill="none" aria-hidden="true">
+  <g stroke="#6f5218" stroke-width="1" opacity=".55">
+    <path d="M14 22 H92 V58 H152"/>
+    <path d="M14 58 H58 V116"/>
+    <path d="M226 34 H168 V78 H118 V116"/>
+    <path d="M226 104 H182 V132 H72"/>
+    <path d="M96 22 V8"/>
+    <path d="M152 58 H196"/>
+  </g>
+  <g fill="#5a420f" opacity=".7">
+    <circle cx="92" cy="58" r="3.2"/><circle cx="152" cy="58" r="3.2"/>
+    <circle cx="58" cy="116" r="3"/><circle cx="168" cy="78" r="2.6"/>
+    <circle cx="118" cy="116" r="2.6"/><circle cx="182" cy="132" r="2.6"/>
+    <circle cx="196" cy="58" r="2.4"/>
+  </g>
+</svg>`;
+
+const BLUEPRINT = `<svg class="blueprint" viewBox="0 0 120 90" fill="none" aria-hidden="true">
+  <g stroke="#6f8088" stroke-width="1.1">
+    <rect x="6" y="6" width="108" height="78"/>
+    <line x1="6" y1="42" x2="72" y2="42"/>
+    <line x1="72" y1="6" x2="72" y2="84"/>
+    <rect x="82" y="14" width="24" height="18"/>
+    <path d="M72 60 a13 13 0 0 0 13 13"/>
+    <circle cx="38" cy="24" r="4"/>
+  </g>
+  <text x="10" y="79" fill="#6f8088" font-size="6" font-family="monospace" letter-spacing="1">CLINIC PLAN</text>
+</svg>`;
+
+const TRAY = `<svg class="tray-motif" viewBox="0 0 100 82" fill="none" aria-hidden="true">
+  <path d="M15 12 Q15 66 50 70 Q85 66 85 12 Q85 42 50 46 Q15 42 15 12 Z" stroke="#a8802f" stroke-width="2.2"/>
+  <path d="M24 18 Q24 56 50 60 Q76 56 76 18" stroke="#a8802f" stroke-width="1" opacity=".5"/>
+</svg>`;
+
+function swatchOf(d){
+  switch(d.type){
+    case 'brass-coupon':
+      return `<div class="swatch swatch-coupon">
+        <div class="coupon">${CIRCUIT}<span class="coupon-stamp">AI</span><span class="coupon-edge"></span></div>
+        <span class="swatch-cap">Engraved brass coupon</span>
+      </div>`;
+    case 'oak-chip':
+      return `<div class="swatch swatch-oak">
+        <div class="veneer"><span class="veneer-tack"></span></div>
+        <span class="swatch-cap">Oak veneer chip</span>
+      </div>`;
+    case 'canvas':
+      return `<div class="swatch swatch-canvas">
+        <div class="weave"></div>
+        <span class="swatch-cap">Woven canvas swatch</span>
+      </div>`;
+    default: return '';
+  }
+}
+
+function interiorInner(d){
+  if(d.type === 'case'){
+    return `<div class="interior-inner">
+      <div class="case-media">
+        <div class="photo-card">
+          <img src="${esc(d.photo)}" alt="${esc(d.photoAlt)}" loading="lazy" decoding="async">
+          <span class="photo-tape" aria-hidden="true"></span>
+          <span class="photo-cap">Yimwhan AI . live clinic</span>
+        </div>
+        <div class="case-motifs" aria-hidden="true">${BLUEPRINT}${TRAY}</div>
+      </div>
+      <div class="plate">
+        <p class="kicker">Drawer ${esc(d.no)} <span class="dot">.</span> ${esc(d.kicker)}</p>
+        <h3 class="plate-name">${esc(d.name2 || d.name)}</h3>
+        <p class="plate-copy">${esc(d.copy)}</p>
+        <span class="case-badge">${esc(d.badge)}</span>
+      </div>
+    </div>`;
+  }
+  if(d.type === 'principles'){
+    const tags = d.points.map((p,i)=>`<div class="spec-tag" data-n="${i+1}">
+      <span class="eyelet" aria-hidden="true"></span>
+      <h4>${esc(p.t)}</h4><p>${esc(p.d)}</p>
+    </div>`).join('');
+    return `<div class="interior-inner">
+      <div class="principles-head">
+        <p class="kicker">Drawer ${esc(d.no)} <span class="dot">.</span> ${esc(d.kicker)}</p>
+        <h3 class="plate-name">${esc(d.name)}</h3>
+      </div>
+      <div class="tags">${tags}</div>
+    </div>`;
+  }
+  if(d.type === 'contact'){
+    return `<div class="interior-inner">
+      <div class="tray">
+        <p class="tray-epigraph" lang="th">${esc(d.thai)}</p>
+        <div class="calling-card">
+          <div class="card-star" aria-hidden="true">${STAR}</div>
+          <div class="card-mark">VESPERWERK</div>
+          <a class="card-email" href="mailto:${esc(d.email)}">${esc(d.email)}</a>
+          <p class="card-place">${esc(d.place)}</p>
+          <a class="btn btn-primary contact-cta" href="mailto:${esc(d.email)}">Start a conversation</a>
+        </div>
+      </div>
+      <div class="plate">
+        <p class="kicker">Drawer ${esc(d.no)} <span class="dot">.</span> ${esc(d.kicker)}</p>
+        <h3 class="plate-name">${esc(d.name)}</h3>
+        <p class="plate-copy">${esc(d.copy)}</p>
+      </div>
+    </div>`;
+  }
+  /* default swatch + copy */
+  return `<div class="interior-inner">
+    ${swatchOf(d)}
+    <div class="plate">
+      <p class="kicker">Drawer ${esc(d.no)} <span class="dot">.</span> ${esc(d.kicker)}</p>
+      <h3 class="plate-name">${esc(d.name)}</h3>
+      <p class="plate-copy">${esc(d.copy)}</p>
+    </div>
+  </div>`;
+}
+
+/* ==============================================================
+   RENDER
+   ============================================================== */
+document.getElementById('escutcheon').innerHTML = STAR;
+document.getElementById('footStar').innerHTML = STAR;
+
+const wall = document.getElementById('wall');
+const shelf = document.getElementById('shelf');
+
+wall.innerHTML = CABINET.map((d,i)=>`
+  <button class="front" type="button" role="tab" id="front-${i}" aria-controls="int-${i}"
+          aria-selected="${i===0?'true':'false'}" tabindex="${i===0?'0':'-1'}" data-i="${i}" style="--gd:${(i*0.11).toFixed(2)}s">
+    <span class="front-oak" aria-hidden="true"></span>
+    <span class="front-runner" aria-hidden="true"></span>
+    <span class="front-num">${esc(d.no)}</span>
+    <span class="front-label">
+      <span class="front-name">${esc(d.name)}</span>
+      <span class="front-lead">${esc(d.lead)}</span>
+    </span>
+    <span class="front-hint hint-${d.type}" aria-hidden="true"></span>
+    <span class="pull" aria-hidden="true"><span class="pull-glint"></span></span>
+    <span class="front-caret" aria-hidden="true">open</span>
+  </button>`).join('');
+
+shelf.innerHTML = CABINET.map((d,i)=>`
+  <div class="interior type-${d.type}${i===0?' is-open':''}" id="int-${i}" role="tabpanel"
+       aria-labelledby="front-${i}" data-i="${i}"${i===0?'':' hidden'}>
+    ${interiorInner(d)}
+  </div>`).join('');
+
+const fronts = Array.from(wall.querySelectorAll('.front'));
+const interiors = Array.from(shelf.querySelectorAll('.interior'));
+
+/* ==============================================================
+   STATE  -  one drawer open at a time (furniture logic)
+   ============================================================== */
+const N = CABINET.length;
+const rmq = window.matchMedia('(prefers-reduced-motion: reduce)');
+const dmq = window.matchMedia('(min-width: 880px)');
+const scrollSec = document.getElementById('cabinetScroll');
+const stage = document.getElementById('stage');
+let active = 0;
+
+function setActive(i){
+  i = Math.max(0, Math.min(N-1, i));
+  if(i === active) return;
+  active = i;
+  fronts.forEach((f,k)=>{
+    const on = k===i;
+    f.classList.toggle('is-open', on);
+    f.setAttribute('aria-selected', on ? 'true':'false');
+    f.tabIndex = on ? 0 : -1;
+  });
+  interiors.forEach((p,k)=>{
+    const on = k===i;
+    p.classList.toggle('is-open', on);
+    if(on){ p.hidden = false; }
+    else {
+      if(rmq.matches){ p.hidden = true; }
+      else { setTimeout(()=>{ if(!p.classList.contains('is-open')) p.hidden = true; }, 650); }
+    }
+  });
+}
+/* ensure first is visible */
+setActive(0); active = 0;
+fronts[0].classList.add('is-open'); interiors[0].classList.add('is-open'); interiors[0].hidden = false;
+
+/* ---- desktop: scrolling walks the cabinet -------------------- */
+let ticking = false;
+function syncFromScroll(){
+  const total = scrollSec.offsetHeight - stage.offsetHeight;
+  if(total <= 0) return;
+  const y = Math.min(Math.max(-scrollSec.getBoundingClientRect().top, 0), total);
+  const p = y / total;
+  const idx = Math.min(N-1, Math.floor(p * N * 0.9999));
+  if(idx !== active) setActive(idx);
+}
+function onScroll(){
+  if(!dmq.matches) return;
+  if(ticking) return;
+  ticking = true;
+  requestAnimationFrame(()=>{ syncFromScroll(); ticking = false; });
+}
+window.addEventListener('scroll', onScroll, { passive:true });
+
+/* ---- click / tap a drawer ------------------------------------ */
+function goTo(i){
+  if(dmq.matches){
+    const total = scrollSec.offsetHeight - stage.offsetHeight;
+    const target = scrollSec.offsetTop + ((i + 0.5) / N) * total;
+    window.scrollTo({ top: target, behavior: rmq.matches ? 'auto' : 'smooth' });
+    setActive(i);
+  } else {
+    setActive(i);
+    shelf.scrollIntoView({ behavior: rmq.matches ? 'auto' : 'smooth', block:'nearest' });
+  }
+}
+fronts.forEach((f,i)=>{
+  f.addEventListener('click', ()=> goTo(i));
+  f.addEventListener('keydown', (e)=>{
+    let n = null;
+    if(e.key==='ArrowDown' || e.key==='ArrowRight') n = Math.min(N-1, i+1);
+    else if(e.key==='ArrowUp' || e.key==='ArrowLeft') n = Math.max(0, i-1);
+    else if(e.key==='Home') n = 0;
+    else if(e.key==='End') n = N-1;
+    if(n!==null){ e.preventDefault(); fronts[n].focus(); goTo(n); }
+  });
+});
+
+/* "See our work" -> the flagship case drawer */
+document.getElementById('seeWork').addEventListener('click', ()=>{
+  const idx = CABINET.findIndex(d=>d.type==='case');
+  goTo(idx<0?0:idx);
+});
+
+/* ---- entrance ritual: light warms, pulls glint, first drawer set - */
+if(!rmq.matches){
+  document.body.classList.add('booting');
+  requestAnimationFrame(()=> requestAnimationFrame(()=> stage.classList.add('lit')));
+  setTimeout(()=> document.body.classList.remove('booting'), 1700);
+} else {
+  stage.classList.add('lit');
+}
+
+/* keep index correct on load + resize */
+window.addEventListener('load', ()=>{ if(dmq.matches) syncFromScroll(); });
+dmq.addEventListener('change', ()=>{ if(dmq.matches) syncFromScroll(); });
+</script>
+</body>
+</html>

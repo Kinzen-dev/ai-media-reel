@@ -146,11 +146,12 @@ body::after{
 .face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:50%;overflow:hidden;}
 .front{}
 .patchSvg{width:100%;height:100%;display:block;}
-/* satin sheen that tracks tilt */
+/* matte directional satin sheen that tracks tilt : broad, soft, low-contrast thread sheen
+   (one light direction) rather than a hot metallic specular hotspot */
 .sheen{
   position:absolute;inset:0;border-radius:50%;pointer-events:none;mix-blend-mode:soft-light;
-  background:radial-gradient(circle at var(--sx,50%) var(--sy,32%), rgba(255,250,235,.55), rgba(255,250,235,.08) 40%, transparent 62%);
-  opacity:.9;
+  background:radial-gradient(135% 100% at var(--sx,50%) var(--sy,26%), rgba(244,236,216,.20), rgba(244,236,216,.05) 48%, transparent 74%);
+  opacity:.85;
 }
 /* entrance glint across the star */
 .glint{
@@ -161,16 +162,16 @@ body::after{
 .back{
   transform:rotateY(180deg);
   background:
-    radial-gradient(circle at 50% 40%, #2a2119 0%, #1a1610 70%, #120f0b 100%);
+    radial-gradient(circle at 50% 36%, rgba(58,48,32,.55), rgba(20,17,12,.15) 58%, transparent 72%),
+    repeating-linear-gradient(45deg, #241d14 0 2px, #191309 2px 4px);   /* felt twill backing */
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   text-align:center;padding:11% 12%;
-  box-shadow:inset 0 0 0 3px #100d09, inset 0 0 0 5px rgba(168,128,47,.32);
+  box-shadow:inset 0 0 0 3px #100d09, inset 0 0 26px rgba(0,0,0,.72);
 }
 .back::before{
-  content:"";position:absolute;inset:7%;border-radius:50%;
-  border:2px dashed rgba(168,128,47,.4);
-  background-image:repeating-linear-gradient(38deg, rgba(0,0,0,.22) 0 1px, transparent 1px 3px),
-                   repeating-linear-gradient(128deg, rgba(0,0,0,.22) 0 1px, transparent 1px 3px);
+  content:"";position:absolute;inset:6%;border-radius:50%;
+  border:2px dashed rgba(168,128,47,.5);
+  box-shadow:inset 0 0 0 2px rgba(0,0,0,.5), 0 0 0 1px rgba(240,220,166,.15);
   pointer-events:none;
 }
 .back .blog{position:relative;font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.32em;color:var(--gold-l);text-transform:uppercase;margin-bottom:11px;}
@@ -184,6 +185,24 @@ body::after{
   margin-top:14px;font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.22em;
   color:var(--cream-dim);text-transform:uppercase;text-align:center;
 }
+/* FLIP tab : a small stitched affordance that surfaces the Mission Log back-face */
+.flipTab{
+  margin-top:16px;align-self:center;
+  display:inline-flex;align-items:center;gap:9px;
+  font-family:"IBM Plex Mono",monospace;font-size:10.5px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--gold-l);
+  background:linear-gradient(180deg, rgba(42,35,24,.94), rgba(24,20,15,.94));
+  border:1.5px dashed rgba(168,128,47,.55);border-radius:22px;
+  padding:8px 16px;cursor:pointer;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.42), 0 3px 9px rgba(0,0,0,.4);
+  transition:transform .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.flipTab svg{width:14px;height:14px;flex:none;}
+.flipTab:hover,.flipTab:focus-visible{
+  color:var(--gold-hi);border-color:var(--gold-l);transform:translateY(-1px);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.42), 0 6px 14px rgba(0,0,0,.45);outline:none;
+}
+.flipTab[aria-pressed="true"]{color:var(--sage);border-color:rgba(155,176,131,.55);}
 
 /* THAI banner beneath the patch */
 .banner{
@@ -308,6 +327,19 @@ body::after{
   .manifest{max-width:440px;}
 }
 
+/* keep the flipped Mission Log inside the smaller mobile patch circle (patch <=360px below 880) */
+@media (max-width:879px){
+  .back{padding:9% 14%;}
+  .back .blog{font-size:9px;letter-spacing:.26em;margin-bottom:6px;}
+  .back h3{font-size:16px;margin:0 0 9px;}
+  .back ol{gap:6px;max-width:214px;}
+  .back li{gap:7px;}
+  .back li .bn{font-size:9px;}
+  .back li .bt{font-size:10.5px;line-height:1.26;}
+  .back li .bt b{font-size:11px;}
+  .flipnote{margin-top:9px;font-size:9px;letter-spacing:.16em;}
+}
+
 /* ------------------------------ REDUCED MOTION -------------------- */
 @media (prefers-reduced-motion:reduce){
   .front{animation:none;clip-path:none;}
@@ -351,19 +383,21 @@ body::after{
            aria-label="Vesperwerk mission patch. Activate to flip to the mission log and the four operating principles." aria-pressed="false">
         <div class="patchTilt" id="tilt">
           <div class="patch3d" id="patch3d">
-            <!-- FRONT : the embroidered insignia -->
-            <div class="face front">
+            <!-- FRONT : the embroidered insignia. data-lint-ignore : intentional 3D face stack;
+                 the only "overflow" is an SVG <text> clientWidth quirk on a circular overflow:hidden
+                 face (motto renders fully inside the disc), not a visual overflow. -->
+            <div class="face front" data-lint-ignore>
               <svg class="patchSvg" viewBox="0 0 420 420" role="img" aria-label="Embroidered Vesperwerk mission patch: eight-point vesper star insignia ringed by the motto Vesperwerk Bangkok Est 2026.">
                 <defs>
-                  <pattern id="twillField" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-                    <rect width="7" height="7" fill="#2a231a"/>
-                    <line x1="0" y1="0" x2="0" y2="7" stroke="#332b1f" stroke-width="2.4"/>
-                    <line x1="3.5" y1="0" x2="3.5" y2="7" stroke="#211b13" stroke-width="1.6"/>
+                  <pattern id="twillField" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                    <rect width="6" height="6" fill="#211a11"/>
+                    <line x1="0" y1="0" x2="0" y2="6" stroke="#3f331d" stroke-width="2.1"/>
+                    <line x1="2.2" y1="0" x2="2.2" y2="6" stroke="#130e07" stroke-width="1.5"/>
                   </pattern>
-                  <pattern id="twillBand" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
-                    <rect width="6" height="6" fill="#201b14"/>
-                    <line x1="0" y1="0" x2="0" y2="6" stroke="#282016" stroke-width="2"/>
-                    <line x1="3" y1="0" x2="3" y2="6" stroke="#171209" stroke-width="1.4"/>
+                  <pattern id="twillBand" width="5.4" height="5.4" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+                    <rect width="5.4" height="5.4" fill="#1e1810"/>
+                    <line x1="0" y1="0" x2="0" y2="5.4" stroke="#362c19" stroke-width="1.9"/>
+                    <line x1="2.7" y1="0" x2="2.7" y2="5.4" stroke="#120d06" stroke-width="1.3"/>
                   </pattern>
                   <radialGradient id="fieldVig" cx="50%" cy="42%" r="60%">
                     <stop offset="0%" stop-color="#3a3020" stop-opacity=".55"/>
@@ -391,12 +425,14 @@ body::after{
                 <circle cx="210" cy="210" r="200" fill="#141210"/>
                 <circle cx="210" cy="210" r="197" fill="none" stroke="#0b0906" stroke-width="2"/>
 
-                <!-- merrow border : dark channel + gold satin that stitches around on entrance -->
-                <circle cx="210" cy="210" r="189" fill="none" stroke="#25201a" stroke-width="16"/>
-                <circle class="ring-draw" cx="210" cy="210" r="189" pathLength="100" fill="none" stroke="url(#goldSat)" stroke-width="16" stroke-linecap="round"/>
-                <circle cx="210" cy="210" r="189" fill="none" stroke="#161009" stroke-width="16" stroke-dasharray="1.5 2.4" opacity=".5"/>
-                <circle cx="210" cy="210" r="181.5" fill="none" stroke="#f0dca6" stroke-width="1" opacity=".4"/>
-                <circle cx="210" cy="210" r="196.5" fill="none" stroke="#5a441f" stroke-width="1" opacity=".6"/>
+                <!-- merrowed overlock rope border : recessed groove, an under-thread that stitches
+                     around on entrance, then a rope of short diagonal overlock segments (JS) -->
+                <circle cx="210" cy="210" r="189" fill="none" stroke="#181209" stroke-width="20"/>
+                <circle cx="210" cy="210" r="198.6" fill="none" stroke="#0b0805" stroke-width="3"/>
+                <circle cx="210" cy="210" r="179.4" fill="none" stroke="#0c0906" stroke-width="2.4" opacity=".85"/>
+                <circle class="ring-draw" cx="210" cy="210" r="189" pathLength="100" fill="none" stroke="#7a5c26" stroke-width="16" stroke-linecap="butt" opacity=".55"/>
+                <g id="merrow"></g>
+                <circle cx="210" cy="210" r="180.6" fill="none" stroke="#f0dca6" stroke-width="1" opacity=".28"/>
 
                 <!-- motto band -->
                 <circle cx="210" cy="210" r="181" fill="url(#twillBand)"/>
@@ -422,15 +458,18 @@ body::after{
                 <g id="halo"></g>
                 <!-- the vesper star, satin embroidered (built by JS) -->
                 <g id="star"></g>
-                <!-- central hub knot -->
-                <circle cx="210" cy="210" r="7.5" fill="url(#hub)"/>
-                <circle cx="208" cy="208" r="2.4" fill="#fbeecb" opacity=".85"/>
+                <!-- central hub : a matte French-knot, cross-stitched (no enamel shine) -->
+                <circle cx="210" cy="210" r="8.5" fill="#6f5320"/>
+                <circle cx="210" cy="210" r="8.5" fill="none" stroke="#3a2a12" stroke-width="1.6"/>
+                <line x1="204.6" y1="207" x2="215.4" y2="213" stroke="#d8b871" stroke-width="1.7" stroke-linecap="round"/>
+                <line x1="204.6" y1="213" x2="215.4" y2="207" stroke="#8a6526" stroke-width="1.7" stroke-linecap="round"/>
               </svg>
               <div class="glint" aria-hidden="true"></div>
               <div class="sheen" aria-hidden="true"></div>
             </div>
-            <!-- BACK : hook-side backing + mission log (the flip signature) -->
-            <div class="face back" aria-hidden="true">
+            <!-- BACK : hook-side backing + mission log (the flip signature). data-lint-ignore :
+                 intentional 3D face stack; content is contained inside the circular clip (verified). -->
+            <div class="face back" aria-hidden="true" data-lint-ignore>
               <div class="blog">Mission Log</div>
               <h3>Standing Orders</h3>
               <ol id="orders"></ol>
@@ -439,6 +478,15 @@ body::after{
           </div>
         </div>
       </div>
+
+      <!-- FLIP affordance : a stitched tab that makes the Mission Log back-face discoverable -->
+      <button type="button" class="flipTab" id="flipTab" aria-label="Flip the patch to read the mission log">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M20 12a8 8 0 1 0-2.4 5.7" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>
+          <path d="M20 5.5v6h-6" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Flip . Mission Log</span>
+      </button>
 
       <!-- Thai epigraph on a straight stitched banner (arc-safe) -->
       <div class="banner">
@@ -642,56 +690,142 @@ function render(){
  * ------------------------------------------------------------------ */
 const SVGNS='http://www.w3.org/2000/svg';
 function E(t,a){const e=document.createElementNS(SVGNS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
-const CX=210, CY=210, SCALE=1.12;
+const CX=210, CY=210, SCALE=1.16;
 function pt(lx,ly,deg){const a=deg*Math.PI/180,c=Math.cos(a),s=Math.sin(a);return [CX+lx*c-ly*s, CY+lx*s+ly*c];}
 
-/* eight points, faithful to the mark: alternating light / dark facets */
+/* deterministic pseudo-random -> thread imperfection is stable across reloads and captures */
+let SEED=20260717;
+function rnd(){ SEED=(SEED*1664525+1013904223)&0x7fffffff; return SEED/0x7fffffff; }
+function jit(m){ return (rnd()-0.5)*2*m; }
+
+/* eight points, faithful to the Vesperwerk mark: long horizontal, medium vertical, short
+   diagonals. each arm splits at its spine into a LIT facet and a SHADOW facet -> the fold
+   that survives downscale; alternating lit side per arm gives the star its pinwheel catch. */
 const POINTS=[
-  {a:0,   L:86, hw:11,  lc:'L', rc:'D'},
-  {a:180, L:86, hw:11,  lc:'D', rc:'L'},
-  {a:90,  L:64, hw:9.5, lc:'L', rc:'D'},
-  {a:270, L:64, hw:9.5, lc:'D', rc:'L'},
-  {a:45,  L:44, hw:7.5, lc:'L', rc:'D'},
-  {a:135, L:44, hw:7.5, lc:'L', rc:'D'},
-  {a:225, L:44, hw:7.5, lc:'D', rc:'L'},
-  {a:315, L:44, hw:7.5, lc:'D', rc:'L'}
+  {a:0,   L:88, hw:12,  lit:-1},
+  {a:180, L:88, hw:12,  lit: 1},
+  {a:90,  L:66, hw:10,  lit:-1},
+  {a:270, L:66, hw:10,  lit: 1},
+  {a:45,  L:47, hw:8,   lit:-1},
+  {a:135, L:47, hw:8,   lit: 1},
+  {a:225, L:47, hw:8,   lit:-1},
+  {a:315, L:47, hw:8,   lit: 1}
 ];
 const THREAD={
-  L:{base:'#a8802f', hi:'#e2c583', lo:'#b28c3c'},   /* light facet */
-  D:{base:'#7c5c24', hi:'#a5813d', lo:'#6a4f20'}    /* dark facet  */
+  lit:{bed:'#463314', mid:'#c39a44', hi:'#ecce89'},   /* thread catching the light : deep bed valleys */
+  sha:{bed:'#231a0b', mid:'#886428', hi:'#a9843c'}    /* thread turned into shadow  */
 };
 let CID=0;
-function facet(parent, p, side, kind){
-  const th=THREAD[kind];
+/* one half-arm (spine-to-edge triangle). satin rows are laid ACROSS the arm (the physical satin
+   direction), stacked along its length and tapering to the tip. a dark thread bed shows in the
+   gaps so the rows read as discrete raised threads, not a poured metal gradient. the row angle
+   is perpendicular to each arm's axis, so it changes visibly from arm to arm. side=-1 / +1. */
+function facet(parent, defs, p, side, thr){
   const L=p.L*SCALE, hw=p.hw*SCALE;
   const tip=pt(0,-L,p.a), corner=pt(side*hw,0,p.a), ctr=pt(0,0,p.a);
   const poly=tip[0].toFixed(2)+','+tip[1].toFixed(2)+' '+corner[0].toFixed(2)+','+corner[1].toFixed(2)+' '+ctr[0].toFixed(2)+','+ctr[1].toFixed(2);
   const cid='fc'+(CID++);
-  const defs=parent.ownerSVGElement.querySelector('defs');
   const clip=E('clipPath',{id:cid}); clip.appendChild(E('polygon',{points:poly})); defs.appendChild(clip);
   const g=E('g',{'clip-path':'url(#'+cid+')'});
-  g.appendChild(E('polygon',{points:poly, fill:th.base}));
-  const step=2.15, n=Math.max(3,Math.floor(L/step));
+  g.appendChild(E('polygon',{points:poly, fill:thr.bed}));   /* dark bed -> valleys between rows */
+  const step=2.7, n=Math.max(4,Math.floor(L/step));
   for(let i=0;i<=n;i++){
-    const t=i/n, y=-L*t, xo=side*hw*(1-t);
-    const A=pt(0,y,p.a), B=pt(xo,y,p.a);
+    const t=i/n, y=-L*t + jit(0.5), xo=side*hw*(1-t);
+    const A=pt(jit(0.35),y,p.a), B=pt(xo+jit(0.4),y,p.a);
     g.appendChild(E('line',{x1:A[0].toFixed(2),y1:A[1].toFixed(2),x2:B[0].toFixed(2),y2:B[1].toFixed(2),
-      stroke:(i%2? th.lo: th.hi),'stroke-width':1.55,'stroke-linecap':'round'}));
+      stroke:(i%2? thr.hi: thr.mid),'stroke-width':(1.75+jit(0.14)).toFixed(2),'stroke-linecap':'round'}));
   }
   parent.appendChild(g);
 }
 function buildStar(){
   const star=document.getElementById('star');
   const halo=document.getElementById('halo');
-  /* halo : short vertical satin fill stitches ringing the star, a DIFFERENT stitch direction */
-  const R1=98, R2=130, hstep=6;
+  const defs=star.ownerSVGElement.querySelector('defs');
+  /* halo : a radial-stitch roundel behind the star -> a THIRD stitch direction (radial) */
+  const R1=96, R2=132, hstep=5;
   for(let ang=0; ang<360; ang+=hstep){
-    const a=ang*Math.PI/180, c=Math.cos(a), s=Math.sin(a);
-    const x1=CX+c*R1, y1=CY+s*R1, x2=CX+c*R2, y2=CY+s*R2;
-    halo.appendChild(E('line',{x1:x1.toFixed(2),y1:y1.toFixed(2),x2:x2.toFixed(2),y2:y2.toFixed(2),
-      stroke:(ang/hstep%2? '#3a2f1c':'#463822'),'stroke-width':2.1,'stroke-linecap':'round','opacity':'.85'}));
+    const a=(ang+jit(0.9))*Math.PI/180, c=Math.cos(a), s=Math.sin(a);
+    const r1=R1+jit(1.6), r2=R2+jit(1.6);
+    halo.appendChild(E('line',{x1:(CX+c*r1).toFixed(2),y1:(CY+s*r1).toFixed(2),x2:(CX+c*r2).toFixed(2),y2:(CY+s*r2).toFixed(2),
+      stroke:(ang/hstep%3? '#332812':'#3d2f15'),'stroke-width':'2.0','stroke-linecap':'round','opacity':'.9'}));
   }
-  POINTS.forEach(p=>{ facet(star,p,-1,p.lc); facet(star,p,1,p.rc); });
+  /* shadow facet first, lit facet on top -> the lit spine reads as the catch-light fold */
+  POINTS.forEach(p=>{ facet(star,defs,p,-p.lit,THREAD.sha); facet(star,defs,p,p.lit,THREAD.lit); });
+  /* a fine dark seam thread down each arm's spine to crisp the fold between the two facets */
+  POINTS.forEach(p=>{
+    const L=p.L*SCALE, A=pt(0,-L*0.94,p.a), B=pt(0,-L*0.04,p.a);
+    star.appendChild(E('line',{x1:A[0].toFixed(2),y1:A[1].toFixed(2),x2:B[0].toFixed(2),y2:B[1].toFixed(2),
+      stroke:'#2c2010','stroke-width':'0.9','stroke-linecap':'round','opacity':'.5'}));
+  });
+
+  /* ---- SATIN OUTLINE-STITCH around the whole star silhouette. this is the tell that survives
+     downscaling: a flat, contrasting gold thread border tracing every arm edge, set over a dark
+     recessed bed so the shape reads as embroidered fabric (not a milled/enamel medallion) even at
+     gallery-thumbnail size. the outer edges of the 8 arms are intersected to build the true 16-point
+     silhouette (8 tips + 8 valleys). ---- */
+  const armGeo=POINTS.map(p=>{
+    const L=p.L*SCALE, hw=p.hw*SCALE;
+    return {a:p.a, tip:pt(0,-L,p.a), rc:pt(hw,0,p.a), lc:pt(-hw,0,p.a)};
+  }).sort((u,v)=>u.a-v.a);
+  const lineInt=(p1,p2,p3,p4)=>{
+    const d=(p1[0]-p2[0])*(p3[1]-p4[1])-(p1[1]-p2[1])*(p3[0]-p4[0]);
+    if(Math.abs(d)<1e-6) return null;
+    const t=((p1[0]-p3[0])*(p3[1]-p4[1])-(p1[1]-p3[1])*(p3[0]-p4[0]))/d;
+    return [p1[0]+t*(p2[0]-p1[0]), p1[1]+t*(p2[1]-p1[1])];
+  };
+  const sil=[];
+  for(let i=0;i<armGeo.length;i++){
+    const cur=armGeo[i], nxt=armGeo[(i+1)%armGeo.length];
+    sil.push(cur.tip);
+    const v=lineInt(cur.tip,cur.rc,nxt.tip,nxt.lc);
+    sil.push(v || [(cur.rc[0]+nxt.lc[0])/2,(cur.rc[1]+nxt.lc[1])/2]);
+  }
+  /* dark recessed bed under the outline : deepens the valley the stitched edge sits in */
+  star.appendChild(E('polygon',{points:sil.map(q=>q[0].toFixed(2)+','+q[1].toFixed(2)).join(' '),
+    fill:'none', stroke:'#231a0b','stroke-width':'4.8','stroke-linejoin':'round','opacity':'.9'}));
+  /* the outline stitch itself : short overlapping slanted stitches, ~2.5px, slightly irregular,
+     alternating two gold values for a hand-worked shimmer */
+  const goldThread=['#c9a659','#e0c17f','#b8923f']; let gsi=0;
+  for(let i=0;i<sil.length;i++){
+    const A=sil[i], B=sil[(i+1)%sil.length];
+    const dx=B[0]-A[0], dy=B[1]-A[1], len=Math.hypot(dx,dy)||1;
+    const nx=-dy/len, ny=dx/len, cnt=Math.max(1,Math.round(len/4.4));
+    for(let j=0;j<cnt;j++){
+      const t0=j/cnt, t1=(j+1)/cnt, o0=jit(0.55), o1=jit(0.55);
+      star.appendChild(E('line',{
+        x1:(A[0]+dx*t0+nx*o0).toFixed(2), y1:(A[1]+dy*t0+ny*o0).toFixed(2),
+        x2:(A[0]+dx*t1+nx*o1).toFixed(2), y2:(A[1]+dy*t1+ny*o1).toFixed(2),
+        stroke:goldThread[gsi++%goldThread.length],'stroke-width':(2.5+jit(0.22)).toFixed(2),'stroke-linecap':'round'}));
+    }
+  }
+  /* ---- OUTLINE-STITCH the central hub the same way : a dark under-ring + a stitched gold ring
+     so the hub reads as a bound French-knot bead, not an enamel rivet ---- */
+  const hubR=11.4;
+  star.appendChild(E('circle',{cx:CX,cy:CY,r:hubR.toFixed(2),fill:'none',stroke:'#231a0b','stroke-width':'3.6','opacity':'.9'}));
+  const hstn=20;
+  for(let k=0;k<hstn;k++){
+    const a0=(k/hstn)*Math.PI*2, a1=((k+0.6)/hstn)*Math.PI*2, r0=hubR+jit(0.5), r1=hubR+jit(0.5);
+    star.appendChild(E('line',{
+      x1:(CX+Math.cos(a0)*r0).toFixed(2), y1:(CY+Math.sin(a0)*r0).toFixed(2),
+      x2:(CX+Math.cos(a1)*r1).toFixed(2), y2:(CY+Math.sin(a1)*r1).toFixed(2),
+      stroke:(k%2?'#c9a659':'#e0c17f'),'stroke-width':'2.3','stroke-linecap':'round'}));
+  }
+}
+/* merrowed overlock rope : short diagonal wrap segments around the rim, slightly irregular,
+   top-lit -> a serrated corded ring, the opposite of a milled coin edge. */
+function buildMerrow(){
+  const g=document.getElementById('merrow'); if(!g) return;
+  const rMid=189, band=8.6, steps=138, wrap=0.092;
+  for(let i=0;i<steps;i++){
+    const a0=(i/steps)*Math.PI*2, jr=jit(1.6), ja=jit(0.011);
+    const rIn=rMid-band+jr, rOut=rMid+band+jr, aIn=a0+ja, aOut=a0+wrap+ja;
+    const topLight=(1-Math.sin(a0))/2;                 /* 1 at the top of the rim, 0 at the base */
+    const shade = topLight>0.6 ? '#d8b871' : ((i%2)? '#b8923f' : '#886425');
+    g.appendChild(E('line',{
+      x1:(CX+Math.cos(aIn)*rIn).toFixed(2), y1:(CY+Math.sin(aIn)*rIn).toFixed(2),
+      x2:(CX+Math.cos(aOut)*rOut).toFixed(2), y2:(CY+Math.sin(aOut)*rOut).toFixed(2),
+      stroke:shade,'stroke-width':(3.4+jit(0.4)).toFixed(2),'stroke-linecap':'round'}));
+  }
 }
 
 /* ------------------------------------------------------------------ *
@@ -719,11 +853,37 @@ function interactions(){
   const tilt=document.getElementById('tilt');
   const patch=document.getElementById('patch3d');
   const front=stage.querySelector('.front');
-  let flipped=false;
-  function flip(){ flipped=!flipped; patch.classList.toggle('flipped',flipped); stage.setAttribute('aria-pressed',String(flipped)); }
+  const tab=document.getElementById('flipTab');
+  let flipped=false, dragging=false, hovering=false;
+  function flip(){
+    flipped=!flipped;
+    patch.classList.toggle('flipped',flipped);
+    stage.setAttribute('aria-pressed',String(flipped));
+    if(tab) tab.setAttribute('aria-pressed',String(flipped));
+  }
 
-  /* keyboard : both pointer classes */
+  /* keyboard on the patch itself + native button behaviour on the tab */
   stage.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); flip(); } });
+  if(tab) tab.addEventListener('click',e=>{ e.stopPropagation(); flip(); });
+
+  /* peek : a gentle lift + sheen sweep on hover so the patch reads as a liftable object and
+     the tilt-sheen is discoverable (also what the motion filmstrip catches on hover). */
+  function peekOn(){
+    if(RM||!FINE||dragging||flipped) return;
+    hovering=true;
+    tilt.style.setProperty('--ry','-16deg');
+    tilt.style.setProperty('--rx','7deg');
+    front.style.setProperty('--sx','74%');
+    front.style.setProperty('--sy','22%');
+  }
+  function peekOff(){
+    hovering=false;
+    if(dragging) return;
+    tilt.style.setProperty('--ry','0deg');
+    tilt.style.setProperty('--rx','0deg');
+    front.style.removeProperty('--sx');
+    front.style.removeProperty('--sy');
+  }
 
   if(!FINE){
     /* touch / coarse : tap flips, native scroll preserved, no tilt */
@@ -731,9 +891,16 @@ function interactions(){
     return;
   }
 
-  const MAX=9;
-  let dragging=false, moved=0, lx=0, ly=0;
-  function resetTilt(){ tilt.classList.remove('active'); tilt.style.setProperty('--rx','0deg'); tilt.style.setProperty('--ry','0deg'); }
+  stage.addEventListener('pointerenter',e=>{ if(e.pointerType==='mouse') peekOn(); });
+  stage.addEventListener('pointerleave',()=>{ if(!dragging) peekOff(); });
+  if(tab){
+    tab.addEventListener('pointerenter',e=>{ if(e.pointerType==='mouse') peekOn(); });
+    tab.addEventListener('pointerleave',()=>{ if(!dragging) peekOff(); });
+  }
+
+  const MAX=11;
+  let moved=0, lx=0, ly=0;
+  function resetTilt(){ tilt.classList.remove('active'); if(hovering){ peekOn(); } else { peekOff(); } }
   stage.addEventListener('pointerdown',e=>{
     dragging=true; moved=0; lx=e.clientX; ly=e.clientY;
     if(!RM) tilt.classList.add('active');
@@ -754,7 +921,6 @@ function interactions(){
   function up(){ if(!dragging) return; dragging=false; resetTilt(); if(moved<7) flip(); }
   stage.addEventListener('pointerup',up);
   stage.addEventListener('pointercancel',()=>{ dragging=false; resetTilt(); });
-  stage.addEventListener('pointerleave',()=>{ if(dragging){ dragging=false; resetTilt(); } });
 }
 
 /* ------------------------------------------------------------------ *
@@ -791,6 +957,7 @@ function scrollChoreo(){
  * ------------------------------------------------------------------ */
 render();
 buildStar();
+buildMerrow();
 tickClock();
 interactions();
 scrollChoreo();

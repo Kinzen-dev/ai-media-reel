@@ -1,0 +1,964 @@
+<!-- TEMPLATE: Benjarong Atelier | ARCHETYPE: benjarong-porcelain-enamel-firing | REF: Boonyarat Benjarong workshop process (thaibenjarong.com), Sindhorn Kempinski Bangkok interiors | WHEN TO USE: premium Thai craft / heritage-luxury studio or maison site with a signature outline-then-enamel reveal ritual | SWAP: edit the VW DATA object at the top of the script -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vesperwerk - Benjarong Atelier</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Space+Mono:wght@400;700&family=Trirong:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ground:#faf7f1;
+    --ground-2:#f3eee2;
+    --ink:#2e2a26;
+    --ink-soft:#5a544c;
+    --gold:#a8802f;
+    --gold-lt:#c09a4a;
+    --gold-dk:#8a6526;
+    --line:#d8caa6;
+    /* the five benjarong enamels, jewel accents only */
+    --e-black:#22201d;
+    --e-yellow:#d8a41c;
+    --e-red:#b8322a;
+    --e-green:#2f7d5f;
+    --e-white:#ffffff;
+    --warm:216,164,28;
+    --maxw:1180px;
+    --fill-ease:cubic-bezier(.2,.85,.25,1);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    font-family:'EB Garamond', Georgia, serif;
+    background:
+      radial-gradient(120% 90% at 50% -10%, #fffdf8 0%, var(--ground) 46%, var(--ground-2) 100%);
+    color:var(--ink);
+    overflow-x:hidden;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    min-width:0;
+  }
+  img,svg{max-width:100%;display:block;}
+  a{color:inherit;}
+  ::selection{background:rgba(168,128,47,.22);}
+
+  /* ---------- shared ornament / enamel firing model ---------- */
+  .ol{ fill:none; stroke:var(--gold); stroke-width:1.15; stroke-linejoin:round; stroke-linecap:round;
+       vector-effect:non-scaling-stroke; opacity:.72; transition:opacity .7s ease, stroke .7s ease; }
+  .ol.ink{ stroke:var(--ink); }
+  .ol.hair{ stroke-width:.8; opacity:.6; }
+  body.set .ol{ opacity:1; stroke:var(--gold); }
+  body.set .ol.ink{ stroke:var(--ink); }
+
+  /* enamel jewels: hidden (unfired) then bloom in by scaling from their own centre */
+  .en{
+    transform-box:fill-box; transform-origin:center;
+    transform:scale(0); opacity:0;
+    transition:transform .52s var(--fill-ease), opacity .34s ease-out;
+  }
+  .on-black  .en.black  { transform:scale(1); opacity:1; }
+  .on-yellow .en.yellow { transform:scale(1); opacity:1; }
+  .on-red    .en.red    { transform:scale(1); opacity:1; }
+  .on-green  .en.green  { transform:scale(1); opacity:1; }
+  .on-white  .en.white  { transform:scale(1); opacity:1; }
+  /* light organic stagger inside a colour so it reads as brushwork, not a flat wipe */
+  .en:nth-of-type(3n)  { transition-delay:.05s; }
+  .en:nth-of-type(3n+1){ transition-delay:.11s; }
+
+  /* the one region mid-fill at rest: the star's centre receiving its first black enamel */
+  .star-core.black{ transform:scale(.5); opacity:.92; }
+  .hero.on-black .star-core.black{ transform:scale(1); opacity:1; }
+
+  /* star facets: bare gold outline at rest, gold facets set during the outline pass */
+  .facet{ fill-opacity:0; transition:fill-opacity .7s ease; }
+  body.set .facet{ fill-opacity:1; }
+
+  /* kiln-warmth radial glow that tracks the cursor over a fired region */
+  [data-region]{ position:relative; }
+  [data-region]::before{
+    content:""; position:absolute; inset:0; pointer-events:none; z-index:0;
+    border-radius:inherit;
+    background:radial-gradient(220px circle at var(--gx,50%) var(--gy,50%), rgba(var(--warm),.20), rgba(var(--warm),0) 62%);
+    opacity:0; transition:opacity .45s ease;
+  }
+  [data-region].fired.warm::before{ opacity:1; }
+  [data-region] > *{ position:relative; z-index:1; }
+
+  /* ---------- atelier plaque ---------- */
+  .plaque{
+    position:fixed; top:16px; left:16px; z-index:60;
+    display:flex; flex-direction:column; gap:2px; align-items:flex-start;
+    font-family:'Space Mono', ui-monospace, monospace;
+    background:rgba(250,247,241,.86);
+    -webkit-backdrop-filter:blur(4px); backdrop-filter:blur(4px);
+    border:1px solid var(--line);
+    box-shadow:0 1px 0 rgba(168,128,47,.25), 0 8px 24px -18px rgba(46,42,38,.7);
+    padding:9px 13px; border-radius:3px;
+    cursor:pointer; color:var(--ink); text-align:left;
+    letter-spacing:.02em; max-width:calc(100vw - 32px);
+  }
+  .plaque:focus-visible{ outline:2px solid var(--gold); outline-offset:3px; }
+  .plaque .ln1{ font-size:11px; font-weight:700; letter-spacing:.14em; white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+  .plaque .ln2{ font-size:9px; color:var(--ink-soft); letter-spacing:.2em; }
+  .plaque .dot{ color:var(--gold); }
+
+  /* ---------- layout scaffolding ---------- */
+  main{ display:block; }
+  section{ position:relative; }
+  .wrap{ width:100%; max-width:var(--maxw); margin:0 auto; padding:0 24px; min-width:0; }
+
+  .band{
+    position:relative; width:100%; height:66px; overflow:hidden;
+    display:block; line-height:0;
+  }
+  .band svg{ display:block; height:100%; }
+  .kicker{
+    font-family:'Space Mono', monospace; font-size:11px; letter-spacing:.3em;
+    text-transform:uppercase; color:var(--gold-dk);
+  }
+
+  /* ---------- hero ---------- */
+  .hero{ padding-top:8px; }
+  .hero-core{
+    max-width:860px; margin:0 auto; padding:44px 24px 40px; text-align:center;
+    display:flex; flex-direction:column; align-items:center; gap:20px; min-width:0;
+  }
+  .star-wrap{ width:150px; height:150px; margin:2px auto 4px; }
+  .star-wrap svg{ width:100%; height:100%; overflow:visible; }
+  .wordmark{
+    font-family:'Playfair Display', serif; font-weight:600;
+    letter-spacing:.24em; font-size:clamp(2rem, 6vw, 3.5rem);
+    margin:0; color:var(--ink); line-height:1; padding-left:.24em;
+  }
+  .hero .rule{ width:64px; height:1px; background:linear-gradient(90deg, transparent, var(--gold), transparent); margin:2px auto 0; }
+  .hero .lede{
+    max-width:640px; margin:2px auto 0; font-size:clamp(1.06rem, 2.1vw, 1.34rem);
+    color:var(--ink-soft); line-height:1.55; font-weight:500;
+  }
+  .cta{ display:flex; flex-wrap:wrap; gap:14px; justify-content:center; margin-top:8px; }
+  .btn{
+    font-family:'Space Mono', monospace; font-size:12px; letter-spacing:.16em; text-transform:uppercase;
+    text-decoration:none; padding:13px 24px; border-radius:2px; cursor:pointer; transition:.28s ease;
+    border:1px solid var(--gold);
+  }
+  .btn.primary{ background:var(--ink); color:var(--ground); border-color:var(--ink); }
+  .btn.primary:hover{ background:#000; }
+  .btn.ghost{ background:transparent; color:var(--gold-dk); }
+  .btn.ghost:hover{ background:rgba(168,128,47,.1); }
+  .btn:focus-visible{ outline:2px solid var(--gold); outline-offset:3px; }
+
+  /* ---------- section chrome ---------- */
+  .sec{ padding:74px 0 20px; }
+  .sec-head{ text-align:center; max-width:640px; margin:0 auto 44px; padding:0 24px; }
+  .sec-head h2{
+    font-family:'Playfair Display', serif; font-weight:600; letter-spacing:.02em;
+    font-size:clamp(1.7rem, 3.6vw, 2.5rem); margin:.5rem 0 .3rem; color:var(--ink);
+  }
+  .sec-head p{ color:var(--ink-soft); margin:0; font-size:1.08rem; }
+
+  /* ---------- services : three medallions ---------- */
+  .medallions{ display:grid; grid-template-columns:repeat(3,1fr); gap:26px; }
+  .med{
+    display:flex; flex-direction:column; align-items:center; text-align:center;
+    padding:26px 20px 30px; border:1px solid var(--line); border-radius:4px;
+    background:linear-gradient(180deg, rgba(255,253,248,.6), rgba(243,238,226,.35));
+    min-width:0;
+  }
+  .med-art{ width:172px; height:172px; margin-bottom:16px; }
+  .med-art svg{ width:100%; height:100%; overflow:visible; }
+  .med .num{ font-family:'Space Mono', monospace; font-size:11px; letter-spacing:.28em; color:var(--gold-dk); }
+  .med h3{ font-family:'Playfair Display', serif; font-weight:600; font-size:1.32rem; margin:6px 0 8px; color:var(--ink); }
+  .med p{ margin:0; color:var(--ink-soft); font-size:1.02rem; line-height:1.5; }
+
+  /* ---------- work : enameled cartouche ---------- */
+  .cartouche{
+    max-width:940px; margin:0 auto; padding:20px; border-radius:6px;
+    border:1px double var(--gold); background:rgba(255,253,248,.55);
+    box-shadow:0 30px 60px -46px rgba(46,42,38,.55); position:relative;
+    display:grid; grid-template-columns:1.15fr .85fr; gap:26px; align-items:center; min-width:0;
+  }
+  .plaque-img{
+    position:relative; border-radius:4px; overflow:hidden; background:var(--ground-2);
+    border:1px solid var(--line); aspect-ratio:16/10; min-width:0;
+  }
+  .plaque-img img{ width:100%; height:100%; object-fit:cover; object-position:center; display:block; }
+  .plaque-img::after{ content:""; position:absolute; inset:0; box-shadow:inset 0 0 0 1px rgba(255,255,255,.35); border-radius:4px; pointer-events:none; }
+  .work-copy{ min-width:0; }
+  .work-copy .tag{ font-family:'Space Mono', monospace; font-size:11px; letter-spacing:.28em; text-transform:uppercase; color:var(--gold-dk); }
+  .work-copy h3{ font-family:'Playfair Display', serif; font-weight:600; font-size:clamp(1.5rem,3vw,2rem); margin:8px 0 12px; }
+  .work-copy p{ margin:0 0 14px; color:var(--ink-soft); font-size:1.06rem; }
+  .work-copy .status{
+    display:inline-flex; align-items:center; gap:9px; font-family:'Space Mono', monospace;
+    font-size:11px; letter-spacing:.14em; color:var(--e-green); text-transform:uppercase;
+  }
+  .work-copy .status i{ width:7px; height:7px; border-radius:50%; background:var(--e-green); display:inline-block; }
+  .corner{ position:absolute; width:52px; height:52px; pointer-events:none; }
+  .corner svg{ width:100%; height:100%; overflow:visible; }
+  .corner.tl{ top:-2px; left:-2px; }
+  .corner.tr{ top:-2px; right:-2px; transform:scaleX(-1); }
+  .corner.bl{ bottom:-2px; left:-2px; transform:scaleY(-1); }
+  .corner.br{ bottom:-2px; right:-2px; transform:scale(-1,-1); }
+
+  /* ---------- approach : four fired seals ---------- */
+  .seals{ display:grid; grid-template-columns:repeat(4,1fr); gap:22px; }
+  .seal{ display:flex; flex-direction:column; align-items:center; text-align:center; min-width:0; }
+  .seal-art{ position:relative; width:118px; height:118px; margin-bottom:14px; }
+  .seal-art svg{ width:100%; height:100%; overflow:visible; }
+  .seal-art .rn{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-family:'Playfair Display', serif; font-weight:600; font-size:1.5rem; color:var(--ink);
+    pointer-events:none;
+  }
+  .seal h3{ font-family:'Playfair Display', serif; font-weight:600; font-size:1.14rem; margin:0 0 6px; }
+  .seal p{ margin:0; color:var(--ink-soft); font-size:.98rem; line-height:1.45; }
+
+  /* ---------- maker's mark : about + contact ---------- */
+  .mark-outer{ padding:74px 0 30px; }
+  .mark{
+    position:relative; max-width:900px; margin:0 auto; padding:52px 40px;
+    border:1px double var(--gold); border-radius:6px; background:rgba(255,253,248,.6);
+    box-shadow:0 30px 70px -50px rgba(46,42,38,.6);
+    display:grid; grid-template-columns:auto 1px 1fr; gap:38px; align-items:center; min-width:0;
+  }
+  .mark .maker{ display:flex; flex-direction:column; align-items:center; text-align:center; gap:12px; min-width:0; }
+  .mark .maker .mstar{ width:96px; height:96px; }
+  .mark .maker .mstar svg{ width:100%; height:100%; overflow:visible; }
+  .mark .maker .mword{ font-family:'Playfair Display', serif; font-weight:600; letter-spacing:.22em; font-size:1.25rem; padding-left:.22em; }
+  .mark .maker .epi{
+    font-family:'Trirong', 'EB Garamond', serif; font-weight:400; font-size:1.02rem;
+    line-height:1.5; color:var(--gold-dk); max-width:230px;
+  }
+  .mark .divider{ width:1px; height:100%; background:linear-gradient(180deg, transparent, var(--line), transparent); }
+  .mark .about{ min-width:0; }
+  .mark .about h2{ font-family:'Playfair Display', serif; font-weight:600; font-size:1.7rem; margin:0 0 12px; }
+  .mark .about p{ margin:0 0 20px; color:var(--ink-soft); font-size:1.08rem; }
+  .contact-row{ display:flex; flex-wrap:wrap; gap:12px 26px; align-items:center; }
+  .contact-row a.mail{
+    font-family:'Playfair Display', serif; font-size:1.2rem; color:var(--ink); text-decoration:none;
+    border-bottom:1px solid var(--gold); padding-bottom:2px; transition:.25s;
+  }
+  .contact-row a.mail:hover{ color:var(--gold-dk); }
+  .contact-row a.mail:focus-visible{ outline:2px solid var(--gold); outline-offset:3px; }
+  .contact-row .place{ font-family:'Space Mono', monospace; font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--ink-soft); }
+
+  /* ---------- footer ---------- */
+  footer{ padding:40px 24px 54px; text-align:center; }
+  footer .fstar{ width:34px; height:34px; margin:0 auto 12px; }
+  footer .fstar svg{ width:100%; height:100%; }
+  footer .fword{ font-family:'Playfair Display', serif; font-weight:600; letter-spacing:.24em; font-size:1rem; padding-left:.24em; }
+  footer .fmeta{ font-family:'Space Mono', monospace; font-size:11px; letter-spacing:.16em; color:var(--ink-soft); margin-top:8px; }
+
+  /* ---------- responsive ---------- */
+  @media (max-width:900px){
+    .cartouche{ grid-template-columns:1fr; }
+    .plaque-img{ aspect-ratio:16/9; }
+    .mark{ grid-template-columns:1fr; gap:26px; padding:44px 26px; }
+    .mark .divider{ width:60%; height:1px; margin:0 auto; background:linear-gradient(90deg, transparent, var(--line), transparent); }
+    .seals{ grid-template-columns:repeat(2,1fr); }
+    .medallions{ grid-template-columns:1fr; max-width:420px; margin:0 auto; }
+  }
+  @media (max-width:640px){
+    .band{ height:46px; }
+    .hero-core{ padding:30px 18px 26px; gap:16px; }
+    .star-wrap{ width:118px; height:118px; }
+    .sec{ padding:56px 0 12px; }
+    .mark-outer{ padding:56px 0 22px; }
+    .plaque{ top:10px; left:10px; padding:7px 10px; }
+    .plaque .ln1{ font-size:10px; letter-spacing:.1em; }
+    .plaque .ln2{ font-size:8px; }
+    .med-art{ width:150px; height:150px; }
+    .seals{ gap:18px 14px; }
+    .plaque-img{ aspect-ratio:4/3; }
+    .plaque-img img{ object-fit:contain; background:var(--ground-2); }
+  }
+  @media (max-width:380px){
+    .cartouche{ padding:14px; }
+  }
+
+  /* ---------- reduced motion : everything fired + static ---------- */
+  @media (prefers-reduced-motion: reduce){
+    .ol{ opacity:1 !important; transition:none !important; }
+    .facet{ fill-opacity:1 !important; transition:none !important; }
+    .en{ transform:scale(1) !important; opacity:1 !important; transition:none !important; }
+    .star-core.black{ transform:scale(1) !important; opacity:1 !important; }
+    [data-region]::before{ display:none !important; }
+    .plaque, .btn, .contact-row a.mail{ transition:none !important; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- atelier plaque : real firing state, click / Enter to refire the section in view at 2x -->
+  <button class="plaque" id="plaque" type="button" aria-live="polite"
+    aria-label="Atelier firing state. Activate to refire the section currently in view.">
+    <span class="ln1" id="plaqueLine">PIECE 001 <span class="dot">.</span> OUTLINE SET <span class="dot">.</span> FIRING 1 OF 5</span>
+    <span class="ln2">CLICK TO REFIRE</span>
+  </button>
+
+  <main>
+
+    <!-- ============ HERO : the unfired piece ============ -->
+    <section class="hero" id="hero" data-region data-section="HERO" aria-label="Vesperwerk">
+      <div class="band band-top" id="bandTop" aria-hidden="true"></div>
+
+      <div class="hero-core">
+        <div class="star-wrap">
+          <!-- vesper star : bare gold outline at rest, facets set during firing, black core mid-fill -->
+          <svg viewBox="0 0 200 200" role="img" aria-label="Vesperwerk star">
+            <g transform="translate(100,100)" class="ol" stroke-width="1.2">
+              <g>
+                <polygon class="facet" points="0,-86 -11,0 0,0" fill="#c09a4a"/>
+                <polygon class="facet" points="0,-86 11,0 0,0" fill="#8a6526"/>
+              </g>
+              <g transform="rotate(180)">
+                <polygon class="facet" points="0,-86 -11,0 0,0" fill="#8a6526"/>
+                <polygon class="facet" points="0,-86 11,0 0,0" fill="#c09a4a"/>
+              </g>
+              <g transform="rotate(90)">
+                <polygon class="facet" points="0,-64 -9.5,0 0,0" fill="#c09a4a"/>
+                <polygon class="facet" points="0,-64 9.5,0 0,0" fill="#8a6526"/>
+              </g>
+              <g transform="rotate(270)">
+                <polygon class="facet" points="0,-64 -9.5,0 0,0" fill="#8a6526"/>
+                <polygon class="facet" points="0,-64 9.5,0 0,0" fill="#c09a4a"/>
+              </g>
+              <g transform="rotate(45)">
+                <polygon class="facet" points="0,-44 -7.5,0 0,0" fill="#c09a4a"/>
+                <polygon class="facet" points="0,-44 7.5,0 0,0" fill="#8a6526"/>
+              </g>
+              <g transform="rotate(135)">
+                <polygon class="facet" points="0,-44 -7.5,0 0,0" fill="#c09a4a"/>
+                <polygon class="facet" points="0,-44 7.5,0 0,0" fill="#8a6526"/>
+              </g>
+              <g transform="rotate(225)">
+                <polygon class="facet" points="0,-44 -7.5,0 0,0" fill="#8a6526"/>
+                <polygon class="facet" points="0,-44 7.5,0 0,0" fill="#c09a4a"/>
+              </g>
+              <g transform="rotate(315)">
+                <polygon class="facet" points="0,-44 -7.5,0 0,0" fill="#8a6526"/>
+                <polygon class="facet" points="0,-44 7.5,0 0,0" fill="#c09a4a"/>
+              </g>
+            </g>
+            <!-- centre reserve + black enamel core (the one region mid-fill at rest) -->
+            <circle cx="100" cy="100" r="17" class="ol hair" fill="none"/>
+            <circle cx="100" cy="100" r="15" class="en black star-core" style="fill:var(--e-black)"/>
+          </svg>
+        </div>
+
+        <h1 class="wordmark">VESPERWERK</h1>
+        <div class="rule"></div>
+        <p class="lede" id="heroLede"></p>
+        <div class="cta">
+          <a class="btn primary" href="#mark" id="ctaPrimary">Start a conversation</a>
+          <a class="btn ghost" href="#work" id="ctaSecondary">See our work</a>
+        </div>
+      </div>
+
+      <div class="band band-bottom" id="bandBottom" aria-hidden="true"></div>
+    </section>
+
+    <!-- ============ SERVICES : three medallions, fired panel by panel ============ -->
+    <section class="sec" id="services" aria-labelledby="servicesH">
+      <div class="sec-head">
+        <span class="kicker">The workshop</span>
+        <h2 id="servicesH">What we make</h2>
+        <p>Three disciplines, one hand. Each medallion is fired in the true benjarong order.</p>
+      </div>
+      <div class="wrap">
+        <div class="medallions" id="medallions"></div>
+      </div>
+    </section>
+
+    <!-- ============ SELECTED WORK : the enameled cartouche ============ -->
+    <section class="sec" id="work" aria-labelledby="workH">
+      <div class="sec-head">
+        <span class="kicker">Selected work</span>
+        <h2 id="workH">The flagship plaque</h2>
+      </div>
+      <div class="wrap">
+        <div class="cartouche" data-region data-section="SELECTED WORK">
+          <div class="corner tl" aria-hidden="true"></div>
+          <div class="corner tr" aria-hidden="true"></div>
+          <div class="corner bl" aria-hidden="true"></div>
+          <div class="corner br" aria-hidden="true"></div>
+          <div class="plaque-img">
+            <img src="../assets/flux-clinic-4k.png" alt="Yimwhan AI: a mint and wood dental clinic interior, the setting where the voice assistant runs." loading="lazy" decoding="async">
+          </div>
+          <div class="work-copy">
+            <span class="tag">Yimwhan AI</span>
+            <h3 id="workName"></h3>
+            <p id="workDesc"></p>
+            <span class="status"><i></i> In production at live clinics</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ APPROACH : four fired seals ============ -->
+    <section class="sec" id="approach" aria-labelledby="approachH">
+      <div class="sec-head">
+        <span class="kicker">How we work</span>
+        <h2 id="approachH">Four seals</h2>
+        <p>The principles pressed into every piece we send out of the studio.</p>
+      </div>
+      <div class="wrap">
+        <div class="seals" id="seals"></div>
+      </div>
+    </section>
+
+    <!-- ============ ABOUT + CONTACT : the maker's mark ============ -->
+    <section class="mark-outer" id="mark" aria-labelledby="aboutH">
+      <div class="wrap">
+        <div class="mark" data-region data-section="MAKERS MARK">
+          <div class="corner tl" aria-hidden="true"></div>
+          <div class="corner tr" aria-hidden="true"></div>
+          <div class="corner bl" aria-hidden="true"></div>
+          <div class="corner br" aria-hidden="true"></div>
+
+          <div class="maker">
+            <div class="mstar">
+              <svg viewBox="0 0 200 200" role="img" aria-label="Vesperwerk star">
+                <g transform="translate(100,100)" class="ol" stroke-width="1.2">
+                  <g>
+                    <polygon class="facet" points="0,-86 -11,0 0,0" fill="#c09a4a"/>
+                    <polygon class="facet" points="0,-86 11,0 0,0" fill="#8a6526"/>
+                  </g>
+                  <g transform="rotate(180)">
+                    <polygon class="facet" points="0,-86 -11,0 0,0" fill="#8a6526"/>
+                    <polygon class="facet" points="0,-86 11,0 0,0" fill="#c09a4a"/>
+                  </g>
+                  <g transform="rotate(90)">
+                    <polygon class="facet" points="0,-64 -9.5,0 0,0" fill="#c09a4a"/>
+                    <polygon class="facet" points="0,-64 9.5,0 0,0" fill="#8a6526"/>
+                  </g>
+                  <g transform="rotate(270)">
+                    <polygon class="facet" points="0,-64 -9.5,0 0,0" fill="#8a6526"/>
+                    <polygon class="facet" points="0,-64 9.5,0 0,0" fill="#c09a4a"/>
+                  </g>
+                  <g transform="rotate(45)">
+                    <polygon class="facet" points="0,-44 -7.5,0 0,0" fill="#c09a4a"/>
+                    <polygon class="facet" points="0,-44 7.5,0 0,0" fill="#8a6526"/>
+                  </g>
+                  <g transform="rotate(135)">
+                    <polygon class="facet" points="0,-44 -7.5,0 0,0" fill="#c09a4a"/>
+                    <polygon class="facet" points="0,-44 7.5,0 0,0" fill="#8a6526"/>
+                  </g>
+                  <g transform="rotate(225)">
+                    <polygon class="facet" points="0,-44 -7.5,0 0,0" fill="#8a6526"/>
+                    <polygon class="facet" points="0,-44 7.5,0 0,0" fill="#c09a4a"/>
+                  </g>
+                  <g transform="rotate(315)">
+                    <polygon class="facet" points="0,-44 -7.5,0 0,0" fill="#8a6526"/>
+                    <polygon class="facet" points="0,-44 7.5,0 0,0" fill="#c09a4a"/>
+                  </g>
+                </g>
+                <circle cx="100" cy="100" r="15" class="en black" style="fill:var(--e-black)"/>
+              </svg>
+            </div>
+            <div class="mword">VESPERWERK</div>
+            <!-- exact Thai epigraph beside the maker's mark, never letter-spaced -->
+            <p class="epi" lang="th">ดาวประจำเมือง : แสงแรกที่ใช้นำทางยามค่ำ</p>
+          </div>
+
+          <div class="divider" aria-hidden="true"></div>
+
+          <div class="about">
+            <h2 id="aboutH">About</h2>
+            <p id="aboutText"></p>
+            <div class="contact-row">
+              <a class="mail" id="mail" href="mailto:kittipong.k@vesperwerk.com">kittipong.k@vesperwerk.com</a>
+              <span class="place" id="place">Bangkok, Thailand</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div class="fstar">
+        <svg viewBox="0 0 200 200" role="img" aria-label="Vesperwerk star">
+          <g transform="translate(100,100)">
+            <g><polygon points="0,-86 -11,0 0,0" fill="#c09a4a"/><polygon points="0,-86 11,0 0,0" fill="#8a6526"/></g>
+            <g transform="rotate(180)"><polygon points="0,-86 -11,0 0,0" fill="#8a6526"/><polygon points="0,-86 11,0 0,0" fill="#c09a4a"/></g>
+            <g transform="rotate(90)"><polygon points="0,-64 -9.5,0 0,0" fill="#c09a4a"/><polygon points="0,-64 9.5,0 0,0" fill="#8a6526"/></g>
+            <g transform="rotate(270)"><polygon points="0,-64 -9.5,0 0,0" fill="#8a6526"/><polygon points="0,-64 9.5,0 0,0" fill="#c09a4a"/></g>
+            <g transform="rotate(45)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g>
+            <g transform="rotate(135)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g>
+            <g transform="rotate(225)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g>
+            <g transform="rotate(315)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g>
+          </g>
+        </svg>
+      </div>
+      <div class="fword">VESPERWERK</div>
+      <div class="fmeta">Bangkok, Thailand &nbsp; . &nbsp; (c) 2026 Vesperwerk</div>
+    </footer>
+
+  </main>
+
+<script>
+/* =========================================================================
+   VESPERWERK - BENJARONG ATELIER
+   All swappable content lives in this DATA object.
+   ========================================================================= */
+const VW = {
+  hero: {
+    lede: "An independent software and AI studio. We architect, build, and operate production systems for businesses that cannot afford them to fail."
+  },
+  services: [
+    { num:"01", title:"AI Systems",
+      body:"Voice agents, LLM assistants, and the evaluation infrastructure that keeps them honest. AI that answers like your best employee, in production, around the clock." },
+    { num:"02", title:"Product Engineering",
+      body:"Full-stack product engineering from architecture to operations: event-driven backends, modern web frontends, and infrastructure that scales without drama." },
+    { num:"03", title:"Commerce and Platforms",
+      body:"Deep Shopify and LINE platform work: storefronts, admin apps, integrations, and the messaging rails Southeast Asian commerce runs on." }
+  ],
+  work: {
+    name:"Yimwhan AI",
+    body:"An AI voice and LINE assistant for dental clinics in Thailand. It answers after-hours calls, books and reschedules appointments, and hands off to staff the moment a human matters. In production at live clinics."
+  },
+  approach: [
+    { rn:"I",   title:"Architecture first", body:"We design the system before we write the code." },
+    { rn:"II",  title:"Production-worthy",  body:"Demos impress; production endures. We build for the second one." },
+    { rn:"III", title:"Scope discipline",   body:"The most valuable thing we tell clients is what not to build." },
+    { rn:"IV",  title:"Senior hands",       body:"No juniors learning on your budget. Founder-led, senior hands on every line." }
+  ],
+  about: "Vesperwerk takes its name from the evening star: the first light you can navigate by. We are a founder-led studio in Bangkok building software for businesses across Asia and beyond.",
+  contact: { email:"kittipong.k@vesperwerk.com", place:"Bangkok, Thailand" }
+};
+
+/* the five enamels, applied in the true firing order */
+const ORDER = ["black","yellow","red","green","white"];
+const NS = "http://www.w3.org/2000/svg";
+const RM = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ---------- tiny svg helpers ---------- */
+function S(tag, attrs){
+  const e = document.createElementNS(NS, tag);
+  if(attrs) for(const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+const rad = d => d*Math.PI/180;
+const polar = (cx,cy,r,d) => [cx + r*Math.cos(rad(d)), cy + r*Math.sin(rad(d))];
+const f = n => n.toFixed(2);
+function petalD(cx,cy,deg,rIn,rOut,spread){
+  const tip = polar(cx,cy,rOut,deg);
+  const bl  = polar(cx,cy,rIn,deg-spread);
+  const br  = polar(cx,cy,rIn,deg+spread);
+  const cl  = polar(cx,cy,(rIn+rOut)*0.52,deg-spread*0.78);
+  const cr  = polar(cx,cy,(rIn+rOut)*0.52,deg+spread*0.78);
+  return `M ${f(bl[0])} ${f(bl[1])} Q ${f(cl[0])} ${f(cl[1])} ${f(tip[0])} ${f(tip[1])} Q ${f(cr[0])} ${f(cr[1])} ${f(br[0])} ${f(br[1])} Z`;
+}
+/* a curling kranok flame, dir = +1 (opens right) or -1 (opens left) */
+function kranokD(x,y,s,dir){
+  const D = dir;
+  return `M ${f(x)} ${f(y)} `
+    + `c ${f(2.4*s*D)} ${f(-3.0*s)} ${f(5.2*s*D)} ${f(-6.4*s)} ${f(9.4*s*D)} ${f(-7.4*s)} `
+    + `c ${f(3.4*s*D)} ${f(-0.8*s)} ${f(5.9*s*D)} ${f(1.7*s)} ${f(5.9*s*D)} ${f(4.7*s)} `
+    + `c 0 ${f(3.1*s)} ${f(-2.6*s*D)} ${f(5.2*s)} ${f(-5.4*s*D)} ${f(4.9*s)} `
+    + `c ${f(2.0*s*D)} ${f(-0.4*s)} ${f(3.1*s*D)} ${f(-2.1*s)} ${f(2.7*s*D)} ${f(-3.9*s)} `
+    + `c ${f(-0.5*s*D)} ${f(-2.2*s)} ${f(-3.0*s*D)} ${f(-2.9*s)} ${f(-5.1*s*D)} ${f(-1.7*s)} `
+    + `c ${f(-3.1*s*D)} ${f(1.7*s)} ${f(-4.6*s*D)} ${f(5.1*s)} ${f(-5.0*s*D)} ${f(8.6*s)} Z`;
+}
+
+/* =========================================================================
+   ROSETTE  (services medallions + approach seals)
+   builds an enamel group (bottom) then a gold outline group (top)
+   ========================================================================= */
+function buildRosette(svg, R, opt){
+  opt = opt || {};
+  const cx = R, cy = R;
+  const gEn = S("g"); const gOl = S("g", {class:""});
+  svg.appendChild(gEn); svg.appendChild(gOl);
+  const en = (tag,a,color)=>{ const e=S(tag,a); e.setAttribute("class","en "+color); e.style.fill = "var(--e-"+color+")"; gEn.appendChild(e); return e; };
+  const ol = (tag,a,extra)=>{ const e=S(tag,a); e.setAttribute("class","ol"+(extra?" "+extra:"")); gOl.appendChild(e); return e; };
+
+  /* outer bead ring */
+  const beadR = R*0.9, beads = opt.beads || 20;
+  ol("circle",{cx:cx,cy:cy,r:beadR,fill:"none"},"hair");
+  ol("circle",{cx:cx,cy:cy,r:R*0.98,fill:"none"});
+  for(let i=0;i<beads;i++){
+    const p = polar(cx,cy,beadR,(360/beads)*i - 90);
+    ol("circle",{cx:f(p[0]),cy:f(p[1]),r:R*0.028,fill:"none"});
+    if(i%5===0) en("circle",{cx:f(p[0]),cy:f(p[1]),r:R*0.026},"white");
+  }
+
+  /* main 8-petal lotus */
+  const rIn = R*0.30, rOut = R*0.8;
+  for(let k=0;k<8;k++){
+    const deg = k*45 - 90;
+    ol("path",{d:petalD(cx,cy,deg,rIn,rOut,17)});
+    const cardinal = (k%2===0);
+    en("path",{d:petalD(cx,cy,deg,rIn+R*0.06,rOut-R*0.12,11)}, cardinal ? "red" : "green");
+  }
+
+  /* inner 8-petal ring, offset, gold outline with yellow jewels */
+  const rIn2 = R*0.14, rOut2 = R*0.34;
+  for(let k=0;k<8;k++){
+    const deg = k*45 - 90 + 22.5;
+    ol("path",{d:petalD(cx,cy,deg,rIn2,rOut2,15)},"hair");
+    en("path",{d:petalD(cx,cy,deg,rIn2+R*0.02,rOut2-R*0.04,10)},"yellow");
+  }
+
+  /* centre : gold ring + black core + white glaze reserve */
+  ol("circle",{cx:cx,cy:cy,r:R*0.15,fill:"none"});
+  en("circle",{cx:cx,cy:cy,r:R*0.115},"black");
+  en("circle",{cx:f(cx - R*0.03),cy:f(cy - R*0.04),r:R*0.03},"white");
+}
+
+/* =========================================================================
+   BAND TILE  (hero ornamental lai band) - unit coords 0..UW x 0..H
+   ========================================================================= */
+const UW = 200, BH = 120;
+function buildBandTile(parent, ox, sc){
+  const g = S("g", {transform:`translate(${f(ox)},0) scale(${f(sc)})`});
+  parent.appendChild(g);
+  const gEn = S("g"); const gOl = S("g");
+  g.appendChild(gEn); g.appendChild(gOl);
+  const en = (tag,a,color)=>{ const e=S(tag,a); e.setAttribute("class","en "+color); e.style.fill = "var(--e-"+color+")"; gEn.appendChild(e); return e; };
+  const ol = (tag,a,extra)=>{ const e=S(tag,a); e.setAttribute("class","ol"+(extra?" "+extra:"")); gOl.appendChild(e); return e; };
+
+  /* rails top + bottom */
+  [ [16,21], [BH-21,BH-16] ].forEach(pair=>{
+    ol("line",{x1:0,y1:pair[0],x2:UW,y2:pair[0]});
+    ol("line",{x1:0,y1:pair[1],x2:UW,y2:pair[1]},"hair");
+  });
+  /* bead rows on the rails */
+  for(let x=8;x<=UW-8;x+=13.4){
+    ol("circle",{cx:f(x),cy:18.5,r:1.7,fill:"none"},"hair");
+    ol("circle",{cx:f(x),cy:BH-18.5,r:1.7,fill:"none"},"hair");
+  }
+  en("circle",{cx:f(UW*0.5),cy:18.5,r:1.9},"white");
+  en("circle",{cx:f(UW*0.5),cy:BH-18.5,r:1.9},"white");
+
+  /* connecting vine along the centre */
+  ol("path",{d:`M 0 60 C 34 44, 66 44, 100 60 C 134 76, 166 76, 200 60`,fill:"none"},"hair");
+
+  /* central lotus medallion */
+  const cx=100, cy=60, R=26;
+  ol("circle",{cx:cx,cy:cy,r:R*0.98,fill:"none"});
+  ol("circle",{cx:cx,cy:cy,r:R*0.5,fill:"none"},"hair");
+  for(let k=0;k<8;k++){
+    const deg = k*45 - 90;
+    ol("path",{d:petalD(cx,cy,deg,R*0.5,R*0.98,16)});
+    en("path",{d:petalD(cx,cy,deg,R*0.56,R*0.86,10)}, (k%2===0)?"red":"green");
+  }
+  ol("circle",{cx:cx,cy:cy,r:R*0.2,fill:"none"});
+  en("circle",{cx:cx,cy:cy,r:R*0.15},"black");
+
+  /* kranok flame pairs flanking the medallion */
+  [[52,1],[148,-1]].forEach(k=>{
+    ol("path",{d:kranokD(k[0],cy+9,1.55,k[1])});
+    en("path",{d:kranokD(k[0]+2.4*k[1],cy+6,0.85,k[1])},"yellow");
+  });
+
+  /* seam node : half-diamond at each edge forms a full prajam yam at the tile join */
+  [0,UW].forEach(sx=>{
+    ol("path",{d:`M ${sx} ${cy-13} L ${sx+13} ${cy} L ${sx} ${cy+13} L ${sx-13} ${cy} Z`,fill:"none"});
+    ol("path",{d:`M ${sx} ${cy-6} L ${sx+6} ${cy} L ${sx} ${cy+6} L ${sx-6} ${cy} Z`,fill:"none"},"hair");
+    en("circle",{cx:sx,cy:cy,r:3.4},"black");
+    en("circle",{cx:sx,cy:f(cy-8),r:2.2},"red");
+    en("circle",{cx:sx,cy:f(cy+8),r:2.2},"green");
+  });
+}
+
+function buildBand(el){
+  el.textContent = "";
+  const h = el.clientHeight || 66;
+  const w = el.clientWidth || window.innerWidth;
+  const sc = h / BH;
+  const tileW = UW * sc;
+  const n = Math.ceil(w / tileW) + 1;
+  const svg = S("svg", {height:h, width:f(tileW*n), "aria-hidden":"true"});
+  el.appendChild(svg);
+  for(let i=0;i<n;i++) buildBandTile(svg, i*tileW, sc);
+  return svg;
+}
+
+/* =========================================================================
+   CORNER FLOURISH  (cartouche + maker's mark) - a kranok corner with jewels
+   ========================================================================= */
+function buildFlourish(el){
+  const svg = S("svg",{viewBox:"0 0 60 60"});
+  el.appendChild(svg);
+  const gEn = S("g"); const gOl = S("g");
+  svg.appendChild(gEn); svg.appendChild(gOl);
+  const en = (tag,a,color)=>{ const e=S(tag,a); e.setAttribute("class","en "+color); e.style.fill = "var(--e-"+color+")"; gEn.appendChild(e); return e; };
+  const ol = (tag,a,extra)=>{ const e=S(tag,a); e.setAttribute("class","ol"+(extra?" "+extra:"")); gOl.appendChild(e); return e; };
+
+  ol("path",{d:"M 4 4 L 4 30 M 4 4 L 30 4",fill:"none"});
+  ol("path",{d:kranokD(10,10,1.7,1),fill:"none"});
+  ol("path",{d:`M 8 30 C 8 20, 16 12, 30 8`,fill:"none"},"hair");
+  en("path",{d:kranokD(11,11,0.85,1)},"yellow");
+  en("circle",{cx:9,cy:9,r:3},"black");
+  en("circle",{cx:22,cy:8,r:2.4},"red");
+  en("circle",{cx:8,cy:22,r:2.4},"green");
+  en("circle",{cx:16,cy:16,r:1.7},"white");
+}
+
+/* =========================================================================
+   FIRING ENGINE
+   ========================================================================= */
+const sections = {};          /* name -> { regions:[], step, done } */
+let currentSection = "HERO";
+const plaqueLine = document.getElementById("plaqueLine");
+const STEP_MS = 300;          /* per-colour dwell */
+
+function registerRegion(el){
+  const name = el.dataset.section;
+  if(!sections[name]) sections[name] = { regions:[], done:false };
+  sections[name].regions.push(el);
+  el._timers = [];
+  el._step = 0;
+}
+
+function paintPlaque(){
+  /* at rest the piece is an outlined blank with the star's core taking its first
+     black enamel : the literal signature string, honestly firing 1 of 5 */
+  if(currentSection === "HERO" && !bootDone){
+    plaqueLine.innerHTML =
+      'PIECE 001 <span class="dot">.</span> OUTLINE SET <span class="dot">.</span> FIRING 1 OF 5';
+    return;
+  }
+  const s = sections[currentSection];
+  let state = "OUTLINE SET";
+  if(s){
+    const allDone = s.regions.every(r => r._done);
+    const maxStep = s.regions.reduce((m,r)=>Math.max(m, r._step), 0);
+    if(allDone) state = "FIRED";
+    else if(maxStep > 0) state = "FIRING " + maxStep + " OF 5";
+  }
+  plaqueLine.innerHTML =
+    'PIECE 001 <span class="dot">.</span> ' + currentSection + ' <span class="dot">.</span> ' + state;
+}
+
+let bootDone = false;
+
+function clearTimers(el){ el._timers.forEach(clearTimeout); el._timers = []; }
+
+function fireRegion(el, opts){
+  opts = opts || {};
+  const speed = opts.speed || 1;
+  clearTimers(el);
+  /* reset */
+  ORDER.forEach(c => el.classList.remove("on-"+c));
+  el.classList.remove("fired","warm");
+  el._done = false; el._step = 0;
+
+  if(RM || opts.instant){
+    ORDER.forEach(c => el.classList.add("on-"+c));
+    el.classList.add("fired","warm");
+    el._done = true; el._step = 5;
+    paintPlaque();
+    return;
+  }
+
+  const run = (i) => {
+    if(i >= ORDER.length){
+      el.classList.add("fired","warm");
+      el._done = true;
+      paintPlaque();
+      return;
+    }
+    el.classList.add("on-"+ORDER[i]);
+    el._step = i + 1;
+    paintPlaque();
+    el._timers.push(setTimeout(()=>run(i+1), STEP_MS / speed));
+  };
+  /* honest label during the reset-to-outline window of a refire */
+  if(opts.regap) paintPlaque();
+  /* small reflow gap so the reset-to-unfired is seen before a refire */
+  el._timers.push(setTimeout(()=>run(0), opts.regap ? 140 : 0));
+}
+
+/* =========================================================================
+   BUILD DOM CONTENT + ORNAMENTS
+   ========================================================================= */
+function buildContent(){
+  document.getElementById("heroLede").textContent = VW.hero.lede;
+
+  /* services medallions */
+  const medWrap = document.getElementById("medallions");
+  VW.services.forEach(s=>{
+    const card = document.createElement("div");
+    card.className = "med";
+    card.setAttribute("data-region","");
+    card.dataset.section = "SERVICES";
+    const art = document.createElement("div");
+    art.className = "med-art";
+    const svg = S("svg",{viewBox:"0 0 172 172","aria-hidden":"true"});
+    art.appendChild(svg);
+    buildRosette(svg, 86, {beads:20});
+    const num = document.createElement("div"); num.className="num"; num.textContent = s.num;
+    const h3 = document.createElement("h3"); h3.textContent = s.title;
+    const p = document.createElement("p"); p.textContent = s.body;
+    card.append(art, num, h3, p);
+    medWrap.appendChild(card);
+  });
+
+  /* work copy */
+  document.getElementById("workName").textContent = VW.work.name;
+  document.getElementById("workDesc").textContent = VW.work.body;
+
+  /* approach seals */
+  const sealWrap = document.getElementById("seals");
+  VW.approach.forEach(a=>{
+    const seal = document.createElement("div");
+    seal.className = "seal";
+    seal.setAttribute("data-region","");
+    seal.dataset.section = "APPROACH";
+    const art = document.createElement("div"); art.className="seal-art";
+    const svg = S("svg",{viewBox:"0 0 118 118","aria-hidden":"true"});
+    art.appendChild(svg);
+    buildRosette(svg, 59, {beads:16});
+    const rn = document.createElement("div"); rn.className="rn"; rn.textContent = a.rn;
+    art.appendChild(rn);
+    const h3 = document.createElement("h3"); h3.textContent = a.title;
+    const p = document.createElement("p"); p.textContent = a.body;
+    seal.append(art, h3, p);
+    sealWrap.appendChild(seal);
+  });
+
+  /* about + contact */
+  document.getElementById("aboutText").textContent = VW.about;
+  document.getElementById("mail").textContent = VW.contact.email;
+  document.getElementById("mail").href = "mailto:" + VW.contact.email;
+  document.getElementById("place").textContent = VW.contact.place;
+
+  /* corner flourishes */
+  document.querySelectorAll(".corner").forEach(buildFlourish);
+}
+
+/* =========================================================================
+   BANDS (build + resize rebuild)
+   ========================================================================= */
+const bandTop = document.getElementById("bandTop");
+const bandBottom = document.getElementById("bandBottom");
+function buildBands(){
+  buildBand(bandTop);
+  buildBand(bandBottom);
+  /* re-apply hero fired state instantly on rebuild so a resize does not un-fire */
+  const hero = document.getElementById("hero");
+  if(RM || hero._done){
+    ORDER.forEach(c => hero.classList.add("on-"+c));
+  } else {
+    /* mid-boot: keep whatever colours are already lit */
+    ORDER.slice(0, hero._step || 0).forEach(c => hero.classList.add("on-"+c));
+  }
+}
+
+/* =========================================================================
+   INTERACTIONS
+   ========================================================================= */
+function wireGlow(){
+  if(RM) return;
+  document.querySelectorAll("[data-region]").forEach(el=>{
+    el.addEventListener("pointermove", (e)=>{
+      if(!el.classList.contains("fired")) return;
+      const r = el.getBoundingClientRect();
+      el.style.setProperty("--gx", ((e.clientX - r.left)/r.width*100) + "%");
+      el.style.setProperty("--gy", ((e.clientY - r.top)/r.height*100) + "%");
+    }, {passive:true});
+  });
+}
+
+function wireObservers(){
+  const regions = [...document.querySelectorAll("[data-region]")];
+  /* fire each region once as it enters */
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(entry=>{
+      const el = entry.target;
+      if(entry.isIntersecting && !el._fireStarted && el.id !== "hero"){
+        el._fireStarted = true;
+        fireRegion(el);
+      }
+    });
+  }, {threshold:0.34});
+  regions.forEach(r => { if(r.id !== "hero") io.observe(r); });
+
+  /* track which section is in view for the plaque */
+  const secEls = [
+    document.getElementById("hero"),
+    document.getElementById("services"),
+    document.getElementById("work"),
+    document.getElementById("approach"),
+    document.getElementById("mark")
+  ];
+  const nameOf = { hero:"HERO", services:"SERVICES", work:"SELECTED WORK", approach:"APPROACH", mark:"MAKERS MARK" };
+  const so = new IntersectionObserver((entries)=>{
+    entries.forEach(entry=>{
+      if(entry.isIntersecting){
+        currentSection = nameOf[entry.target.id];
+        paintPlaque();
+      }
+    });
+  }, {threshold:0.5, rootMargin:"-10% 0px -40% 0px"});
+  secEls.forEach(s => so.observe(s));
+}
+
+function wirePlaque(){
+  const btn = document.getElementById("plaque");
+  const refire = ()=>{
+    const s = sections[currentSection];
+    if(!s) return;
+    if(RM){ s.regions.forEach(r => fireRegion(r,{instant:true})); return; }
+    s.regions.forEach((r,i) => setTimeout(()=> fireRegion(r,{speed:2, regap:true}), i*90));
+  };
+  btn.addEventListener("click", refire);
+}
+
+/* =========================================================================
+   BOOT : the entrance ritual (~2.2s) - kiln stillness, outline sets,
+   then the hero band receives its five colours in firing order
+   ========================================================================= */
+function init(){
+  buildContent();
+  document.querySelectorAll("[data-region]").forEach(registerRegion);
+  buildBands();
+  wireGlow();
+  wireObservers();
+  wirePlaque();
+
+  const hero = document.getElementById("hero");
+
+  if(RM){
+    document.body.classList.add("set");
+    bootDone = true;
+    document.querySelectorAll("[data-region]").forEach(el => fireRegion(el,{instant:true}));
+    document.querySelectorAll("[data-region]").forEach(el => el._fireStarted = true);
+    currentSection = "HERO";
+    paintPlaque();
+    return;
+  }
+
+  /* at rest : the literal signature string */
+  paintPlaque();
+
+  /* kiln stillness -> outline sets -> hero band fires */
+  setTimeout(()=>{ document.body.classList.add("set"); }, 460);
+  setTimeout(()=>{
+    hero._fireStarted = true;
+    bootDone = true;
+    fireRegion(hero);
+  }, 940);
+}
+
+let resizeT;
+window.addEventListener("resize", ()=>{
+  clearTimeout(resizeT);
+  resizeT = setTimeout(buildBands, 220);
+});
+
+if(document.readyState === "loading"){
+  document.addEventListener("DOMContentLoaded", init);
+}else{
+  init();
+}
+</script>
+</body>
+</html>

@@ -270,6 +270,95 @@ King wants the next batches as BACKOFFICE ADMIN + OWNER dashboard DESIGN IDEAS f
   0/0, bibliophile MEDs only; illuminated star-crown margin overhang + poster-crop stage-clipped
   letterform + insignia 3D face = all probed by-design (docSW==vw). Fresh judge `judge-batch61`
   running.
+- DEPLOYED commit 8bad5f2 -> 294 live, Vesperwerk Site = 28. Includes: batch 59 complete 5/5,
+  batch 60 complete 5/5 (auction mobile Plate I compacted, final re-judge PASS: "submit-ready on
+  mobile"; vitrine jewel PASS), batch 61 passes 3/5 (broadsheet, poster-crop, bibliophile - all
+  submit-ready), specimen breathing polish, all fixes. SLUG_CAT gap lesson: ALWAYS add new slugs
+  to SLUG_CAT BEFORE running _categorize.py (batch-61 trio briefly fell to keyword fallback).
+- Batch 61 remaining: illuminated-hours (ornament density fix `fix-illuminated-density`) +
+  mission-insignia (embroidery register rescue `fix-insignia-embroidery`) both IN FLIGHT (Fable),
+  re-judge + catalog + next deploy when done.
+- ROUND-2 AUDIT DONE `w2yy1om48`: 47 NEW findings (10 strength-5, all capture-safe, only 1 webgl in
+  the whole set) -> curated to `_backlog-vesperwerk2.json`. The lane space was emphatically NOT dry
+  (research-breadth rule validated AGAIN). Strength-5 pool: benjarong-atelier, transcript-screenplay,
+  liquid-ink-title, trace-diagram, shoji-ma (batch 62) + commit-log, api-console, numbers-station,
+  isometric-atelier-plan, gallery-corridor (batch 63 fuel) + 25 strength-4.
+- Batch 62 IN FLIGHT `wmsqcxmfv` (Vesperwerk VI, one per new lens, Opus builders): benjarong-atelier
+  (five-enamel firing ritual, Thai craft flagship candidate), transcript-screenplay (the product AS
+  the site: live Thai call log w/ waveform subtitles), liquid-ink-title (Kyle Cooper ink pour
+  credits), trace-diagram (living systems topology, click-to-fire traces), shoji-ma (washi panels
+  slide open on scroll, light-through-paper, final unobstructed star payoff). SLUG_CAT pre-added
+  this time.
+- Batch 61 COMPLETE 5/5: illuminated-hours re-judged PASS (worked margin border + burnished gold
+  landed) -> cataloged; mission-insignia PASSED on ROUND-2 fix (judge-prescribed silhouette
+  outline-stitch + matte sheen + deeper beds killed the coin read at thumb scale; "ship it, do NOT
+  park") -> cataloged -> 296 (Vesperwerk = 30).
+- Batch 62 GATED (built 10/10 `wmsqcxmfv`; benjarong verify fixed the SVG var()-in-presentation-attr
+  gotcha AGAIN - the standing lesson holds; shoji verify fixed panel-opacity text bleed-through).
+  MY GATE x5: FPS 80-122, dash CLEAN x5. vlint: benjarong + trace-diagram CLEAN 0/0 both viewports;
+  transcript = ellipsized header (false-positive class); liquid-ink = decorative splash/fin-mark
+  overflows (by-design); shoji-ma = REAL DEFECT probed (hero CTAs unclickable under .panel -
+  elementFromPoint returned panel-frame at ALL scroll depths) -> Sonnet fix `fix-shoji-clicks`:
+  root cause = .panel defaulted pointer-events:auto; one-line pointer-events:none fix, verified
+  clickable at every depth both viewports, nudge intact (window-level listener), occluded findings
+  GONE (revert-compare proof). Judge `judge-batch62` running (benjarong kitsch check hardest).
+- Batch 63 IN FLIGHT `wt45pv7oy` (Vesperwerk VII, Opus builders): commit-log (story as git graph,
+  branch fork + merge payoff), numbers-station (tune a brass frequency dial through five stations,
+  numbers burst decodes the case), switchboard-exchange (brass PBX, cords drape + the 02:14 call
+  connects = product echo), isometric-atelier-plan (enter rooms via camera push-ins, tabletop sway),
+  gallery-corridor (single-point-perspective walk to the pendant star). SLUG_CAT pre-added.
+- Batch 62 JUDGED: 4 PASS (transcript-screenplay = "strategically strongest of the WHOLE lane - it
+  IS his product"; Thai dialogue verified natural/polite by a Thai-reading judge; trace-diagram #2;
+  benjarong PASSED the kitsch check = "proud heritage, international restraint" but flagged as the
+  bolder/more polarizing brand bet; liquid-ink pass w/ non-blocking gloss note) -> 4 CATALOGED ->
+  300 IN MANIFEST (Vesperwerk = 34). shoji-ma NEEDS-FIX round 2 (borderline: hero bloom = corner
+  lens-flare, paper texture invisible at thumb scale, CRESCENDO INVERTED - hero out-blooms the
+  room-06 payoff) -> ROUND-3 fix `fix-shoji-round3` with HARD acceptance criteria incl. NUMERIC
+  luminance check (hero 55-70% of payoff). RULE: if round 3 fails re-judge, PARK shoji-ma.
+- Non-blocking polish notes banked (batch 62): benjarong = bring one fired medallion above the fold;
+  liquid-ink = add specular gloss to settled ink + smooth entrance blobs.
+- Batch 63 FIX RESULTS: corridor door clickability FIXED (root cause = sibling stacking contexts,
+  .stage z-index could never escape .scroll + an invisible faded .vinyl still ate clicks;
+  pointer-events:none default + opt-in restore; occluded findings 0/0, fast-walk fires); isometric
+  perf PROFILED + tuned (sway ease-in-out caused ~15 raster tasks/frame; steps(48) sampling + CSS
+  containment -> idle 121, scroll ~51-54 = structural software-render residual, fine on real GPU
+  per standing FPS rule). Judge `judge-batch63` running - FIRST judge under the elevation-notes
+  policy.
+- Batch 64 IN FLIGHT `w6d0aps7n` - FIRST FULL NEW-PIPELINE BATCH (build -> verify -> FABLE ART
+  DIRECTOR) + the TOKEN MEASUREMENT batch (compare vs 62 = 1.20M / 63 = 1.25M; prediction +25-35%).
+  Picks: api-console (Stripe-class sync console, Opus), lai-rot-nam-gilding (Thai gold-on-lacquer,
+  FABLE builder per concept-risk routing; brief INVERTS the audit's resist-only scroll=0 to
+  fully-gilded post-ritual - the parked-shoji lesson applied), voiceprint-monogram (one spoken
+  word as the whole identity system, Opus), material-cabinet (oak+brass drawer wall, Opus),
+  soft-brutalism (page annotates its own construction with TRUE computed measurements, Opus).
+- shoji-ma PARKED after round-3 deciding re-judge (file on disk, NOT cataloged). Rounds 1-3 fixed
+  clickability, luminosity, composition and the crescendo (all verified), but the judge's final
+  read: the residual weaknesses are CONCEPT-INHERENT - a star seen only as a halo through
+  translucent paper is structurally soft and cannot deliver a commanding gallery thumb; washi
+  texture never survived downscale; mobile loses the concept entirely. LESSON BANKED: veiled-light
+  registers (glow-behind-diffuser as the ONLY hero) fight the scroll=0 thumbnail gate by
+  construction - prefer registers whose signature object survives small + static. Batch 62 closes
+  4/5 shipped + 1 parked (the lane's first park; 61 batches, 0 parks before it).
+- WORKFLOW UPGRADE (King approved 2026-07-17 ~01:00): 3-part taste plan ACTIVE. (1) _batch-workflow.js
+  now has STAGE 3 = FABLE ART DIRECTOR pass on EVERY template (schema ELEVATED w/ adChanges; inherits
+  session model; self-captures via harness; surgical elevation only). (2) Judges from batch 63 on
+  must return 2-3 TASTE ELEVATION NOTES even on PASS - notes get applied by AD/fix agents. (3)
+  Concept-risk routing: extreme-restraint + material-simulation registers get buildModel omitted
+  (= Fable builds). MEASURE: compare batch-64 workflow subagent_tokens vs baselines (batch 62 =
+  1,197,516; batch 63 = 1,250,387 build+verify only) + fix-round counts; report to King. Prediction
+  on record: +25-35% tokens/batch, partially offset by fewer post-judge fix loops.
+- Batch 63 GATED (built 10/10 `wt45pv7oy`, 0 errors; verify caught commit-log's DEAD scroll mechanic
+  - missing html.anim class, entire IO choreography inert; + corridor RM layout fix + isometric RM
+  fix). MY GATE: FPS 42-121 - isometric 60/42 = first sub-50 scroll reading -> Sonnet perf agent
+  `fix-isometric-perf` profiling (sway/breathing/walker suspects). Dash CLEAN x5. vlint: commit-log
+  + switchboard CLEAN 0/0; numbers ticks = 1px-anchor-label false positive (probed, docSW clean);
+  isometric plaques = SVG-text clientWidth-0 artifact class; gallery-corridor = REAL DEFECT (door
+  plaque buttons NEVER clickable at any depth - full-viewport sections eat clicks, same class as
+  shoji) -> Sonnet fix `fix-corridor-clicks` (pointer-events:none default on sections/spacers).
+  Judge next (WITH elevation notes per new policy); then retro-AD pass on batch-63 passes.
+- LANE SCOREBOARD @28 treatments: judges rate ~15 Awwwards-submit-ready. Top tier across batches:
+  bas-relief-light, planisphere-instrument, observatory-log, broadsheet-evening, almanac-of-hours,
+  terminator-clock, field-notes (best SMB conversion), bibliophile-spread, riso-nocturne.
 - Batch 61 WAS IN FLIGHT as `wmlu5jv6k` (Vesperwerk V, Fable-designed / Opus-built; axes: journalistic /
   illuminated manuscript / poster scale / bookbinding / aerospace): vesperwerk-broadsheet-evening
   (front page goes to press, real ICT clock, LATE EDITION palette toggle), vesperwerk-illuminated-hours

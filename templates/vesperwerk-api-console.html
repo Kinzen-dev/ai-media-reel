@@ -1,0 +1,720 @@
+<!-- TEMPLATE: Vesperwerk API Console | ARCHETYPE: Live Request Console (studio documented like the APIs it builds) | REF: Stripe API docs | WHEN TO USE: premium studio / agency / developer-product site where the offering IS the API / DX; two-pane synchronized prose + live JSON | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vesperwerk API Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Thai:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *{ box-sizing:border-box; }
+  :root{
+    --cream:#faf7f1;
+    --ink:#2e2a26;
+    --ink-soft:#5b5349;
+    --ink-faint:#918676;
+    --pane:#f2ede3;
+    --pane-line:#e5dcca;
+    --pane-line-strong:#d9cfba;
+    --gold:#a8802f;
+    --gold-deep:#8a6526;
+    --gold-light:#c09a4a;
+    --sage:#6f8558;
+    --sage-deep:#556d3d;
+    --sage-tint:rgba(118,140,86,.15);
+    --str:#61704a;
+    --num:#b0623a;
+    --bool:#8a6526;
+    --nullc:#a99e88;
+    --punct:#bcaf93;
+    --rail:452px;
+    --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --serif:'Spectral',Georgia,serif;
+    --disp:'Playfair Display',Georgia,serif;
+    --thai:'IBM Plex Sans Thai',system-ui,sans-serif;
+  }
+  html{ scroll-behavior:smooth; -webkit-text-size-adjust:100%; }
+  body{
+    margin:0; background:var(--cream); color:var(--ink);
+    font-family:var(--serif);
+    background-image:
+      radial-gradient(circle at 22% 12%, rgba(168,128,47,.045), transparent 55%),
+      radial-gradient(circle at 82% 86%, rgba(168,128,47,.035), transparent 50%);
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+    overflow-x:hidden;
+  }
+  a{ color:inherit; }
+  img{ max-width:100%; }
+
+  .skip{ position:absolute; left:-999px; top:0; background:var(--ink); color:var(--cream); padding:.6em 1em; border-radius:0 0 8px 0; z-index:60; font-family:var(--mono); font-size:.8rem; }
+  .skip:focus{ left:0; }
+
+  /* ---------- top bar ---------- */
+  .topbar{
+    position:sticky; top:0; z-index:30;
+    display:flex; align-items:center; gap:1rem;
+    padding:.7rem clamp(20px,4vw,56px);
+    background:rgba(250,247,241,.82);
+    backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--pane-line);
+  }
+  .brand{ display:flex; align-items:center; gap:.6rem; text-decoration:none; min-width:0; }
+  .star{ display:block; }
+  .brand .star{ width:22px; height:22px; }
+  .brand .wm{ font-family:var(--disp); font-weight:600; font-size:.82rem; letter-spacing:.22em; color:var(--ink); white-space:nowrap; }
+  .nav{ margin-left:auto; display:flex; gap:1.35rem; }
+  .nav a{ font-family:var(--mono); font-weight:500; font-size:.72rem; letter-spacing:.08em; color:var(--ink-soft); text-decoration:none; transition:color .18s; }
+  .nav a:hover{ color:var(--gold-deep); }
+  .env{ margin-left:1.5rem; font-family:var(--mono); font-weight:500; font-size:.68rem; letter-spacing:.08em; color:var(--ink-faint); white-space:nowrap; }
+  .env b{ color:var(--gold); font-weight:600; }
+
+  /* ---------- shell ---------- */
+  .shell{
+    display:grid; grid-template-columns:minmax(0,1fr) minmax(0,var(--rail));
+    gap:clamp(30px,4vw,72px);
+    max-width:1200px; margin:0 auto; padding:0 clamp(20px,4vw,56px);
+  }
+  .stream{ min-width:0; }
+  .rail{ min-width:0; position:relative; }
+  .rail-sticky{ position:sticky; top:66px; }
+
+  .chapter{
+    min-width:0; scroll-margin-top:74px;
+    min-height:82vh; padding:clamp(44px,8vh,88px) 0;
+    display:flex; flex-direction:column; justify-content:center;
+    border-top:1px solid transparent;
+  }
+  .chapter:first-child{ padding-top:clamp(28px,5vh,52px); }
+  .prose{ max-width:34rem; min-width:0; }
+  .dock{ display:none; }
+
+  /* ---------- prose type ---------- */
+  .eyebrow{ display:flex; align-items:center; gap:.55rem; margin-bottom:1.05rem; flex-wrap:wrap; }
+  .ep-method{ font-family:var(--mono); font-weight:600; font-size:.63rem; letter-spacing:.13em; padding:.3em .5em; border-radius:5px; }
+  .ep-path{ font-family:var(--mono); font-weight:500; font-size:.74rem; letter-spacing:.03em; color:var(--ink-soft); word-break:break-word; }
+  .m-get{ color:var(--sage-deep); background:var(--sage-tint); }
+  .m-post{ color:var(--gold-deep); background:rgba(168,128,47,.15); }
+
+  .wordmark{
+    font-family:var(--disp); font-weight:600;
+    font-size:clamp(2.4rem,4.4vw,3.9rem); line-height:1; letter-spacing:.18em;
+    color:var(--ink); margin:.15rem 0 1.25rem;
+  }
+  .lede{ font-family:var(--serif); font-weight:400; font-size:clamp(1.14rem,1.7vw,1.42rem); line-height:1.5; color:var(--ink-soft); max-width:30rem; margin:0; }
+  .lede-sm{ font-size:clamp(1.02rem,1.4vw,1.16rem); }
+  .cta-row{ display:flex; flex-wrap:wrap; gap:.7rem; margin:1.7rem 0 1.25rem; }
+  .btn{ font-family:var(--mono); font-weight:500; font-size:.8rem; letter-spacing:.03em; padding:.72em 1.15em; border-radius:9px; text-decoration:none; display:inline-flex; align-items:center; gap:.45em; transition:background .18s,border-color .18s,color .18s; }
+  .btn-primary{ background:var(--ink); color:var(--cream); }
+  .btn-primary:hover{ background:#413a32; }
+  .btn-ghost{ color:var(--ink); border:1px solid var(--pane-line-strong); }
+  .btn-ghost:hover{ border-color:var(--gold); color:var(--gold-deep); }
+  .meta{ font-family:var(--mono); font-weight:500; font-size:.72rem; letter-spacing:.06em; color:var(--ink-faint); margin-top:.4rem; }
+  .meta i, .colo i, .cfoot i, .foot-legal i{ font-style:normal; color:var(--gold); padding:0 .32em; }
+
+  .sect-title{ font-family:var(--disp); font-weight:500; font-size:clamp(1.9rem,3vw,2.6rem); line-height:1.05; color:var(--ink); margin:.05rem 0 1.35rem; }
+
+  .list{ list-style:none; margin:0; padding:0; }
+  .item{ display:flex; gap:1rem; padding:1.15rem 0; border-top:1px solid var(--pane-line); }
+  .item:last-child{ border-bottom:1px solid var(--pane-line); }
+  .num{ font-family:var(--mono); font-weight:600; font-size:.74rem; letter-spacing:.08em; color:var(--gold); padding-top:.4rem; flex:0 0 auto; }
+  .item-body{ min-width:0; }
+  .item-name{ font-family:var(--serif); font-weight:500; font-size:1.24rem; color:var(--ink); margin:0 0 .35rem; }
+  .item-desc{ font-family:var(--serif); font-weight:400; font-size:1rem; line-height:1.55; color:var(--ink-soft); margin:0; }
+
+  .work{ border-top:1px solid var(--pane-line); padding-top:1.35rem; }
+  .work-head{ display:flex; align-items:center; gap:.7rem; flex-wrap:wrap; margin-bottom:.6rem; }
+  .pill{ font-family:var(--mono); font-weight:600; font-size:.62rem; letter-spacing:.1em; color:var(--sage-deep); background:var(--sage-tint); border:1px solid rgba(85,109,61,.3); border-radius:20px; padding:.3em .7em; }
+  .attach{ margin:1.25rem 0 0; }
+  .attach-frame{ aspect-ratio:16/9; background:#efe7d7; border:1px solid var(--pane-line); border-radius:12px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+  .attach-frame img{ width:100%; height:100%; object-fit:contain; display:block; }
+  .attach figcaption{ margin-top:.5rem; font-family:var(--mono); font-weight:500; font-size:.68rem; letter-spacing:.05em; color:var(--ink-faint); }
+
+  .form{ margin:1.5rem 0 1rem; display:flex; flex-direction:column; gap:.95rem; max-width:26rem; }
+  .field{ display:flex; flex-direction:column; gap:.35rem; min-width:0; }
+  .field label{ font-family:var(--mono); font-weight:600; font-size:.65rem; letter-spacing:.11em; text-transform:uppercase; color:var(--ink-faint); }
+  .field input{ font-family:var(--serif); font-size:1rem; color:var(--ink); background:#fffdf8; border:1px solid var(--pane-line-strong); border-radius:9px; padding:.72em .85em; width:100%; min-width:0; transition:border-color .18s,box-shadow .18s; }
+  .field input::placeholder{ color:#b6ab95; }
+  .field input:focus{ border-color:var(--gold); box-shadow:0 0 0 3px rgba(168,128,47,.14); outline:none; }
+  .send{ align-self:flex-start; margin-top:.25rem; font-family:var(--mono); font-weight:600; font-size:.8rem; letter-spacing:.04em; background:var(--gold); color:#fffdf6; text-decoration:none; padding:.74em 1.25em; border-radius:9px; display:inline-flex; gap:.5em; align-items:center; transition:background .18s; }
+  .send:hover{ background:var(--gold-deep); }
+  .send-ar{ display:inline-block; transition:transform .2s; }
+  .send:hover .send-ar{ transform:translateX(3px); }
+  .colo{ font-family:var(--mono); font-weight:500; font-size:.68rem; letter-spacing:.04em; color:var(--ink-faint); margin-top:.7rem; }
+
+  /* ---------- console ---------- */
+  .console{
+    background:var(--pane); border:1px solid var(--pane-line);
+    border-radius:14px; overflow:hidden; min-width:0;
+    box-shadow:0 1px 0 rgba(255,255,255,.65) inset, 0 20px 44px -30px rgba(70,54,26,.55);
+  }
+  .console.enter{ animation:consoleIn .55s cubic-bezier(.2,.7,.2,1) both; }
+  @keyframes consoleIn{ from{ opacity:0; transform:translateY(12px); } to{ opacity:1; transform:none; } }
+
+  .titlebar{ display:flex; align-items:center; gap:.55rem; padding:.62rem .9rem; background:linear-gradient(180deg,#f6f1e8,#f2ece1); border-bottom:1px solid var(--pane-line); }
+  .fav{ display:inline-flex; }
+  .fav .star{ width:16px; height:16px; }
+  .tb-title{ font-family:var(--mono); font-weight:500; font-size:.8rem; letter-spacing:.03em; color:var(--ink-soft); }
+  .tb-slash{ color:var(--punct); margin:0 .18em; }
+  .tb-badge{ margin-left:auto; font-family:var(--mono); font-weight:600; font-size:.6rem; letter-spacing:.14em; color:var(--gold-deep); border:1px solid rgba(168,128,47,.36); border-radius:20px; padding:.24em .62em; }
+
+  .reqline{ display:flex; align-items:center; gap:.6rem; padding:.72rem .9rem; border-bottom:1px solid var(--pane-line); min-width:0; background:rgba(255,253,248,.4); }
+  .method{ font-family:var(--mono); font-weight:600; font-size:.7rem; line-height:1; letter-spacing:.12em; padding:.36em .5em; border-radius:5px; flex:0 0 auto; }
+  .reqpath{ display:flex; align-items:center; min-width:0; overflow:hidden; }
+  .path{ font-family:var(--mono); font-size:.85rem; letter-spacing:.02em; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+  .caret{ display:inline-block; width:.5ch; height:1.05em; margin-left:2px; background:var(--gold); vertical-align:-2px; border-radius:1px; flex:0 0 auto; animation:blink 1.05s steps(1) infinite; }
+  @keyframes blink{ 0%,50%{ opacity:.9; } 51%,100%{ opacity:0; } }
+
+  .resp-head{ display:flex; align-items:center; gap:.6rem; padding:.7rem .9rem .1rem; }
+  .statuschip{ display:inline-flex; align-items:center; gap:.42em; font-family:var(--mono); font-weight:600; font-size:.68rem; letter-spacing:.04em; color:var(--sage-deep); background:var(--sage-tint); border:1px solid rgba(85,109,61,.32); border-radius:20px; padding:.3em .72em; opacity:0; transform:translateY(3px); transition:opacity .34s ease, transform .34s ease; }
+  .statuschip.show{ opacity:1; transform:none; }
+  .statuschip .dot{ width:6px; height:6px; border-radius:50%; background:var(--sage-deep); box-shadow:0 0 0 3px rgba(85,109,61,.16); }
+  .statuschip .st-sep{ color:rgba(85,109,61,.55); }
+  .statuschip .st-sim{ color:var(--ink-faint); font-weight:500; }
+  .lbl{ margin-left:auto; font-family:var(--mono); font-weight:500; font-size:.6rem; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-faint); }
+
+  .resp{ margin:0; padding:.7rem .95rem 1rem; font-family:var(--mono); font-size:.8rem; line-height:1.7; color:var(--ink); white-space:pre-wrap; word-break:break-word; overflow-wrap:anywhere; letter-spacing:.015em; min-width:0; }
+  .console.sticky .resp{ max-height:48vh; overflow:auto; }
+  .console.sticky .resp::-webkit-scrollbar{ width:9px; }
+  .console.sticky .resp::-webkit-scrollbar-thumb{ background:#ddd2bd; border-radius:9px; border:2px solid var(--pane); }
+
+  .cfoot{ padding:.58rem .95rem; border-top:1px solid var(--pane-line); font-family:var(--mono); font-weight:500; font-size:.63rem; letter-spacing:.05em; color:var(--ink-faint); }
+
+  /* ---------- syntax theme (cream / gold / ink) ---------- */
+  .tk{ opacity:0; }
+  .tk.on{ opacity:1; transition:opacity .16s ease; }
+  .tk-key{ color:var(--gold); font-weight:600; border-radius:3px; box-decoration-break:clone; -webkit-box-decoration-break:clone; }
+  .tk-str{ color:var(--str); border-radius:3px; box-decoration-break:clone; -webkit-box-decoration-break:clone; }
+  .tk-num{ color:var(--num); }
+  .tk-bool{ color:var(--bool); font-weight:500; }
+  .tk-null{ color:var(--nullc); font-style:italic; }
+  .tk-punct{ color:var(--punct); }
+  .tk.thai{ font-family:var(--thai); letter-spacing:0; line-height:1.45; }
+  .tk-key.sweep{ animation:keySweep .85s ease-out; }
+  @keyframes keySweep{ 0%{ background-color:rgba(168,128,47,.32); color:var(--gold-light); } 55%{ background-color:rgba(168,128,47,.12); } 100%{ background-color:transparent; color:var(--gold); } }
+  .tk-str.vsweep{ animation:valSweep .8s ease-out; }
+  @keyframes valSweep{ 0%{ background-color:rgba(168,128,47,.3); color:var(--gold-deep); } 100%{ background-color:transparent; color:var(--str); } }
+
+  /* ---------- footer ---------- */
+  .site-foot{ border-top:1px solid var(--pane-line); margin-top:2.4rem; padding:clamp(44px,7vw,84px) clamp(20px,4vw,56px); background:linear-gradient(180deg,transparent,rgba(168,128,47,.035)); }
+  .foot-inner{ max-width:1200px; margin:0 auto; display:grid; grid-template-columns:1fr minmax(0,452px); gap:clamp(28px,4vw,60px); align-items:center; }
+  .foot-left{ min-width:0; }
+  .foot-brand{ display:flex; align-items:center; gap:.7rem; }
+  .foot-brand .star{ width:32px; height:32px; }
+  .foot-brand .wm{ font-family:var(--disp); font-weight:600; font-size:1.1rem; letter-spacing:.22em; color:var(--ink); }
+  .foot-tag{ font-family:var(--serif); font-size:1.02rem; color:var(--ink-soft); max-width:22rem; margin:1rem 0 0; }
+  .foot-legal{ font-family:var(--mono); font-weight:500; font-size:.72rem; letter-spacing:.06em; color:var(--ink-faint); margin-top:1.2rem; }
+  .foot-console{ min-width:0; }
+
+  a:focus-visible, button:focus-visible, input:focus-visible, .send:focus-visible{ outline:2px solid var(--gold); outline-offset:3px; border-radius:4px; }
+
+  /* ---------- mobile ---------- */
+  @media (max-width:860px){
+    .shell{ display:block; padding:0 20px; }
+    .rail{ display:none; }
+    .dock{ display:block; margin-top:1.6rem; }
+    .chapter{ min-height:auto; padding:2.4rem 0; display:block; }
+    .chapter:first-child{ padding-top:1.6rem; }
+    .prose{ max-width:none; }
+    .topbar .nav{ display:none; }
+    .env{ margin-left:auto; }
+    .wordmark{ font-size:clamp(1.7rem,7.6vw,2.6rem); letter-spacing:.15em; }
+    .foot-inner{ grid-template-columns:1fr; }
+    .console.sticky .resp{ max-height:none; }
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    html{ scroll-behavior:auto; }
+    .caret{ animation:none; opacity:.5; }
+    .console.enter{ animation:none; }
+    .statuschip{ transition:none; }
+    .tk-key.sweep, .tk-str.vsweep{ animation:none; }
+    .send-ar{ transition:none; }
+  }
+</style>
+</head>
+<body>
+<a class="skip" href="#hero">Skip to content</a>
+
+<header class="topbar">
+  <a class="brand" href="#hero" aria-label="Vesperwerk home">
+    <svg class="star" viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(100,100)"><g><polygon points="0,-86 -11,0 0,0" fill="#c09a4a"/><polygon points="0,-86 11,0 0,0" fill="#8a6526"/></g><g transform="rotate(180)"><polygon points="0,-86 -11,0 0,0" fill="#8a6526"/><polygon points="0,-86 11,0 0,0" fill="#c09a4a"/></g><g transform="rotate(90)"><polygon points="0,-64 -9.5,0 0,0" fill="#c09a4a"/><polygon points="0,-64 9.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(270)"><polygon points="0,-64 -9.5,0 0,0" fill="#8a6526"/><polygon points="0,-64 9.5,0 0,0" fill="#c09a4a"/></g><g transform="rotate(45)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(135)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(225)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g><g transform="rotate(315)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g></g></svg>
+    <span class="wm">VESPERWERK</span>
+  </a>
+  <nav class="nav" aria-label="Sections">
+    <a href="#services">services</a>
+    <a href="#work">work</a>
+    <a href="#approach">approach</a>
+    <a href="#contact">contact</a>
+  </nav>
+  <span class="env">console <b>(sim)</b></span>
+</header>
+
+<div class="shell">
+  <main class="stream" id="stream"></main>
+  <aside class="rail" aria-hidden="true"><div class="rail-sticky"></div></aside>
+</div>
+
+<footer class="site-foot">
+  <div class="foot-inner">
+    <div class="foot-left">
+      <div class="foot-brand">
+        <svg class="star" viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(100,100)"><g><polygon points="0,-86 -11,0 0,0" fill="#c09a4a"/><polygon points="0,-86 11,0 0,0" fill="#8a6526"/></g><g transform="rotate(180)"><polygon points="0,-86 -11,0 0,0" fill="#8a6526"/><polygon points="0,-86 11,0 0,0" fill="#c09a4a"/></g><g transform="rotate(90)"><polygon points="0,-64 -9.5,0 0,0" fill="#c09a4a"/><polygon points="0,-64 9.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(270)"><polygon points="0,-64 -9.5,0 0,0" fill="#8a6526"/><polygon points="0,-64 9.5,0 0,0" fill="#c09a4a"/></g><g transform="rotate(45)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(135)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(225)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g><g transform="rotate(315)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g></g></svg>
+        <span class="wm">VESPERWERK</span>
+      </div>
+      <p class="foot-tag">An independent software and AI studio in Bangkok. Documented like the systems it builds.</p>
+      <div class="foot-legal">Bangkok, Thailand <i>.</i> (c) 2026 Vesperwerk</div>
+    </div>
+    <div class="foot-console"></div>
+  </div>
+</footer>
+
+<script>
+/* =========================================================================
+   DATA - single source of truth. Swap copy / JSON bodies here.
+   Left pane prose and right pane JSON are rendered from these objects.
+   ========================================================================= */
+const DATA = {
+  contactEmail: 'kittipong.k@vesperwerk.com',
+  positioning: 'An independent software and AI studio. We architect, build, and operate production systems for businesses that cannot afford them to fail.',
+  about: 'Vesperwerk takes its name from the evening star: the first light you can navigate by. We are a founder-led studio in Bangkok building software for businesses across Asia and beyond.',
+
+  sections: [
+    {
+      id:'hero', kind:'hero',
+      reqMethod:'POST', reqPath:'/v1/engagements', status:'200 OK', latency:'42ms',
+      body:{
+        studio:'vesperwerk',
+        location:'bangkok',
+        positioning:'production systems that cannot afford to fail'
+      }
+    },
+    {
+      id:'services', kind:'services',
+      reqMethod:'GET', reqPath:'/v1/services', status:'200 OK', latency:'63ms',
+      body:{
+        object:'list',
+        url:'/v1/services',
+        data:[
+          { id:'ai-systems', name:'AI Systems', description:'Voice agents, LLM assistants, and the evaluation infrastructure that keeps them honest. AI that answers like your best employee, in production, around the clock.' },
+          { id:'product-engineering', name:'Product Engineering', description:'Full-stack product engineering from architecture to operations: event-driven backends, modern web frontends, and infrastructure that scales without drama.' },
+          { id:'commerce-platforms', name:'Commerce and Platforms', description:'Deep Shopify and LINE platform work: storefronts, admin apps, integrations, and the messaging rails Southeast Asian commerce runs on.' }
+        ]
+      }
+    },
+    {
+      id:'work', kind:'work',
+      reqMethod:'GET', reqPath:'/v1/work/yimwhan-ai', status:'200 OK', latency:'38ms',
+      body:{
+        id:'yimwhan-ai',
+        name:'Yimwhan AI',
+        status:'in_production',
+        channels:['voice','line'],
+        sector:'dental',
+        region:'thailand',
+        summary:'An AI voice and LINE assistant for dental clinics in Thailand. It answers after-hours calls, books and reschedules appointments, and hands off to staff the moment a human matters.'
+      }
+    },
+    {
+      id:'approach', kind:'approach',
+      reqMethod:'GET', reqPath:'/v1/approach', status:'200 OK', latency:'29ms',
+      body:{
+        object:'list',
+        url:'/v1/approach',
+        data:[
+          { principle:'Architecture first', detail:'We design the system before we write the code.' },
+          { principle:'Production-worthy', detail:'Demos impress; production endures. We build for the second one.' },
+          { principle:'Scope discipline', detail:'The most valuable thing we tell clients is what not to build.' },
+          { principle:'Senior hands', detail:'No juniors learning on your budget. Founder-led, senior hands on every line.' }
+        ]
+      }
+    },
+    {
+      id:'about', kind:'about',
+      reqMethod:'GET', reqPath:'/v1/studio', status:'200 OK', latency:'24ms',
+      body:{
+        studio:'vesperwerk',
+        origin:'the evening star: the first light you can navigate by',
+        location:'Bangkok, Thailand',
+        model:'founder-led',
+        founder:'Kittipong K.'
+      }
+    },
+    {
+      id:'contact', kind:'contact',
+      reqMethod:'POST', reqPath:'/v1/conversations', status:'201 Created', latency:'51ms',
+      message:'I would like to start a conversation.'
+    }
+  ],
+
+  footer:{
+    id:'colophon',
+    reqMethod:'GET', reqPath:'/v1/colophon', status:'200 OK', latency:'11ms',
+    body:{
+      studio:'vesperwerk',
+      location:'Bangkok, Thailand',
+      copyright:'(c) 2026 Vesperwerk',
+      motto:'ดาวประจำเมือง : แสงแรกที่ใช้นำทางยามค่ำ'
+    }
+  }
+};
+
+/* =========================================================================
+   engine
+   ========================================================================= */
+(function(){
+  'use strict';
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const mqMobile = window.matchMedia('(max-width: 860px)');
+
+  const STAR = '<svg class="star" viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(100,100)"><g><polygon points="0,-86 -11,0 0,0" fill="#c09a4a"/><polygon points="0,-86 11,0 0,0" fill="#8a6526"/></g><g transform="rotate(180)"><polygon points="0,-86 -11,0 0,0" fill="#8a6526"/><polygon points="0,-86 11,0 0,0" fill="#c09a4a"/></g><g transform="rotate(90)"><polygon points="0,-64 -9.5,0 0,0" fill="#c09a4a"/><polygon points="0,-64 9.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(270)"><polygon points="0,-64 -9.5,0 0,0" fill="#8a6526"/><polygon points="0,-64 9.5,0 0,0" fill="#c09a4a"/></g><g transform="rotate(45)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(135)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(225)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g><g transform="rotate(315)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g></g></svg>';
+
+  const contactState = { name:'', company:'' };
+  let activeConsole = null;
+  let activeSectionId = null;
+  const dState = { active:null };
+
+  const escHtml = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const escStr  = s => String(s).replace(/\\/g,'\\\\').replace(/"/g,'\\"');
+  const isThai  = s => /[฀-๿]/.test(s);
+  const sectionById = id => DATA.sections.find(s => s.id === id);
+
+  /* -------- token model -------- */
+  function pushString(str, out, ref){
+    const e = escStr(str);
+    if (ref){ out.push({tok:'str', text:'"'+e+'"', ref:ref}); return; }
+    out.push({tok:'str', text:'"'});
+    e.split(/(\s+)/).forEach(p => { if(p.length) out.push({tok:'str', text:p, thai:isThai(p)}); });
+    out.push({tok:'str', text:'"'});
+  }
+  function emitPrim(v, out){
+    if (typeof v === 'string') pushString(v, out);
+    else if (typeof v === 'number') out.push({tok:'num', text:String(v)});
+    else if (typeof v === 'boolean') out.push({tok:'bool', text:String(v)});
+    else if (v === null) out.push({tok:'null', text:'null'});
+  }
+  function pad(n){ return '\n' + '  '.repeat(n); }
+  function emit(v, indent, out){
+    if (Array.isArray(v)){
+      const prim = v.every(x => x === null || ['string','number','boolean'].includes(typeof x));
+      if (prim && v.length <= 6){
+        out.push({tok:'punct', text:'['});
+        v.forEach((x,i)=>{ out.push({raw:' '}); emitPrim(x, out); if(i<v.length-1) out.push({tok:'punct', text:','}); });
+        out.push({raw:' '}); out.push({tok:'punct', text:']'});
+        return;
+      }
+      out.push({tok:'punct', text:'['});
+      v.forEach((x,i)=>{ out.push({raw:pad(indent+1)}); emit(x, indent+1, out); if(i<v.length-1) out.push({tok:'punct', text:','}); });
+      out.push({raw:pad(indent)}); out.push({tok:'punct', text:']'});
+      return;
+    }
+    if (v && typeof v === 'object'){
+      out.push({tok:'punct', text:'{'});
+      const ks = Object.keys(v);
+      ks.forEach((k,i)=>{
+        out.push({raw:pad(indent+1)});
+        out.push({tok:'key', text:'"'+k+'"'});
+        out.push({tok:'punct', text:': '});
+        emit(v[k], indent+1, out);
+        if(i<ks.length-1) out.push({tok:'punct', text:','});
+      });
+      out.push({raw:pad(indent)}); out.push({tok:'punct', text:'}'});
+      return;
+    }
+    emitPrim(v, out);
+  }
+  /* contact body is hand-built so the from.name / from.company values carry refs */
+  function emitContact(name, company, msg, out){
+    out.push({tok:'punct', text:'{'});
+    out.push({raw:pad(1)}); out.push({tok:'key', text:'"from"'}); out.push({tok:'punct', text:': '}); out.push({tok:'punct', text:'{'});
+    out.push({raw:pad(2)}); out.push({tok:'key', text:'"name"'}); out.push({tok:'punct', text:': '}); pushString(name, out, 'ref-name'); out.push({tok:'punct', text:','});
+    out.push({raw:pad(2)}); out.push({tok:'key', text:'"company"'}); out.push({tok:'punct', text:': '}); pushString(company, out, 'ref-company');
+    out.push({raw:pad(1)}); out.push({tok:'punct', text:'}'}); out.push({tok:'punct', text:','});
+    out.push({raw:pad(1)}); out.push({tok:'key', text:'"to"'}); out.push({tok:'punct', text:': '}); pushString(DATA.contactEmail, out); out.push({tok:'punct', text:','});
+    out.push({raw:pad(1)}); out.push({tok:'key', text:'"channel"'}); out.push({tok:'punct', text:': '}); pushString('email', out); out.push({tok:'punct', text:','});
+    out.push({raw:pad(1)}); out.push({tok:'key', text:'"message"'}); out.push({tok:'punct', text:': '}); pushString(msg, out);
+    out.push({raw:pad(0)}); out.push({tok:'punct', text:'}'});
+  }
+
+  function render(out){
+    const frag = document.createDocumentFragment();
+    const spans = [];
+    out.forEach(t => {
+      if (t.raw !== undefined){ frag.appendChild(document.createTextNode(t.raw)); return; }
+      const s = document.createElement('span');
+      s.className = 'tk tk-' + t.tok + (t.thai ? ' thai' : '');
+      s.textContent = t.text;
+      if (t.tok === 'key') s._key = true;
+      if (t.ref) s.dataset.ref = t.ref;
+      frag.appendChild(s);
+      spans.push(s);
+    });
+    return { frag, spans };
+  }
+
+  /* -------- console factory -------- */
+  function makeConsole(sticky){
+    const el = document.createElement('div');
+    el.className = 'console' + (sticky ? ' sticky' : '');
+    el.innerHTML =
+      '<div class="titlebar"><span class="fav">'+STAR+'</span><span class="tb-title">vesperwerk<span class="tb-slash">/</span>api</span><span class="tb-badge">v1</span></div>'+
+      '<div class="reqline"><span class="method m-post">POST</span><div class="reqpath"><span class="path"></span><span class="caret"></span></div></div>'+
+      '<div class="resp-head"><span class="statuschip"><span class="dot"></span><span class="st-code">200 OK</span><span class="st-sep">.</span><span class="st-lat">42ms</span><span class="st-sim">(sim)</span></span><span class="lbl">response</span></div>'+
+      '<pre class="resp"><code class="code"></code></pre>'+
+      '<div class="cfoot">console simulated <i>.</i> json is real <i>.</i> endpoint coming soon</div>';
+
+    const refs = {
+      method: el.querySelector('.method'),
+      path:   el.querySelector('.path'),
+      code:   el.querySelector('.code'),
+      chip:   el.querySelector('.statuschip'),
+      stCode: el.querySelector('.st-code'),
+      stLat:  el.querySelector('.st-lat')
+    };
+    let gen = 0;
+    const api = { el, contactRefs:null, _rendered:false, _secId:null };
+
+    function showChip(){ refs.chip.classList.add('show'); }
+
+    function typePath(path, g, done){
+      refs.path.textContent = '';
+      let i = 0;
+      (function tick(){
+        if (g !== gen) return;
+        i++; refs.path.textContent = path.slice(0, i);
+        if (i < path.length) setTimeout(tick, 22);
+        else if (done) setTimeout(done, 130);
+      })();
+    }
+    function reveal(spans, g, done){
+      const batch = spans.length > 64 ? 2 : 1;
+      let i = 0;
+      (function tick(){
+        if (g !== gen) return;
+        for (let b=0; b<batch && i<spans.length; b++, i++){
+          const s = spans[i];
+          s.classList.add('on');
+          if (s._key) s.classList.add('sweep');
+        }
+        if (i < spans.length) setTimeout(tick, 12);
+        else if (done) done();
+      })();
+    }
+
+    function setSection(sec, animate){
+      const g = ++gen;
+      api._secId = sec.id;
+      el.dataset.section = sec.id;
+      refs.method.textContent = sec.reqMethod;
+      refs.method.className = 'method ' + (sec.reqMethod === 'GET' ? 'm-get' : 'm-post');
+      refs.chip.classList.remove('show');
+      refs.stCode.textContent = sec.status;
+      refs.stLat.textContent = sec.latency;
+
+      const out = [];
+      if (sec.id === 'contact') emitContact(contactState.name, contactState.company, sec.message, out);
+      else emit(sec.body, 0, out);
+      const { frag, spans } = render(out);
+      refs.code.textContent = '';
+      refs.code.appendChild(frag);
+      api.contactRefs = (sec.id === 'contact')
+        ? { name: el.querySelector('[data-ref="ref-name"]'), company: el.querySelector('[data-ref="ref-company"]') }
+        : null;
+
+      if (!animate || reduced){
+        refs.path.textContent = sec.reqPath;
+        spans.forEach(s => s.classList.add('on'));
+        showChip();
+        return;
+      }
+      typePath(sec.reqPath, g, () => reveal(spans, g, () => { if (g === gen) showChip(); }));
+    }
+
+    api.setSection = setSection;
+    return api;
+  }
+
+  /* -------- prose rendering (from DATA) -------- */
+  function eyebrow(sec){
+    const m = sec.reqMethod === 'GET' ? 'm-get' : 'm-post';
+    return '<div class="eyebrow"><span class="ep-method '+m+'">'+sec.reqMethod+'</span><span class="ep-path">'+escHtml(sec.reqPath)+'</span></div>';
+  }
+  function renderProse(sec){
+    if (sec.kind === 'hero'){
+      return eyebrow(sec) +
+        '<h1 class="wordmark">VESPERWERK</h1>'+
+        '<p class="lede">'+escHtml(DATA.positioning)+'</p>'+
+        '<div class="cta-row"><a class="btn btn-primary" href="#contact">Start a conversation</a><a class="btn btn-ghost" href="#work">See our work</a></div>'+
+        '<div class="meta">Bangkok, Thailand <i>.</i> founder-led studio</div>';
+    }
+    if (sec.kind === 'services'){
+      return eyebrow(sec) + '<h2 class="sect-title">What we build</h2><ol class="list">' +
+        sec.body.data.map((s,i)=>'<li class="item"><span class="num">0'+(i+1)+'</span><div class="item-body"><h3 class="item-name">'+escHtml(s.name)+'</h3><p class="item-desc">'+escHtml(s.description)+'</p></div></li>').join('') +
+        '</ol>';
+    }
+    if (sec.kind === 'work'){
+      return eyebrow(sec) + '<h2 class="sect-title">Selected work</h2>'+
+        '<div class="work"><div class="work-head"><h3 class="item-name">Yimwhan AI</h3><span class="pill">in production</span></div>'+
+        '<p class="item-desc">'+escHtml(sec.body.summary)+'</p>'+
+        '<figure class="attach"><div class="attach-frame"><img src="../assets/flux-clinic-4k.png" alt="Yimwhan AI: dental clinic interior in mint and wood" loading="lazy" decoding="async"></div>'+
+        '<figcaption>attachment: flux-clinic-4k.png <i>.</i> (sim)</figcaption></figure></div>';
+    }
+    if (sec.kind === 'approach'){
+      return eyebrow(sec) + '<h2 class="sect-title">How we work</h2><ol class="list">' +
+        sec.body.data.map((p,i)=>'<li class="item"><span class="num">0'+(i+1)+'</span><div class="item-body"><h3 class="item-name">'+escHtml(p.principle)+'</h3><p class="item-desc">'+escHtml(p.detail)+'</p></div></li>').join('') +
+        '</ol>';
+    }
+    if (sec.kind === 'about'){
+      return eyebrow(sec) + '<h2 class="sect-title">The studio</h2>'+
+        '<p class="lede lede-sm">'+escHtml(DATA.about)+'</p>'+
+        '<div class="meta">Kittipong K. <i>.</i> Bangkok, Thailand</div>';
+    }
+    if (sec.kind === 'contact'){
+      return eyebrow(sec) + '<h2 class="sect-title">Start a conversation</h2>'+
+        '<p class="lede lede-sm">Tell us who you are. Typing composes a real request body; sending opens your mail client.</p>'+
+        '<form class="form" id="contactForm" autocomplete="on">'+
+          '<div class="field"><label for="f-name">name</label><input id="f-name" name="name" type="text" autocomplete="name" placeholder="Your name" maxlength="60"></div>'+
+          '<div class="field"><label for="f-company">company</label><input id="f-company" name="company" type="text" autocomplete="organization" placeholder="Your company" maxlength="60"></div>'+
+          '<a class="send" id="f-send" href="mailto:'+DATA.contactEmail+'">send request <span class="send-ar">-&gt;</span></a>'+
+        '</form>'+
+        '<div class="colo">console simulated <i>.</i> json is real <i>.</i> endpoint coming soon</div>';
+    }
+    return '';
+  }
+
+  /* -------- build DOM -------- */
+  const stream = document.getElementById('stream');
+  DATA.sections.forEach(sec => {
+    const ch = document.createElement('section');
+    ch.className = 'chapter';
+    ch.id = sec.id;
+    ch.dataset.id = sec.id;
+    ch.innerHTML = '<div class="prose">'+renderProse(sec)+'</div><div class="dock"></div>';
+    stream.appendChild(ch);
+  });
+
+  const sticky = makeConsole(true);
+  document.querySelector('.rail-sticky').appendChild(sticky.el);
+
+  DATA.sections.forEach(sec => {
+    const ch = document.getElementById(sec.id);
+    const c = makeConsole(false);
+    c._secId = sec.id;
+    ch.querySelector('.dock').appendChild(c.el);
+    ch._c = c;
+  });
+
+  const footC = makeConsole(false);
+  document.querySelector('.foot-console').appendChild(footC.el);
+
+  /* -------- contact wiring -------- */
+  const nameInput = document.getElementById('f-name');
+  const companyInput = document.getElementById('f-company');
+  const sendBtn = document.getElementById('f-send');
+
+  function updateSend(){
+    const subj = encodeURIComponent('New conversation via Vesperwerk');
+    const bodyText = [
+      'name: ' + (contactState.name || ''),
+      'company: ' + (contactState.company || ''),
+      '',
+      'I would like to start a conversation.'
+    ].join('\n');
+    sendBtn.setAttribute('href', 'mailto:' + DATA.contactEmail + '?subject=' + subj + '&body=' + encodeURIComponent(bodyText));
+  }
+  function setRefVal(span, v){
+    if (!span) return;
+    span.textContent = '"' + escStr(v) + '"';
+    span.classList.add('on');
+    if (!reduced){ span.classList.remove('vsweep'); void span.offsetWidth; span.classList.add('vsweep'); }
+  }
+  function syncContact(){
+    if (!activeConsole || !activeConsole.contactRefs) return;
+    setRefVal(activeConsole.contactRefs.name, contactState.name);
+    setRefVal(activeConsole.contactRefs.company, contactState.company);
+  }
+  function onContactInput(){
+    contactState.name = nameInput.value.trim();
+    contactState.company = companyInput.value.trim();
+    updateSend();
+    syncContact();
+  }
+  nameInput.addEventListener('input', onContactInput);
+  companyInput.addEventListener('input', onContactInput);
+  updateSend();
+
+  /* -------- desktop sync (one sticky console) -------- */
+  function activateDesktop(id){
+    if (id === dState.active) return;
+    dState.active = id;
+    activeSectionId = id;
+    sticky.setSection(sectionById(id), !reduced);
+    activeConsole = sticky;
+    if (id === 'contact') syncContact();
+  }
+  const ratios = new Map();
+  const dio = new IntersectionObserver((entries) => {
+    if (mqMobile.matches) return;
+    entries.forEach(e => ratios.set(e.target, e.isIntersecting ? e.intersectionRatio : 0));
+    let best = null, bv = -1;
+    ratios.forEach((r, el) => { if (r > bv){ bv = r; best = el; } });
+    if (best && bv > 0) activateDesktop(best.dataset.id);
+  }, { threshold:[0,.15,.3,.5,.7,.9], rootMargin:'-6% 0px -34% 0px' });
+  DATA.sections.forEach(s => { const ch = document.getElementById(s.id); ratios.set(ch, 0); dio.observe(ch); });
+
+  /* -------- mobile sync (per-section docked console) -------- */
+  const mio = new IntersectionObserver((entries) => {
+    if (!mqMobile.matches) return;
+    entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      const ch = e.target, c = ch._c, id = ch.dataset.id;
+      if (!c._rendered){ c._rendered = true; c.el.classList.add('enter'); c.setSection(sectionById(id), !reduced); }
+      activeSectionId = id; activeConsole = c;
+      if (id === 'contact') syncContact();
+    });
+  }, { threshold:.14, rootMargin:'0px 0px -8% 0px' });
+  DATA.sections.forEach(s => mio.observe(document.getElementById(s.id)));
+
+  /* -------- footer console -------- */
+  const fio = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting && !footC._rendered){
+        footC._rendered = true;
+        footC.el.classList.add('enter');
+        footC.setSection(DATA.footer, !reduced);
+        fio.disconnect();
+      }
+    });
+  }, { threshold:.2 });
+  fio.observe(document.querySelector('.site-foot'));
+
+  /* -------- entrance ritual -------- */
+  sticky.el.classList.add('enter');
+  if (!mqMobile.matches){
+    if (reduced) activateDesktop('hero');
+    else setTimeout(() => activateDesktop('hero'), 260);
+  }
+
+  /* -------- resize across breakpoint -------- */
+  function resync(){
+    const id = dState.active || activeSectionId || 'hero';
+    if (mqMobile.matches){
+      const ch = document.getElementById(id);
+      if (ch && ch._c){
+        if (!ch._c._rendered){ ch._c._rendered = true; ch._c.setSection(sectionById(id), false); }
+        activeConsole = ch._c;
+      }
+    } else {
+      sticky.setSection(sectionById(id), false);
+      activeConsole = sticky;
+    }
+    activeSectionId = id;
+    if (id === 'contact') syncContact();
+  }
+  if (mqMobile.addEventListener) mqMobile.addEventListener('change', resync);
+  else if (mqMobile.addListener) mqMobile.addListener(resync);
+})();
+</script>
+</body>
+</html>

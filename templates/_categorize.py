@@ -159,6 +159,18 @@ SLUG_CAT = {
     "vesperwerk-terminator-clock": "vesperwerk", "vesperwerk-jeweled-vitrine": "vesperwerk",
     "vesperwerk-auction-lot": "vesperwerk", "vesperwerk-observatory-log": "vesperwerk",
     "vesperwerk-field-notes": "vesperwerk", "vesperwerk-evening-service": "vesperwerk",
+    # --- batch 64 (Vesperwerk VIII, first full AD-stage batch) ---
+    "vesperwerk-api-console": "vesperwerk", "vesperwerk-lai-rot-nam-gilding": "vesperwerk",
+    "vesperwerk-voiceprint-monogram": "vesperwerk", "vesperwerk-material-cabinet": "vesperwerk",
+    "vesperwerk-soft-brutalism": "vesperwerk",
+    # --- batch 63 (Vesperwerk VII, Opus 4.8 builders) ---
+    "vesperwerk-commit-log": "vesperwerk", "vesperwerk-numbers-station": "vesperwerk",
+    "vesperwerk-switchboard-exchange": "vesperwerk", "vesperwerk-isometric-atelier-plan": "vesperwerk",
+    "vesperwerk-gallery-corridor": "vesperwerk",
+    # --- batch 62 (Vesperwerk VI, round-2 audit lenses, Opus 4.8 builders) ---
+    "vesperwerk-benjarong-atelier": "vesperwerk", "vesperwerk-transcript-screenplay": "vesperwerk",
+    "vesperwerk-liquid-ink-title": "vesperwerk", "vesperwerk-trace-diagram": "vesperwerk",
+    "vesperwerk-shoji-ma": "vesperwerk",
     # --- batch 61 (Vesperwerk V, Opus 4.8 builders) ---
     "vesperwerk-broadsheet-evening": "vesperwerk", "vesperwerk-illuminated-hours": "vesperwerk",
     "vesperwerk-poster-crop": "vesperwerk", "vesperwerk-bibliophile-spread": "vesperwerk",

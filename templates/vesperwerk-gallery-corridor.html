@@ -1,0 +1,741 @@
+<!-- TEMPLATE: Vesperwerk Viewing Corridor | ARCHETYPE: single-point-perspective gallery walkthrough (scroll = walking to the evening star) | REF: Mauritshuis walkthrough + David Zwirner online viewing rooms + single-point gallery photography | WHEN TO USE: founder-led studio / agency / portfolio wanting a museum-corridor narrative with a payoff destination | SWAP: edit the DATA object at top of the script -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vesperwerk . The Viewing Corridor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Space+Mono:wght@400;700&family=Noto+Serif+Thai:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --corridor:#241f1b; --charcoal:#1a1613; --wood:#2a2420;
+    --cream:#f4ecdb; --panel:#efe6d3; --panel-deep:#cdbc9b;
+    --ink:#2b2621; --ink-soft:#5b5245;
+    --gold:#a8802f; --gold-light:#c09a4a; --gold-dark:#8a6526; --brass:#b8963f;
+    --spill:#f0c470;
+    --serif:"Playfair Display", Georgia, serif;
+    --label:"Cormorant Garamond", Georgia, serif;
+    --mono:"Space Mono", ui-monospace, monospace;
+    --thai:"Noto Serif Thai","Cormorant Garamond",serif;
+    --pgrow:1; --pglow:0;
+  }
+  *{box-sizing:border-box; min-width:0}
+  html,body{margin:0; padding:0}
+  html{background:#100d0b; overflow-x:hidden; scroll-behavior:smooth}
+  /* NOTE: no overflow-x on body: html already clips horizontally at the viewport;
+     giving body its own overflow-x would force overflow-y to a used value of auto
+     (CSS Overflow spec visible-to-auto pairing rule), turning body into a nested
+     scroll container that silently breaks every position:sticky exhibit below. */
+  body{
+    background:var(--corridor); color:var(--cream);
+    font-family:var(--label); font-size:18px; line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  img{max-width:100%; display:block}
+  button{font:inherit; color:inherit; background:none; border:0; cursor:pointer}
+  a{color:inherit; text-decoration:none}
+  :focus-visible{outline:2px solid var(--gold-light); outline-offset:3px; border-radius:2px}
+
+  /* ============ FIXED CORRIDOR STAGE (5 css-parallax depth layers) ============ */
+  .stage{position:fixed; inset:0; overflow:hidden; z-index:0; background:#120f0d;
+    perspective:1200px}
+  .stage .vignette{position:absolute; inset:0; pointer-events:none; z-index:6;
+    background:
+      radial-gradient(120% 90% at 50% 44%, transparent 40%, rgba(10,8,6,.55) 100%),
+      linear-gradient(180deg, rgba(10,8,6,.35), transparent 22%, transparent 74%, rgba(10,8,6,.5))}
+
+  /* layer 1: corridor shell (walls / floor / ceiling / sconces) */
+  .world{position:absolute; inset:-2%; z-index:1; will-change:transform; transform-origin:50% 45%}
+  .corridor{position:absolute; inset:0; width:100%; height:100%}
+
+  /* layer 5: near wall vinyl (foreground hero). Doors 1 and 3 sit in the same left-wall
+     region: default the whole panel to pointer-events:none and restore auto only on its
+     two real CTA links, so decorative text/whitespace never blocks the door underneath. */
+  .vinyl{position:absolute; left:4.5%; bottom:5%; z-index:4; width:min(42%,500px);
+    transform-origin:left bottom; will-change:transform,opacity;
+    transform:perspective(1500px) rotateY(11deg); pointer-events:none}
+  /* warm lit wall wash keeps ink vinyl legible over wall AND floor */
+  .vinyl::before{content:""; position:absolute; inset:-20% -16% -26% -12%; z-index:-1;
+    background:radial-gradient(72% 62% at 33% 58%, rgba(245,231,201,.86), rgba(238,220,185,.44) 46%, rgba(238,220,185,0) 78%);
+    filter:blur(7px); pointer-events:none}
+  .vinyl .mark{width:52px; height:52px; margin-bottom:14px; filter:drop-shadow(0 3px 10px rgba(0,0,0,.5))}
+  .vinyl .mark svg{width:100%; height:100%}
+  .wordmark{font-family:var(--serif); font-weight:600; color:#14100b;
+    font-size:clamp(32px,5.1vw,66px); letter-spacing:.2em; line-height:.98; margin:0;
+    text-shadow:0 1px 0 rgba(255,255,255,.22)}
+  .vinyl .tag{font-family:var(--label); font-weight:500; color:#231c13;
+    font-size:clamp(15px,1.5vw,19px); line-height:1.4; margin:14px 0 0; max-width:30ch;
+    border-top:1px solid rgba(40,30,18,.4); padding-top:12px}
+  .vinyl .cta{display:flex; gap:10px; margin-top:16px; flex-wrap:wrap}
+  .vinyl .cta a{font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    padding:9px 15px; color:#20190f; border:1px solid rgba(40,30,18,.5); pointer-events:auto}
+  .vinyl .cta a.primary{background:#20190f; color:var(--cream); border-color:#20190f}
+  /* secondary CTA: hairline gold stroke + a small lit pool beneath, so it stays
+     legible where the vinyl wash thins onto the dark floor (and on phones) */
+  .vinyl .cta a:not(.primary){position:relative; border-color:rgba(168,128,47,.9); color:#231907}
+  .vinyl .cta a:not(.primary)::before{content:""; position:absolute; z-index:-1;
+    left:-9%; right:-9%; top:6%; bottom:-72%;
+    background:radial-gradient(58% 128% at 50% 20%, rgba(240,196,112,.44), rgba(240,196,112,0) 72%);
+    filter:blur(5px); pointer-events:none}
+  .vinyl .cta a:hover{background:var(--gold); color:#20190f; border-color:var(--gold)}
+
+  /* layers 2-4: doorways receding along the walls */
+  #doors{position:absolute; inset:0; z-index:3; transform-origin:50% 45%; will-change:transform;
+    pointer-events:none}
+  .door{position:absolute; pointer-events:auto}
+  .door .frame{position:absolute; inset:0; transform-style:preserve-3d;
+    border:3px solid; border-image:linear-gradient(160deg,#d9b45f,#7c5f26) 1;
+    background:linear-gradient(180deg,#171310,#0c0a08);
+    box-shadow:0 20px 50px rgba(0,0,0,.55), inset 0 0 30px rgba(0,0,0,.7)}
+  .door.left .frame{transform:rotateY(21deg); transform-origin:left center}
+  .door.right .frame{transform:rotateY(-21deg); transform-origin:right center}
+  .door .spill{position:absolute; inset:2px; opacity:0; transition:opacity 1.1s ease;
+    background:
+      radial-gradient(120% 80% at 50% 30%, rgba(240,196,112,.9), rgba(200,150,70,.35) 45%, transparent 75%),
+      linear-gradient(180deg,#3a2c15,#20180d)}
+  .door .depth{position:absolute; inset:2px;
+    background:linear-gradient(115deg,#0a0806 0%,#171310 60%,#221a10 100%)}
+  .door .leaf{position:absolute; inset:2px; transform-style:preserve-3d;
+    background:linear-gradient(100deg,#2a211a,#3b2f22 45%,#1c1611);
+    border-right:2px solid rgba(0,0,0,.5);
+    transition:transform 1s cubic-bezier(.2,.7,.25,1);
+    box-shadow:inset 0 0 40px rgba(0,0,0,.6)}
+  .door .leaf::before{content:""; position:absolute; inset:14% 16%;
+    border:1px solid rgba(198,158,90,.28)}
+  .door.left .leaf{transform-origin:left center}
+  .door.right .leaf{transform-origin:right center}
+  .door.left.open .leaf{transform:rotateY(-74deg)}
+  .door.right.open .leaf{transform:rotateY(74deg)}
+  .door.open .spill{opacity:1}
+  .door.left.ajar .leaf{transform:rotateY(-20deg)}
+  .door.right.ajar .leaf{transform:rotateY(20deg)}
+  .door.ajar .spill{opacity:.5}
+  /* brass plaque = fast-walk control, held upright and readable */
+  .plaque{position:absolute; left:50%; bottom:-8%; transform:translateX(-50%);
+    min-width:118px; text-align:center; padding:7px 12px 8px;
+    background:linear-gradient(180deg,#c6a44e,#8a6b2b); color:#20180d;
+    border:1px solid #6f5320; border-radius:2px;
+    box-shadow:0 8px 18px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.35);
+    white-space:nowrap}
+  .plaque .pn{display:block; font-family:var(--mono); font-size:9px; letter-spacing:.24em; opacity:.7}
+  .plaque .pt{display:block; font-family:var(--serif); font-weight:600; font-size:13px; letter-spacing:.03em}
+  .plaque:hover{filter:brightness(1.07)}
+
+  /* pendant star at the vanishing point = destination of the walk */
+  .pendant{position:absolute; left:50%; top:44%; z-index:2;
+    transform:translate(-50%,-50%) scale(var(--pgrow)); transform-origin:center;
+    will-change:transform; pointer-events:none}
+  .pendant .cord{position:absolute; left:50%; bottom:100%; width:1px; height:120px;
+    transform:translateX(-50%);
+    background:linear-gradient(180deg,transparent,rgba(184,150,63,.5))}
+  .pendant .halo{position:absolute; left:50%; top:50%; width:340px; height:340px;
+    transform:translate(-50%,-50%);
+    background:radial-gradient(circle, rgba(240,196,112,.55), rgba(200,150,70,.16) 42%, transparent 68%);
+    opacity:calc(.45 + var(--pglow)*.55); filter:blur(2px)}
+  .pendant .glyph{position:relative; width:60px; height:60px; margin:0 auto;
+    filter:drop-shadow(0 0 14px rgba(240,196,112,.8))}
+  .pendant .glyph svg,.pendant .glyph{}
+  .pendant svg{width:60px; height:60px; position:relative}
+
+  /* polished-floor reflection of the pendant glow, pooled just below the vanishing
+     point. Blurred + masked to fade downward so it reads as light on waxed stone,
+     not a mirror. Blooms with --pglow so it grows as you walk toward the light. */
+  .floorglow{position:absolute; left:50%; top:51%; z-index:2; pointer-events:none;
+    width:min(320px,58vw); height:230px; transform:translateX(-50%);
+    background:radial-gradient(52% 100% at 50% 0%, rgba(240,196,112,.42), rgba(200,150,70,.13) 40%, transparent 74%);
+    opacity:calc(.2 + var(--pglow)*.5); filter:blur(11px);
+    -webkit-mask-image:linear-gradient(180deg, rgba(0,0,0,.95), transparent 84%);
+            mask-image:linear-gradient(180deg, rgba(0,0,0,.95), transparent 84%)}
+
+  /* ============ HUD ============ */
+  .hud{position:fixed; inset:0; z-index:20; pointer-events:none; font-family:var(--mono)}
+  .guideline{position:absolute; top:16px; left:18px; right:18px; font-size:10.5px;
+    letter-spacing:.26em; color:#c9b892; text-transform:uppercase;
+    text-shadow:0 1px 4px rgba(0,0,0,.7); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .ticker{position:absolute; left:0; right:0; bottom:0; padding:11px 18px calc(11px + env(safe-area-inset-bottom));
+    background:linear-gradient(180deg,transparent, rgba(12,9,7,.82) 55%);
+    display:flex; align-items:baseline; gap:12px; font-size:11px; letter-spacing:.05em;
+    color:#e7d9b8; overflow:hidden}
+  .ticker .tk-tag{color:var(--gold-light); letter-spacing:.22em; text-transform:uppercase; flex:0 0 auto}
+  .ticker .tk-line{color:#d9cba9; opacity:.92; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0}
+
+  /* ============ SCROLL CONTENT (exhibit labels pin center-stage) ============ */
+  /* .scroll and .stage are sibling stacking contexts (z-index:10 vs z-index:0), so ALL
+     scroll content paints above ALL stage content regardless of #doors' internal z-index.
+     Default every scroll section to pointer-events:none so empty spacers and the
+     off-sticky overflow of tall rooms don't swallow clicks meant for the door plaques
+     underneath; only real interactive/readable content opts back in with auto. */
+  .scroll{position:relative; z-index:10; pointer-events:none}
+  .room{min-height:110vh; position:relative}
+  .room.spacer{min-height:80vh}
+  .room.work{min-height:150vh}
+  .room.approach{min-height:132vh}
+  .room.end{min-height:auto}
+  .exhibit{position:sticky; top:0; height:100vh; display:flex; align-items:center; justify-content:center;
+    padding:9vh 6vw; pointer-events:none}
+  .exhibit > *{pointer-events:auto}
+
+  /* museum label card */
+  .label{position:relative; width:min(430px,86vw); background:var(--panel);
+    color:var(--ink); padding:34px 34px 30px; border-radius:2px;
+    box-shadow:0 40px 90px rgba(0,0,0,.6), 0 3px 0 rgba(0,0,0,.3);
+    transform:translateY(22px); opacity:0; transition:transform .9s cubic-bezier(.2,.7,.25,1), opacity .9s ease;
+    border:1px solid rgba(120,96,50,.25)}
+  .label.in{transform:translateY(0); opacity:1}
+  .label .picturelight{position:absolute; top:-14px; left:12%; right:12%; height:14px;
+    background:radial-gradient(60% 300% at 50% 100%, rgba(240,196,112,.75), transparent 70%);
+    opacity:.5; transition:opacity .5s ease; pointer-events:none}
+  .label:hover .picturelight{opacity:1}
+  .label::after{content:""; position:absolute; left:0; right:0; top:0; height:3px;
+    background:linear-gradient(90deg,transparent,var(--gold),transparent); opacity:.7}
+  .kicker{font-family:var(--mono); font-size:10px; letter-spacing:.26em; text-transform:uppercase;
+    color:var(--gold-dark); margin:0 0 12px}
+  .ltitle{font-family:var(--serif); font-weight:600; font-size:clamp(26px,3.4vw,34px);
+    line-height:1.04; margin:0 0 8px; color:#221d16}
+  .meta{font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; color:var(--ink-soft);
+    margin:0 0 16px; padding-bottom:14px; border-bottom:1px solid rgba(90,70,40,.25)}
+  .body{font-family:var(--label); font-size:clamp(16px,1.7vw,19px); line-height:1.5; margin:0;
+    color:#3a3226}
+
+  /* WORK: the largest room, featured exhibit with picture light */
+  .artframe{position:relative; width:min(760px,92vw); background:var(--panel);
+    padding:20px; border-radius:2px; border:1px solid rgba(120,96,50,.3);
+    box-shadow:0 50px 110px rgba(0,0,0,.62);
+    display:grid; grid-template-columns:1.35fr 1fr; gap:22px; align-items:center;
+    transform:translateY(24px); opacity:0; transition:transform .95s cubic-bezier(.2,.7,.25,1), opacity .95s ease}
+  .artframe.in{transform:translateY(0); opacity:1}
+  .piclamp{position:absolute; top:-18px; left:8%; width:42%; height:20px;
+    background:radial-gradient(70% 340% at 50% 100%, rgba(240,196,112,.9), transparent 72%);
+    opacity:.55; transition:opacity .5s ease; pointer-events:none}
+  .artframe:hover .piclamp{opacity:1}
+  .mat{background:#141019; border:8px solid #0f0c0a; padding:0; border-radius:1px;
+    box-shadow:inset 0 0 0 1px rgba(198,158,90,.35), 0 10px 30px rgba(0,0,0,.5);
+    aspect-ratio:16/10; display:flex; align-items:center; justify-content:center; overflow:hidden}
+  .mat img{width:100%; height:100%; object-fit:contain; background:#0c0a08}
+  .walllabel .kicker{color:var(--gold-dark)}
+  .walllabel h2{font-family:var(--serif); font-weight:600; color:#221d16;
+    font-size:clamp(24px,3vw,32px); line-height:1.03; margin:0 0 8px}
+  .walllabel .body{font-size:clamp(15px,1.6vw,17.5px)}
+
+  /* APPROACH: four framed maxims along the wall */
+  .maxims{display:grid; grid-template-columns:1fr 1fr; gap:20px; width:min(720px,92vw)}
+  .maxim{position:relative; background:var(--panel); color:var(--ink); padding:22px 22px 20px;
+    border:1px solid rgba(120,96,50,.28); border-radius:2px;
+    box-shadow:0 24px 60px rgba(0,0,0,.5);
+    transform:translateY(20px); opacity:0; transition:transform .8s cubic-bezier(.2,.7,.25,1), opacity .8s ease}
+  .maxim.in{transform:translateY(0); opacity:1}
+  .maxim::before{content:""; position:absolute; top:-10px; left:22%; right:22%; height:10px;
+    background:radial-gradient(60% 300% at 50% 100%, rgba(240,196,112,.55), transparent 72%)}
+  .mx-num{font-family:var(--mono); font-size:10px; letter-spacing:.2em; color:var(--gold-dark)}
+  .maxim h3{font-family:var(--serif); font-weight:600; font-size:clamp(18px,2.2vw,22px);
+    margin:6px 0 6px; color:#221d16}
+  .maxim p{font-family:var(--label); font-size:15.5px; line-height:1.45; margin:0; color:#3a3226}
+
+  /* END: arrival at the light + contact payoff */
+  .end{display:flex; align-items:center; justify-content:center;
+    padding:16vh 6vw 8vh; text-align:center; position:relative}
+  .end::before{content:""; position:absolute; inset:0;
+    background:radial-gradient(70% 60% at 50% 42%, rgba(20,15,10,.5), rgba(10,8,6,.86) 78%);
+    z-index:-1; pointer-events:none}
+  /* .end has no .exhibit wrapper (unlike the other rooms), so its own content
+     block needs the pointer-events:auto opt-in restored explicitly */
+  .payoff{width:min(680px,92vw); position:relative; pointer-events:auto}
+  .thai-vinyl{font-family:var(--thai); font-weight:500; line-height:1.42;
+    font-size:clamp(17px,2.2vw,24px); color:#e8d6ac; margin:0 0 30px;
+    text-shadow:0 2px 10px rgba(0,0,0,.6)}
+  .end-lockup{display:flex; flex-direction:column; align-items:center; gap:16px; margin-bottom:26px}
+  .end-lockup .estar{width:64px; height:64px; filter:drop-shadow(0 0 18px rgba(240,196,112,.6))}
+  .end-lockup .ew{font-family:var(--serif); font-weight:600; letter-spacing:.24em;
+    font-size:clamp(24px,3.4vw,40px); color:#f2e6c8; margin:0}
+  .about{font-family:var(--label); font-size:clamp(16px,1.9vw,20px); line-height:1.55;
+    color:#d8caa9; max-width:52ch; margin:0 auto 30px}
+  .about em{font-style:italic; color:#eeddb4}
+  .contact{display:inline-flex; flex-direction:column; gap:6px; align-items:center; margin-bottom:34px}
+  .contact .cta-main{font-family:var(--mono); font-size:12px; letter-spacing:.16em; text-transform:uppercase;
+    padding:13px 26px; border:1px solid var(--gold); color:#f2e6c8;
+    background:linear-gradient(180deg, rgba(168,128,47,.25), rgba(168,128,47,.05))}
+  .contact .cta-main:hover{background:var(--gold); color:#20180d}
+  .contact .cmail{font-family:var(--label); font-size:19px; color:#eeddb4; letter-spacing:.02em}
+  .contact .cmail:hover{color:var(--gold-light)}
+  .contact .cloc{font-family:var(--mono); font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:#a99a78}
+  .colophon{font-family:var(--mono); font-size:9.5px; letter-spacing:.16em; text-transform:uppercase;
+    color:#8a7c5f; margin:0 0 22px}
+  .foot{border-top:1px solid rgba(184,150,63,.22); padding-top:20px;
+    display:flex; align-items:center; justify-content:center; gap:14px; flex-wrap:wrap;
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.14em; color:#a99a78; text-transform:uppercase}
+  .foot .fstar{width:22px; height:22px}
+  .foot .fw{font-family:var(--serif); letter-spacing:.22em; color:#d8caa9; font-size:13px; text-transform:none}
+  .foot .dot{opacity:.5}
+
+  /* ============ ENTRANCE RITUAL (~2s) ============ */
+  .sconce{opacity:1}
+  .entering .sconce{animation:warm 900ms ease both}
+  .entering .sconce.s1{animation-delay:120ms}
+  .entering .sconce.s2{animation-delay:340ms}
+  .entering .sconce.s3{animation-delay:560ms}
+  .entering .sconce.s4{animation-delay:240ms}
+  .entering .sconce.s5{animation-delay:460ms}
+  .entering .sconce.s6{animation-delay:680ms}
+  @keyframes warm{from{opacity:.05} to{opacity:1}}
+  .entering .pendant .halo{animation:glint 1400ms ease 700ms both}
+  @keyframes glint{0%{opacity:0} 55%{opacity:.9} 100%{opacity:.45}}
+
+  /* ============ RESPONSIVE: vertical hall on phones ============ */
+  @media (max-width:640px){
+    body{font-size:16px}
+    .vinyl{left:6%; right:auto; bottom:9%; width:min(88%,352px); transform:none}
+    .vinyl::before{inset:-16% -14% -20% -12%; filter:blur(9px)}
+    .wordmark{font-size:clamp(26px,7.8vw,40px); letter-spacing:.14em}
+    .vinyl .tag{max-width:32ch; font-size:13.5px}
+    .world{transform-origin:50% 42%}
+    #doors{transform-origin:50% 42%}
+    /* doorways recede down a vertical hall: Room I nearest (low + large), II mid,
+       III farthest (high + small). Depth order stays monotonic top-to-bottom. */
+    .door.d1{left:7% !important; top:30% !important; width:27% !important; height:19% !important}
+    .door.d2{left:66% !important; top:24% !important; width:22% !important; height:15% !important}
+    .door.d3{left:41% !important; top:17% !important; width:14% !important; height:10% !important}
+    .plaque{min-width:92px; padding:5px 9px 6px; bottom:-15%}
+    .plaque .pt{font-size:11px}
+    .pendant{top:41%}
+    .exhibit{padding:8vh 5vw}
+    .artframe{grid-template-columns:1fr; gap:16px}
+    .maxims{grid-template-columns:1fr; gap:14px; width:min(460px,90vw)}
+    .guideline{font-size:9px; letter-spacing:.18em}
+    .ticker{font-size:10px; gap:8px}
+    .ticker .tk-tag{display:none}
+  }
+  @media (max-width:640px) and (min-height:1px){
+    .room{min-height:118vh}
+    .room.spacer{min-height:86vh}
+    .room.work{min-height:160vh}
+  }
+
+  /* ============ REDUCED MOTION: plain stacked rooms, doors ajar, no rAF ============ */
+  @media (prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    .vinyl{transform:none}
+    .world,#doors,.pendant{transform:none !important}
+    .pendant{--pgrow:1}
+    .exhibit{position:static; height:auto; padding:7vh 6vw}
+    .room,.room.work,.room.approach{min-height:auto}
+    .room.spacer{min-height:100vh}
+    .label,.artframe,.maxim{transform:none; opacity:1}
+    .door .leaf{transition:none}
+    .end{padding:12vh 6vw 8vh}
+  }
+  .rm .vinyl{transform:none}
+  .rm .world,.rm #doors,.rm .pendant{transform:none !important}
+  .rm .exhibit{position:static; height:auto; padding:7vh 6vw}
+  .rm .room,.rm .room.work,.rm .room.approach{min-height:auto}
+  .rm .room.spacer{min-height:100vh}
+  .rm .label,.rm .artframe,.rm .maxim{transform:none; opacity:1}
+  .rm .end{padding:12vh 6vw 8vh}
+</style>
+</head>
+<body>
+
+<!-- ===== FIXED CORRIDOR STAGE ===== -->
+<div class="stage" aria-hidden="true">
+  <div class="world">
+    <svg class="corridor" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs>
+        <radialGradient id="bg" cx="50%" cy="45%" r="72%">
+          <stop offset="0" stop-color="#39302563"/>
+          <stop offset="38%" stop-color="#2a231d"/>
+          <stop offset="100%" stop-color="#141009"/>
+        </radialGradient>
+        <linearGradient id="wallL" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="620" y2="0">
+          <stop offset="0" stop-color="#ece0c4"/><stop offset="1" stop-color="#9c8a67"/>
+        </linearGradient>
+        <linearGradient id="wallR" gradientUnits="userSpaceOnUse" x1="1440" y1="0" x2="820" y2="0">
+          <stop offset="0" stop-color="#ece0c4"/><stop offset="1" stop-color="#9c8a67"/>
+        </linearGradient>
+        <linearGradient id="floor" gradientUnits="userSpaceOnUse" x1="0" y1="900" x2="0" y2="470">
+          <stop offset="0" stop-color="#33291f"/><stop offset="1" stop-color="#1b1611"/>
+        </linearGradient>
+        <linearGradient id="ceil" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="340">
+          <stop offset="0" stop-color="#241e18"/><stop offset="1" stop-color="#141009"/>
+        </linearGradient>
+        <radialGradient id="back" cx="50%" cy="50%" r="70%">
+          <stop offset="0" stop-color="#e7d3a6"/><stop offset="55%" stop-color="#c3ac82"/>
+          <stop offset="100%" stop-color="#8d7a58"/>
+        </radialGradient>
+        <radialGradient id="sconce">
+          <stop offset="0" stop-color="#f4c878" stop-opacity=".92"/>
+          <stop offset="45%" stop-color="#caa04f" stop-opacity=".34"/>
+          <stop offset="100%" stop-color="#caa04f" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+
+      <!-- base ground -->
+      <rect x="0" y="0" width="1440" height="900" fill="url(#bg)"/>
+
+      <!-- planes -->
+      <polygon points="0,0 620,340 620,470 0,900" fill="url(#wallL)"/>
+      <polygon points="1440,0 820,340 820,470 1440,900" fill="url(#wallR)"/>
+      <polygon points="0,0 1440,0 820,340 620,340" fill="url(#ceil)"/>
+      <polygon points="0,900 1440,900 820,470 620,470" fill="url(#floor)"/>
+      <rect x="620" y="340" width="200" height="130" fill="url(#back)"/>
+      <rect x="620" y="340" width="200" height="130" fill="none" stroke="#6f5a34" stroke-width="1.5"/>
+
+      <!-- wall panel seams (converging) -->
+      <g stroke="#7c6a49" stroke-width="1.2" opacity=".55">
+        <line x1="155" y1="85"  x2="155" y2="792"/>
+        <line x1="310" y1="170" x2="310" y2="685"/>
+        <line x1="465" y1="255" x2="465" y2="577"/>
+        <line x1="1285" y1="85"  x2="1285" y2="792"/>
+        <line x1="1130" y1="170" x2="1130" y2="685"/>
+        <line x1="975" y1="255"  x2="975" y2="577"/>
+      </g>
+      <!-- wainscot lines -->
+      <g stroke="#5a4a2c" stroke-width="2" opacity=".65">
+        <line x1="0" y1="594" x2="620" y2="426"/>
+        <line x1="1440" y1="594" x2="820" y2="426"/>
+      </g>
+      <!-- baseboard shadow lines (wall meets floor) -->
+      <g stroke="#0e0b08" stroke-width="3" opacity=".7">
+        <line x1="0" y1="900" x2="620" y2="470"/>
+        <line x1="1440" y1="900" x2="820" y2="470"/>
+      </g>
+
+      <!-- floor boards -->
+      <g stroke="#0f0c09" stroke-width="1.4" opacity=".5">
+        <line x1="0" y1="900" x2="620" y2="470"/>
+        <line x1="288" y1="900" x2="660" y2="470"/>
+        <line x1="576" y1="900" x2="700" y2="470"/>
+        <line x1="864" y1="900" x2="740" y2="470"/>
+        <line x1="1152" y1="900" x2="780" y2="470"/>
+        <line x1="1440" y1="900" x2="820" y2="470"/>
+      </g>
+      <!-- transverse plank lines (closer near VP) -->
+      <g stroke="#40331f" stroke-width="1.1" opacity=".4">
+        <line x1="120" y1="820" x2="1320" y2="820"/>
+        <line x1="300" y1="700" x2="1140" y2="700"/>
+        <line x1="420" y1="612" x2="1020" y2="612"/>
+        <line x1="500" y1="548" x2="940" y2="548"/>
+      </g>
+      <!-- ceiling coves -->
+      <g stroke="#2f2619" stroke-width="1.4" opacity=".5">
+        <line x1="0" y1="0" x2="620" y2="340"/>
+        <line x1="360" y1="0" x2="670" y2="340"/>
+        <line x1="720" y1="0" x2="720" y2="340"/>
+        <line x1="1080" y1="0" x2="770" y2="340"/>
+        <line x1="1440" y1="0" x2="820" y2="340"/>
+      </g>
+      <!-- warm cove glow near wall-ceiling seam -->
+      <g opacity=".5">
+        <line x1="0" y1="8" x2="620" y2="344" stroke="#8a6b2b" stroke-width="4" opacity=".4"/>
+        <line x1="1440" y1="8" x2="820" y2="344" stroke="#8a6b2b" stroke-width="4" opacity=".4"/>
+      </g>
+
+      <!-- floor pools (reflected sconce warmth) -->
+      <g>
+        <ellipse cx="150" cy="770" rx="150" ry="42" fill="url(#sconce)" opacity=".42"/>
+        <ellipse cx="330" cy="672" rx="95" ry="27" fill="url(#sconce)" opacity=".36"/>
+        <ellipse cx="1290" cy="770" rx="150" ry="42" fill="url(#sconce)" opacity=".42"/>
+        <ellipse cx="1110" cy="672" rx="95" ry="27" fill="url(#sconce)" opacity=".36"/>
+      </g>
+
+      <!-- SCONCES (glow + brass fixture) warm up in sequence -->
+      <g class="sconce s1"><ellipse cx="111" cy="536" rx="96" ry="150" fill="url(#sconce)"/>
+        <rect x="107" y="512" width="8" height="30" rx="2" fill="#7a5f28"/>
+        <circle cx="111" cy="512" r="5" fill="#f6d488"/></g>
+      <g class="sconce s2"><ellipse cx="285" cy="510" rx="62" ry="108" fill="url(#sconce)"/>
+        <rect x="282" y="492" width="6" height="24" rx="2" fill="#7a5f28"/>
+        <circle cx="285" cy="492" r="4" fill="#f6d488"/></g>
+      <g class="sconce s3"><ellipse cx="459" cy="486" rx="40" ry="76" fill="url(#sconce)"/>
+        <rect x="456" y="472" width="5" height="18" rx="2" fill="#7a5f28"/>
+        <circle cx="459" cy="472" r="3" fill="#f6d488"/></g>
+      <g class="sconce s4"><ellipse cx="1329" cy="536" rx="96" ry="150" fill="url(#sconce)"/>
+        <rect x="1325" y="512" width="8" height="30" rx="2" fill="#7a5f28"/>
+        <circle cx="1329" cy="512" r="5" fill="#f6d488"/></g>
+      <g class="sconce s5"><ellipse cx="1155" cy="510" rx="62" ry="108" fill="url(#sconce)"/>
+        <rect x="1152" y="492" width="6" height="24" rx="2" fill="#7a5f28"/>
+        <circle cx="1155" cy="492" r="4" fill="#f6d488"/></g>
+      <g class="sconce s6"><ellipse cx="981" cy="486" rx="40" ry="76" fill="url(#sconce)"/>
+        <rect x="978" y="472" width="5" height="18" rx="2" fill="#7a5f28"/>
+        <circle cx="981" cy="472" r="3" fill="#f6d488"/></g>
+
+      <!-- warm bloom at the vanishing point behind the pendant -->
+      <ellipse cx="720" cy="408" rx="130" ry="120" fill="url(#sconce)" opacity=".7"/>
+    </svg>
+  </div>
+
+  <!-- layers 2-4: doorways (rendered from DATA) -->
+  <div id="doors"></div>
+
+  <!-- polished-floor reflection of the pendant glow -->
+  <div class="floorglow" aria-hidden="true" data-lint-ignore></div>
+
+  <!-- pendant star at the vanishing point -->
+  <div class="pendant">
+    <span class="cord"></span>
+    <span class="halo"></span>
+    <span class="glyph" id="pendantStar"></span>
+  </div>
+
+  <!-- layer 5: near-wall vinyl (hero) -->
+  <div class="vinyl">
+    <div class="mark" id="vinylStar"></div>
+    <h1 class="wordmark">VESPERWERK</h1>
+    <p class="tag" id="tagline"></p>
+    <div class="cta">
+      <a class="primary" href="#contact" data-jump="contact">Start a conversation</a>
+      <a href="#work" data-jump="work">See our work</a>
+    </div>
+  </div>
+
+  <div class="vignette"></div>
+</div>
+
+<!-- ===== HUD ===== -->
+<div class="hud">
+  <div class="guideline" id="guideline"></div>
+  <div class="ticker">
+    <span class="tk-tag">Gallery guide</span>
+    <span class="tk-line" id="ticker"></span>
+  </div>
+</div>
+
+<!-- ===== SCROLL CONTENT ===== -->
+<main class="scroll">
+  <section class="room spacer" aria-label="Corridor entrance"></section>
+  <div id="rooms"></div>
+
+  <section class="room end" id="contact" data-room-end>
+    <div class="payoff">
+      <p class="thai-vinyl">ดาวประจำเมือง : แสงแรกที่ใช้นำทางยามค่ำ</p>
+      <div class="end-lockup">
+        <span class="estar" id="endStar"></span>
+        <p class="ew">VESPERWERK</p>
+      </div>
+      <p class="about" id="about"></p>
+      <div class="contact">
+        <a class="cta-main" href="mailto:kittipong.k@vesperwerk.com">Start a conversation</a>
+        <a class="cmail" href="mailto:kittipong.k@vesperwerk.com">kittipong.k@vesperwerk.com</a>
+        <span class="cloc">Bangkok, Thailand</span>
+      </div>
+      <p class="colophon">corridor is css parallax . 5 depth layers . no 3d engine</p>
+      <div class="foot">
+        <span class="fstar" id="footStar"></span>
+        <span class="fw">VESPERWERK</span>
+        <span class="dot">.</span><span>Bangkok, Thailand</span>
+        <span class="dot">.</span><span>(c) 2026 Vesperwerk</span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+/* ============================================================
+   DATA  -  edit here to reskin the corridor (single source)
+   ============================================================ */
+const DATA = {
+  guideLine: "GALLERY VW . WALK 01 . THREE ROOMS AND THE LIGHT",
+  tagline: "An independent software and AI studio. We architect, build, and operate production systems for businesses that cannot afford them to fail.",
+  about: "Vesperwerk takes its name from the evening star: the first light you can navigate by. We are a founder-led studio in Bangkok building software for businesses across Asia and beyond.",
+  // three doorways = three services
+  services: [
+    { side:"left",  numeral:"I",   plaque:"AI Systems",
+      title:"AI Systems", meta:"Room I . Voice and language systems . 2026",
+      body:"Voice agents, LLM assistants, and the evaluation infrastructure that keeps them honest. AI that answers like your best employee, in production, around the clock." },
+    { side:"right", numeral:"II",  plaque:"Product Engineering",
+      title:"Product Engineering", meta:"Room II . Full-stack product engineering . 2026",
+      body:"Full-stack product engineering from architecture to operations: event-driven backends, modern web frontends, and infrastructure that scales without drama." },
+    { side:"left",  numeral:"III", plaque:"Commerce",
+      title:"Commerce and Platforms", meta:"Room III . Shopify and LINE platforms . 2026",
+      body:"Deep Shopify and LINE platform work: storefronts, admin apps, integrations, and the messaging rails Southeast Asian commerce runs on." }
+  ],
+  // featured exhibit (largest room)
+  work: {
+    kicker:"Featured exhibit", title:"Yimwhan AI",
+    meta:"Voice + LINE assistant . In production at live clinics",
+    image:"../assets/flux-clinic-4k.png", alt:"Yimwhan AI, a dental clinic assistant, shown as a lit gallery exhibit",
+    body:"An AI voice and LINE assistant for dental clinics in Thailand. It answers after-hours calls, books and reschedules appointments, and hands off to staff the moment a human matters. In production at live clinics." },
+  // four framed maxims
+  approach: [
+    { n:"01", h:"Architecture first",   p:"We design the system before we write the code." },
+    { n:"02", h:"Production-worthy",    p:"Demos impress; production endures. We build for the second one." },
+    { n:"03", h:"Scope discipline",     p:"The most valuable thing we tell clients is what not to build." },
+    { n:"04", h:"Senior hands",         p:"No juniors learning on your budget. Founder-led, senior hands on every line." }
+  ],
+  // one gallery-guide caption per room, in walk order
+  guides: [
+    "Walk the corridor. Three rooms, then the light.",
+    "Room I. The voice that answers when no one else can.",
+    "Room II. Systems built to endure, not to demo.",
+    "Room III. The rails Southeast Asian commerce runs on.",
+    "The featured exhibit. In production at live clinics.",
+    "Four maxims, framed along the wall.",
+    "You have reached the light. Vesper, the first star of evening."
+  ]
+};
+
+/* Vesperwerk mark (facet colors preserved from ../assets/vesperwerk-star.svg) */
+const STAR = '<svg viewBox="0 0 200 200" role="img" aria-label="Vesperwerk star" style="width:100%;height:100%"><g transform="translate(100,100)"><g><polygon points="0,-86 -11,0 0,0" fill="#c09a4a"/><polygon points="0,-86 11,0 0,0" fill="#8a6526"/></g><g transform="rotate(180)"><polygon points="0,-86 -11,0 0,0" fill="#8a6526"/><polygon points="0,-86 11,0 0,0" fill="#c09a4a"/></g><g transform="rotate(90)"><polygon points="0,-64 -9.5,0 0,0" fill="#c09a4a"/><polygon points="0,-64 9.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(270)"><polygon points="0,-64 -9.5,0 0,0" fill="#8a6526"/><polygon points="0,-64 9.5,0 0,0" fill="#c09a4a"/></g><g transform="rotate(45)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(135)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(225)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g><g transform="rotate(315)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g></g></svg>';
+
+const RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = (s,r=document)=>r.querySelector(s);
+const esc = (s)=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---- inject text + stars ---- */
+$('#guideline').textContent = DATA.guideLine;
+$('#tagline').textContent = DATA.tagline;
+$('#about').textContent = DATA.about;
+$('#ticker').textContent = DATA.guides[0];
+$('#pendantStar').innerHTML = STAR;
+$('#vinylStar').innerHTML = STAR;
+$('#endStar').innerHTML = STAR;
+$('#footStar').innerHTML = STAR;
+
+/* ---- door geometry along the walls (desktop; phones override in CSS) ----
+   All three share the eye-level line (~44% center) so single-point perspective
+   holds; size AND bottom-edge both shrink/rise monotonically as the walk recedes
+   (I near-left, II mid-right, III far-left), keeping the numbering in depth order. */
+const DOORPOS = [
+  { cls:"left d1",  css:"left:6%;   top:24%;   width:12.5%; height:40%" },
+  { cls:"right d2", css:"left:78%;  top:28.5%; width:10.5%; height:31%" },
+  { cls:"left d3",  css:"left:30%;  top:33.5%; width:7%;    height:21%" }
+];
+
+/* ---- build doorways ---- */
+const doorsEl = $('#doors');
+DATA.services.forEach((s,i)=>{
+  const pos = DOORPOS[i];
+  const d = document.createElement('div');
+  d.className = 'door ' + pos.cls;
+  d.setAttribute('style', pos.css);
+  d.dataset.room = String(i+1);        // maps to walk-order room index
+  d.innerHTML =
+    '<div class="frame"><div class="depth"></div><div class="spill"></div><div class="leaf"></div></div>'+
+    '<button class="plaque" data-target="svc'+i+'" aria-label="Walk to '+esc(s.title)+'">'+
+      '<span class="pn">ROOM '+esc(s.numeral)+'</span><span class="pt">'+esc(s.plaque)+'</span>'+
+    '</button>';
+  doorsEl.appendChild(d);
+});
+
+/* ---- build exhibit rooms (services, work, approach) ---- */
+const roomsEl = $('#rooms');
+let html = '';
+DATA.services.forEach((s,i)=>{
+  html +=
+   '<section class="room" id="svc'+i+'" data-svc="'+i+'">'+
+     '<div class="exhibit"><article class="label">'+
+       '<span class="picturelight"></span>'+
+       '<p class="kicker">Room '+esc(s.numeral)+'</p>'+
+       '<h2 class="ltitle">'+esc(s.title)+'</h2>'+
+       '<p class="meta">'+esc(s.meta)+'</p>'+
+       '<p class="body">'+esc(s.body)+'</p>'+
+     '</article></div>'+
+   '</section>';
+});
+html +=
+ '<section class="room work" id="work">'+
+   '<div class="exhibit"><figure class="artframe">'+
+     '<span class="piclamp"></span>'+
+     '<div class="mat"><img src="'+esc(DATA.work.image)+'" alt="'+esc(DATA.work.alt)+'" loading="lazy" decoding="async"></div>'+
+     '<figcaption class="walllabel">'+
+       '<p class="kicker">'+esc(DATA.work.kicker)+'</p>'+
+       '<h2>'+esc(DATA.work.title)+'</h2>'+
+       '<p class="meta">'+esc(DATA.work.meta)+'</p>'+
+       '<p class="body">'+esc(DATA.work.body)+'</p>'+
+     '</figcaption>'+
+   '</figure></div>'+
+ '</section>';
+html +=
+ '<section class="room approach" id="approach"><div class="exhibit"><div class="maxims">'+
+   DATA.approach.map(m=>(
+     '<div class="maxim"><span class="mx-num">'+esc(m.n)+'</span>'+
+       '<h3>'+esc(m.h)+'</h3><p>'+esc(m.p)+'</p></div>'
+   )).join('')+
+ '</div></div></section>';
+roomsEl.innerHTML = html;
+
+/* ---- fast-walk: plaque + CTA jumps ---- */
+function jumpTo(el){
+  if(!el) return;
+  const y = el.getBoundingClientRect().top + window.pageYOffset - (window.innerHeight*0.18);
+  window.scrollTo({ top:y, behavior: RM ? 'auto' : 'smooth' });
+}
+document.addEventListener('click', (e)=>{
+  const plq = e.target.closest('.plaque');
+  if(plq){ jumpTo(document.getElementById(plq.dataset.target)); return; }
+  const jump = e.target.closest('[data-jump]');
+  if(jump){ e.preventDefault(); jumpTo(document.getElementById(jump.dataset.jump)); }
+});
+
+/* ============================================================
+   MOTION  -  css-parallax dolly + door/ticker state
+   ============================================================ */
+const root = document.documentElement;
+const world = $('.world');
+const pendant = $('.pendant');
+const vinyl = $('.vinyl');
+const doorsWrap = $('#doors');
+const tickerEl = $('#ticker');
+const doorEls = [...document.querySelectorAll('.door')];
+const rooms = [...document.querySelectorAll('.room')];
+const smooth = (a,b,x)=> { x=Math.min(1,Math.max(0,(x-a)/(b-a))); return x*x*(3-2*x); };
+
+if(RM){
+  root.classList.add('rm');
+  // reveal everything, doors ajar, ticker static, no rAF
+  document.querySelectorAll('.label,.artframe,.maxim').forEach(el=>el.classList.add('in'));
+  doorEls.forEach(d=>d.classList.add('ajar'));
+  tickerEl.textContent = DATA.guides[0];
+} else {
+  // entrance ritual (~2s): sconces warm in sequence, pendant glints, first door ajar
+  root.classList.add('entering');
+  doorEls[0] && doorEls[0].classList.add('ajar');
+  setTimeout(()=>{ root.classList.remove('entering'); }, 2200);
+
+  // reveal exhibit cards as their section enters the viewport
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(en=>{ if(en.isIntersecting) en.target.classList.add('in'); });
+  }, { threshold:0.18 });
+  document.querySelectorAll('.label,.artframe,.maxim').forEach(el=>io.observe(el));
+
+  // continuous parallax dolly + discrete room state
+  let active = -1, ticking = false;
+  function frame(){
+    ticking = false;
+    const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+    const p = Math.min(1, Math.max(0, window.pageYOffset / max));
+
+    // depth layers translate/scale at different rates (the walk)
+    world.style.transform = 'scale('+(1 + p*0.15).toFixed(4)+')';
+    doorsWrap.style.transform = 'scale('+(1 + p*0.30).toFixed(4)+')';
+    const vf = Math.min(1, Math.max(0, 1 - p*7));
+    vinyl.style.opacity = vf.toFixed(3);
+    vinyl.style.transform = 'perspective(1500px) rotateY(12deg) translateX('+(-p*46).toFixed(1)+'px) scale('+(1+p*1.15).toFixed(3)+')';
+
+    // pendant blooms as you approach the far wall
+    const g = smooth(0.55, 1, p);
+    root.style.setProperty('--pgrow', (1 + g*1.7).toFixed(3));
+    root.style.setProperty('--pglow', g.toFixed(3));
+
+    // which room have we arrived at (walk order)
+    const mid = window.pageYOffset + window.innerHeight*0.5;
+    let idx = 0;
+    for(let i=0;i<rooms.length;i++){ if(rooms[i].offsetTop <= mid) idx = i; }
+    if(idx !== active){
+      active = idx;
+      // doors: open only the active service door
+      doorEls.forEach(d=>{
+        const dr = parseInt(d.dataset.room,10);
+        d.classList.toggle('open', dr === idx);
+        if(dr !== idx) d.classList.remove('ajar');
+      });
+      tickerEl.textContent = DATA.guides[Math.min(idx, DATA.guides.length-1)];
+    }
+  }
+  function onScroll(){ if(!ticking){ ticking = true; requestAnimationFrame(frame); } }
+  window.addEventListener('scroll', onScroll, { passive:true });
+  window.addEventListener('resize', onScroll, { passive:true });
+  frame();
+}
+</script>
+</body>
+</html>

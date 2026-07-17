@@ -1,0 +1,927 @@
+<!-- TEMPLATE: Nightly Beacon | ARCHETYPE: numbers-station broadcast you tune into | REF: UVB-76 The Buzzer + The Conet Project (priyom.org) + shortwave dial hardware | WHEN TO USE: premium studio / agency site staged as a tuned radio receiver, drag-the-dial section nav | SWAP: edit the DATA object at the top of the script -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vesperwerk . Nightly Beacon . 89.3 VESPER</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;1,500&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&family=Noto+Sans+Thai:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --night:#1d1a16;
+    --night-2:#221e19;
+    --night-3:#171410;
+    --panel:#26221c;
+    --cream:#faf7f1;
+    --cream-dim:rgba(250,247,241,.58);
+    --cream-soft:rgba(250,247,241,.38);
+    --cream-ghost:rgba(250,247,241,.16);
+    --gold:#a8802f;
+    --gold-lite:#c09a4a;
+    --gold-deep:#8a6526;
+    --phosphor:#b9c17a;
+    --line:rgba(168,128,47,.30);
+    --line-soft:rgba(250,247,241,.10);
+    --serif:'Playfair Display',Georgia,'Times New Roman',serif;
+    --mono:'IBM Plex Mono','Courier New',monospace;
+    --sans:'IBM Plex Sans',system-ui,-apple-system,sans-serif;
+    --thai:'Noto Sans Thai','IBM Plex Sans',sans-serif;
+    --tuner-h:58px;
+    --wrap:1200px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;min-width:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    background:
+      radial-gradient(120% 80% at 50% -10%, #2a251e 0%, var(--night) 42%, var(--night-3) 100%);
+    color:var(--cream);
+    font-family:var(--sans);
+    line-height:1.6;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* film grain + vignette */
+  .grain,.vignette{position:fixed;inset:0;pointer-events:none;z-index:2}
+  .grain{
+    opacity:.05;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .vignette{background:radial-gradient(130% 100% at 50% 42%, transparent 52%, rgba(10,8,6,.55) 100%)}
+
+  .wrap{max-width:var(--wrap);margin:0 auto;padding:0 clamp(18px,4vw,44px);width:100%}
+
+  a{color:inherit}
+  :focus-visible{outline:2px solid var(--phosphor);outline-offset:3px;border-radius:2px}
+
+  .star{display:block;flex:0 0 auto}
+  .mono{font-family:var(--mono);letter-spacing:.14em;text-transform:uppercase}
+
+  /* ============ FIXED TUNER RAIL (persistent receiver while scrolling) ============ */
+  .tuner{
+    position:fixed;top:0;left:0;right:0;z-index:50;height:var(--tuner-h);
+    display:flex;align-items:center;gap:clamp(10px,2vw,22px);
+    padding:0 clamp(12px,3vw,28px);
+    background:linear-gradient(180deg, rgba(28,24,19,.96), rgba(20,17,13,.94));
+    border-bottom:1px solid var(--line);
+    box-shadow:0 6px 24px rgba(0,0,0,.4);
+    transform:translateY(-102%);
+    transition:transform .42s cubic-bezier(.5,0,.15,1);
+    backdrop-filter:blur(6px);
+  }
+  .tuner.show{transform:translateY(0)}
+  .tuner .t-brand{display:flex;align-items:center;gap:9px;flex:0 0 auto}
+  .tuner .t-brand .star{width:16px;height:16px}
+  .tuner .t-freq{font-family:var(--mono);font-weight:600;font-size:15px;color:var(--gold-lite);letter-spacing:.04em;white-space:nowrap}
+  .tuner .t-name{font-family:var(--mono);font-size:10px;letter-spacing:.22em;color:var(--cream-soft);white-space:nowrap;text-transform:uppercase}
+  .tuner .t-mid{position:relative;flex:1 1 auto;min-width:0;height:26px;margin:0 2px}
+  .t-mid .t-rail{position:absolute;left:0;right:0;top:50%;height:1px;background:linear-gradient(90deg,transparent,var(--line),transparent)}
+  .t-tick{position:absolute;top:50%;transform:translate(-50%,-50%);width:auto;height:22px;padding:0;border:0;background:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+  .t-tick i{display:block;width:1px;height:8px;background:var(--cream-soft)}
+  .t-tick b{font-family:var(--mono);font-size:8px;letter-spacing:.06em;color:var(--cream-soft);font-weight:400}
+  .t-tick[aria-current="true"] i{background:var(--gold-lite);height:11px}
+  .t-tick[aria-current="true"] b{color:var(--gold-lite)}
+  .t-needle{position:absolute;top:-3px;bottom:-3px;left:16%;width:2px;background:linear-gradient(180deg,var(--gold-lite),var(--gold));box-shadow:0 0 8px rgba(192,154,74,.7);transform:translateX(-50%);z-index:3}
+  .t-status{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--cream-dim);white-space:nowrap;flex:0 0 auto}
+  .t-beacon{flex:0 0 auto;font-family:var(--mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--night);background:var(--gold);border:0;border-radius:20px;padding:7px 12px;cursor:pointer;font-weight:600;transition:background .2s}
+  .t-beacon:hover{background:var(--gold-lite)}
+
+  /* ============ SECTION SHELL ============ */
+  .station{position:relative;scroll-margin-top:72px;padding:clamp(56px,9vh,110px) 0}
+  .station.hero{padding-top:clamp(22px,3vh,40px)}
+
+  /* ============ HERO / MASTHEAD ============ */
+  .masthead{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;padding-bottom:clamp(16px,3vh,30px)}
+  .brand{display:flex;align-items:center;gap:14px;min-width:0}
+  .brand .star{width:34px;height:34px}
+  .wordmark{font-family:var(--serif);font-weight:600;font-size:clamp(20px,2.4vw,27px);letter-spacing:.22em;color:var(--cream);white-space:nowrap}
+  .statusblock{text-align:right;min-width:0}
+  .status{font-family:var(--mono);font-size:clamp(10px,1.2vw,12px);letter-spacing:.15em;color:var(--gold-lite);text-transform:uppercase}
+  .status .dot{color:var(--phosphor)}
+  .colophon{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--cream-soft);margin-top:6px;text-transform:lowercase}
+
+  /* ---- the physical dial ---- */
+  .dial{position:relative;user-select:none}
+  .dial-face{
+    position:relative;width:100%;height:clamp(126px,17vh,168px);
+    border-radius:8px;
+    background:
+      linear-gradient(180deg, #2c2720 0%, #201c16 46%, #191510 100%);
+    border:1px solid rgba(168,128,47,.28);
+    box-shadow:
+      inset 0 2px 4px rgba(0,0,0,.55),
+      inset 0 -14px 30px rgba(0,0,0,.45),
+      inset 0 1px 0 rgba(250,247,241,.05),
+      0 10px 30px rgba(0,0,0,.4);
+    overflow:hidden;cursor:ew-resize;touch-action:none;
+  }
+  .dial-face:active{cursor:grabbing}
+  .dial-glass{position:absolute;inset:0;pointer-events:none;border-radius:8px;
+    background:linear-gradient(178deg, rgba(250,247,241,.10) 0%, rgba(250,247,241,.02) 8%, transparent 30%);}
+  .dial-glass::after{content:"";position:absolute;left:0;right:0;top:14%;height:1px;background:linear-gradient(90deg,transparent,rgba(250,247,241,.22),transparent)}
+
+  .dial-ticks{position:absolute;left:0;right:0;bottom:0;top:38%;pointer-events:none}
+  .tick{position:absolute;bottom:16px;width:1px;background:var(--cream-soft);transform:translateX(-50%)}
+  .tick.minor{height:9px;opacity:.5}
+  .tick.major{height:18px;background:var(--cream-dim)}
+  .tick .flabel{position:absolute;top:20px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:10px;letter-spacing:.04em;color:var(--cream-dim);white-space:nowrap}
+  .tick.edge-l .flabel{left:0;transform:none}
+  .tick.edge-r .flabel{left:auto;right:0;transform:none}
+
+  .dial-ghosts,.dial-stations{position:absolute;left:0;right:0;top:0;height:38%;pointer-events:none}
+  .dial-active{position:absolute;top:19%;left:50%;transform:translate(-50%,-50%);font-family:var(--mono);font-size:13px;letter-spacing:.28em;color:var(--gold-lite);text-transform:uppercase;text-shadow:0 0 12px rgba(192,154,74,.5);white-space:nowrap;pointer-events:none;display:none;z-index:5}
+  .ghost{position:absolute;top:50%;transform:translate(-50%,-50%);font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:rgba(250,247,241,.105);white-space:nowrap;text-transform:uppercase}
+  .dial-stations{pointer-events:auto}
+  .stn{position:absolute;top:50%;transform:translate(-50%,-50%);border:0;background:none;cursor:pointer;font-family:var(--mono);font-size:clamp(9px,1.1vw,11px);letter-spacing:.16em;color:var(--cream-dim);text-transform:uppercase;white-space:nowrap;padding:4px 4px;transition:color .25s;display:flex;flex-direction:column;align-items:center;gap:3px;line-height:1}
+  .stn .sfreq{font-size:9px;color:var(--cream-soft);letter-spacing:.06em}
+  .stn[aria-current="true"]{color:var(--gold-lite)}
+  .stn[aria-current="true"] .sfreq{color:var(--gold)}
+  .stn:hover{color:var(--cream)}
+
+  .needle{position:absolute;top:0;bottom:0;left:16.6%;width:2px;transform:translateX(-50%);z-index:6;pointer-events:none;
+    background:linear-gradient(180deg, rgba(192,154,74,.15) 0%, var(--gold-lite) 22%, var(--gold) 100%);
+    box-shadow:0 0 16px rgba(204,164,84,.85),0 0 4px rgba(255,228,170,1);}
+  .needle .pivot{position:absolute;top:-7px;left:50%;transform:translateX(-50%);width:15px;height:15px;border-radius:50%;
+    background:radial-gradient(circle at 38% 32%, #e9cf95 0%, var(--gold-lite) 40%, var(--gold-deep) 100%);
+    box-shadow:0 1px 3px rgba(0,0,0,.6),0 0 12px rgba(206,166,86,.7),inset 0 1px 1px rgba(255,240,200,.7)}
+  .needle::after{content:"";position:absolute;bottom:-4px;left:50%;transform:translate(-50%,0) rotate(45deg);width:7px;height:7px;background:var(--gold);box-shadow:0 0 6px rgba(200,160,80,.6)}
+  .needle{transition:left .55s cubic-bezier(.4,0,.15,1)}
+  .no-anim .needle,.no-anim .t-needle{transition:none}
+  .t-needle{transition:left .55s cubic-bezier(.4,0,.15,1)}
+
+  .dial-hint{font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--cream-soft);text-transform:uppercase;text-align:center;margin-top:11px}
+
+  /* ---- readout : oscilloscope + numeral group ---- */
+  .readout{display:grid;grid-template-columns:1.35fr .9fr;gap:clamp(14px,2.4vw,30px);margin-top:clamp(16px,2.6vh,26px);align-items:stretch}
+  .scope-box,.numgroup{position:relative;border:1px solid var(--line-soft);border-radius:7px;background:linear-gradient(180deg, rgba(20,17,13,.6), rgba(14,12,9,.7));padding:16px}
+  .scope-box{overflow:hidden;min-height:120px;display:flex;flex-direction:column}
+  .scope{width:100%;flex:1 1 auto;display:block}
+  .scope path{fill:none;stroke:var(--phosphor);stroke-width:1.6;opacity:.85;filter:drop-shadow(0 0 3px rgba(185,193,122,.55));stroke-linejoin:round;stroke-linecap:round}
+  .scope-static{position:absolute;inset:16px 16px auto 16px;height:calc(100% - 32px);width:calc(100% - 32px);pointer-events:none;opacity:.9;mix-blend-mode:screen}
+  .scope-label{position:absolute;left:16px;bottom:11px;font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:rgba(185,193,122,.6);text-transform:uppercase}
+  .scope-box::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(180deg,transparent 0 3px,rgba(0,0,0,.16) 3px 4px);opacity:.5}
+
+  .numgroup{display:flex;flex-direction:column;justify-content:center;gap:clamp(12px,1.8vh,16px);text-align:center}
+  .numlabel{font-family:var(--mono);font-size:9px;letter-spacing:.24em;color:var(--cream-soft);text-transform:uppercase}
+  .numerals{font-family:var(--mono);font-weight:600;font-size:clamp(19px,3.1vw,30px);letter-spacing:.14em;color:var(--gold-lite);
+    text-shadow:0 0 11px rgba(192,154,74,.4),0 0 3px rgba(200,160,80,.62);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .beacon{margin-top:clamp(6px,1.2vh,12px);align-self:center;font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--night);
+    background:linear-gradient(180deg,var(--gold-lite),var(--gold));border:0;border-radius:22px;padding:9px 18px;cursor:pointer;font-weight:600;
+    box-shadow:0 4px 14px rgba(168,128,47,.35),inset 0 1px 0 rgba(255,240,200,.5);transition:transform .15s,box-shadow .2s;display:inline-flex;align-items:center;gap:8px}
+  .beacon:hover{transform:translateY(-1px);box-shadow:0 7px 20px rgba(168,128,47,.5),inset 0 1px 0 rgba(255,240,200,.5)}
+  .beacon .star{width:12px;height:12px}
+
+  /* ---- call sign + intro ---- */
+  .callsign-row{display:flex;align-items:baseline;gap:clamp(14px,3vw,34px);flex-wrap:wrap;margin-top:clamp(20px,3vh,32px);padding-top:clamp(16px,2.4vh,26px);border-top:1px solid var(--line-soft)}
+  .freqbig{font-family:var(--mono);font-weight:600;font-size:clamp(15px,2vw,20px);color:var(--gold-lite);letter-spacing:.06em;white-space:nowrap}
+  .freqbig .name-read{color:var(--cream-dim);font-weight:400;font-size:.85em;letter-spacing:.18em}
+  .callsign{font-family:var(--mono);font-size:clamp(13px,2.1vw,19px);letter-spacing:.24em;color:var(--cream);text-transform:uppercase;line-height:1.5}
+  .intro{margin-top:clamp(20px,3vh,34px);max-width:74ch;display:grid;gap:16px}
+  .positioning{font-family:var(--serif);font-size:clamp(20px,2.9vw,32px);line-height:1.42;color:var(--cream);font-weight:500}
+  .about{font-size:clamp(14px,1.5vw,16.5px);color:var(--cream-dim);line-height:1.72;max-width:64ch}
+
+  /* ============ SECTION HEADER (per station) ============ */
+  .sec-head{display:flex;align-items:center;gap:clamp(12px,2vw,22px);flex-wrap:wrap;padding-bottom:clamp(20px,3vh,30px);border-bottom:1px solid var(--line-soft);margin-bottom:clamp(26px,4vh,44px)}
+  .sec-freq{font-family:var(--mono);font-weight:600;font-size:clamp(14px,1.8vw,18px);color:var(--gold-lite);letter-spacing:.04em;flex:0 0 auto}
+  .sec-tag{font-family:var(--mono);font-size:clamp(10px,1.3vw,12px);letter-spacing:.22em;color:var(--cream-soft);text-transform:uppercase;flex:0 0 auto}
+  .sec-scope{position:relative;flex:1 1 160px;min-width:120px;height:38px;border:1px solid var(--line-soft);border-radius:5px;overflow:hidden;background:rgba(14,12,9,.5)}
+  .sec-scope svg{width:100%;height:100%;display:block}
+  .sec-scope path{fill:none;stroke:var(--phosphor);stroke-width:1.4;filter:drop-shadow(0 0 2px rgba(185,193,122,.5))}
+  .sec-noise{position:absolute;inset:0;opacity:0;pointer-events:none;mix-blend-mode:screen;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='40'%3E%3Cfilter id='s'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9 0.02' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23s)'/%3E%3C/svg%3E");}
+  .sec-scope.flash .sec-noise{animation:staticflash .5s ease-out both}
+  @keyframes staticflash{0%{opacity:.7}60%{opacity:.35}100%{opacity:0}}
+  .sec-num{font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--gold);flex:0 0 auto;text-shadow:0 0 8px rgba(168,128,47,.35)}
+  .sec-title{font-family:var(--serif);font-weight:600;font-size:clamp(26px,4.4vw,46px);line-height:1.1;color:var(--cream);margin-bottom:clamp(8px,1.5vh,16px)}
+  .sec-lead{font-size:clamp(14px,1.5vw,16.5px);color:var(--cream-dim);max-width:60ch;line-height:1.7}
+
+  /* ============ SERVICES : decoded transmission cards ============ */
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(14px,1.8vw,22px);margin-top:clamp(26px,4vh,42px)}
+  .card{position:relative;border:1px solid var(--line);border-radius:8px;padding:clamp(18px,2vw,26px);background:linear-gradient(180deg, rgba(38,34,28,.6), rgba(23,20,16,.7));display:flex;flex-direction:column;gap:12px;overflow:hidden}
+  .card::before,.card::after{content:"";position:absolute;width:10px;height:10px;border-color:var(--gold);border-style:solid;opacity:.6}
+  .card::before{top:8px;left:8px;border-width:1px 0 0 1px}
+  .card::after{bottom:8px;right:8px;border-width:0 1px 1px 0}
+  .card .t-head{font-family:var(--mono);font-size:10px;letter-spacing:.18em;color:var(--phosphor);text-transform:uppercase}
+  .card .t-head .st{color:var(--gold-lite)}
+  .card h3{font-family:var(--serif);font-weight:600;font-size:clamp(19px,1.9vw,23px);color:var(--cream);line-height:1.2}
+  .card p{font-size:14.5px;color:var(--cream-dim);line-height:1.66}
+
+  /* ============ THE CASE : intercepted transmission ============ */
+  .case{display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(22px,3.6vw,50px);align-items:start;margin-top:clamp(20px,3vh,34px)}
+  .case-decode{min-width:0}
+  .case-badge{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--phosphor);text-transform:uppercase;margin-bottom:14px}
+  .case-org{font-family:var(--mono);font-weight:600;font-size:clamp(22px,3.4vw,34px);letter-spacing:.08em;color:var(--gold-lite);text-shadow:0 0 14px rgba(192,154,74,.45);margin-bottom:16px;min-height:1.1em}
+  .case-body{font-size:clamp(15px,1.6vw,17.5px);line-height:1.78;color:var(--cream);font-family:var(--mono);letter-spacing:.01em;min-height:6em}
+  .case-body.plain{font-family:var(--sans);letter-spacing:normal;color:var(--cream)}
+  .case-meta{margin-top:20px;font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;color:var(--cream-soft);text-transform:uppercase}
+  .photo{position:relative;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#0f0d0a;aspect-ratio:3/2}
+  .photo img{width:100%;height:100%;object-fit:cover;display:block;filter:sepia(.28) contrast(1.04) brightness(.86) saturate(.9)}
+  .photo::before{content:"";position:absolute;inset:0;pointer-events:none;background:
+    linear-gradient(180deg, rgba(29,26,22,.28), rgba(29,26,22,.5)),
+    repeating-linear-gradient(180deg,transparent 0 2px,rgba(0,0,0,.22) 2px 3px);mix-blend-mode:multiply;opacity:.8}
+  .photo::after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 60px rgba(0,0,0,.6)}
+  .photo-cap{position:absolute;left:10px;bottom:9px;right:10px;font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;color:rgba(250,247,241,.82);text-transform:uppercase;z-index:2;display:flex;justify-content:space-between;gap:10px;text-shadow:0 1px 3px rgba(0,0,0,.8)}
+  .photo-cap span{white-space:nowrap}
+
+  /* ============ PRINCIPLES : standing transmission protocols ============ */
+  .protocols{display:grid;grid-template-columns:repeat(2,1fr);gap:clamp(16px,2vw,26px);margin-top:clamp(20px,3vh,34px)}
+  .proto{border:1px solid var(--line-soft);border-left:2px solid var(--gold);border-radius:6px;padding:clamp(18px,2vw,26px);background:linear-gradient(180deg, rgba(34,30,25,.5), rgba(20,17,13,.5));display:flex;flex-direction:column;gap:10px}
+  .proto .p-num{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--phosphor);text-transform:uppercase}
+  .proto h4{font-family:var(--serif);font-weight:600;font-size:clamp(18px,1.9vw,22px);color:var(--cream)}
+  .proto p{font-size:14.5px;color:var(--cream-dim);line-height:1.65}
+
+  /* ============ CONTACT : reply frequency ============ */
+  .contact-inner{text-align:center;max-width:760px;margin:0 auto}
+  .reply-eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--phosphor);text-transform:uppercase;margin-bottom:18px}
+  .reply-freq{font-family:var(--mono);font-weight:600;font-size:clamp(30px,7vw,58px);letter-spacing:.05em;color:var(--gold-lite);text-shadow:0 0 24px rgba(192,154,74,.4);line-height:1;margin-bottom:8px}
+  .reply-sub{font-family:var(--serif);font-size:clamp(19px,2.4vw,27px);color:var(--cream);margin-bottom:26px;line-height:1.4}
+  .reply-email{display:inline-block;font-family:var(--mono);font-size:clamp(15px,2.4vw,22px);letter-spacing:.04em;color:var(--cream);text-decoration:none;border:1px solid var(--line);border-radius:30px;padding:14px 26px;background:rgba(20,17,13,.5);transition:border-color .25s,color .25s,box-shadow .25s;word-break:break-word;max-width:100%}
+  .reply-email:hover{border-color:var(--gold);color:var(--gold-lite);box-shadow:0 0 24px rgba(168,128,47,.25)}
+  .reply-loc{margin-top:20px;font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--cream-soft);text-transform:uppercase}
+  .reply-note{margin-top:8px;font-size:14px;color:var(--cream-dim)}
+
+  /* ============ FOOTER ============ */
+  .footer{border-top:1px solid var(--line-soft);margin-top:clamp(40px,6vh,80px);padding:clamp(32px,5vh,54px) 0 clamp(40px,6vh,60px)}
+  .footer-top{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
+  .footer-brand{display:flex;align-items:center;gap:13px;min-width:0}
+  .footer-brand .star{width:26px;height:26px}
+  .footer-brand .wordmark{font-size:clamp(16px,1.8vw,20px)}
+  .footer-meta{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--cream-soft);text-transform:uppercase;text-align:right}
+  .signoff{margin-top:clamp(22px,3.5vh,34px);padding-top:clamp(18px,2.6vh,26px);border-top:1px solid var(--line-soft)}
+  .thai{font-family:var(--thai);font-size:clamp(15px,1.9vw,20px);line-height:1.5;letter-spacing:normal;color:var(--gold-lite);text-align:center}
+  .footer-colophon{margin-top:16px;text-align:center;font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--cream-soft);text-transform:lowercase}
+
+  /* reveal-on-scroll */
+  .up{opacity:0;transform:translateY(16px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.7,.2,1)}
+  .up.in{opacity:1;transform:none}
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width:820px){
+    .readout{grid-template-columns:1fr}
+    .case{grid-template-columns:1fr}
+    .cards{grid-template-columns:1fr}
+    .protocols{grid-template-columns:1fr}
+    .statusblock{text-align:left}
+  }
+  @media (max-width:640px){
+    :root{--tuner-h:52px}
+    .station.hero{padding-top:18px}
+    .dial-face{height:150px}
+    .dial-hint{font-size:9px;letter-spacing:.1em}
+    .ghost{display:none}
+    .stn span{display:none}
+    .stn{padding:2px}
+    .stn::after{content:"";display:block;width:2px;height:13px;border-radius:1px;background:var(--cream-soft)}
+    .stn[aria-current="true"]::after{background:var(--gold-lite);box-shadow:0 0 6px rgba(192,154,74,.75)}
+    .dial-active{display:block}
+    .masthead{gap:12px}
+    .brand .star{width:28px;height:28px}
+    .tuner .t-status{display:none}
+    .t-tick b{display:none}
+    .t-tick i{height:10px}
+    .callsign-row{gap:12px}
+    .numerals{font-size:clamp(18px,6.6vw,26px)}
+    .footer-top{flex-direction:column;align-items:flex-start;text-align:left}
+    .footer-meta{text-align:left}
+  }
+  @media (max-width:390px){
+    .wordmark{letter-spacing:.16em}
+    .status{letter-spacing:.1em}
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .needle,.t-needle,.tuner{transition:none}
+    .up{opacity:1;transform:none;transition:none}
+    .sec-scope.flash .sec-noise{animation:none;opacity:0}
+    .beacon,.t-beacon,.reply-email{transition:none}
+  }
+</style>
+</head>
+<body>
+<div class="grain" aria-hidden="true"></div>
+<div class="vignette" aria-hidden="true"></div>
+
+<!-- persistent tuner rail (revealed on scroll past hero) -->
+<div class="tuner" id="tuner" aria-hidden="true">
+  <div class="t-brand"><span class="star" data-star></span><span class="t-freq freq-read">89.3</span><span class="t-name name-read">VESPER</span></div>
+  <div class="t-mid"><div class="t-rail"></div><div id="tunerTicks"></div><div class="t-needle" id="tunerNeedle"></div></div>
+  <div class="t-status status">CARRIER LOCKED . 89.3 MHz . NIGHT SERVICE</div>
+  <button class="t-beacon" data-beacon>Beacon</button>
+</div>
+
+<main>
+  <!-- ===================== 89.3 VESPER : HERO ===================== -->
+  <section class="station hero" id="vesper" data-idx="0" aria-label="Station 89.3 VESPER">
+    <div class="wrap">
+      <div class="masthead">
+        <div class="brand"><span class="star" data-star></span><span class="wordmark">VESPERWERK</span></div>
+        <div class="statusblock">
+          <div class="status">CARRIER LOCKED <span class="dot">.</span> 89.3 MHz <span class="dot">.</span> NIGHT SERVICE</div>
+          <div class="colophon">broadcast simulated . no audio transmitted . trace is svg</div>
+        </div>
+      </div>
+
+      <div class="dial" id="dial" role="slider" tabindex="0" aria-label="Tuning dial, drag or use arrow keys to change station" aria-valuemin="88.9" aria-valuemax="91.3" aria-valuenow="89.3" aria-valuetext="89.3 megahertz, VESPER">
+        <div class="dial-face" id="dialFace">
+          <div class="dial-ticks" id="dialTicks"></div>
+          <div class="dial-ghosts" id="dialGhosts"></div>
+          <div class="dial-stations" id="dialStations"></div>
+          <div class="dial-active" id="dialActive">VESPER</div>
+          <div class="dial-glass"></div>
+          <div class="needle" id="dialNeedle"><span class="pivot"></span></div>
+        </div>
+        <div class="dial-hint">drag the dial to tune . arrow keys step stations</div>
+      </div>
+
+      <div class="readout">
+        <div class="scope-box">
+          <svg class="scope" viewBox="0 0 600 140" preserveAspectRatio="none" aria-hidden="true"><path id="heroTrace" vector-effect="non-scaling-stroke"></path></svg>
+          <canvas class="scope-static" id="heroStatic" width="600" height="140" aria-hidden="true"></canvas>
+          <div class="scope-label">oscilloscope . held tone</div>
+        </div>
+        <div class="numgroup">
+          <div class="numlabel">numeral group</div>
+          <div class="numerals" id="heroNumerals">84 20 26 07 17</div>
+          <button class="beacon" data-beacon><span class="star" data-star></span> Recalibrate beacon</button>
+        </div>
+      </div>
+
+      <div class="callsign-row">
+        <div class="freqbig"><span class="freq-read">89.3</span> MHz <span class="name-read">VESPER</span></div>
+        <div class="callsign">the first light you can navigate by</div>
+      </div>
+
+      <div class="intro">
+        <p class="positioning" id="heroPositioning"></p>
+        <p class="about" id="heroAbout"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 89.7 SERVICES ===================== -->
+  <section class="station" id="services" data-idx="1" aria-label="Station 89.7 SERVICES">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="sec-freq">89.7 MHz</span>
+        <div class="sec-scope"><svg viewBox="0 0 300 40" preserveAspectRatio="none" aria-hidden="true"><path vector-effect="non-scaling-stroke"></path></svg><span class="sec-noise"></span></div>
+        <span class="sec-tag">Service Band</span>
+        <span class="sec-num" data-num="1"></span>
+      </div>
+      <h2 class="sec-title up">What we transmit</h2>
+      <p class="sec-lead up">Three standing services, each broadcast in the clear. Every card below is a decoded transmission from the studio.</p>
+      <div class="cards" id="servicesGrid"></div>
+    </div>
+  </section>
+
+  <!-- ===================== 90.1 THE CASE ===================== -->
+  <section class="station" id="case" data-idx="2" aria-label="Station 90.1 THE CASE">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="sec-freq">90.1 MHz</span>
+        <div class="sec-scope"><svg viewBox="0 0 300 40" preserveAspectRatio="none" aria-hidden="true"><path vector-effect="non-scaling-stroke"></path></svg><span class="sec-noise"></span></div>
+        <span class="sec-tag">Field Report</span>
+        <span class="sec-num" data-num="2"></span>
+      </div>
+      <h2 class="sec-title up">The intercept</h2>
+      <div class="case">
+        <div class="case-decode up">
+          <div class="case-badge">Intercept . 90.1 MHz . decoding</div>
+          <div class="case-org" id="caseOrg">90 10 15 04 08</div>
+          <div class="case-body" id="caseBody"></div>
+          <div class="case-meta">Selected work . flagship . in production</div>
+        </div>
+        <figure class="photo up">
+          <img src="../assets/flux-clinic-4k.png" alt="Intercepted photograph: a mint and wood dental clinic interior" loading="lazy" decoding="async">
+          <figcaption class="photo-cap"><span>Intercepted photograph</span><span>13.7563 N 100.5018 E</span></figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 90.5 PRINCIPLES ===================== -->
+  <section class="station" id="principles" data-idx="3" aria-label="Station 90.5 PRINCIPLES">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="sec-freq">90.5 MHz</span>
+        <div class="sec-scope"><svg viewBox="0 0 300 40" preserveAspectRatio="none" aria-hidden="true"><path vector-effect="non-scaling-stroke"></path></svg><span class="sec-noise"></span></div>
+        <span class="sec-tag">Standing Orders</span>
+        <span class="sec-num" data-num="3"></span>
+      </div>
+      <h2 class="sec-title up">Standing transmission protocols</h2>
+      <p class="sec-lead up">Four protocols broadcast on every frequency. They govern how the studio works before a single line is written.</p>
+      <div class="protocols" id="principlesGrid"></div>
+    </div>
+  </section>
+
+  <!-- ===================== 90.9 CONTACT ===================== -->
+  <section class="station" id="contact" data-idx="4" aria-label="Station 90.9 CONTACT">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="sec-freq">90.9 MHz</span>
+        <div class="sec-scope"><svg viewBox="0 0 300 40" preserveAspectRatio="none" aria-hidden="true"><path vector-effect="non-scaling-stroke"></path></svg><span class="sec-noise"></span></div>
+        <span class="sec-tag">Reply Frequency</span>
+        <span class="sec-num" data-num="4"></span>
+      </div>
+      <div class="contact-inner">
+        <div class="reply-eyebrow up">Reply frequency</div>
+        <div class="reply-freq up">90.9 MHz</div>
+        <div class="reply-sub up">Start a conversation.</div>
+        <a class="reply-email up" href="mailto:kittipong.k@vesperwerk.com">kittipong.k@vesperwerk.com</a>
+        <div class="reply-loc up">Bangkok, Thailand</div>
+        <div class="reply-note up">Transmit at will. We monitor this frequency nightly.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="wrap">
+      <div class="footer-top">
+        <div class="footer-brand"><span class="star" data-star></span><span class="wordmark">VESPERWERK</span></div>
+        <div class="footer-meta">Bangkok, Thailand<br>(c) 2026 Vesperwerk</div>
+      </div>
+      <div class="signoff">
+        <p class="thai">ดาวประจำเมือง : แสงแรกที่ใช้นำทางยามค่ำ</p>
+      </div>
+      <div class="footer-colophon">broadcast simulated . no audio transmitted . trace is svg</div>
+    </div>
+  </footer>
+</main>
+
+<script>
+/* =====================================================================
+   DATA  ( swap these values to re-skin the broadcast )
+   ===================================================================== */
+const DATA = {
+  brand: 'VESPERWERK',
+  callSign: 'THE FIRST LIGHT YOU CAN NAVIGATE BY',
+  freqRange: { min: 88.9, max: 91.3 },
+  colophon: 'broadcast simulated . no audio transmitted . trace is svg',
+  thaiSignoff: 'ดาวประจำเมือง : แสงแรกที่ใช้นำทางยามค่ำ',
+
+  hero: {
+    positioning: 'An independent software and AI studio. We architect, build, and operate production systems for businesses that cannot afford them to fail.',
+    about: 'Vesperwerk takes its name from the evening star: the first light you can navigate by. We are a founder-led studio in Bangkok building software for businesses across Asia and beyond.'
+  },
+
+  // stations map 1:1 to the sections, low frequency to high
+  stations: [
+    { freq:'89.3', freqN:89.3, name:'VESPER',     service:'NIGHT SERVICE',    numerals:'84 20 26 07 17', amp:16, k:0.052 },
+    { freq:'89.7', freqN:89.7, name:'SERVICES',   service:'SERVICE BAND',     numerals:'89 70 03 11 22', amp:11, k:0.085 },
+    { freq:'90.1', freqN:90.1, name:'THE CASE',   service:'FIELD REPORT',     numerals:'90 10 15 04 08', amp:21, k:0.040 },
+    { freq:'90.5', freqN:90.5, name:'PRINCIPLES', service:'STANDING ORDERS',  numerals:'90 50 44 19 07', amp:13, k:0.068 },
+    { freq:'90.9', freqN:90.9, name:'CONTACT',    service:'REPLY FREQUENCY',  numerals:'90 90 26 07 17', amp:15, k:0.060 }
+  ],
+
+  // faint ghost stations that flicker past during the calibration sweep
+  ghosts: [
+    { freqN:89.0, tag:'· · ·' },
+    { freqN:89.5, tag:'MERIDIAN' },
+    { freqN:89.9, tag:'NOCTURNE' },
+    { freqN:90.3, tag:'HARBOUR' },
+    { freqN:90.7, tag:'LODESTAR' },
+    { freqN:91.1, tag:'· · ·' }
+  ],
+
+  services: [
+    { idx:'01', title:'AI Systems', body:'Voice agents, LLM assistants, and the evaluation infrastructure that keeps them honest. AI that answers like your best employee, in production, around the clock.' },
+    { idx:'02', title:'Product Engineering', body:'Full-stack product engineering from architecture to operations: event-driven backends, modern web frontends, and infrastructure that scales without drama.' },
+    { idx:'03', title:'Commerce and Platforms', body:'Deep Shopify and LINE platform work: storefronts, admin apps, integrations, and the messaging rails Southeast Asian commerce runs on.' }
+  ],
+
+  caseStudy: {
+    org: 'YIMWHAN AI',
+    body: 'An AI voice and LINE assistant for dental clinics in Thailand. It answers after-hours calls, books and reschedules appointments, and hands off to staff the moment a human matters. In production at live clinics.'
+  },
+
+  principles: [
+    { idx:'01', title:'Architecture first', body:'We design the system before we write the code.' },
+    { idx:'02', title:'Production-worthy', body:'Demos impress; production endures. We build for the second one.' },
+    { idx:'03', title:'Scope discipline', body:'The most valuable thing we tell clients is what not to build.' },
+    { idx:'04', title:'Senior hands', body:'No juniors learning on your budget. Founder-led, senior hands on every line.' }
+  ],
+
+  contact: { email:'kittipong.k@vesperwerk.com', location:'Bangkok, Thailand' }
+};
+
+/* =====================================================================
+   ENGINE
+   ===================================================================== */
+const RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const doc = document.documentElement;
+const FMIN = DATA.freqRange.min, FMAX = DATA.freqRange.max, FRANGE = FMAX - FMIN;
+const stations = DATA.stations;
+const N = stations.length;
+
+let currentFreq = stations[0].freqN;
+let activeIndex = 0;
+let dragging = false;
+let sweeping = false;
+let heroInView = true;
+
+const clamp01 = v => Math.max(0, Math.min(1, v));
+const clampF  = f => Math.max(FMIN, Math.min(FMAX, f));
+const fx = f => (f - FMIN) / FRANGE;                 // 0..1
+const nearestIndex = f => { let b=0,bd=1e9; stations.forEach((s,i)=>{const d=Math.abs(s.freqN-f); if(d<bd){bd=d;b=i;}}); return b; };
+
+/* ---- inject the star mark everywhere it is needed ---- */
+const STAR = `<svg viewBox="0 0 200 200" width="100%" height="100%" aria-hidden="true"><g transform="translate(100,100)">
+<g><polygon points="0,-86 -11,0 0,0" fill="#c09a4a"/><polygon points="0,-86 11,0 0,0" fill="#8a6526"/></g>
+<g transform="rotate(180)"><polygon points="0,-86 -11,0 0,0" fill="#8a6526"/><polygon points="0,-86 11,0 0,0" fill="#c09a4a"/></g>
+<g transform="rotate(90)"><polygon points="0,-64 -9.5,0 0,0" fill="#c09a4a"/><polygon points="0,-64 9.5,0 0,0" fill="#8a6526"/></g>
+<g transform="rotate(270)"><polygon points="0,-64 -9.5,0 0,0" fill="#8a6526"/><polygon points="0,-64 9.5,0 0,0" fill="#c09a4a"/></g>
+<g transform="rotate(45)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g>
+<g transform="rotate(135)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g>
+<g transform="rotate(225)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g>
+<g transform="rotate(315)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g>
+</g></svg>`;
+document.querySelectorAll('[data-star]').forEach(el => el.innerHTML = STAR);
+
+/* ---- element refs ---- */
+const dial       = document.getElementById('dial');
+const dialFace   = document.getElementById('dialFace');
+const heroNeedle = document.getElementById('dialNeedle');
+const tunerNeedle= document.getElementById('tunerNeedle');
+const tuner      = document.getElementById('tuner');
+const heroTrace  = document.getElementById('heroTrace');
+const heroStatic = document.getElementById('heroStatic');
+const heroNumEl  = document.getElementById('heroNumerals');
+const dialActive = document.getElementById('dialActive');
+const statusEls  = document.querySelectorAll('.status');
+const freqEls    = document.querySelectorAll('.freq-read');
+const nameEls    = document.querySelectorAll('.name-read');
+const sections   = Array.from(document.querySelectorAll('.station'));
+
+/* ---- populate copy from DATA ---- */
+document.getElementById('heroPositioning').textContent = DATA.hero.positioning;
+document.getElementById('heroAbout').textContent = DATA.hero.about;
+heroNumEl.textContent = stations[0].numerals;
+document.querySelectorAll('[data-num]').forEach(el => { el.textContent = stations[+el.dataset.num].numerals; });
+
+/* services cards */
+document.getElementById('servicesGrid').innerHTML = DATA.services.map(s => `
+  <article class="card up">
+    <div class="t-head">Transmission ${s.idx} <span class="st">. decoded</span></div>
+    <h3>${s.title}</h3>
+    <p>${s.body}</p>
+  </article>`).join('');
+
+/* principles */
+document.getElementById('principlesGrid').innerHTML = DATA.principles.map(p => `
+  <article class="proto up">
+    <div class="p-num">Protocol ${p.idx}</div>
+    <h4>${p.title}</h4>
+    <p>${p.body}</p>
+  </article>`).join('');
+
+/* =====================================================================
+   BUILD THE DIAL  ( ticks, freq numbers, ghost + station labels )
+   ===================================================================== */
+(function buildDial(){
+  const ticks = document.getElementById('dialTicks');
+  const ghostsWrap = document.getElementById('dialGhosts');
+  const stnWrap = document.getElementById('dialStations');
+
+  // ticks every 0.1, majors + numbers every 0.4 (aligned to station freqs)
+  let tickHTML = '';
+  for(let i=0;i<=24;i++){
+    const f = FMIN + i*0.1;
+    const left = fx(f)*100;
+    const major = (i % 4 === 0);
+    const edge = i===0 ? ' edge-l' : (i===24 ? ' edge-r' : '');
+    tickHTML += `<div class="tick ${major?'major':'minor'}${edge}" style="left:${left}%">${major?`<span class="flabel">${f.toFixed(1)}</span>`:''}</div>`;
+  }
+  ticks.innerHTML = tickHTML;
+
+  ghostsWrap.innerHTML = DATA.ghosts.map(g =>
+    `<div class="ghost" style="left:${fx(g.freqN)*100}%">${g.tag}</div>`).join('');
+
+  stnWrap.innerHTML = stations.map((s,i) =>
+    `<button class="stn" data-idx="${i}" style="left:${fx(s.freqN)*100}%" aria-label="Tune to ${s.freq} ${s.name}">
+       <span>${s.name}</span><span class="sfreq">${s.freq}</span></button>`).join('');
+
+  stnWrap.querySelectorAll('.stn').forEach(btn =>
+    btn.addEventListener('click', () => goTo(+btn.dataset.idx)));
+})();
+
+/* tuner mini ticks */
+document.getElementById('tunerTicks').innerHTML = stations.map((s,i) =>
+  `<button class="t-tick" data-idx="${i}" style="left:${fx(s.freqN)*100}%" aria-label="Tune to ${s.freq} ${s.name}"><i></i><b>${s.freq}</b></button>`).join('');
+document.querySelectorAll('.t-tick').forEach(btn =>
+  btn.addEventListener('click', () => goTo(+btn.dataset.idx)));
+
+/* =====================================================================
+   OSCILLOSCOPE
+   ===================================================================== */
+function sinePath(w, h, phase, amp, k){
+  const mid = h/2, pts = 110; let d = '';
+  for(let i=0;i<=pts;i++){
+    const x = i/pts*w;
+    const y = mid + amp*Math.sin(i*k*3 + phase) + amp*0.32*Math.sin(i*k*7 - phase*1.25) + amp*0.12*Math.sin(i*k*17 + phase*0.6);
+    d += (i===0?'M':'L') + x.toFixed(1) + ' ' + y.toFixed(1) + ' ';
+  }
+  return d;
+}
+
+/* draw every section header scope once (static held tone) */
+document.querySelectorAll('.sec-scope path').forEach((p, idx) => {
+  const s = stations[idx+1] || stations[1];
+  p.setAttribute('d', sinePath(300, 40, 0, 10, s.k*1.4));
+});
+
+/* hero scope animation loop ( motion only, paused off-screen ) */
+let phase = 0, rafScope = 0, scopeRunning = false;
+function heroLoop(){
+  if(!scopeRunning) return;
+  phase += dragging ? 0.02 : 0.045;
+  const s = stations[activeIndex];
+  heroTrace.setAttribute('d', sinePath(600, 140, phase, s.amp, s.k));
+  rafScope = requestAnimationFrame(heroLoop);
+}
+function startScope(){ if(RM || scopeRunning || !heroInView) return; scopeRunning = true; heroLoop(); }
+function stopScope(){ scopeRunning = false; cancelAnimationFrame(rafScope); }
+
+/* static ( Canvas2D noise ) on the hero scope */
+const sctx = heroStatic.getContext('2d');
+function drawStatic(alpha){
+  const w = heroStatic.width, h = heroStatic.height;
+  sctx.clearRect(0,0,w,h);
+  sctx.lineWidth = 1;
+  for(let y=0; y<h; y+=2){
+    const bright = Math.random() < 0.5;
+    sctx.strokeStyle = bright
+      ? 'rgba(185,193,122,' + (0.18 + Math.random()*0.5) + ')'
+      : 'rgba(250,247,241,' + (0.04 + Math.random()*0.16) + ')';
+    sctx.globalAlpha = alpha;
+    sctx.beginPath();
+    let yy = y + Math.random()*1.5;
+    sctx.moveTo(0, yy);
+    for(let x=0; x<=w; x+=18) sctx.lineTo(x, yy + (Math.random()-0.5)*7);
+    sctx.stroke();
+  }
+  sctx.globalAlpha = 1;
+}
+function clearStatic(){ sctx.clearRect(0,0,heroStatic.width,heroStatic.height); }
+
+let rafBurst = 0;
+function staticBurst(ms){
+  if(RM) return;
+  cancelAnimationFrame(rafBurst);
+  const t0 = performance.now(); const dur = ms || 360;
+  (function step(now){
+    const k = (now - t0)/dur;
+    if(k >= 1){ clearStatic(); return; }
+    drawStatic(0.55*(1-k));
+    rafBurst = requestAnimationFrame(step);
+  })(performance.now());
+}
+
+/* =====================================================================
+   TUNING
+   ===================================================================== */
+function setNeedle(f){
+  const p = fx(f)*100;
+  heroNeedle.style.left = p + '%';
+  tunerNeedle.style.left = p + '%';
+}
+function paintStatus(){
+  const s = stations[activeIndex];
+  if(dragging || sweeping){
+    const label = sweeping ? 'CALIBRATING' : 'TUNING';
+    const tail  = sweeping ? 'SWEEP' : 'SEARCHING';
+    const txt = `${label} . ${currentFreq.toFixed(1)} MHz . ${tail}`;
+    statusEls.forEach(e => e.textContent = txt);
+  } else {
+    const txt = `CARRIER LOCKED . ${s.freq} MHz . ${s.service}`;
+    statusEls.forEach(e => e.textContent = txt);
+  }
+}
+function paintReadouts(){
+  const s = stations[activeIndex];
+  freqEls.forEach(e => e.textContent = dragging ? currentFreq.toFixed(1) : s.freq);
+  nameEls.forEach(e => e.textContent = s.name);
+  dialActive.textContent = s.name;
+  heroNumEl.textContent = s.numerals;
+  dial.setAttribute('aria-valuenow', s.freq);
+  dial.setAttribute('aria-valuetext', s.freq + ' megahertz, ' + s.name);
+}
+function markActive(){
+  document.querySelectorAll('.stn').forEach(b => b.setAttribute('aria-current', (+b.dataset.idx===activeIndex)?'true':'false'));
+  document.querySelectorAll('.t-tick').forEach(b => b.setAttribute('aria-current', (+b.dataset.idx===activeIndex)?'true':'false'));
+}
+
+/* tune to a station index without scrolling ( used by scroll observer ) */
+function tuneTo(index, burst){
+  const changed = index !== activeIndex;
+  activeIndex = index;
+  currentFreq = stations[index].freqN;
+  setNeedle(currentFreq);
+  markActive();
+  paintReadouts();
+  paintStatus();
+  if(changed && burst && !RM) staticBurst(340);
+}
+
+/* tune AND scroll ( used by clicks, keys, drag release ) */
+function goTo(index){
+  index = Math.max(0, Math.min(N-1, index));
+  tuneTo(index, true);
+  sections[index].scrollIntoView({ behavior: RM ? 'auto' : 'smooth', block: 'start' });
+}
+
+/* =====================================================================
+   DRAG THE DIAL  ( the signature interaction )
+   ===================================================================== */
+function pointerFreq(clientX){
+  const r = dialFace.getBoundingClientRect();
+  return clampF(FMIN + clamp01((clientX - r.left)/r.width) * FRANGE);
+}
+function onDown(e){
+  if(sweeping) return;
+  dragging = true;
+  doc.classList.add('no-anim');
+  try{ dialFace.setPointerCapture(e.pointerId); }catch(_){}
+  onMove(e);
+}
+function onMove(e){
+  if(!dragging) return;
+  currentFreq = pointerFreq(e.clientX);
+  setNeedle(currentFreq);
+  activeIndex = nearestIndex(currentFreq);
+  markActive();
+  paintReadouts();
+  paintStatus();
+  if(!RM) drawStatic(0.45);
+}
+function onUp(){
+  if(!dragging) return;
+  dragging = false;
+  doc.classList.remove('no-anim');
+  clearStatic();
+  goTo(nearestIndex(currentFreq));
+}
+dialFace.addEventListener('pointerdown', onDown);
+dialFace.addEventListener('pointermove', onMove);
+dialFace.addEventListener('pointerup', onUp);
+dialFace.addEventListener('pointercancel', onUp);
+window.addEventListener('pointerup', onUp);
+
+/* keyboard : arrows step stations, home / end jump to ends */
+window.addEventListener('keydown', e => {
+  const t = e.target;
+  if(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  if(t && t.tagName === 'A') return;
+  switch(e.key){
+    case 'ArrowRight': case 'ArrowUp':   e.preventDefault(); goTo(activeIndex+1); break;
+    case 'ArrowLeft':  case 'ArrowDown': e.preventDefault(); goTo(activeIndex-1); break;
+    case 'Home': e.preventDefault(); goTo(0); break;
+    case 'End':  e.preventDefault(); goTo(N-1); break;
+  }
+});
+
+/* =====================================================================
+   CALIBRATION SWEEP  ( entrance ritual + beacon button )
+   ===================================================================== */
+let rafSweep = 0;
+function calibrate(){
+  const targetIdx = activeIndex;
+  const targetF = stations[targetIdx].freqN;
+  if(RM){ tuneTo(targetIdx, false); return; }
+  cancelAnimationFrame(rafSweep);
+  stopScope();
+  sweeping = true;
+  doc.classList.add('no-anim');
+  const t0 = performance.now(); const dur = 2200;
+  (function step(now){
+    const t = (now - t0)/dur;
+    if(t >= 1){
+      sweeping = false;
+      doc.classList.remove('no-anim');
+      currentFreq = targetF; setNeedle(currentFreq);
+      clearStatic();
+      tuneTo(targetIdx, false);
+      startScope();
+      return;
+    }
+    let f;
+    if(t < 0.70){ f = FMIN + FRANGE * (t/0.70); }                     // glide across the whole band
+    else { const u = (t-0.70)/0.30; f = FMAX + (targetF - FMAX) * (1-Math.pow(1-u,3)); } // settle onto target
+    currentFreq = clampF(f);
+    setNeedle(currentFreq);
+    // ghost flicker : heavier static as the needle passes a station or ghost
+    const nearMark =
+      DATA.ghosts.some(g => Math.abs(g.freqN - f) < 0.05) ||
+      stations.some(s => Math.abs(s.freqN - f) < 0.045);
+    drawStatic(nearMark ? 0.7 : 0.32);
+    paintStatus();
+    rafSweep = requestAnimationFrame(step);
+  })(performance.now());
+}
+document.querySelectorAll('[data-beacon]').forEach(b => b.addEventListener('click', calibrate));
+
+/* =====================================================================
+   SCROLL OBSERVERS
+   ===================================================================== */
+/* active section = the one crossing viewport centre */
+const centerIO = new IntersectionObserver(entries => {
+  if(dragging || sweeping) return;
+  entries.forEach(en => {
+    if(en.isIntersecting){
+      const idx = +en.target.dataset.idx;
+      if(idx !== activeIndex) tuneTo(idx, true);
+      // reveal / hide the tuner rail
+      if(idx === 0){ tuner.classList.remove('show'); tuner.setAttribute('aria-hidden','true'); }
+      else { tuner.classList.add('show'); tuner.setAttribute('aria-hidden','false'); }
+    }
+  });
+}, { rootMargin: '-48% 0px -48% 0px', threshold: 0 });
+sections.forEach(s => centerIO.observe(s));
+
+/* hero visibility controls the animated scope */
+new IntersectionObserver(entries => {
+  entries.forEach(en => {
+    heroInView = en.isIntersecting;
+    if(heroInView) startScope(); else stopScope();
+  });
+}, { threshold: 0.08 }).observe(sections[0]);
+
+/* per-section header static flash + fade-up reveal on entry */
+const revealIO = new IntersectionObserver((entries, obs) => {
+  entries.forEach(en => {
+    if(!en.isIntersecting) return;
+    en.target.classList.add('in');
+    obs.unobserve(en.target);
+  });
+}, { rootMargin: '0px 0px -12% 0px', threshold: 0.12 });
+document.querySelectorAll('.up').forEach(el => revealIO.observe(el));
+
+const sectionEnterIO = new IntersectionObserver(entries => {
+  entries.forEach(en => {
+    if(!en.isIntersecting) return;
+    const scope = en.target.querySelector('.sec-scope');
+    if(scope && !RM){ scope.classList.remove('flash'); void scope.offsetWidth; scope.classList.add('flash'); }
+    if(en.target.id === 'case') runDecode();
+  });
+}, { rootMargin: '0px 0px -20% 0px', threshold: 0.2 });
+sections.slice(1).forEach(s => sectionEnterIO.observe(s));
+
+/* =====================================================================
+   THE CASE : numbers burst decodes letter by letter
+   ===================================================================== */
+let decoded = false;
+const caseOrgEl = document.getElementById('caseOrg');
+const caseBodyEl = document.getElementById('caseBody');
+const GLYPHS = '0123456789';
+function scrambleReveal(el, target, ms, done){
+  const total = target.length;
+  const t0 = performance.now();
+  (function tick(now){
+    const prog = Math.min(1, (now - t0)/ms);
+    const reveal = Math.floor(prog * total);
+    let out = '';
+    for(let i=0;i<total;i++){
+      const c = target[i];
+      if(i < reveal || c === ' ' || c === '\n') out += c;
+      else out += GLYPHS[(Math.random()*10)|0];
+    }
+    el.textContent = out;
+    if(prog < 1) requestAnimationFrame(tick);
+    else { el.textContent = target; if(done) done(); }
+  })(performance.now());
+}
+function runDecode(){
+  if(decoded) return;
+  decoded = true;
+  if(RM){
+    caseOrgEl.textContent = DATA.caseStudy.org;
+    caseBodyEl.textContent = DATA.caseStudy.body;
+    caseBodyEl.classList.add('plain');
+    return;
+  }
+  scrambleReveal(caseOrgEl, DATA.caseStudy.org, 900);
+  scrambleReveal(caseBodyEl, DATA.caseStudy.body, 1900, () => caseBodyEl.classList.add('plain'));
+}
+
+/* =====================================================================
+   INIT
+   ===================================================================== */
+function init(){
+  setNeedle(currentFreq);
+  markActive();
+  paintReadouts();
+  paintStatus();
+
+  if(RM){
+    // locked on 89.3, held tone drawn once, numbers pre-decoded
+    heroTrace.setAttribute('d', sinePath(600, 140, 0, stations[0].amp, stations[0].k));
+    return;
+  }
+  heroTrace.setAttribute('d', sinePath(600, 140, 0, stations[0].amp, stations[0].k));
+  startScope();
+  // entrance calibration ritual once the first paint has settled
+  setTimeout(calibrate, 480);
+}
+init();
+</script>
+</body>
+</html>

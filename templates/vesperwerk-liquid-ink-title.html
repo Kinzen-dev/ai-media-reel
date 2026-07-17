@@ -1,0 +1,985 @@
+<!-- TEMPLATE: Vesperwerk Liquid Ink Main Titles | ARCHETYPE: black-ink-main-titles, the studio site as opening credits poured in liquid ink | REF: Kyle Cooper / Prologue Films main-title lineage (Se7en, The Girl with the Dragon Tattoo) via Art of the Title | WHEN TO USE: a studio / agency / film-adjacent brand that wants a cinematic title-sequence entrance and an ink-rail scroll ritual on warm paper | SWAP: edit the DATA object at top of the script -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vesperwerk - Liquid Ink Main Titles</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&family=Noto+Serif+Thai:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   VESPERWERK - LIQUID INK MAIN TITLES
+   The site is the studio's opening credits, poured in glossy
+   black ink on cream paper. One committed paradigm.
+   Palette: cream paper, glossy black ink, antique gold droplet.
+   Ink engine: two SVG turbulence filters + a gooey threshold.
+   No WebGL. One droplet.
+   ============================================================ */
+
+*,*::before,*::after{ box-sizing:border-box; }
+html{ -webkit-text-size-adjust:100%; }
+html,body{ margin:0; overflow-x:clip; }
+
+:root{
+  --ink:#1a1613;        /* glossy black ink (pools, smears) */
+  --ink-soft:#2e2a26;   /* warm ink (credits type, body) */
+  --ink-faint:#6b6157;  /* receded ink (captions) */
+  --cream:#faf7f1;      /* paper ground */
+  --cream-2:#f2ecdf;    /* recessed paper */
+  --cream-3:#e9e1d0;    /* hairline */
+  --gold:#a8802f;
+  --gold-l:#c09a4a;
+  --gold-d:#8a6526;
+
+  --p:0.08;             /* scroll progress, driven by JS (0..1) */
+  --mul:1;              /* intro speed multiplier (0.5 = replay 2x) */
+
+  --rail-x: clamp(13px, 3.2vw, 34px);
+  --gutter: clamp(24px, 6vw, 96px);
+  --content-l: calc(var(--rail-x) + clamp(30px, 5vw, 78px));
+  --measure: 62ch;
+
+  --t-micro: 0.72rem;
+  --t-mono: 0.78rem;
+  --t-body: clamp(1rem, 0.96rem + 0.3vw, 1.16rem);
+  --t-lede: clamp(1.12rem, 1rem + 0.7vw, 1.5rem);
+  --t-h3: clamp(1.28rem, 1.1rem + 0.9vw, 1.8rem);
+  --t-h2: clamp(1.7rem, 1.3rem + 1.8vw, 2.9rem);
+  --wordmark: clamp(1.9rem, 8.6vw, 7rem);
+
+  --ease-ink: cubic-bezier(.22,.61,.24,1);
+  --ease-pour: cubic-bezier(.55,.02,.2,1);
+  --intro: calc(2.35s * var(--mul));
+}
+
+body{
+  font-family:"EB Garamond", Georgia, serif;
+  color:var(--ink-soft);
+  background:var(--cream);
+  font-size:var(--t-body);
+  line-height:1.6;
+  /* faint paper warmth (gradients only, no third turbulence) */
+  background-image:
+    radial-gradient(120% 80% at 82% -10%, #fffdf8 0%, rgba(255,253,248,0) 46%),
+    radial-gradient(120% 90% at 0% 108%, var(--cream-2) 0%, rgba(242,236,223,0) 40%),
+    repeating-linear-gradient(94deg, rgba(46,42,38,.018) 0 2px, rgba(46,42,38,0) 2px 5px);
+  background-attachment:fixed;
+}
+
+/* ---------- typography primitives ---------- */
+.serif{ font-family:"Playfair Display", Georgia, serif; }
+.mono{ font-family:"IBM Plex Mono", ui-monospace, monospace; }
+h1,h2,h3{ margin:0; font-weight:600; }
+p{ margin:0; }
+a{ color:inherit; }
+
+.mono-label{
+  font-family:"IBM Plex Mono", ui-monospace, monospace;
+  font-size:var(--t-mono);
+  letter-spacing:.34em;
+  text-transform:uppercase;
+  color:var(--ink-faint);
+}
+
+/* ---------- shared shell ---------- */
+.wrap{ max-width:1160px; margin:0 auto; padding-left:var(--content-l); padding-right:var(--gutter); }
+section{ position:relative; }
+
+/* ============================================================
+   THE INK RAIL - scroll progress as a trailing ink smear
+   ============================================================ */
+.rail{
+  position:fixed; top:0; bottom:0; left:0; z-index:40;
+  width:var(--rail-x);
+  display:flex; justify-content:center;
+  pointer-events:none;
+}
+.rail-track{
+  position:absolute; top:0; bottom:0; left:50%;
+  width:1px; margin-left:-.5px;
+  background:linear-gradient(180deg, rgba(46,42,38,.14), rgba(46,42,38,.05));
+}
+.rail-smear{
+  position:absolute; top:0; left:50%;
+  width:5px; margin-left:-2.5px;
+  height:calc(var(--p) * 100%);
+  border-radius:0 0 3px 3px;
+  background:
+    linear-gradient(90deg, rgba(250,247,241,.55) 0%, rgba(250,247,241,0) 42%),
+    linear-gradient(180deg, var(--ink) 0%, #24201b 70%, #322c25 100%);
+  box-shadow:0 0 0 .5px rgba(26,22,19,.35);
+}
+.rail-gloss{
+  position:absolute; left:50%; margin-left:-2px;
+  top:calc(var(--p) * 100% - 46px);
+  width:4px; height:44px; border-radius:2px;
+  background:linear-gradient(180deg, rgba(255,252,246,0), rgba(255,252,246,.7), rgba(255,252,246,0));
+  opacity:.6;
+}
+.rail-drop{
+  position:absolute; left:50%; margin-left:-9px;
+  top:calc(var(--p) * (100% - 20px));
+  width:18px; height:18px;
+  display:grid; place-items:center;
+  filter:drop-shadow(0 3px 4px rgba(26,22,19,.4));
+}
+.rail-drop::after{
+  content:""; position:absolute; top:-8px; left:50%; margin-left:-1.5px;
+  width:3px; height:9px; border-radius:2px;
+  background:linear-gradient(180deg, rgba(26,22,19,0), var(--ink));
+}
+.mini-star{ width:15px; height:15px; display:block; }
+
+/* ============================================================
+   HERO - the title card poured in ink
+   ============================================================ */
+.hero{
+  min-height:100svh;
+  display:flex; flex-direction:column; justify-content:center;
+  padding:clamp(64px,12vh,120px) var(--gutter) clamp(40px,7vh,80px) var(--content-l);
+  max-width:1160px; margin:0 auto;
+}
+.hero-top{
+  display:flex; align-items:center; gap:.9em;
+  margin-bottom:clamp(18px,3vh,34px);
+}
+.hero-top .mono-label{ min-width:0; }
+.hero-top .filmline{ flex:1 1 auto; height:1px; min-width:0; background:linear-gradient(90deg, var(--cream-3), rgba(233,225,208,0)); }
+
+.titleband{
+  position:relative;
+  overflow:hidden;
+  padding-block:clamp(10px,3vh,30px);
+  min-height:calc(var(--wordmark) * 1.5);
+  display:flex; align-items:center;
+}
+
+/* the pouring flood (drains through and out) */
+.flood{
+  position:absolute; inset:0; overflow:visible; z-index:3;
+  transform:translateY(126%);  /* rest = drained away */
+  will-change:transform;
+  pointer-events:none;
+}
+.flood svg{ position:absolute; top:0; left:0; width:100%; height:145%; display:block; }
+
+/* the resting glossy pool the wordmark is held in */
+.pool{
+  position:absolute; left:0; right:0; bottom:0; z-index:2;
+  height:30%;
+  pointer-events:none;
+}
+.pool svg{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+.pool-gloss{
+  position:absolute; left:0; right:0; top:6%; height:46%;
+  background:linear-gradient(180deg, rgba(255,252,246,.55) 0%, rgba(255,252,246,.12) 42%, rgba(255,252,246,0) 100%);
+  mix-blend-mode:screen; opacity:.9;
+}
+
+.lockup{
+  position:relative; z-index:4;
+  display:flex; align-items:center; flex-wrap:wrap; gap:clamp(10px,1.6vw,26px);
+  min-width:0;
+}
+.wordmark{
+  font-family:"Playfair Display", Georgia, serif;
+  font-weight:600;
+  font-size:var(--wordmark);
+  line-height:.92;
+  letter-spacing:.06em;
+  color:var(--ink);
+  margin:0;
+  min-width:0;
+  /* subtle wet sheen on the letterforms */
+  background:linear-gradient(176deg, #2a241e 0%, #100c09 54%, #201b16 100%);
+  -webkit-background-clip:text; background-clip:text;
+  -webkit-text-fill-color:transparent;
+  text-shadow:0 1px 0 rgba(255,253,248,.22);
+}
+
+/* the wet gold droplet star (also the replay button) */
+.droplet{
+  appearance:none; -webkit-appearance:none; border:0; background:transparent;
+  padding:0; margin:0; cursor:pointer;
+  position:relative;
+  width:clamp(38px,5.4vw,74px); height:clamp(38px,5.4vw,74px);
+  display:grid; place-items:center;
+  filter:drop-shadow(0 5px 7px rgba(26,22,19,.34));
+  border-radius:50%;
+}
+.droplet .star{ position:relative; z-index:3; width:82%; height:82%; display:block; }
+.droplet .gloss{
+  position:absolute; z-index:4; top:16%; left:20%;
+  width:26%; height:26%; border-radius:50%;
+  background:radial-gradient(circle at 34% 34%, rgba(255,255,250,.92), rgba(255,255,250,0) 70%);
+  pointer-events:none;
+}
+.crown{ position:absolute; inset:-38%; z-index:1; pointer-events:none; }
+.crown svg{ width:100%; height:100%; display:block; }
+.crown .crown-static{ opacity:.42; }
+.crown .crown-burst{ opacity:0; transform-origin:center; }
+.droplet:focus-visible{ outline:none; }
+.droplet:focus-visible::after{
+  content:""; position:absolute; inset:-22%; border-radius:50%;
+  border:2px solid var(--gold); opacity:.85;
+}
+
+/* credits + positioning below the band */
+.credits{
+  margin-top:clamp(20px,3.4vh,40px);
+  font-family:"IBM Plex Mono", ui-monospace, monospace;
+  font-size:var(--t-mono);
+  letter-spacing:.32em;
+  text-transform:uppercase;
+  color:var(--ink-faint);
+}
+.lede{
+  margin-top:clamp(16px,2.6vh,28px);
+  max-width:44ch;
+  font-size:var(--t-lede);
+  line-height:1.42;
+  color:var(--ink-soft);
+}
+.cta{ margin-top:clamp(22px,3.4vh,40px); display:flex; flex-wrap:wrap; gap:14px; }
+.btn{
+  display:inline-flex; align-items:center; gap:.6em;
+  font-family:"IBM Plex Mono", ui-monospace, monospace;
+  font-size:.8rem; letter-spacing:.16em; text-transform:uppercase;
+  text-decoration:none; padding:.85em 1.5em; border-radius:2px;
+  transition:transform .3s var(--ease-ink), background .3s, color .3s;
+}
+.btn-solid{ background:var(--ink); color:var(--cream); }
+.btn-solid:hover{ transform:translateY(-2px); background:#0f0c0a; }
+.btn-line{ border:1px solid rgba(46,42,38,.4); color:var(--ink-soft); }
+.btn-line:hover{ transform:translateY(-2px); border-color:var(--ink); }
+.btn:focus-visible{ outline:2px solid var(--gold); outline-offset:3px; }
+
+/* ============================================================
+   SECTION-LEVEL POUR REVEAL
+   ============================================================ */
+.reveal{
+  opacity:0;
+  clip-path:inset(0 0 100% 0);
+  transition:opacity .8s var(--ease-ink), clip-path 1.05s var(--ease-pour);
+}
+.reveal.in{ opacity:1; clip-path:inset(0 0 0 0); }
+
+.slate-head{
+  display:flex; align-items:baseline; gap:1em; flex-wrap:wrap;
+  padding-bottom:clamp(16px,2.2vh,26px);
+  border-bottom:1px solid var(--cream-3);
+  margin-bottom:clamp(26px,4vh,52px);
+}
+.slate-head .idx{
+  font-family:"IBM Plex Mono", ui-monospace, monospace;
+  font-size:var(--t-mono); letter-spacing:.2em; color:var(--gold-d);
+}
+.slate-head h2{
+  font-family:"Playfair Display", Georgia, serif;
+  font-weight:500; font-size:var(--t-h2); color:var(--ink);
+  min-width:0;
+}
+.section{ padding-block:clamp(64px,11vh,132px); }
+
+/* ---------- SERVICES ---------- */
+.services{
+  display:grid; gap:clamp(18px,2.4vw,34px);
+  grid-template-columns:repeat(3, minmax(0,1fr));
+}
+.svc{
+  position:relative; min-width:0;
+  padding:clamp(22px,2.6vw,34px) clamp(20px,2.4vw,30px) clamp(26px,3vw,38px);
+  background:var(--cream);
+  border:1px solid var(--cream-3);
+  border-radius:3px;
+  overflow:hidden;
+}
+.svc-head{ position:relative; overflow:hidden; padding-top:2px; }
+/* ink pool that recedes off the header on reveal */
+.svc-head::before{
+  content:""; position:absolute; inset:-6px -6px auto -6px; height:180%;
+  background:linear-gradient(180deg,var(--ink),#211d18);
+  transform-origin:top; transform:scaleY(1);
+  transition:transform .9s var(--ease-pour);
+  transition-delay:var(--d,0s);
+  filter:url(#liquid-a);
+}
+.reveal.in .svc-head::before{ transform:scaleY(0); }
+.svc .no{
+  font-family:"IBM Plex Mono", ui-monospace, monospace;
+  font-size:var(--t-mono); letter-spacing:.2em; color:var(--gold-d);
+}
+.svc h3{
+  font-family:"Playfair Display", Georgia, serif; font-weight:500;
+  font-size:var(--t-h3); color:var(--ink);
+  margin:.35em 0 .5em; min-width:0;
+}
+.svc p{ color:var(--ink-soft); font-size:.98rem; line-height:1.56; }
+.svc::after{
+  content:""; position:absolute; left:0; top:0; bottom:0; width:2px;
+  background:linear-gradient(180deg,var(--gold-l),var(--gold-d));
+  transform:scaleY(0); transform-origin:top;
+  transition:transform .7s var(--ease-ink) .2s;
+}
+.reveal.in .svc::after{ transform:scaleY(1); }
+
+/* ---------- SELECTED WORK (feature presentation) ---------- */
+.feature{ display:grid; grid-template-columns:1.15fr .85fr; gap:clamp(24px,4vw,60px); align-items:center; }
+.case{ position:relative; min-width:0; }
+.case-media{
+  position:relative;
+  aspect-ratio:16/10;
+  background:#100d0b;
+  border-radius:3px;
+  overflow:hidden;
+  display:grid; place-items:center;
+}
+.case-media img{ width:100%; height:100%; object-fit:contain; display:block; }
+.case-media::after{ /* inner ink vignette */
+  content:""; position:absolute; inset:0; pointer-events:none;
+  box-shadow:inset 0 0 60px rgba(16,13,11,.55);
+}
+/* ink corner frames (rippled by liquid-b on hover) */
+.case-frame{ position:absolute; inset:-6px; pointer-events:none; z-index:2; }
+.case-frame svg{ width:100%; height:100%; display:block; filter:url(#liquid-b); }
+.ripple{
+  position:absolute; z-index:3; left:var(--rx,50%); top:var(--ry,50%);
+  width:16px; height:16px; margin:-8px 0 0 -8px; border-radius:50%;
+  pointer-events:none; opacity:0;
+  background:radial-gradient(circle, rgba(26,22,19,.32) 0%, rgba(26,22,19,.14) 40%, rgba(26,22,19,0) 70%);
+}
+.ripple.go{ animation:ripple .9s var(--ease-ink); }
+.case-cap{
+  margin-top:.9em;
+  font-family:"IBM Plex Mono", ui-monospace, monospace;
+  font-size:var(--t-mono); letter-spacing:.14em; color:var(--ink-faint);
+}
+.case-body h3{
+  font-family:"Playfair Display", Georgia, serif; font-weight:500;
+  font-size:var(--t-h2); color:var(--ink); margin-bottom:.4em; min-width:0;
+}
+.case-body .kicker{ color:var(--gold-d); }
+.case-body p{ color:var(--ink-soft); max-width:42ch; }
+.case-status{
+  margin-top:1.4em; display:inline-flex; align-items:center; gap:.6em;
+  font-family:"IBM Plex Mono", ui-monospace, monospace;
+  font-size:var(--t-mono); letter-spacing:.16em; text-transform:uppercase; color:var(--ink);
+}
+.case-status .blot{ width:9px; height:9px; border-radius:50%; background:var(--gold); filter:url(#liquid-a); }
+
+/* ---------- APPROACH (end credits) ---------- */
+.approach-note{ text-align:center; margin-bottom:clamp(30px,5vh,58px); }
+.approach-note .mono-label{ color:var(--gold-d); }
+.credits-roll{ max-width:720px; margin:0 auto; display:flex; flex-direction:column; gap:clamp(26px,4vh,46px); }
+.credit-line{ display:flex; gap:clamp(14px,2.4vw,30px); align-items:baseline; min-width:0; }
+.credit-line .blot{
+  flex:0 0 auto; width:12px; height:12px; margin-top:.35em;
+  border-radius:50%; background:var(--ink); filter:url(#liquid-a);
+}
+.credit-line .roman{
+  flex:0 0 auto;
+  font-family:"IBM Plex Mono", ui-monospace, monospace;
+  font-size:var(--t-mono); letter-spacing:.16em; color:var(--gold-d);
+  width:2.4em;
+}
+.credit-line .text{ min-width:0; }
+.credit-line h3{
+  font-family:"Playfair Display", Georgia, serif; font-weight:500;
+  font-size:var(--t-h3); color:var(--ink); margin-bottom:.2em; min-width:0;
+}
+.credit-line p{ color:var(--ink-soft); }
+
+/* ---------- ABOUT ---------- */
+.about{ display:grid; grid-template-columns:.8fr 1.2fr; gap:clamp(24px,5vw,72px); align-items:start; }
+.about .mono-label{ color:var(--gold-d); }
+.about-body{ min-width:0; }
+.about-body p{
+  font-family:"Playfair Display", Georgia, serif; font-weight:500;
+  font-size:clamp(1.2rem,1rem+1vw,1.7rem); line-height:1.5; color:var(--ink);
+  max-width:var(--measure);
+}
+
+/* ---------- CONTACT / FIN ---------- */
+.fin{ text-align:center; padding-block:clamp(70px,13vh,150px); }
+.fin-card{ display:inline-flex; flex-direction:column; align-items:center; gap:clamp(18px,3vh,30px); min-width:0; max-width:100%; }
+.fin-mark{ position:relative; width:clamp(56px,9vw,92px); height:clamp(56px,9vw,92px); display:grid; place-items:center; filter:drop-shadow(0 6px 8px rgba(26,22,19,.32)); }
+.fin-mark .star{ width:80%; height:80%; z-index:2; }
+.fin-mark .crown{ position:absolute; inset:-34%; opacity:.4; }
+.fin-line{
+  font-family:"IBM Plex Mono", ui-monospace, monospace;
+  font-size:clamp(1rem,.9rem+.6vw,1.35rem); letter-spacing:.16em; color:var(--ink);
+  word-break:break-word;
+}
+.fin-line .fin-word{ color:var(--gold-d); letter-spacing:.3em; }
+.fin a{ color:var(--ink); text-decoration:none; border-bottom:1px solid rgba(168,128,47,.5); }
+.fin a:hover{ border-color:var(--gold); }
+.fin a:focus-visible{ outline:2px solid var(--gold); outline-offset:3px; }
+.fin-cta{ margin-top:.4em; }
+.fin-loc{ color:var(--ink-faint); font-family:"IBM Plex Mono", ui-monospace, monospace; font-size:var(--t-mono); letter-spacing:.24em; text-transform:uppercase; }
+
+/* ---------- DEDICATION (Thai) + FOOTER ---------- */
+.dedication{
+  text-align:center; padding:clamp(40px,7vh,80px) var(--gutter);
+  border-top:1px solid var(--cream-3);
+}
+.dedication .ded-label{
+  font-family:"IBM Plex Mono", ui-monospace, monospace;
+  font-size:.68rem; letter-spacing:.34em; text-transform:uppercase; color:var(--ink-faint);
+  margin-bottom:1em;
+}
+.dedication .thai{
+  font-family:"Noto Serif Thai", serif; font-weight:400;
+  font-size:clamp(1.1rem,.95rem+.9vw,1.6rem);
+  line-height:1.5; color:var(--ink); max-width:34ch; margin:0 auto;
+}
+
+.footer{
+  padding:clamp(40px,6vh,72px) var(--gutter) clamp(40px,6vh,64px) var(--content-l);
+  max-width:1160px; margin:0 auto;
+  display:flex; align-items:center; gap:clamp(18px,3vw,40px); flex-wrap:wrap;
+  border-top:1px solid var(--cream-3);
+}
+.footer .brand{ display:flex; align-items:center; gap:.8em; min-width:0; }
+.foot-star{ width:24px; height:24px; flex:0 0 auto; }
+.footer .fw{
+  font-family:"Playfair Display", Georgia, serif; font-weight:600;
+  letter-spacing:.22em; color:var(--ink); font-size:1rem;
+}
+.footer .meta{ margin-left:auto; text-align:right; min-width:0; }
+.footer .meta div{
+  font-family:"IBM Plex Mono", ui-monospace, monospace;
+  font-size:var(--t-mono); letter-spacing:.12em; color:var(--ink-faint); line-height:1.9;
+}
+.footer .slate{ color:var(--gold-d); }
+
+/* ============================================================
+   INTRO CHOREOGRAPHY (plays once; base CSS == rest state)
+   ============================================================ */
+.playing .flood{ animation:floodPour var(--intro) var(--ease-pour) both; }
+.playing .pool{ animation:poolRise var(--intro) var(--ease-ink) both; }
+.playing .wordmark{ animation:wordReveal var(--intro) var(--ease-ink) both; }
+.playing .droplet{ animation:dropLand var(--intro) var(--ease-ink) both; }
+.playing .crown-burst{ animation:crownBurst var(--intro) var(--ease-ink) both; }
+.playing .credits{ animation:fadeUp var(--intro) var(--ease-ink) both; }
+.playing .lede{ animation:fadeUp var(--intro) var(--ease-ink) both; }
+.playing .cta{ animation:fadeUp var(--intro) var(--ease-ink) both; }
+
+@keyframes floodPour{
+  0%{ transform:translateY(-145%); }
+  16%{ transform:translateY(-94%); }
+  34%{ transform:translateY(-2%); }
+  50%{ transform:translateY(0); }
+  100%{ transform:translateY(126%); }
+}
+@keyframes wordReveal{
+  0%,50%{ clip-path:inset(0 0 100% 0); opacity:1; }
+  86%,100%{ clip-path:inset(0 0 0 0); opacity:1; }
+}
+@keyframes poolRise{
+  0%,32%{ opacity:0; transform:translateY(46%); }
+  70%,100%{ opacity:1; transform:translateY(0); }
+}
+@keyframes dropLand{
+  0%,52%{ transform:translateY(-190%) scale(.55); opacity:0; }
+  66%{ opacity:1; }
+  74%{ transform:translateY(9%) scale(1.08); opacity:1; }
+  84%{ transform:translateY(-3%) scale(.98); }
+  100%{ transform:translateY(0) scale(1); opacity:1; }
+}
+@keyframes crownBurst{
+  0%,58%{ opacity:0; transform:scale(.35); }
+  72%{ opacity:.85; transform:scale(1.15); }
+  90%,100%{ opacity:0; transform:scale(1.55); }
+}
+@keyframes fadeUp{
+  0%,64%{ opacity:0; transform:translateY(14px); }
+  90%,100%{ opacity:1; transform:translateY(0); }
+}
+@keyframes ripple{
+  0%{ opacity:.9; transform:scale(0); }
+  100%{ opacity:0; transform:scale(9); }
+}
+
+/* ============================================================
+   MOBILE (<= 640px): one runnel, cards stack, rail preserved
+   ============================================================ */
+@media (max-width:900px){
+  .feature{ grid-template-columns:1fr; }
+  .about{ grid-template-columns:1fr; gap:clamp(14px,3vh,24px); }
+  .services{ grid-template-columns:1fr; }
+}
+@media (max-width:640px){
+  :root{ --content-l: calc(var(--rail-x) + 16px); --gutter:20px; }
+  .flood .finger.f1, .flood .finger.f3{ display:none; }  /* one runnel on phones */
+  .lockup{ gap:12px; }
+  .lede{ max-width:none; }
+  .hero-top .filmline{ display:none; }
+  .footer{ flex-direction:column; align-items:flex-start; gap:16px; }
+  .footer .meta{ margin-left:0; text-align:left; }
+}
+
+/* ============================================================
+   REDUCED MOTION - everything at rest, no pours, no rAF, full rail
+   ============================================================ */
+@media (prefers-reduced-motion:reduce){
+  :root{ --p:1; }
+  *,*::before,*::after{ animation:none !important; transition:none !important; }
+  .flood{ display:none; }
+  .pool{ opacity:1; transform:none; }
+  .wordmark{ clip-path:none; }
+  .droplet{ transform:none; opacity:1; }
+  .reveal{ opacity:1; clip-path:none; }
+  .svc-head::before{ transform:scaleY(0); }
+  .svc::after{ transform:scaleY(1); }
+  .rail-smear{ filter:none; }
+}
+</style>
+</head>
+<body>
+
+<!-- =========================================================
+     INK ENGINE: exactly two SVG turbulence filters + goo.
+     liquid-a = the ink body (pour, pool, smear, blots).
+     liquid-b = the interactive ripple on the case frame.
+     Plus the reusable vesper star as a <symbol>.
+     ========================================================= -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <filter id="liquid-a" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.011 0.018" numOctaves="2" seed="7" result="noise">
+        <animate id="floodWobble" attributeName="scale" begin="indefinite"/>
+      </feTurbulence>
+      <feDisplacementMap id="dispA" in="SourceGraphic" in2="noise" scale="6" xChannelSelector="R" yChannelSelector="G" result="disp"/>
+      <feGaussianBlur in="disp" stdDeviation="2.4" result="soft"/>
+      <feColorMatrix in="soft" type="matrix"
+        values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 24 -10" result="goo"/>
+      <feComposite in="disp" in2="goo" operator="atop"/>
+    </filter>
+
+    <filter id="liquid-b" x="-25%" y="-25%" width="150%" height="150%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.02 0.03" numOctaves="2" seed="3" result="n2"/>
+      <feDisplacementMap id="dispB" in="SourceGraphic" in2="n2" scale="0" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
+    <linearGradient id="poolGloss" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#fffdf8" stop-opacity="0"/>
+      <stop offset=".45" stop-color="#fffdf8" stop-opacity=".9"/>
+      <stop offset="1" stop-color="#fffdf8" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Vesperwerk mark: eight-point vesper star, two-facet antique gold -->
+    <symbol id="vstar" viewBox="0 0 200 200">
+      <g transform="translate(100,100)">
+        <g>
+          <polygon points="0,-86 -11,0 0,0" fill="#c09a4a"/>
+          <polygon points="0,-86 11,0 0,0" fill="#8a6526"/>
+        </g>
+        <g transform="rotate(180)">
+          <polygon points="0,-86 -11,0 0,0" fill="#8a6526"/>
+          <polygon points="0,-86 11,0 0,0" fill="#c09a4a"/>
+        </g>
+        <g transform="rotate(90)">
+          <polygon points="0,-64 -9.5,0 0,0" fill="#c09a4a"/>
+          <polygon points="0,-64 9.5,0 0,0" fill="#8a6526"/>
+        </g>
+        <g transform="rotate(270)">
+          <polygon points="0,-64 -9.5,0 0,0" fill="#8a6526"/>
+          <polygon points="0,-64 9.5,0 0,0" fill="#c09a4a"/>
+        </g>
+        <g transform="rotate(45)">
+          <polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/>
+          <polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/>
+        </g>
+        <g transform="rotate(135)">
+          <polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/>
+          <polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/>
+        </g>
+        <g transform="rotate(225)">
+          <polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/>
+          <polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/>
+        </g>
+        <g transform="rotate(315)">
+          <polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/>
+          <polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/>
+        </g>
+      </g>
+    </symbol>
+
+    <!-- splash crown geometry, reused static + burst -->
+    <g id="crownGeo" fill="#c09a4a">
+      <ellipse cx="50" cy="6" rx="2.6" ry="5"/>
+      <ellipse cx="72" cy="12" rx="2" ry="3.6" transform="rotate(28 72 12)"/>
+      <ellipse cx="88" cy="30" rx="2.2" ry="4" transform="rotate(56 88 30)"/>
+      <ellipse cx="94" cy="52" rx="1.8" ry="3.4" transform="rotate(88 94 52)"/>
+      <ellipse cx="84" cy="74" rx="2" ry="3.6" transform="rotate(122 84 74)"/>
+      <ellipse cx="28" cy="12" rx="2" ry="3.6" transform="rotate(-28 28 12)"/>
+      <ellipse cx="12" cy="30" rx="2.2" ry="4" transform="rotate(-56 12 30)"/>
+      <ellipse cx="6" cy="52" rx="1.8" ry="3.4" transform="rotate(-88 6 52)"/>
+      <ellipse cx="16" cy="74" rx="2" ry="3.6" transform="rotate(-122 16 74)"/>
+    </g>
+  </defs>
+</svg>
+
+<!-- ===================== THE INK RAIL ===================== -->
+<div class="rail" aria-hidden="true">
+  <div class="rail-track"></div>
+  <div class="rail-smear"></div>
+  <div class="rail-gloss"></div>
+  <div class="rail-drop"><svg class="mini-star"><use href="#vstar"/></svg></div>
+</div>
+
+<main>
+<!-- ===================== HERO / TITLE CARD ===================== -->
+<header class="hero">
+  <div class="hero-top">
+    <span class="mono-label" id="reel-slug">Reel 01 . Main Titles</span>
+    <span class="filmline"></span>
+  </div>
+
+  <div class="titleband">
+    <div class="flood">
+      <svg viewBox="0 0 120 145" preserveAspectRatio="none">
+        <g filter="url(#liquid-a)" fill="#1a1613">
+          <rect x="-8" y="-10" width="136" height="116"/>
+          <path class="finger f1" d="M24 100 c6 0 7.5 9 7.5 21 c0 11 -2.5 21 -7.5 21 c-5 0 -7.5 -10 -7.5 -21 c0 -12 1.5 -21 7.5 -21z"/>
+          <path class="finger f2" d="M60 102 c7 0 8.5 13 8.5 27 c0 12 -3.5 15 -8.5 15 c-5 0 -8.5 -3 -8.5 -15 c0 -14 1.5 -27 8.5 -27z"/>
+          <path class="finger f3" d="M96 100 c6 0 7 8 7 19 c0 9 -2 18 -7 18 c-5 0 -7 -9 -7 -18 c0 -11 1 -19 7 -19z"/>
+        </g>
+      </svg>
+    </div>
+
+    <div class="pool">
+      <svg viewBox="0 0 120 60" preserveAspectRatio="none">
+        <g filter="url(#liquid-a)">
+          <path fill="#1a1613" d="M-4 15 C 12 4 22 7 34 13 C 46 19 55 8 68 11 C 82 14 92 23 104 15 C 112 9 118 13 124 11 L124 64 L-4 64 Z"/>
+        </g>
+        <path fill="none" stroke="url(#poolGloss)" stroke-width="3.2" opacity=".9"
+              d="M-4 17 C 12 6 22 9 34 15 C 46 21 55 10 68 13 C 82 16 92 25 104 17 C 112 11 118 15 124 13"/>
+      </svg>
+      <span class="pool-gloss"></span>
+    </div>
+
+    <div class="lockup">
+      <h1 class="wordmark">VESPERWERK</h1>
+      <button class="droplet" id="droplet" type="button" aria-label="Replay the ink title sequence">
+        <span class="crown" aria-hidden="true">
+          <svg viewBox="0 0 100 100">
+            <use class="crown-static" href="#crownGeo"/>
+            <use class="crown-burst" href="#crownGeo"/>
+          </svg>
+        </span>
+        <svg class="star" aria-hidden="true"><use href="#vstar"/></svg>
+        <span class="gloss" aria-hidden="true"></span>
+      </button>
+    </div>
+  </div>
+
+  <p class="credits" id="credits">A VESPERWERK PRODUCTION . BANGKOK</p>
+  <p class="lede" id="lede"></p>
+  <div class="cta">
+    <a class="btn btn-solid" href="#contact" id="cta1"></a>
+    <a class="btn btn-line" href="#work" id="cta2"></a>
+  </div>
+</header>
+
+<!-- ===================== SERVICES ===================== -->
+<section class="section reveal" id="services">
+  <div class="wrap">
+    <div class="slate-head">
+      <span class="idx">Reel 02</span>
+      <h2>Services</h2>
+    </div>
+    <div class="services" id="services-grid"></div>
+  </div>
+</section>
+
+<!-- ===================== SELECTED WORK ===================== -->
+<section class="section reveal" id="work">
+  <div class="wrap">
+    <div class="slate-head">
+      <span class="idx">Reel 03</span>
+      <h2>The Feature Presentation</h2>
+    </div>
+    <div class="feature">
+      <div class="case" id="case">
+        <div class="case-media">
+          <img src="../assets/flux-clinic-4k.png" alt="A calm mint and wood dental clinic interior, the setting for the Yimwhan AI assistant" loading="lazy" decoding="async">
+          <div class="case-frame" aria-hidden="true">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+              <g fill="none" stroke="#1a1613" stroke-width="1.6">
+                <path d="M2 14 L2 2 L14 2"/>
+                <path d="M98 14 L98 2 L86 2"/>
+                <path d="M2 86 L2 98 L14 98"/>
+                <path d="M98 86 L98 98 L86 98"/>
+              </g>
+            </svg>
+          </div>
+          <span class="ripple" id="ripple" aria-hidden="true"></span>
+        </div>
+        <p class="case-cap" id="case-cap">Yimwhan AI . voice + LINE assistant . in production</p>
+      </div>
+      <div class="case-body">
+        <h3><span class="kicker" id="work-kicker">Selected Work</span><br><span id="work-title">Yimwhan AI</span></h3>
+        <p id="work-body"></p>
+        <span class="case-status"><span class="blot"></span><span id="work-status">In production at live clinics</span></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== APPROACH (END CREDITS) ===================== -->
+<section class="section reveal" id="approach">
+  <div class="wrap">
+    <div class="approach-note">
+      <span class="mono-label">The Approach . End Credits</span>
+    </div>
+    <div class="credits-roll" id="credits-roll"></div>
+  </div>
+</section>
+
+<!-- ===================== ABOUT ===================== -->
+<section class="section reveal" id="about">
+  <div class="wrap">
+    <div class="about">
+      <div><span class="mono-label">The Studio</span></div>
+      <div class="about-body"><p id="about-body"></p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== CONTACT / FIN ===================== -->
+<section class="fin reveal" id="contact">
+  <div class="wrap">
+    <div class="fin-card">
+      <div class="fin-mark" aria-hidden="true">
+        <span class="crown"><svg viewBox="0 0 100 100"><use class="crown-static" href="#crownGeo"/></svg></span>
+        <svg class="star"><use href="#vstar"/></svg>
+      </div>
+      <p class="fin-line"><span class="fin-word">FIN</span> . <a href="mailto:kittipong.k@vesperwerk.com" id="fin-email">kittipong.k@vesperwerk.com</a></p>
+      <a class="btn btn-solid fin-cta" href="mailto:kittipong.k@vesperwerk.com" id="fin-cta"></a>
+      <p class="fin-loc" id="fin-loc">Bangkok, Thailand</p>
+    </div>
+  </div>
+</section>
+</main>
+
+<!-- ===================== DEDICATION (THAI) ===================== -->
+<div class="dedication">
+  <div class="ded-label">Dedication</div>
+  <p class="thai" id="dedication" lang="th">ดาวประจำเมือง : แสงแรกที่ใช้นำทางยามค่ำ</p>
+</div>
+
+<!-- ===================== FOOTER ===================== -->
+<footer class="footer">
+  <div class="brand">
+    <svg class="foot-star"><use href="#vstar"/></svg>
+    <span class="fw">VESPERWERK</span>
+  </div>
+  <div class="meta">
+    <div id="foot-loc">Bangkok, Thailand</div>
+    <div id="foot-copy">(c) 2026 Vesperwerk</div>
+    <div class="slate mono" id="foot-slate">ink: svg turbulence x2 . no webgl . one droplet</div>
+  </div>
+</footer>
+
+<script>
+/* =========================================================
+   DATA - swap these to reskin the whole title sequence.
+   Copy mirrors the Vesperwerk canonical brand spec.
+   ========================================================= */
+const DATA = {
+  hero: {
+    reel: "Reel 01 . Main Titles",
+    credits: "A VESPERWERK PRODUCTION . BANGKOK",
+    lede: "An independent software and AI studio. We architect, build, and operate production systems for businesses that cannot afford them to fail.",
+    ctaPrimary: "Start a conversation",
+    ctaSecondary: "See our work"
+  },
+  services: [
+    { no:"01", title:"AI Systems", body:"Voice agents, LLM assistants, and the evaluation infrastructure that keeps them honest. AI that answers like your best employee, in production, around the clock." },
+    { no:"02", title:"Product Engineering", body:"Full-stack product engineering from architecture to operations: event-driven backends, modern web frontends, and infrastructure that scales without drama." },
+    { no:"03", title:"Commerce and Platforms", body:"Deep Shopify and LINE platform work: storefronts, admin apps, integrations, and the messaging rails Southeast Asian commerce runs on." }
+  ],
+  work: {
+    kicker:"Selected Work",
+    title:"Yimwhan AI",
+    caption:"Yimwhan AI . voice + LINE assistant . in production",
+    body:"An AI voice and LINE assistant for dental clinics in Thailand. It answers after-hours calls, books and reschedules appointments, and hands off to staff the moment a human matters. In production at live clinics.",
+    status:"In production at live clinics"
+  },
+  approach: [
+    { roman:"I", title:"Architecture first", body:"We design the system before we write the code." },
+    { roman:"II", title:"Production-worthy", body:"Demos impress; production endures. We build for the second one." },
+    { roman:"III", title:"Scope discipline", body:"The most valuable thing we tell clients is what not to build." },
+    { roman:"IV", title:"Senior hands", body:"No juniors learning on your budget. Founder-led, senior hands on every line." }
+  ],
+  about: "Vesperwerk takes its name from the evening star: the first light you can navigate by. We are a founder-led studio in Bangkok building software for businesses across Asia and beyond.",
+  contact: { email:"kittipong.k@vesperwerk.com", cta:"Start a conversation", location:"Bangkok, Thailand" },
+  dedication: "ดาวประจำเมือง : แสงแรกที่ใช้นำทางยามค่ำ",
+  footer: { location:"Bangkok, Thailand", copyright:"(c) 2026 Vesperwerk", slate:"ink: svg turbulence x2 . no webgl . one droplet" }
+};
+
+/* =========================================================
+   HYDRATE - render DATA into the authored shell.
+   ========================================================= */
+(function hydrate(){
+  const $ = (s)=>document.querySelector(s);
+  const set = (s,v)=>{ const el=$(s); if(el) el.textContent=v; };
+
+  set('#reel-slug', DATA.hero.reel);
+  set('#credits', DATA.hero.credits);
+  set('#lede', DATA.hero.lede);
+  set('#cta1', DATA.hero.ctaPrimary);
+  set('#cta2', DATA.hero.ctaSecondary);
+
+  const sg = $('#services-grid');
+  if(sg){
+    sg.innerHTML = DATA.services.map((s,i)=>`
+      <article class="svc" style="--d:${(i*0.14).toFixed(2)}s">
+        <div class="svc-head"><span class="no">${s.no}</span><h3>${s.title}</h3></div>
+        <p>${s.body}</p>
+      </article>`).join('');
+  }
+
+  set('#work-kicker', DATA.work.kicker);
+  set('#work-title', DATA.work.title);
+  set('#case-cap', DATA.work.caption);
+  set('#work-body', DATA.work.body);
+  set('#work-status', DATA.work.status);
+
+  const cr = $('#credits-roll');
+  if(cr){
+    cr.innerHTML = DATA.approach.map(a=>`
+      <div class="credit-line">
+        <span class="blot"></span>
+        <span class="roman">${a.roman}</span>
+        <span class="text"><h3>${a.title}</h3><p>${a.body}</p></span>
+      </div>`).join('');
+  }
+
+  set('#about-body', DATA.about);
+  const fe=$('#fin-email'); if(fe){ fe.textContent=DATA.contact.email; fe.href='mailto:'+DATA.contact.email; }
+  const fc=$('#fin-cta'); if(fc){ fc.textContent=DATA.contact.cta; fc.href='mailto:'+DATA.contact.email; }
+  set('#fin-loc', DATA.contact.location);
+  $('#dedication').textContent = DATA.dedication;
+  set('#foot-loc', DATA.footer.location);
+  set('#foot-copy', DATA.footer.copyright);
+  set('#foot-slate', DATA.footer.slate);
+})();
+
+/* =========================================================
+   MOTION - all gated on prefers-reduced-motion.
+   ========================================================= */
+const reduceMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
+const stage = document.body;
+
+/* ---- entrance ritual + signature replay ---- */
+const floodWobble = document.getElementById('floodWobble');
+function triggerLiquid(fast){
+  if(!floodWobble || reduceMQ.matches) return;
+  const dur = (fast ? 1.15 : 2.35);
+  // scale swells while the ink is pouring, then settles to its resting edge
+  floodWobble.setAttribute('values', '6; 15; 9; 6');
+  floodWobble.setAttribute('keyTimes', '0; 0.34; 0.6; 1');
+  floodWobble.setAttribute('dur', dur + 's');
+  floodWobble.setAttribute('fill', 'freeze');
+  try{ floodWobble.beginElement(); }catch(e){}
+}
+function playIntro(fast){
+  if(reduceMQ.matches) return;
+  stage.classList.remove('playing','fast');
+  void stage.offsetWidth;               // reflow so the animation restarts
+  if(fast) stage.classList.add('fast');
+  stage.classList.add('playing');
+  triggerLiquid(fast);
+}
+// .fast halves the intro clock => the replay pours at 2x
+const fastStyle = document.createElement('style');
+fastStyle.textContent = '.fast{ --mul:0.5 }';
+document.head.appendChild(fastStyle);
+
+if(!reduceMQ.matches){
+  requestAnimationFrame(()=> playIntro(false));
+}
+
+/* droplet star = replay the pour (mouse + keyboard) */
+const droplet = document.getElementById('droplet');
+if(droplet){
+  droplet.addEventListener('click', ()=> playIntro(true));
+}
+
+/* ---- ink rail progress + section pour-ins, one scroll-driven frame ----
+   Scroll-driven (not IntersectionObserver) so content is never left hidden
+   in any browser or capture harness; the frame is rAF-throttled and only
+   runs on scroll / resize, never as a standing loop. */
+const root = document.documentElement;
+const reveals = [...document.querySelectorAll('.reveal')];
+let ticking = false;
+function updateRail(){
+  const max = document.documentElement.scrollHeight - window.innerHeight;
+  let p = max > 0 ? window.scrollY / max : 0;
+  p = 0.06 + Math.max(0, Math.min(1, p)) * 0.94;   // keep the smear visible at scroll=0
+  root.style.setProperty('--p', p.toFixed(4));
+}
+function revealInView(){
+  const trigger = window.innerHeight * 0.86;
+  for(const el of reveals){
+    if(!el.classList.contains('in') && el.getBoundingClientRect().top < trigger){
+      el.classList.add('in');
+    }
+  }
+}
+function onFrame(){ updateRail(); revealInView(); ticking = false; }
+if(reduceMQ.matches){
+  reveals.forEach(el=> el.classList.add('in'));   // rest state, all sections shown
+} else {
+  window.addEventListener('scroll', ()=>{ if(!ticking){ ticking = true; requestAnimationFrame(onFrame); } }, { passive:true });
+  window.addEventListener('resize', ()=>{ if(!ticking){ ticking = true; requestAnimationFrame(onFrame); } }, { passive:true });
+  onFrame();   // reveal whatever is already in the first viewport
+}
+
+/* ---- case card: ink ripples out from the cursor ---- */
+const caseEl = document.getElementById('case');
+const ripple = document.getElementById('ripple');
+const dispB = document.getElementById('dispB');
+let bScale = 0, bRAF = 0;
+function decayB(){
+  bScale *= 0.86;
+  if(bScale > 0.4){ dispB.setAttribute('scale', bScale.toFixed(2)); bRAF = requestAnimationFrame(decayB); }
+  else { dispB.setAttribute('scale', '0'); bRAF = 0; }
+}
+function bump(scale){
+  if(reduceMQ.matches) return;
+  bScale = scale;
+  if(!bRAF) bRAF = requestAnimationFrame(decayB);
+}
+let rippleThrottle = false;
+function fireRipple(x, y){
+  if(reduceMQ.matches || !ripple) return;
+  ripple.style.setProperty('--rx', x + 'px');
+  ripple.style.setProperty('--ry', y + 'px');
+  ripple.classList.remove('go'); void ripple.offsetWidth; ripple.classList.add('go');
+}
+if(caseEl){
+  caseEl.addEventListener('pointermove', (e)=>{
+    if(rippleThrottle) return; rippleThrottle = true;
+    setTimeout(()=> rippleThrottle = false, 90);
+    const r = caseEl.getBoundingClientRect();
+    fireRipple(e.clientX - r.left, e.clientY - r.top);
+    bump(14);
+  });
+  caseEl.addEventListener('pointerleave', ()=> bump(6));
+  // keyboard access: focusing the media ripples from its centre
+  const media = caseEl.querySelector('.case-media');
+  if(media){
+    media.tabIndex = 0;
+    media.setAttribute('role','img');
+    media.setAttribute('aria-label','Yimwhan AI clinic still. Focus to ripple the ink frame.');
+    media.addEventListener('focus', ()=>{ const r=caseEl.getBoundingClientRect(); fireRipple(r.width/2, r.height/2); bump(16); });
+  }
+}
+</script>
+</body>
+</html>

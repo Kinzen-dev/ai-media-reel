@@ -1,0 +1,890 @@
+<!-- TEMPLATE: Vesperwerk Atelier Plan | ARCHETYPE: isometric-cutaway-building-nav | REF: 2025-26 iso/axonometric web trend, ZHA spatial-motion, Blackbox scroll-layering | WHEN TO USE: studio / agency / portfolio site that wants a spatial, room-by-room navigation with an architectural drafting soul | SWAP: edit the DATA object at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vesperwerk . Atelier Plan 01</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Spectral:ital,wght@0,300;0,400;0,500;1,400&family=Space+Mono:wght@400;700&family=Noto+Serif+Thai:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --cream:#faf7f1; --paper:#f2ebdd; --ink:#2e2a26; --ink-soft:#6a6055;
+  --gold:#a8802f; --gold-lt:#c09a4a; --gold-dk:#8a6526; --sage:#7f8d6f;
+  --line:#2e2a26;
+  --sheet-pad: clamp(14px, 3vw, 34px);
+  --mono:"Space Mono", ui-monospace, monospace;
+  --serif:"Spectral", Georgia, serif;
+  --display:"Playfair Display", Georgia, serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+html{background:var(--cream)}
+body{
+  font-family:var(--serif); color:var(--ink); background:var(--cream);
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+}
+img,svg{max-width:100%}
+a{color:inherit}
+::selection{background:rgba(168,128,47,.22)}
+
+/* ---------- paper ground ---------- */
+.grain{
+  position:fixed; inset:0; z-index:0; pointer-events:none;
+  background:
+    radial-gradient(120% 90% at 50% -10%, #fffdf8 0%, var(--cream) 42%, #f1e9da 100%);
+}
+.grain::after{
+  content:""; position:absolute; inset:0; opacity:.5; mix-blend-mode:multiply;
+  background-image:
+    repeating-linear-gradient(90deg, rgba(46,42,38,.028) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(0deg, rgba(46,42,38,.028) 0 1px, transparent 1px 3px);
+  background-size:52px 52px;
+}
+
+/* ---------- header ---------- */
+header{
+  position:fixed; top:0; left:0; right:0; z-index:40;
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:14px clamp(14px,3vw,30px);
+  pointer-events:none;
+}
+header > *{pointer-events:auto}
+.brand{display:flex; align-items:center; gap:11px; min-width:0}
+.brand .mk{width:26px; height:26px; flex:0 0 auto; display:block; filter:drop-shadow(0 1px 0 rgba(255,255,255,.6))}
+.wordmark{
+  font-family:var(--display); font-weight:600; letter-spacing:.22em;
+  font-size:clamp(13px,1.5vw,16px); color:var(--ink); white-space:nowrap;
+}
+.hdr-right{display:flex; align-items:center; gap:14px}
+.hdr-tag{font-family:var(--mono); font-size:10px; letter-spacing:.24em; color:var(--ink-soft); text-transform:uppercase; white-space:nowrap}
+.plan-btn{
+  font-family:var(--mono); font-size:11px; letter-spacing:.18em; text-transform:uppercase;
+  border:1px solid var(--ink); background:transparent; color:var(--ink);
+  padding:7px 14px; border-radius:2px; cursor:pointer; white-space:nowrap;
+  display:inline-flex; align-items:center; gap:7px;
+  opacity:0; transform:translateY(-6px); transition:opacity .35s, transform .35s, background .2s, color .2s;
+  pointer-events:none;
+}
+.plan-btn .dot{width:6px; height:6px; border-radius:50%; background:var(--gold); display:inline-block}
+body.zoomed .plan-btn{opacity:1; transform:none; pointer-events:auto}
+.plan-btn:hover,.plan-btn:focus-visible{background:var(--ink); color:var(--cream)}
+.plan-btn:focus-visible{outline:2px solid var(--gold); outline-offset:2px}
+
+/* ---------- scroller / stage ---------- */
+.scroller{position:relative; z-index:1}
+.stage{
+  position:sticky; top:0; height:100vh; height:100dvh; overflow:hidden;
+  display:flex; align-items:stretch;
+}
+.sheet{
+  position:absolute; inset:clamp(10px,2.2vw,26px); z-index:1; pointer-events:none;
+  border:1px solid rgba(46,42,38,.5);
+}
+.sheet::before,.sheet::after{content:""; position:absolute; width:16px; height:16px; border:1px solid rgba(46,42,38,.55)}
+.sheet::before{top:-1px; left:-1px; border-right:none; border-bottom:none}
+.sheet::after{bottom:-1px; right:-1px; border-left:none; border-top:none}
+.tick{position:absolute; z-index:1; pointer-events:none; font-family:var(--mono); font-size:9px; letter-spacing:.2em; color:var(--ink-soft)}
+
+.frame{
+  position:relative; z-index:2;
+  flex:1 1 auto; min-width:0; display:flex; align-items:stretch;
+  padding:clamp(52px,7vh,86px) clamp(14px,3vw,34px) clamp(14px,3vw,34px);
+}
+
+/* the drawing column */
+.stagewrap{flex:1 1 60%; min-width:0; position:relative; display:flex; overflow:hidden}
+.svgwrap{flex:1 1 auto; min-width:0; position:relative; contain:layout style paint}
+svg.plan-svg{width:100%; height:100%; display:block; overflow:visible; will-change:transform}
+
+/* geometry classes */
+/* silhouette planes carry the heavy ink; interior furniture stays hairline (figure-ground) */
+.floor{fill:url(#hatch); stroke:var(--ink); stroke-width:1.5}
+.slab{fill:rgba(242,235,221,.85); stroke:var(--ink); stroke-width:1.5}
+.wall{fill:rgba(46,42,38,.045); stroke:var(--ink); stroke-width:1.6; transition:fill .35s, stroke .35s}
+.wall.side{fill:rgba(46,42,38,.07)}
+.roofface{fill:rgba(168,128,47,.09); stroke:var(--ink); stroke-width:1.5}
+.ln{stroke:var(--ink); stroke-width:.85; fill:none; stroke-linecap:round; stroke-linejoin:round}
+.ln.thin{stroke-width:.6; opacity:.8}
+.ln.heavy{stroke-width:1.9}
+.ln.gold{stroke:var(--gold); stroke-width:1.2}
+/* gold callout leaders from each plaque to the room it names */
+.leader{stroke:var(--gold); stroke-width:.75; fill:none; stroke-linecap:round; opacity:.55; pointer-events:none}
+.leader-dot{fill:var(--gold); opacity:.7; pointer-events:none}
+.fillw{fill:var(--cream); stroke:var(--ink); stroke-width:.65}
+.fillp{fill:var(--paper); stroke:var(--ink); stroke-width:.65}
+.light{opacity:0}
+.light,.occ,.photo-cap,.walker{pointer-events:none}
+.wave{stroke:var(--gold-dk); stroke-width:1.4; fill:none; stroke-linecap:round; stroke-linejoin:round; pointer-events:none}
+.led{fill:var(--gold)}
+.occ{opacity:0}
+.photo-frame{fill:#fffef9; stroke:var(--ink); stroke-width:1.4}
+.photo-cap{font-family:var(--mono); font-size:7px; letter-spacing:.14em; fill:var(--ink-soft); opacity:0; transition:opacity .4s ease}
+.room.active .photo-cap{opacity:1}
+.walker circle{fill:var(--ink)}
+
+/* room geometry: hover-brighten only (clicks handled by the plaque overlay) */
+.room{cursor:pointer; outline:none}
+.room:hover .wall,.room.hovered .wall,.room.active .wall{fill:rgba(168,128,47,.13); stroke:var(--gold-dk)}
+.room.active .occ{opacity:1}
+.room.active .light{opacity:1 !important}
+/* plaques: authoritative, always-on-top interactive targets */
+#plaques{animation:fadein .7s ease .5s both}
+@keyframes fadein{from{opacity:0} to{opacity:1}}
+.plaque-r{fill:url(#brass); stroke:var(--gold-dk); stroke-width:.8}
+.plaque-t{font-family:var(--mono); font-size:8px; letter-spacing:.12em; fill:#2a2418; font-weight:700; pointer-events:none}
+.occdot{fill:var(--sage); opacity:0; transition:opacity .3s ease; pointer-events:none}
+.room-hit{cursor:pointer; outline:none}
+.room-hit .plaque-lift{transition:transform .3s ease}
+.room-hit:hover .plaque-lift,.room-hit:focus-visible .plaque-lift,.room-hit.active .plaque-lift{transform:translateY(-6px)}
+.room-hit.active .occdot{opacity:1}
+.room-hit:focus-visible .plaque-r{stroke:var(--gold); stroke-width:2.6}
+
+/* finial star */
+.finial{transform-box:fill-box; transform-origin:center}
+.glint{fill:#fff; opacity:0}
+
+/* title block */
+.titleblock{
+  position:absolute; left:clamp(22px,3.2vw,42px); bottom:clamp(22px,3.2vw,42px); z-index:6;
+  width:min(300px, 62vw); border:1px solid var(--ink); background:rgba(250,247,241,.82);
+  backdrop-filter:blur(2px); padding:12px 14px; pointer-events:none;
+}
+.titleblock .tb-row{display:flex; justify-content:space-between; gap:10px; font-family:var(--mono); font-size:9.5px; letter-spacing:.14em; color:var(--ink-soft); text-transform:uppercase; padding:3px 0; border-bottom:1px dotted rgba(46,42,38,.3)}
+.titleblock .tb-row:last-child{border-bottom:none}
+.titleblock .tb-row b{color:var(--ink); font-weight:700}
+.titleblock .motto{font-family:"Noto Serif Thai", var(--serif); font-size:13px; line-height:1.42; color:var(--ink); padding-top:9px; letter-spacing:normal}
+.titleblock .colophon{font-family:var(--mono); font-size:8px; letter-spacing:.1em; color:var(--ink-soft); padding-top:8px; line-height:1.5}
+
+/* ---------- panel column ---------- */
+.panelwrap{
+  flex:0 0 min(400px, 37%); min-width:0; position:relative;
+  margin-left:clamp(14px,2vw,30px);
+}
+@media (min-width:821px){
+  .panelwrap::before{
+    content:""; position:absolute; top:-24%; bottom:-24%; left:-26px; right:-44px; z-index:-1;
+    background:linear-gradient(90deg, rgba(250,247,241,0), rgba(250,247,241,.9) 34%, rgba(250,247,241,.97));
+    pointer-events:none;
+  }
+}
+.panel{
+  position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center;
+  gap:16px; overflow:auto; padding:6px 4px 6px 0;
+  opacity:0; visibility:hidden; transform:translateY(14px);
+  transition:opacity .5s ease, transform .5s ease, visibility .5s;
+}
+.panel.on{opacity:1; visibility:visible; transform:none}
+.eyebrow{font-family:var(--mono); font-size:10.5px; letter-spacing:.28em; text-transform:uppercase; color:var(--gold-dk); display:flex; align-items:center; gap:9px}
+.eyebrow .no{border:1px solid var(--gold-dk); border-radius:50%; width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; font-size:9px; color:var(--gold-dk)}
+/* hero drafting rule: same cartouche language as the title-block so the two text zones read as one sheet */
+.hero-rule{display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding-bottom:9px; border-bottom:1px solid var(--ink); font-family:var(--mono); font-size:9.5px; letter-spacing:.2em; text-transform:uppercase; color:var(--ink-soft)}
+.hero-rule b{color:var(--ink); font-weight:700}
+.p-word{font-family:var(--display); font-weight:600; letter-spacing:.2em; font-size:clamp(22px,3vw,30px); line-height:1}
+.p-title{font-family:var(--display); font-weight:500; font-size:clamp(24px,3.2vw,34px); line-height:1.08; letter-spacing:.01em}
+.p-lead{font-size:clamp(15px,1.5vw,17.5px); line-height:1.5; color:var(--ink); max-width:42ch}
+.p-body{font-size:clamp(14px,1.4vw,16px); line-height:1.6; color:var(--ink-soft); max-width:44ch}
+.p-th{font-family:"Noto Serif Thai", var(--serif); font-size:15px; line-height:1.45; color:var(--gold-dk)}
+.cta-row{display:flex; flex-wrap:wrap; gap:12px; padding-top:4px}
+.btn{
+  font-family:var(--mono); font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+  padding:12px 20px; border-radius:2px; cursor:pointer; border:1px solid var(--ink);
+  display:inline-flex; align-items:center; gap:9px; text-decoration:none; background:transparent; color:var(--ink);
+  transition:background .2s, color .2s, transform .2s;
+}
+.btn.solid{background:var(--ink); color:var(--cream)}
+.btn.solid:hover,.btn.solid:focus-visible{background:var(--gold-dk); border-color:var(--gold-dk)}
+.btn.ghost:hover,.btn.ghost:focus-visible{background:var(--ink); color:var(--cream)}
+.btn:focus-visible{outline:2px solid var(--gold); outline-offset:2px}
+.return{align-self:flex-start; margin-top:2px; font-family:var(--mono); font-size:11px; letter-spacing:.16em; text-transform:uppercase; background:transparent; border:1px solid var(--ink); color:var(--ink); padding:9px 15px; border-radius:2px; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:background .2s,color .2s}
+.return:hover,.return:focus-visible{background:var(--ink); color:var(--cream)}
+.return:focus-visible{outline:2px solid var(--gold); outline-offset:2px}
+.return .ar{font-size:13px}
+
+/* approach list inside panel */
+.principles{display:flex; flex-direction:column; gap:14px}
+.principle{display:flex; gap:12px; align-items:flex-start}
+.principle .rn{font-family:var(--mono); font-size:11px; color:var(--gold-dk); letter-spacing:.1em; padding-top:3px; flex:0 0 24px}
+.principle .pt{font-family:var(--display); font-weight:500; font-size:17px; line-height:1.15}
+.principle .pc{font-size:13.5px; line-height:1.5; color:var(--ink-soft); margin-top:2px}
+
+/* contact plaque echo */
+.email-plaque{
+  display:inline-flex; align-items:center; gap:10px; align-self:flex-start;
+  font-family:var(--mono); letter-spacing:.06em; font-size:clamp(13px,1.5vw,16px);
+  background:linear-gradient(160deg, #d8b866, #a8802f 55%, #8a6526);
+  color:#241d10; padding:11px 16px; border-radius:2px; text-decoration:none;
+  border:1px solid var(--gold-dk); box-shadow:inset 0 1px 0 rgba(255,255,255,.35), 0 2px 6px rgba(46,42,38,.2);
+  transition:transform .2s;
+}
+.email-plaque:hover,.email-plaque:focus-visible{transform:translateY(-2px)}
+.email-plaque:focus-visible{outline:2px solid var(--ink); outline-offset:2px}
+.email-plaque .dot{width:7px; height:7px; border-radius:50%; background:#241d10}
+
+/* ---------- approach margin notes overlay ---------- */
+.notes{position:absolute; inset:0; z-index:5; pointer-events:none; opacity:0; transition:opacity .5s ease}
+body[data-room="approach"] .notes{opacity:1}
+.note{
+  position:absolute; width:min(190px,42vw); font-size:12px; line-height:1.4;
+  color:var(--ink); font-family:var(--serif);
+}
+.note .nn{font-family:var(--mono); font-size:10px; letter-spacing:.18em; color:var(--gold-dk); display:block; margin-bottom:3px}
+.note .lead{position:absolute; background:var(--gold-dk); height:1px}
+.note.n1{left:6%; top:20%}
+.note.n2{right:6%; top:16%; text-align:right}
+.note.n3{left:6%; bottom:20%}
+.note.n4{right:6%; bottom:22%; text-align:right}
+.note.n1 .lead{right:-42px; top:12px; width:40px; transform-origin:left; transform:rotate(18deg)}
+.note.n2 .lead{left:-42px; top:12px; width:40px; transform-origin:right; transform:rotate(-18deg)}
+.note.n3 .lead{right:-42px; top:12px; width:40px; transform-origin:left; transform:rotate(-18deg)}
+.note.n4 .lead{left:-42px; top:12px; width:40px; transform-origin:right; transform:rotate(18deg)}
+
+/* ---------- triggers ---------- */
+.trigger{height:68vh; pointer-events:none}
+.trigger:first-child{height:40vh}
+
+/* ---------- footer ---------- */
+footer{
+  position:relative; z-index:1; background:var(--ink); color:var(--cream);
+  padding:clamp(46px,8vw,90px) clamp(20px,5vw,80px);
+}
+.foot-in{max-width:1080px; margin:0 auto; display:flex; flex-wrap:wrap; gap:34px; justify-content:space-between; align-items:flex-start}
+.foot-brand{display:flex; align-items:center; gap:14px; min-width:0}
+.foot-brand .mk{width:36px; height:36px; flex:0 0 auto}
+.foot-word{font-family:var(--display); font-weight:600; letter-spacing:.24em; font-size:22px}
+.foot-about{max-width:46ch; font-size:14.5px; line-height:1.6; color:#d8cfbf}
+.foot-meta{font-family:var(--mono); font-size:11px; letter-spacing:.16em; color:#b7ac99; text-transform:uppercase; line-height:2}
+.foot-meta a{color:var(--gold-lt); text-decoration:none}
+.foot-star{font-family:"Noto Serif Thai", var(--serif); font-size:14px; line-height:1.45; color:#c9bda8; margin-top:10px}
+
+/* ---------- entrance ritual ---------- */
+.layer{animation:rise .62s cubic-bezier(.2,.7,.2,1) both}
+@keyframes rise{from{opacity:0; transform:translateY(16px)} to{opacity:1; transform:none}}
+.light{animation:warm 1s ease both}
+@keyframes warm{from{opacity:0} to{opacity:var(--lit,.85)}}
+.finial{animation:none}
+.glint{animation:glint 2.4s ease-in-out .1s 1 both}
+@keyframes glint{0%,55%{opacity:0} 66%{opacity:.9} 80%,100%{opacity:0}}
+.walker{animation:walk 13s ease-in-out infinite}
+@keyframes walk{0%{transform:translate(0,0)} 46%{transform:translate(150px,20px)} 50%{transform:translate(150px,20px)} 96%{transform:translate(0,0)} 100%{transform:translate(0,0)}}
+#sway{animation:sway 22s steps(48) infinite; transform-origin:center}
+@keyframes sway{0%,100%{transform:rotate(-1.1deg)} 50%{transform:rotate(1.1deg)}}
+body.zoomed #sway{animation-play-state:paused; transform:rotate(0deg)}
+#camera{transition:transform .72s cubic-bezier(.62,.02,.2,1); will-change:transform}
+#sway{will-change:transform}
+
+/* light breathing on lit pools (not active) */
+.breathe{animation:breathe 6s ease-in-out infinite}
+@keyframes breathe{0%,100%{opacity:var(--lit,.85)} 50%{opacity:calc(var(--lit,.85) * .6)}}
+
+/* ---------- mobile ---------- */
+@media (max-width:820px){
+  .frame{flex-direction:column; padding:clamp(96px,15vh,120px) 12px calc(min(44vh,320px) + 22px)}
+  .stagewrap{flex:1 1 auto; min-height:0}
+  .panelwrap{
+    flex:0 0 auto; margin-left:0; position:absolute; left:12px; right:12px; bottom:12px;
+    height:min(44vh, 320px); z-index:8;
+    background:rgba(250,247,241,.95); backdrop-filter:blur(4px);
+    border:1px solid var(--ink); border-radius:4px; box-shadow:0 6px 26px rgba(46,42,38,.18);
+  }
+  .panel{padding:16px 16px; justify-content:flex-start}
+  .p-lead{max-width:none}
+  .p-body{max-width:none}
+  .titleblock{
+    left:12px; right:12px; bottom:auto; top:clamp(48px,8vh,64px); width:auto;
+    display:flex; flex-wrap:wrap; align-items:center; gap:4px 12px; padding:7px 11px;
+  }
+  .titleblock .tb-row{border-bottom:none; padding:0; font-size:8.5px}
+  .titleblock .motto{padding-top:0; font-size:11px; flex-basis:100%}
+  .titleblock .colophon{display:none}
+  .svgwrap{min-height:0}
+  .notes .note{width:min(150px,40vw); font-size:11px}
+  .note.n1{top:14%} .note.n2{top:12%} .note.n3{bottom:52%} .note.n4{bottom:54%}
+}
+@media (max-width:560px){
+  .foot-in{flex-direction:column}
+  .hdr-tag{display:none}
+}
+
+/* ---------- reduced motion ---------- */
+@media (prefers-reduced-motion:reduce){
+  *{scroll-behavior:auto !important}
+  .layer{animation:none !important; opacity:1 !important; transform:none !important}
+  .light{animation:none !important; opacity:var(--lit,.85) !important}
+  .breathe{animation:none !important}
+  .glint{animation:none !important; opacity:0 !important}
+  .walker{animation:none !important; opacity:0 !important}
+  #sway{animation:none !important; transform:none !important}
+  #camera{transition:none !important}
+  .panel{transition:none !important}
+  .plan-btn{transition:none !important}
+  #plaques{animation:none !important; opacity:1 !important}
+  .room-hit .plaque-lift{transition:none !important}
+  .notes{transition:none !important}
+}
+</style>
+</head>
+<body data-room="plan">
+<div class="grain" aria-hidden="true"></div>
+
+<header>
+  <div class="brand">
+    <span class="mk" id="hdr-star" aria-hidden="true"></span>
+    <span class="wordmark">VESPERWERK</span>
+  </div>
+  <div class="hdr-right">
+    <span class="hdr-tag">Atelier . Plan 01</span>
+    <button class="plan-btn" id="planBtn" aria-label="Return to full plan view"><span class="dot"></span>Plan</button>
+  </div>
+</header>
+
+<main>
+  <div class="scroller" id="scroller">
+    <section class="stage" aria-label="The Vesperwerk atelier, an isometric plan you enter room by room">
+      <div class="sheet" aria-hidden="true"></div>
+      <span class="tick" style="top:calc(clamp(10px,2.2vw,26px) + 8px); left:50%; transform:translateX(-50%)">N</span>
+      <span class="tick" style="bottom:calc(clamp(10px,2.2vw,26px) + 8px); right:calc(clamp(10px,2.2vw,26px) + 14px)">VW . 01</span>
+
+      <div class="frame">
+        <div class="stagewrap">
+          <div class="svgwrap">
+            <svg class="plan-svg" id="svg" role="img" aria-label="Cutaway isometric line drawing of the Vesperwerk atelier">
+              <defs>
+                <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                  <line x1="0" y1="0" x2="0" y2="7" stroke="#2e2a26" stroke-width="0.5" opacity="0.28"/>
+                </pattern>
+                <linearGradient id="brass" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#e0c079"/><stop offset="0.5" stop-color="#c09a4a"/><stop offset="1" stop-color="#8a6526"/>
+                </linearGradient>
+                <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+                  <stop offset="0" stop-color="#e7b74f" stop-opacity="0.85"/>
+                  <stop offset="0.55" stop-color="#cf9a34" stop-opacity="0.4"/>
+                  <stop offset="1" stop-color="#cf9a34" stop-opacity="0"/>
+                </radialGradient>
+                <radialGradient id="glowsage" cx="0.5" cy="0.5" r="0.5">
+                  <stop offset="0" stop-color="#9fb08b" stop-opacity="0.75"/>
+                  <stop offset="1" stop-color="#7f8d6f" stop-opacity="0"/>
+                </radialGradient>
+              </defs>
+              <g id="sway"><g id="camera"><g id="plan"></g></g></g>
+            </svg>
+          </div>
+
+          <!-- approach margin notes overlay -->
+          <div class="notes" id="notes" aria-hidden="true">
+            <div class="note n1"><span class="nn">i . foundation</span><span id="note1">Architecture first. We design the system before we write the code.</span><span class="lead"></span></div>
+            <div class="note n2"><span class="nn">ii . structure</span><span id="note2">Production-worthy. Demos impress; production endures. We build for the second one.</span><span class="lead"></span></div>
+            <div class="note n3"><span class="nn">iii . the void</span><span id="note3">Scope discipline. The most valuable thing we tell clients is what not to build.</span><span class="lead"></span></div>
+            <div class="note n4"><span class="nn">iv . the finial</span><span id="note4">Senior hands. Founder-led, senior hands on every line.</span><span class="lead"></span></div>
+          </div>
+        </div>
+
+        <div class="panelwrap" id="panelwrap"></div>
+      </div>
+
+      <!-- title block -->
+      <div class="titleblock" aria-hidden="true">
+        <div class="tb-row"><span>Atelier VW</span><b>Plan 01</b></div>
+        <div class="tb-row"><span id="tb-rooms">6 Rooms</span><b>Scale 1:50</b></div>
+        <div class="motto" id="motto"></div>
+        <div class="colophon" id="colophon"></div>
+      </div>
+    </section>
+
+    <!-- scroll triggers: one per camera state -->
+    <div class="trigger" data-room="plan"></div>
+    <div class="trigger" data-room="ai"></div>
+    <div class="trigger" data-room="product"></div>
+    <div class="trigger" data-room="commerce"></div>
+    <div class="trigger" data-room="yimwhan"></div>
+    <div class="trigger" data-room="approach"></div>
+    <div class="trigger" data-room="contact"></div>
+  </div>
+
+  <footer>
+    <div class="foot-in">
+      <div style="min-width:0">
+        <div class="foot-brand">
+          <span class="mk" id="foot-star" aria-hidden="true"></span>
+          <span class="foot-word">VESPERWERK</span>
+        </div>
+        <p class="foot-about" id="foot-about"></p>
+        <p class="foot-star" id="foot-motto"></p>
+      </div>
+      <div class="foot-meta">
+        <div>Bangkok, Thailand</div>
+        <div><a id="foot-mail" href="#">email</a></div>
+        <div id="foot-copy">(c) 2026 Vesperwerk</div>
+      </div>
+    </div>
+  </footer>
+</main>
+
+<script>
+/* =========================================================================
+   DATA  -  edit here to reskin the studio. Copy mirrors the Vesperwerk brand.
+   ========================================================================= */
+const DATA = {
+  wordmark:"VESPERWERK",
+  positioning:"An independent software and AI studio. We architect, build, and operate production systems for businesses that cannot afford them to fail.",
+  cta1:"Start a conversation",
+  cta2:"See our work",
+  motto_th:"ดาวประจำเมือง : แสงแรกที่ใช้นำทางยามค่ำ",
+  drafting_rooms:"6 Rooms",
+  colophon:"building is svg linework . no 3d engine . the little person is 2 dots",
+  rooms:[
+    { id:"ai", no:"01", name:"AI Systems", plaque:"AI SYSTEMS",
+      copy:"Voice agents, LLM assistants, and the evaluation infrastructure that keeps them honest. AI that answers like your best employee, in production, around the clock." },
+    { id:"product", no:"02", name:"Product Engineering", plaque:"PRODUCT ENG",
+      copy:"Full-stack product engineering from architecture to operations: event-driven backends, modern web frontends, and infrastructure that scales without drama." },
+    { id:"commerce", no:"03", name:"Commerce and Platforms", plaque:"COMMERCE",
+      copy:"Deep Shopify and LINE platform work: storefronts, admin apps, integrations, and the messaging rails Southeast Asian commerce runs on." }
+  ],
+  work:{ no:"04", label:"Selected Work", name:"Yimwhan AI",
+    copy:"An AI voice and LINE assistant for dental clinics in Thailand. It answers after-hours calls, books and reschedules appointments, and hands off to staff the moment a human matters. In production at live clinics.",
+    img:"../assets/flux-clinic-4k.png", caption:"SITE PHOTOGRAPH . YIMWHAN CLINIC" },
+  approach:[
+    { rn:"i", title:"Architecture first", copy:"We design the system before we write the code." },
+    { rn:"ii", title:"Production-worthy", copy:"Demos impress; production endures. We build for the second one." },
+    { rn:"iii", title:"Scope discipline", copy:"The most valuable thing we tell clients is what not to build." },
+    { rn:"iv", title:"Senior hands", copy:"No juniors learning on your budget. Founder-led, senior hands on every line." }
+  ],
+  about:"Vesperwerk takes its name from the evening star: the first light you can navigate by. We are a founder-led studio in Bangkok building software for businesses across Asia and beyond.",
+  email:"kittipong.k@vesperwerk.com",
+  city:"Bangkok, Thailand",
+  footer:"(c) 2026 Vesperwerk"
+};
+
+/* =========================================================================
+   Vesper star markup (inlined from ../assets/vesperwerk-star.svg, facets kept)
+   ========================================================================= */
+function starMarkup(){
+  return `<svg viewBox="0 0 200 200" width="100%" height="100%" aria-hidden="true">
+    <g transform="translate(100,100)">
+      <g><polygon points="0,-86 -11,0 0,0" fill="#c09a4a"/><polygon points="0,-86 11,0 0,0" fill="#8a6526"/></g>
+      <g transform="rotate(180)"><polygon points="0,-86 -11,0 0,0" fill="#8a6526"/><polygon points="0,-86 11,0 0,0" fill="#c09a4a"/></g>
+      <g transform="rotate(90)"><polygon points="0,-64 -9.5,0 0,0" fill="#c09a4a"/><polygon points="0,-64 9.5,0 0,0" fill="#8a6526"/></g>
+      <g transform="rotate(270)"><polygon points="0,-64 -9.5,0 0,0" fill="#8a6526"/><polygon points="0,-64 9.5,0 0,0" fill="#c09a4a"/></g>
+      <g transform="rotate(45)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g>
+      <g transform="rotate(135)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g>
+      <g transform="rotate(225)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g>
+      <g transform="rotate(315)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g>
+    </g></svg>`;
+}
+
+/* =========================================================================
+   Isometric projection helpers
+   ========================================================================= */
+const U = 24, CA = Math.cos(Math.PI/6), SA = Math.sin(Math.PI/6);
+function P(x,y,z){ return { x:(x - y)*CA*U, y:((x + y)*SA - z)*U }; }
+function pts(list){ return list.map(p=>{ const q=P(p[0],p[1],p[2]); return q.x.toFixed(1)+","+q.y.toFixed(1); }).join(" "); }
+function poly(list, cls, extra=""){ return `<polygon class="${cls}" points="${pts(list)}" ${extra}/>`; }
+function polyl(list, cls, extra=""){ return `<polyline class="${cls}" points="${pts(list)}" ${extra}/>`; }
+function ln(a,b,cls="ln"){ const A=P(...a),B=P(...b); return `<line class="${cls}" x1="${A.x.toFixed(1)}" y1="${A.y.toFixed(1)}" x2="${B.x.toFixed(1)}" y2="${B.y.toFixed(1)}"/>`; }
+function ell(x,y,z,rx,ry,cls,extra=""){ const q=P(x,y,z); return `<ellipse class="${cls}" cx="${q.x.toFixed(1)}" cy="${q.y.toFixed(1)}" rx="${rx}" ry="${ry}" ${extra}/>`; }
+function dot(x,y,z,r,cls){ const q=P(x,y,z); return `<circle class="${cls}" cx="${q.x.toFixed(1)}" cy="${q.y.toFixed(1)}" r="${r}"/>`; }
+
+/* a floor slab (rhombus) at height z */
+function slab(x,y,z,w,d,cls="floor"){
+  return poly([[x,y,z],[x+w,y,z],[x+w,y+d,z],[x,y+d,z]], cls);
+}
+/* two back walls of a room (planes y=y0 and x=x0), open toward +x/+y (viewer) */
+function backWalls(x,y,z,w,d,h){
+  const wy = poly([[x,y,z],[x+w,y,z],[x+w,y,z+h],[x,y,z+h]], "wall");       // plane y=const (behind-left)
+  const wx = poly([[x,y,z],[x,y+d,z],[x,y+d,z+h],[x,y,z+h]], "wall side");   // plane x=const (behind-right)
+  return wy+wx;
+}
+/* light pool ellipse projected on a floor */
+function lightPool(x,y,z,rx,ry,lit=0.85,cls="light breathe",grad="glow"){
+  const q=P(x,y,z);
+  return `<ellipse class="${cls}" cx="${q.x.toFixed(1)}" cy="${q.y.toFixed(1)}" rx="${rx}" ry="${ry}" fill="url(#${grad})" style="--lit:${lit}"/>`;
+}
+/* an iso box (used for furniture): returns 3 visible faces + edges */
+function box(x,y,z,w,d,h,opts={}){
+  const top = poly([[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]], opts.top||"fillp");
+  const fx  = poly([[x+w,y,z],[x+w,y+d,z],[x+w,y+d,z+h],[x+w,y,z+h]], opts.side||"fillp"); // x=+ face (front-right)
+  const fy  = poly([[x,y+d,z],[x+w,y+d,z],[x+w,y+d,z+h],[x,y+d,z+h]], opts.side||"fillp"); // y=+ face (front-left)
+  return fx+fy+top;
+}
+/* brass plaque at a doorway: interactive, rendered in a TOP overlay layer so it is
+   never covered by another room's geometry (reliable, non-overlapping click target) */
+function plaqueEl(room, x,y,z, label, aria, tx,ty,tz){
+  const q = P(x,y,z);
+  const t = P(tx,ty,tz);
+  const w=Math.max(30, label.length*5.4+18), h=15;
+  return `<g class="plaque room-hit" data-room="${room}" tabindex="0" role="button" aria-label="${aria}">
+    <line class="leader" x1="${q.x.toFixed(1)}" y1="${q.y.toFixed(1)}" x2="${t.x.toFixed(1)}" y2="${t.y.toFixed(1)}"/>
+    <circle class="leader-dot" cx="${t.x.toFixed(1)}" cy="${t.y.toFixed(1)}" r="1.9"/>
+    <g class="plaque-lift">
+      <rect class="plaque-r" x="${(q.x-w/2).toFixed(1)}" y="${(q.y-h).toFixed(1)}" width="${w.toFixed(1)}" height="${h}" rx="1.5"/>
+      <circle class="occdot" cx="${(q.x-w/2+5.5).toFixed(1)}" cy="${(q.y-h/2).toFixed(1)}" r="2.4"/>
+      <text class="plaque-t" x="${(q.x+3).toFixed(1)}" y="${(q.y-4.5).toFixed(1)}" text-anchor="middle">${label}</text>
+    </g>
+  </g>`;
+}
+/* small sage "occupied" indicator disc for the active room */
+function occ(x,y,z,r=13){
+  const q=P(x,y,z);
+  return `<circle class="occ" cx="${q.x.toFixed(1)}" cy="${q.y.toFixed(1)}" r="${r}" fill="url(#glowsage)"/>`;
+}
+
+/* =========================================================================
+   Build the atelier
+   ========================================================================= */
+const roomMeta = {}; // id -> {cx,cy,cz,scale}  (centroids in raw iso coords)
+
+function buildPlan(){
+  let g = "";
+  const plaqueSpecs = [];
+
+  /* ---- LEAN-TO / rear addition (left) : Yimwhan clinic ---- */
+  const L = {x:-2.7,y:1.2,w:2.7,d:3.4,h:2.3};
+  let lean = `<g class="layer" style="animation-delay:0s">`;
+  lean += slab(L.x,L.y,0,L.w,L.d);
+  lean += lightPool(L.x+L.w*0.5, L.y+L.d*0.5, 0.02, 30,17, 0.7);
+  lean += occ(L.x+L.w*0.5, L.y+L.d*0.5, 0.02, 15);
+  // mono-pitch roof rising toward the house (x = L.x+L.w side higher)
+  const lh2 = L.h+0.9;
+  lean += backWalls(L.x,L.y,0,L.w,L.d,L.h);
+  lean += poly([[L.x,L.y,L.h],[L.x+L.w,L.y,lh2],[L.x+L.w,L.y+L.d,lh2],[L.x,L.y+L.d,L.h]], "roofface"); // sloped roof
+  lean += ln([L.x,L.y,L.h],[L.x,L.y+L.d,L.h],"ln heavy");
+  lean += ln([L.x+L.w,L.y,lh2],[L.x+L.w,L.y+L.d,lh2],"ln heavy");
+  // clinic diorama: dental-chair hint
+  lean += box(L.x+0.5, L.y+2.1, 0, 0.9,1.0,0.45,{}); // chair base
+  lean += box(L.x+0.55, L.y+1.5, 0.45, 0.8,0.7,0.5,{}); // reclined seat block
+  lean += box(L.x+0.55, L.y+2.7, 0.45, 0.8,0.4,0.28,{}); // footrest
+  lean += ln([L.x+1.5,L.y+2.4,0.9],[L.x+1.9,L.y+2.1,1.5],"ln thin"); // lamp arm
+  lean += dot(L.x+1.95,L.y+2.05,1.55,3,"led");           // lamp head
+  // pinned site photograph (upright, letterboxed, sits against the raised wall)
+  const ph = P(L.x+L.w-0.1, L.y+0.15, 1.55);
+  const pw=64, phh=44;
+  lean += `<g>
+    <rect class="photo-frame" x="${(ph.x-pw/2).toFixed(1)}" y="${(ph.y-phh).toFixed(1)}" width="${pw}" height="${phh}" rx="2"/>
+    <clipPath id="clipPhoto"><rect x="${(ph.x-pw/2+3).toFixed(1)}" y="${(ph.y-phh+3).toFixed(1)}" width="${pw-6}" height="${phh-6}"/></clipPath>
+    <image href="${DATA.work.img}" x="${(ph.x-pw/2+3).toFixed(1)}" y="${(ph.y-phh+3).toFixed(1)}" width="${pw-6}" height="${phh-6}" preserveAspectRatio="xMidYMid slice" clip-path="url(#clipPhoto)"/>
+    <circle cx="${ph.x.toFixed(1)}" cy="${(ph.y-phh-3).toFixed(1)}" r="2.4" fill="#8a6526"/>
+    <text class="photo-cap" x="${ph.x.toFixed(1)}" y="${(ph.y+9).toFixed(1)}" text-anchor="middle">${DATA.work.caption}</text>
+  </g>`;
+  lean += `</g>`;
+  g += `<g class="room" data-room="yimwhan">${lean}</g>`;
+  plaqueSpecs.push({room:'yimwhan', x:L.x+L.w*0.5, y:L.y+L.d+0.05, z:0.02, label:'YIMWHAN', aria:'Open the Yimwhan room, selected work', cx:L.x+L.w*0.5, cy:L.y+L.d*0.5, cz:0.05});
+  roomMeta.yimwhan = {cx:L.x+L.w*0.5, cy:L.y+L.d*0.5, cz:1.1, scale:1.7};
+
+  /* ---- GROUND FLOOR shell (drawn under the two rooms) ---- */
+  const G = {x:0,y:0,w:8.4,d:5.4,h:3.0};
+  let ground = `<g class="layer" style="animation-delay:.14s">`;
+  ground += slab(G.x,G.y,0,G.w,G.d);
+  ground += `</g>`;
+  g += ground;
+
+  /* ---- AI room (ground-left) ---- */
+  const AI = {x:0,y:0,w:4.2,d:5.4,h:3.0};
+  let ai = `<g class="layer" style="animation-delay:.2s">`;
+  ai += lightPool(AI.x+2.1, AI.y+2.7, 0.02, 40,23, 0.9);
+  ai += occ(AI.x+2.1, AI.y+2.7, 0.02, 20);
+  ai += backWalls(AI.x,AI.y,0,AI.w,AI.d,AI.h);
+  // waveform desk
+  ai += box(0.7,0.7,0,1.7,0.8,0.9,{}); // desk
+  ai += ln([0.7,0.7,0],[0.7,0.7,0.9]); ai += ln([2.4,0.7,0],[2.4,0.7,0.9]);
+  // monitor panel with a gold waveform
+  const mx0=0.95, mx1=2.15, mz0=1.0, mz1=1.75, my=0.72;
+  ai += poly([[mx0,my,mz0],[mx1,my,mz0],[mx1,my,mz1],[mx0,my,mz1]], "fillw");
+  let wf=[]; const N=16;
+  for(let i=0;i<=N;i++){ const t=i/N; const amp=[.5,.9,.35,.75,.55,.95,.4,.7,.6,1,.45,.8,.5,.85,.4,.6,.5][i]; wf.push([mx0+(mx1-mx0)*t, my-0.01, mz0+0.12+(mz1-mz0-0.24)*amp]); }
+  ai += polyl(wf, "wave");
+  ai += `</g>`;
+  g += `<g class="room" data-room="ai">${ai}</g>`;
+  plaqueSpecs.push({room:'ai', x:AI.x+2.1, y:AI.y+AI.d+0.05, z:0.02, label:'AI SYSTEMS', aria:'Open the AI Systems room', cx:AI.x+2.1, cy:AI.y+2.7, cz:0.05});
+  roomMeta.ai = {cx:AI.x+2.1, cy:AI.y+2.7, cz:1.4, scale:1.95};
+
+  /* ---- Commerce room (ground-right) ---- */
+  const CO = {x:4.2,y:0,w:4.2,d:5.4,h:3.0};
+  let co = `<g class="layer" style="animation-delay:.26s">`;
+  co += lightPool(CO.x+2.1, CO.y+2.7, 0.02, 40,23, 0.9);
+  co += occ(CO.x+2.1, CO.y+2.7, 0.02, 20);
+  co += backWalls(CO.x,CO.y,0,CO.w,CO.d,CO.h);
+  // shelves on the back wall (x=4.2 plane -> lines along y)
+  for(let s=0;s<3;s++){ const zz=0.9+s*0.6; co += ln([4.25,0.6,zz],[4.25,2.4,zz],"ln thin"); }
+  // storefront counter near the front
+  co += box(5.4,3.4,0,2.4,0.85,1.0,{});
+  co += ln([5.4,3.4,1.0],[7.8,3.4,1.0]);
+  // awning above the counter (slanted stripe face)
+  co += poly([[5.4,3.2,1.85],[7.8,3.2,1.85],[7.8,3.9,1.45],[5.4,3.9,1.45]], "roofface");
+  for(let a=1;a<5;a++){ const tx=5.4+(7.8-5.4)*a/5; co += ln([tx,3.2,1.85],[tx,3.9,1.45],"ln thin"); }
+  // hanging sign
+  co += poly([[6.2,2.8,2.1],[7.0,2.8,2.1],[7.0,2.8,1.6],[6.2,2.8,1.6]], "fillw");
+  co += ln([6.6,2.8,2.6],[6.6,2.8,2.1],"ln thin");
+  co += `</g>`;
+  g += `<g class="room" data-room="commerce">${co}</g>`;
+  plaqueSpecs.push({room:'commerce', x:CO.x+2.1, y:CO.y+CO.d+0.05, z:0.02, label:'COMMERCE', aria:'Open the Commerce and Platforms room', cx:CO.x+2.1, cy:CO.y+2.7, cz:0.05});
+  roomMeta.commerce = {cx:CO.x+2.1, cy:CO.y+2.7, cz:1.4, scale:1.95};
+
+  /* ---- interior divider + stairs ---- */
+  let mid = `<g class="layer" style="animation-delay:.3s">`;
+  mid += poly([[4.2,0,0],[4.2,5.4,0],[4.2,5.4,3.0],[4.2,0,3.0]], "wall side");
+  // stairs against the divider on the commerce side (rise 0 -> 3)
+  const steps=7;
+  for(let i=0;i<steps;i++){ const z=i*(3.0/steps), yy=4.2-i*0.42; mid += box(4.3,yy,z,0.9,0.4,3.0/steps,{}); }
+  mid += `</g>`;
+  g += mid;
+
+  /* ---- UPPER FLOOR slab (ceiling of ground / floor of Product) ---- */
+  let up = `<g class="layer" style="animation-delay:.36s">`;
+  up += slab(0,0,3.0,8.4,5.4,"slab");
+  up += `</g>`;
+  g += up;
+
+  /* ---- Product room (upper) ---- */
+  const PR = {x:0,y:0,w:8.4,d:5.4,h:2.8,z:3.0};
+  let pr = `<g class="layer" style="animation-delay:.42s">`;
+  pr += lightPool(4.2, 2.7, 3.02, 66,34, 0.85);
+  pr += occ(4.2, 2.7, 3.02, 24);
+  pr += backWalls(PR.x,PR.y,PR.z,PR.w,PR.d,PR.h);
+  // pegboard on the back-left wall (y=0 plane), grid of ticks
+  for(let c=0;c<7;c++) for(let r2=0;r2<3;r2++){ const px=1+c*0.95, pz=PR.z+0.7+r2*0.55; pr += `<circle class="led" cx="${P(px,0.05,pz).x.toFixed(1)}" cy="${P(px,0.05,pz).y.toFixed(1)}" r="1"/>`; }
+  // long engineering bench
+  pr += box(1.4,1.0,PR.z,5.0,0.8,0.95,{});
+  pr += ln([1.4,1.0,PR.z+0.95],[6.4,1.0,PR.z+0.95]);
+  // server rack (stacked, gold LEDs)
+  pr += box(6.7,1.0,PR.z,1.0,0.8,1.9,{});
+  for(let s=0;s<4;s++){ const zz=PR.z+0.35+s*0.4; pr += ln([6.7,1.0,zz],[7.7,1.0,zz],"ln thin"); pr += dot(7.6,1.02,zz+0.12,1.2,"led"); }
+  pr += `</g>`;
+  g += `<g class="room" data-room="product">${pr}</g>`;
+  plaqueSpecs.push({room:'product', x:4.2, y:PR.d+0.05, z:PR.z+0.02, label:'PRODUCT ENG', aria:'Open the Product Engineering room', cx:4.2, cy:2.7, cz:PR.z+0.05});
+  roomMeta.product = {cx:4.2, cy:2.7, cz:PR.z+1.4, scale:1.75};
+
+  /* ---- ROOF + star finial ---- */
+  let roof = `<g class="layer" style="animation-delay:.5s">`;
+  const ez=5.8, rz=7.2, rx=4.2; // eave z, ridge z, ridge x
+  roof += poly([[0,0,ez],[0,5.4,ez],[rx,5.4,rz],[rx,0,rz]], "roofface");     // left slope
+  roof += poly([[8.4,0,ez],[8.4,5.4,ez],[rx,5.4,rz],[rx,0,rz]], "roofface"); // right slope
+  roof += poly([[0,0,ez],[8.4,0,ez],[rx,0,rz]], "roofface");                 // back gable
+  roof += poly([[0,5.4,ez],[8.4,5.4,ez],[rx,5.4,rz],[rx,5.4,rz]], "roofface"); // front gable (triangle)
+  roof += poly([[0,5.4,ez],[8.4,5.4,ez],[rx,5.4,rz]], "roofface");
+  roof += ln([rx,0,rz],[rx,5.4,rz],"ln heavy"); // ridge (silhouette)
+  roof += ln([0,0,ez],[0,5.4,ez],"ln heavy"); roof += ln([8.4,0,ez],[8.4,5.4,ez],"ln heavy"); // eaves (silhouette)
+  // finial post + star
+  const fp = P(rx,2.2,rz), ftop = P(rx,2.2,rz+0.9);
+  roof += `<line class="ln gold" x1="${fp.x.toFixed(1)}" y1="${fp.y.toFixed(1)}" x2="${ftop.x.toFixed(1)}" y2="${ftop.y.toFixed(1)}"/>`;
+  const fs = P(rx,2.2,rz+1.35), k=0.22;
+  roof += `<g class="finial" transform="translate(${fs.x.toFixed(1)},${fs.y.toFixed(1)}) scale(${k})">
+      <g><polygon points="0,-86 -11,0 0,0" fill="#c09a4a"/><polygon points="0,-86 11,0 0,0" fill="#8a6526"/></g>
+      <g transform="rotate(180)"><polygon points="0,-86 -11,0 0,0" fill="#8a6526"/><polygon points="0,-86 11,0 0,0" fill="#c09a4a"/></g>
+      <g transform="rotate(90)"><polygon points="0,-64 -9.5,0 0,0" fill="#c09a4a"/><polygon points="0,-64 9.5,0 0,0" fill="#8a6526"/></g>
+      <g transform="rotate(270)"><polygon points="0,-64 -9.5,0 0,0" fill="#8a6526"/><polygon points="0,-64 9.5,0 0,0" fill="#c09a4a"/></g>
+      <g transform="rotate(45)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g>
+      <g transform="rotate(135)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g>
+      <g transform="rotate(225)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g>
+      <g transform="rotate(315)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g>
+      <ellipse class="glint" cx="-3" cy="-40" rx="7" ry="20"/>
+    </g>`;
+  roof += `</g>`;
+  g += roof;
+
+  /* ---- corridor walker (two-dot person) ---- */
+  let walk = `<g class="walker" aria-hidden="true">`;
+  const w0 = P(1.4,4.9,0);
+  walk += `<circle cx="${w0.x.toFixed(1)}" cy="${(w0.y-16).toFixed(1)}" r="3"/>`;
+  walk += `<circle cx="${w0.x.toFixed(1)}" cy="${(w0.y-7).toFixed(1)}" r="4.4"/>`;
+  walk += `</g>`;
+  g += walk;
+
+  /* ---- GATEHOUSE (front) : contact ---- */
+  const GH = {x:3.0,y:6.4,w:2.4,d:2.0,h:2.3};
+  let gate = `<g class="layer" style="animation-delay:.58s">`;
+  gate += slab(GH.x,GH.y,0,GH.w,GH.d);
+  gate += lightPool(GH.x+GH.w*0.5, GH.y+GH.d*0.5, 0.02, 26,15, 0.75);
+  gate += occ(GH.x+GH.w*0.5, GH.y+GH.d*0.5, 0.02, 14);
+  gate += backWalls(GH.x,GH.y,0,GH.w,GH.d,GH.h);
+  // hip roof
+  const gez=GH.h, grz=GH.h+0.7, gcx=GH.x+GH.w/2, gcy=GH.y+GH.d/2;
+  gate += poly([[GH.x,GH.y,gez],[GH.x+GH.w,GH.y,gez],[gcx,gcy,grz]], "roofface");
+  gate += poly([[GH.x,GH.y,gez],[GH.x,GH.y+GH.d,gez],[gcx,gcy,grz]], "roofface");
+  gate += poly([[GH.x,GH.y+GH.d,gez],[GH.x+GH.w,GH.y+GH.d,gez],[gcx,gcy,grz]], "roofface");
+  gate += poly([[GH.x+GH.w,GH.y,gez],[GH.x+GH.w,GH.y+GH.d,gez],[gcx,gcy,grz]], "roofface");
+  // doorway opening hint
+  gate += poly([[GH.x+0.7,GH.y+GH.d,0],[GH.x+1.7,GH.y+GH.d,0],[GH.x+1.7,GH.y+GH.d,1.6],[GH.x+0.7,GH.y+GH.d,1.6]], "fillw");
+  gate += `</g>`;
+  g += `<g class="room" data-room="contact">${gate}</g>`;
+  plaqueSpecs.push({room:'contact', x:GH.x+GH.w*0.5, y:GH.y+GH.d+0.05, z:1.85, label:'CONTACT', aria:'Open the gatehouse, contact', cx:GH.x+GH.w*0.5, cy:GH.y+GH.d*0.5, cz:0.05});
+  roomMeta.contact = {cx:GH.x+GH.w*0.5, cy:GH.y+GH.d*0.5, cz:1.2, scale:1.9};
+
+  /* ---- PLAQUES overlay (top layer, always clickable) ---- */
+  let pg = '<g id="plaques">';
+  plaqueSpecs.forEach(s=> pg += plaqueEl(s.room, s.x, s.y, s.z, s.label, s.aria, s.cx, s.cy, s.cz));
+  pg += '</g>';
+  g += pg;
+
+  roomMeta.plan = {cx:4.2, cy:2.7, cz:2.6, scale:1};
+  roomMeta.approach = {cx:4.2, cy:2.7, cz:2.6, scale:1};
+
+  return g;
+}
+
+/* =========================================================================
+   Panels
+   ========================================================================= */
+function buildPanels(){
+  const pw = document.getElementById('panelwrap');
+  const svgStar = starMarkup();
+  let html = "";
+
+  // plan panel
+  html += `<div class="panel" data-room="plan">
+    <div class="hero-rule"><span>VW . Atelier</span><span><b>Plan 01</b> . Scale 1:50</span></div>
+    <div class="p-word">${DATA.wordmark}</div>
+    <p class="p-lead">${DATA.positioning}</p>
+    <p class="p-th">${DATA.motto_th}</p>
+    <div class="cta-row">
+      <a class="btn solid" href="mailto:${DATA.email}">${DATA.cta1}</a>
+      <button class="btn ghost" data-goto="yimwhan">${DATA.cta2}</button>
+    </div>
+  </div>`;
+
+  // service rooms
+  DATA.rooms.forEach((r,i)=>{
+    const next = DATA.rooms[i+1] ? DATA.rooms[i+1].id : 'yimwhan';
+    html += `<div class="panel" data-room="${r.id}">
+      <div class="eyebrow"><span class="no">${r.no}</span> ${r.name}</div>
+      <div class="p-title">${r.name}</div>
+      <p class="p-body">${r.copy}</p>
+      <button class="return" data-goto="plan"><span class="ar">&#8592;</span> Plan</button>
+    </div>`;
+  });
+
+  // yimwhan
+  html += `<div class="panel" data-room="yimwhan">
+    <div class="eyebrow"><span class="no">${DATA.work.no}</span> ${DATA.work.label}</div>
+    <div class="p-title">${DATA.work.name}</div>
+    <p class="p-body">${DATA.work.copy}</p>
+    <button class="return" data-goto="plan"><span class="ar">&#8592;</span> Plan</button>
+  </div>`;
+
+  // approach
+  let princ = DATA.approach.map(a=>`<div class="principle"><span class="rn">${a.rn}</span><div><div class="pt">${a.title}</div><div class="pc">${a.copy}</div></div></div>`).join("");
+  html += `<div class="panel" data-room="approach">
+    <div class="eyebrow"><span class="no">V</span> Approach</div>
+    <div class="principles">${princ}</div>
+    <button class="return" data-goto="plan"><span class="ar">&#8592;</span> Plan</button>
+  </div>`;
+
+  // contact
+  html += `<div class="panel" data-room="contact">
+    <div class="eyebrow"><span class="no">VI</span> Contact . The Gatehouse</div>
+    <div class="p-title">Start a conversation</div>
+    <a class="email-plaque" href="mailto:${DATA.email}"><span class="dot"></span>${DATA.email}</a>
+    <p class="p-body">${DATA.about}</p>
+    <p class="p-body" style="color:var(--gold-dk); font-family:var(--mono); font-size:12px; letter-spacing:.14em">${DATA.city}</p>
+    <button class="return" data-goto="plan"><span class="ar">&#8592;</span> Plan</button>
+  </div>`;
+
+  pw.innerHTML = html;
+}
+
+/* =========================================================================
+   Wire up
+   ========================================================================= */
+const RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function init(){
+  // stars
+  document.getElementById('hdr-star').innerHTML = starMarkup();
+  document.getElementById('foot-star').innerHTML = starMarkup();
+  document.getElementById('motto').textContent = DATA.motto_th;
+  document.getElementById('colophon').textContent = DATA.colophon;
+  document.getElementById('tb-rooms').textContent = DATA.drafting_rooms;
+  document.getElementById('foot-about').textContent = DATA.about;
+  document.getElementById('foot-motto').textContent = DATA.motto_th;
+  document.getElementById('foot-copy').textContent = DATA.footer;
+  const fm = document.getElementById('foot-mail'); fm.textContent = DATA.email; fm.href = 'mailto:'+DATA.email;
+
+  // build svg + panels
+  const planG = document.getElementById('plan');
+  planG.innerHTML = buildPlan();
+  buildPanels();
+
+  // fit viewBox to the drawing, centered at (0,0)
+  const svg = document.getElementById('svg');
+  const bbox = planG.getBBox();
+  const pad = 46;
+  const cx = bbox.x + bbox.width/2, cy = bbox.y + bbox.height/2;
+  planG.setAttribute('transform', `translate(${(-cx).toFixed(1)} ${(-cy).toFixed(1)})`);
+  const W = bbox.width + pad*2, H = bbox.height + pad*2;
+  svg.setAttribute('viewBox', `${(-W/2).toFixed(1)} ${(-H/2).toFixed(1)} ${W.toFixed(1)} ${H.toFixed(1)}`);
+  // convert room centroids into centered coords for the camera
+  for(const id in roomMeta){
+    const m = roomMeta[id];
+    const q = P(m.cx, m.cy, m.cz);
+    m.tx = q.x - cx; m.ty = q.y - cy;
+  }
+
+  // panels + rooms
+  const panels = [...document.querySelectorAll('.panel')];
+  const rooms = [...document.querySelectorAll('.room')];
+  const hits = [...document.querySelectorAll('.room-hit')];
+  const camera = document.getElementById('camera');
+  const roomGroup = (id)=> document.querySelector(`.room[data-room="${id}"]`);
+  let current = 'plan';
+
+  function applyView(id){
+    if(!roomMeta[id]) id = 'plan';
+    current = id;
+    document.body.setAttribute('data-room', id);
+    const zoomed = (id!=='plan' && id!=='approach');
+    document.body.classList.toggle('zoomed', zoomed || id==='approach');
+    // camera
+    const m = roomMeta[id];
+    if(id==='plan' || id==='approach'){
+      camera.style.transform = 'translate(0px,0px) scale(1)';
+    }else{
+      const s = m.scale;
+      camera.style.transform = `translate(${(-s*m.tx).toFixed(1)}px, ${(-s*m.ty).toFixed(1)}px) scale(${s})`;
+    }
+    // panels
+    panels.forEach(p=> p.classList.toggle('on', p.dataset.room===id));
+    // active room highlight (geometry + plaque)
+    [...rooms, ...hits].forEach(r=> r.classList.toggle('active', r.dataset.room===id));
+  }
+
+  // click / keyboard on rooms -> scroll to matching trigger (unifies with scroll)
+  const triggers = [...document.querySelectorAll('.trigger')];
+  function gotoRoom(id){
+    const t = triggers.find(t=>t.dataset.room===id);
+    if(!t){ applyView(id); return; }
+    const rect = t.getBoundingClientRect();
+    const targetY = window.scrollY + rect.top - (window.innerHeight*0.5) + rect.height*0.5;
+    window.scrollTo({top: Math.max(0,targetY), behavior: RM ? 'auto' : 'smooth'});
+    applyView(id); // immediate feedback; observer keeps it in sync
+  }
+  // plaques = primary interactive targets (always on top, non-overlapping)
+  hits.forEach(h=>{
+    const id = h.dataset.room;
+    h.addEventListener('click', ()=> gotoRoom(id));
+    h.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); gotoRoom(id); } });
+    h.addEventListener('mouseenter', ()=>{ const gg=roomGroup(id); if(gg) gg.classList.add('hovered'); });
+    h.addEventListener('mouseleave', ()=>{ const gg=roomGroup(id); if(gg) gg.classList.remove('hovered'); });
+  });
+  // room bodies also click through to their room (bonus; plaque is the reliable path)
+  rooms.forEach(r=> r.addEventListener('click', ()=> gotoRoom(r.dataset.room)));
+  document.getElementById('planBtn').addEventListener('click', ()=> gotoRoom('plan'));
+  document.body.addEventListener('click', e=>{
+    const g = e.target.closest('[data-goto]');
+    if(g) gotoRoom(g.getAttribute('data-goto'));
+  });
+
+  // scroll-driven camera via IntersectionObserver on triggers
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(en=>{ if(en.isIntersecting){ applyView(en.target.dataset.room); } });
+  }, { rootMargin:'-50% 0px -50% 0px', threshold:0 });
+  triggers.forEach(t=> io.observe(t));
+
+  applyView('plan');
+}
+
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init);
+else init();
+</script>
+</body>
+</html>

@@ -1,0 +1,781 @@
+<!-- TEMPLATE: Vesperwerk Commit Log | ARCHETYPE: Release Train / studio history as a living git commit graph | REF: Linear changelog + GitStory/gitlogue + git log --graph | WHEN TO USE: founder/studio or product story told as versioned software history, premium editorial on cream | SWAP: edit the REPO + COMMITS arrays at top of <script> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vesperwerk . Commit Log</title>
+<script>
+  if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    document.documentElement.classList.add('anim');
+  }
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Noto+Serif+Thai:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#faf7f1;
+    --panel:#f4eee2;
+    --panel2:#efe7d7;
+    --ink:#2e2a26;
+    --ink-soft:#6f665b;
+    --ink-faint:#9a9082;
+    --line:#e6dccb;
+    --line2:#dacfb8;
+    --gold:#a8802f;
+    --gold-lt:#c09a4a;
+    --gold-dk:#8a6526;
+    --sage:#6f7d57;
+    --sage-dk:#586646;
+    --minus:#b06a4e;
+    --plus:#5c6e48;
+    --mono:'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    --serif:'Newsreader', Georgia, 'Times New Roman', serif;
+    --display:'Playfair Display', Georgia, serif;
+    --thai:'Noto Serif Thai', 'Newsreader', serif;
+  }
+
+  *{ box-sizing:border-box; }
+  html{ -webkit-text-size-adjust:100%; overflow-x:clip; }
+  body{
+    margin:0;
+    background:var(--cream);
+    color:var(--ink);
+    font-family:var(--serif);
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    background-image:
+      radial-gradient(120% 80% at 50% -10%, #fffdf8 0%, rgba(255,253,248,0) 55%),
+      radial-gradient(100% 60% at 100% 110%, #f2ebdd 0%, rgba(242,235,221,0) 60%);
+  }
+
+  :focus-visible{ outline:2px solid var(--gold); outline-offset:3px; border-radius:3px; }
+
+  .mono{ font-family:var(--mono); }
+
+  /* ---------- repo shell + gutter graph ---------- */
+  .repo{
+    position:relative;
+    max-width:860px;
+    margin:0 auto;
+    padding:44px 40px 70px 84px;
+  }
+  .graph{
+    position:absolute;
+    inset:0;
+    z-index:0;
+    pointer-events:none;
+    overflow:visible;
+  }
+  .gpath{ fill:none; stroke:var(--gold); stroke-linecap:round; stroke-linejoin:round; }
+  .gpath--main{ stroke-width:2.4; }
+  .gpath--branch{ stroke-width:2.1; stroke:var(--gold-lt); }
+  .gpath--tail{ stroke-width:2; stroke:var(--line2); stroke-dasharray:2 7; }
+  .node{
+    fill:var(--gold);
+    stroke:var(--cream);
+    stroke-width:2.4;
+    transform-box:fill-box;
+    transform-origin:center;
+  }
+  .node--merge{ fill:var(--sage); stroke:var(--cream); }
+  .node--root{ fill:var(--cream); stroke:var(--gold); stroke-width:2.8; }
+  html.anim .node{ opacity:0; transform:scale(0); }
+  html.anim .node.landed{
+    opacity:1; transform:scale(1);
+    transition:opacity .38s ease, transform .5s cubic-bezier(.34,1.56,.64,1);
+  }
+  .node.pulse{ animation:nodePulse .6s ease; }
+  @keyframes nodePulse{
+    0%{ transform:scale(1); }
+    40%{ transform:scale(1.85); }
+    100%{ transform:scale(1); }
+  }
+
+  .stream{ position:relative; z-index:1; }
+
+  /* ---------- HUD ---------- */
+  .hud{
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:.02em;
+    color:var(--ink-soft);
+    display:inline-flex;
+    align-items:center;
+    gap:.55em;
+    padding:6px 12px;
+    border:1px solid var(--line2);
+    border-radius:100px;
+    background:rgba(255,253,248,.7);
+    margin-bottom:26px;
+    max-width:100%;
+  }
+  .hud b{ color:var(--gold-dk); font-weight:700; }
+  .hud .dot{ color:var(--line2); }
+  .hud .caret{
+    width:7px; height:13px; background:var(--gold);
+    display:inline-block; border-radius:1px;
+    animation:blink 1.15s steps(1) infinite;
+  }
+  @keyframes blink{ 50%{ opacity:0; } }
+
+  /* ---------- lockup ---------- */
+  .lockup{ display:flex; align-items:center; gap:16px; margin-bottom:14px; min-width:0; }
+  .star{ width:44px; height:44px; flex:0 0 auto; filter:drop-shadow(0 2px 6px rgba(138,101,38,.28)); }
+  .wordmark{
+    font-family:var(--display);
+    font-weight:600;
+    font-size:clamp(1.9rem, 5.4vw, 3.35rem);
+    letter-spacing:.2em;
+    color:var(--ink);
+    line-height:1;
+    min-width:0;
+  }
+  .epigraph{
+    font-family:var(--thai);
+    font-weight:400;
+    font-size:clamp(1rem, 2.3vw, 1.28rem);
+    line-height:1.5;
+    color:var(--gold-dk);
+    margin:0 0 30px;
+    max-width:34ch;
+  }
+
+  /* ---------- commit ---------- */
+  .commit{
+    position:relative;
+    padding:22px 0 26px;
+    border-top:1px solid var(--line);
+    min-width:0;
+  }
+  .commit--root{ border-top:none; padding-top:4px; }
+  html.anim .commit:not(.commit--root){ opacity:0; transform:translateY(12px); transition:opacity .6s ease, transform .6s ease; }
+  html.anim .commit.landed{ opacity:1; transform:none; }
+
+  .commit-head{
+    display:flex;
+    align-items:baseline;
+    flex-wrap:wrap;
+    gap:10px;
+    min-width:0;
+  }
+  .hash{
+    font-family:var(--mono);
+    font-size:13px;
+    font-weight:400;
+    color:var(--gold);
+    background:transparent;
+    border:1px solid rgba(168,128,47,.2);
+    border-radius:5px;
+    padding:2px 8px;
+    cursor:pointer;
+    flex:0 0 auto;
+    letter-spacing:.02em;
+    transition:background .15s ease, border-color .15s ease, color .15s ease;
+  }
+  .hash:hover{ background:rgba(168,128,47,.1); border-color:var(--gold); color:var(--gold-dk); }
+  .subject{
+    font-family:var(--mono);
+    font-size:clamp(.95rem, 1.9vw, 1.12rem);
+    font-weight:500;
+    color:var(--ink);
+    letter-spacing:.005em;
+    min-width:0;
+    overflow-wrap:anywhere;
+  }
+  .subject .ct{ font-weight:700; }
+  .ct-feat, .ct-build, .ct-release{ color:var(--gold-dk); }
+  .ct-merge{ color:var(--sage-dk); }
+  .ct-style, .ct-chore, .ct-docs{ color:var(--ink-faint); }
+  .refs{
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--ink-soft);
+    border:1px solid var(--line2);
+    border-radius:100px;
+    padding:1px 9px;
+    flex:0 0 auto;
+    white-space:nowrap;
+  }
+  .refs--tag{ color:var(--gold-dk); border-color:rgba(168,128,47,.4); background:rgba(168,128,47,.06); }
+  .refs--branch{ color:var(--sage-dk); border-color:rgba(111,125,87,.45); background:rgba(111,125,87,.08); }
+  .refs--head{ color:var(--ink); border-color:var(--ink-faint); }
+  .chip-merged{
+    font-family:var(--mono);
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:.12em;
+    color:#fff;
+    background:var(--sage);
+    border-radius:4px;
+    padding:2px 9px;
+    flex:0 0 auto;
+  }
+
+  .meta{
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-top:8px;
+    letter-spacing:.01em;
+  }
+  .meta .sep{ color:var(--line2); margin:0 .4em; }
+
+  .diffstat{
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-top:6px;
+    display:flex;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:.5em;
+  }
+  .dnum{ color:var(--ink); font-weight:500; }
+  .dbar{ color:var(--gold); letter-spacing:.08em; font-weight:700; }
+  .diffstat--merge .chip-merged{ font-size:10px; }
+
+  .body{
+    font-family:var(--serif);
+    font-size:1.05rem;
+    line-height:1.62;
+    color:#3a352f;
+    margin:14px 0 0;
+    max-width:60ch;
+  }
+  .body--lead{
+    font-size:clamp(1.2rem, 2.5vw, 1.62rem);
+    line-height:1.42;
+    color:var(--ink);
+    max-width:24ch;
+    font-weight:400;
+    margin-top:18px;
+  }
+
+  /* ---------- CTA ---------- */
+  .cta{ display:flex; flex-wrap:wrap; gap:12px; margin-top:24px; }
+  .btn{
+    font-family:var(--mono);
+    font-size:12px;
+    font-weight:500;
+    letter-spacing:.09em;
+    text-transform:uppercase;
+    text-decoration:none;
+    padding:11px 20px;
+    border-radius:7px;
+    border:1px solid transparent;
+    cursor:pointer;
+    transition:transform .15s ease, background .15s ease, box-shadow .15s ease;
+    white-space:nowrap;
+  }
+  .btn--primary{ background:var(--gold); color:#fffdf6; box-shadow:0 4px 14px rgba(138,101,38,.22); }
+  .btn--primary:hover{ background:var(--gold-dk); transform:translateY(-1px); }
+  .btn--ghost{ background:transparent; color:var(--gold-dk); border-color:var(--line2); }
+  .btn--ghost:hover{ border-color:var(--gold); background:rgba(168,128,47,.06); }
+
+  /* ---------- artifact ---------- */
+  .artifact{
+    margin:18px 0 2px;
+    border:1px solid var(--line2);
+    border-radius:9px;
+    overflow:hidden;
+    background:var(--panel);
+    max-width:560px;
+  }
+  .artifact-bar{
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--ink-soft);
+    padding:8px 12px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    border-bottom:1px solid var(--line);
+    background:var(--panel2);
+    min-width:0;
+  }
+  .artifact-bar .fname{ color:var(--gold-dk); font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+  .artifact-bar .fmeta{ margin-left:auto; color:var(--ink-faint); flex:0 0 auto; }
+  .artifact-frame{
+    aspect-ratio:16/9;
+    width:100%;
+    background:#241f1a;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .artifact-frame img{ width:100%; height:100%; object-fit:contain; display:block; }
+
+  /* ---------- principles (squashed) ---------- */
+  .principles{ list-style:none; margin:16px 0 0; padding:0; display:grid; gap:2px; max-width:60ch; }
+  .principles li{
+    display:grid;
+    grid-template-columns:auto 1fr;
+    gap:2px 12px;
+    padding:9px 12px;
+    border-radius:6px;
+    background:rgba(92,110,72,.06);
+    border-left:2px solid rgba(92,110,72,.4);
+    min-width:0;
+  }
+  .p-plus{ font-family:var(--mono); color:var(--plus); font-weight:700; grid-row:span 2; align-self:start; }
+  .p-title{ font-family:var(--mono); font-size:.92rem; font-weight:500; color:var(--ink); }
+  .p-body{ font-family:var(--serif); font-size:1rem; line-height:1.5; color:#453f38; }
+
+  /* ---------- contact ---------- */
+  .email{
+    display:inline-block;
+    font-family:var(--mono);
+    font-size:clamp(1.05rem, 3.2vw, 1.55rem);
+    color:var(--gold-dk);
+    text-decoration:none;
+    margin-top:12px;
+    border-bottom:1px solid rgba(168,128,47,.35);
+    padding-bottom:2px;
+    overflow-wrap:anywhere;
+  }
+  .email:hover{ color:var(--gold); border-color:var(--gold); }
+  .loc{ font-family:var(--mono); font-size:12px; color:var(--ink-soft); margin-top:12px; }
+
+  /* ---------- diff reveal ---------- */
+  .diff{
+    font-family:var(--mono);
+    font-size:12px;
+    line-height:1.7;
+    background:#fffdf7;
+    border:1px solid var(--line2);
+    border-left:3px solid var(--gold);
+    border-radius:7px;
+    padding:9px 12px;
+    box-shadow:0 8px 24px rgba(46,42,38,.10);
+  }
+  .diff-h{ color:var(--ink-faint); font-size:10.5px; letter-spacing:.06em; margin-bottom:4px; text-transform:uppercase; }
+  .dl{ overflow-wrap:anywhere; }
+  .dl-minus{ color:var(--minus); background:rgba(176,106,78,.10); border-radius:3px; padding:0 4px; }
+  .dl-plus{ color:var(--plus); background:rgba(92,110,72,.12); border-radius:3px; padding:0 4px; }
+  @media (hover:hover){
+    .diff{
+      position:absolute;
+      top:2.4rem;
+      right:0;
+      width:min(300px, 58%);
+      z-index:6;
+      opacity:0;
+      transform:translateY(-6px);
+      pointer-events:none;
+      transition:opacity .22s ease, transform .22s ease;
+    }
+    .commit:hover .diff, .commit:focus-within .diff{ opacity:1; transform:none; }
+  }
+  @media (hover:none){
+    .diff{ margin-top:12px; max-width:420px; }
+  }
+
+  /* ---------- colophon ---------- */
+  .colophon{
+    max-width:860px;
+    margin:0 auto;
+    padding:34px 40px 54px 84px;
+    border-top:1px solid var(--line);
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:14px 22px;
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--ink-soft);
+  }
+  .colophon .star{ width:26px; height:26px; }
+  .colophon .cmark{ font-family:var(--display); font-weight:600; letter-spacing:.2em; color:var(--ink); font-size:15px; }
+  .colophon .cnote{ margin-left:auto; color:var(--ink-faint); }
+  .colophon .csep{ color:var(--line2); }
+
+  /* ---------- responsive ---------- */
+  @media (max-width:640px){
+    .repo{ padding:30px 18px 54px 34px; }
+    .colophon{ padding:26px 18px 44px 34px; }
+    .colophon .cnote{ margin-left:0; width:100%; }
+    .lockup{ gap:12px; }
+    .star{ width:34px; height:34px; }
+    .body--lead{ max-width:100%; }
+    .diff{ width:100%; }
+    .cta{ gap:10px; }
+    .btn{ flex:1 1 auto; text-align:center; }
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    .hud .caret{ animation:none; }
+    .node.pulse{ animation:none; }
+    *{ scroll-behavior:auto !important; }
+  }
+</style>
+</head>
+<body>
+  <main class="repo" id="repo">
+    <svg class="graph" aria-hidden="true">
+      <path class="gpath gpath--tail"></path>
+      <path class="gpath gpath--branch"></path>
+      <path class="gpath gpath--main"></path>
+      <g class="gnodes"></g>
+    </svg>
+    <div class="stream" id="stream"></div>
+  </main>
+
+  <footer class="colophon">
+    <svg class="star" viewBox="0 0 200 200" role="img" aria-label="Vesperwerk star"><g transform="translate(100,100)"><g><polygon points="0,-86 -11,0 0,0" fill="#c09a4a"/><polygon points="0,-86 11,0 0,0" fill="#8a6526"/></g><g transform="rotate(180)"><polygon points="0,-86 -11,0 0,0" fill="#8a6526"/><polygon points="0,-86 11,0 0,0" fill="#c09a4a"/></g><g transform="rotate(90)"><polygon points="0,-64 -9.5,0 0,0" fill="#c09a4a"/><polygon points="0,-64 9.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(270)"><polygon points="0,-64 -9.5,0 0,0" fill="#8a6526"/><polygon points="0,-64 9.5,0 0,0" fill="#c09a4a"/></g><g transform="rotate(45)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(135)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(225)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g><g transform="rotate(315)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g></g></svg>
+    <span class="cmark">VESPERWERK</span>
+    <span>Bangkok, Thailand</span>
+    <span class="csep">.</span>
+    <span>(c) 2026 Vesperwerk</span>
+    <span class="cnote">history simulated . graph is svg . no rebase was harmed</span>
+  </footer>
+
+  <script>
+  /* ==========================================================================
+     DATA  ---  swap the whole studio story here.
+     ========================================================================== */
+  const REPO = {
+    wordmark : 'VESPERWERK',
+    epigraph : 'ดาวประจำเมือง : แสงแรกที่ใช้นำทางยามค่ำ',
+    branch   : 'main',
+    ctaPrimary   : { label:'Start a conversation', href:'mailto:kittipong.k@vesperwerk.com' },
+    ctaSecondary : { label:'See our work', href:'#c-d4a1f09' }
+  };
+
+  const COMMITS = [
+    { hash:'a8e02f7', lane:'main', kind:'root', type:'feat', subject:'found the studio',
+      author:'kittipong', date:'Est. 2026', refs:{ text:'root', cls:'refs--tag' },
+      files:1, ins:26,
+      body:'An independent software and AI studio. We architect, build, and operate production systems for businesses that cannot afford them to fail.',
+      diff:['another agency','an independent studio'] },
+
+    { hash:'c1d0a4b', lane:'main', type:'feat', subject:'ai systems',
+      author:'kittipong', date:'Q1 2026', files:9, ins:184,
+      body:'Voice agents, LLM assistants, and the evaluation infrastructure that keeps them honest. AI that answers like your best employee, in production, around the clock.',
+      diff:['ai that demos well','ai that answers in production'] },
+
+    { hash:'3f9e7d2', lane:'main', type:'feat', subject:'product engineering',
+      author:'kittipong', date:'Q1 2026', files:14, ins:302,
+      body:'Full-stack product engineering from architecture to operations: event-driven backends, modern web frontends, and infrastructure that scales without drama.',
+      diff:['features shipped','systems that scale'] },
+
+    { hash:'b62c88e', lane:'main', type:'feat', subject:'commerce and platforms',
+      author:'kittipong', date:'Q2 2026', files:11, ins:241,
+      body:'Deep Shopify and LINE platform work: storefronts, admin apps, integrations, and the messaging rails Southeast Asian commerce runs on.',
+      diff:['a storefront','the rails commerce runs on'] },
+
+    { hash:'d4a1f09', lane:'feature', kind:'work-base', type:'build', subject:'yimwhan ai',
+      author:'kittipong', date:'Q2 2026', refs:{ text:'feature/yimwhan-ai', cls:'refs--branch' },
+      files:32, ins:1184,
+      body:'An AI voice and LINE assistant for dental clinics in Thailand. It answers after-hours calls, books and reschedules appointments, and hands off to staff the moment a human matters.',
+      diff:['after-hours calls missed','every call answered'],
+      artifact:{ src:'../assets/flux-clinic-4k.png', name:'clinic-preview.png', meta:'attachment . 1 image', alt:'Yimwhan AI dental clinic environment preview' } },
+
+    { hash:'7e2b5c3', lane:'feature', type:'feat', subject:'live pilot',
+      author:'kittipong', date:'Q2 2026', files:18, ins:463,
+      body:'Rolled out to a live clinic: real patients, real bookings, staff handoff verified on the floor.',
+      diff:['a promising prototype','a live pilot'] },
+
+    { hash:'90fac17', lane:'feature', kind:'work-tip', type:'release', subject:'production',
+      author:'kittipong', date:'Q3 2026', files:7, ins:96,
+      body:'In production at live clinics. Answering after-hours, booking around the clock, escalating to a human the moment one is needed.',
+      diff:['pilot at one clinic','in production at live clinics'] },
+
+    { hash:'4b1e0d5', lane:'main', kind:'merge', type:'merge', subject:'Merge pull request #001 from feature/yimwhan-ai',
+      author:'kittipong', date:'Q3 2026', files:0, ins:0, merged:true,
+      body:'Yimwhan AI merged to main: a voice and LINE assistant in production at live clinics.',
+      diff:['a project','a product in production'] },
+
+    { hash:'e5510dd', lane:'main', kind:'approach', type:'style', subject:'our approach (squashed)',
+      author:'kittipong', date:'ongoing', files:4, ins:48,
+      principles:[
+        ['Architecture first','We design the system before we write the code.'],
+        ['Production-worthy','Demos impress; production endures. We build for the second one.'],
+        ['Scope discipline','The most valuable thing we tell clients is what not to build.'],
+        ['Senior hands','No juniors learning on your budget. Founder-led, senior hands on every line.']
+      ],
+      diff:['demos impress','production endures'] },
+
+    { hash:'2b7a9c4', lane:'main', type:'docs', subject:'about the name',
+      author:'kittipong', date:'ongoing', files:1, ins:12,
+      body:'Vesperwerk takes its name from the evening star: the first light you can navigate by. We are a founder-led studio in Bangkok building software for businesses across Asia and beyond.',
+      diff:['a company name','the evening star'] },
+
+    { hash:'f0e1d22', lane:'main', kind:'contact', type:'chore', subject:'open a conversation',
+      author:'kittipong', date:'HEAD', refs:{ text:'HEAD -> main', cls:'refs--head' },
+      files:1, ins:3, contact:{ email:'kittipong.k@vesperwerk.com', loc:'Bangkok, Thailand' },
+      body:'', diff:['a cold inbox','a conversation'] }
+  ];
+
+  /* ==========================================================================
+     RENDER
+     ========================================================================== */
+  const STAR = '<svg class="star" viewBox="0 0 200 200" role="img" aria-label="Vesperwerk star"><g transform="translate(100,100)"><g><polygon points="0,-86 -11,0 0,0" fill="#c09a4a"/><polygon points="0,-86 11,0 0,0" fill="#8a6526"/></g><g transform="rotate(180)"><polygon points="0,-86 -11,0 0,0" fill="#8a6526"/><polygon points="0,-86 11,0 0,0" fill="#c09a4a"/></g><g transform="rotate(90)"><polygon points="0,-64 -9.5,0 0,0" fill="#c09a4a"/><polygon points="0,-64 9.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(270)"><polygon points="0,-64 -9.5,0 0,0" fill="#8a6526"/><polygon points="0,-64 9.5,0 0,0" fill="#c09a4a"/></g><g transform="rotate(45)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(135)"><polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/><polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/></g><g transform="rotate(225)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g><g transform="rotate(315)"><polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/><polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/></g></g></svg>';
+
+  const esc = (s) => String(s).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+  const barPlus = (ins) => '+'.repeat(Math.max(3, Math.min(14, Math.round(ins/40))));
+
+  function subjectHTML(c){
+    if(c.type === 'merge') return '<span class="ct ct-merge">merge:</span> ' + esc('pull request #001 from feature/yimwhan-ai');
+    return '<span class="ct ct-'+c.type+'">'+esc(c.type)+'</span>: ' + esc(c.subject);
+  }
+
+  function diffstatHTML(c){
+    if(c.merged){
+      return '<div class="diffstat diffstat--merge"><span class="chip-merged">MERGED</span> <span>2 parents joined into '+esc(REPO.branch)+'</span></div>';
+    }
+    const fileWord = c.files === 1 ? 'file' : 'files';
+    return '<div class="diffstat">'
+      + '<span class="dnum" data-count="'+c.files+'">0</span> '+fileWord+' changed, '
+      + '<span class="dnum" data-count="'+c.ins+'">0</span> insertions(+) '
+      + '<span class="dbar">'+barPlus(c.ins)+'</span></div>';
+  }
+
+  function bodyHTML(c){
+    if(c.kind === 'root'){
+      return '<p class="body body--lead">'+esc(c.body)+'</p>'
+        + '<div class="cta">'
+        + '<a class="btn btn--primary" href="'+esc(REPO.ctaPrimary.href)+'">'+esc(REPO.ctaPrimary.label)+'</a>'
+        + '<a class="btn btn--ghost" href="'+esc(REPO.ctaSecondary.href)+'" data-scroll>'+esc(REPO.ctaSecondary.label)+'</a>'
+        + '</div>';
+    }
+    if(c.kind === 'approach'){
+      let li = c.principles.map(p =>
+        '<li><span class="p-plus">+</span><span class="p-title">'+esc(p[0])+'</span><span class="p-body">'+esc(p[1])+'</span></li>'
+      ).join('');
+      return '<ol class="principles">'+li+'</ol>';
+    }
+    if(c.kind === 'contact'){
+      return '<a class="email" href="mailto:'+esc(c.contact.email)+'">'+esc(c.contact.email)+'</a>'
+        + '<div class="loc">'+esc(c.contact.loc)+'</div>';
+    }
+    let html = c.body ? '<p class="body">'+esc(c.body)+'</p>' : '';
+    if(c.artifact){
+      html += '<figure class="artifact">'
+        + '<figcaption class="artifact-bar"><span class="fname">'+esc(c.artifact.name)+'</span><span class="fmeta">'+esc(c.artifact.meta)+'</span></figcaption>'
+        + '<div class="artifact-frame"><img src="'+esc(c.artifact.src)+'" alt="'+esc(c.artifact.alt)+'" loading="lazy" decoding="async"></div>'
+        + '</figure>';
+    }
+    return html;
+  }
+
+  function commitHTML(c, i){
+    const rootExtra = c.kind === 'root'
+      ? '<div class="hud" id="hud"><span>HEAD</span> <b>'+esc(REPO.branch)+'</b> <span class="dot">.</span> <span id="hudN" data-count="'+COMMITS.length+'">0</span> commits <span class="dot">.</span> 1 branch <span class="caret" aria-hidden="true"></span></div>'
+        + '<div class="lockup">'+STAR+'<span class="wordmark">'+esc(REPO.wordmark)+'</span></div>'
+        + '<p class="epigraph" lang="th">'+esc(REPO.epigraph)+'</p>'
+      : '';
+
+    const refs = c.refs ? '<span class="refs '+c.refs.cls+'">'+esc(c.refs.text)+'</span>' : '';
+    const mergedChip = c.merged ? '<span class="chip-merged">MERGED</span>' : '';
+
+    return '<article class="commit'+(c.kind==='root'?' commit--root':'')+'" id="c-'+c.hash+'" data-i="'+i+'" data-lane="'+c.lane+'" data-kind="'+(c.kind||c.type)+'">'
+      + rootExtra
+      + '<div class="commit-head">'
+      +   '<button class="hash" data-hash="'+c.hash+'" aria-label="Commit '+c.hash+', jump to this commit">'+(document.documentElement.classList.contains('anim') && i>0 ? '' : c.hash)+'</button>'
+      +   '<span class="subject">'+subjectHTML(c)+'</span>'
+      +   refs + mergedChip
+      + '</div>'
+      + '<div class="meta">Author: '+esc(c.author)+' <span class="sep">.</span> Date: '+esc(c.date)+'</div>'
+      + diffstatHTML(c)
+      + bodyHTML(c)
+      + '<div class="diff" role="note"><div class="diff-h">diff . '+esc(c.subject)+'</div>'
+      +   '<div class="dl dl-minus">- '+esc(c.diff[0])+'</div>'
+      +   '<div class="dl dl-plus">+ '+esc(c.diff[1])+'</div></div>'
+      + '</article>';
+  }
+
+  const stream = document.getElementById('stream');
+  stream.innerHTML = COMMITS.map(commitHTML).join('');
+
+  /* ==========================================================================
+     GRAPH + MOTION
+     ========================================================================== */
+  const repo = document.getElementById('repo');
+  const svg = repo.querySelector('.graph');
+  const mainPath = svg.querySelector('.gpath--main');
+  const branchPath = svg.querySelector('.gpath--branch');
+  const tailPath = svg.querySelector('.gpath--tail');
+  const gnodes = svg.querySelector('.gnodes');
+  const commitEls = Array.from(stream.querySelectorAll('.commit'));
+  const NS = 'http://www.w3.org/2000/svg';
+
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const anim = document.documentElement.classList.contains('anim');
+  const landed = new Set();
+
+  let firstFeature = commitEls.findIndex(el => el.dataset.lane === 'feature');
+  let lastFeature = -1;
+  commitEls.forEach((el,i)=>{ if(el.dataset.lane === 'feature') lastFeature = i; });
+  const forkParent = firstFeature - 1;
+  const mergeIdx = commitEls.findIndex(el => el.dataset.kind === 'merge');
+
+  function buildGraph(first){
+    const cs = getComputedStyle(repo);
+    const gutter = parseFloat(cs.paddingLeft) || 60;
+    const mainX = gutter * 0.36;
+    const featureX = gutter * 0.76;
+    const nodeR = Math.max(4.2, Math.min(6, gutter * 0.085));
+    const rRect = repo.getBoundingClientRect();
+    const W = repo.clientWidth;
+    const H = repo.offsetHeight;
+
+    const ys = commitEls.map(el => {
+      const h = el.querySelector('.commit-head').getBoundingClientRect();
+      return h.top - rRect.top + h.height / 2;
+    });
+    const xs = commitEls.map(el => el.dataset.lane === 'feature' ? featureX : mainX);
+
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    svg.setAttribute('width', W);
+    svg.setAttribute('height', H);
+
+    const top = ys[0], bot = ys[ys.length - 1];
+    mainPath.setAttribute('d', 'M ' + mainX + ' ' + top + ' L ' + mainX + ' ' + bot);
+    tailPath.setAttribute('d', 'M ' + mainX + ' ' + bot + ' L ' + mainX + ' ' + (bot + 34));
+
+    let bD = '';
+    if(firstFeature > -1 && forkParent > -1){
+      const fy0 = ys[forkParent], fy1 = ys[firstFeature];
+      bD += 'M ' + mainX + ' ' + fy0 + ' C ' + mainX + ' ' + ((fy0+fy1)/2) + ', ' + featureX + ' ' + ((fy0+fy1)/2) + ', ' + featureX + ' ' + fy1 + ' ';
+      bD += 'L ' + featureX + ' ' + ys[lastFeature] + ' ';
+      const my0 = ys[lastFeature], my1 = ys[mergeIdx];
+      bD += 'M ' + featureX + ' ' + my0 + ' C ' + featureX + ' ' + ((my0+my1)/2) + ', ' + mainX + ' ' + ((my0+my1)/2) + ', ' + mainX + ' ' + my1;
+    }
+    branchPath.setAttribute('d', bD);
+
+    // nodes
+    gnodes.textContent = '';
+    commitEls.forEach((el,i) => {
+      const c = document.createElementNS(NS, 'circle');
+      const kind = el.dataset.kind;
+      let r = nodeR, cls = 'node';
+      if(kind === 'merge'){ r = nodeR * 1.5; cls += ' node--merge'; }
+      if(el.classList.contains('commit--root')){ cls += ' node--root'; }
+      if(landed.has(i)) cls += ' landed';
+      c.setAttribute('cx', xs[i]);
+      c.setAttribute('cy', ys[i]);
+      c.setAttribute('r', r);
+      c.setAttribute('class', cls);
+      c.setAttribute('id', 'node-' + i);
+      gnodes.appendChild(c);
+    });
+
+    // entrance line draw (first build, anim only)
+    [mainPath, branchPath].forEach(p => {
+      p.style.transition = '';
+      if(first && anim && p.getTotalLength){
+        const len = p.getTotalLength();
+        p.style.strokeDasharray = len;
+        p.style.strokeDashoffset = len;
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          p.style.transition = 'stroke-dashoffset 1.5s cubic-bezier(.4,0,.1,1)';
+          p.style.strokeDashoffset = '0';
+        }));
+      } else {
+        p.style.strokeDasharray = '';
+        p.style.strokeDashoffset = '';
+      }
+    });
+  }
+
+  function resolveHash(el, finalHash){
+    if(reduce){ el.textContent = finalHash; return; }
+    const hex = '0123456789abcdef';
+    const dur = 460, start = performance.now();
+    function tick(now){
+      const p = (now - start) / dur;
+      if(p >= 1){ el.textContent = finalHash; return; }
+      const lock = Math.floor(p * finalHash.length);
+      let s = '';
+      for(let i=0;i<finalHash.length;i++){ s += i < lock ? finalHash[i] : hex[(Math.random()*16)|0]; }
+      el.textContent = s;
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function countUp(el, target){
+    if(reduce || target === 0){ el.textContent = target; return; }
+    const dur = 620, start = performance.now();
+    function tick(now){
+      const p = Math.min(1, (now - start) / dur);
+      el.textContent = Math.round(p * target);
+      if(p < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function land(i){
+    if(landed.has(i)) return;
+    landed.add(i);
+    const el = commitEls[i];
+    el.classList.add('landed');
+    const node = document.getElementById('node-' + i);
+    if(node) node.classList.add('landed');
+    const hashEl = el.querySelector('.hash');
+    const finalHash = hashEl.dataset.hash;
+    if(i === 0){
+      hashEl.textContent = finalHash;
+      el.querySelectorAll('[data-count]').forEach(s => { s.textContent = s.dataset.count; });
+    } else {
+      resolveHash(hashEl, finalHash);
+      el.querySelectorAll('.dnum[data-count]').forEach(s => countUp(s, +s.dataset.count));
+    }
+  }
+
+  // hash click => pulse node + scroll to commit
+  stream.querySelectorAll('.hash').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const el = btn.closest('.commit');
+      const i = +el.dataset.i;
+      const node = document.getElementById('node-' + i);
+      if(node && !reduce){ node.classList.remove('pulse'); void node.getBBox(); node.classList.add('pulse'); setTimeout(()=>node.classList.remove('pulse'), 640); }
+      el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
+    });
+  });
+  // "See our work" smooth scroll
+  const scrollBtn = stream.querySelector('[data-scroll]');
+  if(scrollBtn){
+    scrollBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const t = document.querySelector(scrollBtn.getAttribute('href'));
+      if(t) t.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
+    });
+  }
+
+  // boot
+  buildGraph(true);
+
+  const hudN = document.getElementById('hudN');
+  if(!anim){
+    commitEls.forEach((_, i) => land(i));
+    if(hudN) hudN.textContent = COMMITS.length;
+  } else {
+    land(0);
+    if(hudN) countUp(hudN, COMMITS.length);
+    if('IntersectionObserver' in window){
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+          if(e.isIntersecting){ land(+e.target.dataset.i); io.unobserve(e.target); }
+        });
+      }, { rootMargin: '0px 0px -12% 0px', threshold: 0.18 });
+      commitEls.forEach((el, i) => { if(i > 0) io.observe(el); });
+    } else {
+      commitEls.forEach((_, i) => land(i));
+    }
+  }
+
+  // relayout after fonts + images + resize (idempotent, preserves landed state)
+  let t;
+  function relayout(){ clearTimeout(t); t = setTimeout(() => buildGraph(false), 120); }
+  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(() => buildGraph(false)); }
+  window.addEventListener('load', () => buildGraph(false));
+  window.addEventListener('resize', relayout);
+  const cimg = stream.querySelector('.artifact-frame img');
+  if(cimg && !cimg.complete){ cimg.addEventListener('load', () => buildGraph(false)); }
+  </script>
+</body>
+</html>

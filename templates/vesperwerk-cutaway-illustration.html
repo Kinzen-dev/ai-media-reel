@@ -1,0 +1,835 @@
+<!-- TEMPLATE: Vesperwerk Cutaway | ARCHETYPE: The Cutaway (one drawn scene entered like a building) | REF: The Collected Works, World Illustration Awards, technical-cutaway storytelling | WHEN TO USE: studio/agency site that wants one hand-drawn hub-and-spoke world instead of stacked sections | SWAP: edit the DATA array at top -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vesperwerk - Cutaway</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Noto+Serif+Thai:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#2e2a26; --gold:#a8802f; --goldL:#c09a4a; --goldD:#8a6526;
+  --cream:#faf7f1; --paper:#f5efe4; --slab:#efe7d8; --mint:#e9f1ea; --night:#26314d;
+  --pw:0px; --railh:56px;
+}
+*{box-sizing:border-box}
+html,body{margin:0; overflow-x:hidden; background:var(--cream); color:var(--ink);
+  font-family:'Cormorant Garamond',Georgia,serif; -webkit-font-smoothing:antialiased;}
+:focus-visible{outline:2px solid var(--gold); outline-offset:2px}
+#track{width:100%}
+
+/* ---------- STAGE + WORLD (the permanent hub) ---------- */
+.stage{position:fixed; inset:0; overflow:hidden;
+  background:radial-gradient(125% 95% at 50% 22%, #fdfbf6 0%, var(--cream) 52%, #f0e8d9 100%);}
+.world{position:absolute; left:0; top:0; width:1500px; height:960px; transform-origin:0 0;
+  will-change:transform; transition:transform .95s cubic-bezier(.62,.02,.2,1);}
+.rm .world{transition:none}
+svg.scene{width:1500px; height:960px; display:block; opacity:0; transition:opacity .35s ease}
+.ready svg.scene{opacity:1}
+
+/* ---------- INK LINEWORK (self-drawing) ---------- */
+.ink{fill:none; stroke:var(--ink); stroke-linecap:round; stroke-linejoin:round;
+  stroke-dasharray:1 1.02; stroke-dashoffset:1}
+.sw1{stroke-width:4} .sw2{stroke-width:3} .sw3{stroke-width:2.4} .sw4{stroke-width:1.6} .swf{stroke-width:2}
+.goldink{fill:none; stroke:var(--gold); stroke-linecap:round; stroke-linejoin:round;
+  stroke-dasharray:1 1.02; stroke-dashoffset:1; stroke-width:1.9}
+.paint{opacity:0}
+.night{fill:var(--night)} .mint{fill:var(--mint)} .slabf{fill:var(--slab)}
+.platef{fill:#f1e7d2} .photo-mat{fill:#f4eede} .moon{fill:#e7dcc0}
+.lbl{font-family:system-ui,'Segoe UI',sans-serif; font-weight:600; font-size:12px; letter-spacing:.12em; fill:var(--ink); transition:fill .3s ease}
+.plate{font-family:'Playfair Display',serif; font-weight:600; letter-spacing:.14em; font-size:13px; fill:var(--goldD)}
+.tiny{font-family:'Cormorant Garamond',serif; font-size:8px; letter-spacing:.02em; fill:#6b6153}
+.wmk{font-family:'Playfair Display',serif; font-weight:600; letter-spacing:.24em; font-size:24px; fill:var(--ink)}
+.epi{font-family:'Noto Serif Thai',serif; font-weight:400; font-size:21px; fill:#5b5346; line-height:1.4}
+.sig{font-family:'Cormorant Garamond',serif; font-style:italic; font-size:15px; fill:#8a7f6d}
+
+/* signal thread */
+.signal{fill:none; stroke:var(--gold); stroke-width:3.4; stroke-linecap:round; stroke-linejoin:round;
+  stroke-dasharray:1 1.02; stroke-dashoffset:1}
+.pulse{fill:none; stroke:#f2d374; stroke-width:5; stroke-linecap:round; stroke-linejoin:round;
+  stroke-dasharray:0.09 2; stroke-dashoffset:0.12; opacity:0}
+.pulse-glow{fill:none; stroke:#f6e2a0; stroke-width:10; stroke-linecap:round; stroke-linejoin:round;
+  stroke-dasharray:0.05 2; stroke-dashoffset:0.13; opacity:0}
+.node{fill:var(--gold)} .halo{fill:var(--gold); opacity:.16}
+.node,.halo,.signal,.pulse,.pulse-glow{pointer-events:none}
+
+/* rooms (spoke openers) */
+.room{cursor:pointer}
+.hit{fill:transparent; pointer-events:all}
+.focusring{fill:none; stroke:var(--gold); stroke-width:2; stroke-dasharray:5 6;
+  opacity:0; transition:opacity .35s; pointer-events:none}
+.room:hover .focusring{opacity:.45}
+.room.is-active .focusring{opacity:.95}
+.room:focus{outline:none}
+.room:focus-visible .focusring{opacity:.95; stroke-width:2.7}
+.room:hover .lbl,.room:focus-visible .lbl{fill:var(--goldD)}
+/* focused vignette: when a spoke is open, sibling rooms recede; the gold thread stays lit */
+.room{transition:opacity .55s ease}
+.focused #rooms .room:not(.is-active){opacity:.42}
+.focused #rooms .room:not(.is-active):hover,
+.focused #rooms .room:not(.is-active):focus-visible{opacity:.8}
+.rm .room{transition:none}
+
+/* draw + fade animations */
+@keyframes dr{to{stroke-dashoffset:0}}
+@keyframes fin{from{opacity:0}to{opacity:1}}
+.play .ink{animation:dr .5s ease forwards}
+.play .goldink{animation:dr .46s ease forwards}
+.play .paint{animation:fin .5s ease forwards}
+.play .signal{animation:dr .9s ease forwards}
+/* discrete gold signal: a comet travels the night-call route (fired from JS on load + on spoke open) */
+@keyframes travel{
+  0%{opacity:0; stroke-dashoffset:0.12}
+  12%{opacity:1}
+  86%{opacity:1}
+  100%{opacity:0; stroke-dashoffset:-1.13}
+}
+@keyframes travelG{
+  0%{opacity:0; stroke-dashoffset:0.13}
+  12%{opacity:.5}
+  86%{opacity:.5}
+  100%{opacity:0; stroke-dashoffset:-1.14}
+}
+.pulse.travel{animation:travel 1.5s cubic-bezier(.42,0,.5,1) both}
+.pulse-glow.travel{animation:travelG 1.5s cubic-bezier(.42,0,.5,1) both}
+/* layer stagger (declared AFTER shorthands so delay wins) */
+.play .l1{animation-delay:0s}
+.play .l2{animation-delay:.2s}
+.play .l3{animation-delay:.4s}
+.play .l4{animation-delay:.6s}
+.play .l5{animation-delay:.8s}
+.play .signal{animation-delay:.8s}
+/* fully drawn / reduced-motion state */
+.drawn .ink,.drawn .goldink,.drawn .signal{stroke-dashoffset:0}
+.drawn .paint{opacity:1}
+.drawn .pulse,.drawn .pulse-glow{opacity:0}
+
+/* ---------- HOME + NAV ---------- */
+.home{position:fixed; left:20px; top:15px; z-index:40; display:flex; align-items:center; gap:10px;
+  background:rgba(250,247,241,.55); backdrop-filter:blur(4px); border:0; border-radius:999px;
+  padding:6px 14px 6px 8px; cursor:pointer; color:var(--ink)}
+.home .ic-star{width:22px; height:22px}
+.home .hw{font-family:'Playfair Display',serif; font-weight:600; letter-spacing:.22em; font-size:15px}
+
+.railwrap{position:fixed; left:0; right:var(--pw); bottom:16px; z-index:38; display:flex; justify-content:center; pointer-events:none}
+/* hand-drawn ground line: the rail rests on the illustrated ground, not on empty UI chrome */
+.railwrap:before{content:""; position:absolute; bottom:-9px; left:50%; transform:translateX(-50%);
+  width:min(540px,80vw); height:15px; pointer-events:none; z-index:-1;
+  background:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='560' height='16' viewBox='0 0 560 16'><path d='M4 8 Q140 5 280 8 T556 7' fill='none' stroke='%232e2a26' stroke-width='2' stroke-linecap='round' opacity='0.5'/><path d='M60 10 l5 6 M150 10 l4 6 M300 10 l5 6 M430 10 l4 6 M500 10 l5 6' stroke='%232e2a26' stroke-width='1.4' stroke-linecap='round' opacity='0.42'/></svg>") center/contain no-repeat}
+.rail{display:flex; gap:6px; padding:7px 9px; background:rgba(250,247,241,.9); backdrop-filter:blur(7px);
+  border:1px solid rgba(46,42,38,.16); border-radius:999px; max-width:calc(100% - 32px); overflow-x:auto;
+  pointer-events:auto; box-shadow:0 8px 26px rgba(46,42,38,.12); scrollbar-width:none}
+.rail::-webkit-scrollbar{display:none}
+.chip{position:relative; flex:0 0 auto; font-family:'Cormorant Garamond',serif; font-size:15.5px; font-weight:600; letter-spacing:.01em;
+  padding:6px 14px; border-radius:999px; border:1px solid transparent; background:transparent; color:var(--ink);
+  cursor:pointer; white-space:nowrap; opacity:.7; transition:opacity .2s,background .2s}
+/* hand-lettered underline: a drawn stroke appears under a pill on hover, so labels feel written by hand */
+.chip:after{content:""; position:absolute; left:11px; right:11px; bottom:2px; height:5px; opacity:0; transition:opacity .2s;
+  background:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='6' viewBox='0 0 60 6'><path d='M2 4 Q15 1 30 4 T58 3' fill='none' stroke='%23a8802f' stroke-width='2' stroke-linecap='round'/></svg>") center/100% 100% no-repeat}
+.chip:hover{opacity:1}
+.chip:hover:after,.chip:focus-visible:after{opacity:.9}
+.chip.active{background:var(--ink); color:var(--cream); opacity:1}
+.chip.active:after{opacity:0}
+
+/* ---------- SPOKE PANEL ---------- */
+.panel{position:fixed; top:0; right:0; height:100svh; width:min(430px,35vw); z-index:36; background:var(--paper);
+  border-left:1px solid rgba(46,42,38,.18); box-shadow:-22px 0 54px rgba(46,42,38,.12);
+  transform:translateX(101%); transition:transform .8s cubic-bezier(.62,.02,.2,1);
+  padding:56px 36px 34px; overflow:auto; overscroll-behavior:contain}
+.panel.open{transform:none}
+.rm .panel{transition:none}
+.panel:before{content:""; position:absolute; left:14px; top:14px; bottom:14px; width:1px; background:rgba(46,42,38,.14)}
+
+.art{display:none}
+.art.active{display:block; animation:artin .5s ease}
+@keyframes artin{from{opacity:0; transform:translateY(9px)}to{opacity:1; transform:none}}
+.rm .art.active{animation:none}
+.ahead{display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; min-width:0}
+.aidx{font-family:'Cormorant Garamond',serif; font-size:13px; letter-spacing:.3em; text-transform:uppercase; color:var(--goldD); font-weight:600}
+.close{width:34px; height:34px; border-radius:50%; border:1px solid rgba(46,42,38,.25); background:transparent;
+  color:var(--ink); font-size:19px; line-height:1; cursor:pointer; flex:0 0 auto;
+  transition:background .25s ease,color .25s ease}
+.close:hover{background:var(--ink); color:var(--cream)}
+.herostar .ic-star{width:42px; height:42px}
+/* room vignette: a small emblem drawn in the same hand, so each spoke feels carved from the hub */
+.vig{margin:12px 0 2px}
+.vig svg{width:78px; height:50px; overflow:visible; display:block}
+.vink{fill:none; stroke:var(--ink); stroke-width:2.1; stroke-linecap:round; stroke-linejoin:round;
+  stroke-dasharray:1 1.02; stroke-dashoffset:1}
+.vgold{stroke:var(--gold)}
+.vfill{fill:var(--night); opacity:0}
+.play .art.active .vink{animation:dr .58s ease .08s forwards}
+.play .art.active .vfill{animation:fin .4s ease .5s forwards}
+.rm .vink{stroke-dashoffset:0}
+.rm .vfill{opacity:1}
+.wm{font-family:'Playfair Display',serif; font-weight:600; letter-spacing:.2em; font-size:clamp(28px,2.9vw,40px); margin:14px 0 0}
+.lead{font-size:clamp(19px,2.4vw,23px); line-height:1.5; margin:16px 0 26px; color:#3c372f}
+.art h2{font-family:'Playfair Display',serif; font-weight:600; font-size:clamp(26px,3.4vw,34px); letter-spacing:.01em; margin:6px 0 0}
+.kick{font-size:13px; letter-spacing:.26em; text-transform:uppercase; color:var(--goldD); font-weight:600}
+.body,.about{font-size:clamp(18px,2.3vw,21px); line-height:1.56; margin:16px 0 0; color:#3c372f}
+.note{font-size:15px; font-style:italic; color:#8a7f6d; margin-top:12px}
+.prin{list-style:none; padding:0; margin:18px 0 0; counter-reset:p}
+.prin li{padding:14px 0; border-top:1px solid rgba(46,42,38,.14); counter-increment:p}
+.prin li:before{content:counter(p,decimal-leading-zero); display:block; font-family:'Playfair Display',serif; color:var(--goldD); font-size:13px; letter-spacing:.14em}
+.pt{display:block; font-family:'Playfair Display',serif; font-weight:600; font-size:19px; margin:3px 0 2px}
+.pb{display:block; font-size:17px; line-height:1.45; color:#3c372f}
+.ctas{display:flex; gap:12px; flex-wrap:wrap}
+.cta{font-family:'Cormorant Garamond',serif; font-size:17px; font-weight:600; padding:11px 20px; border-radius:999px;
+  border:1px solid var(--ink); background:transparent; color:var(--ink); cursor:pointer;
+  transition:background .25s ease,color .25s ease,border-color .25s ease}
+.cta.pri{background:var(--ink); color:var(--cream)}
+.cta:hover{background:var(--gold); border-color:var(--gold); color:#241f14}
+.email{display:inline-block; margin:18px 0 6px; font-family:'Playfair Display',serif; font-size:clamp(18px,2.4vw,22px);
+  color:var(--ink); text-decoration:none; border-bottom:2px solid var(--gold); padding-bottom:2px;
+  transition:color .25s ease}
+.email:hover{color:var(--gold)}
+.pmeta{font-size:16px; color:#6b6153; margin:6px 0 0}
+.foot{display:flex; align-items:center; gap:10px; margin-top:26px; padding-top:16px; border-top:1px solid rgba(46,42,38,.14)}
+.foot .ic-star{width:20px; height:20px; flex:0 0 auto}
+.foot span{font-family:'Playfair Display',serif; letter-spacing:.2em; font-size:14px}
+.foot small{margin-left:auto; color:#8a7f6d; font-size:13px}
+
+/* ---------- MOBILE ---------- */
+@media(max-width:640px){
+  .home{left:12px; top:10px; padding:5px 12px 5px 7px}
+  .home .hw{font-size:12.5px; letter-spacing:.18em}
+  .home .ic-star{width:19px; height:19px}
+  .railwrap{right:0; bottom:0}
+  .railwrap:before{display:none}
+  .rail{border-radius:16px 16px 0 0; max-width:100%; width:100%; justify-content:flex-start;
+    border-left:0; border-right:0; border-bottom:0}
+  .railwrap.fade-end:after{content:""; position:absolute; right:0; top:1px; bottom:0; width:48px;
+    background:linear-gradient(90deg, rgba(250,247,241,0), rgba(250,247,241,.94) 78%); pointer-events:none}
+  .wm{font-size:30px}
+  .panel{top:auto; bottom:var(--railh); left:0; right:0; width:auto; height:46svh; transform:translateY(103%);
+    border-left:0; border-top:1px solid rgba(46,42,38,.18); border-radius:16px 16px 0 0;
+    padding:22px 22px 24px; box-shadow:0 -18px 40px rgba(46,42,38,.16)}
+  .panel:before{display:none}
+  .lead{margin-bottom:18px}
+}
+
+@media (prefers-reduced-motion: reduce){
+  .world{transition:none!important}
+  .panel,.chip,.art.active,.close,.cta,.email,.room,.lbl{transition:none!important; animation:none!important}
+}
+</style>
+</head>
+<body>
+<div id="track"></div>
+
+<div class="stage" id="stage">
+  <div class="world" id="world">
+    <svg class="scene" id="scene" viewBox="0 0 1500 960" preserveAspectRatio="xMidYMid meet" role="img"
+         aria-label="A hand-drawn cutaway of the Vesperwerk studio: a night phone call travels as a gold thread from a caller's room, through the LINE tower, across three service workrooms, to the Yimwhan clinic reception.">
+      <defs>
+        <symbol id="vstar" viewBox="0 0 200 200">
+          <g transform="translate(100,100)">
+            <g>
+              <polygon points="0,-86 -11,0 0,0" fill="#c09a4a"/>
+              <polygon points="0,-86 11,0 0,0" fill="#8a6526"/>
+            </g>
+            <g transform="rotate(180)">
+              <polygon points="0,-86 -11,0 0,0" fill="#8a6526"/>
+              <polygon points="0,-86 11,0 0,0" fill="#c09a4a"/>
+            </g>
+            <g transform="rotate(90)">
+              <polygon points="0,-64 -9.5,0 0,0" fill="#c09a4a"/>
+              <polygon points="0,-64 9.5,0 0,0" fill="#8a6526"/>
+            </g>
+            <g transform="rotate(270)">
+              <polygon points="0,-64 -9.5,0 0,0" fill="#8a6526"/>
+              <polygon points="0,-64 9.5,0 0,0" fill="#c09a4a"/>
+            </g>
+            <g transform="rotate(45)">
+              <polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/>
+              <polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/>
+            </g>
+            <g transform="rotate(135)">
+              <polygon points="0,-44 -7.5,0 0,0" fill="#c09a4a"/>
+              <polygon points="0,-44 7.5,0 0,0" fill="#8a6526"/>
+            </g>
+            <g transform="rotate(225)">
+              <polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/>
+              <polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/>
+            </g>
+            <g transform="rotate(315)">
+              <polygon points="0,-44 -7.5,0 0,0" fill="#8a6526"/>
+              <polygon points="0,-44 7.5,0 0,0" fill="#c09a4a"/>
+            </g>
+          </g>
+        </symbol>
+      </defs>
+
+      <!-- ============ STATIC SCENE ============ -->
+      <g id="scene-static">
+        <!-- ground -->
+        <path class="ink sw2 l1" d="M36 858 L1300 858"/>
+        <path class="ink sw4 l2" d="M120 858 l8 10 M250 858 l7 10 M470 858 l0 0 M1230 858 l7 10 M1290 858 l6 9"/>
+
+        <!-- ===== CALLER HOUSE (night) ===== -->
+        <g>
+          <path class="ink sw2 l1" d="M74 858 L74 470 M290 858 L290 470"/>
+          <path class="ink sw2 l1" d="M64 476 L184 396 L300 476"/>
+          <path class="ink sw4 l2" d="M184 396 L184 372"/>
+          <!-- night window -->
+          <rect class="night paint l2" x="150" y="508" width="94" height="80" rx="3"/>
+          <path class="ink sw4 l2" d="M150 508 h94 v80 h-94 z M197 508 v80 M150 548 h94"/>
+          <circle class="moon paint l4" cx="224" cy="530" r="10"/>
+          <path class="goldink l4" d="M168 522 l0 8 M164 526 l8 0"/>
+          <path class="goldink l4" d="M206 566 l0 6 M203 569 l6 0"/>
+          <!-- floor lamp -->
+          <path class="ink sw4 l3" d="M104 858 L104 636 M92 636 q12 -20 24 0 z"/>
+          <!-- caller figure, seated, phone to ear -->
+          <circle class="ink swf l5" cx="182" cy="694" r="15"/>
+          <path class="ink swf l5" d="M170 706 C162 726 162 748 168 782 L206 782 C210 752 208 728 200 708"/>
+          <path class="ink swf l5" d="M198 700 C214 690 216 676 208 668"/>
+          <path class="ink sw3 l3" d="M162 782 L162 818 M212 782 L212 818 M150 826 L226 826"/>
+          <text class="tiny paint l5" x="118" y="640">after hours</text>
+        </g>
+
+        <!-- ===== LINE TOWER ===== -->
+        <g>
+          <path class="ink sw2 l1" d="M356 858 L392 158 M436 858 L400 158"/>
+          <path class="ink sw4 l1" d="M362 700 L430 700 M366 540 L426 540 M372 380 L420 380 M378 250 L414 250"/>
+          <path class="ink sw4 l1" d="M362 700 L426 540 M430 700 L366 540 M366 540 L420 380 M426 540 L372 380 M372 380 L414 250 M420 380 L378 250"/>
+          <path class="ink sw3 l1" d="M388 158 L404 158 M396 158 L396 122"/>
+          <circle class="ink swf l3" cx="396" cy="180" r="13"/>
+          <path class="ink swf l3" d="M396 180 L380 172"/>
+          <!-- broadcast arcs -->
+          <path class="goldink l4" d="M418 162 q20 16 0 40 M430 154 q30 24 0 62"/>
+          <path class="goldink l4" d="M374 162 q-20 16 0 40"/>
+          <!-- LINE plate -->
+          <rect class="platef paint l3" x="360" y="486" width="72" height="30" rx="6"/>
+          <path class="ink sw4 l3" d="M360 486 h72 v30 h-72 z"/>
+          <text class="plate" x="396" y="506" text-anchor="middle" style="opacity:0" data-paint>LINE</text>
+        </g>
+
+        <!-- ===== STUDIO SHELL ===== -->
+        <g>
+          <path class="ink sw1 l1" d="M470 250 L470 858 M1180 250 L1180 858 M470 250 L1180 250 M470 858 L1180 858"/>
+          <path class="ink sw2 l1" d="M470 296 L1180 296"/>
+          <!-- floor slab -->
+          <rect class="slabf paint l2" x="470" y="576" width="710" height="16"/>
+          <path class="ink sw2 l1" d="M470 576 L1180 576 M470 592 L1180 592"/>
+          <!-- dividers -->
+          <path class="ink sw2 l1" d="M707 296 L707 576 M943 296 L943 576 M707 592 L707 858 M943 592 L943 858"/>
+          <!-- roof sign -->
+          <use href="#vstar" class="paint l4" x="492" y="253" width="40" height="40"/>
+          <text class="wmk paint l4" x="548" y="284">VESPERWERK</text>
+          <path class="ink sw4 l4" d="M492 296 L1160 296"/>
+        </g>
+
+        <!-- signature -->
+        <text class="sig paint l5" x="1176" y="936" text-anchor="end">drawn in svg . vesperwerk 2026</text>
+        <!-- Thai epigraph, lettered along the base line -->
+        <text class="epi paint l5" x="825" y="908" text-anchor="middle">&#3604;&#3634;&#3623;&#3611;&#3619;&#3632;&#3592;&#3635;&#3648;&#3617;&#3639;&#3629;&#3591; : &#3649;&#3626;&#3591;&#3649;&#3619;&#3585;&#3607;&#3637;&#3656;&#3651;&#3594;&#3657;&#3609;&#3635;&#3607;&#3634;&#3591;&#3618;&#3634;&#3617;&#3588;&#3656;&#3635;</text>
+      </g>
+
+      <!-- ============ ROOMS (spoke openers) ============ -->
+      <g id="rooms">
+
+        <!-- VOICE DESK : AI Systems -->
+        <g class="room" id="room-ai" data-key="ai" data-go="1" tabindex="0" role="button" aria-label="AI Systems">
+          <rect class="hit" x="470" y="296" width="237" height="280"/>
+          <text class="lbl paint l2" x="488" y="332">AI SYSTEMS</text>
+          <path class="ink sw3 l3" d="M498 518 h176 M512 518 v40 M660 518 v40"/>
+          <rect class="ink sw3 l3" x="556" y="470" width="82" height="46" fill="none"/>
+          <path class="ink sw4 l3" d="M597 516 v14 M580 530 h34"/>
+          <path class="goldink l4" d="M563 494 l8 -10 8 14 8 -18 8 20 8 -12 8 6"/>
+          <circle class="ink swf l5" cx="521" cy="486" r="14"/>
+          <path class="ink swf l5" d="M509 480 Q521 465 533 480"/>
+          <circle class="node paint l5" cx="508" cy="488" r="4"/>
+          <path class="ink swf l5" d="M512 500 C505 516 505 532 510 544 L534 544 C538 530 536 514 530 500"/>
+          <path class="ink swf l5" d="M530 512 L552 502"/>
+          <path class="ink sw3 l3" d="M556 470 q-2 -28 -22 -32 M534 438 a4 4 0 1 0 .1 0"/>
+          <path class="goldink l4" d="M540 470 q-10 8 0 18 M548 466 q-16 12 0 28"/>
+          <path class="ink sw4 l4" d="M686 540 q-4 -22 6 -28 q10 6 6 28 M676 540 h32"/>
+          <rect class="focusring" x="478" y="304" width="221" height="264" rx="10"/>
+        </g>
+
+        <!-- ENGINEERING BENCH : Product Engineering -->
+        <g class="room" id="room-eng" data-key="eng" data-go="2" tabindex="0" role="button" aria-label="Product Engineering">
+          <rect class="hit" x="707" y="296" width="236" height="280"/>
+          <text class="lbl paint l2" x="724" y="332">PRODUCT ENGINEERING</text>
+          <path class="ink sw3 l3" d="M742 518 h150 M756 518 v40 M878 518 v40"/>
+          <rect class="ink sw3 l3" x="778" y="462" width="88" height="52" fill="none"/>
+          <path class="ink sw4 l4" d="M786 474 h40 M786 484 h60 M786 494 h30"/>
+          <path class="goldink l4" d="M786 504 h48"/>
+          <rect class="ink sw3 l3" x="886" y="452" width="38" height="90" fill="none"/>
+          <path class="ink sw4 l4" d="M886 476 h38 M886 500 h38 M886 524 h38"/>
+          <circle class="node paint l4" cx="917" cy="464" r="3"/>
+          <circle class="node paint l4" cx="917" cy="488" r="3"/>
+          <circle class="node paint l4" cx="917" cy="512" r="3"/>
+          <circle class="ink swf l5" cx="762" cy="490" r="14"/>
+          <path class="ink swf l5" d="M752 502 C746 520 746 540 752 558 L774 558 C778 540 776 520 772 504"/>
+          <path class="ink swf l5" d="M770 512 L790 512"/>
+          <circle class="ink sw4 l4" cx="726" cy="504" r="11" fill="none"/>
+          <path class="ink sw4 l4" d="M726 491 v-4 M726 517 v4 M713 504 h-4 M739 504 h4 M717 495 l-3 -3 M735 495 l3 -3 M717 513 l-3 3 M735 513 l3 3"/>
+          <rect class="focusring" x="715" y="304" width="220" height="264" rx="10"/>
+        </g>
+
+        <!-- COMMERCE COUNTER : Commerce and Platforms -->
+        <g class="room" id="room-commerce" data-key="commerce" data-go="3" tabindex="0" role="button" aria-label="Commerce and Platforms">
+          <rect class="hit" x="943" y="296" width="237" height="280"/>
+          <text class="lbl paint l2" x="960" y="332">COMMERCE</text>
+          <path class="ink sw3 l3" d="M972 512 h168 v44 h-168 z M972 528 h168"/>
+          <!-- shopping bag -->
+          <path class="ink sw3 l3" d="M990 486 h34 l6 26 h-46 z"/>
+          <path class="ink sw4 l4" d="M998 486 q0 -12 12 -12 q12 0 12 12"/>
+          <!-- card reader -->
+          <rect class="ink sw4 l4" x="1050" y="490" width="22" height="22" fill="none"/>
+          <path class="goldink l4" d="M1054 500 h14"/>
+          <!-- LINE chat phone -->
+          <rect class="ink sw3 l3" x="1094" y="452" width="38" height="60" rx="5" fill="none"/>
+          <path class="ink sw4 l4" d="M1100 494 q-6 6 -10 4 q6 -2 4 -8 z"/>
+          <path class="goldink l4" d="M1100 466 h26 M1100 476 h18"/>
+          <circle class="node paint l4" cx="1113" cy="486" r="2.4"/>
+          <circle class="ink swf l5" cx="1126" cy="490" r="14"/>
+          <path class="ink swf l5" d="M1138 502 C1144 520 1144 540 1138 556 L1116 556 C1112 540 1114 520 1118 504"/>
+          <path class="ink swf l5" d="M1118 512 L1100 508"/>
+          <rect class="focusring" x="951" y="304" width="221" height="264" rx="10"/>
+        </g>
+
+        <!-- CLINIC RECEPTION : Yimwhan (Selected work) -->
+        <g class="room" id="room-work" data-key="work" data-go="4" tabindex="0" role="button" aria-label="Selected work, Yimwhan AI">
+          <rect class="hit" x="943" y="592" width="237" height="266"/>
+          <rect class="mint paint l2" x="946" y="595" width="232" height="261"/>
+          <text class="lbl paint l2" x="960" y="628">SELECTED WORK</text>
+          <!-- Yimwhan sign -->
+          <rect class="platef paint l3" x="1000" y="648" width="86" height="28" rx="6"/>
+          <path class="ink sw4 l3" d="M1000 648 h86 v28 h-86 z"/>
+          <path class="ink sw4 l4" d="M1012 662 q4 -8 8 0 q4 -8 8 0"/>
+          <text class="plate" x="1046" y="668" text-anchor="middle" style="opacity:0" data-paint>YIMWHAN</text>
+          <!-- framed clinic photo (a hanging print, matted, no crop) -->
+          <path class="ink sw3 l3" d="M1132 646 L1132 654"/>
+          <rect class="ink sw3 l3" x="1102" y="654" width="66" height="56" fill="none"/>
+          <rect class="photo-mat paint l3" x="1106" y="658" width="58" height="48"/>
+          <image class="paint l4" id="clinicphoto" href="../assets/flux-clinic-4k.png" x="1109" y="661" width="52" height="42" preserveAspectRatio="xMidYMid meet"/>
+          <!-- reception desk + host -->
+          <path class="ink sw3 l3" d="M990 826 v-40 q0 -8 10 -8 h132 q10 0 10 8 v40 z M990 800 h152"/>
+          <circle class="ink swf l5" cx="1026" cy="744" r="14"/>
+          <path class="ink swf l5" d="M1014 756 C1008 772 1008 786 1012 800 L1040 800 C1044 786 1042 772 1038 756"/>
+          <path class="ink swf l5" d="M1016 764 L1000 770"/>
+          <!-- desk phone : the call lands -->
+          <path class="ink sw4 l4" d="M998 792 q-2 -12 8 -14 q10 2 8 14"/>
+          <rect class="ink sw4 l4" x="994" y="792" width="28" height="10" rx="3" fill="none"/>
+          <circle class="halo paint l5" cx="1050" cy="752" r="13"/>
+          <circle class="node paint l5" cx="1050" cy="752" r="5"/>
+          <rect class="focusring" x="951" y="600" width="221" height="250" rx="10"/>
+        </g>
+
+        <!-- PRINCIPLES CORRIDOR : Approach -->
+        <g class="room" id="room-approach" data-key="approach" data-go="5" tabindex="0" role="button" aria-label="Approach, four principles">
+          <rect class="hit" x="707" y="592" width="236" height="266"/>
+          <text class="lbl paint l2" x="724" y="628">APPROACH</text>
+          <!-- corridor depth -->
+          <path class="ink sw4 l3" d="M712 858 L764 704 M938 858 L888 704 M764 704 L888 704"/>
+          <path class="ink sw4 l4" d="M786 858 L800 760 M864 858 L852 760"/>
+          <!-- four framed mottos -->
+          <g class="ink sw4 l3">
+            <rect x="720" y="656" width="44" height="40" fill="none"/>
+            <rect x="772" y="656" width="44" height="40" fill="none"/>
+            <rect x="824" y="656" width="44" height="40" fill="none"/>
+            <rect x="876" y="656" width="44" height="40" fill="none"/>
+          </g>
+          <g class="plate" style="font-size:12px">
+            <text x="742" y="682" text-anchor="middle" style="opacity:0" data-paint>I</text>
+            <text x="794" y="682" text-anchor="middle" style="opacity:0" data-paint>II</text>
+            <text x="846" y="682" text-anchor="middle" style="opacity:0" data-paint>III</text>
+            <text x="898" y="682" text-anchor="middle" style="opacity:0" data-paint>IV</text>
+          </g>
+          <!-- walking figure -->
+          <circle class="ink swf l5" cx="902" cy="756" r="13"/>
+          <path class="ink swf l5" d="M902 769 C896 784 896 796 900 806"/>
+          <path class="ink swf l5" d="M900 806 L892 828 M900 806 L910 826 M900 782 L888 792 M900 782 L914 788"/>
+          <circle class="halo paint l5" cx="824" cy="748" r="12"/>
+          <circle class="node paint l5" cx="824" cy="748" r="5"/>
+          <rect class="focusring" x="715" y="600" width="220" height="250" rx="10"/>
+        </g>
+
+        <!-- FRONT DESK : Contact -->
+        <g class="room" id="room-contact" data-key="contact" data-go="6" tabindex="0" role="button" aria-label="Contact, front desk">
+          <rect class="hit" x="470" y="592" width="237" height="266"/>
+          <text class="lbl paint l2" x="488" y="628">CONTACT</text>
+          <!-- entrance door -->
+          <rect class="ink sw3 l3" x="478" y="724" width="40" height="132" fill="none"/>
+          <path class="ink sw4 l4" d="M488 734 h20 v112 h-20 z"/>
+          <circle class="node paint l4" cx="512" cy="792" r="3"/>
+          <!-- vesper star on wall -->
+          <use href="#vstar" class="paint l4" x="536" y="648" width="28" height="28"/>
+          <!-- front desk + host -->
+          <path class="ink sw3 l3" d="M552 826 v-40 q0 -8 10 -8 h120 q10 0 10 8 v40 z M552 800 h140"/>
+          <circle class="ink swf l5" cx="602" cy="738" r="14"/>
+          <path class="ink swf l5" d="M590 750 C584 766 584 782 588 800 L616 800 C620 782 618 766 614 750"/>
+          <path class="ink swf l5" d="M612 758 L630 764"/>
+          <!-- email card on desk -->
+          <g transform="rotate(-5 590 762)">
+            <rect class="platef paint l3" x="548" y="748" width="104" height="30" rx="3"/>
+            <path class="ink sw4 l3" d="M548 748 h104 v30 h-104 z"/>
+            <path class="goldink l4" d="M548 748 l10 10"/>
+            <text class="tiny paint l4" x="600" y="767" text-anchor="middle">kittipong.k@vesperwerk.com</text>
+          </g>
+          <!-- plant -->
+          <path class="ink sw4 l4" d="M690 826 q-4 -22 6 -28 q10 6 6 28 M680 826 h32"/>
+          <circle class="halo paint l5" cx="588" cy="742" r="12"/>
+          <circle class="node paint l5" cx="588" cy="742" r="5"/>
+          <rect class="focusring" x="478" y="600" width="221" height="250" rx="10"/>
+        </g>
+      </g>
+
+      <!-- ============ SIGNAL THREAD (one continuous gold line) ============ -->
+      <g id="signal-layer">
+        <circle class="halo paint l5" cx="196" cy="672" r="13"/>
+        <path class="signal" id="signal" d="M196 672 C214 548 300 300 400 158 C470 118 542 210 566 300 C578 356 584 414 588 470 C660 440 720 500 824 470 C918 447 986 500 1060 470 C1128 452 1120 632 1052 748 C968 774 902 748 824 748 C726 748 662 742 588 742"/>
+        <path class="pulse-glow" id="pulse-glow" d="M196 672 C214 548 300 300 400 158 C470 118 542 210 566 300 C578 356 584 414 588 470 C660 440 720 500 824 470 C918 447 986 500 1060 470 C1128 452 1120 632 1052 748 C968 774 902 748 824 748 C726 748 662 742 588 742"/>
+        <path class="pulse" id="pulse" d="M196 672 C214 548 300 300 400 158 C470 118 542 210 566 300 C578 356 584 414 588 470 C660 440 720 500 824 470 C918 447 986 500 1060 470 C1128 452 1120 632 1052 748 C968 774 902 748 824 748 C726 748 662 742 588 742"/>
+        <circle class="node paint l5" cx="196" cy="672" r="5"/>
+        <circle class="node paint l5" cx="588" cy="470" r="5"/>
+        <circle class="node paint l5" cx="824" cy="470" r="5"/>
+        <circle class="node paint l5" cx="1060" cy="470" r="5"/>
+      </g>
+    </svg>
+  </div>
+</div>
+
+<!-- HOME -->
+<button class="home" id="home" aria-label="Vesperwerk, back to hero">
+  <svg class="ic-star" viewBox="0 0 200 200" aria-hidden="true"><use href="#vstar"/></svg>
+  <span class="hw">VESPERWERK</span>
+</button>
+
+<!-- NAV RAIL -->
+<div class="railwrap"><nav class="rail" id="rail" aria-label="Scene navigation"></nav></div>
+
+<!-- SPOKE PANEL -->
+<aside class="panel" id="panel" aria-label="Detail panel"><div id="articles"></div></aside>
+
+<script>
+/* =========================================================================
+   DATA  (swap copy here)
+   ========================================================================= */
+const DATA = {
+  brand:{ name:'VESPERWERK', place:'Bangkok, Thailand', copyright:'(c) 2026 Vesperwerk',
+          email:'kittipong.k@vesperwerk.com' },
+  spokes:[
+    { key:'hero', label:'Home', idx:'', focus:null, hero:true,
+      title:'VESPERWERK',
+      lead:'An independent software and AI studio. We architect, build, and operate production systems for businesses that cannot afford them to fail.',
+      ctas:[{t:'Start a conversation', go:6, primary:true},{t:'See our work', go:4}] },
+
+    { key:'ai', label:'AI Systems', idx:'01', focus:{x:588, y:436},
+      title:'AI Systems',
+      body:'Voice agents, LLM assistants, and the evaluation infrastructure that keeps them honest. AI that answers like your best employee, in production, around the clock.' },
+
+    { key:'eng', label:'Product Engineering', idx:'02', focus:{x:825, y:436},
+      title:'Product Engineering',
+      body:'Full-stack product engineering from architecture to operations: event-driven backends, modern web frontends, and infrastructure that scales without drama.' },
+
+    { key:'commerce', label:'Commerce', idx:'03', focus:{x:1061, y:436},
+      title:'Commerce and Platforms',
+      body:'Deep Shopify and LINE platform work: storefronts, admin apps, integrations, and the messaging rails Southeast Asian commerce runs on.' },
+
+    { key:'work', label:'Yimwhan', idx:'04', focus:{x:1061, y:726},
+      kicker:'Selected work', title:'Yimwhan AI',
+      body:'An AI voice and LINE assistant for dental clinics in Thailand. It answers after-hours calls, books and reschedules appointments, and hands off to staff the moment a human matters. In production at live clinics.',
+      note:'Pictured on the reception wall.' },
+
+    { key:'approach', label:'Approach', idx:'05', focus:{x:825, y:726},
+      title:'Approach',
+      principles:[
+        ['Architecture first','We design the system before we write the code.'],
+        ['Production-worthy','Demos impress; production endures. We build for the second one.'],
+        ['Scope discipline','The most valuable thing we tell clients is what not to build.'],
+        ['Senior hands','No juniors learning on your budget. Founder-led, senior hands on every line.'] ] },
+
+    { key:'contact', label:'Contact', idx:'06', focus:{x:588, y:726},
+      title:'Start a conversation',
+      about:'Vesperwerk takes its name from the evening star: the first light you can navigate by. We are a founder-led studio in Bangkok building software for businesses across Asia and beyond.',
+      email:'kittipong.k@vesperwerk.com', place:'Bangkok, Thailand', foot:'(c) 2026 Vesperwerk' }
+  ]
+};
+
+/* =========================================================================
+   BUILD  panel articles + nav chips
+   ========================================================================= */
+const STAR = '<svg class="ic-star" viewBox="0 0 200 200" aria-hidden="true"><use href="#vstar"/></svg>';
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+/* room-specific line-art emblems, drawn in the same hand as the scene (echo each room's motif) */
+const VIGNETTE = {
+  ai:'<svg viewBox="0 0 88 56" aria-hidden="true">'
+    +'<circle class="vink" cx="20" cy="24" r="12"/>'
+    +'<path class="vink" d="M12 20 Q20 12 28 20"/>'
+    +'<path class="vink" d="M14 39 C11 46 11 52 13 56"/>'
+    +'<circle class="vink vgold" cx="7" cy="27" r="2.6"/>'
+    +'<path class="vink vgold" d="M40 30 l6 -12 6 18 6 -24 6 26 6 -14 5 6"/>'
+    +'<path class="vink" d="M38 42 h44"/></svg>',
+  eng:'<svg viewBox="0 0 88 56" aria-hidden="true">'
+    +'<circle class="vink" cx="22" cy="27" r="10"/>'
+    +'<circle class="vink" cx="22" cy="27" r="4"/>'
+    +'<path class="vink" d="M22 13 v-4 M22 45 v4 M8 27 h-4 M40 27 h4 M12 17 l-3 -3 M32 17 l3 -3 M12 37 l-3 3 M32 37 l3 3"/>'
+    +'<rect class="vink" x="50" y="12" width="30" height="34" rx="2"/>'
+    +'<path class="vink vgold" d="M56 22 h18"/>'
+    +'<path class="vink" d="M56 30 h18 M56 37 h12"/></svg>',
+  commerce:'<svg viewBox="0 0 88 56" aria-hidden="true">'
+    +'<path class="vink" d="M16 22 h24 l4 24 h-32 z"/>'
+    +'<path class="vink vgold" d="M22 22 q0 -9 6 -9 q6 0 6 9"/>'
+    +'<rect class="vink" x="52" y="26" width="30" height="20" rx="2"/>'
+    +'<path class="vink" d="M52 32 h30"/>'
+    +'<path class="vink vgold" d="M57 40 h10"/></svg>',
+  work:'<svg viewBox="0 0 88 56" aria-hidden="true">'
+    +'<rect class="vink" x="10" y="12" width="30" height="26" rx="1"/>'
+    +'<rect class="vink" x="15" y="17" width="20" height="16"/>'
+    +'<path class="vink vgold" d="M18 30 l5 -7 4 4 3 -3 5 6"/>'
+    +'<circle class="vink" cx="22" cy="22" r="2"/>'
+    +'<rect class="vink" x="54" y="14" width="20" height="30" rx="3"/>'
+    +'<path class="vink vgold" d="M58 39 h12"/>'
+    +'<circle class="vink vgold" cx="64" cy="23" r="2.4"/></svg>',
+  approach:'<svg viewBox="0 0 88 56" aria-hidden="true">'
+    +'<rect class="vink" x="9" y="16" width="14" height="15"/>'
+    +'<rect class="vink" x="28" y="16" width="14" height="15"/>'
+    +'<rect class="vink" x="47" y="16" width="14" height="15"/>'
+    +'<rect class="vink" x="66" y="16" width="14" height="15"/>'
+    +'<path class="vink vgold" d="M9 41 h71"/></svg>',
+  contact:'<svg viewBox="0 0 88 56" aria-hidden="true">'
+    +'<rect class="vink" x="10" y="17" width="36" height="25" rx="2"/>'
+    +'<path class="vink" d="M10 19 l18 15 18 -15"/>'
+    +'<path class="vink vgold" d="M66 12 l3.4 13 13 3.4 -13 3.4 -3.4 13 -3.4 -13 -13 -3.4 13 -3.4 z"/></svg>'
+};
+
+function buildArticles(){
+  const box = document.getElementById('articles');
+  DATA.spokes.forEach((sp,i)=>{
+    const a = document.createElement('article');
+    a.className='art'; a.dataset.i=i; a.setAttribute('aria-hidden','true');
+    let h = '<div class="ahead"><span class="aidx">'+(sp.idx? sp.idx+'&nbsp;/&nbsp;06':esc(DATA.brand.place))+
+            '</span><button class="close" aria-label="Close panel and view the whole scene">&#215;</button></div>';
+    if(!sp.hero && VIGNETTE[sp.key]) h += '<div class="vig">'+VIGNETTE[sp.key]+'</div>';
+    if(sp.hero){
+      h += '<div class="herostar">'+STAR+'</div>';
+      h += '<h1 class="wm">'+esc(sp.title)+'</h1>';
+      h += '<p class="lead">'+esc(sp.lead)+'</p>';
+      h += '<div class="ctas">'+sp.ctas.map(c=>'<button class="cta '+(c.primary?'pri':'')+'" data-go="'+c.go+'">'+esc(c.t)+'</button>').join('')+'</div>';
+    } else if(sp.principles){
+      h += '<h2>'+esc(sp.title)+'</h2>';
+      h += '<ol class="prin">'+sp.principles.map(p=>'<li><span class="pt">'+esc(p[0])+'</span><span class="pb">'+esc(p[1])+'</span></li>').join('')+'</ol>';
+    } else if(sp.key==='contact'){
+      h += '<h2>'+esc(sp.title)+'</h2>';
+      h += '<p class="about">'+esc(sp.about)+'</p>';
+      h += '<a class="email" href="mailto:'+sp.email+'">'+esc(sp.email)+'</a>';
+      h += '<p class="pmeta">'+esc(sp.place)+'</p>';
+      h += '<div class="foot">'+STAR+'<span>'+esc(DATA.brand.name)+'</span><small>'+esc(sp.foot)+'</small></div>';
+    } else {
+      if(sp.kicker) h += '<span class="kick">'+esc(sp.kicker)+'</span>';
+      h += '<h2>'+esc(sp.title)+'</h2>';
+      h += '<p class="body">'+esc(sp.body)+'</p>';
+      if(sp.note) h += '<p class="note">'+esc(sp.note)+'</p>';
+    }
+    a.innerHTML = h;
+    box.appendChild(a);
+  });
+}
+
+function buildChips(){
+  const rail = document.getElementById('rail');
+  DATA.spokes.forEach((sp,i)=>{
+    const b = document.createElement('button');
+    b.className='chip'; b.dataset.go=i; b.textContent=sp.label;
+    b.setAttribute('aria-label', sp.hero? 'Home, the hero' : sp.label);
+    rail.appendChild(b);
+  });
+}
+
+/* =========================================================================
+   CAMERA + STATE
+   ========================================================================= */
+const WORLD = {w:1500, h:960}, FRAME = 560, MAXZOOM = 2.25;
+const world = document.getElementById('world');
+const panel = document.getElementById('panel');
+const arts  = ()=>document.querySelectorAll('.art');
+const chips = ()=>document.querySelectorAll('.chip');
+const rooms = document.querySelectorAll('.room');
+const rootEl = document.documentElement;
+
+let RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const state = { i:0, closed:true, entered:false };
+
+const isMobile = ()=> window.matchMedia('(max-width:640px)').matches;
+const panelW  = ()=> Math.min(430, Math.round(window.innerWidth*0.35));
+const railH   = ()=> isMobile()? 52 : 60;
+const sheetH  = ()=> Math.round(window.innerHeight*0.46);
+const stopPx  = ()=> window.innerHeight;
+
+function layout(focus, open){
+  const sw = window.innerWidth, sh = window.innerHeight, mob = isMobile();
+  let availX0=0, availY0=0, availW=sw, availH=sh - railH();
+  if(mob){
+    availW = sw;
+    availH = open ? (sh - sheetH() - railH()) : (sh - railH());
+  } else if(open){
+    availW = sw - panelW();
+  }
+  let s, tx, ty;
+  if(!focus){
+    s = Math.min(availW/WORLD.w, availH/WORLD.h) * 0.94;
+    tx = availX0 + (availW - s*WORLD.w)/2;
+    ty = availY0 + (availH - s*WORLD.h)/2;
+  } else {
+    s = Math.min(availW/FRAME, availH/FRAME, MAXZOOM);
+    const ax = availX0 + availW/2, ay = availY0 + availH/2;
+    tx = ax - s*focus.x;
+    ty = ay - s*focus.y;
+  }
+  return {s, tx, ty};
+}
+
+function applyCam(focus, open){
+  const {s,tx,ty} = layout(focus, open);
+  world.style.transform = 'translate('+tx.toFixed(1)+'px,'+ty.toFixed(1)+'px) scale('+s.toFixed(4)+')';
+}
+
+function showArticle(i){
+  arts().forEach(a=>{
+    const on = (+a.dataset.i===i);
+    a.classList.toggle('active', on);
+    a.setAttribute('aria-hidden', on?'false':'true');
+  });
+}
+function setActiveRoom(key){
+  rooms.forEach(r=> r.classList.toggle('is-active', r.dataset.key===key));
+}
+function updateChips(i, open){
+  chips().forEach(c=>{
+    const on = (+c.dataset.go===i && open);
+    c.classList.toggle('active', on);
+    if(on) c.setAttribute('aria-current','true'); else c.removeAttribute('aria-current');
+  });
+}
+
+/* discrete gold-signal comet: restart the travel animation on demand (RM = never) */
+let pulseSig = '';
+function firePulse(){
+  if(RM) return;
+  ['pulse-glow','pulse'].forEach(id=>{
+    const p = document.getElementById(id);
+    if(!p) return;
+    p.classList.remove('travel');
+    void p.getBBox();               // force reflow so the animation restarts
+    p.classList.add('travel');
+  });
+}
+
+function render(){
+  const sp = DATA.spokes[state.i];
+  const open = !state.closed;
+  panel.classList.toggle('open', open);
+  rootEl.style.setProperty('--pw', (open && !isMobile()) ? panelW()+'px' : '0px');
+  rootEl.style.setProperty('--railh', railH()+'px');
+  if(open) showArticle(state.i);
+  applyCam(open ? sp.focus : null, open);
+  setActiveRoom((open && sp.focus) ? sp.key : null);
+  rootEl.classList.toggle('focused', open && !!sp.focus);
+  updateChips(state.i, open);
+  // opening a room re-fires the signal down the gold thread
+  const sig = (open && sp.focus) ? sp.key : '';
+  if(sig && sig !== pulseSig) firePulse();
+  pulseSig = sig;
+}
+
+/* =========================================================================
+   NAVIGATION  (scroll-synced; scroll-only visitors get the full tour)
+   ========================================================================= */
+function goTo(i){
+  i = Math.max(0, Math.min(DATA.spokes.length-1, i));
+  state.i = i; state.closed = false; render();
+  window.scrollTo({ top: i*stopPx(), behavior: RM ? 'auto' : 'smooth' });
+}
+function closePanel(){ state.closed = true; render(); }
+
+let ticking = false;
+function onScroll(){
+  if(ticking) return; ticking = true;
+  requestAnimationFrame(()=>{
+    ticking = false;
+    const i = Math.max(0, Math.min(DATA.spokes.length-1, Math.round(window.scrollY / stopPx())));
+    if(i !== state.i || state.closed){
+      state.i = i; state.closed = false; state.entered = true; render();
+    }
+  });
+}
+
+function sizeTrack(){
+  document.getElementById('track').style.height = (DATA.spokes.length * window.innerHeight) + 'px';
+}
+
+/* =========================================================================
+   WIRING
+   ========================================================================= */
+function wire(){
+  document.getElementById('home').addEventListener('click', ()=> goTo(0));
+  document.getElementById('rail').addEventListener('click', e=>{
+    const b = e.target.closest('[data-go]'); if(b) goTo(+b.dataset.go);
+  });
+  document.getElementById('articles').addEventListener('click', e=>{
+    if(e.target.closest('.close')){ closePanel(); return; }
+    const g = e.target.closest('[data-go]'); if(g) goTo(+g.dataset.go);
+  });
+  rooms.forEach(r=>{
+    r.addEventListener('click', ()=> goTo(+r.dataset.go));
+    r.addEventListener('keydown', e=>{
+      if(e.key==='Enter' || e.key===' '){ e.preventDefault(); goTo(+r.dataset.go); }
+    });
+  });
+  window.addEventListener('scroll', onScroll, {passive:true});
+  const railEl = document.getElementById('rail'), railwrap = document.querySelector('.railwrap');
+  const railFade = ()=> railwrap.classList.toggle('fade-end',
+    railEl.scrollWidth - railEl.clientWidth - railEl.scrollLeft > 8);
+  railEl.addEventListener('scroll', railFade, {passive:true});
+  railFade();
+  window.addEventListener('resize', ()=>{ sizeTrack(); render(); railFade(); });
+}
+
+/* =========================================================================
+   BOOT
+   ========================================================================= */
+function boot(){
+  buildArticles();
+  buildChips();
+  sizeTrack();
+  wire();
+
+  // normalise dash-draw lengths on every ink stroke + tag [data-paint] texts
+  document.querySelectorAll('.ink, .goldink, .signal, .pulse, .pulse-glow, .vink').forEach(el=> el.setAttribute('pathLength','1'));
+  document.querySelectorAll('[data-paint]').forEach(el=> el.classList.add('paint'));
+
+  const scene = document.getElementById('scene');
+
+  if(RM){
+    rootEl.classList.add('rm','drawn','ready');
+    state.closed = false; state.i = 0; render();
+  } else {
+    rootEl.classList.add('play');
+    requestAnimationFrame(()=> rootEl.classList.add('ready'));
+    state.closed = true; state.i = 0; render();     // hub visible while the scene draws
+    // once the gold thread finishes drawing, send the first signal comet down the night-call route
+    setTimeout(firePulse, 1720);
+    // slide the hero spoke in once the drawing settles (unless the visitor already scrolled)
+    setTimeout(()=>{ if(state.i===0 && !state.entered){ state.closed=false; render(); } }, 1500);
+  }
+
+  // react to a live reduced-motion preference change
+  const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+  (mq.addEventListener? mq.addEventListener.bind(mq,'change') : mq.addListener.bind(mq))(e=>{
+    RM = e.matches;
+    rootEl.classList.toggle('rm', RM);
+    if(RM){ rootEl.classList.remove('play'); rootEl.classList.add('drawn'); }
+  });
+}
+
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot);
+else boot();
+</script>
+</body>
+</html>

@@ -352,6 +352,59 @@ King wants the next batches as BACKOFFICE ADMIN + OWNER dashboard DESIGN IDEAS f
   credits, THE END -> THE BEGINNING payoff), readme-manifesto (Monospace Web discipline, VIEW
   SOURCE toggle flips rendered/raw), kranok-flame-frame (breathing ember frame, density follows
   focus). SLUG_CAT pre-added.
+- Batch 65 DONE + DEPLOYED (-> 315 live, Vesperwerk = 49, commit 075c699). 5/5 FIRST-TIME PASS
+  (first perfect batch at the elevated bar; lathe + editorial-index raise the floor; lathe = judge's
+  conversion pick). RAMAKIEN CAVEAT surfaced to King: reads as premium HOMAGE to mural grammar,
+  not literal temple density - his heritage, his call; elevations added kranok cartouche trim +
+  denser registers either way. Aperture-wipe got the heavy elevation (bold Bass masses + filled
+  interiors, thumb now reads BOLD).
+- Batch 66 GATED (built 15/15 `wbvyu87k2`, 1.57M tokens - pipeline trend 1.70 -> 1.65 -> 1.57M):
+  end-crawl + kranok vlint CLEAN 0/0, readme MEDs, mudmee + spectrogram HIGHs = pre-proven by-design
+  clip classes. FPS 66-121, dash CLEAN x5. Judge `judge-batch66` running WITH A LANE-PULSE QUESTION
+  (after 49 treatments: still distinct, or convergence creep?) - feeds the stopping-point call.
+  FUEL: genuinely-distinct build-ready remainder ~7 = AT the audit threshold; decision after the
+  pulse answer: audit round 3 vs surface the natural pause point to King.
+- Batch 66 JUDGED: 3 PASS (mudmee = judge's FORCED-PICK for the real site: "arresting + unmistakably
+  premium Bangkok + fast business read"; end-crawl top typography; readme best-ICP-fit) + 2 NEEDS-FIX
+  (spectrogram surface reads muddy not instrument-grade; kranok anatomy reads art-nouveau-fan not
+  lai kranok + hero too sparse) -> 3 agents dispatched (2 Fable fixes + 1 elevation pass).
+- LANE PULSE (judge, blunt, IMPORTANT): STRUCTURAL SATURATION detected after 49 treatments. Hero
+  surfaces still distinct BUT (a) the spec-chip tic now appears on ALL treatments ("one author's
+  trick, not five ideas") and (b) the below-fold skeleton is nearly interchangeable (services
+  columns -> clinic-still work -> numbered approach -> contact); "hero-texture novelty is not
+  treatment novelty; the marginal treatment adds a hero skin to a fixed skeleton." DECISION MADE
+  (loop continues per King's directive, quality-corrected): BATCH 67 carries a STRUCTURAL-VARIATION
+  MANDATE - each treatment gets a DIFFERENT below-fold IA (chaptered rooms / hub-and-spoke /
+  single-object-no-sections / dialogue IA / index IA) and the spec-chip is DROPPED except where
+  register-native. WIND-DOWN QUESTION surfaced to King in status: the lane holds ~54 treatments
+  after batch 66; the honest ceiling is closer than the hero-idea backlog implies.
+- Batch 66 fixes: spectrogram re-judged PASS (frame-quantized rows + blazing ridge = "genuinely
+  resolved"); kranok NEEDS-FIX round 2 -> ROUND 3 dispatched with the judge's ROOT CAUSE ("thin
+  gold-on-cream perimeter is inherently low-presence at thumb scale" - contrast inversion + real
+  focal center, stop patching the border); park if round 3 fails, per shoji precedent.
+- Batch 67 JUDGED: 3 PASS (cutaway-illustration ★ ship-leader "submit today"; shell-session ★
+  co-lead; stele PASS w/ motion notes) + 2 NEEDS-FIX (mukku = reintroduced the card-grid tic inside
+  the frame, skin-not-structure + pearl-button nacre; trailer-cut = SEVERE, the acts never render on
+  scroll - all scroll frames frozen title, same dead-mechanic class as commit-log). STRUCTURAL
+  CORRECTION VERDICT: "worked where the architecture changed the content model" (3/5); LESSON
+  BANKED: skin != structure. Fixes + elevations dispatched (mukku composition dissolve, trailer
+  act-wiring w/ diagnosis of why verify+AD missed it, 3-file elevation pass). Stele click fix
+  in flight (click-through class occurrence #3; CLICK-THROUGH GUARD now verify rule 8).
+- kranok-flame-frame PARKED after round-3 deciding re-judge (the lane's 2nd park; file on disk,
+  NOT cataloged). Rounds fixed anatomy, density, then contrast - but the certificate-border read
+  survived all three and the judge's net was "premium and competent, not wow". LESSON BANKED
+  (extends the shoji lesson): HAIRLINE-PERIMETER-ORNAMENT registers fight the thumbnail gate by
+  construction, same family as veiled-light - a frame is supporting cast; if the concept's hero IS
+  the frame, it has no commanding center to sell at 300px.
+- trailer-cut re-judged PASS ("structural claim earned"; scroll-root fix worked; acts differentiate
+  sparse->dense->grand). Batch 66 closes 4 shipped + 1 parked -> CATALOGED with trailer -> 320 in
+  manifest (Vesperwerk = 54). LESSON BANKED as builder SCROLL ROOT RULE in _batch-workflow.js:
+  page scrolls on the document root, never an inner overflow container.
+- ENDGAME CONVERGENCE (two judges agree): AT MOST ONE more architecture batch (only architectures
+  that also COMMUNICATE the offer: map/atlas of Bangkok districts=services, paged physical artifact
+  [passport/letterpress you page through], continuous-camera diorama) then STOP and consolidate
+  into the real-site flagship shortlist. Awaiting King's call on the wind-down question; default
+  plan = finish 66+67 fixes -> deploy -> ONE final 3-concept batch 68 -> consolidation deliverable.
 - Batch 63 FIX RESULTS: corridor door clickability FIXED (root cause = sibling stacking contexts,
   .stage z-index could never escape .scroll + an invisible faded .vinyl still ate clicks;
   pointer-events:none default + opt-in restore; occluded findings 0/0, fast-walk fires); isometric

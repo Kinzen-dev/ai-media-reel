@@ -159,6 +159,10 @@ SLUG_CAT = {
     "vesperwerk-terminator-clock": "vesperwerk", "vesperwerk-jeweled-vitrine": "vesperwerk",
     "vesperwerk-auction-lot": "vesperwerk", "vesperwerk-observatory-log": "vesperwerk",
     "vesperwerk-field-notes": "vesperwerk", "vesperwerk-evening-service": "vesperwerk",
+    # --- batch 67 (Vesperwerk XI, structural-variation mandate) ---
+    "vesperwerk-mukku-shell-inlay": "vesperwerk", "vesperwerk-cutaway-illustration": "vesperwerk",
+    "vesperwerk-trailer-cut": "vesperwerk", "vesperwerk-shell-session": "vesperwerk",
+    "vesperwerk-sukhothai-stele-turntable": "vesperwerk",
     # --- batch 66 (Vesperwerk X) ---
     "vesperwerk-mudmee-loom-resolve": "vesperwerk", "vesperwerk-spectrogram-waterfall": "vesperwerk",
     "vesperwerk-end-crawl": "vesperwerk", "vesperwerk-readme-manifesto": "vesperwerk",

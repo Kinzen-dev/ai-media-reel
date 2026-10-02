@@ -1120,6 +1120,10 @@ const SKY = (() => {
   let groupH = 65, bandH = 30;
   const PADT = 7;
   const lblEls = [];
+  const lblMeas = document.createElement('span'); // measures label widths off-stage
+  lblMeas.className = 'tn-l';
+  lblMeas.style.visibility = 'hidden';
+  tnLbls.appendChild(lblMeas);
   function drawTonight() {
     const W = root.clientWidth, ph = phoneQ.matches;
     const T0 = AX.T0, SPAN = AX.SPAN;
@@ -1154,50 +1158,59 @@ const SKY = (() => {
     const parked = nowT < NT.sunset;
     const ex = Math.round(X(parked ? NT.sunset : nowT));
     // labels in priority order (the layout drops the lowest when space runs out); in daylight the sunset
-    // label carries the countdown on the row beneath it
-    const list = [];
-    const lab = (t, text, align, kind) => list.push({ t, text, align, kind });
-    if (parked) {
-      lab(NT.sunset, `${TN.sunset} ${hm(NT.sunset)}`, 'start', 'sunset');
-      lab(NT.sunset, TN.until.replace('{d}', untilOf(NT.sunset, nowT)), 'start', 'until');
-    }
-    lab(NT.dusk, `${TN.dusk} ${hm(NT.dusk)}`, 'start');
-    lab(NT.dawn, `${TN.dawn} ${hm(NT.dawn)}`, 'end');
-    MOONL.forEach(m => list.push(m));
-    if (!parked) lab(NT.sunset, `${TN.sunset} ${hm(NT.sunset)}`, 'start', 'sunset');
-    lab(NT.sunrise, `${TN.sunrise} ${hm(NT.sunrise)}`, 'end');
-    if (!parked) lab(nowT, `${TN.now} ${hm(nowT)}`, 'mid', 'now');
-    while (lblEls.length < list.length) { const el = document.createElement('span'); el.className = 'tn-l'; tnLbls.appendChild(el); lblEls.push(el); }
-    lblEls.forEach((el, i) => { if (i >= list.length) el.hidden = true; });
+    // label carries the countdown, on the row beneath it or, when that crowds the next mark, on its own line
+    const until = TN.until.replace('{d}', untilOf(NT.sunset, nowT));
+    const build = merged => {
+      const list = [];
+      const lab = (t, text, align, kind) => list.push({ t, text, align, kind });
+      if (parked && merged) lab(NT.sunset, `${TN.sunset} ${hm(NT.sunset)}, ${until.toLowerCase()}`, 'start', 'sunset');
+      else if (parked) { lab(NT.sunset, `${TN.sunset} ${hm(NT.sunset)}`, 'start', 'sunset'); lab(NT.sunset, until, 'start', 'until'); }
+      lab(NT.dusk, `${TN.dusk} ${hm(NT.dusk)}`, 'start');
+      lab(NT.dawn, `${TN.dawn} ${hm(NT.dawn)}`, 'end');
+      MOONL.forEach(m => list.push(m));
+      if (!parked) lab(NT.sunset, `${TN.sunset} ${hm(NT.sunset)}`, 'start', 'sunset');
+      lab(NT.sunrise, `${TN.sunrise} ${hm(NT.sunrise)}`, 'end');
+      if (!parked) lab(nowT, `${TN.now} ${hm(nowT)}`, 'mid', 'now');
+      return list;
+    };
     // rows below the band, greedy by priority (two rows, three on phones), kept between rule 1 and rule 7;
     // a centred label may also hang from its mark to either side before it drops a row
-    const ROW = 18, y1 = lift + yb + 11, rows = ph ? [[], [], []] : [[], []];
-    const xE = rx[rx.length - 1];
+    const ROW = 18, y1 = lift + yb + 11, xE = rx[rx.length - 1], base = ph ? 3 : 2;
     const free = (row, a, b) => row.every(o => b + 16 <= o.a || a >= o.b + 16);
+    const html = l => (l.kind === 'moon' ? moonGlyph : '') + esc(ph && l.short ? l.short : l.text);
+    const widths = new Map();
+    const widthOf = l => { const h = html(l); if (!widths.has(h)) { lblMeas.innerHTML = h; widths.set(h, lblMeas.offsetWidth); } return widths.get(h); };
+    const arrange = (list, n) => {
+      const rows = Array.from({ length: n }, () => []);
+      const out = list.map(l => ({ l, r: -1 }));
+      out.forEach(o => {
+        const l = o.l, w = widthOf(l), x = o.x = l.kind === 'now' ? ex : X(l.t);
+        const lefts = (l.align === 'start' ? [x] : l.align === 'end' ? [x - w] : [x - w / 2, x - 6, x - w + 6]).map(v => clamp(v, x0 + 6, xE - 6 - w));
+        for (let k = 0; k < n && o.r < 0; k++) { const f = lefts.find(v => free(rows[k], v, v + w)); if (f != null) { o.r = k; o.left = f; } }
+        if (o.r < 0 && l.kind === 'now') { // the present always shows: it takes the last row and drops what it covers
+          o.r = n - 1; o.left = lefts[0];
+          rows[o.r] = rows[o.r].filter(e => { const hit = !free([e], o.left, o.left + w); if (hit) e.o.r = -1; return !hit; });
+        }
+        if (o.r >= 0) rows[o.r].push({ a: o.left, b: o.left + w, o });
+      });
+      return { out, dropped: out.filter(o => o.r < 0).length };
+    };
+    // first arrangement that shows every label wins: as designed, then the countdown on one line, then one more row
+    const tries = parked ? [[build(false), base], [build(true), base], [build(true), base + 1]] : [[build(false), base], [build(false), base + 1]];
+    let best = null;
+    for (const [list, n] of tries) { const res = arrange(list, n); if (!best || res.dropped < best.dropped) best = res; if (!res.dropped) break; }
+    while (lblEls.length < best.out.length) { const el = document.createElement('span'); el.className = 'tn-l'; tnLbls.appendChild(el); lblEls.push(el); }
     let used = 1;
-    list.forEach((l, i) => {
-      const el = lblEls[i];
-      const x = l.kind === 'now' ? ex : X(l.t);
+    lblEls.forEach((el, i) => {
+      const o = best.out[i];
+      if (!o || o.r < 0) { el.hidden = true; return; }
       el.hidden = false;
-      el.innerHTML = (l.kind === 'moon' ? moonGlyph : '') + esc(ph && l.short ? l.short : l.text);
-      const w = el.offsetWidth;
-      const lefts = (l.align === 'start' ? [x] : l.align === 'end' ? [x - w] : [x - w / 2, x - 6, x - w + 6]).map(v => clamp(v, x0 + 6, xE - 6 - w));
-      let r = -1, left = lefts[0];
-      for (let k = 0; k < rows.length && r < 0; k++) {
-        const f = lefts.find(v => free(rows[k], v, v + w));
-        if (f != null) { r = k; left = f; }
-      }
-      if (r < 0 && l.kind === 'now') { // the present always shows: it takes the last row and hides what it covers
-        r = rows.length - 1;
-        rows[r] = rows[r].filter(o => { const hit = !free([o], left, left + w); if (hit) o.el.hidden = true; return !hit; });
-      }
-      if (r < 0) { el.hidden = true; return; }
-      rows[r].push({ a: left, b: left + w, el });
-      used = Math.max(used, r + 1);
-      el.style.left = Math.round(left) + 'px';
-      el.style.top = (y1 + r * ROW) + 'px';
-      if (l.tick !== false && l.kind !== 'now' && l.kind !== 'until' && x >= 0 && x <= W) {
-        const tx = Math.round(x) + 0.5;
+      el.innerHTML = html(o.l);
+      el.style.left = Math.round(o.left) + 'px';
+      el.style.top = (y1 + o.r * ROW) + 'px';
+      used = Math.max(used, o.r + 1);
+      if (o.l.tick !== false && o.l.kind !== 'now' && o.l.kind !== 'until' && o.x >= 0 && o.x <= W) {
+        const tx = Math.round(o.x) + 0.5;
         s += `<line x1="${tx}" y1="${yb}" x2="${tx}" y2="${H}" style="stroke:${INK};stroke-width:1"/>`;
       }
     });

@@ -125,7 +125,7 @@ button{ font:inherit; color:inherit; letter-spacing:inherit; }
 .opt:hover .lbl, .views a:hover .lbl{ text-decoration-color:var(--ink); text-decoration-thickness:1px; }
 /* the one marker for what is chosen: an office-green underline */
 .opt[aria-pressed="true"] .lbl, .views a[aria-current="page"] .lbl{ text-decoration-color:var(--green); text-decoration-thickness:2px; }
-.opt.is-nil{ color:var(--spent); }
+.opt.is-nil, .views a.is-nil{ color:var(--spent); }
 
 /* ---------- the register ---------- */
 main{ overflow-x:clip; isolation:isolate; }   /* own stacking context: the hover band sits under every line of type, never over a neighbour */
@@ -214,6 +214,7 @@ main{ overflow-x:clip; isolation:isolate; }   /* own stacking context: the hover
     display:flex; flex-direction:column; justify-content:space-between;
     margin:-4px 0 -3px;
   }
+  .arec .f{ white-space:normal; }
   .arec-note{ display:block; text-wrap:pretty; }
   .entry.is-anchor .clip{ margin-right:var(--zone); }
   .entry.is-anchor .track > .end, .entry.is-anchor .track > .rec{ display:none; }
@@ -221,10 +222,11 @@ main{ overflow-x:clip; isolation:isolate; }   /* own stacking context: the hover
   .entry.is-under .row{ margin-right:var(--zone); }
 }
 
-/* entrance: the register is set line by line, the records a beat later */
+/* entrance: the register is set line by line, the records a beat later (first load only, so a record
+   shown later by a filter or a closed entry does not wait for the entrance again) */
 @keyframes set{ from{ visibility:hidden; } to{ visibility:visible; } }
-.js .row{ animation:set 1ms steps(1,end) both; animation-delay:calc(var(--i) * 40ms); }
-.js .rec, .js .rail-m, .js .arec{ animation:set 1ms steps(1,end) both; animation-delay:calc(440ms + var(--i) * 40ms); }
+.setting .row{ animation:set 1ms steps(1,end) both; animation-delay:calc(var(--i) * 40ms); }
+.setting .rec, .setting .rail-m, .setting .arec{ animation:set 1ms steps(1,end) both; animation-delay:calc(440ms + var(--i) * 40ms); }
 
 /* one entry left by the filters: its sentence is shown whole, wrapped, with its object and record at the end */
 .entry.is-lone:not(.is-open) .track{
@@ -300,6 +302,9 @@ main{ overflow-x:clip; isolation:isolate; }   /* own stacking context: the hover
 .stock{ line-height:15px; }
 
 /* ---------- 761 to 1180 ---------- */
+@media (max-width:1060px) and (min-width:761px){
+  .arec-note{ display:none; }   /* the photograph is too short here to carry the note beside its record */
+}
 @media (max-width:1180px) and (min-width:761px){
   .desk-state{ column-gap:20px; }
   .pgrid{ grid-template-columns:minmax(0,24vw) minmax(0,24vw) minmax(0,1fr); grid-template-rows:auto 1fr; }
@@ -360,7 +365,7 @@ main{ overflow-x:clip; isolation:isolate; }   /* own stacking context: the hover
 
 /* ---------- reduced motion: no stagger, no slide; focus wraps the sentence instead ---------- */
 @media (prefers-reduced-motion:reduce){
-  .js .row, .js .rec, .js .rail-m, .js .arec{ animation:none; }
+  .setting .row, .setting .rec, .setting .rail-m, .setting .arec{ animation:none; }
   .track{ transition:none !important; }
   .panel, .entry.is-open .panel, .entry{ transition:none; }
   .entry:not(.is-open) .row:has(.sent:focus-visible) .track{
@@ -667,7 +672,8 @@ const DATA = {
    ===================================================================== */
 (() => {
   'use strict';
-  document.documentElement.classList.add('js');
+  document.documentElement.classList.add('js', 'setting');
+  setTimeout(() => document.documentElement.classList.remove('setting'), 1500);
   const RM = matchMedia('(prefers-reduced-motion: reduce)');
   const HOVER = matchMedia('(hover: hover) and (pointer: fine)');
   const PHONE = matchMedia('(max-width: 760px)');
@@ -1110,8 +1116,10 @@ ${e.find && own ? anchorHTML(e, src, alt) : ''}
     });
     lane.querySelectorAll('.views a').forEach(a => {
       const v = a.dataset.view;
-      const n = a.querySelector('.n');
-      if (n) n.textContent = ENTRIES.filter(e => viewOK(e, v) && GROUPS.every(G => groupOK(e, G.key, state[G.key]))).length;
+      const cnt = a.querySelector('.n');
+      const c = cnt ? ENTRIES.filter(e => viewOK(e, v) && GROUPS.every(G => groupOK(e, G.key, state[G.key]))).length : 1;
+      if (cnt) cnt.textContent = c;
+      a.classList.toggle('is-nil', c === 0 && v !== state.view);
       if (v === state.view) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
     ORDER.forEach(r => r.li.classList.toggle('is-lone', n === 1 && !r.li.classList.contains('is-out')));
@@ -1129,7 +1137,7 @@ ${e.find && own ? anchorHTML(e, src, alt) : ''}
     const at = `at No. <span class="v" id="atNo">${counts.at}</span>`;
     fcount.innerHTML = filtered()
       ? `<button class="fclear" type="button" data-clear>Clear</button><span class="fc-text">${counts.n} of ${total}${counts.n ? ', ' + at : ''}</span>`
-      : `<span class="fc-text">Reading ${at}</span>`;
+      : `<span class="fc-text">Reading No. <span class="v" id="atNo">${counts.at}</span></span>`;
   }
   function resetFilters() {
     state.view = 'register'; GROUPS.forEach(g => state[g.key].clear());

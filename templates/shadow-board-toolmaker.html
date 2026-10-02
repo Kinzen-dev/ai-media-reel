@@ -1,0 +1,1312 @@
+<!-- TEMPLATE: Shadow-board Toolmaker | ARCHETYPE: minimal-reductive product catalogue, the objects are the interface | REF: Jasper Morrison, nendo, teenage engineering | WHEN TO USE: a maker of physical objects with a small fixed range, where each product's silhouette is its identity and stock state matters | SWAP: edit the DATA object at top of the script (tools, layouts in mm, copy); section copy lives in the marked content blocks -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hjort, hand tools from Eskilstuna</title>
+<meta name="description" content="Hjort makes planes, chisels, gauges, saws and hammers in Eskilstuna, Sweden, and has since 1911. Every tool hangs on the board over its own painted silhouette.">
+<meta name="theme-color" content="#C9CFC2">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Display:wght@700&family=Hanken+Grotesk:ital,wght@0,400..600;1,500&display=swap" rel="stylesheet">
+<link rel="preload" as="image" href="../assets/wc/shadow-board-toolmaker/board-texture.webp">
+<style>
+:root{
+  --board:#C9CFC2;
+  --board-shade:#BCC3B4;
+  --paint:#C8322B;
+  --ink:#1B1D1A;
+  --paper:#FBFBF8;
+  --graphite:#4A4F47;
+  --steel:#9DA4A8;
+  --hair:rgba(27,29,26,.14);
+  --hair-strong:rgba(27,29,26,.3);
+  --ease-out:cubic-bezier(.16,1,.3,1);
+  --ease-in:cubic-bezier(.5,0,.75,0);
+  --spring:cubic-bezier(.3,1.55,.45,1);
+  --gutter:64px;
+  color-scheme:light;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{background:var(--board);color:var(--ink);-webkit-text-size-adjust:100%;scrollbar-color:#7F877C var(--board);scrollbar-width:thin}
+body{margin:0;font-family:"Hanken Grotesk",system-ui,sans-serif;font-weight:500;font-size:15px;line-height:1.55;letter-spacing:.004em;background:var(--board);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:clip}
+::selection{background:var(--paint);color:var(--paper)}
+:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+input,textarea{caret-color:var(--paint)}
+a{color:inherit;text-decoration-line:underline;text-decoration-thickness:1px;text-underline-offset:.24em;text-decoration-color:rgba(27,29,26,.38);transition:text-decoration-color 160ms ease-out}
+a:hover{text-decoration-color:var(--ink)}
+button{font:inherit;color:inherit;letter-spacing:inherit}
+h1,h2,h3,p,dl,dd,figure{margin:0}
+h2,h3{font-weight:500;font-size:15px;text-wrap:balance}
+p{text-wrap:pretty}
+.sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:var(--board)}
+::-webkit-scrollbar-thumb{background:#8C9488;border:3px solid var(--board);border-radius:6px}
+
+/* ---------- THE BOARD ---------- */
+.board{position:relative;height:100svh;min-height:480px;overflow:hidden;background-color:var(--board);background-image:linear-gradient(rgb(230 235 224 / .5),rgb(230 235 224 / .5)),url(../assets/wc/shadow-board-toolmaker/board-texture.webp);background-repeat:no-repeat;background-position:center;background-size:100% 100%,cover}
+.stage{position:absolute;left:0;top:0;width:100%;height:100%}
+.tools{list-style:none;margin:0;padding:0}
+.paint{position:absolute;z-index:1;pointer-events:none;filter:url(#paint);mix-blend-mode:multiply}
+.paint-fill{position:absolute;inset:0;background:#000;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
+.hang{position:absolute;z-index:3;width:0;height:0;transition:transform 240ms cubic-bezier(.4,0,.2,1)}
+.slot.lift .hang{z-index:6;transform:translateY(-2px) rotate(var(--swing,2deg)) scale(1.012);transition:transform 440ms var(--spring)}
+.tool{position:absolute;left:0;top:0;padding:0;margin:0;border:0;background:transparent;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.tool:focus-visible{outline:none}
+.slot:has(.tool:focus-visible) .paint{filter:url(#paintFocus)}
+.tool img{position:absolute;max-width:none;user-select:none;-webkit-user-drag:none;pointer-events:none;filter:drop-shadow(0 1px 1.2px rgba(27,29,26,.36));transition:filter 200ms ease-out,opacity 200ms ease-out}
+.slot.lift .tool img{filter:drop-shadow(4px 11px 9px rgba(27,29,26,.30));transition:filter 300ms var(--ease-out)}
+.slot.off .tool img{opacity:0;transition:none}
+.js-hang .slot:not(.is-out) .hang{opacity:0}
+.fix{position:absolute;pointer-events:none}
+.fix.peg{z-index:2}
+.fix.clip{z-index:4}
+.ledge{position:absolute;z-index:2;background:#CDD3C6;border-top:1px solid #DDE2D6;box-shadow:0 1px 0 rgba(27,29,26,.10),0 3px 5px -1px rgba(27,29,26,.24)}
+.ledge::after{content:"";position:absolute;left:0;right:0;bottom:0;height:42%;background:rgba(27,29,26,.07)}
+.note{position:absolute;z-index:5;color:var(--graphite);font-size:13px;line-height:1.3;white-space:nowrap;pointer-events:none;transform:rotate(-1.6deg);transform-origin:0 0;letter-spacing:.01em}
+.note.right{text-align:right;transform-origin:100% 0}
+.note span{display:block}
+.leader{position:absolute;z-index:5;overflow:visible;pointer-events:none}
+
+.brand{position:absolute;z-index:7}
+.mark{font-family:"Big Shoulders Stencil Display",Impact,sans-serif;font-weight:700;font-size:64px;line-height:.78;letter-spacing:.015em;color:rgba(27,29,26,.86);filter:url(#worn);user-select:none}
+.place{margin-top:12px;font-size:13px;line-height:1.3;color:var(--ink)}
+.chrome{position:absolute;z-index:7;display:flex;gap:28px;font-size:15px;line-height:1.3}
+.chrome a{text-decoration:none;padding:6px 0;display:inline-flex;gap:.28em;align-items:baseline}
+.chrome a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:.24em}
+.count{display:inline-block;font-variant-numeric:tabular-nums;min-width:.62em}
+.count.bump{animation:bump 360ms var(--ease-out)}
+@keyframes bump{0%{transform:translateY(-5px);opacity:.2}100%{transform:none;opacity:1}}
+
+/* hover tag */
+.tag{position:fixed;left:0;top:0;z-index:80;background:var(--paper);color:var(--ink);padding:9px 12px 10px;font-size:13px;line-height:1.4;pointer-events:none;opacity:0;min-width:168px;max-width:240px;transition:opacity 110ms ease-out;box-shadow:0 1px 0 rgba(27,29,26,.10)}
+.tag.on{opacity:1;transition:opacity 160ms ease-out 40ms}
+.tag .n{display:block;font-size:15px;line-height:1.3;margin-bottom:3px;text-wrap:balance}
+.tag .m{display:flex;justify-content:space-between;gap:18px;color:var(--graphite);font-variant-numeric:tabular-nums}
+.tag .o{color:var(--paint)}
+
+/* ---------- CONTAINER ---------- */
+.wrap{width:100%;max-width:1440px;margin:0 auto;padding:0 var(--gutter)}
+.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px}
+.grid>*{min-width:0}
+.label{grid-column:1/4}
+
+/* ---------- CATALOGUE ---------- */
+.catalogue{background:var(--paper);padding:112px 0 128px}
+.cat-head{align-items:baseline;margin-bottom:48px}
+.cat-head .lede{grid-column:4/9;color:var(--graphite);max-width:52ch}
+.sorter{grid-column:9/13;justify-self:end;display:flex;gap:20px;align-items:baseline;font-size:14px;color:var(--graphite)}
+.sorter button{background:none;border:0;padding:4px 0;cursor:pointer;color:var(--graphite);text-decoration:underline;text-decoration-color:transparent;text-decoration-thickness:1px;text-underline-offset:.3em;transition:color 140ms,text-decoration-color 140ms}
+.sorter button:hover{color:var(--ink)}
+.sorter button[aria-pressed="true"]{color:var(--ink);text-decoration-color:var(--ink)}
+.cat-body{align-items:start}
+.cat-table-wrap{grid-column:1/10}
+table.cat{width:100%;border-collapse:collapse;font-size:14px;line-height:1.4;font-variant-numeric:tabular-nums}
+.cat thead th{font-weight:500;text-align:left;color:var(--graphite);font-size:13px;padding:0 12px 12px 0;border-bottom:1px solid var(--hair-strong)}
+.cat thead th.num,.cat td.num{text-align:right;padding-right:0;padding-left:12px}
+.cat td,.cat tbody th{padding:13px 12px 13px 0;border-bottom:1px solid var(--hair);text-align:left;font-weight:500;vertical-align:baseline}
+.cat tr.fam th{padding:28px 0 10px;color:var(--graphite);font-size:13px;border-bottom:1px solid var(--hair-strong)}
+.cat tbody tr.fam:first-child th{padding-top:12px}
+.cat tr.item{cursor:pointer;transition:background-color 120ms ease-out}
+.cat tr.item:hover,.cat tr.item.cur{background:#F0F1EB}
+.cat .rowbtn{background:none;border:0;padding:0;margin:0;text-align:left;cursor:pointer;font-size:14px}
+.cat .rowbtn:focus-visible{outline-offset:4px}
+.cat td.st{color:var(--graphite);white-space:nowrap;padding-left:32px}
+.cat thead th.sth{padding-left:32px}
+.cat td.st.out{color:var(--paint)}
+.cat td.st.inb{color:var(--ink)}
+.cat td.sz,.cat td.num,.cat td.stl,.cat td.hdl{white-space:nowrap}
+.cat-map{grid-column:10/13;position:sticky;top:32px;padding-left:32px}
+.map-svg{display:block;width:100%;height:auto;background:var(--board)}
+.map-svg .m{transition:opacity 160ms ease-out}
+.map-svg.has-on .m{opacity:.34}
+.map-svg.has-on .m.on{opacity:1;filter:url(#mOn)}
+.map-cap{display:flex;justify-content:space-between;gap:16px;margin-top:12px;font-size:13px;color:var(--graphite);min-height:1.4em}
+.map-cap b{font-weight:500;color:var(--ink)}
+
+/* ---------- THE STEEL ---------- */
+.steel{padding:0 0 120px}
+.plate{width:100%;height:min(66vh,620px);min-height:380px;overflow:hidden;background:#2A2522}
+.plate img{display:block;width:100%;height:100%;object-fit:cover;object-position:50% 46%}
+.steel .grid{margin-top:56px;align-items:start}
+.steel-lines{grid-column:4/8;list-style:none;margin:0;padding:0}
+.steel-lines li{padding:12px 0 13px;border-bottom:1px solid var(--hair);max-width:44ch}
+.steel-lines li:first-child{border-top:1px solid var(--hair-strong)}
+.scale{grid-column:9/13}
+.scale svg{display:block;width:100%;max-width:420px;height:auto;overflow:visible}
+.scale p{margin-top:10px;font-size:13px;color:var(--graphite);max-width:40ch}
+
+/* ---------- THE HANDLE ---------- */
+.handle{padding:24px 0 136px}
+.handle .grid{align-items:end}
+.handle figure{grid-column:1/8}
+.handle figure img{display:block;width:100%;height:auto;aspect-ratio:3/2;object-fit:cover;background:#5B4A3A}
+.handle figcaption{margin-top:10px;font-size:13px;color:var(--graphite)}
+.handle .txt{grid-column:9/13;padding-bottom:30px}
+.handle .txt p{margin-top:16px;max-width:42ch}
+
+/* ---------- A TOOL FOR LIFE ---------- */
+.life{padding:0 0 136px}
+.life .rows{grid-column:4/13;list-style:none;margin:0;padding:0;border-top:1px solid var(--hair-strong)}
+.life .row{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,5fr) minmax(0,1.4fr);column-gap:24px;padding:18px 0 19px;border-bottom:1px solid var(--hair)}
+.life .row>*{min-width:0}
+.life .row p{max-width:58ch}
+.life .row .pr{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.life .post{grid-column:4/13;margin-top:18px;font-size:13px;color:var(--graphite)}
+
+/* ---------- VISIT ---------- */
+.visit{padding:0 0 96px}
+.visit .grid{align-items:start}
+.visit .col{font-size:15px}
+.visit .c1{grid-column:4/7}
+.visit .c2{grid-column:7/10}
+.visit .c3{grid-column:10/13}
+.visit .sub{color:var(--graphite);font-size:13px;margin-bottom:8px}
+.hours{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.hours td{padding:3px 0;vertical-align:baseline}
+.hours td+td{text-align:right;padding-left:16px;white-space:nowrap}
+.hours tr.today td{color:var(--ink);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:.28em}
+.hours tr td{color:var(--graphite)}
+.status{display:block;margin-top:4px}
+.status.open{color:var(--ink)}
+.foot{border-top:1px solid var(--hair-strong);margin-top:96px;padding:18px 0 28px;display:flex;justify-content:space-between;gap:24px;font-size:13px;color:var(--graphite)}
+
+/* ---------- PRODUCT SHEET ---------- */
+.sheet{position:fixed;z-index:60;top:0;bottom:0;width:min(420px,100vw);background:var(--paper);color:var(--ink);overflow-y:auto;overscroll-behavior:contain;visibility:hidden;transition:transform 260ms var(--ease-in),visibility 0s linear 260ms;box-shadow:0 0 0 1px rgba(27,29,26,.06),0 18px 50px -12px rgba(27,29,26,.28);scrollbar-width:thin}
+.sheet[data-side="right"]{right:0;transform:translateX(104%)}
+.sheet[data-side="left"]{left:0;transform:translateX(-104%)}
+.sheet.open{visibility:visible;transform:none;transition:transform 440ms var(--ease-out),visibility 0s}
+.sheet-in{padding:22px 32px 32px;display:flex;flex-direction:column;min-height:100%}
+.sheet-top{display:flex;justify-content:space-between;align-items:baseline;gap:16px;font-size:13px;color:var(--graphite)}
+.sheet-top .fam{color:var(--graphite)}
+.x{background:none;border:0;padding:6px 0;cursor:pointer;font-size:15px;color:var(--ink);text-decoration:underline;text-decoration-color:transparent;text-underline-offset:.24em;text-decoration-thickness:1px}
+@media (hover:hover){.x:hover{text-decoration-color:var(--ink)}}
+.art .sil{position:absolute;inset:0;background:#C8322B;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
+.sheet.is-out .hint{display:none}
+.fig{position:relative;margin:22px 0 0;height:188px}
+.fig-stage{position:absolute;inset:0}
+.fig .art{position:absolute;left:50%;top:50%}
+.art{transform-origin:50% 50%}
+.art img{position:absolute;max-width:none;pointer-events:none;user-select:none;filter:drop-shadow(0 2px 2px rgba(27,29,26,.22))}
+.rule{display:block;margin-top:10px;width:100%;height:30px;overflow:visible}
+.sheet-head{display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin-top:22px;padding-bottom:14px;border-bottom:1px solid var(--hair-strong)}
+.sheet-head h2{font-size:15px;outline:none}
+.sheet-head .pr{font-variant-numeric:tabular-nums;white-space:nowrap}
+.sheet-copy{margin-top:16px;max-width:60ch}
+.specs{margin-top:22px;font-size:13px;line-height:1.45}
+.specs div{display:grid;grid-template-columns:80px minmax(0,1fr);gap:12px;padding:8px 0;border-top:1px solid var(--hair)}
+.specs div:last-child{border-bottom:1px solid var(--hair)}
+.specs dt{color:var(--graphite)}
+.specs dd{font-variant-numeric:tabular-nums}
+.act{margin-top:24px}
+.btn{display:flex;width:100%;justify-content:space-between;align-items:center;gap:16px;background:var(--ink);color:var(--paper);border:0;padding:15px 18px 16px;font-size:15px;cursor:pointer;transition:background-color 160ms ease-out}
+.btn:hover{background:#2E312C}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.btn .pr{font-variant-numeric:tabular-nums}
+.btn.done{background:#30342F}
+.out-line{color:var(--paint);margin-bottom:12px}
+.notify label{display:block;font-size:15px;margin-bottom:10px}
+.notify .rowf{display:flex;gap:8px}
+.notify input{flex:1;min-width:0;font:inherit;font-size:15px;padding:13px 12px;border:1px solid var(--hair-strong);background:#fff;color:var(--ink);border-radius:0;outline:none;transition:border-color 140ms}
+.notify input::placeholder{color:#6B7066}
+.notify input:focus-visible{border-color:var(--ink);outline:1px solid var(--ink);outline-offset:0}
+.notify button{background:var(--ink);color:var(--paper);border:0;padding:0 18px;cursor:pointer;white-space:nowrap}
+.notify .msg{min-height:1.5em;margin-top:10px;font-size:13px;color:var(--graphite)}
+.notify .msg.err{color:var(--paint)}
+.hint{margin-top:auto;padding-top:24px;font-size:13px;color:var(--graphite)}
+
+/* basket */
+.bk-list{list-style:none;margin:22px 0 0;padding:0;border-top:1px solid var(--hair-strong)}
+.bk-list li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 16px;padding:14px 0;border-bottom:1px solid var(--hair)}
+.bk-list .q{color:var(--graphite);font-size:13px;font-variant-numeric:tabular-nums}
+.bk-list .pr{text-align:right;font-variant-numeric:tabular-nums}
+.bk-list .rm{justify-self:end;background:none;border:0;padding:0;cursor:pointer;font-size:13px;color:var(--graphite);text-decoration:underline;text-decoration-color:rgba(74,79,71,.4);text-underline-offset:.24em}
+.bk-list .rm:hover{color:var(--ink)}
+.bk-total{display:flex;justify-content:space-between;padding:16px 0;font-variant-numeric:tabular-nums}
+.bk-empty{margin-top:22px;color:var(--graphite);max-width:34ch}
+.bk-note{margin-top:12px;font-size:13px;color:var(--graphite);min-height:1.4em}
+
+/* menu */
+.menu{position:fixed;z-index:70;top:16px;right:16px;width:280px;background:var(--paper);padding:18px 24px 22px;visibility:hidden;opacity:0;transform:translateY(-6px);transition:opacity 160ms ease-in,transform 160ms ease-in,visibility 0s linear 160ms;box-shadow:0 0 0 1px rgba(27,29,26,.06),0 14px 40px -12px rgba(27,29,26,.3)}
+.menu.open{visibility:visible;opacity:1;transform:none;transition:opacity 220ms var(--ease-out),transform 260ms var(--ease-out),visibility 0s}
+.menu-top{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--graphite)}
+.menu ul{list-style:none;margin:10px 0 0;padding:0}
+.menu li a{display:block;padding:7px 0;text-decoration:none;border-bottom:1px solid var(--hair)}
+.menu li:last-child a{border-bottom:0}
+.menu li a:hover{text-decoration:underline}
+
+/* ---------- RESPONSIVE ---------- */
+@media (max-width:1100px){
+  :root{--gutter:40px}
+}
+@media (max-width:759px){
+  :root{--gutter:16px}
+  .board{height:auto}
+  .mark{font-size:46px}
+  .place{margin-top:9px}
+  .chrome{gap:20px}
+  .catalogue{padding:72px 0 80px}
+  .cat-head{margin-bottom:28px;row-gap:12px}
+  .label,.cat-head .lede,.sorter,.cat-table-wrap,.steel-lines,.scale,.handle figure,.handle .txt,.life .rows,.life .post,.visit .c1,.visit .c2,.visit .c3{grid-column:1/-1}
+  .sorter{justify-self:start;margin-top:4px}
+  .cat-map{display:none}
+  .cat thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .cat,.cat tbody{display:block}
+  .cat tr.fam{display:block}
+  .cat tr.fam th{display:block;padding:26px 0 8px}
+  .cat tr.item{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"n p" "s t";column-gap:12px;row-gap:2px;padding:12px 0 13px;border-bottom:1px solid var(--hair)}
+  .cat tr.item>*{border:0;padding:0}
+  .cat tr.item th{grid-area:n}
+  .cat tr.item td.sz{grid-area:s;color:var(--graphite);font-size:13px}
+  .cat tr.item td.stl,.cat tr.item td.hdl{display:none}
+  .cat tr.item td.num{grid-area:p}
+  .cat tr.item td.st{grid-area:t;text-align:right;font-size:13px}
+  .plate{height:auto;min-height:0}
+  .plate img{height:auto;aspect-ratio:3/2;object-fit:contain}
+  .steel{padding-bottom:80px}
+  .steel .grid{margin-top:32px;row-gap:28px}
+  .handle{padding:8px 0 88px}
+  .handle .txt{padding:22px 0 0}
+  .life{padding-bottom:88px}
+  .life .rows{margin-top:16px}
+  .life .row{grid-template-columns:minmax(0,1fr) auto;row-gap:6px}
+  .life .row p{grid-column:1/-1;grid-row:2}
+  .visit .grid{row-gap:28px}
+  .visit h2{margin-bottom:4px}
+  .foot{flex-direction:column;gap:4px;margin-top:64px}
+  .sheet,.sheet[data-side]{left:0;right:0;top:auto;bottom:0;width:100%;max-height:76svh;transform:translateY(104%)}
+  .sheet.open{transform:none}
+  .sheet-in{padding:16px 20px 24px;min-height:0}
+  .fig{height:118px;margin-top:14px}
+  .hint{display:none}
+  .act{position:sticky;bottom:0;z-index:2;background:var(--paper);margin:18px -20px -24px;padding:12px 20px 18px;box-shadow:0 -1px 0 var(--hair)}
+  .specs{margin-top:18px}
+  .menu{left:0;right:0;top:0;width:auto;padding:16px 16px 18px}
+  .label{margin-bottom:6px}
+}
+@media (prefers-reduced-motion:reduce){
+  .hang,.slot.lift .hang{transition:none!important;transform:none!important}
+  .sheet,.sheet[data-side]{transform:none!important;opacity:0;transition:opacity 180ms ease-out,visibility 0s linear 180ms}
+  .sheet.open{opacity:1;transition:opacity 200ms ease-out,visibility 0s}
+  .menu,.menu.open{transform:none;transition:opacity 160ms,visibility 0s linear 160ms}
+  .menu.open{transition:opacity 160ms,visibility 0s}
+  .count.bump{animation:none}
+  .slot.off .tool img{transition:opacity 200ms ease-out}
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <!-- painted silhouette: dilate the cut-out alpha, brush the edge, flood with signal red (multiplied onto the board) -->
+    <filter id="paint" x="-30%" y="-10%" width="160%" height="120%" color-interpolation-filters="sRGB">
+      <feMorphology in="SourceAlpha" operator="dilate" radius="3" result="fat"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.018 0.1" numOctaves="2" seed="4" result="brush"/>
+      <feDisplacementMap in="fat" in2="brush" scale="2.4" xChannelSelector="R" yChannelSelector="G" result="edge"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="1" seed="9" result="grain"/>
+      <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -0.22 1.08" result="grainA"/>
+      <feComposite in="edge" in2="grainA" operator="arithmetic" k1="1" k2="0" k3="0" k4="0" result="tex"/>
+      <feFlood flood-color="#FE3E39" result="red"/>
+      <feComposite in="red" in2="tex" operator="in"/>
+    </filter>
+    <!-- keyboard focus: the same paint, ringed in ink so the outline follows the tool -->
+    <filter id="paintFocus" x="-40%" y="-14%" width="180%" height="128%" color-interpolation-filters="sRGB">
+      <feMorphology in="SourceAlpha" operator="dilate" radius="3" result="fat"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.018 0.1" numOctaves="2" seed="4" result="brush"/>
+      <feDisplacementMap in="fat" in2="brush" scale="2.4" xChannelSelector="R" yChannelSelector="G" result="edge"/>
+      <feFlood flood-color="#FE3E39"/>
+      <feComposite in2="edge" operator="in" result="red"/>
+      <feMorphology in="SourceAlpha" operator="dilate" radius="8" result="r1"/>
+      <feMorphology in="SourceAlpha" operator="dilate" radius="6" result="r0"/>
+      <feComposite in="r1" in2="r0" operator="out" result="ring"/>
+      <feFlood flood-color="#1B1D1A"/>
+      <feComposite in2="ring" operator="in" result="ink"/>
+      <feMerge><feMergeNode in="red"/><feMergeNode in="ink"/></feMerge>
+    </filter>
+    <!-- stencilled name, black paint slightly worn -->
+    <filter id="worn" x="-2%" y="-10%" width="104%" height="120%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.22" numOctaves="3" seed="11" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -16 0 0 0 12.6" result="keep"/>
+      <feComposite in="SourceGraphic" in2="keep" operator="in" result="eroded"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="1" seed="2" result="w"/>
+      <feDisplacementMap in="eroded" in2="w" scale="1.2" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <!-- board map: red silhouette, and the outlined state -->
+    <filter id="mSil" x="-20%" y="-10%" width="140%" height="120%" color-interpolation-filters="sRGB">
+      <feMorphology in="SourceAlpha" operator="dilate" radius="2" result="fat"/>
+      <feFlood flood-color="#C8322B"/>
+      <feComposite in2="fat" operator="in"/>
+    </filter>
+    <filter id="mOn" x="-30%" y="-15%" width="160%" height="130%" color-interpolation-filters="sRGB">
+      <feMorphology in="SourceAlpha" operator="dilate" radius="5.5" result="outer"/>
+      <feFlood flood-color="#1B1D1A"/>
+      <feComposite in2="outer" operator="in" result="ink"/>
+      <feMerge><feMergeNode in="ink"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+</svg>
+
+<header class="board" id="board" aria-label="The Hjort shadow board">
+  <div class="stage" id="stage">
+    <div class="brand" id="brand">
+      <h1 class="mark" id="mark">HJORT</h1>
+      <p class="place" id="place">Eskilstuna, since 1911</p>
+    </div>
+    <nav class="chrome" id="chrome" aria-label="Shop">
+      <a href="#basket" role="button" id="basketBtn" aria-haspopup="dialog" aria-controls="basket">Basket <span class="count" id="basketCount">0</span></a>
+      <a href="#menu" role="button" id="menuBtn" aria-haspopup="true" aria-expanded="false" aria-controls="menu">Menu</a>
+    </nav>
+    <ul class="tools" id="tools" aria-label="Tools on the board. Each one opens its product sheet."></ul>
+    <div id="fixtures"></div>
+  </div>
+</header>
+
+<main>
+  <!-- CONTENT BLOCK: catalogue (rows render from DATA.tools) -->
+  <section class="catalogue" id="catalogue" aria-labelledby="catH">
+    <div class="wrap">
+      <div class="grid cat-head">
+        <h2 class="label" id="catH">Catalogue</h2>
+        <p class="lede">Fourteen tools, every one forged, hardened, ground and handled in the works. This is the board above as a list.</p>
+        <div class="sorter" role="group" aria-label="Sort the catalogue">
+          <span>Sort by</span>
+          <button type="button" data-sort="family" aria-pressed="true">family</button>
+          <button type="button" data-sort="price" aria-pressed="false">price</button>
+          <button type="button" data-sort="length" aria-pressed="false">length</button>
+        </div>
+      </div>
+      <div class="grid cat-body">
+        <div class="cat-table-wrap">
+          <table class="cat">
+            <caption class="sr-only">All Hjort tools with size, steel, handle, price and stock</caption>
+            <thead><tr><th scope="col">Tool</th><th scope="col">Size</th><th scope="col">Steel</th><th scope="col">Handle</th><th scope="col" class="num">Price</th><th scope="col" class="sth">Status</th></tr></thead>
+            <tbody id="catBody"></tbody>
+          </table>
+        </div>
+        <aside class="cat-map" aria-label="Where each tool hangs">
+          <svg class="map-svg" id="mapSvg" viewBox="0 0 950 594" role="img" aria-label="Map of the board"></svg>
+          <p class="map-cap"><span id="mapName">Where it hangs</span><span>950 × 594 mm</span></p>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTENT BLOCK: the steel -->
+  <section class="steel" id="steel" aria-labelledby="steelH">
+    <div class="plate"><img src="../assets/wc/shadow-board-toolmaker/workshop-hardening.webp" alt="The hardening shop: a coke forge, tongs on the wall, a quench tank, and chisel blanks laid out on a steel bench" loading="lazy" decoding="async" width="1536" height="1024"></div>
+    <div class="wrap">
+      <div class="grid">
+        <h2 class="label" id="steelH">The steel</h2>
+        <ul class="steel-lines">
+          <li>A high-carbon Swedish tool steel, rolled in Värmland and bought by the bar.</li>
+          <li>Hardened in our own shop to 61 HRC, then tempered twice at 180 degrees.</li>
+          <li>Ground by hand on a wet stone, honed, and stropped before it hangs on the board.</li>
+        </ul>
+        <div class="scale">
+          <svg viewBox="0 0 380 92" role="img" aria-label="Rockwell C hardness scale from 52 to 66. A kitchen knife is about 56, a Hjort edge is 61, a new file is about 65." id="scaleSvg"></svg>
+          <p>Hard enough to hold an edge through a day of oak, soft enough to sharpen on a stone at the bench.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTENT BLOCK: the handle -->
+  <section class="handle" id="handle" aria-labelledby="handleH">
+    <div class="wrap">
+      <div class="grid">
+        <figure>
+          <img src="../assets/wc/shadow-board-toolmaker/workshop-bench.webp" alt="The handle bench by the window: a row of new ash handles standing in a rack, shavings on the benchtop, the river outside" loading="lazy" decoding="async" width="1536" height="1024">
+          <figcaption>The handle bench, first floor, river side.</figcaption>
+        </figure>
+        <div class="txt">
+          <h2 id="handleH">The handle</h2>
+          <p>Every handle is Swedish ash, felled in winter in Södermanland and split, not sawn, so the grain runs unbroken from ferrule to butt. The billets dry for three years in the loft above the forge before they are turned. Ash is springy where beech is brittle: it takes a mallet for fifty years without splitting. We finish it with raw linseed oil and nothing else, so it darkens and wears to your grip instead of ours.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTENT BLOCK: a tool for life -->
+  <section class="life" id="life" aria-labelledby="lifeH">
+    <div class="wrap">
+      <div class="grid">
+        <h2 class="label" id="lifeH">A tool for life</h2>
+        <ul class="rows">
+          <li class="row"><span>Guaranteed for life</span><p>If a Hjort tool fails in normal use, at any age and in anyone's hands, we repair or replace it. The antler stamp is the receipt.</p><span class="pr">Free</span></li>
+          <li class="row"><span>Sharpening by post</span><p>Send a chisel back with 120 SEK and it comes home ground, honed and stropped within ten days. Plane irons, knives and spokeshave blades the same.</p><span class="pr">120 SEK</span></li>
+          <li class="row"><span>A new handle</span><p>A cracked or worn handle is turned new in ash and fitted to the old steel, so the edge you know stays with you.</p><span class="pr">180 SEK</span></li>
+          <li class="row"><span>Saw filing</span><p>Tenon saws are refiled to their original pitch and set by the filer who made them.</p><span class="pr">260 SEK</span></li>
+        </ul>
+        <p class="post">Post tools to Hjort Sharpening, Box 211, 631 03 Eskilstuna. Wrap the edge in card and put your address inside.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTENT BLOCK: visit -->
+  <section class="visit" id="visit" aria-labelledby="visitH">
+    <div class="wrap">
+      <div class="grid">
+        <h2 class="label" id="visitH">Visit the works</h2>
+        <div class="col c1">
+          <p class="sub">The works</p>
+          <p>Hjortgränd 4<br>632 17 Eskilstuna<br>Sweden</p>
+          <p style="margin-top:12px;color:var(--graphite);max-width:32ch">Twelve minutes on foot from Eskilstuna Central, along the river.</p>
+        </div>
+        <div class="col c2">
+          <p class="sub">The shop at the works</p>
+          <table class="hours" id="hours"><tbody>
+            <tr data-d="2"><td>Tuesday</td><td>10:00 to 17:00</td></tr>
+            <tr data-d="3"><td>Wednesday</td><td>10:00 to 17:00</td></tr>
+            <tr data-d="4"><td>Thursday</td><td>10:00 to 17:00</td></tr>
+            <tr data-d="5"><td>Friday</td><td>10:00 to 17:00</td></tr>
+            <tr data-d="6"><td>Saturday</td><td>10:00 to 14:00</td></tr>
+            <tr data-d="0"><td>Sunday, Monday</td><td>Closed</td></tr>
+          </tbody></table>
+        </div>
+        <div class="col c3">
+          <p class="sub">Today</p>
+          <p class="status" id="status" aria-live="polite">Open Tuesday to Saturday.</p>
+          <p style="margin-top:12px;color:var(--graphite);max-width:32ch">Closed through July, when the forge is relined. Telephone 016 10 19 11.</p>
+        </div>
+      </div>
+      <footer class="foot">
+        <span>Hjort Verktyg AB, Eskilstuna, since 1911.</span>
+        <span>Made in the works, sold from the board.</span>
+      </footer>
+    </div>
+  </section>
+</main>
+
+<aside class="sheet" id="sheet" data-side="right" role="dialog" aria-modal="false" aria-labelledby="sheetName" inert>
+  <div class="sheet-in">
+    <div class="sheet-top"><span class="fam" id="sheetFam">Chisels</span><button type="button" class="x" id="sheetClose">Close</button></div>
+    <figure class="fig" id="fig"><div class="fig-stage" id="figStage"></div></figure>
+    <svg class="rule" id="rule" aria-hidden="true"></svg>
+    <div class="sheet-head"><h2 id="sheetName" tabindex="-1">Tool</h2><span class="pr" id="sheetPrice"></span></div>
+    <p class="sheet-copy" id="sheetCopy"></p>
+    <dl class="specs" id="sheetSpecs"></dl>
+    <div class="act" id="sheetAct"></div>
+    <p class="hint">Press Escape, choose Close, or click the empty outline on the board to hang it back.</p>
+  </div>
+</aside>
+
+<aside class="sheet" id="basket" data-side="right" role="dialog" aria-modal="false" aria-labelledby="basketTitle" inert>
+  <div class="sheet-in">
+    <div class="sheet-top"><h2 id="basketTitle" tabindex="-1" style="font-size:15px;color:var(--ink);outline:none">Basket</h2><button type="button" class="x" id="basketClose">Close</button></div>
+    <div id="basketBody"></div>
+  </div>
+</aside>
+
+<div class="menu" id="menu" role="dialog" aria-label="Menu" inert>
+  <div class="menu-top"><span>Hjort</span><button type="button" class="x" id="menuClose">Close</button></div>
+  <ul>
+    <li><a href="#board">The board</a></li>
+    <li><a href="#catalogue">Catalogue</a></li>
+    <li><a href="#steel">The steel</a></li>
+    <li><a href="#handle">The handle</a></li>
+    <li><a href="#life">A tool for life</a></li>
+    <li><a href="#visit">Visit the works</a></li>
+  </ul>
+</div>
+
+<div class="tag" id="tag" aria-hidden="true"></div>
+<div class="sr-only" id="live" aria-live="polite"></div>
+
+<script>
+/* =====================================================================
+   DATA: swap the client here.
+   Every tool: an alpha cut-out (long axis vertical), its alpha box in image px,
+   its real long side in mm (sets the one true scale), how it hangs (pegs, clip or
+   ledge, in image px), and where it sits on each board layout (rotated bbox
+   top-left in mm, rotation in degrees).
+   ===================================================================== */
+const DATA = {
+  img: '../assets/wc/shadow-board-toolmaker/',
+  families: [
+    { id: 'planes', name: 'Planes' },
+    { id: 'chisels', name: 'Chisels' },
+    { id: 'saws', name: 'Saws' },
+    { id: 'shaping', name: 'Shaping' },
+    { id: 'marking', name: 'Marking out' },
+    { id: 'striking', name: 'Striking' }
+  ],
+  tools: [
+    { id: 'tenon-saw', file: 'tool-09-tenon-saw.webp', box: [335, 823, 35, 1511], long: 400,
+      name: 'Tenon saw', family: 'saws', size: '400 × 105 mm', steel: 'Spring steel plate, filed rip at 15 teeth per inch', handle: 'Ash, two brass split nuts, folded brass back', weight: '520 g', price: 1450,
+      steelShort: 'Spring steel', handleShort: 'Ash',
+      copy: 'A 255 mm plate under a folded brass back, filed rip at fifteen teeth to the inch and set light, so it starts on a knife line and stays there. The handle is shaped by hand from a single piece of ash, and the hang of it puts your index finger straight along the plate.',
+      hook: { type: 'pegs', pts: [[630, 1124]] }, sheetRot: -90,
+      desk: { x: 230, y: 44, r: -90 }, mob: { x: 60, y: 100, r: -90 } },
+    { id: 'try-square', file: 'tool-07-try-square.webp', box: [80, 944, 58, 1438], long: 230,
+      name: 'Try square', family: 'marking', size: '230 × 140 mm', steel: 'Hardened steel blade, square to 0.02 mm', handle: 'Ash stock with a brass wear strip', weight: '380 g', price: 980,
+      steelShort: 'Hardened steel', handleShort: 'Ash, brass',
+      copy: 'Every square is checked against the master in the works before it leaves, and every one is true to 0.02 mm along the whole blade. The brass strip on the stock takes the wear from the edge of the board, so the ash never does.',
+      hook: { type: 'pegs', pts: [[250, 1455], [770, 1455]] }, sheetRot: -90,
+      desk: { x: 40, y: 116, r: 0 }, mob: { x: 24, y: 272, r: 0 } },
+    { id: 'bradawl', file: 'tool-14-awl.webp', box: [344, 679, 67, 1498], long: 140,
+      name: 'Bradawl', family: 'marking', size: '140 × 25 mm', steel: 'Hardened steel, chisel point', handle: 'Pear-shaped ash, brass ferrule', weight: '50 g', price: 280,
+      steelShort: 'Hardened steel', handleShort: 'Ash, brass ferrule',
+      copy: 'A bradawl, not a scratch awl: the chisel point goes in across the grain, and a quarter turn opens a pilot hole for a screw without splitting the wood. The pear-shaped handle sits in the palm, so you push with the whole hand.',
+      hook: { type: 'clip', y: 778, span: [439, 584] }, sheetRot: -90,
+      desk: { x: 230, y: 214, r: 0 }, mob: { x: 382.2, y: 628, r: 0 } },
+    { id: 'marking-knife', file: 'tool-13-marking-knife.webp', box: [423, 603, 24, 1510], long: 180,
+      name: 'Marking knife', family: 'marking', size: '180 × 20 mm', steel: 'Tool steel, 61 HRC, bevelled one side', handle: 'Ash, brass ferrule', weight: '60 g', price: 420,
+      steelShort: 'Tool steel, 61 HRC', handleShort: 'Ash, brass ferrule',
+      copy: 'A pencil line is half a millimetre wide. A knife line is nothing. Bevelled on one side only, so the flat face runs tight against the square, and long enough in the blade to reach across a drawer front.',
+      hook: { type: 'clip', y: 615, span: [439, 590] }, sheetRot: -90,
+      desk: { x: 291, y: 214, r: 0 }, mob: { x: 320.2, y: 628, r: 0 } },
+    { id: 'marking-gauge', file: 'tool-06-marking-gauge.webp', box: [252, 771, 97, 1502], long: 200,
+      name: 'Wheel marking gauge', family: 'marking', size: '200 × 70 mm', steel: 'Steel stem, hardened wheel cutter', handle: 'Ash fence, brass thumbscrew', weight: '230 g', price: 790,
+      steelShort: 'Hardened wheel', handleShort: 'Ash, brass',
+      copy: 'A wheel, because a wheel cuts the fibres instead of tearing them, and the line it leaves is a groove your chisel can drop into. The fence locks with a quarter turn of the brass thumbscrew and stays exactly where you put it.',
+      hook: { type: 'pegs', pts: [[449, 1030], [575, 1030]] }, sheetRot: -90,
+      desk: { x: 341, y: 214, r: 0 }, mob: { x: 137.2, y: 628, r: 0 } },
+    { id: 'sliding-bevel', file: 'tool-08-sliding-bevel.webp', box: [427, 598, 20, 1508], long: 250,
+      name: 'Sliding bevel', family: 'marking', size: '250 × 45 mm', steel: 'Blued steel blade', handle: 'Ash stock, brass lever', weight: '190 g', price: 740,
+      steelShort: 'Blued steel', handleShort: 'Ash, brass',
+      copy: 'For dovetail angles, chamfers, and anything that is not ninety degrees. The blade slides the full length of its slot and locks with the brass knob without moving a hair, which is the only thing a bevel has to do.',
+      hook: { type: 'pegs', pts: [[511, 368]] }, sheetRot: -90,
+      desk: { x: 443.1, y: 214, r: 0 }, mob: { x: 251.3, y: 628, r: 0 } },
+    { id: 'chisel-25', file: 'tool-03-chisel-25.webp', box: [419, 605, 17, 1519], long: 270,
+      name: 'Bevel-edge chisel, 25 mm', family: 'chisels', size: '270 × 32 mm', steel: 'Tool steel, 61 HRC, tempered twice', handle: 'Ash, brass ferrule', weight: '210 g', price: 690,
+      steelShort: 'Tool steel, 61 HRC', handleShort: 'Ash, brass ferrule',
+      copy: 'The widest of the three, and the one that does the most work: paring tenon cheeks, cleaning the floor of a housing, chopping out between dovetails. The bevels are ground down to a 1 mm land so it reaches right into the corner of a fine tail.',
+      hook: { type: 'clip', y: 762, span: [452, 572] }, sheetRot: -90,
+      desk: { x: 500, y: 214, r: 0 }, mob: { x: 203.4, y: 272, r: 0 } },
+    { id: 'chisel-12', file: 'tool-04-chisel-12.webp', box: [416, 607, 22, 1491], long: 260,
+      name: 'Bevel-edge chisel, 12 mm', family: 'chisels', size: '260 × 28 mm', steel: 'Tool steel, 61 HRC, tempered twice', handle: 'Ash, brass ferrule', weight: '170 g', price: 620,
+      steelShort: 'Tool steel, 61 HRC', handleShort: 'Ash, brass ferrule',
+      copy: 'The middle chisel is the one you reach for without looking. Twelve millimetres is a common mortise, a hinge recess, a small shoulder. The back is lapped flat for the first 60 mm, so it registers off the work like a straightedge.',
+      hook: { type: 'clip', y: 732, span: [454, 571] }, sheetRot: -90,
+      desk: { x: 549.4, y: 214, r: 0 }, mob: { x: 248.8, y: 272, r: 0 } },
+    { id: 'chisel-6', file: 'tool-05-chisel-6.webp', box: [418, 599, 27, 1496], long: 250,
+      name: 'Bevel-edge chisel, 6 mm', family: 'chisels', size: '250 × 25 mm', steel: 'Tool steel, 61 HRC, tempered twice', handle: 'Ash, brass ferrule', weight: '140 g', price: 590,
+      steelShort: 'Tool steel, 61 HRC', handleShort: 'Ash, brass ferrule',
+      out: true, back: 'back 14 November', note: ['out: back 14 November'], noteMob: ['out: back', '14 November'],
+      copy: 'The narrowest of the three, for the narrowest sockets: the pins of a fine drawer, a keyhole escutcheon, the corner of a hinge mortise. This batch sold out in September. The next one is in the hardening shop now and will be ground by 14 November.',
+      hook: { type: 'clip', y: 715, span: [452, 566] }, sheetRot: -90,
+      desk: { x: 599.2, y: 214, r: 0 }, mob: { x: 294.6, y: 272, r: 0 } },
+    { id: 'cross-pein-hammer', file: 'tool-10-cross-pein-hammer.webp', box: [177, 843, 29, 1507], long: 300,
+      name: 'Cross-pein hammer', family: 'striking', size: '300 × 110 mm', steel: 'Drop-forged tool steel, hardened faces', handle: 'Ash, brass collar', weight: '450 g', price: 890,
+      steelShort: 'Forged tool steel', handleShort: 'Ash, brass collar',
+      copy: 'A Warrington pattern, 300 mm long with a 225 g head: heavy enough to set a cut nail, light enough to tap a plane iron forward. The cross pein starts a panel pin held between your fingers without catching them.',
+      hook: { type: 'pegs', pts: [[402, 284], [606, 284]] }, sheetRot: -90,
+      desk: { x: 666, y: 64, r: 0 }, mob: { x: 360.8, y: 272, r: 0 } },
+    { id: 'carvers-mallet', file: 'tool-11-carvers-mallet.webp', box: [280, 744, 37, 1499], long: 230,
+      name: "Carver's mallet", family: 'striking', size: '230 × 85 mm', steel: 'None: turned from one billet of ash', handle: 'Ash, grain end to end', weight: '480 g', price: 520,
+      steelShort: 'None', handleShort: 'Ash',
+      copy: 'Turned from a single billet with the grain running end to end, so the round head strikes the same wherever it lands. For carving gouges and chisels with wooden handles. Never for steel.',
+      hook: { type: 'pegs', pts: [[419, 588], [603, 588]] }, sheetRot: -90,
+      desk: { x: 837, y: 64, r: 0 }, mob: { x: 24, y: 628, r: 0 } },
+    { id: 'smoothing-plane-4', file: 'tool-01-smoothing-plane.webp', box: [353, 670, 21, 1509], long: 245,
+      name: 'No. 4 smoothing plane', family: 'planes', size: '245 × 60 mm', steel: 'Iron: tool steel, 61 HRC, 3 mm thick. Body: ductile iron, sole lapped flat', handle: 'Ash knob and tote', weight: '1.9 kg', price: 3200,
+      steelShort: 'Tool steel iron', handleShort: 'Ash knob and tote',
+      copy: 'The plane we would keep if we could keep only one. A heavy 3 mm iron bedded at 45 degrees, a sole lapped flat on a granite table, and a mouth set fine enough to take a shaving you can read through. It finishes a tabletop before it asks to be sharpened again.',
+      hook: { type: 'ledge', pivot: [353, 765] }, sheetRot: -90,
+      desk: { x: 665, y: 408, r: -90 }, mob: { x: 24, y: 957.8, r: -90 } },
+    { id: 'smoothing-plane-3', file: 'tool-02-block-plane.webp', box: [322, 701, 43, 1493], long: 210,
+      name: 'No. 3 smoothing plane', family: 'planes', size: '210 × 50 mm', steel: 'Iron: tool steel, 61 HRC. Body: ductile iron', handle: 'Ash knob and tote', weight: '1.4 kg', price: 2650,
+      steelShort: 'Tool steel iron', handleShort: 'Ash knob and tote',
+      copy: 'The smaller sister of the No. 4, for smaller hands and for work held in the vice. A narrower iron on the same bed and the same flat sole. Cabinetmakers keep it for drawer sides and the last pass on a door frame.',
+      hook: { type: 'ledge', pivot: [322, 768] }, sheetRot: -90,
+      desk: { x: 665, y: 500, r: -90 }, mob: { x: 286, y: 955.1, r: -90 } },
+    { id: 'spokeshave', file: 'tool-12-spokeshave.webp', box: [412, 649, 21, 1504], long: 255,
+      name: 'Spokeshave', family: 'shaping', size: '255 mm across the wings', steel: 'Tool steel blade, 61 HRC', handle: 'Ash wings, brass thumbscrews', weight: '310 g', price: 1150,
+      steelShort: 'Tool steel, 61 HRC', handleShort: 'Ash wings',
+      out: true, back: 'back next week', note: ['out: back next week'], noteMob: ['out: back next week'],
+      copy: 'For chair legs, paddle shafts and anything round. Two brass thumbscrews set the blade, so it can be skewed for a heavier cut at one end and a fine one at the other. The new run is being handled now and will be back on the board next week.',
+      hook: { type: 'pegs', pts: [[607, 300], [612, 1236]] }, sheetRot: 90,
+      desk: { x: 40, y: 452, r: 90 },
+      mob: { x: 455.2, y: 628, r: 0, hook: { type: 'pegs', pts: [[440, 540], [574, 540]] } } }
+  ],
+  /* Board layouts in millimetres. One px-per-mm (k) per layout, fitted to the viewport. */
+  layouts: {
+    desk: { W: 950, H: 594, mx: 40, my: 28,
+      ledges: [{ ids: ['smoothing-plane-4'], pad: 12 }, { ids: ['smoothing-plane-3'], pad: 12 }],
+      notes: [
+        { id: 'chisel-6', x: 556, y: 500, from: [604, 500], to: [614.6, 469] },
+        { id: 'spokeshave', x: 52, y: 503, from: [66, 503], to: [72, 495] }
+      ] },
+    mob: { W: 520, H: 1046, mx: 24, my: 22,
+      ledges: [{ ids: ['smoothing-plane-4', 'smoothing-plane-3'], pad: 8 }],
+      notes: [
+        { id: 'chisel-6', x: 203.4, y: 552, from: [290, 562], to: [309, 526] },
+        { id: 'spokeshave', x: 496, y: 898, align: 'right', from: [470, 899], to: [475, 887] }
+      ] }
+  }
+};
+
+(() => {
+  'use strict';
+  const doc = document.documentElement;
+  doc.classList.add('js-hang');
+  const safety = setTimeout(() => doc.classList.remove('js-hang'), 2600);
+
+  const RM = matchMedia('(prefers-reduced-motion: reduce)');
+  const FINE = matchMedia('(hover: hover) and (pointer: fine)');
+  const $ = (s, r = document) => r.querySelector(s);
+  const stage = $('#stage'), board = $('#board'), toolsUl = $('#tools'), fixtures = $('#fixtures');
+  const tag = $('#tag'), live = $('#live');
+  const sheet = $('#sheet'), basketEl = $('#basket'), menuEl = $('#menu');
+  const byId = Object.fromEntries(DATA.tools.map(t => [t.id, t]));
+  const famName = Object.fromEntries(DATA.families.map(f => [f.id, f.name]));
+  const state = { L: 'desk', k: 1, ox: 0, oy: 0, off: null, basket: {}, sort: 'family', hover: null, panel: null };
+  const slots = {};
+  const nbsp = ' ';
+  const price = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, nbsp) + nbsp + 'SEK';
+  const rad = d => d * Math.PI / 180;
+
+  /* ---------- geometry ---------- */
+  function geom(t, L) {
+    const p = t[L];
+    const [x0, x1, y0, y1] = t.box;
+    const mmpx = t.long / (y1 - y0);
+    const wmm = (x1 - x0) * mmpx, hmm = (y1 - y0) * mmpx;
+    const r = p.r || 0;
+    const q = Math.abs(r) % 180 === 90;
+    const W = q ? hmm : wmm, H = q ? wmm : hmm;
+    return { mmpx, wmm, hmm, r, W, H, x: p.x, y: p.y, cx: p.x + W / 2, cy: p.y + H / 2, icx: (x0 + x1) / 2, icy: (y0 + y1) / 2 };
+  }
+  function toBoard(g, ix, iy) {
+    const dx = (ix - g.icx) * g.mmpx, dy = (iy - g.icy) * g.mmpx, a = rad(g.r);
+    return [g.cx + dx * Math.cos(a) - dy * Math.sin(a), g.cy + dx * Math.sin(a) + dy * Math.cos(a)];
+  }
+  function hookOf(t, L) { return (t[L] && t[L].hook) || t.hook; }
+  function pivotOf(t, L, g) {
+    const h = hookOf(t, L);
+    if (h.type === 'clip') return toBoard(g, (h.span[0] + h.span[1]) / 2, h.y);
+    if (h.type === 'ledge') return toBoard(g, h.pivot[0], h.pivot[1]);
+    const n = h.pts.length;
+    return toBoard(g, h.pts.reduce((s, p) => s + p[0], 0) / n, h.pts.reduce((s, p) => s + p[1], 0) / n);
+  }
+
+  /* ---------- build the board once ---------- */
+  DATA.tools.forEach(t => {
+    const li = document.createElement('li');
+    li.className = 'slot' + (t.out ? ' is-out' : '');
+    li.dataset.id = t.id;
+    const label = t.out ? `${t.name}, out of stock, ${t.back}. Ask to be told when it is back` : `${t.name}, ${price(t.price)}. Take it off the board`;
+    li.innerHTML = `<div class="paint"><div class="paint-fill"></div></div>
+      <div class="hang"><button class="tool" type="button" aria-label="${label}" aria-haspopup="dialog" aria-controls="sheet">${t.out ? '' : `<img src="${DATA.img + t.file}" alt="" draggable="false" decoding="async">`}</button></div>`;
+    const fill = li.querySelector('.paint-fill');
+    const url = `url("${DATA.img + t.file}")`;
+    fill.style.webkitMaskImage = url; fill.style.maskImage = url;
+    toolsUl.appendChild(li);
+    slots[t.id] = { li, paint: li.querySelector('.paint'), fill, hang: li.querySelector('.hang'), btn: li.querySelector('.tool'), img: li.querySelector('img') };
+  });
+
+  /* ---------- layout ---------- */
+  function chooseLayout() {
+    const w = doc.clientWidth, h = innerHeight;
+    return (w < 760 || w / h < 0.86) ? 'mob' : 'desk';
+  }
+  function layout() {
+    const w = doc.clientWidth, vh = innerHeight;
+    const L = chooseLayout();
+    if (L !== state.L && state.off) hangBack({ quick: true });
+    state.L = L;
+    const B = DATA.layouts[L];
+    let k, bw, bh;
+    if (L === 'desk') {
+      k = Math.min(w / B.W, vh / B.H, 2.4);
+      bh = Math.max(vh, 480);
+    } else {
+      k = w < 600 ? w / B.W : Math.min(w / B.W, vh / B.H);
+      bh = B.H * k;
+    }
+    state.k = k;
+    const sw = B.W * k, sh = B.H * k;
+    state.ox = Math.max(0, (w - sw) / 2);
+    state.oy = L === 'desk' ? Math.max(0, (bh - sh) / 2) : 0;
+    board.style.height = L === 'desk' ? '' : Math.round(bh) + 'px';
+    Object.assign(stage.style, { left: state.ox + 'px', top: state.oy + 'px', width: sw + 'px', height: sh + 'px' });
+    // board texture: cover, pushed in on desktop so the corner screws sit at the frame edge
+    const bgw = w, bgh = L === 'desk' ? bh : bh;
+    const cover = Math.max(bgw / 1536, bgh / 1024) * (L === 'desk' ? 1.2 : 1.02);
+    board.style.backgroundSize = `100% 100%, ${Math.round(1536 * cover)}px auto`;
+    // paint filter scales with the board
+    const pr = Math.max(1.6, Math.min(3.4, 2.15 * k)), ds = Math.max(1.2, 1.5 * k);
+    ['#paint', '#paintFocus'].forEach(f => {
+      $(f + ' feMorphology').setAttribute('radius', pr.toFixed(2));
+      $(f + ' feDisplacementMap').setAttribute('scale', ds.toFixed(2));
+    });
+    const ring = document.querySelectorAll('#paintFocus feMorphology');
+    ring[1].setAttribute('radius', (pr + 4.5).toFixed(2));
+    ring[2].setAttribute('radius', (pr + 2.5).toFixed(2));
+
+    // brand + chrome
+    const brand = $('#brand'), chrome = $('#chrome');
+    brand.style.left = (B.mx * k) + 'px'; brand.style.top = (B.my * k) + 'px';
+    chrome.style.right = (B.mx * k) + 'px'; chrome.style.top = (B.my * k - 4) + 'px';
+
+    // tools
+    let fx = '';
+    DATA.tools.forEach(t => {
+      const s = slots[t.id], g = geom(t, L);
+      const sc = g.mmpx * k;
+      const w0 = g.wmm * k, h0 = g.hmm * k;
+      const cx = g.cx * k, cy = g.cy * k;
+      const tf = `translate(-50%,-50%) rotate(${g.r}deg)`;
+      Object.assign(s.paint.style, { left: cx + 'px', top: cy + 'px', width: w0 + 'px', height: h0 + 'px', transform: tf });
+      const ms = `${1024 * sc}px ${1536 * sc}px`, mp = `${-t.box[0] * sc}px ${-t.box[2] * sc}px`;
+      s.fill.style.webkitMaskSize = ms; s.fill.style.maskSize = ms;
+      s.fill.style.webkitMaskPosition = mp; s.fill.style.maskPosition = mp;
+      const pv = pivotOf(t, L, g);
+      Object.assign(s.hang.style, { left: cx + 'px', top: cy + 'px', transformOrigin: `${(pv[0] - g.cx) * k}px ${(pv[1] - g.cy) * k}px` });
+      Object.assign(s.btn.style, { width: w0 + 'px', height: h0 + 'px', transform: tf });
+      if (s.img) Object.assign(s.img.style, { width: 1024 * sc + 'px', height: 1536 * sc + 'px', left: -t.box[0] * sc + 'px', top: -t.box[2] * sc + 'px' });
+      s.pivot = pv; s.g = g;
+      // fixtures
+      const h = hookOf(t, L);
+      if (h.type === 'pegs') {
+        const r = Math.max(1.7, 2.5 * k);
+        h.pts.forEach(p => {
+          const [bx, by] = toBoard(g, p[0], p[1]);
+          const d = r * 2 + 6;
+          fx += `<svg class="fix peg" style="left:${bx * k - d / 2}px;top:${by * k - d / 2}px;width:${d}px;height:${d}px" viewBox="0 0 ${d} ${d}" aria-hidden="true">
+            <circle cx="${d / 2 + r * .28}" cy="${d / 2 + r * .5}" r="${r * 1.02}" fill="#1B1D1A" fill-opacity=".26"/>
+            <circle cx="${d / 2}" cy="${d / 2}" r="${r}" fill="#A6ACB0" stroke="#5E6468" stroke-width="${Math.max(.6, r * .2)}"/>
+            <circle cx="${d / 2 - r * .3}" cy="${d / 2 - r * .32}" r="${r * .34}" fill="#E7EAEB"/></svg>`;
+        });
+      } else if (h.type === 'clip') {
+        const a = toBoard(g, h.span[0], h.y), b = toBoard(g, h.span[1], h.y);
+        const th = Math.max(1.3, 1.25 * k);
+        const x1 = a[0] * k, y1 = a[1] * k, x2 = b[0] * k, y2 = b[1] * k;
+        const pad = th * 3;
+        const l = Math.min(x1, x2) - pad, tp = Math.min(y1, y2) - pad;
+        const ww = Math.abs(x2 - x1) + pad * 2, hh = Math.abs(y2 - y1) + pad * 2;
+        const X1 = x1 - l, Y1 = y1 - tp, X2 = x2 - l, Y2 = y2 - tp;
+        fx += `<svg class="fix clip" style="left:${l}px;top:${tp}px;width:${ww}px;height:${hh}px" viewBox="0 0 ${ww} ${hh}" aria-hidden="true">
+          <line x1="${X1}" y1="${Y1 + th * .7}" x2="${X2}" y2="${Y2 + th * .7}" stroke="#1B1D1A" stroke-opacity=".3" stroke-width="${th * 1.2}" stroke-linecap="round"/>
+          <line x1="${X1}" y1="${Y1}" x2="${X2}" y2="${Y2}" stroke="#8E959A" stroke-width="${th}" stroke-linecap="round"/>
+          <line x1="${X1 + th}" y1="${Y1 - th * .22}" x2="${X2 - th}" y2="${Y2 - th * .22}" stroke="#E2E5E7" stroke-width="${th * .32}" stroke-linecap="round"/>
+          <circle cx="${X1}" cy="${Y1}" r="${th * .62}" fill="#3A3E39"/><circle cx="${X2}" cy="${Y2}" r="${th * .62}" fill="#3A3E39"/></svg>`;
+      }
+    });
+    // ledges
+    B.ledges.forEach(lg => {
+      const gs = lg.ids.map(id => geom(byId[id], L));
+      const x0 = Math.min(...gs.map(g => g.x)) - lg.pad, x1 = Math.max(...gs.map(g => g.x + g.W)) + lg.pad;
+      const y = Math.max(...gs.map(g => g.y + g.H));
+      fx += `<div class="ledge" style="left:${x0 * k}px;top:${y * k}px;width:${(x1 - x0) * k}px;height:${Math.max(5, 6 * k)}px"></div>`;
+    });
+    // pencil notes
+    B.notes.forEach(n => {
+      const t = byId[n.id];
+      const lines = (L === 'mob' ? t.noteMob : t.note) || t.note;
+      const right = n.align === 'right';
+      const pos = right ? `right:${(B.W - n.x) * k}px` : `left:${n.x * k}px`;
+      fx += `<p class="note${right ? ' right' : ''}" style="${pos};top:${n.y * k}px" aria-hidden="true">${lines.map(s => `<span>${s}</span>`).join('')}</p>`;
+      if (n.from && n.to) {
+        const ax = n.from[0] * k, ay = n.from[1] * k, bx = n.to[0] * k, by = n.to[1] * k;
+        const l = Math.min(ax, bx) - 8, tp = Math.min(ay, by) - 8, ww = Math.abs(bx - ax) + 16, hh = Math.abs(by - ay) + 16;
+        const A = [ax - l, ay - tp], Bp = [bx - l, by - tp];
+        const mx = (A[0] + Bp[0]) / 2 + (Bp[1] - A[1]) * .18, my = (A[1] + Bp[1]) / 2 - (Bp[0] - A[0]) * .18;
+        const ang = Math.atan2(Bp[1] - my, Bp[0] - mx), hl = 5;
+        const h1 = [Bp[0] - hl * Math.cos(ang - .5), Bp[1] - hl * Math.sin(ang - .5)], h2 = [Bp[0] - hl * Math.cos(ang + .5), Bp[1] - hl * Math.sin(ang + .5)];
+        fx += `<svg class="leader" style="left:${l}px;top:${tp}px;width:${ww}px;height:${hh}px" viewBox="0 0 ${ww} ${hh}" aria-hidden="true">
+          <path d="M${A[0]} ${A[1]} Q${mx} ${my} ${Bp[0]} ${Bp[1]} M${h1[0]} ${h1[1]} L${Bp[0]} ${Bp[1]} L${h2[0]} ${h2[1]}" fill="none" stroke="#4A4F47" stroke-opacity=".85" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+      }
+    });
+    fixtures.innerHTML = fx;
+  }
+
+  /* ---------- entrance: each tool hung onto its silhouette ---------- */
+  function entrance() {
+    clearTimeout(safety);
+    if (RM.matches) { doc.classList.remove('js-hang'); return; }
+    const list = DATA.tools.filter(t => !t.out);
+    list.forEach((t, i) => {
+      slots[t.id].hang.animate([
+        { transform: 'translateY(-6px) rotate(-1.5deg)', opacity: 0 },
+        { transform: 'translateY(-4px) rotate(-1deg)', opacity: 1, offset: .22 },
+        { transform: 'translateY(0) rotate(1.15deg)', opacity: 1, offset: .55 },
+        { transform: 'translateY(0) rotate(-.45deg)', opacity: 1, offset: .8 },
+        { transform: 'translateY(0) rotate(0deg)', opacity: 1 }
+      ], { duration: 560, delay: 120 + i * 60, easing: 'cubic-bezier(.25,.8,.35,1)', fill: 'backwards' });
+    });
+    doc.classList.remove('js-hang');
+  }
+
+  /* ---------- hover tag ---------- */
+  let tagFor = null, tagRaf = 0, px = 0, py = 0;
+  function tagHTML(t) {
+    return t.out
+      ? `<span class="n">${t.name}</span><span class="m"><span class="o">Out, ${t.back}</span></span><span class="m"><span>Tell me when it is back</span></span>`
+      : `<span class="n">${t.name}</span><span class="m"><span>${t.size}</span><span>${price(t.price)}</span></span>`;
+  }
+  function showTag(t, x, y) {
+    if (tagFor !== t.id) { tag.innerHTML = tagHTML(t); tagFor = t.id; }
+    placeTag(x, y); tag.classList.add('on');
+  }
+  function placeTag(x, y) {
+    const r = tag.getBoundingClientRect();
+    let tx = x + 18, ty = y + 20;
+    if (tx + r.width > innerWidth - 12) tx = x - r.width - 14;
+    if (ty + r.height > innerHeight - 12) ty = y - r.height - 14;
+    tag.style.transform = `translate3d(${Math.round(tx)}px,${Math.round(ty)}px,0)`;
+  }
+  function hideTag() { tag.classList.remove('on'); tagFor = null; }
+
+  function lift(id, sign) {
+    const s = slots[id];
+    if (byId[id].out || state.off === id) return;
+    s.li.style.setProperty('--swing', (sign >= 0 ? 2 : -2) + 'deg');
+    s.li.classList.add('lift');
+  }
+  function drop(id) { slots[id] && slots[id].li.classList.remove('lift'); }
+
+  toolsUl.addEventListener('pointerover', e => {
+    if (e.pointerType !== 'mouse') return;
+    const li = e.target.closest('.slot'); if (!li) return;
+    const id = li.dataset.id; if (state.hover === id) return;
+    if (state.hover) drop(state.hover);
+    state.hover = id;
+    const s = slots[id];
+    const sr = stage.getBoundingClientRect();
+    lift(id, e.clientX - (sr.left + s.pivot[0] * state.k));
+    if (state.off !== id) showTag(byId[id], e.clientX, e.clientY);
+  });
+  toolsUl.addEventListener('pointerout', e => {
+    if (e.pointerType !== 'mouse') return;
+    const li = e.target.closest('.slot'); if (!li) return;
+    if (e.relatedTarget && li.contains(e.relatedTarget)) return;
+    drop(li.dataset.id); if (state.hover === li.dataset.id) state.hover = null;
+    hideTag();
+  });
+  toolsUl.addEventListener('pointermove', e => {
+    if (e.pointerType !== 'mouse' || !state.hover || !tag.classList.contains('on')) return;
+    px = e.clientX; py = e.clientY;
+    if (!tagRaf) tagRaf = requestAnimationFrame(() => { tagRaf = 0; placeTag(px, py); });
+  });
+  toolsUl.addEventListener('focusin', e => {
+    const b = e.target.closest('.tool'); if (!b || !b.matches(':focus-visible')) return;
+    const id = b.closest('.slot').dataset.id;
+    lift(id, 1);
+    if (state.off !== id) {
+      const r = slots[id].paint.getBoundingClientRect();
+      showTag(byId[id], Math.min(r.right, innerWidth - 200) + 4, r.top + Math.min(40, r.height / 3));
+    }
+  });
+  toolsUl.addEventListener('focusout', e => {
+    const li = e.target.closest('.slot'); if (!li) return;
+    if (state.hover !== li.dataset.id) drop(li.dataset.id);
+    hideTag();
+  });
+  toolsUl.addEventListener('click', e => {
+    const b = e.target.closest('.tool'); if (!b) return;
+    const id = b.closest('.slot').dataset.id;
+    hideTag(); drop(id);
+    if (state.off === id) hangBack(); else takeOff(id);
+  });
+
+  /* ---------- product sheet ---------- */
+  function nearestAngle(target, from) {
+    let a = target;
+    while (a - from > 180) a -= 360;
+    while (from - a > 180) a += 360;
+    return a;
+  }
+  function makeArt(t) {
+    const g = geom(t, state.L), k = state.k, sc = g.mmpx * k;
+    const w = g.wmm * k, h = g.hmm * k;
+    const el = document.createElement('div');
+    el.className = 'art';
+    el.style.width = w + 'px'; el.style.height = h + 'px';
+    if (t.out) {
+      // a sold-out tool is shown the way the board shows it: only its painted silhouette
+      const u = `url("${DATA.img + t.file}")`, ms = `${1024 * sc}px ${1536 * sc}px`, mp = `${-t.box[0] * sc}px ${-t.box[2] * sc}px`;
+      el.innerHTML = `<div class="sil" style="-webkit-mask-image:${u};mask-image:${u};-webkit-mask-size:${ms};mask-size:${ms};-webkit-mask-position:${mp};mask-position:${mp}"></div>`;
+    } else {
+      el.innerHTML = `<img src="${DATA.img + t.file}" alt="" draggable="false" style="width:${1024 * sc}px;height:${1536 * sc}px;left:${-t.box[0] * sc}px;top:${-t.box[2] * sc}px">`;
+    }
+    return { el, w, h, g };
+  }
+  function drawRule(lenPx, mm, offX) {
+    const svg = $('#rule');
+    const W = svg.clientWidth || 356;
+    const x0 = Math.max(0, offX), pxmm = lenPx / mm;
+    let d = `M${x0} 4.5 H${x0 + lenPx}`;
+    for (let m = 0; m <= mm + .01; m += 10) {
+      const x = x0 + m * pxmm, big = m % 50 === 0;
+      d += ` M${x.toFixed(1)} 4.5 V${big ? 12 : 8.5}`;
+    }
+    d += ` M${(x0 + lenPx).toFixed(1)} 4.5 V12`;
+    svg.setAttribute('viewBox', `0 0 ${W} 30`);
+    svg.innerHTML = `<path d="${d}" fill="none" stroke="#1B1D1A" stroke-opacity=".7" stroke-width="1"/>
+      <text x="${x0}" y="27" font-size="13" fill="#4A4F47" font-family="Hanken Grotesk, sans-serif" font-weight="500">0</text>
+      <text x="${x0 + lenPx}" y="27" font-size="13" fill="#4A4F47" text-anchor="end" font-family="Hanken Grotesk, sans-serif" font-weight="500" style="font-variant-numeric:tabular-nums">${mm} mm</text>`;
+  }
+  function fillSheet(t) {
+    $('#sheetFam').textContent = famName[t.family];
+    $('#sheetName').textContent = t.name;
+    $('#sheetPrice').textContent = price(t.price);
+    $('#sheetCopy').textContent = t.copy;
+    $('#sheetSpecs').innerHTML = [['Steel', t.steel], ['Handle', t.handle], ['Size', t.size], ['Weight', t.weight]]
+      .map(([a, b]) => `<div><dt>${a}</dt><dd>${b}</dd></div>`).join('');
+    const act = $('#sheetAct');
+    if (t.out) {
+      act.innerHTML = `<p class="out-line">Out, ${t.back}.</p>
+        <form class="notify" novalidate><label for="nEmail">Tell me when it is back</label>
+        <div class="rowf"><input id="nEmail" type="email" name="email" autocomplete="email" placeholder="name@workshop.se" required><button type="submit">Notify me</button></div>
+        <p class="msg" role="status"></p></form>`;
+      const f = $('form', act), msg = $('.msg', f), inp = $('input', f);
+      f.addEventListener('submit', ev => {
+        ev.preventDefault();
+        const v = inp.value.trim();
+        if (!v) { msg.textContent = 'Add your email address and we will write once, on the day it is back.'; msg.classList.add('err'); inp.focus(); return; }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { msg.textContent = v.includes('@') ? 'That address is missing its domain, for example name@workshop.se.' : 'That address is missing an @.'; msg.classList.add('err'); inp.focus(); return; }
+        msg.classList.remove('err');
+        msg.textContent = `Thank you. One email to ${v}, on the day the ${t.name.toLowerCase()} is back on the board.`;
+        inp.value = '';
+      });
+    } else {
+      const n = state.basket[t.id] || 0;
+      act.innerHTML = `<button type="button" class="btn" id="addBtn"><span>${n ? 'Add another' : 'Add to basket'}</span><span class="pr">${price(t.price)}</span></button>`;
+      $('#addBtn').addEventListener('click', e => {
+        addToBasket(t.id);
+        const b = e.currentTarget; b.classList.add('done');
+        b.firstElementChild.textContent = `Added. Basket ${basketCount()}`;
+        clearTimeout(b._t);
+        b._t = setTimeout(() => { b.classList.remove('done'); b.firstElementChild.textContent = 'Add another'; }, 1600);
+      });
+    }
+  }
+  function sheetTarget() {
+    const side = sheet.dataset.side;
+    const sw = sheet.offsetWidth, sh = sheet.offsetHeight;
+    const left = state.L === 'mob' || doc.clientWidth < 760 ? 0 : (side === 'right' ? doc.clientWidth - sw : 0);
+    const top = state.L === 'mob' || doc.clientWidth < 760 ? innerHeight - sh : 0;
+    const fig = $('#fig');
+    let ox = 0, oy = 0, el = fig;
+    while (el && el !== sheet) { ox += el.offsetLeft; oy += el.offsetTop; el = el.offsetParent; }
+    return { cx: left + ox + fig.offsetWidth / 2, cy: top + oy + fig.offsetHeight / 2, fw: fig.offsetWidth, fh: fig.offsetHeight, fx: left + ox };
+  }
+  function closePanels(except) {
+    if (except !== 'menu' && menuEl.classList.contains('open')) toggleMenu(false);
+    if (except !== 'basket' && basketEl.classList.contains('open')) closeBasket();
+  }
+  let busy = false;
+  async function takeOff(id, opts = {}) {
+    if (busy) return;
+    busy = true;
+    try {
+      const t = byId[id];
+      if (state.off && state.off !== id) await hangBack({ quick: true, keepFocus: true });
+      closePanels();
+      const s = slots[id];
+      const mobile = state.L === 'mob' || doc.clientWidth < 760;
+      let pr = s.paint.getBoundingClientRect();
+      sheet.dataset.side = mobile ? 'bottom' : (((pr.left + pr.right) / 2 < doc.clientWidth / 2 || pr.bottom < 0 || pr.top > innerHeight) ? 'right' : 'left');
+      fillSheet(t);
+      sheet.classList.toggle('is-out', !!t.out);
+      // phone: lift the board so the empty outline stays visible above the sheet
+      if (mobile && !opts.fromList) {
+        const sheetH = Math.min(sheet.scrollHeight, innerHeight * .76);
+        const visible = innerHeight - sheetH;
+        const want = scrollY + pr.top - Math.max(16, (visible - pr.height) / 2);
+        if (pr.bottom > visible - 12 || pr.top < 0) {
+          scrollTo({ top: Math.max(0, want), behavior: RM.matches ? 'auto' : 'smooth' });
+          await new Promise(r => { let done = false; const fin = () => { if (!done) { done = true; r(); } }; addEventListener('scrollend', fin, { once: true }); setTimeout(fin, 520); });
+          pr = s.paint.getBoundingClientRect();
+        }
+      }
+      state.off = id;
+      s.li.classList.add('off');
+      s.btn.setAttribute('aria-expanded', 'true');
+      if (!t.out) s.btn.setAttribute('aria-label', `Hang the ${t.name.toLowerCase()} back on the board`);
+      $('#figStage').innerHTML = '';
+      sheet.inert = false;
+      sheet.scrollTop = 0;
+      sheet.classList.add('open');
+      // tool art for the sheet
+      const art = makeArt(t);
+      const tgt = sheetTarget();
+      const rt = nearestAngle(t.sheetRot, art.g.r);
+      const q = Math.abs(rt) % 180 === 90;
+      const extW = q ? art.h : art.w, extH = q ? art.w : art.h;
+      const sc = Math.min(tgt.fw * .94 / extW, tgt.fh * .9 / extH);
+      const lenPx = t.long * state.k * sc;
+      drawRule(lenPx, t.long, (tgt.fw - (q ? art.h : art.w) * sc) / 2);
+      const final = `translate(-50%,-50%) rotate(${rt}deg) scale(${sc})`;
+      const inView = pr.bottom > 0 && pr.top < innerHeight && pr.right > 0 && pr.left < doc.clientWidth;
+      if (!t.out && inView && !RM.matches) {
+        const from = [(pr.left + pr.right) / 2, (pr.top + pr.bottom) / 2];
+        Object.assign(art.el.style, { position: 'fixed', left: '0px', top: '0px', zIndex: 75, transform: `translate(${from[0] - art.w / 2}px,${from[1] - art.h / 2}px) rotate(${art.g.r}deg)` });
+        document.body.appendChild(art.el);
+        const img = art.el.firstElementChild;
+        img.animate([{ filter: 'drop-shadow(0 1px 1px rgba(27,29,26,.35))' }, { filter: 'drop-shadow(6px 18px 16px rgba(27,29,26,.28))', offset: .45 }, { filter: 'drop-shadow(0 2px 2px rgba(27,29,26,.22))' }], { duration: 640, easing: 'ease-out' });
+        const anim = art.el.animate([
+          { transform: `translate(${from[0] - art.w / 2}px,${from[1] - art.h / 2}px) rotate(${art.g.r}deg) scale(1)` },
+          { transform: `translate(${from[0] - art.w / 2}px,${from[1] - art.h / 2 - 10}px) rotate(${art.g.r + (rt > art.g.r ? -3 : 3)}deg) scale(1.03)`, offset: .14 },
+          { transform: `translate(${tgt.cx - art.w / 2}px,${tgt.cy - art.h / 2}px) rotate(${rt}deg) scale(${sc})` }
+        ], { duration: 640, easing: 'cubic-bezier(.22,1.12,.36,1)', fill: 'forwards' });
+        await anim.finished.catch(() => {});
+        if (state.off !== id) { art.el.remove(); return; }
+        anim.cancel();
+        Object.assign(art.el.style, { position: 'absolute', left: '50%', top: '50%', zIndex: '', transform: final });
+        $('#figStage').appendChild(art.el);
+      } else {
+        art.el.style.transform = final;
+        $('#figStage').appendChild(art.el);
+        art.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: RM.matches ? 200 : 320, easing: 'ease-out' });
+      }
+      live.textContent = t.out ? `${t.name} is out, ${t.back}.` : `${t.name} taken off the board.`;
+      if (state.off === id) $('#sheetName').focus({ preventScroll: true });
+    } finally { busy = false; }
+  }
+  async function hangBack(opts = {}) {
+    const id = state.off; if (!id) return;
+    const t = byId[id], s = slots[id];
+    state.off = null;
+    const art = $('#figStage .art');
+    const hadFocus = sheet.contains(document.activeElement);
+    const pr = s.paint.getBoundingClientRect();
+    const inView = pr.bottom > 0 && pr.top < innerHeight;
+    let flight = null;
+    if (art && !t.out && inView && !RM.matches && !opts.quick) {
+      const ar = art.getBoundingClientRect();
+      const c = [(ar.left + ar.right) / 2, (ar.top + ar.bottom) / 2];
+      const g = geom(t, state.L);
+      const m = /rotate\(([-\d.]+)deg\) scale\(([\d.]+)\)/.exec(art.style.transform) || [0, 0, 1];
+      const w = parseFloat(art.style.width), h = parseFloat(art.style.height);
+      Object.assign(art.style, { position: 'fixed', left: '0px', top: '0px', zIndex: 75, transform: `translate(${c[0] - w / 2}px,${c[1] - h / 2}px) rotate(${m[1]}deg) scale(${m[2]})` });
+      document.body.appendChild(art);
+      const to = [(pr.left + pr.right) / 2, (pr.top + pr.bottom) / 2];
+      flight = art.animate([
+        { transform: `translate(${c[0] - w / 2}px,${c[1] - h / 2}px) rotate(${m[1]}deg) scale(${m[2]})` },
+        { transform: `translate(${to[0] - w / 2}px,${to[1] - h / 2}px) rotate(${g.r}deg) scale(1)` }
+      ], { duration: 460, easing: 'cubic-bezier(.3,.9,.3,1)', fill: 'forwards' });
+    }
+    closeSheet();
+    s.btn.setAttribute('aria-expanded', 'false');
+    if (!t.out) s.btn.setAttribute('aria-label', `${t.name}, ${price(t.price)}. Take it off the board`);
+    if (flight) { await flight.finished.catch(() => {}); }
+    if (art) art.remove();
+    s.li.classList.remove('off');
+    if (!t.out && !RM.matches && !opts.quick) {
+      s.hang.animate([{ transform: 'rotate(1.6deg)' }, { transform: 'rotate(-.6deg)', offset: .5 }, { transform: 'rotate(0deg)' }], { duration: 480, easing: 'ease-out' });
+    }
+    live.textContent = `${t.name} hung back on the board.`;
+    if (hadFocus && !opts.keepFocus) s.btn.focus({ preventScroll: true });
+  }
+  function closeSheet() { sheet.classList.remove('open'); sheet.inert = true; }
+  $('#sheetClose').addEventListener('click', () => hangBack());
+
+  /* ---------- basket ---------- */
+  function basketCount() { return Object.values(state.basket).reduce((a, b) => a + b, 0); }
+  function addToBasket(id) {
+    state.basket[id] = (state.basket[id] || 0) + 1;
+    updateCount(); renderCatalogue(); renderBasket();
+    live.textContent = `${byId[id].name} added. Basket ${basketCount()}.`;
+  }
+  function updateCount() {
+    const c = $('#basketCount');
+    c.textContent = basketCount();
+    c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump');
+  }
+  function renderBasket() {
+    const body = $('#basketBody');
+    const ids = Object.keys(state.basket).filter(id => state.basket[id] > 0);
+    if (!ids.length) {
+      body.innerHTML = `<p class="bk-empty">The basket is empty. Take a tool off the board, read its sheet, and add it from there.</p>`;
+      return;
+    }
+    const total = ids.reduce((s, id) => s + byId[id].price * state.basket[id], 0);
+    body.innerHTML = `<ul class="bk-list">${ids.map(id => {
+      const t = byId[id], q = state.basket[id];
+      return `<li><span>${t.name}</span><span class="pr">${price(t.price * q)}</span><span class="q">${q} × ${price(t.price)}</span><button type="button" class="rm" data-rm="${id}">Remove${q > 1 ? ' one' : ''}</button></li>`;
+    }).join('')}</ul>
+      <div class="bk-total"><span>Total, with Swedish VAT</span><span>${price(total)}</span></div>
+      <button type="button" class="btn" id="checkout"><span>Go to checkout</span><span class="pr">${price(total)}</span></button>
+      <p class="bk-note" id="bkNote" role="status"></p>`;
+  }
+  $('#basketBody').addEventListener('click', e => {
+    const rm = e.target.closest('[data-rm]');
+    if (rm) {
+      const id = rm.dataset.rm; state.basket[id] = Math.max(0, (state.basket[id] || 0) - 1);
+      updateCount(); renderCatalogue(); renderBasket();
+      const next = $('#basketBody [data-rm]') || $('#basketClose'); next.focus();
+      return;
+    }
+    if (e.target.closest('#checkout')) $('#bkNote').textContent = 'Checkout is not connected in this preview. Shipping in Sweden is free over 1 500 SEK.';
+  });
+  function openBasket() {
+    if (state.off) hangBack({ keepFocus: true });
+    toggleMenu(false);
+    renderBasket();
+    basketEl.dataset.side = 'right';
+    basketEl.inert = false; basketEl.classList.add('open');
+    $('#basketTitle').focus({ preventScroll: true });
+  }
+  function closeBasket() { basketEl.classList.remove('open'); basketEl.inert = true; }
+  $('#basketClose').addEventListener('click', () => { closeBasket(); $('#basketBtn').focus({ preventScroll: true }); });
+  $('#basketBtn').addEventListener('click', e => { e.preventDefault(); basketEl.classList.contains('open') ? closeBasket() : openBasket(); });
+
+  /* ---------- menu ---------- */
+  function toggleMenu(open) {
+    const b = $('#menuBtn');
+    open = open === undefined ? !menuEl.classList.contains('open') : open;
+    menuEl.classList.toggle('open', open); menuEl.inert = !open;
+    b.setAttribute('aria-expanded', String(open));
+    if (open) { closeBasket(); $('a', menuEl).focus({ preventScroll: true }); }
+  }
+  $('#menuBtn').addEventListener('click', e => { e.preventDefault(); if (state.off) hangBack({ keepFocus: true }); toggleMenu(); });
+  $('#menuClose').addEventListener('click', () => { toggleMenu(false); $('#menuBtn').focus({ preventScroll: true }); });
+  menuEl.addEventListener('click', e => { if (e.target.closest('a')) toggleMenu(false); });
+  document.addEventListener('pointerdown', e => {
+    if (menuEl.classList.contains('open') && !menuEl.contains(e.target) && !e.target.closest('#menuBtn')) toggleMenu(false);
+  });
+  ['#basketBtn', '#menuBtn'].forEach(s => $(s).addEventListener('keydown', e => { if (e.key === ' ') { e.preventDefault(); e.currentTarget.click(); } }));
+
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (menuEl.classList.contains('open')) { toggleMenu(false); $('#menuBtn').focus({ preventScroll: true }); }
+    else if (basketEl.classList.contains('open')) { closeBasket(); $('#basketBtn').focus({ preventScroll: true }); }
+    else if (state.off) hangBack();
+  });
+
+  /* ---------- catalogue ---------- */
+  const famOrder = Object.fromEntries(DATA.families.map((f, i) => [f.id, i]));
+  const dataOrder = Object.fromEntries(DATA.tools.map((t, i) => [t.id, i]));
+  const catOrder = ['smoothing-plane-4', 'smoothing-plane-3', 'chisel-25', 'chisel-12', 'chisel-6', 'tenon-saw', 'spokeshave', 'try-square', 'marking-gauge', 'sliding-bevel', 'marking-knife', 'bradawl', 'cross-pein-hammer', 'carvers-mallet'];
+  function statusOf(t) {
+    if (t.out) return { cls: 'out', txt: `Out, ${t.back}` };
+    const n = state.basket[t.id];
+    return n ? { cls: 'inb', txt: `In your basket${n > 1 ? ' (' + n + ')' : ''}` } : { cls: '', txt: 'On the board' };
+  }
+  function renderCatalogue() {
+    let rows = DATA.tools.slice();
+    if (state.sort === 'price') rows.sort((a, b) => a.price - b.price);
+    else if (state.sort === 'length') rows.sort((a, b) => b.long - a.long);
+    else rows.sort((a, b) => famOrder[a.family] - famOrder[b.family] || catOrder.indexOf(a.id) - catOrder.indexOf(b.id));
+    let html = '', fam = null;
+    rows.forEach(t => {
+      if (state.sort === 'family' && t.family !== fam) { fam = t.family; html += `<tr class="fam"><th colspan="6" scope="rowgroup">${famName[fam]}</th></tr>`; }
+      const st = statusOf(t);
+      html += `<tr class="item" data-id="${t.id}"><th scope="row"><button type="button" class="rowbtn">${t.name}</button></th><td class="sz">${t.size}</td><td class="stl">${t.steelShort}</td><td class="hdl">${t.handleShort}</td><td class="num">${price(t.price)}</td><td class="st ${st.cls}">${st.txt}</td></tr>`;
+    });
+    $('#catBody').innerHTML = html;
+  }
+  document.querySelectorAll('.sorter button').forEach(b => b.addEventListener('click', () => {
+    state.sort = b.dataset.sort;
+    document.querySelectorAll('.sorter button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    renderCatalogue();
+  }));
+  const catBody = $('#catBody');
+  catBody.addEventListener('click', e => { const tr = e.target.closest('tr.item'); if (tr) takeOff(tr.dataset.id, { fromList: true }); });
+  catBody.addEventListener('pointerover', e => { const tr = e.target.closest('tr.item'); if (tr) mapOn(tr.dataset.id, true); });
+  catBody.addEventListener('pointerleave', () => mapOn(null, true));
+  catBody.addEventListener('focusin', e => { const tr = e.target.closest('tr.item'); if (tr) mapOn(tr.dataset.id, true); });
+  catBody.addEventListener('focusout', () => mapOn(null, true));
+
+  /* ---------- board map ---------- */
+  const mapSvg = $('#mapSvg');
+  let mapHover = null, mapSpy = null;
+  (function buildMap() {
+    let s = '';
+    DATA.tools.forEach(t => {
+      const g = geom(t, 'desk');
+      s += `<g class="m" data-id="${t.id}" transform="translate(${g.cx.toFixed(2)} ${g.cy.toFixed(2)}) rotate(${g.r})"><image href="${DATA.img + t.file}" x="${(-g.icx * g.mmpx).toFixed(2)}" y="${(-g.icy * g.mmpx).toFixed(2)}" width="${(1024 * g.mmpx).toFixed(2)}" height="${(1536 * g.mmpx).toFixed(2)}" filter="url(#mSil)"/></g>`;
+    });
+    mapSvg.innerHTML = s;
+  })();
+  function mapOn(id, fromHover) {
+    if (fromHover) mapHover = id;
+    const cur = mapHover || mapSpy;
+    mapSvg.classList.toggle('has-on', !!cur);
+    mapSvg.querySelectorAll('.m').forEach(g => g.classList.toggle('on', g.dataset.id === cur));
+    catBody.querySelectorAll('tr.item').forEach(tr => tr.classList.toggle('cur', !mapHover && tr.dataset.id === mapSpy));
+    const n = $('#mapName');
+    if (cur) { const t = byId[cur]; n.innerHTML = `<b>${t.name}</b>`; } else n.textContent = 'Where it hangs';
+  }
+  // scroll relationship: the row passing the reading line is found on the board map
+  let spyRaf = 0;
+  function spy() {
+    spyRaf = 0;
+    if (getComputedStyle($('.cat-map')).display === 'none') return;
+    const line = innerHeight * .46;
+    const sec = $('#catalogue').getBoundingClientRect();
+    let found = null;
+    if (sec.top < line && sec.bottom > line) {
+      for (const tr of catBody.querySelectorAll('tr.item')) {
+        const r = tr.getBoundingClientRect();
+        if (r.top <= line && r.bottom >= line) { found = tr.dataset.id; break; }
+      }
+    }
+    if (found !== mapSpy) { mapSpy = found; mapOn(mapHover, false); }
+  }
+  addEventListener('scroll', () => { if (!spyRaf) spyRaf = requestAnimationFrame(spy); }, { passive: true });
+
+  /* ---------- hardness scale ---------- */
+  (function scale() {
+    const x = v => 10 + (v - 52) * (360 / 14);
+    let d = 'M10 52 H370';
+    for (let v = 52; v <= 66; v++) d += ` M${x(v)} 52 V${v % 2 === 0 ? 60 : 57}`;
+    const lab = [52, 54, 56, 58, 60, 62, 64, 66].map(v => `<text x="${x(v)}" y="76" text-anchor="middle">${v}</text>`).join('');
+    const mk = (v, txt, hgt) => `<path d="M${x(v)} 52 V${52 - hgt}" stroke="#1B1D1A" stroke-width="1"/><text x="${x(v)}" y="${52 - hgt - 6}" text-anchor="middle" fill="#4A4F47">${txt}</text>`;
+    $('#scaleSvg').innerHTML = `<g font-family="Hanken Grotesk, sans-serif" font-size="13" font-weight="500" fill="#4A4F47" style="font-variant-numeric:tabular-nums">
+      <path d="${d}" fill="none" stroke="#1B1D1A" stroke-opacity=".75" stroke-width="1"/>
+      ${lab}
+      ${mk(56, 'kitchen knife', 12)}
+      ${mk(65, 'new file', 12)}
+      <rect x="${x(61) - 4}" y="30" width="8" height="30" fill="#000" style="filter:url(#paint);mix-blend-mode:multiply"/>
+      <text x="${x(61)}" y="20" text-anchor="middle" fill="#1B1D1A">Hjort, 61</text>
+      <text x="370" y="90" text-anchor="end" font-size="13" fill="#4A4F47">Rockwell C</text></g>`;
+  })();
+
+  /* ---------- the shop's hours, in Stockholm time ---------- */
+  const HOURS = { 2: [10, 17], 3: [10, 17], 4: [10, 17], 5: [10, 17], 6: [10, 14] };
+  const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  function stockholm(d) {
+    const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Stockholm', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).formatToParts(d).map(x => [x.type, x.value]));
+    const y = +p.year, m = +p.month, dd = +p.day;
+    return { y, m, d: dd, h: +p.hour, min: +p.minute, wd: new Date(Date.UTC(y, m - 1, dd)).getUTCDay() };
+  }
+  function shopStatus(now = new Date()) {
+    const n = stockholm(now), mins = n.h * 60 + n.min;
+    const todayH = n.m !== 7 && HOURS[n.wd];
+    if (todayH && mins >= todayH[0] * 60 && mins < todayH[1] * 60) return { open: true, wd: n.wd, txt: `Open now, until ${todayH[1]}:00.` };
+    for (let i = 0; i < 70; i++) {
+      const dt = new Date(Date.UTC(n.y, n.m - 1, n.d + i));
+      const wd = dt.getUTCDay(), mo = dt.getUTCMonth() + 1, hh = HOURS[wd];
+      if (mo === 7 || !hh) continue;
+      if (i === 0 && mins >= hh[0] * 60) continue;
+      const pre = n.m === 7 ? 'Closed for July, while the forge is relined.' : 'Closed now.';
+      const when = i === 0 ? 'today' : i === 1 ? 'tomorrow' : i < 7 ? DAYS[wd] : `${DAYS[wd]} ${dt.getUTCDate()} ${MONTHS[mo - 1]}`;
+      return { open: false, wd: n.wd, txt: `${pre} Opens ${when} at ${hh[0]}:00.` };
+    }
+    return { open: false, wd: n.wd, txt: 'Closed now.' };
+  }
+  function renderStatus() {
+    const s = shopStatus();
+    const el = $('#status'); el.textContent = s.txt; el.classList.toggle('open', s.open);
+    document.querySelectorAll('#hours tr').forEach(tr => {
+      const d = +tr.dataset.d;
+      tr.classList.toggle('today', d === s.wd || (d === 0 && s.wd === 1));
+    });
+  }
+  renderStatus();
+  setInterval(renderStatus, 60000);
+
+  /* ---------- go ---------- */
+  layout();
+  renderCatalogue();
+  renderBasket();
+  let rz = 0;
+  addEventListener('resize', () => { cancelAnimationFrame(rz); rz = requestAnimationFrame(() => { layout(); hideTag(); }); });
+  const imgs = [...toolsUl.querySelectorAll('img')];
+  Promise.race([
+    Promise.all(imgs.map(i => (i.decode ? i.decode() : Promise.resolve()).catch(() => {}))),
+    new Promise(r => setTimeout(r, 700))
+  ]).then(entrance);
+  window.HJORT = { takeOff, hangBack, shopStatus, state };
+})();
+</script>
+</body>
+</html>

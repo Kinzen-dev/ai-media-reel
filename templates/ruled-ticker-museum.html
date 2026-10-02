@@ -103,7 +103,7 @@ html.wmfix .wm-gap{display:none}
    as a short band beside the docked name. Right padding + the last letter's .2em = the left padding. */
 .wl-tag{display:inline-block;position:relative;background:var(--coral);color:var(--ink);font-size:var(--fs-tag);line-height:1;text-transform:uppercase;letter-spacing:.2em;white-space:nowrap;padding:.2em .34em .26em .54em;margin-top:calc(var(--fs-tag) * .6)}
 html.wmfix .wl-tag{position:fixed;left:0;top:0;margin:0;z-index:11;transform-origin:0 0;will-change:transform;pointer-events:none}
-html.wmfix .wl-tag::after{content:"";position:absolute;left:100%;top:0;bottom:0;width:calc(var(--g) - .54em);background:var(--coral);transform-origin:0 50%;transform:scaleX(var(--bleed, 1))}
+html.wmfix .wl-tag::after{content:"";position:absolute;left:calc(100% - 1px);top:0;bottom:0;width:calc(var(--g) - .54em + 3px);background:var(--coral);transform-origin:0 50%;transform:scaleX(var(--bleed, 1))}   /* 1px under the band (no seam), 2px past the edge (no sliver of rule) */
 @media (max-width:600px){ .mast{padding-bottom:calc(var(--fs-tag) * 1.35)} }
 
 /* ---------- the rows ---------- */
@@ -195,7 +195,8 @@ html.boot .wl-tag{animation:unmask .45s var(--ease) .36s backwards}
 .srch .tag{margin:0;flex:none}
 .results li a{display:grid;grid-template-columns:minmax(8.6em,max-content) minmax(0,1fr);column-gap:.6em;align-items:baseline;padding:.32em var(--g);font-size:var(--fs-tag);line-height:1.05;text-transform:uppercase;text-decoration:none;border-top:1px solid var(--ink)}
 .results li a span:first-child{font-variant-numeric:tabular-nums}
-.results li a:hover,.results li a:focus-visible{background:var(--ink);color:var(--paper);outline:none}
+.results li a:focus-visible{background:var(--ink);color:var(--paper);outline:none}
+@media (hover:hover){ .results li a:hover{background:var(--ink);color:var(--paper)} }   /* never a sticky inverted row after a tap */
 .results .none{padding:.6em var(--g);border-top:1px solid var(--ink);max-width:64ch}
 @media (max-width:600px){ .results li a{grid-template-columns:minmax(0,1fr);row-gap:.12em} }
 /* the arrivals and departures boards: the board's own name at row size, what it lists as a two-line label after it */
@@ -349,10 +350,10 @@ const DATA = {
   assets: '../assets/wc/ruled-ticker-museum/',
   programme: [
     { id: 'soft-industry', kind: 'run', start: -4, end: 128,
-      title: 'Hanna Ruis: Soft industry', label: 'Sculpture',
+      title: 'Hana Ruis: Soft industry', label: 'Sculpture',
       img: 'prog-01-yellow-sculpture.webp', alt: 'A glossy yellow steel ribbon looping across a white gallery floor' },
     { id: 'pier-7', kind: 'run', start: -88, end: 5,
-      title: 'Jet Roemer: Pier 7', label: 'Photography',
+      title: 'Jet Roemer: At pier 7', label: 'Photography',
       img: 'prog-05-photo-wall.webp', alt: 'A wall of framed black and white photographs of cranes, ships and quays' },
     { id: 'long-warp', kind: 'run', start: 14, end: 196,
       title: 'The long warp', label: 'Textile commission',
@@ -373,7 +374,7 @@ const DATA = {
       title: 'The building from the water', label: 'Boat tour',
       img: 'prog-08-facade-dusk.webp', alt: 'The long white museum building at dusk, its glass front lit, a harbour crane behind' }
   ],
-  moorings: { tag: ['Moorings', '€45 a year'], title: 'Moor here all year',
+  moorings: { tag: ['Moorings', '€45 a year'], title: 'Moor with us all year',
               perks: ['In as often as you like', 'and the night before every opening'] },
   visit: {
     address: { tag: ['Tram 4 or', 'ferry F2'], lines: ['Werfkade 12', 'Lindehaven'], label: ['Route and', 'step-free access'] },
@@ -460,11 +461,10 @@ function openState() {
 
 /* free entry counts as "today" only until the doors close on the free day */
 const freeToday = (() => { const h = DATA.hours[DATA.freeDay]; return today.getDay() === DATA.freeDay && !(h && nowMin >= toMin(h[1])); })();
-/* the boot top's lettering: free entry today, tomorrow, or on its weekday */
+/* the boot top's lettering: free entry today, otherwise its weekday (kept short: on a phone the band must clear
+   the first row's date line at rest and the Tickets button when docked) */
 function freeLine() {
-  if (freeToday) return 'Free today';
-  if ((today.getDay() + 1) % 7 === DATA.freeDay) return 'Free tomorrow';
-  return `Free ${WDL[DATA.freeDay]}s`;
+  return freeToday ? 'Free today' : `Free ${WDL[DATA.freeDay]}s`;
 }
 
 /* opening hours as a two-line statement (span, usual hours) plus the exceptions */
@@ -632,13 +632,15 @@ function geometry() {
   const fsUi = parseFloat(getComputedStyle(header).fontSize) || 22;
   const dockH = G.two ? 30 : 26 * Math.min(1, fsUi / 22);
   G.kT = Math.min(1, dockH / G.H);
-  G.tw = tagEl.offsetWidth; G.th = tagEl.offsetHeight;
+  const tcs = getComputedStyle(tagEl);                  /* border-box used size, unrounded, untouched by the transform */
+  G.tw = parseFloat(tcs.width) || tagEl.offsetWidth; G.th = parseFloat(tcs.height) || tagEl.offsetHeight;
   G.kd = Math.min(1, Math.max((G.two ? 17 : 22) / G.th, (G.two ? 12 : 15) / G.fT));
   const gap = G.two ? 7 : 11;
   const nameW = G.W * G.kT;
-  /* where it docks: on the page's centre line when that clears the text links by a nav gap and a half,
-     slid along the gap between them when it does not; only where even the gap is too narrow (tablets)
-     do the links give way, and then the stern docks on the left margin */
+  /* where it docks: on the page's centre line when that leaves the text links room on both sides; on a laptop,
+     where the left-hand links reach further in, it sits in the middle of the gap between them instead (the same
+     air each side); only where even the gap is too narrow (tablets) do the links give way, and the stern then
+     docks on the left margin */
   root.classList.remove('navtight', 'stshort');
   const navR = header.querySelector('.nav-r');
   const firstR = () => [...navR.children].find(c => c.offsetWidth);
@@ -649,8 +651,11 @@ function geometry() {
     const L = Math.max(...leftLinks.map(a => a.getBoundingClientRect().right));
     const R = firstR().getBoundingClientRect().left;
     const groupW = nameW + gap + G.tw * G.kd;
-    const lo = L + clear, hi = R - clear - groupW;
-    if (lo <= hi) xT = clamp((G.vw - groupW) / 2, lo, hi); else tight = true;
+    const slack = R - L - groupW;
+    if (slack >= 2 * clear) {
+      const air = Math.min(slack / 2, Math.max(clear, 64));
+      xT = clamp((G.vw - groupW) / 2, L + air, R - air - groupW);
+    } else tight = true;
   }
   root.classList.toggle('navtight', tight);
   const R0 = firstR().getBoundingClientRect().left;

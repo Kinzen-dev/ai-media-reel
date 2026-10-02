@@ -86,14 +86,17 @@ time, .num { font-family: var(--sans); font-size: 0.86em; font-variant-numeric: 
   --read-y: calc(100svh - var(--foot));
   --lift: 30svh;
   --liftf: 0.3;
-  /* the step back at the top of the climb, so the whole stair ends inside the stage */
+  /* the step back at the top of the climb: the design depth and turn. fitBack() deepens the depth
+     only when the whole stair would not fit the stage, and works out the centring shifts dx and dy */
   --Z: 1700px;
   --rb: 55deg;
-  --dy: 50svh;
   --dx: 0px;
+  --dy: 0px;
   --pos: 0;
   --c: 0;
-  --b: 0;
+  --bz: 0;
+  --br: 0;
+  --by: 0;
   position: sticky;
   top: 0;
   height: 100vh;
@@ -125,9 +128,11 @@ time, .num { font-family: var(--sans); font-size: 0.86em; font-variant-numeric: 
   width: 0;
   height: 0;
   transform-style: preserve-3d;
+  /* the step back runs on three curves: the stair recedes (bz) first, so its foot rises into view,
+     turns (br) a little later, and settles down into the centre of the stage (by) last */
   transform:
-    translate3d(calc(var(--b) * var(--dx)), calc(var(--c) * var(--lift) * -1 + var(--b) * var(--dy) + var(--sl)), calc(var(--b) * var(--Z) * -1))
-    rotateY(calc(var(--b) * var(--rb) + var(--srot)));
+    translate3d(calc(var(--bz) * var(--dx)), calc(var(--c) * var(--lift) * -1 + var(--by) * var(--dy) + var(--sl)), calc(var(--bz) * var(--Z) * -1))
+    rotateY(calc(var(--br) * var(--rb) + var(--srot)));
 }
 .rails { z-index: 0; }
 .gstair { z-index: 5; pointer-events: none; }
@@ -450,12 +455,10 @@ time, .num { font-family: var(--sans); font-size: 0.86em; font-variant-numeric: 
     --foot: 56px;
     --lift: 16svh;
     --liftf: 0.16;
-    /* the step back: the whole flight stands in the stage under the masthead, its newel near 30vw
-       (dx is the world shift that lands the newel there at this depth: (33vw - newel) * (900 + Z) / 900) */
+    /* the step back: design depth and turn; fitBack() stands the whole flight in the clear space
+       under the masthead, centred, its newel at a third of the width */
     --Z: 1400px;
     --rb: 24deg;
-    --dy: 10svh;
-    --dx: calc((33vw - var(--newel-x)) * 2.5556);
     perspective: 900px;
   }
   .mast {
@@ -476,7 +479,7 @@ time, .num { font-family: var(--sans); font-size: 0.86em; font-variant-numeric: 
     row-gap: 5px;
     align-content: center;
     align-items: baseline;
-    padding: 0 12px 0 10px;
+    padding: 0 12px var(--nb) 10px;
   }
   .front .n { grid-area: n; align-self: center; }
   .front .t { grid-area: t; font-size: 16px; }
@@ -522,8 +525,6 @@ time, .num { font-family: var(--sans); font-size: 0.86em; font-variant-numeric: 
     --newel-x: 24%;
     --Z: 1500px;
     --rb: 30deg;
-    --dy: 4svh;
-    --dx: calc(15vw * 2.5);  /* newel from 24vw to about 39vw at this depth: the stepped-back stair stands centred */
     perspective: 1000px;
   }
   .stage .mast { padding-left: 24%; }
@@ -806,7 +807,8 @@ const DATA = {
      back until the whole stair stands inside the stage; it holds there, whole, until the stage releases */
   const flight = $('.flight');
   const CLIMB = 0.7, BACK = 0.86;
-  let pos = r0, c = 0, b = 0, ticking = false;
+  const ease = x => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
+  let pos = r0, c = 0, b = 0, br = 0, ticking = false;
   let DT = 8.5, RB = 34, LIFTF = 0.3, SROT = 0;
   const span = () => Math.max(1, flight.offsetHeight - stage.offsetHeight);
   function readGeo() {
@@ -853,8 +855,11 @@ const DATA = {
       let [px, pz] = rotY(W, 0, base + s * dt); pts.push([px, -H, pz]);
       [px, pz] = rotY(W + 10, 0, base + (s - 0.5) * dt); pts.push([px, -H - hr, pz]);
     }
-    const rc = R * 1.42 * 1.0824, footY = LAND * H, capY = LAND * H - 13 * H - 138;
-    for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) pts.push([sx * rc, footY, sz * rc], [sx * rc, capY, sz * rc]);
+    const footY = LAND * H, capY = LAND * H - 13 * H - 138;   /* the newel: plinth corners, cap disc */
+    for (let k = 0; k < 8; k++) {
+      const a = k * 45 * DEG;
+      pts.push([Math.cos(a) * R * 1.537, footY, Math.sin(a) * R * 1.537], [Math.cos(a) * R * 1.378, capY, Math.sin(a) * R * 1.378]);
+    }
     const box = (Z, dx, dy) => {
       let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
       for (const [x, y, z] of pts) {
@@ -865,17 +870,17 @@ const DATA = {
       }
       return { x0, x1, y0, y1 };
     };
-    let Z = num('--Z');
-    const avail = sh - top - 2 * m;
-    for (let k = 0; k < 8; k++) {
-      const q = box(Z, 0, 0), h = q.y1 - q.y0;
+    /* depth and height are solved together: lowering the stair grows its near foot more than its far cap */
+    let Z = num('--Z'), dx = 0, dy = 0;
+    const avail = sh - top - 2 * m, cy = top + (sh - top) / 2;
+    for (let k = 0; k < 12; k++) {
+      const s = P / (P + Z);
+      dx = narrow.matches ? (sw * 0.33 - ox) / s - (Lx - ox) : 0;
+      for (let j = 0; j < 3; j++) { const q = box(Z, dx, dy); dy += (cy - (q.y0 + q.y1) / 2) / s; }
+      const q = box(Z, dx, dy), h = q.y1 - q.y0;
       if (h <= avail + 0.5) break;
       Z = (P + Z) * h / avail - P;
     }
-    const s = P / (P + Z);
-    const dx = narrow.matches ? (sw * 0.33 - ox) / s - (Lx - ox) : 0;
-    let dy = 0;
-    for (let k = 0; k < 4; k++) { const q = box(Z, dx, dy); dy += (top + (sh - top) / 2 - (q.y0 + q.y1) / 2) / s; }
     stage.style.setProperty('--Z', Z.toFixed(1) + 'px');
     stage.style.setProperty('--dx', dx.toFixed(1) + 'px');
     stage.style.setProperty('--dy', dy.toFixed(1) + 'px');
@@ -885,7 +890,7 @@ const DATA = {
   const LIT = '#FFFFFF', SHADE = getComputedStyle(document.documentElement).getPropertyValue('--shade').trim() || '#E2DFD8';
   const toneOf = new Map();
   function shade() {
-    const rot = -pos * DT + b * RB + SROT;
+    const rot = -pos * DT + br * RB + SROT;
     nfaces.forEach((f, j) => {
       const t = Math.cos(((j % 8) * 45 + 22.5 + rot + 35) * Math.PI / 180);
       const tone = t > 0.62 ? LIT : SHADE;
@@ -897,11 +902,14 @@ const DATA = {
     const p = rm.matches ? 0 : clamp((window.scrollY - flight.offsetTop) / span(), 0, 1);
     c = clamp(p / CLIMB, 0, 1);
     const t = clamp((p - CLIMB) / (BACK - CLIMB), 0, 1);
-    b = t * t * (3 - 2 * t);
+    b = ease(t);
+    br = ease(t / 0.8);
     pos = r0 + c * (LAND - r0);
     stage.style.setProperty('--pos', pos.toFixed(4));
     stage.style.setProperty('--c', c.toFixed(4));
-    stage.style.setProperty('--b', b.toFixed(4));
+    stage.style.setProperty('--bz', ease(t / 0.6).toFixed(4));
+    stage.style.setProperty('--br', br.toFixed(4));
+    stage.style.setProperty('--by', ease((t - 0.3) / 0.7).toFixed(4));
     shade();
     watchSheet();
   }

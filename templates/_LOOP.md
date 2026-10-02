@@ -218,6 +218,12 @@ world-class"), then loop on it; he wants to see what is new in the current era; 
   of the lane on the gallery; builtBy "Fable 5.1" for both, lane "worldclass").
   Also built under the IDENTITY RULE and now in first judging: overflow-ledger-index, instrument-
   catalogue. Re-judges running: museum, shop / Okapi / salon, Thai.
+- RESUMED 11:50 (new usage window). DEPLOYED deploy commit 9a81d1a (live verified: 329 templates,
+  World-Class Now category with cropped-wordmark-ledger + sticky-megatype-dossier; assets/wc/
+  served); main repo commit 8dd5cbc. In flight: re-judges of the 12 recompositions (4 judges:
+  Halyard / Corvid / TAKT; Lock House / Ropewalk / Measure; Kagetsu-an / Cielo Alto / Nordwind;
+  HAV / Cap Llimona / stair) + 7 fix / elevation agents (overflow-ledger, museum, shop, Thai fixes;
+  Okapi, Salon, Kobold elevations). Next: catalog + deploy each PASS as it lands (deploy in waves).
 - LATE RESULTS after the limit (agents kept running): re-judge 2 = stretched-slab-navigation PASS 8
   (elevations: clean the squash so no title sits half under the tile; live timecode; hovered row
   grows), script-splice-salon PASS 8 (elevations: fade statement / wordmark early in the drench so

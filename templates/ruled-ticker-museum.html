@@ -107,16 +107,34 @@ html.wmfix .wl-tag{position:fixed;left:0;top:0;margin:0;z-index:11;transform-ori
 .run{display:flex;align-items:center;flex:none;padding:0 calc(var(--fs-row) * .62) 0 var(--g)}
 .tag,.lab{display:flex;flex-direction:column;font-size:var(--fs-tag);line-height:1;text-transform:uppercase;white-space:nowrap;font-variant-numeric:tabular-nums}
 .tag{margin-right:calc(var(--fs-row) * .3)}
-.ph{flex:none;width:calc(var(--ph) * 1.5);height:var(--ph);object-fit:cover;margin-right:calc(var(--fs-row) * .17);position:relative;z-index:1;transition:transform .16s cubic-bezier(.4,0,1,1)}
+.ph{flex:none;width:var(--phw);height:var(--ph);object-fit:cover;margin-right:calc(var(--fs-row) * .17);position:relative;z-index:1;transform-origin:0 50%;transition:transform .16s cubic-bezier(.4,0,1,1)}
+.ph~*{transition:transform .16s cubic-bezier(.4,0,1,1)}   /* same curve as the photograph, so its edge and the title move as one */
 .t{position:relative;top:-.01em;font-size:var(--fs-row);line-height:.95;text-transform:uppercase;white-space:nowrap;margin-right:calc(var(--fs-row) * .3);font-variant-numeric:tabular-nums}
+/* the still date line: only on a phone, where the date steps out of the moving run (see the 600px block) */
+.tag-s{display:none;padding:0 var(--g);font-size:var(--fs-ui);line-height:1;text-transform:uppercase;white-space:nowrap;font-variant-numeric:tabular-nums}
 /* signal flag: a swallowtail in sun yellow, flown on the late opening */
 .flag{flex:none;display:flex;flex-direction:column;justify-content:center;background:var(--sun);color:var(--ink);font-size:var(--fs-tag);line-height:1;text-transform:uppercase;white-space:nowrap;font-variant-numeric:tabular-nums;padding:.34em 1.15em .4em .45em;margin-right:calc(var(--fs-row) * .17);clip-path:polygon(0 0,100% 0,calc(100% - .72em) 50%,100% 100%,0 100%)}
 .rl:focus-within{z-index:3}
 .row:focus-visible{background:var(--ink);color:var(--paper);outline:2px solid var(--paper);outline-offset:-7px}
 @media (hover:hover){
+  .tick .run{padding-right:calc(var(--fs-row) * .62 + var(--phw) * .6)}   /* room for the listing to step right, so a paused run never runs into its next copy */
   .tick:hover,.panel .rl:hover{z-index:3}
   .rl:hover>.row{background:var(--ink);color:var(--paper)}
+  /* the photograph grows from its left edge and the rest of the listing steps right by the added width:
+     it never covers its own date or title, only the rows above and below */
   .rl:hover .ph{transform:scale(1.6);transition:transform .24s var(--ease)}
+  .rl:hover .ph~*{transform:translateX(calc(var(--phw) * .6));transition:transform .24s var(--ease)}
+}
+@media (max-width:600px){
+  /* on a phone the date steps out of the moving run onto one still line above it; the photograph shrinks
+     to a word and the flag follows the title, so each title starts near x 100 and shows two words at rest */
+  .run>.tag{display:none}
+  .tag-s{display:block;margin-bottom:calc(var(--fs-row) * .1)}
+  .tick .row{padding-top:calc(var(--pad) * 1.3)}
+  .ph{margin-right:calc(var(--fs-row) * .24)}
+  .run>.t{order:1}
+  .run>.flag{order:2;padding-top:.12em;padding-bottom:.16em}   /* no taller than the photograph, so every row keeps one height */
+  .run>.lab{order:3}
 }
 
 /* harbour office: the rows that hold still, each statement wrapped onto two lines inside the screen */
@@ -177,7 +195,7 @@ html.boot .wl-tag{animation:unmask .45s var(--ease) .36s backwards}
 .mrow .t{display:block;margin:0;white-space:normal;text-wrap:balance;font-size:min(var(--fs-row), calc((100vw - 2 * var(--g)) / 8.6))}
 
 @media (prefers-reduced-motion:reduce){
-  .ph,.panel,.panel.open,.btn-ticket{transition:none!important}
+  .ph,.ph~*,.panel,.panel.open,.btn-ticket{transition:none!important}
 }
 </style>
 </head>
@@ -366,6 +384,14 @@ const dShort = d => `${WD[d.getDay()]} ${d.getDate()} ${MO[d.getMonth()]}`;
 const dDate = d => `${d.getDate()} ${MO[d.getMonth()]}`;
 const sameMonth = (a, b) => a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
 
+/* nothing arrives or departs while the doors are shut: a start that lands on a closed day moves on to
+   the next open day, an end moves back to the last open day before it (offsets in, offsets out) */
+const openOn = o => !!DATA.hours[addDays(o).getDay()];
+const anyOpen = Object.values(DATA.hours).some(Boolean);
+const snapStart = o => { if (anyOpen) while (!openOn(o)) o++; return o; };
+const snapEnd = o => { if (anyOpen) while (!openOn(o)) o--; return o; };
+DATA.programme.forEach(it => { if (it.kind !== 'weekly') { it._s = snapStart(it.start); it._e = snapEnd(it.end); } });
+
 /* the row tags speak the port's language: expected, arrived, in port, departs, sails */
 function tagFor(it) {
   if (it.kind === 'weekly') {
@@ -376,23 +402,23 @@ function tagFor(it) {
     if (it.verb) return [it.verb, `${day} ${it.from}`];
     return [day, it.until ? (diff === 0 && nowMin >= toMin(it.from) ? `Until ${it.until}` : `From ${it.from}`) : it.from];
   }
-  const s = addDays(it.start), e = addDays(it.end);
+  const s = addDays(it._s), e = addDays(it._e);
   if (it.kind === 'event') {
-    if (it.start > 0) return ['Expected', `${dShort(s)} to ${sameMonth(s, e) ? e.getDate() : dDate(e)}`];
-    if (it.end === 0) return ['Today', 'Last day'];
-    return ['Today', `Until ${WD[e.getDay()]} ${e.getDate()}`];
+    if (it._s > 0) return ['Expected', `${dShort(s)} to ${sameMonth(s, e) ? e.getDate() : dDate(e)}`];
+    if (it._e === 0) return ['Today', 'Last day'];
+    return [openOn(0) ? 'Today' : 'On now', `Until ${WD[e.getDay()]} ${e.getDate()}`];
   }
-  if (it.start > 0) return ['Expected', it.start <= 21 ? dShort(s) : dDate(s)];
-  if (it.end === 0) return ['Departs', 'Today'];
-  if (it.end <= 6) return ['Departs', it.end === 1 ? 'Tomorrow' : dShort(e)];
-  if (-it.start <= 14) return ['Arrived', it.start === 0 ? 'Today' : dShort(s)];
+  if (it._s > 0) return ['Expected', it._s <= 21 ? dShort(s) : dDate(s)];
+  if (it._e === 0) return ['Departs', 'Today'];
+  if (it._e <= 6) return ['Departs', it._e === 1 ? 'Tomorrow' : dShort(e)];
+  if (-it._s <= 14) return ['Arrived', it._s === 0 ? 'Today' : dShort(s)];
   return ['In port', 'Until ' + dDate(e)];
 }
 function groupOf(it) {
   if (it.kind === 'weekly') return 'weekly';
-  if (it.start > 0) return 'arrivals';
-  if (it.end <= 6) return 'departures';
-  if (-it.start <= 14) return 'arrivals';
+  if (it._s > 0) return 'arrivals';
+  if (it._e <= 6) return 'departures';
+  if (-it._s <= 14) return 'arrivals';
   return 'in port';
 }
 
@@ -457,26 +483,28 @@ $('#yr').textContent = now.getFullYear();
 const lines = (arr, cls) => `<span class="${cls}">${arr.map(l => `<span>${esc(l)}</span>`).join('')}</span>`;
 let tickN = 0, stagger = 0;
 const nextI = () => Math.min(stagger++, 8);
-function row({ id, href, aria, run }) {
+/* a ticker row: the run moves; on a phone the date also sits still above it (tag-s), inside the same link */
+function row({ id, href, aria, tag, run }) {
   const dir = (tickN++ % 2) ? 1 : -1;
-  return `<li class="rl tick"${id ? ` id="${id}"` : ''} style="--i:${nextI()}" data-dir="${dir}"><a class="row" href="${esc(href)}" aria-label="${esc(aria)}"><span class="track"><span class="run">${run}</span></span></a></li>`;
+  const still = tag ? `<span class="tag-s" aria-hidden="true">${esc(tag.join(' '))}</span>` : '';
+  return `<li class="rl tick"${id ? ` id="${id}"` : ''} style="--i:${nextI()}" data-dir="${dir}"><a class="row" href="${esc(href)}" aria-label="${esc(aria)}">${still}<span class="track"><span class="run">${run}</span></span></a></li>`;
 }
 function still({ id, tag, text, label }) {
   return `<li class="rl"${id ? ` id="${id}"` : ''} style="--i:${nextI()}"><div class="vrow">${lines(tag, 'tag')}<p class="vt">${text.map(l => `<span>${esc(l)}</span>`).join('')}</p>${label.length ? lines(label, 'lab') : ''}</div></li>`;
 }
 
-const prog = DATA.programme.filter(it => it.kind === 'weekly' || it.end >= 0);
+const prog = DATA.programme.filter(it => it.kind === 'weekly' || (it._e >= 0 && it._s <= it._e));
 prog.forEach(it => { it._tag = tagFor(it); it._group = groupOf(it); });
 $('#rows-prog').innerHTML = prog.map((it, i) => {
   const img = `<img class="ph" src="${esc(DATA.assets + it.img)}" alt="" width="1536" height="1024"${i < 4 ? '' : ' loading="lazy"'} decoding="async">`;
   const flag = it.flag ? `<span class="flag" aria-hidden="true">${it.flag.map(l => `<span>${esc(l)}</span>`).join('')}</span>` : '';
   const aria = `${it.title}. ${it.label}, ${it._tag.join(' ')}${it.flag ? '. ' + it.flag.join(' ') : ''}`;
-  return row({ id: 'p-' + it.id, href: it.href || '#p-' + it.id, aria,
+  return row({ id: 'p-' + it.id, href: it.href || '#p-' + it.id, aria, tag: it._tag,
     run: lines(it._tag, 'tag') + img + flag + `<span class="t">${esc(it.title)}</span>` + lines([it.label], 'lab') });
 }).join('');
 
 const Mo = DATA.moorings;
-$('#rows-moor').innerHTML = row({ href: '#moorings', aria: `${Mo.title}. ${Mo.tag.join(' ')}. ${Mo.perks.join(', ')}`,
+$('#rows-moor').innerHTML = row({ href: '#moorings', aria: `${Mo.title}. ${Mo.tag.join(' ')}. ${Mo.perks.join(', ')}`, tag: Mo.tag,
   run: lines(Mo.tag, 'tag') + `<span class="t">${esc(Mo.title)}</span>` + lines(Mo.perks, 'lab') });
 
 const V = DATA.visit, hp = hoursParts();
@@ -486,12 +514,12 @@ $('#rows-visit').innerHTML =
   still({ id: 'tickets', tag: freeToday ? V.tickets.tagFree : V.tickets.tagUsual, text: V.tickets.lines, label: V.tickets.label });
 
 const C = DATA.collection;
-$('#rows-coll').innerHTML = row({ href: '#collection', aria: `${C.title}. ${C.label.join(' ')}`,
+$('#rows-coll').innerHTML = row({ href: '#collection', aria: `${C.title}. ${C.label.join(' ')}`, tag: C.tag,
   run: lines(C.tag, 'tag') + `<span class="t">${esc(C.title)}</span>` + lines(C.label, 'lab') });
 
 /* ---------------- the stern: fit the name, paint the draught scale, then scrub into the header ---------------- */
 const wm = $('#wm'), slot = $('#wm-slot'), wa = $('.wm-a', wm), wb = $('.wm-b', wm);
-const mast = $('#top'), scaleEl = $('#draught'), tagEl = $('#wltag'), rowsProg = $('#rows-prog');
+const mast = $('#top'), scaleEl = $('#draught'), portEl = $('#port'), tagEl = $('#wltag'), rowsProg = $('#rows-prog');
 const header = $('#top-bar'), statusEl = $('#status');
 const cv = document.createElement('canvas').getContext('2d');
 const FAMILY = 'Switzer, Arimo, "Helvetica Neue", Arial, sans-serif';
@@ -577,6 +605,9 @@ function geometry() {
   G.y0 = slot.getBoundingClientRect().top + sy;
   G.x0 = G.g;
   G.wl = rowsProg.getBoundingClientRect().top + sy;     /* the waterline: the first rule of the programme */
+  /* the port line and the draught scale are painted on the same stern: their untransformed page boxes */
+  const mTop = mast.getBoundingClientRect().top + sy;
+  G.parts = [portEl, scaleEl].map(el => ({ el, x: el.offsetLeft, y: mTop + el.offsetTop }));
   G.compact = G.vw < 1300;                              /* matches the CSS breakpoint that hides the text links */
   const dockH = G.two ? 30 : 26;
   G.kT = Math.min(1, dockH / G.H);
@@ -590,35 +621,46 @@ function geometry() {
   G.txD = G.xT + G.W * G.kT + gap;
   G.tyD = G.yT + (G.H * G.kT - G.th * G.kd) / 2;
   G.txR = G.vw - G.g - G.tw;
-  G.S = (G.y0 - G.yT) + G.H * (1 - G.kT);
-  const band = hh / 2 + (G.compact ? 18 : 22);           /* bottom of the nav controls */
-  G.Sk = Math.max(1, G.S - Math.max(0, band - G.yT));
+  /* ONE scrub for the whole stern: it recedes like a ship leaving port, standing on the waterline tag
+     (whose top edge is its foot) while name, port line and draught scale shrink together, until the
+     name sits in the header. At 1440 that takes the same ~230px the waterline needs to reach the header. */
+  G.ya = G.wl + G.rule / 2 - G.th / 2;                  /* the stern's foot: the top edge of the riding tag */
+  G.Hg = G.ya - G.y0;                                   /* the whole stern, from the top of the name down to its foot */
+  G.Sk = Math.max(1, G.ya - G.yT - G.Hg * G.kT);
   apply();
 }
 
 function apply() {
   if (!G.ready) return;
   const s = Math.max(0, scrollY);
-  let k, x, y, z = 11, q;
-  if (RM) {
-    const docked = s > G.y0 + G.H - G.hh;
-    q = docked ? 1 : 0;
-    k = docked ? G.kT : 1; x = docked ? G.xT : G.x0; y = docked ? G.yT : G.y0 - s;
-    z = docked ? 11 : 9;
-  } else {
-    q = clamp(s / G.Sk);
-    k = lerp(1, G.kT, q); x = lerp(G.x0, G.xT, q);
-    y = Math.max(G.yT, G.y0 + G.H * (1 - k) - s);        /* the bottom edge stays locked to the page */
-  }
+  /* reduced motion: no scrub; the stern scrolls away whole and the header swaps once the waterline reaches it */
+  const q = RM ? (s >= G.Sk ? 1 : 0) : clamp(s / G.Sk);
+  /* the shrink leads a little (never so much that the name dips) and the centring leads more, so by the
+     time the name rises into the nav band it is narrower than the gap between the links and centred in it */
+  const k = lerp(1, G.kT, q + .3 * q * (1 - q));
+  const x = lerp(G.x0, G.xT, 1 - (1 - q) ** 3);
+  const yFree = G.ya - s - G.Hg * k;                     /* the stern's foot stays on the waterline tag */
+  const y = RM && !q ? yFree : Math.max(G.yT, yFree);
+  const z = RM && !q ? 9 : 11;
   wm.style.transform = `translate3d(${x.toFixed(2)}px,${y.toFixed(2)}px,0) scale(${k.toFixed(4)})`;
   wm.style.zIndex = z;
-  /* the tag rides the waterline as it rises, then settles beside the docked name */
-  const tyR = G.wl + G.rule / 2 - G.th / 2 - s;
-  const tx = lerp(G.txR, G.txD, q), ty = lerp(tyR, G.tyD, q), tk = lerp(1, G.kd, q);
+  /* port line and draught scale take the name's own scale from the name's own corner, so the name always
+     outranks them; they slide under the header as it docks (and have gone by the last twentieth) */
+  if (!RM) for (const p of G.parts) {
+    if (!q) { p.el.style.transform = p.el.style.opacity = ''; continue; }
+    const px = x + (p.x - G.x0) * k - p.x, py = y + (p.y - G.y0) * k - p.y + s;
+    p.el.style.transform = `translate3d(${px.toFixed(2)}px,${py.toFixed(2)}px,0) scale(${k.toFixed(4)})`;
+    p.el.style.opacity = q > .7 ? clamp((.95 - q) * 4).toFixed(3) : '';
+  }
+  /* the tag rides the waterline at the right edge while the stern recedes, and is taken aboard beside
+     the docked name only in the last stretch, so it never sits on the name's letters on the way */
+  const tyR = G.ya - s;
+  const qd = clamp((q - .7) / .3), qe = qd * qd * (3 - 2 * qd);
+  const tx = lerp(G.txR, G.txD, qe), ty = lerp(tyR, G.tyD, qe), tk = lerp(1, G.kd, qe);
   tagEl.style.transform = `translate3d(${tx.toFixed(2)}px,${ty.toFixed(2)}px,0) scale(${tk.toFixed(4)})`;
   tagEl.style.zIndex = z;
-  /* the open-now line steps out of the way at every width once the stern docks */
-  statusEl.style.transform = q > 0 ? `translateY(${(-q * G.hh * .9).toFixed(1)}px)` : '';
+  /* the open-now line steps out of the way (gone by mid-scrub) at every width once the stern starts to dock */
+  statusEl.style.transform = q > 0 ? `translateY(${(-Math.min(1, q * 2) * G.hh * .9).toFixed(1)}px)` : '';
 }
 
 /* ---------------- tickers: slow constant drift, alternating, pause on hover or focus ---------------- */

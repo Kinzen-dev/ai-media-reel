@@ -134,21 +134,33 @@
   .meta { position: absolute; left: 14px; bottom: 6px; padding: 2px 6px; background: #fff; color: var(--mute); opacity: 0; }
   .ci > .meta { transition: opacity .12s linear; }
 
+  /* a work two modules long, in Images: the photograph takes the first module flush to its rules, the facts and the label take the second */
+  .cell.w .im { top: 0; left: 0; height: 100%; transform: none; }
+  .cell.w .void { border-width: 0 1px 0 0; }
+  .fx { position: absolute; top: 0; right: 0; bottom: 0; left: calc(50% + .5px); opacity: 0; transition: opacity .25s linear; }
+  .fx .ff { position: absolute; top: 16px; left: 20px; right: 20px; text-wrap: pretty; }
+  .fx .ff > span { display: block; }
+  .cell.w .ci > .lab { transition: opacity .25s linear; }
+
   html[data-mode="images"] .dw .pl { opacity: 0; }
   html[data-mode="images"] .im { opacity: 1; }
-  html[data-mode="images"] .lab .sc { display: none; }
+  html[data-mode="images"] .fx { opacity: 1; }
+  html[data-mode="images"] .cell.w .ci > .lab { opacity: 0; }
+  html[data-mode="images"] .cell.w .meta { left: calc(50% + 14.5px); }
   html[data-mode="images"] .ci { transition: none; }
 
+  /* hover and focus invert a live cell only: a filtered-out square stays an empty white square */
   @media (hover: hover) {
-    .ci:hover { filter: invert(1); }
-    .ci:hover > .meta { opacity: 1; }
-    .ci:hover .ph { filter: invert(1); }
+    .ci:not(:disabled):hover { filter: invert(1); }
+    .ci:not(:disabled):hover > .meta { opacity: 1; }
+    .ci:not(:disabled):hover .ph { filter: invert(1); }
   }
-  .ci:focus-visible { outline: none; filter: invert(1); }
-  .ci:focus-visible::after { content: ""; position: absolute; inset: 7px; border: 1px solid #000; pointer-events: none; }
-  .ci:focus-visible > .meta { opacity: 1; }
-  .ci:focus-visible .ph { filter: invert(1); }
-  .ci[aria-expanded="true"] { filter: none; }
+  .ci:focus-visible { outline: none; }
+  .ci:not(:disabled):focus-visible { filter: invert(1); }
+  .ci:not(:disabled):focus-visible::after { content: ""; position: absolute; inset: 7px; border: 1px solid #000; pointer-events: none; }
+  .ci:not(:disabled):focus-visible > .meta { opacity: 1; }
+  .ci:not(:disabled):focus-visible .ph { filter: invert(1); }
+  .ci[aria-expanded="true"]:not(:disabled) { filter: none; }
 
   .cell.off .ci { cursor: default; }
   .cell.off .ci > span { opacity: 0; }
@@ -263,6 +275,7 @@
     .lab .cm { display: none; }
     .meta { display: none; }
     .void { padding: 4px; font-size: 12px; line-height: 1.2; }
+    .fx .ff { top: 8px; left: 10px; right: 10px; font-size: 12.5px; line-height: 1.25; }
 
     .sheet { display: flex; flex-direction: column; --iw: 118px; }
     .s-field { position: relative; inset: auto; height: auto; aspect-ratio: 1 / 1; flex: none; }
@@ -457,6 +470,11 @@ const DATA = {
    d dotted, ds dotted site; batched textures: pt planting hatch, wt water,
    gv gravel, tf grass and reeds. Batched textures sit under everything
    drawn before the next flush().
+   Two levels of detail from one drawing: the wall keeps the building,
+   trees, roads and water edges, so the poche carries the sheet; the
+   opened work (full) adds grass, gravel and open-air paving (pave), and
+   its water is drawn three times as dense. Thinned marks still draw
+   their random numbers, so both levels place every shared mark alike.
    ===================================================================== */
 const r2 = n => Math.round(n * 100) / 100;
 function rng(seed) {
@@ -471,7 +489,7 @@ const h45 = (x, y, w, h, s, f) => {
   }
 };
 const BATCH = ['j', 'pt', 'wt', 'gv', 'tf'];
-function P(seed) {
+function P(seed, full) {
   const o = [], B = {}, rnd = rng(seed || 7);
   const at = a => Object.keys(a).map(k => k + '="' + (typeof a[k] === 'number' ? r2(a[k]) : a[k]) + '"').join(' ');
   const e = (tag, a) => { o.push('<' + tag + ' ' + at(a) + '/>'); return p; };
@@ -614,27 +632,30 @@ function P(seed) {
       if (sy) for (let k = Math.ceil((y - oy) / sy - 1e-6); oy + k * sy <= y + h + 1e-6; k++) b(c, M(x, oy + k * sy) + 'H' + r2(x + w));
       return p;
     },
+    /* open-air paving and field lines: on the opened sheet only */
+    pave: (...a) => full ? p.grid(...a) : p,
     hx: (x, y, w, h, s, c = 'pt') => { h45(x, y, w, h, s, (a, b1, c2, d) => b(c, M(a, b1) + 'L' + r2(c2) + ' ' + r2(d))); return p; },
     stip: (x, y, w, h, s, ok, c = 'gv') => {
       for (let i = 0; i * s < w; i++) for (let j = 0; j * s < h; j++) {
         const px = x + (i + .5 + (rnd() - .5) * .9) * s, py = y + (j + .5 + (rnd() - .5) * .9) * s;
-        if (!ok || ok(px, py)) b(c, M(px, py) + 'h.01');
+        if (full && (!ok || ok(px, py))) b(c, M(px, py) + 'h.01');
       }
       return p;
     },
     tufts: (x, y, w, h, n, ok, c = 'tf', sz = 1) => {
       for (let i = 0; i < n; i++) {
         const px = x + rnd() * w, py = y + rnd() * h, s = (.32 + rnd() * .2) * sz;
-        if (ok && !ok(px, py)) continue;
+        if (!full || (ok && !ok(px, py))) continue;
         b(c, M(px - s * .6, py) + 'L' + r2(px - s) + ' ' + r2(py - s * 1.15) + M(px, py) + 'V' + r2(py - s * 1.45) + M(px + s * .6, py) + 'L' + r2(px + s) + ' ' + r2(py - s * 1.15));
       }
       return p;
     },
     waves: (x, y, w, h, n, ok, c = 'wt') => {
+      let k = 0;
       for (let i = 0; i < n; i++) {
         const px = x + rnd() * w, py = y + rnd() * h, l = .8 + rnd() * 2.6;
         if (ok && !(ok(px, py) && ok(px + l, py))) continue;
-        b(c, M(px, py) + 'h' + r2(l));
+        if (full || k++ % 3 === 0) b(c, M(px, py) + 'h' + r2(l));
       }
       return p;
     }
@@ -653,7 +674,7 @@ const inOct = (x, y, s, c) => Math.abs(x) <= s && Math.abs(y) <= s && Math.abs(x
 const PLANS = {
   /* 412: open hall of 60 by 24 m, three rows of columns on a 6 m grid, five sawtooth lights overhead */
   market: { span: 2, seed: 3, bb: [-30.6, -13.2, 61.2, 33.4], draw: p => {
-    p.grid(-70, -40, 140, 80, 6, 6, 'j', -30, -12);
+    p.pave(-70, -40, 140, 80, 6, 6, 'j', -30, -12);
     p.grid(-30, -12, 60, 24, 6, 6, 'j', -27, -9);
     p.flush();
     for (const [x, y, r] of [[-44.5, -10.5, 2.6], [-42, 12.5, 2.1], [-46, 2.5, 1.8], [43.5, -11, 2.3], [45.5, 8.5, 2.7], [41.5, 14.5, 1.7]]) p.tree(x, y, r);
@@ -688,7 +709,7 @@ const PLANS = {
   /* 410: ground floor of a 12 m square tower: hall, core, bicycle store, one studio flat; the canal to the south */
   tower: { span: 1, seed: 5, bb: [-6.2, -6.2, 12.4, 12.4], draw: p => {
     const s = 6, t = .4;
-    p.grid(-9, -8.4, 18, 16.8, 1.2, 1.2, 'j', -6, -6);
+    p.pave(-9, -8.4, 18, 16.8, 1.2, 1.2, 'j', -6, -6);
     p.hx(-60, 8.8, 58.6, 2.2, .45); p.hx(1.4, 8.8, 58.6, 2.2, .45);
     p.waves(-40, 14.8, 80, 26, 320);
     p.flush();
@@ -739,7 +760,7 @@ const PLANS = {
     p.L(-60, 21, -1.3, 21, 'l'); p.L(1.3, 21, 60, 21, 'l'); p.L(-60, 22.2, -1.3, 22.2, 'l'); p.L(1.3, 22.2, 60, 22.2, 'l');
     p.L(-1.3, 13.6, -1.3, 40, 'l'); p.L(1.3, 13.6, 1.3, 40, 'l');
     p.D(oct(12, 3.4), 'o');
-    p.grid(-5.75, -5.75, 11.5, 11.5, 1.15, 1.15, 'j');
+    p.pave(-5.75, -5.75, 11.5, 11.5, 1.15, 1.15, 'j');
     p.grid(-7.45, 6, 4.8, 5.5, .6, .6, 'j', -7.45, 6);
     p.flush();
     p.K(-1.2, -1.2, 2.4, 2.4); p.R(-1.2, -1.2, 2.4, 2.4, 'h');
@@ -782,7 +803,7 @@ const PLANS = {
   /* 403: a thick-walled circle, 10 m across, one slot door to the south, on a gravel ring in a meadow */
   chapel: { span: 1, seed: 11, bb: [-6.6, -6.6, 13.2, 13.2], draw: p => {
     p.tufts(-40, -9.6, 80, 50, 220, (x, y) => x * x + y * y > 7.2 * 7.2 && !(Math.abs(x) < 1.5 && y > 0) && Math.abs(y - 20) > 1.8);
-    p.grid(-60, -40, 120, 27.5, 0, 1.15, 'j', 0, -12.6);
+    p.pave(-60, -40, 120, 27.5, 0, 1.15, 'j', 0, -12.6);
     p.stip(-6.6, -6.6, 13.2, 13.2, .42, (x, y) => { const r = Math.hypot(x, y); return r > 5.15 && r < 6.4 && !(Math.abs(x) < .9 && y > 0); });
     p.flush();
     p.C(0, 0, 6.5, 'l');
@@ -828,7 +849,7 @@ const PLANS = {
   /* 395: seven bays of 7.2 m, classrooms either side of a corridor, the frame proud of the glass, a playground of slabs */
   school: { span: 2, seed: 17, bb: [-26, -9.6, 52, 21], draw: p => {
     const B = 7.2, x0 = -25.2, y1 = -8.7, y2 = 8.7;
-    p.grid(-70, 9.6, 140, 30, 4.8, 4.8, 'j', 0, 9.6);
+    p.pave(-70, 9.6, 140, 30, 4.8, 4.8, 'j', 0, 9.6);
     p.tufts(-70, -40, 140, 26.4, 170, (x, y) => y < -13.8);
     p.flush();
     p.L(-70, 9.6, 70, 9.6, 'l');
@@ -874,7 +895,7 @@ const PLANS = {
     p.flush();
     p.K(-23, -16, 46, 32);
     p.hx(-22.65, -15.65, 2.2, 31.3, .5); p.hx(20.45, -15.65, 2.2, 31.3, .5); p.hx(-20.45, -15.65, 40.9, 2.2, .5);
-    p.grid(-17.5, -6, 23.5, 2.7, .9, .9, 'j');
+    p.pave(-17.5, -6, 23.5, 2.7, .9, .9, 'j');
     p.flush();
     for (const x of [-17, -12.5, -8]) for (const y of [4, 8.5, 13]) p.tree(x, y, 1.5, 7);
     p.W(-23, -16, 46, .35); p.W(-23, -16, .35, 32); p.W(22.65, -16, .35, 32); p.W(-23, 15.65, 21, .35); p.W(2, 15.65, 21, .35);
@@ -938,7 +959,7 @@ const PLANS = {
 
   /* 385: study, two 14 m towers offset on one quay so each keeps the view down the dock; rails and bollards */
   docks: { span: 1, seed: 29, bb: [-16.6, -12.6, 33.2, 25.2], draw: p => {
-    p.grid(-60, -40, 120, 58.6, 3, 3, 'j', 0, 0);
+    p.pave(-60, -40, 120, 58.6, 3, 3, 'j', 0, 0);
     for (const y0 of [14.2, 16.4]) for (let x = -60; x < 60; x += .65) p.u(x, y0 - .32, x, y0 + 1.755, 'tf');
     p.waves(-40, 20.3, 80, 20, 130);
     p.flush();
@@ -972,8 +993,8 @@ const PLANS = {
   /* 381: on site, a 34 m deck across the Leie, widened at mid-span for two benches */
   foot: { span: 1, seed: 31, bb: [-3.2, -17.4, 6.4, 34.8], draw: p => {
     p.waves(-40, -11.5, 80, 23, 180, (x, y) => Math.abs(x) > 3.4);
-    p.grid(-60, -40, 120, 27.5, 1.5, 1.5, 'j', 0, -12.5);
-    p.grid(-60, 12.5, 120, 27.5, 1.5, 1.5, 'j', 0, 12.5);
+    p.pave(-60, -40, 120, 27.5, 1.5, 1.5, 'j', 0, -12.5);
+    p.pave(-60, 12.5, 120, 27.5, 1.5, 1.5, 'j', 0, 12.5);
     p.flush();
     p.L(-60, -12.5, 60, -12.5, 't'); p.L(-60, -12, 60, -12, 't'); p.L(-60, 12, 60, 12, 't'); p.L(-60, 12.5, 60, 12.5, 't');
     for (const x of [-21, -14, -7, 7, 14, 21]) { p.tree(x, -16.6, 2.2, 8); p.tree(x, 16.6, 2.2, 8); }
@@ -996,7 +1017,7 @@ const PLANS = {
     p.stip(-16, 4.45, 12, 4.05, .5);
     p.stip(-14.4, 8.8, 4, 12.2, .5);
     p.hx(-.5, 7.9, 15, 1.7, .45); p.hx(-4, -6.4, 20, 1.9, .45);
-    p.grid(-.5, 4.45, 11, 3.45, .9, .9, 'j');
+    p.pave(-.5, 4.45, 11, 3.45, .9, .9, 'j');
     p.tufts(-40, -40, 80, 80, 220, (x, y) => !(x > -17 && x < 17 && y > -6.8 && y < 9.9) && !(x > -14.8 && x < -10) && Math.abs(y - 22.5) > 1.8);
     p.flush();
     p.L(-60, 21, 60, 21, 'l'); p.L(-60, 24, 60, 24, 'l');
@@ -1028,7 +1049,7 @@ const PLANS = {
   /* 373: competition, a 50 by 30 m hall, two pools under timber beams, changing rooms along the north */
   baths: { span: 2, seed: 41, bb: [-25.6, -18.2, 51.2, 34.2], draw: p => {
     const t = .5;
-    p.grid(-70, -40, 140, 24.6, 3, 3, 'j', 0, -15.4);
+    p.pave(-70, -40, 140, 24.6, 3, 3, 'j', 0, -15.4);
     p.tufts(-70, 15.8, 140, 30, 240);
     p.flush();
     for (const x of [-4, 8, 20, 32, 44]) p.tree(x, 20.6, 2.6);
@@ -1059,7 +1080,7 @@ const PLANS = {
 
   /* 371: competition, six square rooms of 9 m in a row, each under a lantern, an arcade onto a paved square */
   library: { span: 2, seed: 43, bb: [-27.4, -6.4, 54.8, 13.6], draw: p => {
-    p.grid(-70, 3, 140, 40, 1.5, 1.5, 'j', -27, 3);
+    p.pave(-70, 3, 140, 40, 1.5, 1.5, 'j', -27, 3);
     p.flush();
     p.L(-70, -9, 70, -9, 'l'); p.L(-70, -9.3, 70, -9.3, 'l'); p.L(-70, -16.2, 70, -16.2, 'l'); p.L(-70, -12.75, 70, -12.75, 'ds');
     for (let x = -36; x <= 36; x += 8) { p.R(x - .9, 15.6, 1.8, 1.8, 'h'); p.tree(x, 16.5, 2.4, 8); }
@@ -1129,7 +1150,11 @@ const PLANS = {
     p.north(25.5, -10, 1.6);
   } }
 };
-for (const k in PLANS) { const p = P(PLANS[k].seed); PLANS[k].draw(p); PLANS[k].svg = p.svg(); }
+for (const k in PLANS) {
+  const wallP = P(PLANS[k].seed, false), fullP = P(PLANS[k].seed, true);
+  PLANS[k].draw(wallP); PLANS[k].draw(fullP);
+  PLANS[k].svg = wallP.svg(); PLANS[k].svgFull = fullP.svg();
+}
 
 /* =====================================================================
    APP: sheet, scale, toggle, filter, open view, index. No dependencies.
@@ -1144,7 +1169,8 @@ for (const k in PLANS) { const p = P(PLANS[k].seed); PLANS[k].draw(p); PLANS[k].
   const OPEN_SCALES = [50, 100, 200, 250, 500, 750, 1000, 2000, 5000];
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const lower1 = s => s.charAt(0).toLowerCase() + s.slice(1);
-  const svgOf = k => '<svg class="pl" viewBox="0 0 10 10" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">' + PLANS[k].svg + '</svg>';
+  const svgOf = (k, full) => '<svg class="pl" viewBox="0 0 10 10" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">' + (full ? PLANS[k].svgFull : PLANS[k].svg) + '</svg>';
+  const labOf = w => '<span class="lab"><span class="l1"><span class="no">' + w.no + '</span> ' + esc(w.name) + '</span><span class="l2"><span class="cm">, </span>' + esc(w.city) + '</span></span>';
   const meta = w => w.status === 'Built' ? w.year + ', built' : w.status === 'On site' ? w.note : lower1(w.note);
   const statusLine = w => w.status === 'Built' ? 'Built ' + w.year : w.note;
   const cols = () => getComputedStyle(wall).gridTemplateColumns.split(' ').length;
@@ -1155,11 +1181,13 @@ for (const k in PLANS) { const p = P(PLANS[k].seed); PLANS[k].draw(p); PLANS[k].
     const media = w.photo
       ? '<img class="ph" alt="' + esc(w.alt || w.name) + '" data-src="' + DATA.photoBase + w.photo + '" width="1254" height="1254" decoding="async">'
       : '<span class="void"><span>Unbuilt</span><span>' + esc(w.note || w.status) + '</span></span>';
-    return '<li class="cell' + (PLANS[w.plan].span === 2 ? ' w' : '') + '" id="w' + w.no + '" style="--i:' + i + '">' +
+    const wide = PLANS[w.plan].span === 2;
+    return '<li class="cell' + (wide ? ' w' : '') + '" id="w' + w.no + '" style="--i:' + i + '">' +
       '<button class="ci" type="button" aria-expanded="false" aria-controls="sheet" aria-label="' + esc(w.no + ', ' + w.name + ', ' + w.city + ', ' + meta(w)) + '">' +
       '<span class="dw">' + svgOf(w.plan) + '</span>' +
       '<span class="im">' + media + '</span>' +
-      '<span class="lab"><span class="l1"><span class="no">' + w.no + '</span> ' + esc(w.name) + '</span><span class="l2"><span class="cm">, </span>' + esc(w.city) + '<span class="sc">, 1:500</span></span></span>' +
+      labOf(w) +
+      (wide ? '<span class="fx"><span class="ff">' + w.facts.map(t => '<span>' + esc(t) + '</span>').join('') + '</span>' + labOf(w) + '</span>' : '') +
       '<span class="meta">' + esc(meta(w)) + '</span>' +
       '</button></li>';
   }).join('');
@@ -1170,7 +1198,6 @@ for (const k in PLANS) { const p = P(PLANS[k].seed); PLANS[k].draw(p); PLANS[k].
     const n = cols(), cw = wall.clientWidth / n;
     wallD = WALL_SCALES.find(d => K96 / d * 44 <= cw + .5) || 2000;
     const ppm = K96 / wallD;
-    cells.forEach(li => { li.querySelector('.sc').textContent = ', 1:' + wallD; });
     let band = 0;
     cells.forEach(li => { band = Math.max(band, li.offsetHeight - li.querySelector('.lab').offsetTop); });
     cells.forEach((li, i) => {
@@ -1311,7 +1338,7 @@ for (const k in PLANS) { const p = P(PLANS[k].seed); PLANS[k].draw(p); PLANS[k].
       : '<span class="void"><span>Unbuilt</span><span>' + esc(w.note || w.status) + '</span></span>';
     sheet.setAttribute('aria-label', w.no + ', ' + w.name + ', ' + w.city);
     sheet.innerHTML =
-      '<div class="s-field">' + svgOf(w.plan) + '<figure class="s-in">' + ph + '</figure><button class="s-x" type="button">Close</button></div>' +
+      '<div class="s-field">' + svgOf(w.plan, true) + '<figure class="s-in">' + ph + '</figure><button class="s-x" type="button">Close</button></div>' +
       '<div class="s-strip">' +
         '<div class="s-f1"><p><span class="no">' + w.no + '</span> ' + esc(w.name) + ', ' + esc(w.city) + '</p><p class="mute">' + esc(statusLine(w)) + '</p>' +
           '<p class="s-sc"><span class="s-sd"></span><span class="bar s-bar" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span><span class="s-bm"></span></p></div>' +

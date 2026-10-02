@@ -47,11 +47,12 @@
   --top: calc(var(--gut) + var(--rule) + var(--band) + 12px);
 
   /* The board's lattice: two notice columns and the print between them.
-     The print is as wide as the screen allows while the whole of it, frame included,
-     still sits above the fold under the fascia row. */
+     The print row runs from under the fascia to 12px above the frame, so the first screen
+     ends on a finished board; the print is as wide as the screen allows inside that row. */
   --side: clamp(200px, 16.6vw, 252px);
   --head: 172px;
-  --pw: calc((100vh - var(--top) - var(--head) - var(--gap) - var(--gut) - var(--rule) - 12px - 4px) * 1.5 + 4px);
+  --row: calc(100vh - var(--top) - var(--head) - var(--gap) - var(--gut) - var(--rule) - 12px);
+  --pw: calc((var(--row) - 4px) * 1.5 + 4px);
 
   --fell: 'IM Fell English', 'Iowan Old Style', Georgia, serif;
   --fellsc: 'IM Fell English SC', 'IM Fell English', Georgia, serif;
@@ -236,25 +237,24 @@ ul, ol { list-style: none; margin: 0; padding: 0; }
   display: block; width: 100%; height: 100%;
   filter: grayscale(1) contrast(1.22);
 }
-/* The blank hanging sign: lettered from the open state; lit (paper showing through) after sunset while we serve. */
-.sign, .sign-light {
-  position: absolute; left: 84.31%; top: 40.23%; width: 5.339%; height: 8.301%;
-  pointer-events: none;
-}
+/* The blank hanging sign, lettered in the cutter's hand from the open state. The script sets both boxes
+   and the letters from DATA.print.sign. By day the letters are cut out of the black panel; after sunset,
+   while we serve, the panel is printed in reverse (a difference layer, so the sign keeps its own grain)
+   and the letters take the ink. */
+.sign, .sign-light { position: absolute; pointer-events: none; }
 .sign-light {
   background: #ffffff;
-  clip-path: polygon(3.66% 19.4%, 95.12% 4.1%, 95.12% 82.8%, 3.66% 96%);
+  mix-blend-mode: difference;
   opacity: 0; transition: opacity 400ms linear;
 }
-.sign {
-  display: grid; place-items: center;
-  color: #ffffff;
-  font: italic 400 1.5cqw/1 var(--fell); letter-spacing: 0.02em;
-  transform: skewY(-9.1deg);
-  transition: color 400ms linear;
+.sign { overflow: visible; }
+.sign text {
+  font-family: var(--fell); font-style: normal; font-weight: 400; letter-spacing: 0.01em;
+  fill: #ffffff; stroke: #ffffff; stroke-width: 0.8px; stroke-linejoin: miter;
+  transition: fill 400ms linear, stroke 400ms linear;
 }
 .plate.lit .sign-light { opacity: 1; }
-.plate.lit .sign { color: #000000; }
+.plate.lit .sign text { fill: #000000; stroke: #000000; }
 @container (max-width: 640px) { .sign, .sign-light { display: none; } }
 .gpatch, .gcut { position: absolute; pointer-events: none; }
 .gpatch { background: #ffffff; }
@@ -331,13 +331,23 @@ ul, ol { list-style: none; margin: 0; padding: 0; }
 .tonight h2 { font: 400 19px/1.25 var(--fellsc); letter-spacing: 0.03em; margin-bottom: 12px; }
 .tonight p:not(.big) { font-size: 15px; line-height: 1.5; letter-spacing: 0.045em; }
 .tonight p:not(.big) + p { margin-top: 9px; }
-.tonight .note {
-  margin-top: auto !important; padding-top: 12px;
-  border-top: 1px solid var(--ink);
-  font-size: 12.5px !important; line-height: 1.5 !important; letter-spacing: 0.04em;
-}
 .tonight .lamps { padding-bottom: 14px; }
-.note .short { display: none; }
+/* The solar footnote is one quiet line under the notice. Asked for, the method takes the place of the
+   notice's own lines (it is always shorter than they are), so nothing on the board moves. */
+.tonight .note { order: 3; margin-top: auto; padding-top: 9px; border-top: 1px solid var(--ink); }
+.tonight .method { order: 2; }
+.tonight.method-open > p:not(.big):not(.method) { display: none; }
+html:not(.js) .tonight .note { display: none; }
+.how {
+  display: inline-block; margin: 0 0 0 -4px; padding: 2px 4px 3px;
+  border: 0; border-radius: 0; background: transparent; color: inherit; cursor: pointer;
+  font: italic 400 13px/1.35 var(--caslon); letter-spacing: 0.04em; text-align: left;
+  text-decoration-line: underline; text-decoration-thickness: 1px; text-underline-offset: 0.2em;
+  transition: background-color 90ms linear, color 90ms linear;
+}
+.how:hover { text-decoration-thickness: 2px; }
+.how[aria-expanded="true"] { background: var(--ink); color: var(--paper); text-decoration-thickness: 1px; }
+.how:focus-visible { outline-offset: 2px; }
 
 /* Copy-fitting: on narrower or shorter screens the script steps the two notices down,
    one level at a time, until they sit within the height of the print beside them. */
@@ -350,8 +360,6 @@ ul, ol { list-style: none; margin: 0; padding: 0; }
 .top.fit1 .tonight h2 { font-size: 17px; margin-bottom: 8px; }
 .top.fit1 .lamp { width: min(120px, 62%); }
 .top.fit2 .tonight .lamps { display: none; }
-.top.fit2 .note .long { display: none; }
-.top.fit2 .note .short { display: inline; }
 .top.fit3 .lamp { display: none; }
 .top.fit3 .tonight .big { font-size: 60px; }
 .top.fit3 .nowline, .top.fit3 .tonight p:not(.big) { font-size: 13.5px; line-height: 1.42; }
@@ -475,6 +483,20 @@ ul, ol { list-style: none; margin: 0; padding: 0; }
   font-size: 13px; line-height: 1.5; letter-spacing: 0.04em;
 }
 
+/* ---------- desktop: the first screen ends on a finished board ----------
+   The print row always runs to 12px above the frame. Where the screen is too narrow for the print to
+   fill that height (16:10), the spare height becomes more paper sky inside the frame, with the print
+   standing on the frame's foot. The sky is capped, so a 4:3 screen shows the bill of fare under the
+   print rather than an empty sky. The board starts under the frame's edge, never as a sliver. */
+@media (min-width: 1200px) {
+  .sheet { container-type: inline-size; }
+  .facade {
+    justify-content: flex-end;
+    min-height: min(var(--row), calc((min(var(--pw), 100cqw - 2 * var(--gap) - 2 * var(--side)) - 4px) / 1.5 + 4px + 96px));
+  }
+  .top { margin-bottom: 4px; }
+}
+
 /* ---------- tablet and below: shared adjustments ---------- */
 @media (max-width: 1199px) {
   :root { --head: 150px; --side: 200px; }
@@ -519,7 +541,8 @@ ul, ol { list-style: none; margin: 0; padding: 0; }
   .status { font-size: 44px; }
   .nowline, .tonight p:not(.big), .sittings li { font-size: 15px; }
   .tonight .big { font-size: 76px; }
-  .tonight .note { margin-top: 16px !important; }
+  .tonight .note { margin-top: 16px; }
+  .how { font-size: 14px; padding-top: 6px; padding-bottom: 7px; }
 
   .pair { display: flex; flex-direction: column; border: var(--rule) solid var(--ink); background: var(--paper); }
   .pair > .cell { border: 0; background: transparent; }
@@ -547,7 +570,7 @@ ul, ol { list-style: none; margin: 0; padding: 0; }
   .pr { animation: none !important; }
   .await { opacity: 1 !important; filter: none !important; }
   .gcut { animation: none !important; }
-  .sign, .sign-light { transition: none; }
+  .sign-light, .sign text, .how { transition: none; }
 }
 </style>
 </head>
@@ -584,7 +607,20 @@ ul, ol { list-style: none; margin: 0; padding: 0; }
       <img src="../assets/wc/linocut-dining-rooms/facade.webp" width="1536" height="1024" fetchpriority="high" decoding="async"
            alt="Linocut of the restaurant on the quay: a long brick warehouse with arched windows, a hoist beam and a striped awning, diners arriving, a waiter carrying plates, gulls overhead and a sailing boat moored alongside.">
       <span class="sign-light" aria-hidden="true"></span>
-      <span class="sign" id="sign" aria-hidden="true">open</span>
+      <svg class="sign" id="sign" aria-hidden="true" focusable="false" preserveAspectRatio="none">
+        <defs>
+          <!-- The cutter's hand: the gouge wanders off the drawn letter by a pixel or so, and leaves
+               chips of uncut lino in the cut. Units are the print's own pixels. -->
+          <filter id="sign-cut" x="-20%" y="-30%" width="140%" height="160%" color-interpolation-filters="sRGB">
+            <feTurbulence type="fractalNoise" baseFrequency="0.5" numOctaves="2" seed="5" result="wander"/>
+            <feDisplacementMap in="SourceGraphic" in2="wander" scale="3" xChannelSelector="R" yChannelSelector="G" result="cut"/>
+            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="1" seed="12" result="lino"/>
+            <feColorMatrix in="lino" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -16 0 0 0 10.2" result="chips"/>
+            <feComposite in="cut" in2="chips" operator="in"/>
+          </filter>
+        </defs>
+        <g id="sign-line"><text id="sign-word" text-anchor="middle" filter="url(#sign-cut)"></text></g>
+      </svg>
     </div>
   </figure>
 
@@ -594,7 +630,8 @@ ul, ol { list-style: none; margin: 0; padding: 0; }
     <p id="sun-line">Down towards the gorge this evening.</p>
     <p id="terrace-line">The terrace opens with the bar.</p>
     <p class="lamps" id="lamp-line">The lamps on the quay are lit at sunset, and so is our sign.</p>
-    <p class="note" id="sun-note"></p>
+    <div class="note"><button type="button" class="how" id="sun-how" aria-expanded="false" aria-controls="sun-method">How we work it out</button></div>
+    <p class="method" id="sun-method" hidden></p>
   </section>
 </header>
 
@@ -679,7 +716,9 @@ const DATA = {
       ropes: [[233, 394], [595, 744], [946, 1090], [1290, 1436], [1635, 1796], [1999, 2147]],
       gap: 6.4
     },
-    gulls: [[292, 84, 89, 111, 'gullA', 0], [1015, 114, 103, 58, 'gullB', -7]]  // x, y, w, h, path, delay (s)
+    gulls: [[292, 84, 89, 111, 'gullA', 0], [1015, 114, 103, 58, 'gullB', -7]],  // x, y, w, h, path, delay (s)
+    // The blank hanging sign: its corners (top left, top right, bottom right, bottom left), lettered live.
+    sign: [[1295.5, 428.5], [1376.5, 411.5], [1376.5, 484.5], [1295.5, 496.5]]
   },
 
   // Weekly hours on the quay. 0 = Sunday. Times are 24h; '24:00' is midnight.
@@ -868,10 +907,10 @@ const DATA = {
   const essay = $('#hist-essay');
   DATA.history.forEach(t => essay.append(el('p', null, t)));
 
-  $('#sun-note').append(
-    el('span', 'long', 'Worked out in your browser from today’s date and the quay’s position, ' +
-      Math.abs(DATA.place.lat).toFixed(2) + '° N, ' + Math.abs(DATA.place.lon).toFixed(2) + '° W, with the standard low-precision solar sums. Good to a minute or two; ' + DATA.place.note + '.'),
-    el('span', 'short', 'Worked out in your browser from the date and the quay’s position; good to a minute or two.'));
+  $('#sun-method').textContent = 'Worked out in your browser from today’s date and the quay’s position, ' +
+    Math.abs(DATA.place.lat).toFixed(2) + '° ' + (DATA.place.lat < 0 ? 'S' : 'N') + ', ' +
+    Math.abs(DATA.place.lon).toFixed(2) + '° ' + (DATA.place.lon < 0 ? 'W' : 'E') +
+    ', with the standard low-precision solar sums. Good to a minute or two; ' + DATA.place.note + '.';
 
   /* ---------- weekly hours, written as sentences from DATA.hours ---------- */
   const intervals = (kind, wd) => (DATA.hours[kind][wd] || []).map(([a, b]) => [toMin(a), toMin(b)]);
@@ -960,17 +999,77 @@ const DATA = {
 
   const plate = $('#plate');
 
-  /* copy-fit the two notices to the height of the print beside them (only while they share its row) */
+  /* copy-fit the two notices to the height of the print row beside them (only while they share it).
+     They are always fitted with the solar method closed: it is shorter than the lines it stands in for. */
   const topEl = $('.top'), nowEl = $('#now'), sunEl = $('#tonight'), facadeEl = $('.facade');
+  const howEl = $('#sun-how'), methodEl = $('#sun-method');
   const FITS = ['fit1', 'fit2', 'fit3'];
-  function fitNotices() {
-    FITS.forEach(c => topEl.classList.remove(c));
+  function fitLevels() {
     if (Math.abs(nowEl.offsetTop - facadeEl.offsetTop) > 2 || Math.abs(sunEl.offsetTop - facadeEl.offsetTop) > 2) return;
     for (let i = 0; i < FITS.length; i++) {
-      const limit = plate.offsetHeight + 5;
-      if (nowEl.offsetHeight <= limit && sunEl.offsetHeight <= limit) return;
+      const row = Math.max(plate.offsetHeight + 4, parseFloat(getComputedStyle(facadeEl).minHeight) || 0);
+      if (nowEl.offsetHeight <= row + 1 && sunEl.offsetHeight <= row + 1) return;
       topEl.classList.add(FITS[i]);
     }
+  }
+  function fitNotices() {
+    const asked = !methodEl.hidden;
+    if (asked) { sunEl.classList.remove('method-open'); methodEl.hidden = true; }
+    FITS.forEach(c => topEl.classList.remove(c));
+    fitLevels();
+    if (asked) { sunEl.classList.add('method-open'); methodEl.hidden = false; }
+  }
+
+  /* the solar footnote: one line, and the method on request */
+  function showMethod(on) {
+    howEl.setAttribute('aria-expanded', on ? 'true' : 'false');
+    methodEl.hidden = !on;
+    sunEl.classList.toggle('method-open', on);
+  }
+  howEl.addEventListener('click', () => showMethod(methodEl.hidden));
+  sunEl.addEventListener('keydown', e => { if (e.key === 'Escape' && !methodEl.hidden) { showMethod(false); howEl.focus(); } });
+
+  /* ---------- the hanging sign: its boxes, the reverse panel and the cut letters, from DATA.print.sign ---------- */
+  const signSvg = $('#sign'), signLine = $('#sign-line'), signWord = $('#sign-word'), signLight = plate.querySelector('.sign-light');
+  const SIGN = DATA.print.sign;
+  (function placeSign() {
+    const [W, H] = DATA.print.size;
+    const xs = SIGN.map(p => p[0]), ys = SIGN.map(p => p[1]);
+    const x0 = Math.min(...xs), y0 = Math.min(...ys), w = Math.max(...xs) - x0, h = Math.max(...ys) - y0;
+    const box = 'left:' + (x0 / W * 100) + '%;top:' + (y0 / H * 100) + '%;width:' + (w / W * 100) + '%;height:' + (h / H * 100) + '%;';
+    signSvg.setAttribute('viewBox', [x0, y0, w, h].join(' '));
+    signSvg.setAttribute('style', box);
+    // the reverse panel stops 3px inside the panel's edge, so the lit sign keeps its black rim
+    const cx = xs.reduce((a, b) => a + b) / 4, cy = ys.reduce((a, b) => a + b) / 4;
+    const poly = SIGN.map(([x, y]) => [x + Math.sign(cx - x) * 3, y + Math.sign(cy - y) * 3])
+      .map(([x, y]) => ((x - x0) / w * 100).toFixed(2) + '% ' + ((y - y0) / h * 100).toFixed(2) + '%').join(', ');
+    signLight.setAttribute('style', box + 'clip-path:polygon(' + poly + ');');
+    // the letters run along the panel's mid-line
+    const ang = Math.atan2((SIGN[1][1] - SIGN[0][1]) + (SIGN[2][1] - SIGN[3][1]), (SIGN[1][0] - SIGN[0][0]) + (SIGN[2][0] - SIGN[3][0])) * 180 / Math.PI;
+    signLine.setAttribute('transform', 'translate(' + cx.toFixed(2) + ' ' + cy.toFixed(2) + ') skewY(' + ang.toFixed(2) + ')');
+  })();
+  // Each letter is cut a little off the line and off the upright, the same way every time.
+  const JIT = [[-3, 0], [2.5, -0.8], [-1.5, 1], [3, -0.7], [-2.5, 0.7], [2, -0.6], [-1, 0.5]];
+  const SIGN_WORDS = ['open', 'closed'];
+  let signFs = 0;
+  function sizeSign() {
+    // the longer word fills three quarters of the panel; both words are cut at that size
+    const cur = signWord.textContent, w = signSvg.viewBox.baseVal.width;
+    signWord.style.fontSize = '20px';
+    let len = 0;
+    SIGN_WORDS.forEach(word => { signWord.textContent = word; len = Math.max(len, signWord.getComputedTextLength()); });
+    signWord.textContent = cur;
+    if (len > 0) signFs = Math.min(26, 20 * w * 0.74 / len);
+    const fs = signFs || 20;
+    signWord.style.fontSize = fs.toFixed(2) + 'px';
+    signWord.setAttribute('y', (fs * 0.2).toFixed(2));
+  }
+  function letterSign(word) {
+    if (signWord.textContent === word) return;
+    signWord.textContent = word;
+    signWord.setAttribute('rotate', Array.from(word, (c, i) => JIT[i % JIT.length][0]).join(' '));
+    signWord.setAttribute('dy', Array.from(word, (c, i) => JIT[i % JIT.length][1]).join(' '));
+    if (!signFs) sizeSign();
   }
 
   function renderLive() {
@@ -1047,7 +1146,7 @@ const DATA = {
     // the hanging sign on the print: lettered by the open state, lit by the sunset while we serve
     const lit = open && q.min >= ssMin;
     const openAtSunset = din.concat(bar).some(([a, z]) => ssMin >= a && ssMin < z);
-    setText($('#sign'), open ? 'open' : 'closed');
+    letterSign(open ? 'open' : 'closed');
     plate.classList.toggle('lit', lit);
     setText($('#lamp-line'), lit ? 'The lamps on the quay are lit, and so is our sign.'
       : open && openAtSunset ? 'The lamps on the quay are lit at ' + hhmm(ssMin) + ', and so is our sign.'
@@ -1078,7 +1177,7 @@ const DATA = {
   }
   renderLive();
   setInterval(renderLive, 30000);
-  try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitNotices); } catch (e) {}
+  try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { sizeSign(); fitNotices(); }); } catch (e) {}
 
   /* ---------- the border band: set whole shells at both corners, ropes between ---------- */
   const band = $('.band');
@@ -1131,7 +1230,7 @@ const DATA = {
   const ruleBand = () => band.classList.toggle('ruled', window.scrollY > 6);
   ruleBand();
   window.addEventListener('scroll', ruleBand, { passive: true });
-  let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { setBand(); fitNotices(); }, 160); });
+  let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { setBand(); if (!signFs) sizeSign(); fitNotices(); }, 160); });
 
   /* ---------- gulls: cut from the print itself, shifting at 6fps ---------- */
   if (!reduce) {

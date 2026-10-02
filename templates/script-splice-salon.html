@@ -75,7 +75,7 @@ img{display:block;max-width:100%}
 .bar nav{margin-left:auto}
 .navlist{display:flex;list-style:none;margin:0;padding:0}
 .navlist a{display:block;padding:0 12px;line-height:32px;text-decoration:none;color:inherit;white-space:nowrap;transition:opacity .22s var(--ease)}
-.navlist:hover a,.navlist:focus-within a{opacity:.5}
+.navlist:hover a,.navlist:has(a:focus-visible) a{opacity:.5}
 .navlist a:hover,.navlist a:focus-visible{opacity:1}
 .cta{display:inline-flex;align-items:center;height:32px;margin-left:12px;padding:0 14px;background:var(--ink);color:var(--ochre);text-decoration:none;white-space:nowrap;border:0;font:inherit;letter-spacing:inherit;cursor:pointer;transition:background-color .3s var(--ease),color .3s var(--ease)}
 .cta:hover,.cta:focus-visible{background:var(--plum)}
@@ -99,9 +99,9 @@ img{display:block;max-width:100%}
 .chip::after{content:"";position:absolute;top:3%;height:44%;right:30%;width:2px;background:var(--sheen);pointer-events:none}
 /* labels print along each chip's exposed edge, reading up toward the tip, so the next chip never hides them */
 .chip-lab{position:absolute;top:16px;right:11px;margin:0;font:500 13px/1.2 var(--serif);letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;font-optical-sizing:auto;writing-mode:vertical-lr;transform:rotate(180deg)}
-.chip-top{--i:0;--c:var(--ox);--k:var(--blush);--edge:rgba(243,207,200,.1);box-shadow:inset 0 0 0 1px var(--edge),0 18px 30px -18px rgba(40,6,12,.62)}
+/* the top chip is cut, not lifted: a 1px oxblood edge, never a shadow */
+.chip-top{--i:0;--c:var(--ox);--k:var(--blush);--edge:rgba(243,207,200,.1);box-shadow:inset 0 0 0 1px var(--edge),0 0 0 1px var(--ink)}
 .chip-top::after{display:none}
-.chip-top.lifting{box-shadow:inset 0 0 0 1px var(--edge)}
 .chip-top .chip-lab{top:calc(100% - var(--band) + 14px);left:14px;right:auto;text-align:left;line-height:1.16;letter-spacing:.035em;writing-mode:horizontal-tb;transform:none}
 .chip-win{position:absolute;left:0;right:0;top:0;bottom:var(--band);overflow:hidden;background:var(--ox)}
 .chip-win img{position:absolute;left:0;top:0;width:100%;height:100%;max-width:none;object-fit:cover;object-position:50% 0}
@@ -114,8 +114,22 @@ img{display:block;max-width:100%}
 .motion .chip:not(.chip-top){transform:rotate(var(--a0))}
 .motion.ready .chip:not(.chip-top){animation:fan 1.15s var(--lux) .12s both}
 @keyframes fan{from{transform:rotate(var(--a0))}to{transform:rotate(calc(var(--a0) + var(--i) * var(--step)))}}
+/* the deck answers the pointer: the chip under it fans out a further 2 degrees, the others dim to half.
+   The dim is a field-coloured wash, so a dimmed chip never turns translucent over the chips beneath it. */
+.chip::before{content:"";position:absolute;inset:0;z-index:2;background:var(--ochre);opacity:0;pointer-events:none;transition:opacity .45s var(--ease)}
+.deck.has-up .chip:not(.is-up)::before{opacity:.5}
+/* late in the lift the same wash takes the rest of the deck back into the field, so no chip tip outlives the drench */
+.deck.lifted .chip:not(.chip-top)::before{opacity:var(--wash,0);transition:none}
+.motion .chip:not(.chip-top){transition:rotate .9s var(--lux)}
+.motion .chip.is-up:not(.chip-top){rotate:var(--fan,2deg)}
+.chip-lab:focus{outline:none}
+.chip-lab:focus-visible{outline:1.5px solid currentColor;outline-offset:5px}
 
-/* the deck's label: SALON du FAUVE with a drawn hairline du */
+/* the deck's label: SALON du FAUVE with a drawn hairline du. The statement and the wordmark share one layer
+   so the drench can fade them together (an inline opacity on .lede would lose to its entrance fill) */
+.type{position:absolute;inset:0;z-index:3;pointer-events:none}
+.type>*{pointer-events:auto}
+.motion .type{will-change:opacity}
 .label{position:absolute;z-index:3;left:var(--lx);right:var(--m);bottom:var(--m)}
 .lede{position:absolute;z-index:3;top:calc(var(--bar) + 32px);right:var(--m);margin:0;text-align:right}
 .motion .lede{opacity:0}
@@ -173,13 +187,17 @@ img{display:block;max-width:100%}
 .row.on .pl::after{background:currentColor}
 .row .yr,.row .ci,.row .ty{min-width:0}
 .row .fig{display:none;margin:0}
-/* ONE fixed frame at the widest aspect: photographs contained, one caption slot */
+/* ONE frame, sized to whichever photograph is showing: landscapes run the full width from the index's top rule,
+   the portrait hangs from the right margin, it and its caption as tall as the index (JS writes --fh, and --lift = --fh minus a landscape's height).
+   Photographs are contained at their natural aspect; one caption, set under the photograph that is up. */
 .frame{grid-column:7/13;align-self:start;margin:0}
-.frame-box{position:relative;width:100%;aspect-ratio:3/2}
+.frame-box{position:relative;width:100%;aspect-ratio:3/2;height:var(--fh,auto)}
 .frame-box img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:0 0;opacity:0;transition:opacity .3s cubic-bezier(.4,0,.2,1)}
+.frame-box img.tall{object-position:100% 0}
 .frame-box img.on{opacity:1;transition:opacity .62s cubic-bezier(.4,0,.2,1) .26s}
 .cap{font-family:var(--serif);font-weight:500;font-size:var(--cap);line-height:1.1;text-transform:uppercase;letter-spacing:.004em;margin:0}
-.frame .cap{margin-top:16px;white-space:nowrap;transition:opacity .22s var(--ease)}
+.frame .cap{margin-top:16px;white-space:nowrap;transform:translateY(calc(-1 * var(--lift,0px)));transition:opacity .22s var(--ease)}
+.frame.is-tall .cap{transform:none;text-align:right}
 .frame .cap.out{opacity:0}
 
 /* editions */
@@ -280,7 +298,7 @@ img{display:block;max-width:100%}
 
 /* ---------- reduced motion: static deck, no drench, chapters simply change colour ---------- */
 @media (prefers-reduced-motion:reduce){
-  .frame-box img,.frame .cap,.row,.navlist a,.cta{transition-duration:.01ms!important;transition-delay:0s!important}
+  .frame-box img,.frame .cap,.row,.navlist a,.cta,.chip::before{transition-duration:.01ms!important;transition-delay:0s!important}
 }
 </style>
 </head>
@@ -325,15 +343,16 @@ img{display:block;max-width:100%}
     <ol class="deck" aria-label="The house colours">
       <li class="chip chip-top" id="chipTop">
         <div class="chip-win"><img id="roomImg" src="../assets/wc/script-splice-salon/hero-oxblood-dining.webp" width="1536" height="1024" alt="A dining room lacquered in oxblood, with a long blush stone table, a brass pendant and hot-pink peonies." fetchpriority="high" decoding="async"></div>
-        <p class="chip-lab">Oxblood lacquer,<br>nine coats</p>
+        <p class="chip-lab" tabindex="0">Oxblood lacquer,<br>nine coats</p>
       </li>
-      <li class="chip" style="--i:1;--c:var(--blush);--k:var(--ink);--edge:rgba(74,14,24,.16);--sheen:rgba(255,255,255,.6)"><p class="chip-lab">Blush marmorino, four coats</p></li>
-      <li class="chip" style="--i:2;--c:var(--ochre);--k:var(--ink);--edge:rgba(74,14,24,.3);--sheen:rgba(255,246,222,.5)"><p class="chip-lab">Saffron limewash, three coats</p></li>
-      <li class="chip" style="--i:3;--c:var(--rosa);--k:var(--ink);--edge:rgba(74,14,24,.16);--sheen:rgba(255,236,232,.42)"><p class="chip-lab">Rosa tadelakt, five coats</p></li>
-      <li class="chip" style="--i:4;--c:var(--mustard);--k:var(--ink);--edge:rgba(74,14,24,.18);--sheen:rgba(255,244,214,.36)"><p class="chip-lab">Mustard distemper, two coats</p></li>
-      <li class="chip" style="--i:5;--c:var(--plum);--k:var(--blush);--edge:rgba(243,207,200,.1);--sheen:rgba(255,226,236,.2)"><p class="chip-lab">Plum high gloss, six coats</p></li>
+      <li class="chip" style="--i:1;--c:var(--blush);--k:var(--ink);--edge:rgba(74,14,24,.16);--sheen:rgba(255,255,255,.6)"><p class="chip-lab" tabindex="0">Blush marmorino, four coats</p></li>
+      <li class="chip" style="--i:2;--c:var(--ochre);--k:var(--ink);--edge:rgba(74,14,24,.3);--sheen:rgba(255,246,222,.5)"><p class="chip-lab" tabindex="0">Saffron limewash, three coats</p></li>
+      <li class="chip" style="--i:3;--c:var(--rosa);--k:var(--ink);--edge:rgba(74,14,24,.16);--sheen:rgba(255,236,232,.42)"><p class="chip-lab" tabindex="0">Rosa tadelakt, five coats</p></li>
+      <li class="chip" style="--i:4;--c:var(--mustard);--k:var(--ink);--edge:rgba(74,14,24,.18);--sheen:rgba(255,244,214,.36)"><p class="chip-lab" tabindex="0">Mustard distemper, two coats</p></li>
+      <li class="chip" style="--i:5;--c:var(--plum);--k:var(--blush);--edge:rgba(243,207,200,.1);--sheen:rgba(255,226,236,.2)"><p class="chip-lab" tabindex="0">Plum high gloss, six coats</p></li>
     </ol>
     <span class="rivet" aria-hidden="true"></span>
+    <div class="type" id="type">
     <p class="st lede">One colour on every surface.<br>Oxblood takes nine coats.</p>
     <div class="label">
       <h1 class="wm" id="wmTitle">
@@ -357,6 +376,7 @@ img{display:block;max-width:100%}
           <span class="w wB">FAUVE</span>
         </span>
       </h1>
+    </div>
     </div>
   </div>
   <div class="drench-run" aria-hidden="true"></div>
@@ -516,14 +536,18 @@ img{display:block;max-width:100%}
       a0: -4,                   /* degrees: the top chip */
       step: [11.5, 6.4],        /* degrees between chips: landscape, portrait */
       sliceX: [766, 650],       /* source px of the room photograph centred on the top chip at rest */
-      sliceY: [20, 0]           /* source px trimmed from the top of the photograph at rest */
+      sliceY: [20, 0],          /* source px trimmed from the top of the photograph at rest */
+      fanOut: 2                 /* degrees a chip swings out under the pointer or keyboard focus */
     },
     motion: {
       groupDelay: [480, 640],   /* ms: SALON, then FAUVE */
       stagger: 40,              /* ms between letters */
       floodRate: 0.6,           /* horizontal travel of the season script per px of scroll */
       drenchRun: 1.0,           /* viewport heights of scroll for the top chip to drench the screen */
-      bleed: 24                 /* px the drenched chip overshoots every edge */
+      bleed: 24,                /* px the drenched chip overshoots every edge */
+      typeFade: 0.6,            /* share of the lift over which the statement, wordmark and chip label fade out */
+      deckFade: [0.3, 0.6],     /* share of the lift over which the rest of the deck washes back into the field */
+      landX: 0.9                /* share of the lift by which the chip's sideways growth has landed (no trailing edge) */
     }
   };
   /* =================================================== */
@@ -677,50 +701,136 @@ img{display:block;max-width:100%}
     G.iy0 = -DATA.deck.sliceY[pi] * k0;
     G.ix1 = (G.vw - pw) / 2 + b;
     G.iy1 = (G.vh - ph) / 2 + b;
-    const D = G.chH / 2 - G.rd;
-    G.c0x = G.rx + D * Math.sin(G.a0 * RAD); G.c0y = G.ry - D * Math.cos(G.a0 * RAD);
+    G.D = G.chH / 2 - G.rd;     /* rivet to chip centre */
     G.w1 = G.vw + 2 * b; G.h1 = G.vh + 2 * b + G.band;
     G.c1x = G.vw / 2; G.c1y = -b + G.h1 / 2;
+    st.setProperty('--fan', DATA.deck.fanOut + 'deg');
     G.pCover = 1;
     for (let i = 0; i <= 200; i++) { if (covers(i / 200)) { G.pCover = i / 200; break; } }
   }
-  function pose(p) {
-    return { w: lerp(G.cw, G.w1, p), h: lerp(G.chH, G.h1, p), cx: lerp(G.c0x, G.c1x, p), cy: lerp(G.c0y, G.c1y, p), a: lerp(G.a0, 0, p) };
+  /* the sideways half of the drench (width, centre x, the last of the tilt, the photograph's slide and scale) lands by
+     p = landX, so the chip's far edge never trails the room and nothing of the field is left when the script arrives.
+     Identity up to 0.5, then a C1 Hermite tail that reaches 1 with zero velocity; the vertical half runs the whole stroke. */
+  function landX(p) {
+    const e = DATA.motion.landX, d = e - 0.5;
+    if (p <= 0.5) return p;
+    if (p >= e) return 1;
+    const s = (p - 0.5) / d, s2 = s * s, s3 = s2 * s;
+    return (2 * s3 - 3 * s2 + 1) * 0.5 + (s3 - 2 * s2 + s) * d + 3 * s2 - 2 * s3;
   }
-  /* does the chip's photograph cover the whole navigation strip? */
+  let hv = 0;                   /* the top chip's fan-out under the pointer, degrees (animated) */
+  function pose(p, hov = hv) {
+    const x = landX(p), a0 = G.a0 + hov;
+    const c0x = G.rx + G.D * Math.sin(a0 * RAD), c0y = G.ry - G.D * Math.cos(a0 * RAD);
+    return { w: lerp(G.cw, G.w1, x), h: lerp(G.chH, G.h1, p), cx: lerp(c0x, G.c1x, x), cy: lerp(c0y, G.c1y, p), a: lerp(a0, 0, x) };
+  }
+  /* has the chip's photograph passed under the whole navigation strip? (the strip is opaque, so its lower edge decides) */
   function covers(p) {
-    const q = pose(p), c = Math.cos(q.a * RAD), s = Math.sin(q.a * RAD);
-    return [[0, 0], [G.vw, 0], [0, 48], [G.vw, 48]].every(([x, y]) => {
+    const q = pose(p, 0), c = Math.cos(q.a * RAD), s = Math.sin(q.a * RAD);
+    return [[0, 48], [G.vw, 48]].every(([x, y]) => {
       const dx = x - q.cx, dy = y - q.cy;
       const u = dx * c + dy * s, v = -dx * s + dy * c;
       return Math.abs(u) <= q.w / 2 && v >= -q.h / 2 && v <= q.h / 2 - G.band;
     });
   }
+  const typeEl = $('#type'), topLab = $('.chip-lab', chipTop), deck = $('.deck'), chips = $$('.chip', deck);
   let lastP = -1;
   function drench(p) {
-    const q = pose(p);
+    const q = pose(p), x = landX(p);
     chipTop.style.width = q.w.toFixed(1) + 'px';
     chipTop.style.height = q.h.toFixed(1) + 'px';
     chipTop.style.transform = 'translate(' + (q.cx - q.w / 2).toFixed(1) + 'px,' + (q.cy - q.h / 2).toFixed(1) + 'px) rotate(' + q.a.toFixed(3) + 'deg)';
-    roomImg.style.transform = 'translate3d(' + lerp(G.ix0, G.ix1, p).toFixed(1) + 'px,' + lerp(G.iy0, G.iy1, p).toFixed(1) + 'px,0) scale(' + lerp(1, 1 / G.r, p).toFixed(4) + ')';
-    chipTop.classList.toggle('lifting', p > 0.001);
+    roomImg.style.transform = 'translate3d(' + lerp(G.ix0, G.ix1, x).toFixed(1) + 'px,' + lerp(G.iy0, G.iy1, p).toFixed(1) + 'px,0) scale(' + lerp(1, 1 / G.r, x).toFixed(4) + ')';
     rivet.style.opacity = clamp(1 - p / 0.04, 0, 1).toFixed(3);
+    /* the statement, the wordmark and the chip's own label leave over the first part of the lift: nothing of them survives to the end */
+    const f = clamp(1 - p / DATA.motion.typeFade, 0, 1).toFixed(3);
+    typeEl.style.opacity = f; topLab.style.opacity = f;
+    const [w0, w1] = DATA.motion.deckFade;
+    deck.style.setProperty('--wash', clamp((p - w0) / (w1 - w0), 0, 1).toFixed(3));
+    deck.classList.toggle('lifted', p > 0.002);
+    lastP = p;
   }
   function clearDrench() {
     chipTop.style.width = chipTop.style.height = chipTop.style.transform = '';
     roomImg.style.transform = ''; rivet.style.opacity = '';
-    chipTop.classList.remove('lifting');
+    typeEl.style.opacity = topLab.style.opacity = '';
+    deck.style.removeProperty('--wash'); deck.classList.remove('lifted');
     flood.style.transform = ''; flood.style.visibility = '';
     lastP = -1;
   }
 
+  /* ---- the deck answers the pointer and the keyboard: one chip up, fanned out, the rest dimmed ---- */
+  let hoverChip = null, focusChip = null, upChip = null;
+  /* which chip is under the pointer, judged on the deck at rest, so a chip that swings out never slips from under the cursor */
+  function chipAt(x, y) {
+    if (!G) return null;
+    const dx = x - G.rx, dy = y - G.ry;
+    for (let i = 0; i < chips.length; i++) {          /* top chip first */
+      const a = (G.a0 + i * G.step) * RAD, c = Math.cos(a), s = Math.sin(a);
+      const u = dx * c + dy * s, v = -dx * s + dy * c;
+      if (Math.abs(u) <= G.cw / 2 && v <= G.rd && v >= G.rd - G.chH) return chips[i];
+    }
+    return null;
+  }
+  let hvRaf = 0, hvTo = 0;
+  function tweenFan(to) {
+    if (to === hvTo) return;
+    hvTo = to;
+    cancelAnimationFrame(hvRaf);
+    const from = hv, t0 = performance.now();
+    const step = now => {
+      const k = Math.min(1, (now - t0) / 900), e = 1 - Math.pow(1 - k, 3);
+      hv = from + (to - from) * e;
+      if (G && motion) drench(Math.max(0, lastP));
+      if (k < 1) hvRaf = requestAnimationFrame(step);
+    };
+    hvRaf = requestAnimationFrame(step);
+  }
+  function syncUp() {
+    let c = hoverChip || focusChip;
+    if (c && motion && lastP > 0.002) c = null;       /* only while the deck is at rest */
+    if (c === upChip) return;
+    if (upChip) upChip.classList.remove('is-up');
+    upChip = c;
+    if (c) c.classList.add('is-up');
+    deck.classList.toggle('has-up', !!c);
+    /* the other chips swing clockwise in CSS; the top chip's pose is scripted, so it swings out the other way here */
+    tweenFan(c === chipTop && motion ? -DATA.deck.fanOut : 0);
+  }
+  stage.addEventListener('pointermove', e => {
+    if (e.pointerType !== 'mouse' && e.pointerType !== 'pen') return;   /* fine pointers only */
+    const r = stage.getBoundingClientRect();
+    const c = chipAt(e.clientX - r.left, e.clientY - r.top);
+    if (c !== hoverChip) { hoverChip = c; syncUp(); }
+  });
+  stage.addEventListener('pointerleave', () => { if (hoverChip) { hoverChip = null; syncUp(); } });
+  deck.addEventListener('focusin', e => {
+    if (!e.target.matches(':focus-visible')) return;                       /* keyboard focus only; a click is the pointer's business */
+    focusChip = e.target.closest('.chip');
+    if (motion && scrollY > 0) scrollTo({ top: 0, behavior: 'smooth' });   /* bring the deck back to rest so the focus is seen */
+    syncUp();
+  });
+  deck.addEventListener('focusout', e => { if (!deck.contains(e.relatedTarget)) { focusChip = null; syncUp(); } });
+
   /* ---- layout cache for scroll work ---- */
   const flood = $('#flood'), floodWrap = $('.flood-wrap'), floodLine = $('.flood-line');
   const bar = $('#bar');
-  const rows = $$('.row[data-photo]'), frameImgs = $$('#frame img'), frameCap = $('#frameCap');
+  const rows = $$('.row[data-photo]'), frame = $('#frame'), frameImgs = $$('#frame img'), frameCap = $('#frameCap'), indexEl = $('#index');
+  frameImgs.forEach(f => f.classList.toggle('tall', +f.getAttribute('height') > +f.getAttribute('width')));
   let L = {};
+  /* the portrait and its caption together hang the index's full height, top rule to bottom rule
+     (the frame is never shorter than a landscape plate) */
+  function sizeFrame() {
+    const fw = frame.clientWidth;
+    if (!fw) return;
+    const capBlock = (parseFloat(getComputedStyle(frameCap).marginTop) || 0) + frameCap.offsetHeight;
+    const lh = fw / 1.5, fh = Math.max(lh, indexEl.offsetHeight - capBlock);
+    frame.style.setProperty('--fh', fh.toFixed(1) + 'px');
+    frame.style.setProperty('--lift', (fh - lh).toFixed(1) + 'px');
+  }
   function layout() {
     applyGeom();
+    sizeFrame();
     const vh = innerHeight;
     L.vh = vh; L.vw = root.clientWidth || innerWidth;
     L.S = DATA.motion.drenchRun * vh;
@@ -752,8 +862,9 @@ img{display:block;max-width:100%}
     rows.forEach(r => r.classList.toggle('on', +r.dataset.photo === i));
     clearTimeout(capTimer);
     frameCap.classList.add('out');
-    const next = frameImgs[i] ? frameImgs[i].dataset.cap : '';
-    capTimer = setTimeout(() => { frameCap.textContent = next; frameCap.classList.remove('out'); }, RM.matches ? 0 : 240);
+    const next = frameImgs[i] ? frameImgs[i].dataset.cap : '', tall = !!frameImgs[i] && frameImgs[i].classList.contains('tall');
+    /* the caption moves under its photograph only while it is out of sight */
+    capTimer = setTimeout(() => { frameCap.textContent = next; frame.classList.toggle('is-tall', tall); frameCap.classList.remove('out'); }, RM.matches ? 0 : 240);
   }
   rows.forEach(r => {
     const i = +r.dataset.photo;
@@ -769,7 +880,8 @@ img{display:block;max-width:100%}
     if (motion && G && L.S) {
       const t = clamp(y / L.S, 0, 1);
       const p = t * t * (3 - 2 * t);
-      if (Math.abs(p - lastP) > 1e-4) { drench(p); lastP = p; }
+      if (Math.abs(p - lastP) > 1e-4) drench(p);
+      syncUp();
       /* the season script: rises from a baseline clip as the drench lands, then travels at 0.6x,
          always cropped by both edges, reading from its first letter toward its last */
       if (L.floodW) {
@@ -805,6 +917,8 @@ img{display:block;max-width:100%}
     root.classList.toggle('motion', motion);
     const home = motion ? stage : floodWrap;
     if (floodLine.parentNode !== home) home.appendChild(floodLine);
+    cancelAnimationFrame(hvRaf); hv = hvTo = 0;
+    if (upChip) { upChip.classList.remove('is-up'); upChip = null; deck.classList.remove('has-up'); }
     if (!motion) clearDrench();
   }
   RM.addEventListener && RM.addEventListener('change', () => { setMode(); refresh(); });

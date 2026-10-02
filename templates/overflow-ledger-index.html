@@ -21,14 +21,16 @@
   --lh:.83;
   --row:calc(var(--fs) * var(--lh));
   --g:24px;                   /* page gutter */
-  --rail:240px;               /* intake record column */
+  --lead:240px;               /* the office name and the register count share this measure; the register itself runs full width */
+  --rec-gap:14px;             /* object to its record */
+  --rec-mb:calc(var(--fs) * .062 - 3px);   /* lifts the record so its last baseline sits on the sentence baseline */
   --desk-h:44px;
   --filt-h:36px;
-  --speed:1200;               /* marquee speed, px per second (read by script) */
+  --speed:1100;               /* reading speed of the hover slide, px per second; the last 300px land slower (read by script) */
   color-scheme:light;
 }
 @media (max-width:760px){
-  :root{ --fs:clamp(34px, 10.3vw, 46px); --g:16px; --desk-h:52px; --filt-h:38px; }
+  :root{ --fs:clamp(34px, 9.5vw, 46px); --g:16px; --desk-h:52px; --filt-h:38px; }
 }
 
 *,*::before,*::after{ box-sizing:border-box; }
@@ -67,7 +69,7 @@ button{ font:inherit; color:inherit; letter-spacing:inherit; }
   height:var(--desk-h);
   background:var(--green); color:var(--ink);
   display:grid;
-  grid-template-columns:var(--rail) minmax(0,1fr) auto;
+  grid-template-columns:var(--lead) minmax(0,1fr) auto;
   grid-template-areas:"name state views";
   column-gap:var(--g);
   align-items:center;
@@ -76,29 +78,37 @@ button{ font:inherit; color:inherit; letter-spacing:inherit; }
 .desk .bk{ color:var(--paper); }
 .desk :focus-visible{ outline-color:var(--ink); }
 .desk-name{ grid-area:name; margin:0; font:inherit; font-weight:500; white-space:nowrap; }
+/* the desk's live state, office first. Only whole fields are ever shown: a field that does not fit
+   wraps onto a second line that the strip never shows. */
 .desk-state{
-  grid-area:state; display:flex; gap:28px; min-width:0;
-  white-space:nowrap; overflow-x:auto; scrollbar-width:none;
+  grid-area:state; min-width:0;
+  display:flex; flex-wrap:wrap; column-gap:28px;
+  height:15px; overflow:hidden;
 }
-.desk-state::-webkit-scrollbar{ display:none; }
+.desk-state .f{ white-space:nowrap; }
 .views{ grid-area:views; display:flex; gap:20px; }
 .views a{
-  color:var(--paper); font-weight:500; text-decoration:none;
+  position:relative;
+  color:var(--ink); font-weight:500; text-decoration:none;
   padding:14px 0; margin:-14px 0;
 }
-.views a:hover{ text-decoration:underline; }
-.views a[aria-current="page"]{ color:var(--ink); }
+.views a:hover{ text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:.2em; }
+/* the current view is written like every value on the page, in brackets; they hang, so nothing shifts */
+.views a .bk{ position:absolute; visibility:hidden; }
+.views a .bk:first-child{ right:100%; }
+.views a .bk:last-child{ left:100%; }
+.views a[aria-current="page"] .bk{ visibility:visible; }
 
 /* ---------- filter line: text checkboxes ---------- */
 .filters{
   position:sticky; top:var(--desk-h); z-index:19;
   height:var(--filt-h);
   background:var(--paper);
-  display:grid; grid-template-columns:var(--rail) minmax(0,1fr);
+  display:grid; grid-template-columns:var(--lead) minmax(0,1fr);
   column-gap:var(--g); align-items:center;
   padding-left:var(--g);
 }
-.fcount{ text-align:right; white-space:nowrap; overflow:hidden; }
+.fcount{ white-space:nowrap; overflow:hidden; }
 .fclear{
   appearance:none; background:none; border:0; padding:6px 0; margin:-6px 12px -6px 0;
   cursor:pointer; text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:.2em;
@@ -137,15 +147,10 @@ main{ overflow-x:clip; isolation:isolate; }   /* own stacking context: the hover
 .entry.is-out > .entry-in, .entry.is-in > .entry-in{ overflow:clip; }
 .entry.is-out > .entry-in{ visibility:hidden; transition:visibility 0s linear 120ms; }
 
-.row{
-  position:relative;
-  display:grid;
-  grid-template-columns:var(--rail) minmax(0,1fr);
-  grid-template-rows:var(--row);
-  column-gap:var(--g);
-  padding-left:var(--g);
-  cursor:pointer;
-}
+/* one entry = one strip across the full width: the sentence, then the object, then its intake record.
+   The strip is clipped at the screen edges, so a row read to its end runs off the left edge as it
+   ran off the right. */
+.row{ position:relative; cursor:pointer; }
 /* the hover band: from the line top to just under the descenders. It is painted beneath all type,
    so the neighbouring lines' descenders and cap tops cross it in black instead of being cut off. */
 .row::before{
@@ -159,54 +164,64 @@ main{ overflow-x:clip; isolation:isolate; }   /* own stacking context: the hover
 .row.is-hot .bk, .row:has(.sent:focus-visible) .bk{ color:var(--paper); }
 .row.is-hot .xref, .row:has(.sent:focus-visible) .xref{ text-decoration-color:var(--paper); }
 
-.rail{
-  align-self:end; text-align:right;
-  margin-bottom:calc(var(--fs) * .05 - 3px);   /* last rail baseline sits on the register baseline */
-  min-width:0;
+.strip{ display:flex; align-items:flex-start; min-width:0; }
+.clip{ flex:1 1 0%; min-width:0; overflow-x:clip; overflow-y:visible; }   /* clip sideways only: descenders hang into the next line */
+.track{
+  display:flex; align-items:flex-start;
+  width:max-content; height:var(--row);
+  padding-left:var(--g);
 }
-.rl{ white-space:nowrap; }
-.rl .f + .f{ margin-left:12px; }
-.rl-find{ font-weight:500; }
-.rail-m{ display:none; }
-.xref{ text-decoration:underline; text-decoration-color:var(--green); text-decoration-thickness:1px; text-underline-offset:2px; }
-
 .line{
-  margin:0; min-width:0; display:flex; align-items:flex-start;
+  flex:none; margin:0;
   font:500 var(--fs)/var(--lh) "Switzer","Inter Tight",system-ui,sans-serif;
   letter-spacing:-.03em;
   font-variant-numeric:tabular-nums;
+  white-space:nowrap;
 }
 .sent{
   appearance:none; background:none; border:0; padding:0; margin:0;
-  display:block; flex:1 1 auto; min-width:0;
+  display:block;
   font:inherit; line-height:inherit; letter-spacing:inherit; color:inherit;
-  text-align:left; cursor:pointer;
-  white-space:nowrap;
-  overflow-x:clip; overflow-y:visible;
+  text-align:left; cursor:pointer; white-space:inherit;
 }
 .sent:focus-visible{ outline:none; }
-.track{ display:inline-flex; align-items:flex-start; will-change:auto; }
-.txt{ display:block; }
+/* hit-test the button's line box, not the glyph box: at .83 leading the glyph box of the next row
+   reaches 20px up into this one, so the lower part of these letters would light the row below */
+.sent .txt{ pointer-events:none; }
 .is-spent .txt{ color:var(--spent); }
 .row.is-hot .txt, .row:has(.sent:focus-visible) .txt{ color:inherit; }
 .end{
   display:block; flex:none;
   width:var(--row); height:var(--row);
-  margin-left:.3em; object-fit:cover;
+  margin-left:calc(var(--fs) * .3); object-fit:cover;
 }
-.thumb{ display:none; }
+/* the intake record, beside its object: bottom line on the sentence baseline */
+.rec{
+  flex:none; align-self:flex-end;
+  margin:0 0 var(--rec-mb) var(--rec-gap);
+  text-align:left;
+}
+.rl{ white-space:nowrap; }
+.rl .f + .f{ margin-left:12px; }
+.rl-find{ font-weight:500; }
+.rail-m, .thumb{ display:none; }
+.xref{ text-decoration:underline; text-decoration-color:var(--green); text-decoration-thickness:1px; text-underline-offset:2px; }
 
 /* entrance: the register is set line by line, the record a beat later */
 @keyframes set{ from{ visibility:hidden; } to{ visibility:visible; } }
 .js .row{ animation:set 1ms steps(1,end) both; animation-delay:calc(var(--i) * 40ms); }
-.js .rail, .js .rail-m{ animation:set 1ms steps(1,end) both; animation-delay:calc(440ms + var(--i) * 40ms); }
+.js .rec, .js .rail-m{ animation:set 1ms steps(1,end) both; animation-delay:calc(440ms + var(--i) * 40ms); }
 
-/* expanded entry: the sentence is allowed to wrap, the record and photographs open below */
-.entry.is-open .row{ grid-template-rows:auto; }
-.entry.is-open .sent{ white-space:normal; text-wrap:pretty; }
-.entry.is-open .track{ display:inline; transform:none !important; transition:none !important; }
-.entry.is-open .txt{ display:inline; }
-.entry.is-open .end{ display:none; }   /* open, the object moves into the photographs below */
+/* expanded entry: the sentence wraps, its record stays at the right on the last baseline,
+   and the object moves into the photographs below */
+.entry.is-open .track, .empty .track{
+  display:grid; grid-template-columns:minmax(0,1fr) auto; column-gap:var(--g);
+  width:auto; height:auto; padding-right:var(--g);
+  transform:none !important; transition:none !important;
+}
+.entry.is-open .line, .empty .line{ white-space:normal; text-wrap:pretty; min-width:0; }
+.entry.is-open .end{ display:none; }
+.entry.is-open .rec, .empty .rec{ grid-column:2; align-self:end; margin-left:0; }
 
 .panel{
   display:grid; grid-template-rows:0fr;
@@ -214,19 +229,16 @@ main{ overflow-x:clip; isolation:isolate; }   /* own stacking context: the hover
 }
 .entry.is-open .panel{ grid-template-rows:1fr; transition:grid-template-rows 300ms cubic-bezier(.16,1,.3,1); }
 .panel-in{ min-height:0; overflow:hidden; }
+/* photographs, then the story, then the rest of the record under the row's own record */
 .pgrid{
-  display:grid; grid-template-columns:var(--rail) minmax(0,1fr);
-  column-gap:var(--g); padding:calc(var(--fs) * .3) 0 calc(var(--row) * .8) var(--g);
-}
-.prec{ text-align:right; }
-.prec .rl{ white-space:normal; }
-.prec .rl + .rl{ margin-top:1px; }
-.prec .v{ white-space:normal; }
-.pbody{
   display:grid;
-  grid-template-columns:minmax(0,22vw) minmax(0,22vw) minmax(0,60ch);
-  gap:var(--g); align-items:start; padding-right:var(--g);
+  grid-template-columns:minmax(0,22vw) minmax(0,22vw) minmax(0,60ch) minmax(0,1fr);
+  column-gap:var(--g); align-items:start;
+  padding:calc(var(--fs) * .3) var(--g) calc(var(--row) * .8);
 }
+.prec{ justify-self:end; width:var(--recw, auto); line-height:15px; }
+.prec .rl{ white-space:normal; }
+.prec .v{ white-space:normal; }
 .ph{ margin:0; min-width:0; }
 .ph img, .ph .crop{ display:block; width:100%; aspect-ratio:1; object-fit:cover; }
 .ph .crop{ background-repeat:no-repeat; background-size:280%; }
@@ -255,19 +267,14 @@ main{ overflow-x:clip; isolation:isolate; }   /* own stacking context: the hover
 
 /* ---------- colophon, in the register's own format ---------- */
 .colophon{ padding:calc(var(--row) * 1.6) 0 calc(var(--row) * 1.2); scroll-margin-top:calc(var(--desk-h) + var(--filt-h)); }
-.crow{
-  display:grid; grid-template-columns:var(--rail) minmax(0,1fr);
-  grid-template-rows:var(--row) auto;
-  column-gap:var(--g); padding-left:var(--g);
-}
 .crow + .crow{ margin-top:calc(var(--row) * .9); }
-.crow .rail{ grid-column:1; grid-row:1; }
+.chead{ display:flex; align-items:flex-start; height:var(--row); padding-left:var(--g); overflow-x:clip; overflow-y:visible; }
 .ctitle{
-  grid-column:2; grid-row:1; margin:0; min-width:0;
+  flex:none; margin:0;
   font:500 var(--fs)/var(--lh) "Switzer","Inter Tight",system-ui,sans-serif;
-  letter-spacing:-.03em; white-space:nowrap; overflow-x:clip;
+  letter-spacing:-.03em; white-space:nowrap;
 }
-.cbody{ grid-column:2; grid-row:2; max-width:62ch; padding:calc(var(--fs) * .3) var(--g) 0 0; line-height:1.45; }
+.cbody{ max-width:calc(62ch + 2 * var(--g)); padding:calc(var(--fs) * .3) var(--g) 0; line-height:1.45; }
 .cbody p{ text-wrap:pretty; }
 .cbody p + p{ margin-top:.9em; }
 .hours{ display:grid; grid-template-columns:12ch auto; column-gap:12px; line-height:15px; }
@@ -277,9 +284,13 @@ main{ overflow-x:clip; isolation:isolate; }   /* own stacking context: the hover
 
 /* ---------- 761 to 1180: desk stays one line, views tighten ---------- */
 @media (max-width:1180px) and (min-width:761px){
-  :root{ --rail:200px; }
-  .desk-state{ gap:20px; }
+  :root{ --lead:200px; }
+  .desk-state{ column-gap:20px; }
   .views{ gap:14px; }
+  .pgrid{ grid-template-columns:minmax(0,24vw) minmax(0,24vw) minmax(0,1fr); grid-template-rows:auto 1fr; }
+  .ph{ grid-row:1 / span 2; }
+  .ptext{ grid-column:3; grid-row:1; }
+  .prec{ grid-column:3; grid-row:2; justify-self:start; width:auto; margin-top:1.4em; }
 }
 
 /* ---------- phone ---------- */
@@ -292,47 +303,56 @@ main{ overflow-x:clip; isolation:isolate; }   /* own stacking context: the hover
     row-gap:6px; column-gap:20px;
     padding:8px var(--g);
   }
-  .desk-state{ gap:20px; }
+  .desk-state{ column-gap:20px; }
   .views{ justify-content:space-between; }
   .views a{ padding:10px 0; margin:-10px 0; }
   .filters{ grid-template-columns:auto minmax(0,1fr); column-gap:0; }
   .fcount .fc-text{ display:none; }
   .register{ padding-top:4px; }
-  .row{
-    display:block; padding:7px var(--g) 0;
-    grid-template-rows:none;
+  /* the record moves above its sentence as one line of whole fields; rows still run off the right edge */
+  .row{ padding:7px 0 0 var(--g); }
+  .rail-m{
+    display:flex; flex-wrap:wrap; column-gap:10px;
+    height:15px; overflow:hidden;
+    margin:0 var(--g) 3px 0;
   }
-  .rail{ display:none; }
-  .rail-m{ display:block; white-space:nowrap; overflow:hidden; margin-bottom:3px; }
-  .rail-m .f + .f{ margin-left:10px; }
+  .rail-m .f{ white-space:nowrap; }
+  .entry.is-open .rail-m{ height:auto; }
   .thumb{
     display:block; flex:none;
     width:var(--row); height:var(--row);
     margin-right:8px; object-fit:cover;
   }
-  .end{ display:none; }
+  .track{ padding-left:0; }
+  .end, .rec{ display:none; }
+  /* the find of the week keeps its object at the END of its sentence, as on the desktop */
+  .is-find .thumb{ display:none; }
+  .is-find .end{ display:block; }
   .entry.is-open .end{ display:none; }
-  .pgrid{ display:block; padding:16px var(--g) calc(var(--row) * 1.1); }
-  .prec{ text-align:left; margin-bottom:14px; }
-  .pbody{ grid-template-columns:1fr 1fr; padding-right:0; gap:12px; }
-  .ptext{ grid-column:1 / -1; }
-  .crow{ display:block; padding:0 var(--g); }
-  .crow .rail{ display:block; text-align:left; margin:0 0 3px; }
-  .ctitle{ display:block; white-space:normal; text-wrap:balance; }   /* no hover to read a colophon title to its end on a phone */
+  .entry.is-open .track, .empty .track{ grid-template-columns:minmax(0,1fr); }
+  .pgrid{ grid-template-columns:1fr 1fr; gap:12px; padding:16px var(--g) calc(var(--row) * 1.1); }
+  .ptext, .prec{ grid-column:1 / -1; }
+  .prec{ justify-self:start; width:auto; margin-top:14px; }
+  .crow{ padding:0 var(--g); }
+  .crow .rail-m{ margin:0 0 3px; }
+  .chead{ display:block; height:auto; padding:0; }
+  .ctitle{ white-space:normal; text-wrap:balance; }   /* no hover to read a colophon title to its end on a phone */
   .cbody{ padding:12px 0 0; }
-  .empty .row{ display:block; }
 }
 
-/* ---------- reduced motion: no stagger, no marquee; focus wraps the sentence instead ---------- */
+/* ---------- reduced motion: no stagger, no slide; focus wraps the sentence instead ---------- */
 @media (prefers-reduced-motion:reduce){
-  .js .row, .js .rail, .js .rail-m{ animation:none; }
+  .js .row, .js .rec, .js .rail-m{ animation:none; }
   .track{ transition:none !important; }
   .panel, .entry.is-open .panel{ transition:none; }
-  .row:has(.sent:focus-visible){ grid-template-rows:auto; }
-  .row:has(.sent:focus-visible) .sent{ white-space:normal; text-wrap:pretty; }
-  .row:has(.sent:focus-visible) .track{ display:inline; transform:none !important; }
-  .row:has(.sent:focus-visible) .txt{ display:inline; }
-  .row:has(.sent:focus-visible) .end{ display:inline-block; vertical-align:top; }
+  .entry:not(.is-open) .row:has(.sent:focus-visible) .track{
+    display:grid; grid-template-columns:minmax(0,1fr) auto auto; column-gap:0;
+    width:auto; height:auto; padding-right:var(--g);
+    transform:none !important;
+  }
+  .entry:not(.is-open) .row:has(.sent:focus-visible) .line{ white-space:normal; text-wrap:pretty; min-width:0; }
+  .entry:not(.is-open) .row:has(.sent:focus-visible) .end{ align-self:end; }
+  .entry:not(.is-open) .row:has(.sent:focus-visible) .rec{ align-self:end; }
 }
 </style>
 </head>
@@ -342,10 +362,10 @@ main{ overflow-x:clip; isolation:isolate; }   /* own stacking context: the hover
 <header class="desk">
   <h1 class="desk-name">Office of Found Objects</h1>
   <p class="desk-state" id="deskState">
+    <span class="f">Office <span class="v"><span class="bk">[</span>Open Wednesday to Saturday<span class="bk">]</span></span></span>
     <span class="f">Received today <span class="v"><span class="bk">[</span>3<span class="bk">]</span></span></span>
     <span class="f">Claimed this week <span class="v"><span class="bk">[</span>11<span class="bk">]</span></span></span>
     <span class="f">Next sale <span class="v"><span class="bk">[</span>Saturday 10:00<span class="bk">]</span></span></span>
-    <span class="f">Office <span class="v"><span class="bk">[</span>Open Wednesday to Saturday<span class="bk">]</span></span></span>
   </p>
   <nav class="views" aria-label="Views" id="views"></nav>
 </header>
@@ -359,9 +379,11 @@ main{ overflow-x:clip; isolation:isolate; }   /* own stacking context: the hover
   <ol class="register" id="list" aria-label="Intake register"></ol>
   <div class="empty" id="empty" hidden>
     <div class="row">
-      <div class="rail"><p class="rl"><span class="f"><button class="ebtn" type="button" data-clear>Clear <span class="v"><span class="bk">[</span>all filters<span class="bk">]</span></span></button></span></p></div>
       <p class="rail-m"><span class="f"><button class="ebtn" type="button" data-clear>Clear <span class="v"><span class="bk">[</span>all filters<span class="bk">]</span></span></button></span></p>
-      <p class="line"><span class="sent" style="cursor:default">Nothing in the register matches all of these at once</span></p>
+      <div class="strip"><div class="clip"><div class="track">
+        <p class="line"><span class="sent" style="cursor:default">Nothing in the register matches all of these at once</span></p>
+        <div class="rec"><p class="rl"><span class="f"><button class="ebtn" type="button" data-clear>Clear <span class="v"><span class="bk">[</span>all filters<span class="bk">]</span></span></button></span></p></div>
+      </div></div></div>
     </div>
   </div>
   <section class="colophon" id="about" aria-label="Colophon"></section>
@@ -667,7 +689,8 @@ const DATA = {
   const priceOf = e => e.status === 'Sold' ? 'Sold' : e.status === 'On loan' ? 'On loan' : `EUR ${e.price}`;
   const wordsOf = e => `${Number(e.words).toLocaleString('en-GB')} words`;
   const refNo = e => { const o = OBJ[e.obj]; return o && o.no !== e.no ? o.no : null; };
-  const xref = no => `<a class="xref" href="#open=${no}" data-open="${no}">${no}</a>`;
+  /* a link inside a row's record sits off-screen until the entry opens, so it joins the tab order only then */
+  const xref = (no, inRow) => `<a class="xref" href="#open=${no}" data-open="${no}"${inRow ? ' tabindex="-1" data-rowlink' : ''}>${no}</a>`;
   const facet = {
     cat: e => { const c = catOf(e); return c ? [slug(c)] : []; },
     status: e => (e.kind === 'object' || e.kind === 'edition') && e.status ? [slug(e.status)] : [],
@@ -696,40 +719,42 @@ const DATA = {
     return `${DAYS[s.day]} ${s.time}`;
   }
   function renderDesk() {
+    /* office first: on a phone it may be the only field the strip has room for */
     $('#deskState').innerHTML =
+      `<span class="f" id="deskOffice">Office ${br(officeLine())}</span>` +
       fld('Received today', DATA.desk.receivedToday) +
       fld('Claimed this week', DATA.desk.claimedThisWeek) +
-      fld('Next sale', saleLine()) +
-      fld('Office', officeLine());
-    $('#views').innerHTML = DATA.views.map(v => `<a href="#${v.anchor ? '' : 'view='}${v.anchor || v.id}" data-view="${v.id}">${v.label}</a>`).join('');
+      fld('Next sale', saleLine());
+    const hb = c => `<span class="bk" aria-hidden="true">${c}</span>`;
+    $('#views').innerHTML = DATA.views.map(v => `<a href="#${v.anchor ? '' : 'view='}${v.anchor || v.id}" data-view="${v.id}">${hb('[')}${v.label}${hb(']')}</a>`).join('');
   }
 
   /* ---------- register rows ---------- */
-  function railLines(e) {
-    const L = [];
-    const line = (...f) => `<p class="rl">${f.map(([k, v]) => fld(k, v)).join('')}</p>`;
+  /* the row's own record: what the intake card says first. The expanded entry adds only what is not here. */
+  function recFields(e) {
     const r = refNo(e);
-    if (e.find) L.push('<p class="rl rl-find">Find of the week</p>');
+    const price = e.kind === 'edition' ? (e.status === 'Sold' ? 'Sold out' : `EUR ${e.price}`) : priceOf(e);
     switch (e.kind) {
-      case 'object': L.push(line(['From', esc(e.from)], ['Price', priceOf(e)]), line(['Received', fmtDate(e.date)], ['No.', e.no])); break;
-      case 'text': L.push(line(['By', esc(e.by)], ...(r ? [['Object', xref(r)]] : [])), line(['Length', wordsOf(e)], ['No.', e.no])); break;
-      case 'exhibition': L.push(line(['Dates', fmtRange(e.opens, e.closes)]), line(['Status', statusOf(e)], ['No.', e.no])); break;
-      case 'talk': L.push(line(['With', esc(e.with)]), line(['On', fmtWhen(e.when)]), line(['Status', statusOf(e)], ['No.', e.no])); break;
-      case 'edition': L.push(line(['Run', e.run], ['Price', e.status === 'Sold' ? 'Sold out' : `EUR ${e.price}`]), line(['Printed', e.printed], ['No.', e.no])); break;
+      case 'object': return [[['No.', e.no], ['Received', fmtDate(e.date)]], [['From', esc(e.from)], ['Price', price]]];
+      case 'text': return [[['No.', e.no], ['Length', wordsOf(e)]], [['By', esc(e.by)], ...(r ? [['Object', xref(r, true)]] : [])]];
+      case 'exhibition': return [[['No.', e.no], ['Status', statusOf(e)]], [['Dates', fmtRange(e.opens, e.closes)]]];
+      case 'talk': return [[['No.', e.no], ['On', fmtWhen(e.when)]], [['With', esc(e.with)], ['Status', statusOf(e)]]];
+      case 'edition': return [[['No.', e.no], ['Printed', e.printed]], [['Run', e.run], ['Price', price]]];
     }
+    return [];
+  }
+  /* desktop: a small card after the object, two lines (three for the find of the week) */
+  function recLines(e) {
+    const L = recFields(e).map(f => `<p class="rl">${f.map(([k, v]) => fld(k, v)).join('')}</p>`);
+    if (e.find) L.unshift('<p class="rl rl-find">Find of the week</p>');
     return L.join('');
   }
+  /* phone: the same fields as one line above the sentence, most telling first; whole fields only */
+  const PHONE_ORDER = { object: ['No.', 'Price', 'From', 'Received'], text: ['No.', 'By', 'Length', 'Object'], exhibition: ['No.', 'Status', 'Dates'], talk: ['No.', 'Status', 'On', 'With'], edition: ['No.', 'Price', 'Run', 'Printed'] };
   function railFlat(e) {
-    const F = [['No.', e.no]];
-    switch (e.kind) {
-      case 'object': F.push(['Price', priceOf(e)], ['From', esc(e.from)], ['Received', fmtDate(e.date)]); break;
-      case 'text': F.push(['By', esc(e.by)], ['Length', wordsOf(e)]); break;
-      case 'exhibition': F.push(['Status', statusOf(e)], ['Dates', fmtRange(e.opens, e.closes)]); break;
-      case 'talk': F.push(['Status', statusOf(e)], ['On', fmtWhen(e.when)], ['With', esc(e.with)]); break;
-      case 'edition': F.push(['Price', e.status === 'Sold' ? 'Sold out' : `EUR ${e.price}`], ['Run', e.run], ['Printed', e.printed]); break;
-    }
-    const out = F.map(([k, v]) => fld(k, v));
-    if (e.find) out.splice(1, 0, '<span class="f rl-find">Find of the week</span>');
+    const all = recFields(e).flat();
+    const out = (PHONE_ORDER[e.kind] || []).map(k => all.find(f => f[0] === k)).filter(Boolean).map(([k, v]) => fld(k, v));
+    if (e.find) out.unshift('<span class="f rl-find">Find of the week</span>');
     return out.join('');
   }
   function rowHTML(e, i) {
@@ -740,9 +765,12 @@ const DATA = {
     return `<li class="entry" id="e-${e.no}" data-no="${e.no}" style="--i:${Math.min(i, 12)}">
 <div class="entry-in">
 <div class="row${e.find ? ' is-find' : ''}${spent ? ' is-spent' : ''}">
-<div class="rail">${railLines(e)}</div>
 <p class="rail-m">${railFlat(e)}</p>
-<h2 class="line">${own ? `<img class="thumb" src="${src}" alt="${alt}" width="96" height="96" decoding="async">` : ''}<button class="sent" type="button" id="b-${e.no}" aria-expanded="false" aria-controls="p-${e.no}"><span class="track"><span class="txt">${esc(e.text)}</span><img class="end" src="${src}" alt="${alt}" width="160" height="160" decoding="async"></span></button></h2>
+<div class="strip">${own ? `<img class="thumb" src="${src}" alt="${alt}" width="96" height="96" decoding="async">` : ''}<div class="clip"><div class="track">
+<h2 class="line"><button class="sent" type="button" id="b-${e.no}" aria-expanded="false" aria-controls="p-${e.no}"><span class="txt">${esc(e.text)}</span></button></h2>
+<img class="end" src="${src}" alt="${alt}" width="160" height="160" decoding="async">
+<div class="rec">${recLines(e)}</div>
+</div></div></div>
 </div>
 <div class="panel" id="p-${e.no}" role="region" aria-labelledby="b-${e.no}"><div class="panel-in"></div></div>
 </div>
@@ -751,17 +779,20 @@ const DATA = {
 
   /* ---------- expanded entry ---------- */
   const reserved = new Set();
+  /* the rest of the intake record: only fields the row's own record does not already show
+     (non-object entries name their object in the photograph's caption) */
   function recordLines(e) {
-    const R = [['No.', e.no]];
-    const r = refNo(e);
+    const R = [];
     const c = catOf(e);
     switch (e.kind) {
       case 'object':
-        R.push(['Received', fmtDate(e.date)], ['From', esc(e.from)], ['Found by', esc(e.foundBy)], ['Material', esc(e.material)], ['Size', esc(e.size)], ['Category', c], ['Status', e.status], ['Price', e.status === 'Available' ? `EUR ${e.price}` : e.status === 'Sold' ? `Sold, EUR ${e.price}` : 'Not for sale while on loan']); break;
-      case 'text': R.push(['Filed', fmtDate(e.date)], ['By', esc(e.by)], ['Length', wordsOf(e)]); if (r) R.push(['Object', xref(r)]); if (c) R.push(['Category', c]); break;
-      case 'exhibition': R.push(['Dates', fmtRange(e.opens, e.closes)], ['Where', esc(e.where)], ['Status', statusOf(e)]); if (r) R.push(['Object', xref(r)]); break;
-      case 'talk': R.push(['On', fmtWhen(e.when)], ['With', esc(e.with)], ['At', esc(e.at)], ['Status', statusOf(e)]); if (r) R.push(['Object', xref(r)]); break;
-      case 'edition': R.push(['Printed', e.printed], ['Run', e.run], ['Price', `EUR ${e.price}`], ['Status', e.status === 'Sold' ? 'Sold out' : e.status]); if (r) R.push(['Object', xref(r)]); break;
+        R.push(['Found by', esc(e.foundBy)], ['Material', esc(e.material)], ['Size', esc(e.size)], ['Category', c]);
+        if (e.status === 'Sold') R.push(['Sold for', `EUR ${e.price}`]);
+        break;
+      case 'text': R.push(['Filed', fmtDate(e.date)]); if (c) R.push(['Category', c]); break;
+      case 'exhibition': R.push(['Where', esc(e.where)]); break;
+      case 'talk': R.push(['At', esc(e.at)]); break;
+      case 'edition': if (c) R.push(['Category', c]); break;
     }
     if (e.files && e.files.length) R.push(['Files', e.files.map(f => '.' + f).join(' ')]);
     return R.map(([k, v]) => `<p class="rl">${fld(k, v)}</p>`).join('');
@@ -794,7 +825,8 @@ const DATA = {
       : `<figure class="ph"><img src="${src}" alt="${esc(o.alt || '')}" loading="lazy" decoding="async"><figcaption>${o.no && o.no !== e.no ? `Object ${br(xref(o.no))}` : 'From the register'}</figcaption></figure>
          <figure class="ph"><div class="crop" role="img" aria-label="Detail: ${esc(o.detail || '')}" style="background-image:url('${src}');background-position:${cropPos(o.focus || [50, 50])}"></div><figcaption>Detail: ${esc(o.detail || '')}</figcaption></figure>`;
     const act = actionHTML(e);
-    return `<div class="pgrid"><div class="prec">${recordLines(e)}</div><div class="pbody">${figs}<div class="ptext">${e.story.map(p => `<p>${esc(p)}</p>`).join('')}${act ? `<p class="act" aria-live="polite">${act}</p>` : ''}</div></div></div>`;
+    const rec = recordLines(e);
+    return `<div class="pgrid">${figs}<div class="ptext">${e.story.map(p => `<p>${esc(p)}</p>`).join('')}${act ? `<p class="act" aria-live="polite">${act}</p>` : ''}</div>${rec ? `<div class="prec">${rec}</div>` : ''}</div>`;
   }
 
   /* ---------- colophon ---------- */
@@ -808,12 +840,13 @@ const DATA = {
       return `<span class="${d === wd ? 'is-today' : ''}">${DAYS[d]}</span><span class="${d === wd ? 'is-today' : ''}">${val}${d === wd ? ' ' + br('today') : ''}</span>`;
     }).join('');
     const C = DATA.colophon;
-    const crow = (rail, title, body) => `<div class="crow"><div class="rail">${rail}</div><h2 class="ctitle">${title}</h2><div class="cbody">${body}</div></div>`;
+    /* each colophon entry is written like a register row: the title, then its record on the baseline */
+    const crow = (k, v, title, body) => `<div class="crow"><p class="rail-m">${fld(k, v)}</p><div class="chead"><h2 class="ctitle">${title}</h2><div class="rec"><p class="rl">${fld(k, v)}</p></div></div><div class="cbody">${body}</div></div>`;
     $('#about').innerHTML =
-      crow(`<p class="rl">${fld('Desk', esc(DATA.office.address.split(',')[0]))}</p>`, 'How to bring us an object', C.bring.map(s => `<p>${esc(s)}</p>`).join('')) +
-      crow(`<p class="rl">${fld('Today', officeLine())}</p>`, 'Opening hours', `<div class="hours">${hours}</div>`) +
-      crow(`<p class="rl">${fld('Editions', ENTRIES.filter(e => e.kind === 'edition').length)}</p>`, 'Stockists', `<div class="stock">${C.stockists.map(([n, w]) => `<p>${esc(n)}: ${esc(w)}</p>`).join('')}</div>`) +
-      crow(`<p class="rl">${fld('KvK', DATA.office.kvk)}</p>`, 'Imprint', `<p>${esc(DATA.office.name)}, ${esc(DATA.office.address)}. Write to <a href="mailto:${DATA.office.email}">${DATA.office.email}</a>.</p>${C.imprint.map(s => `<p>${esc(s)}</p>`).join('')}`);
+      crow('Desk', esc(DATA.office.address.split(',')[0]), 'How to bring us an object', C.bring.map(s => `<p>${esc(s)}</p>`).join('')) +
+      crow('Today', officeLine(), 'Opening hours', `<div class="hours">${hours}</div>`) +
+      crow('Editions', ENTRIES.filter(e => e.kind === 'edition').length, 'Stockists', `<div class="stock">${C.stockists.map(([n, w]) => `<p>${esc(n)}: ${esc(w)}</p>`).join('')}</div>`) +
+      crow('KvK', DATA.office.kvk, 'Imprint', `<p>${esc(DATA.office.name)}, ${esc(DATA.office.address)}. Write to <a href="mailto:${DATA.office.email}">${DATA.office.email}</a>.</p>${C.imprint.map(s => `<p>${esc(s)}</p>`).join('')}`);
   }
 
   /* ---------- filters ---------- */
@@ -860,7 +893,7 @@ const DATA = {
   const ORDER = [];
   list.querySelectorAll('.entry').forEach(li => {
     const no = li.dataset.no;
-    const r = { no, li, e: ENTRIES.find(x => x.no === no), row: $('.row', li), btn: $('.sent', li), track: $('.track', li), panel: $('.panel-in', li) };
+    const r = { no, li, e: ENTRIES.find(x => x.no === no), row: $('.row', li), btn: $('.sent', li), txt: $('.txt', li), clip: $('.clip', li), track: $('.track', li), rec: $('.rec', li), panel: $('.panel-in', li) };
     r.panel.parentElement.inert = true;
     ROWS[no] = r; ORDER.push(r);
   });
@@ -868,25 +901,68 @@ const DATA = {
   const FIND = ORDER.find(r => r.e.find) || null;
 
   /* ---------- measuring the overflow ---------- */
-  const gutter = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--g')) || 24;
-  const speed = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--speed')) || 1200;
-  function endX(r) { return Math.min(0, Math.round(r.btn.clientWidth - gutter() - r.track.offsetWidth)); }
+  const PHONE = matchMedia('(max-width: 760px)');
+  const cssNum = (k, d) => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(k)) || d;
+  const gutter = () => cssNum('--g', 24);
+  const speed = () => cssNum('--speed', 1100);
+  /* the offset that brings the end of the strip (sentence, object, record) to the right gutter */
+  function endX(r) { return Math.min(0, Math.round(r.clip.clientWidth - gutter() - r.track.offsetWidth)); }
+  /* the find of the week sits at its end. On a phone, where the strip is clipped at the gutter, the
+     visible part also starts on a whole word: the first word start that still lets the end fit. */
+  function findX(r) {
+    const x = endX(r);
+    if (!PHONE.matches || x === 0) return x;
+    const node = r.txt.firstChild; const t = node.textContent;
+    const base = r.track.getBoundingClientRect().left;
+    const range = document.createRange();
+    for (let i = 1; i < t.length; i++) {
+      if (t[i - 1] !== ' ' || t[i] === ' ') continue;
+      range.setStart(node, i); range.setEnd(node, i + 1);
+      const p = range.getBoundingClientRect().left - base;
+      if (p >= -x - 0.5) return -Math.round(p);
+    }
+    return x;
+  }
   function setX(r, x, ms, ease) {
     r.track.style.transition = ms ? `transform ${ms}ms ${ease}` : 'none';
     r.track.style.transform = x ? `translate3d(${x}px,0,0)` : '';
     r.x = x;
   }
+  function currentX(r) {
+    const t = getComputedStyle(r.track).transform;
+    if (!t || t === 'none') return 0;
+    try { return new DOMMatrixReadOnly(t).m41; } catch (_) { return r.x || 0; }
+  }
+  /* the hover read: linear at reading speed, then the last 300px land on the object and its record
+     (a cubic ease-out whose opening speed matches the linear part, so there is no jolt) */
+  const LINEAR_EASE = !!(window.CSS && CSS.supports && CSS.supports('transition-timing-function', 'linear(0, 0.5 50%, 1)'));
+  function slideTo(r, x) {
+    const D = Math.abs(x - currentX(r));
+    if (D < 1) { setX(r, x, 0); return; }
+    if (!LINEAR_EASE) { setX(r, x, Math.max(220, Math.round(D / 700 * 1000)), 'linear'); return; }
+    const v = speed() / 1000;                 /* px per ms */
+    const land = Math.min(D, 300);
+    const t1 = (D - land) / v, t2 = 3 * land / v, T = t1 + t2;
+    const pts = ['0'];
+    if (t1 > 0) pts.push(`${((D - land) / D).toFixed(4)} ${(t1 / T * 100).toFixed(2)}%`);
+    for (let k = 1; k <= 10; k++) {
+      const u = k / 10;
+      pts.push(`${((D - land + land * (1 - Math.pow(1 - u, 3))) / D).toFixed(4)} ${((t1 + u * t2) / T * 100).toFixed(2)}%`);
+    }
+    setX(r, x, Math.round(T), `linear(${pts.join(', ')})`);
+  }
   let findPlaced = false;
   function placeFind(animate) {
     if (!FIND || state.open === FIND.no) return;
-    const x = endX(FIND);
+    const x = findX(FIND);
     if (!animate || RM.matches) { setX(FIND, x, 0); findPlaced = true; return; }
     setX(FIND, 0, 0);
     void FIND.track.offsetWidth;
     const wait = Math.max(0, 300 - (performance.now() - T0));
-    setTimeout(() => { setX(FIND, endX(FIND), 1100, 'cubic-bezier(.16,1,.3,1)'); findPlaced = true; }, wait);
+    setTimeout(() => { setX(FIND, findX(FIND), 1100, 'cubic-bezier(.16,1,.3,1)'); findPlaced = true; }, wait);
   }
-  const homeX = r => (r === FIND ? endX(r) : 0);
+  const homeX = r => (r === FIND ? findX(r) : 0);
+  const reFind = () => { if (FIND && state.open !== FIND.no) setX(FIND, findX(FIND), 0); };
 
   /* ---------- hover: the band, and the sentence read to its end ---------- */
   ORDER.forEach(r => {
@@ -894,11 +970,7 @@ const DATA = {
       if (ev.pointerType !== 'mouse' || !HOVER.matches) return;
       r.row.classList.add('is-hot');
       if (RM.matches || state.open === r.no) return;
-      const x = endX(r);
-      const from = typeof r.x === 'number' ? r.x : 0;
-      const dist = Math.abs(x - from);
-      if (dist < 1) return;
-      setX(r, x, Math.max(220, Math.round(dist / speed() * 1000)), 'linear');
+      slideTo(r, r === FIND ? findX(r) : endX(r));
     });
     r.row.addEventListener('pointerleave', ev => {
       if (ev.pointerType !== 'mouse') return;
@@ -919,6 +991,9 @@ const DATA = {
     r.li.classList.add('is-open');
     r.panel.parentElement.inert = false;
     r.btn.setAttribute('aria-expanded', 'true');
+    r.li.querySelectorAll('[data-rowlink]').forEach(a => a.removeAttribute('tabindex'));
+    /* the rest of the record lines up under the row's own record */
+    if (r.rec) r.panel.style.setProperty('--recw', Math.ceil(r.rec.getBoundingClientRect().width) + 'px');
     r.x = 0;
     state.open = no;
     writeHash();
@@ -930,9 +1005,10 @@ const DATA = {
     r.li.classList.remove('is-open');
     r.panel.parentElement.inert = true;
     r.btn.setAttribute('aria-expanded', 'false');
+    r.li.querySelectorAll('[data-rowlink]').forEach(a => a.setAttribute('tabindex', '-1'));
     if (state.open === no) state.open = null;
     setX(r, 0, 0);
-    if (r === FIND) requestAnimationFrame(() => setX(FIND, endX(FIND), 0));
+    if (r === FIND) requestAnimationFrame(reFind);
     if (!quiet) writeHash();
     if (focus) r.btn.focus();
   }
@@ -987,7 +1063,7 @@ const DATA = {
     counts.n = n;
     renderCount();
     writeHash();
-    if (FIND && !first) requestAnimationFrame(() => { if (state.open !== FIND.no) setX(FIND, endX(FIND), 0); });
+    if (FIND && !first) requestAnimationFrame(reFind);
     setTimeout(updateAt, first ? 0 : 140);
   }
   const counts = { n: ENTRIES.length, at: ENTRIES[0].no };
@@ -1040,11 +1116,11 @@ const DATA = {
   let fontsDone = false;
   const afterFonts = () => {
     if (fontsDone) return; fontsDone = true;
-    placeFind(performance.now() - T0 < 1600);
+    placeFind(performance.now() - T0 < 1250);   /* late fonts: place instantly, so the frame is settled by 2.4s */
   };
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(afterFonts);
-    document.fonts.addEventListener && document.fonts.addEventListener('loadingdone', () => { if (fontsDone && FIND && state.open !== FIND.no) setX(FIND, endX(FIND), 0); });
+    document.fonts.addEventListener && document.fonts.addEventListener('loadingdone', () => { if (fontsDone) reFind(); });
     setTimeout(afterFonts, 2000);
   } else { afterFonts(); }
 
@@ -1053,12 +1129,12 @@ const DATA = {
     clearTimeout(rz);
     rz = setTimeout(() => {
       ORDER.forEach(r => { r.row.classList.remove('is-hot'); if (r !== FIND && state.open !== r.no) setX(r, 0, 0); });
-      if (FIND && state.open !== FIND.no) setX(FIND, endX(FIND), 0);
+      reFind();
       updateAt();
     }, 120);
   });
-  RM.addEventListener && RM.addEventListener('change', () => { if (FIND && state.open !== FIND.no) setX(FIND, endX(FIND), 0); });
-  setInterval(() => { const o = $('#deskState .f:last-child .v'); if (o) o.innerHTML = `<span class="bk">[</span>${officeLine()}<span class="bk">]</span>`; }, 60000);
+  RM.addEventListener && RM.addEventListener('change', reFind);
+  setInterval(() => { const o = $('#deskOffice .v'); if (o) o.innerHTML = `<span class="bk">[</span>${officeLine()}<span class="bk">]</span>`; }, 60000);
 })();
 </script>
 </body>

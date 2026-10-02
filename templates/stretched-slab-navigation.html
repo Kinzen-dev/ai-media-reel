@@ -408,6 +408,15 @@
       gap: var(--pad);
       height: 100%;
     }
+    /* the reel writes itself in only once the monitor has left its column, and a row only once the
+       sinking words have cleared it: a row is whole or absent, never half under an edge. The credit line
+       cuts in first and the title stretches out of it, toward the monitor it follows. */
+    .films .film-title .fit { transform: scaleX(0); transform-origin: 100% 50%; }
+    .films .film-meta { opacity: 0; }
+    .films li:not(.is-in) .film { pointer-events: none; background: var(--paper); color: var(--slab); }
+    .films li.is-in .film-title .fit { transform: none; transition: transform 380ms var(--ease) var(--rd, 0ms); }
+    .films li.is-in .film-meta { opacity: 1; transition: opacity 0s linear var(--rd, 0ms); }
+    .viewer .is-cut { visibility: hidden; }
 
     /* studio opens as its own chapter: a clear breath after the reel, copy and lists sharing one top line */
     #studio {
@@ -472,6 +481,10 @@
     }
     .film { scroll-margin-top: calc(var(--monH) + 28px); scroll-margin-bottom: 64px; }
     .film-meta { flex-basis: 112px; padding: 4px 4px 3px 10px; font-size: 11px; line-height: 1.25; }
+    /* nothing slides half under an edge: words and rows squash into the monitor and grow out of the strips */
+    .films .film { transform-origin: 0 0; }
+    .m-word .fit, .reel-word .fit { transform-origin: 0 0; }
+    .films li.is-sq .film-meta { opacity: 0; }
 
     #studio { display: grid; gap: 40px; padding: 72px var(--pad) 0; }
     .st-copy p { font-size: 18px; line-height: 1.45; }
@@ -485,6 +498,7 @@
   @media (prefers-reduced-motion: reduce) {
     .ltr, .js:not(.go) .ltr, .go .ltr { animation: none !important; transform: none !important; }
     .slabs, .slabs.bar-on { transition: none !important; }
+    .films li.is-in .film-title .fit, .films li.is-in .film-meta { transition: none !important; }
     html { scroll-behavior: auto !important; }
   }
 </style>
@@ -779,8 +793,13 @@
   var GUT = 32, GAP = 20, BAR = 28, BARM = 22;
   var intro = true; /* the grade wipes in once at the entrance: the frame opens as pure log */
   var setv = function (k, v) { root.style.setProperty(k, v); };
+  /* the words squash over the whole first screen (p), but the monitor clears the reel column in its
+     first third (q), so the list can write itself in while the words are still sinking */
+  var Q_END = 0.3, q = 0, hSNow = 0;
+  var smooth = function (t) { return t * t * (3 - 2 * t); };
 
   function setStatic(force) {
+    modeSwitch();
     var w = root.clientWidth, h = window.innerHeight;
     /* phones: ignore toolbar collapse (height-only changes) so the stack never jumps */
     if (!force && MOB.matches && w === lastW && Math.abs(h - lastH) < 120) return;
@@ -814,9 +833,9 @@
   function apply() {
     if (MOB.matches) { paintWipe(); return; }
     var hS = wordsH + (48 - wordsH) * p;
-    var bw = Win + (lw - Win) * p;
-    var bh = bandH + (BAR * 2 + lw / 2.39 - bandH) * p;
-    bwNow = bw;
+    var bw = Win + (lw - Win) * q;
+    var bh = bandH + (BAR * 2 + lw / 2.39 - bandH) * q;
+    bwNow = bw; hSNow = hS;
     setv('--lw', lw.toFixed(2) + 'px');
     setv('--rw', (Win - lw).toFixed(2) + 'px');
     setv('--hS', hS.toFixed(2) + 'px');
@@ -825,13 +844,14 @@
     setv('--bw', bw.toFixed(2) + 'px');
     setv('--bh', bh.toFixed(2) + 'px');
     paintWipe();
+    gate();
   }
 
   var noLog = null, noGrade = null;
   function paintWipe() {
     var bw, wpx;
     if (MOB.matches) { bw = tile.clientWidth || Win; wpx = wx * bw; }
-    else { bw = bwNow || Win; wpx = lw + (wx * lw - lw) * p; }
+    else { bw = bwNow || Win; wpx = lw + (wx * lw - lw) * q; }
     viewer.style.setProperty('--wx', (bw ? clamp(wpx / bw, 0, 1) * 100 : 50).toFixed(3) + '%');
     viewer.style.setProperty('--swx', (wx * 100).toFixed(3) + '%');
     var nl = wpx < 52, ng = bw - wpx < 70;
@@ -861,13 +881,15 @@
   function onScroll() {
     var strips;
     if (MOB.matches) {
-      slabsEl.classList.toggle('bar-on', window.scrollY > 56);
+      strips = window.scrollY > 56;
+      if (strips !== slabsEl.classList.contains('bar-on')) { slabsEl.classList.toggle('bar-on', strips); barFollow(); }
       var r = viewerEl.getBoundingClientRect();
       viewerEl.classList.toggle('stuck', r.top <= 8.5 && window.scrollY > 8);
-      strips = window.scrollY > 56;
       root.classList.remove('is-hero');
+      squashM();
     } else {
       p = clamp(window.scrollY / D, 0, 1);
+      q = smooth(clamp(p / Q_END, 0, 1));
       strips = p > 0.97;
       slabsEl.classList.toggle('is-strips', strips);
       root.classList.toggle('is-hero', p < 0.02);
@@ -899,7 +921,7 @@
     else {
       var el = target || document.elementFromPoint(ptr.x, ptr.y);
       var onNav = el && el.closest && el.closest('.slab-btn');
-      var onBand = p < 0.5 && el && (el === slabsEl || (el.closest && el.closest('.tile')));
+      var onBand = q < 0.5 && el && (el === slabsEl || (el.closest && el.closest('.tile')));
       if (onBand) f = clamp((ptr.x - 8) / Win, 0.2, 0.8);
       else if (onNav) f = 0.68 - 0.36 * clamp(ptr.x / W, 0, 1);
       else if (p >= 1) f = 0.5;
@@ -1020,7 +1042,7 @@
       biClip.textContent = f.clip;
       biXf.textContent = f.log + ' to ' + DATA.display;
       biFps.textContent = f.fps;
-      biTc.textContent = f.tc;
+      tcLoad(f);
       pic.setAttribute('aria-label', f.title + ', ' + f.year + ': camera log left of the line, finished grade right of it');
       curHist = buildHist(im, url);
       markScope();
@@ -1041,6 +1063,7 @@
       r.classList.toggle('is-on', k === i);
       r.setAttribute('aria-pressed', k === i ? 'true' : 'false');
     });
+    bulgeTo(i);
     if (i < 0) {
       setStill(DATA.showreel.order[reelI]);
       note.textContent = restNote();
@@ -1083,7 +1106,7 @@
     if (RM.matches) return;
     var r = tile.getBoundingClientRect();
     var v = (e.clientX - r.left) / r.width;
-    if (!MOB.matches && p < 0.5) {
+    if (!MOB.matches && q < 0.5) {
       /* the band on a touch screen: the finger moves the wipe and the column boundary together */
       if (e.pointerType !== 'mouse') { lwT = Win * clamp(v, 0.2, 0.8); kick(); }
       return;
@@ -1097,7 +1120,7 @@
     tileDrag(e);
   });
   tile.addEventListener('pointermove', function (e) {
-    if (e.pointerType === 'mouse' ? (!MOB.matches && p < 0.5) : !dragging) return;
+    if (e.pointerType === 'mouse' ? (!MOB.matches && q < 0.5) : !dragging) return;
     tileDrag(e);
   });
   var endDrag = function () { dragging = false; };
@@ -1151,6 +1174,160 @@
     }
   });
 
+  /* ---------- desktop: a row is whole or absent ----------
+     The list stays hidden until the narrowing monitor has left the reel column; then each row
+     stretches in, in order, as soon as the sinking words have cleared it as well. The small text
+     in the left column (the note, the scope's figures) follows the same rule against the words. */
+  var rowLis = qsa('li', list);
+  var rowIn = rowLis.map(function () { return false; });
+  var gateText = [note, qs('.sc-hi', scope), qs('.sc-cap', scope), qs('.sc-lo', scope)];
+  var textCut = gateText.map(function () { return false; });
+  var revealAt = 0;
+  function gate() {
+    if (MOB.matches) return;
+    var n = rowLis.length, i, want = [], cut = [];
+    var edge = H - 8 - hSNow; /* top of the sinking words */
+    if (p >= 1) {
+      for (i = 0; i < n; i++) want[i] = true;
+      for (i = 0; i < gateText.length; i++) cut[i] = false;
+    } else {
+      var clear = q > 0.9 && tile.getBoundingClientRect().right <= list.getBoundingClientRect().left - 8;
+      for (i = 0; i < n; i++) want[i] = clear && rowLis[i].getBoundingClientRect().bottom <= edge - 6;
+      for (i = 0; i < gateText.length; i++) cut[i] = gateText[i].getBoundingClientRect().bottom > edge - 2;
+    }
+    var now = performance.now(), any = false;
+    for (i = 0; i < n; i++) {
+      if (want[i]) any = true;
+      if (want[i] === rowIn[i]) continue;
+      rowIn[i] = want[i];
+      if (want[i]) {
+        /* row by row: each reveal starts at least 70ms after the one above it */
+        var d = RM.matches ? 0 : Math.max(0, revealAt - now);
+        rowLis[i].style.setProperty('--rd', Math.round(d) + 'ms');
+        revealAt = now + d + 70;
+      }
+      rowLis[i].classList.toggle('is-in', want[i]);
+    }
+    if (!any) revealAt = 0;
+    for (i = 0; i < gateText.length; i++) {
+      if (cut[i] !== textCut[i]) { textCut[i] = cut[i]; gateText[i].classList.toggle('is-cut', cut[i]); }
+    }
+    if (active >= 0 && !rowIn[active]) show(-1);
+  }
+
+  /* ---------- the list answers the hand like the slabs: the row under it grows a fifth taller and
+     its neighbours squeeze to make the room. Fine pointers and keyboard focus only, never touch. ---------- */
+  var rowW = rowLis.map(function () { return 1; }), rowT = rowW.slice(), bulgeRaf = 0, bulgeLast = 0;
+  var KERN = [0, 1, 0.4, 0.12];
+  function bulgeTo(i) {
+    var n = rowT.length, j, sum = 0;
+    for (j = 0; j < n; j++) rowT[j] = 1;
+    if (i >= 0 && !MOB.matches && FINE.matches && !RM.matches) {
+      for (j = 0; j < n; j++) if (j !== i) sum += KERN[Math.abs(j - i)] || 0;
+      for (j = 0; j < n; j++) if (j !== i) rowT[j] = 1 - 0.2 * (KERN[Math.abs(j - i)] || 0) / (sum || 1);
+      rowT[i] = 1.2;
+    }
+    if (RM.matches || MOB.matches) { rowW = rowT.slice(); paintRows(); return; }
+    if (!bulgeRaf) { bulgeLast = performance.now(); bulgeRaf = requestAnimationFrame(bulgeStep); }
+  }
+  function bulgeStep(now) {
+    bulgeRaf = 0;
+    var dt = Math.min(64, Math.max(1, now - bulgeLast)), moving = false;
+    bulgeLast = now;
+    var a = 1 - Math.pow(1 - 0.16, dt / 16.67);
+    for (var j = 0; j < rowW.length; j++) {
+      var d = rowT[j] - rowW[j];
+      if (Math.abs(d) < 0.002) rowW[j] = rowT[j];
+      else { rowW[j] += d * a; moving = true; }
+    }
+    paintRows();
+    if (moving) bulgeRaf = requestAnimationFrame(bulgeStep);
+  }
+  function paintRows() {
+    var flat = MOB.matches || rowW.every(function (w) { return w === 1; });
+    list.style.gridTemplateRows = flat ? '' : rowW.map(function (w) { return 'minmax(0, ' + w.toFixed(4) + 'fr)'; }).join(' ');
+    if (!MOB.matches && p < 1) gate();
+  }
+
+  /* ---------- phone: nothing ever sits half under an edge. The words and the rows squash into the
+     monitor as they reach it and grow out of the strips; a credit line shows only while its row is whole. ---------- */
+  var sq = qsa('.m-word, .reel-word').map(function (el) { return { box: el, t: qs('.fit', el), row: false, tf: '', cut: false }; })
+    .concat(rowLis.map(function (li) { return { box: li, t: qs('.film', li), row: true, tf: '', cut: false }; }));
+  function squashM() {
+    if (!MOB.matches) return;
+    var vr = viewer.getBoundingClientRect();
+    var top = vr.bottom + (viewer.classList.contains('stuck') ? 8 : 0);
+    var bot = Math.min(window.innerHeight, slabsEl.getBoundingClientRect().top);
+    var rs = sq.map(function (s) { return s.box.getBoundingClientRect(); });
+    sq.forEach(function (s, i) {
+      var r = rs[i], h = r.height || 1;
+      var a = clamp(top - r.top, 0, h), v = h - a - clamp(r.bottom - bot, 0, h);
+      var tf = v > h - 0.5 ? '' : v < 3 ? 'scaleY(0)' : 'translateY(' + a.toFixed(1) + 'px) scaleY(' + (v / h).toFixed(4) + ')';
+      if (tf !== s.tf) { s.tf = tf; s.t.style.transform = tf; }
+      if (s.row && (tf !== '') !== s.cut) { s.cut = tf !== ''; s.box.classList.toggle('is-sq', s.cut); }
+    });
+  }
+  function unsquash() {
+    sq.forEach(function (s) { s.tf = ''; s.t.style.transform = ''; s.cut = false; s.box.classList.remove('is-sq'); });
+  }
+  /* the strips slide in and out over a quarter second: rows track the moving edge, not only the scroll */
+  var followRaf = 0, followEnd = 0;
+  function barFollow() {
+    followEnd = performance.now() + 320;
+    if (followRaf) return;
+    followRaf = requestAnimationFrame(function f(now) {
+      squashM();
+      followRaf = now < followEnd ? requestAnimationFrame(f) : 0;
+    });
+  }
+  var lastMob = null;
+  function modeSwitch() {
+    var m = MOB.matches;
+    if (m === lastMob) return;
+    lastMob = m;
+    if (m) { rowW = rowW.map(function () { return 1; }); rowT = rowW.slice(); paintRows(); }
+    else unsquash();
+  }
+
+  /* ---------- the burn-in timecode runs at the clip's own rate while the monitor is on screen, so the
+     band reads as playback; a hidden page parks it, reduced motion holds the clip's first frame ---------- */
+  var TC = { n0: 0, n: -1, base: 24, rate: 24, t0: 0, raf: 0 };
+  var pad2 = function (v) { return v < 10 ? '0' + v : '' + v; };
+  function tcPaint(n) {
+    if (n === TC.n) return;
+    TC.n = n;
+    var b = TC.base, day = 86400 * b;
+    n = ((n % day) + day) % day;
+    var ff = n % b, s = (n - ff) / b;
+    biTc.textContent = pad2(Math.floor(s / 3600)) + ':' + pad2(Math.floor(s / 60) % 60) + ':' + pad2(s % 60) + ':' + pad2(ff);
+  }
+  function tcLoad(f) {
+    TC.rate = parseFloat(f.fps) || 24;
+    TC.base = Math.round(TC.rate); /* 23.976 counts 24 frames to the timecode second, non-drop */
+    var a = String(f.tc).split(':');
+    TC.n0 = (((+a[0]) * 60 + (+a[1])) * 60 + (+a[2])) * TC.base + (+a[3]);
+    TC.t0 = performance.now();
+    TC.n = -1;
+    tcPaint(TC.n0);
+  }
+  function tcTick(now) {
+    TC.raf = requestAnimationFrame(tcTick);
+    var n = TC.n0 + Math.floor(Math.max(0, now - TC.t0) * TC.rate / 1000);
+    if (n > TC.n) tcPaint(n); /* playback only runs forward */
+  }
+  function tcSync() {
+    var run = inView && !document.hidden && !RM.matches;
+    if (run && !TC.raf) {
+      /* resume on the frame that is on screen, never jump */
+      TC.t0 = performance.now() - (Math.max(0, TC.n - TC.n0) + 0.5) * 1000 / TC.rate;
+      TC.raf = requestAnimationFrame(tcTick);
+    } else if (!run && TC.raf) {
+      cancelAnimationFrame(TC.raf);
+      TC.raf = 0;
+    }
+    if (RM.matches) tcPaint(TC.n0);
+  }
+
   /* stills load one at a time, only once the reel is near */
   var preloaded = false;
   function preloadStills() {
@@ -1200,9 +1377,9 @@
     else if (reelT) { clearTimeout(reelT); reelT = 0; }
   }
   if ('IntersectionObserver' in window) {
-    new IntersectionObserver(function (es) { inView = es[0].isIntersecting; syncVideo(); }, { threshold: 0.2 }).observe(tile);
+    new IntersectionObserver(function (es) { inView = es[0].isIntersecting; syncVideo(); tcSync(); }, { threshold: 0.2 }).observe(tile);
   }
-  document.addEventListener('visibilitychange', syncVideo);
+  document.addEventListener('visibilitychange', function () { syncVideo(); tcSync(); });
 
   /* ---------- slab links scroll to their section ---------- */
   function goTo(id) {
@@ -1228,9 +1405,9 @@
   setStatic(true);
   fitAll();
   setStill(DATA.showreel.order[0]);
-  [MOB, RM, FINE].forEach(function (q) {
-    var h = function () { setStatic(true); note.textContent = active < 0 ? restNote() : note.textContent; syncVideo(); sizeScope(); markScope(); };
-    if (q.addEventListener) q.addEventListener('change', h); else if (q.addListener) q.addListener(h);
+  [MOB, RM, FINE].forEach(function (mq) {
+    var h = function () { setStatic(true); note.textContent = active < 0 ? restNote() : note.textContent; syncVideo(); tcSync(); bulgeTo(active); sizeScope(); markScope(); };
+    if (mq.addEventListener) mq.addEventListener('change', h); else if (mq.addListener) mq.addListener(h);
   });
 
   /* entrance: the frame opens as flat log and the grade wipes in to the boundary while the words grow */

@@ -1,0 +1,1462 @@
+<!-- TEMPLATE: Nordwind | ARCHETYPE: Hairline cell ledger with a live 1-bit dither (the viewport is a ruled table; the hero's cell rules are the graticule of a routing chart, and the only image is a Bayer-dithered cyclone plotted on it with its forecast cone, the direct track and the track sent) | REF: aspensearch.com (Awwwards SOTD Sep 2026), Sharplink (Studio Freight), Lama Lama (Awwwards SOTM Jul 2026) | WHEN TO USE: a technical services firm whose proof is data and people (routing, search, risk, logistics, research desks) and that wants one owned procedural graphic instead of photography | SWAP: edit the DATA object at top of the script (copy, voyages, and the chart scene in latitude and longitude) -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nordwind - Weather routing for ocean freight</title>
+<meta name="description" content="Nordwind routes ocean freight around the weather. Forecasters and ensemble models plan every passage so ships burn less fuel and crews stay out of the storm.">
+<meta name="theme-color" content="#FFFFFF">
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+<link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
+<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=switzer@1&amp;display=swap">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&amp;display=swap">
+<script>
+/* Mode flags before first paint. Without script the page renders in its settled state. */
+(function (d) {
+  var r = d.documentElement, c = r.classList;
+  c.add('js');
+  c.add(matchMedia('(prefers-reduced-motion: reduce)').matches ? 'rm' : 'intro');
+  try { var t = localStorage.getItem('nordwind-theme'); if (t === 'dark' || t === 'light') r.setAttribute('data-theme', t); } catch (e) {}
+})(document);
+</script>
+<style>
+:root {
+  --paper: #FFFFFF;
+  --ink: #1E1F21;
+  --ink-2: #5E5F62;
+  --sodium: #FF6A1A;
+  --on-sodium: #1E1F21;
+  --rule: #1E1F21;
+  --fill: #1E1F21;
+  --on-fill: #FFFFFF;
+  --on-fill-2: #B9BAB8;
+  --hh: 60px;
+  --pad: 20px;
+  --expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --sans: 'Switzer', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  color-scheme: light;
+}
+/* night chart: the bridge palette */
+html[data-theme="dark"] {
+  --paper: #1E1F21;
+  --ink: #FFFFFF;
+  --ink-2: #A9AAAD;
+  --rule: #5C5E62;
+  --fill: #D8D8D6;
+  --on-fill: #1E1F21;
+  --on-fill-2: #4A4B4E;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html {
+  background: var(--paper);
+  scrollbar-color: var(--ink) var(--paper);
+  scrollbar-width: thin;
+  -webkit-text-size-adjust: 100%;
+}
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: var(--paper); }
+::-webkit-scrollbar-thumb { background: var(--ink); border: 2px solid var(--paper); }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 460 16px/1.3 var(--sans);
+  letter-spacing: -0.01em;
+  font-kerning: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  caret-color: var(--sodium);
+}
+::selection { background: var(--sodium); color: #1E1F21; }
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--sodium); outline-offset: -2px; }
+a { color: inherit; text-decoration: none; }
+p, h1, h2, h3, ul, ol, dl, dd, blockquote, figure { margin: 0; padding: 0; }
+ul, ol { list-style: none; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; border-radius: 0; }
+h1, h2, h3, .bal { text-wrap: balance; }
+p { text-wrap: pretty; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+svg { display: block; }
+a svg, button svg { pointer-events: none; }
+
+/* ---------- the cell: every surface is one, ruled by real 1px borders ---------- */
+.cell {
+  position: relative;
+  min-width: 0;
+  border-right: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: var(--pad);
+}
+.cell.er { border-right: 0; }
+
+/* the label voice: 12px mono capitals; the 8px sodium square only where something is live */
+.lbl {
+  display: flex; align-items: center; gap: 10px;
+  font: 500 12px/1.3 var(--mono);
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+.lbl.live::before { content: ''; flex: none; width: 8px; height: 8px; background: var(--sodium); }
+.mono { font: 500 12px/1.3 var(--mono); letter-spacing: 0.045em; text-transform: uppercase; font-variant-numeric: tabular-nums; }
+.t28 { font-size: 28px; line-height: 1.2; letter-spacing: -0.022em; font-weight: 480; }
+
+/* a filled cell: the fill wipes in and can flip */
+.flip { padding: 0; }
+.flip > .fill {
+  position: relative; height: 100%;
+  padding: var(--pad);
+  background: var(--fill); color: var(--on-fill);
+  clip-path: inset(0 0 0 0);
+  transition: clip-path 640ms var(--expo), background-color 160ms ease-out, color 160ms ease-out;
+}
+
+/* ---------- one graticule of six columns: header, hero and chart share it ---------- */
+.hdr, .hero {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(5, round(down, 16.6667%, 1px)) minmax(0, 1fr);
+}
+
+/* ---------- header: time box, index, desk line ---------- */
+.hdr {
+  position: sticky; top: 0; z-index: 30;
+  height: var(--hh);
+  background: var(--paper);
+}
+.hdr > .cell { padding: 0 var(--pad); display: flex; align-items: center; }
+.tbox { grid-column: 1 / 3; gap: 14px; }
+.mark { flex: none; display: block; width: 38px; height: 38px; margin-left: -6px; color: var(--ink); }
+.mark svg { width: 38px; height: 38px; }
+.flap { display: inline-flex; letter-spacing: 0; perspective: 160px; }
+.slot { display: inline-block; width: 1.08ch; text-align: center; transform-origin: 50% 50%; backface-visibility: hidden; }
+.slot.f { animation: flapk 120ms linear; }
+@keyframes flapk { 0% { transform: rotateX(0); } 50% { transform: rotateX(84deg); } 100% { transform: rotateX(0); } }
+.utc { color: var(--ink-2); white-space: nowrap; }
+.pal {
+  margin-left: auto; white-space: nowrap; font-size: 16px;
+  text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 6px;
+  text-decoration-color: color-mix(in srgb, currentColor 30%, transparent);
+  transition: text-decoration-color 120ms ease-out;
+}
+.pal:hover { text-decoration-color: var(--sodium); text-decoration-thickness: 2px; transition-duration: 180ms; }
+.pal[aria-pressed="true"] { text-decoration-color: var(--sodium); text-decoration-thickness: 2px; }
+.nav { grid-column: 3 / 6; justify-content: space-between; gap: 16px; }
+.nav a {
+  position: relative; white-space: nowrap;
+  text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 7px;
+  text-decoration-color: transparent;
+  transition: text-decoration-color 120ms ease-out;
+}
+.nav a:hover { text-decoration-color: var(--sodium); transition-duration: 180ms; }
+.nav a::before {
+  content: ''; position: absolute; left: -14px; top: 50%; width: 8px; height: 8px; margin-top: -4px;
+  background: var(--sodium); transform: scale(0); transition: transform 160ms var(--expo);
+}
+.nav a.on::before { transform: scale(1); }
+.desk {
+  grid-column: 6 / 7;
+  flex-direction: column; align-items: flex-start !important; justify-content: center; gap: 4px;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+.desk > * { pointer-events: none; }
+.desk .dnum { font-size: 16px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.desk:hover { background: var(--fill); color: var(--on-fill); transition-duration: 180ms; }
+.menu { display: none !important; justify-content: space-between; gap: 12px; }
+.menu > * { pointer-events: none; }
+.menu svg { width: 20px; height: 20px; }
+.menu .bar { transition: transform 200ms var(--expo); transform-origin: 10px 10px; }
+.hdr.open .menu .b1 { transform: translateY(3px) rotate(45deg); }
+.hdr.open .menu .b2 { transform: translateY(-3px) rotate(-45deg); }
+.mnav { display: none; }
+
+/* ---------- hero: a routing chart ruled by the cells, then a title block ---------- */
+.hero {
+  position: relative;
+  grid-template-rows: 280px 280px 280px;
+  grid-template-rows: max(200px, round(down, calc((100svh - 60px) / 3), 1px)) max(200px, round(down, calc((100svh - 60px) / 3), 1px)) max(200px, calc(100svh - 60px - 2 * round(down, calc((100svh - 60px) / 3), 1px)));
+  grid-template-areas:
+    "adv k1 k2 k3 k4 k5"
+    "j0 j1 j2 j3 j4 snt"
+    "wrd wrd wrd wrd stm stm";
+}
+.adv { grid-area: adv; } .snt { grid-area: snt; } .wrd { grid-area: wrd; } .stm { grid-area: stm; } .wnd { grid-area: wnd; display: none; }
+.k1 { grid-area: k1; } .k2 { grid-area: k2; } .k3 { grid-area: k3; } .k4 { grid-area: k4; } .k5 { grid-area: k5; }
+.j0 { grid-area: j0; } .j1 { grid-area: j1; } .j2 { grid-area: j2; } .j3 { grid-area: j3; } .j4 { grid-area: j4; }
+.k5, .snt, .stm { border-right: 0; }
+
+/* layers: field canvas, graticule cells, plotted lines, solid cells, labels */
+.chart, .plot, .marks { grid-area: 1 / 1 / 3 / -1; position: relative; min-width: 0; min-height: 0; }
+.chart { z-index: 0; overflow: hidden; background: var(--paper); }
+.chart canvas { position: absolute; left: 0; top: 0; display: block; image-rendering: crisp-edges; image-rendering: pixelated; }
+.ch { z-index: 1; padding: 0; background: transparent; }
+.plot { z-index: 2; display: block; width: 100%; height: 100%; overflow: hidden; pointer-events: none; }
+.adv, .snt { z-index: 3; }
+.marks { z-index: 4; overflow: hidden; pointer-events: none; }
+
+.plot path { fill: none; stroke-linejoin: round; }
+.plot .halo { stroke: var(--paper); stroke-linecap: round; }
+.plot .h-cone { stroke-width: 6px; }
+.plot .cone { stroke: var(--ink); stroke-width: 1px; }
+.plot .h-ctr { stroke-width: 4px; }
+.plot .ctr { stroke: var(--ink); stroke-width: 1px; }
+.plot .h-dir { stroke-width: 9px; }
+.plot .dir { stroke: var(--ink); stroke-width: 3px; stroke-linecap: round; stroke-dasharray: 0 7px; }
+.plot .h-sent { stroke-width: 10px; }
+.plot .sent { stroke: var(--sodium); stroke-width: 3.5px; stroke-linecap: round; }
+.plot .fdot { fill: var(--ink); stroke: var(--paper); stroke-width: 2.5px; }
+.plot .port { fill: var(--ink); stroke: var(--paper); stroke-width: 2px; }
+.plot .wpt { fill: var(--paper); stroke: var(--ink); stroke-width: 1.5px; }
+
+.mk {
+  position: absolute; left: 0; top: 0;
+  padding: 3px 5px 2px;
+  background: var(--paper); color: var(--ink);
+  font: 500 12px/1 var(--mono); letter-spacing: 0.045em; text-transform: uppercase;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.mk.grat { color: var(--ink-2); }
+.mk[hidden] { display: none; }
+
+/* storm advisory: the graphite cell */
+.adv .fill { display: flex; flex-direction: column; justify-content: space-between; gap: 14px; }
+.adv-n { margin-top: 10px; }
+.adv-dl { display: grid; gap: 4px; }
+.adv-dl > div { display: grid; grid-template-columns: 76px minmax(0, 1fr); column-gap: 8px; }
+.adv-dl dt { color: var(--on-fill-2); }
+/* track sent: the one sodium cell, where the orange line arrives */
+.snt > .fill { background: var(--sodium); color: var(--on-sodium); display: flex; flex-direction: column; justify-content: space-between; gap: 14px; }
+.snt-v { margin: 8px 0 6px; }
+.snt-n { font-size: 16px; line-height: 1.3; }
+
+/* title block */
+.wrd { display: flex; flex-direction: column; justify-content: space-between; padding-bottom: 14px; overflow: hidden; }
+.sheet { display: flex; flex-wrap: wrap; gap: 4px 28px; color: var(--ink-2); }
+.wm {
+  font-weight: 500;
+  font-size: min(180px, calc((66.6667vw - 44px) / 5.4), calc((100svh - 60px) / 3 * 0.62));
+  line-height: 0.92;
+  letter-spacing: -0.04em;
+  margin-left: -0.05em;
+}
+.wm .ln { display: block; overflow: hidden; }
+.wm .ln > span { display: block; }
+.stm { display: flex; flex-direction: column; justify-content: space-between; gap: 20px; }
+.stm .t28 { max-width: 16em; }
+
+/* entrance: rules draw from the top-left, the storm develops (canvas), cells fill, the plot is drawn */
+html.intro .hdr > .cell::before, html.intro .hero > .cell::before {
+  content: ''; position: absolute; z-index: 6; pointer-events: none;
+  top: 0; right: -1px; width: 1px; height: calc(100% + 1px);
+  background: var(--paper); transform-origin: 50% 100%;
+  animation: unY 600ms var(--expo) both; animation-delay: calc(var(--d, 0) * 40ms + 80ms);
+}
+html.intro .hdr > .cell::after, html.intro .hero > .cell::after {
+  content: ''; position: absolute; z-index: 6; pointer-events: none;
+  left: 0; bottom: -1px; height: 1px; width: calc(100% + 1px);
+  background: var(--paper); transform-origin: 100% 50%;
+  animation: unX 600ms var(--expo) both; animation-delay: calc(var(--d, 0) * 40ms + 80ms);
+}
+html.intro .hdr > .er::before { display: none; }
+@keyframes unY { from { transform: scaleY(1); } to { transform: scaleY(0); } }
+@keyframes unX { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+html.intro .wm .ln > span { animation: rise 1100ms var(--expo) both; animation-delay: 260ms; }
+html.intro .wnd .ln > span { animation-delay: 340ms; }
+@keyframes rise { from { transform: translateY(104%); } to { transform: none; } }
+html.intro .hero .flip > .fill { animation: wipe 640ms var(--expo) both; animation-delay: var(--fd, 700ms); }
+@keyframes wipe { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0 0 0 0); } }
+html.intro .plot .draw { stroke-dasharray: 1 1; animation: drawin 760ms var(--expo) both; animation-delay: var(--pd, 1000ms); }
+html.intro .plot .fade { animation: fadein 520ms ease-out both; animation-delay: var(--pd, 1200ms); }
+html.intro .plot .pop { transform-box: fill-box; transform-origin: center; animation: pop 360ms var(--expo) both; animation-delay: var(--pd, 1500ms); }
+html.intro .mk { animation: fadein 380ms ease-out both; animation-delay: var(--ld, 1700ms); }
+@keyframes drawin { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pop { from { transform: scale(0); } to { transform: none; } }
+
+/* ---------- sections: cells all the way down ---------- */
+main > section { scroll-margin-top: var(--hh); }
+.sec {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: round(down, 25%, 1px) round(down, 25%, 1px) round(down, 25%, 1px) minmax(0, 1fr);
+}
+/* graphite fills overlap the rule above by 1px, so no paper seam opens at fractional scroll offsets (role cells keep their own separators) */
+.sec .flip:not(.role) > .fill { margin-top: -1px; height: calc(100% + 1px); }
+html.flips .sec .flip:not(.on) > .fill { clip-path: inset(0 0 100% 0); transition-duration: 0s; }
+html.rm .flip > .fill { transition: none !important; animation: none !important; }
+
+/* about: row 1 is the 60px label row; any extra height from the paragraph goes to row 2, so no paper gap opens under the label rule */
+.about { grid-template-rows: var(--hh) auto; }
+.ab-l { grid-column: 1 / 3; height: var(--hh); padding-top: 0; padding-bottom: 0; display: flex; align-items: center; }
+.ab-b { grid-column: 1 / 3; min-height: 380px; }
+.ab-b .fill { display: flex; flex-direction: column; justify-content: space-between; gap: 36px; }
+.cust-h { color: var(--on-fill-2); margin-bottom: 12px; }
+.cust { display: flex; flex-wrap: wrap; gap: 8px 26px; }
+.cust li { white-space: nowrap; }
+.facts { display: grid; gap: 10px; }
+.ab-p { grid-column: 3 / 5; grid-row: 1 / 3; padding-bottom: 72px; }
+.ink {
+  font-size: 32px; line-height: 1.25; letter-spacing: -0.025em; font-weight: 470;
+  max-width: 21em;
+}
+.ink span { color: color-mix(in srgb, var(--ink) calc(45% + 55% * var(--p, 1)), var(--paper)); transition: color 180ms linear; }
+
+/* voyages ledger */
+.vy-l { height: var(--hh); }
+.vy-l .fill { display: flex; align-items: center; padding-top: 0; padding-bottom: 0; }
+.vy-h, .row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 270px 132px 176px;
+  column-gap: 20px;
+  align-content: end;
+  align-items: last baseline;
+}
+.vy-h { grid-column: 2 / 5; height: var(--hh); padding-top: 0; padding-bottom: 14px; color: var(--ink-2); }
+.pvc { grid-column: 1; padding: 0; }
+.pv { position: sticky; top: var(--hh); }
+.pv-top { display: flex; justify-content: space-between; align-items: center; height: var(--hh); padding: 0 var(--pad); border-bottom: 1px solid var(--rule); }
+.pv-count { color: var(--ink-2); }
+.pv-map { position: relative; aspect-ratio: 3 / 2; overflow: hidden; border-bottom: 1px solid var(--rule); background: var(--paper); }
+.pv-map canvas { position: absolute; left: 0; top: 0; display: block; image-rendering: crisp-edges; image-rendering: pixelated; }
+.code {
+  position: absolute; z-index: 2; pointer-events: none;
+  padding: 3px 5px 2px; background: var(--paper); color: var(--ink);
+  transform: translate(-50%, calc(-100% - 8px));
+  white-space: nowrap;
+}
+.pv-key { display: flex; gap: 22px; padding: 12px var(--pad) 13px; border-bottom: 1px solid var(--rule); color: var(--ink-2); }
+.pv-key span { display: inline-flex; align-items: center; gap: 8px; }
+.sw { display: inline-block; width: 18px; height: 3px; }
+.sw.sent { background: var(--sodium); }
+.sw.direct { width: 20px; height: 4px; background: linear-gradient(90deg, var(--ink) 0 4px, transparent 4px 8px) 0 0 / 8px 4px repeat-x; }
+.pv-dl { display: grid; grid-template-columns: 1fr 1fr; }
+.pv-dl > div { padding: 14px var(--pad) 16px; border-bottom: 1px solid var(--rule); min-width: 0; }
+.pv-dl > div:nth-child(odd) { border-right: 1px solid var(--rule); }
+.pv-dl dt { color: var(--ink-2); margin-bottom: 6px; }
+.pv-dl dd { font-size: 16px; line-height: 1.3; }
+.pv-note { padding: 16px var(--pad) 20px; color: var(--ink-2); max-width: 34ch; }
+.rows { grid-column: 2 / 5; }
+.row {
+  height: 120px; padding: 0 var(--pad) 22px;
+  border-bottom: 1px solid var(--rule);
+  cursor: default;
+  transition: background-color 110ms ease-out, color 110ms ease-out;
+}
+.row:last-child { border-bottom: 1px solid var(--rule); }
+.row:hover, .row:focus-visible { background: var(--fill); color: var(--on-fill); transition-duration: 170ms; }
+.v-name { font-size: 40px; line-height: 1; letter-spacing: -0.032em; font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-bottom: 2px; }
+/* the square marks only the voyage on the chart */
+.v-route::before { content: ''; flex: none; width: 8px; height: 8px; background: var(--sodium); transform: scale(0); transition: transform 160ms var(--expo); }
+.row.cur .v-route::before { transform: scale(1); }
+.v-num { font-variant-numeric: tabular-nums; font-size: 16px; }
+.mlab { display: none; }
+
+/* quotes */
+.q-l { grid-row: 1 / span 3; }
+.q { grid-column: 2 / 4; min-height: 210px; padding-bottom: 40px; }
+.q p { text-indent: -0.42em; max-width: 26em; }
+.role { grid-column: 4; border-bottom-color: color-mix(in srgb, var(--fill) 62%, var(--paper)); }
+.role:last-child { border-bottom-color: var(--rule); }
+.role .fill { display: flex; flex-direction: column; gap: 6px; }
+.role .nm { font-size: 16px; }
+.role .lbl { color: var(--on-fill-2); }
+
+/* forecast desk */
+.dk-l { grid-row: 1 / span 2; min-height: 540px; }
+.dk-l .fill { display: flex; flex-direction: column; justify-content: space-between; gap: 40px; }
+.dk-l p { max-width: 30ch; color: var(--on-fill); }
+.dk-t { grid-column: 2 / 5; padding: 0; }
+.roster { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.roster th { text-align: left; font: 500 12px/1.3 var(--mono); letter-spacing: 0.045em; text-transform: uppercase; color: var(--ink-2); height: var(--hh); vertical-align: bottom; padding: 0 var(--pad) 14px; border-bottom: 1px solid var(--rule); }
+.roster th.c-n { font-size: 12px; letter-spacing: 0.045em; line-height: 1.3; }
+.roster .base { display: none; }
+.roster td { padding: 0 var(--pad) 18px; height: 76px; vertical-align: bottom; border-bottom: 1px solid var(--rule); }
+.roster tr:last-child td { border-bottom: 0; }
+.roster .c-n { font-size: 28px; line-height: 1.1; letter-spacing: -0.022em; width: 38%; }
+.roster .c-r { width: 30%; }
+.roster .c-b { width: 16%; }
+.roster .c-t { width: 16%; font-family: var(--mono); font-size: 12px; letter-spacing: 0.045em; font-variant-numeric: tabular-nums; }
+.roster .sub { display: none; }
+
+/* research + careers */
+.rs-l { grid-row: 1 / span 3; }
+.rs-r {
+  grid-column: 2 / 5; display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 0.5fr) minmax(0, 0.5fr);
+  column-gap: 20px; align-items: last baseline; align-content: end; min-height: 108px; padding-bottom: 22px;
+}
+.rs-r .t28 { max-width: 24em; }
+.rs-r .mono { color: var(--ink-2); }
+.cr-l { min-height: 220px; }
+.cr-t { grid-column: 2 / 4; }
+.cr-t p { max-width: 24em; }
+.cr-k .fill { display: flex; flex-direction: column; justify-content: space-between; gap: 24px; }
+.tlink {
+  font-size: 16px;
+  text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 5px;
+  text-decoration-color: currentColor;
+  transition: text-decoration-color 120ms ease-out;
+}
+.tlink:hover { text-decoration-color: var(--sodium); text-decoration-thickness: 2px; }
+.cr-k .mono { color: var(--on-fill-2); }
+
+/* contact */
+.big { grid-column: 1 / 5; min-height: max(520px, 64vh); display: block; }
+.big .fill {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto 1fr auto;
+  row-gap: 24px; column-gap: 24px;
+}
+.big .c-lines { grid-column: 2; grid-row: 1; text-align: right; display: grid; gap: 6px; justify-items: end; }
+.big .c-lines span { color: var(--on-fill-2); }
+.big .giant {
+  grid-column: 1; grid-row: 3; align-self: end;
+  font-size: min(180px, 12.4vw); line-height: 0.9; letter-spacing: -0.04em; font-weight: 500;
+  margin-left: -0.05em; margin-bottom: 0.1em; /* room for the p and g descenders inside the clipped fill */
+}
+.big .c-arr { grid-column: 2; grid-row: 3; align-self: end; width: min(132px, 9vw); height: min(132px, 9vw); transition: transform 240ms var(--expo); }
+.big:hover .fill { background: var(--sodium); color: var(--on-sodium); transition-duration: 640ms, 200ms, 200ms; }
+.big:hover .c-lines span { color: var(--on-sodium); }
+.big:hover .c-arr { transform: translateX(14px); }
+.big:focus-visible { outline-offset: -4px; }
+
+/* footer */
+.foot .cell { padding-top: 22px; padding-bottom: 22px; color: var(--ink-2); border-bottom: 0; }
+.foot a { text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 4px; transition: text-decoration-color 120ms ease-out; }
+.foot a:hover { text-decoration-color: var(--sodium); color: var(--ink); }
+
+/* ---------- mid widths and short screens ---------- */
+@media (max-width: 1259px) {
+  .utc { display: none; }
+}
+@media (max-width: 1259px) and (min-width: 820px), (max-height: 780px) and (min-width: 820px) {
+  .stm .t28, .adv-n, .snt-v { font-size: 22px; line-height: 1.18; }
+  .adv-n { margin-top: 6px; }
+}
+@media (max-width: 1180px) and (min-width: 820px) {
+  .vy-h, .row { grid-template-columns: minmax(0, 1fr) 220px 96px 120px; }
+  .v-name { font-size: 32px; }
+  .big .giant { font-size: 12vw; }
+  .adv-dl > div { grid-template-columns: minmax(0, 1fr); }
+  .adv-dl dt { display: none; }
+  .snt-n { font-size: 14px; }
+}
+/* below 1024 the index folds into a menu cell; the time box keeps the clock */
+@media (max-width: 1023px) {
+  .tbox { grid-column: 1 / 6; }
+  .nav, .desk { display: none !important; }
+  .menu { display: flex !important; grid-column: 6 / 7; }
+  .mnav {
+    position: absolute; left: 0; right: 0; top: 100%;
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
+    grid-template-columns: 1fr 1fr;
+  }
+  .hdr.open .mnav { display: grid; }
+  .mnav a, .mnav button {
+    display: flex; align-items: flex-end; min-height: 76px; padding: 0 16px 14px;
+    font-size: 22px; letter-spacing: -0.02em; border-bottom: 1px solid var(--rule); text-align: left;
+  }
+  .mnav > :nth-child(odd) { border-right: 1px solid var(--rule); }
+  .mnav .m-desk { font-size: 16px; }
+  .mnav .m-contact { background: var(--fill); color: var(--on-fill); }
+}
+
+/* ---------- 390: a 2-column checkerboard, the chart in a 2 x 2 of its own ---------- */
+@media (max-width: 819px) {
+  :root { --pad: 16px; }
+  .hdr { grid-template-columns: minmax(0, 1fr) 118px; }
+  .tbox { grid-column: 1; gap: 12px; }
+  .menu { grid-column: 2; }
+  .utc, .pal { display: none; }
+
+  .hero {
+    grid-template-columns: 50% 50%;
+    grid-template-columns: round(down, 50%, 1px) minmax(0, 1fr);
+    grid-template-rows: 152px 152px 150px 150px auto;
+    grid-template-areas: "wrd adv" "snt wnd" "k1 k2" "k3 k4" "stm stm";
+  }
+  .chart, .plot, .marks { grid-area: 3 / 1 / 5 / -1; }
+  .k5, .j0, .j1, .j2, .j3, .j4 { display: none; }
+  .adv, .wnd, .k2, .k4 { border-right: 0; }
+  .snt { border-right: 1px solid var(--rule); }
+  .wrd, .wnd { padding-bottom: 12px; justify-content: flex-end; }
+  .wrd .sheet, .wm .w2 { display: none; }
+  .wnd { display: flex; align-items: flex-end; overflow: hidden; }
+  .wm { font-size: min(76px, calc((50vw - 30px) / 2.64)); }
+  .adv .fill, .snt .fill { gap: 8px; }
+  .adv-n, .snt-v { font-size: 22px; line-height: 1.12; margin: 6px 0 0; }
+  .adv-dl > div { grid-template-columns: minmax(0, 1fr); }
+  .adv-dl dt, .adv-dl > div:nth-child(n+3), .snt-s { display: none; }
+  .snt-n { font-size: 14px; }
+  .stm { min-height: 214px; }
+  .stm .t28 { font-size: 22px; line-height: 1.22; }
+
+  .sec { grid-template-columns: 50% 50%; grid-template-columns: round(down, 50%, 1px) minmax(0, 1fr); }
+  .sec > * { grid-column: 1 / 3 !important; grid-row: auto !important; }
+  .about { grid-template-rows: none; }
+  .ab-l { grid-column: 1 / 2 !important; height: auto; min-height: 168px; align-items: flex-start; padding-top: var(--pad); }
+  .ab-b { grid-column: 2 / 3 !important; min-height: 168px; border-right: 0; }
+  .ab-b .fill { gap: 20px; }
+  .cust { flex-direction: column; gap: 3px; }
+  .ab-p { padding-bottom: 48px; }
+  .ink { font-size: 24px; line-height: 1.3; }
+
+  .vy-h { display: none; }
+  .pvc { border-right: 0; position: sticky; top: var(--hh); z-index: 4; background: var(--paper); }
+  .pv { position: static; display: grid; grid-template-columns: 50% 50%; grid-template-columns: round(down, 50%, 1px) minmax(0, 1fr); }
+  .pv-top { grid-column: 1 / 3; height: 44px; padding: 0 var(--pad); }
+  .pv-map { grid-column: 1; grid-row: 2 / span 2; aspect-ratio: auto; height: auto; min-height: 150px; align-self: stretch; border-right: 1px solid var(--rule); border-bottom: 0; }
+  .pv-key { grid-column: 2; flex-direction: column; gap: 6px; padding: 12px var(--pad); }
+  .pv-dl { grid-column: 2; grid-template-columns: 1fr; }
+  .pv-dl > div { padding: 10px var(--pad) 12px; border-right: 0 !important; }
+  .pv-dl > div:nth-child(n+3) { display: none; }
+  .pv-dl > div:nth-child(2) { border-bottom: 0; }
+  .pv-dl dd { font-size: 14px; }
+  .pv-note { display: none; }
+  .row {
+    height: auto; min-height: 96px; padding: 18px var(--pad) 16px;
+    grid-template-columns: minmax(0, 1fr) auto; row-gap: 10px; column-gap: 12px;
+    align-items: last baseline;
+  }
+  .v-name { font-size: 28px; grid-column: 1 / 3; }
+  .v-route { grid-column: 1 / 3; }
+  .v-num { font-family: var(--mono); font-size: 12px; letter-spacing: 0.045em; }
+  .v-num:last-child { text-align: right; }
+  .mlab { display: inline; color: var(--ink-2); }
+  .row:hover .mlab, .row:focus-visible .mlab { color: var(--on-fill-2); }
+
+  .q { min-height: 0; padding-bottom: 28px; }
+  .q .t28 { font-size: 22px; line-height: 1.24; }
+  .role { min-height: 76px; }
+  .dk-l { min-height: 220px; }
+  .roster .c-r, .roster .c-b, .roster th.c-r, .roster th.c-b { display: none; }
+  .roster .c-n { width: auto; font-size: 22px; }
+  .roster .c-t { width: 34%; text-align: right; }
+  .roster th.c-t { text-align: right; }
+  .roster td { height: auto; padding-top: 16px; padding-bottom: 14px; }
+  .roster .sub { display: block; font-size: 14px; letter-spacing: -0.01em; margin-top: 6px; color: var(--ink-2); }
+  .roster .c-t .base { display: block; font-family: var(--sans); font-size: 14px; letter-spacing: -0.01em; color: var(--ink-2); margin-bottom: 6px; text-transform: none; }
+  .rs-r { grid-template-columns: minmax(0, 1fr) auto; row-gap: 12px; min-height: 0; padding-top: 18px; padding-bottom: 18px; }
+  .rs-r .t28 { grid-column: 1 / 3; font-size: 20px; line-height: 1.25; }
+  .rs-r .mono:last-child { text-align: right; }
+  .cr-l { min-height: 0; }
+  .cr-t .t28 { font-size: 22px; }
+  .cr-k { min-height: 132px; }
+  .big { min-height: 440px; }
+  .sec:not(.about):not(.foot) > .cell { border-right: 0; }
+  .big .fill { grid-template-columns: minmax(0, 1fr) auto; }
+  .big .c-lines { grid-column: 1 / 3; grid-row: 2; text-align: left; justify-items: start; align-self: start; }
+  .big .giant { font-size: 72px; grid-column: 1; }
+  .big .c-arr { width: 56px; height: 56px; }
+  .foot > .cell { grid-column: auto !important; }
+  .foot { grid-template-columns: 50% 50%; }
+  .foot > .cell:nth-child(even) { border-right: 0; }
+  .foot > .cell:nth-child(-n+2) { border-bottom: 1px solid var(--rule); }
+}
+</style>
+</head>
+<body>
+<header class="hdr" id="hdr">
+  <div class="cell tbox" style="--d:0">
+    <a class="mark" href="#top" aria-label="Nordwind, back to top">
+      <svg viewBox="8 8 44 44" aria-hidden="true" fill="currentColor">
+        <g transform="rotate(-38 30 27)">
+          <rect x="16" y="26" width="23" height="2"/>
+          <path d="M46 27 L37.5 21.8 L37.5 32.2 Z"/>
+          <path d="M11.5 21 H19 L22.2 27 L19 33 H11.5 L14.7 27 Z"/>
+        </g>
+        <rect x="29" y="27" width="2" height="18"/>
+        <rect x="25" y="44" width="10" height="2"/>
+      </svg>
+    </a>
+    <span class="lbl live"><span class="flap" id="flap" aria-hidden="true">ROTTERDAM 14:02</span></span>
+    <span class="sr" id="clock-sr">Rotterdam local time</span>
+    <span class="mono utc" id="utc">12:02 UTC</span>
+    <button class="pal" type="button" aria-pressed="false">Night chart</button>
+  </div>
+  <nav class="cell nav" aria-label="Primary" style="--d:2">
+    <a href="#routing" data-sec="routing">Routing</a>
+    <a href="#voyages" data-sec="voyages">Fleet</a>
+    <a href="#desk" data-sec="desk">Forecasts</a>
+    <a href="#research" data-sec="research">Research</a>
+    <a href="#careers" data-sec="careers">Careers</a>
+    <a href="#contact" data-sec="contact">Contact</a>
+  </nav>
+  <a class="cell desk er" href="tel:+31108084410" style="--d:5">
+    <span class="lbl live" data-bind="deskLine">Desk open 24 h</span>
+    <span class="dnum" data-bind="contact.l2">+31 10 808 4410</span>
+  </a>
+  <button class="cell menu er" type="button" aria-expanded="false" aria-controls="mnav" style="--d:5">
+    <span>Menu</span>
+    <svg viewBox="0 0 20 20" aria-hidden="true"><path class="bar b1" d="M2 7h16" stroke="currentColor" stroke-width="1.5"/><path class="bar b2" d="M2 13h16" stroke="currentColor" stroke-width="1.5"/></svg>
+  </button>
+  <div class="mnav" id="mnav">
+    <a href="#routing">Routing</a>
+    <a href="#voyages">Fleet</a>
+    <a href="#desk">Forecasts</a>
+    <a href="#research">Research</a>
+    <a href="#careers">Careers</a>
+    <button type="button" class="m-tog" aria-pressed="false">Night chart</button>
+    <a href="tel:+31108084410" class="m-desk">Desk +31 10 808 4410</a>
+    <a href="#contact" class="m-contact">Contact</a>
+  </div>
+</header>
+
+<main>
+  <!-- HERO: a routing chart whose graticule is the cell grid, then the title block -->
+  <section class="hero" id="top" aria-label="Nordwind weather routing">
+    <div class="chart" role="img" aria-label="Routing chart of the Philippine Sea. Typhoon Kalani sits on the direct track out of Kaohsiung, its 72 hour forecast cone opening east-northeast. The track sent bends south of the eye and along the southern flank of the cone, then rejoins the direct track towards Long Beach."><canvas></canvas></div>
+    <svg class="plot" aria-hidden="true" focusable="false"></svg>
+    <div class="cell adv flip" style="--d:1; --fd:620ms">
+      <div class="fill">
+        <div>
+          <p class="lbl live" data-bind="storm.watch">Watching</p>
+          <p class="t28 adv-n" data-bind="storm.name">Typhoon Kalani</p>
+        </div>
+        <dl class="adv-dl mono">
+          <div><dt>Centre</dt><dd data-bind="storm.centre">23.0N 133.0E</dd></div>
+          <div><dt>Moving</dt><dd data-bind="storm.motion">ENE 8 kt</dd></div>
+          <div><dt>Pressure</dt><dd data-bind="storm.pressure">950 hPa</dd></div>
+          <div><dt>Issued</dt><dd id="adv-issued">06Z FRI 02 OCT</dd></div>
+        </dl>
+      </div>
+    </div>
+    <div class="cell ch k1" style="--d:2"></div>
+    <div class="cell ch k2" style="--d:3"></div>
+    <div class="cell ch k3" style="--d:4"></div>
+    <div class="cell ch k4" style="--d:5"></div>
+    <div class="cell ch k5" style="--d:6"></div>
+    <div class="cell ch j0" style="--d:2"></div>
+    <div class="cell ch j1" style="--d:3"></div>
+    <div class="cell ch j2" style="--d:4"></div>
+    <div class="cell ch j3" style="--d:5"></div>
+    <div class="cell ch j4" style="--d:6"></div>
+    <div class="cell snt flip" style="--d:7; --fd:860ms">
+      <div class="fill">
+        <div>
+          <p class="mono" id="snt-l">Track sent 06Z</p>
+          <p class="t28 snt-v" data-bind="sent.vessel">Oro Pacifico</p>
+          <p class="mono" data-bind="sent.route">TWKHH to USLGB</p>
+        </div>
+        <p class="snt-n"><span data-bind="sent.note">Held 130 nm south of the eye.</span> <span class="snt-s" data-bind="sent.seas">Seas under 4 m against 9 m direct.</span></p>
+      </div>
+    </div>
+    <div class="cell wrd" style="--d:3">
+      <p class="mono sheet"><span data-bind="chart.sea">Philippine Sea</span><span data-bind="chart.extent">20N to 30N, 120E to 150E</span></p>
+      <h1 class="wm" aria-label="Nordwind"><span class="ln" aria-hidden="true"><span>NORD<span class="w2">WIND</span></span></span></h1>
+    </div>
+    <div class="cell stm" style="--d:6">
+      <p class="t28" data-bind="statement">We route ocean freight around the weather. Ships burn less and crews stay out of the storm.</p>
+      <p class="lbl live" data-bind="live">412 vessels under route guidance today</p>
+    </div>
+    <div class="cell wnd" style="--d:3" aria-hidden="true"><span class="wm"><span class="ln"><span>WIND</span></span></span></div>
+    <div class="marks" aria-hidden="true"></div>
+  </section>
+
+  <!-- ROUTING (about) -->
+  <section class="sec about" id="routing" aria-labelledby="h-routing">
+    <div class="cell ab-l"><h2 class="lbl" id="h-routing" data-bind="about.label">Routing</h2></div>
+    <div class="cell ab-b flip"><div class="fill">
+      <div><p class="mono cust-h" data-bind="customersLead">Routing for</p><ul class="cust mono" id="cust" aria-label="Customers"></ul></div>
+      <ul class="facts" id="facts"></ul>
+    </div></div>
+    <div class="cell ab-p er"><p class="ink" id="ink" data-bind="about.text">A ship that sails the shortest line across an ocean rarely makes the shortest voyage.</p></div>
+  </section>
+
+  <!-- FLEET (voyages ledger) -->
+  <section class="sec voy" id="voyages" aria-labelledby="h-voy">
+    <div class="cell vy-l flip"><div class="fill"><h2 class="lbl" id="h-voy" data-bind="voyagesLabel">Recent voyages</h2></div></div>
+    <div class="cell vy-h er mono" aria-hidden="true"><span>Vessel</span><span>Route</span><span>Fuel saved</span><span>Storm hours avoided</span></div>
+    <div class="cell pvc">
+      <div class="pv" id="pv" aria-live="polite">
+        <div class="pv-top"><span class="lbl live" id="pv-name">Halvard Spirit</span><span class="mono pv-count" id="pv-count">01 / 08</span></div>
+        <div class="pv-map" id="pv-map"><canvas aria-hidden="true"></canvas><span class="code mono" id="pv-a">NLRTM</span><span class="code mono" id="pv-b">BRSSZ</span></div>
+        <div class="pv-key mono"><span><i class="sw sent"></i>Track sent</span><span><i class="sw direct"></i>Direct track</span></div>
+        <dl class="pv-dl">
+          <div><dt class="mono">Departed</dt><dd id="pv-dep">03 Sep, Rotterdam</dd></div>
+          <div><dt class="mono">Arrived</dt><dd id="pv-arr">18 Sep, Santos</dd></div>
+          <div><dt class="mono">Weather avoided</dt><dd id="pv-avd">Biscay low, 984 hPa</dd></div>
+          <div><dt class="mono">Seas met</dt><dd id="pv-seas">3.5 m against 7.8 m direct</dd></div>
+        </dl>
+        <p class="pv-note" data-bind="voyagesNote">Every passage closes with a post-voyage report: the track we sent, the weather it met, and the fuel it saved against the charter-party warranty.</p>
+      </div>
+    </div>
+    <ol class="rows" id="rows" aria-label="Recent voyages"></ol>
+  </section>
+
+  <!-- FROM THE BRIDGE (testimonials) -->
+  <section class="sec quotes" id="quotes" aria-labelledby="h-q">
+    <div class="cell q-l"><h2 class="lbl" id="h-q" data-bind="quotesLabel">From the bridge</h2></div>
+  </section>
+
+  <!-- FORECASTS (team roster) -->
+  <section class="sec desk" id="desk" aria-labelledby="h-desk">
+    <div class="cell dk-l flip"><div class="fill"><h2 class="lbl" id="h-desk" data-bind="desk.label">The forecast desk</h2><p data-bind="desk.text">Meteorologists and master mariners on a rota that never closes.</p></div></div>
+    <div class="cell dk-t er">
+      <table class="roster">
+        <thead><tr><th class="mono c-n" scope="col">Name</th><th class="mono c-r" scope="col">Role</th><th class="mono c-b" scope="col">Base</th><th class="mono c-t" scope="col">Local time</th></tr></thead>
+        <tbody id="roster"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- RESEARCH -->
+  <section class="sec res" id="research" aria-labelledby="h-res">
+    <div class="cell rs-l"><h2 class="lbl" id="h-res" data-bind="researchLabel">Research</h2></div>
+  </section>
+
+  <!-- CAREERS -->
+  <section class="sec car" id="careers" aria-labelledby="h-car">
+    <div class="cell cr-l"><h2 class="lbl" id="h-car" data-bind="careers.label">Careers</h2></div>
+    <div class="cell cr-t"><p class="t28" data-bind="careers.text">We hire forecasters who can explain a deepening low to a master at 03:00.</p></div>
+    <div class="cell cr-k er flip"><div class="fill"><a class="tlink" id="cr-link" href="mailto:careers@nordwindrouting.com" data-bind="careers.link">Read the openings</a><p class="mono" data-bind="careers.meta">2 roles, Singapore desk</p></div></div>
+  </section>
+
+  <!-- CONTACT: one giant cell -->
+  <section class="sec contact" id="contact" aria-label="Contact">
+    <a class="cell er flip big" id="big" href="mailto:desk@nordwindrouting.com">
+      <div class="fill">
+        <h2 class="lbl" data-bind="contact.label">Contact</h2>
+        <p class="c-lines mono"><span data-bind="contact.l1">Routing desk, open 24 hours</span><span data-bind="contact.l2">+31 10 808 4410</span><span data-bind="contact.l3">desk@nordwindrouting.com</span></p>
+        <span class="giant" data-bind="contact.big">Plan a passage</span>
+        <svg class="c-arr" viewBox="0 0 132 132" aria-hidden="true"><path d="M8 66h112M76 22l44 44-44 44" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"/></svg>
+      </div>
+    </a>
+  </section>
+</main>
+
+<footer class="sec foot">
+  <p class="cell mono" data-bind="footer.0">&copy; 2026 Nordwind Routing B.V.</p>
+  <p class="cell mono" data-bind="footer.1">Maashaven Oostzijde 12, Rotterdam</p>
+  <p class="cell mono"><a href="#top" data-bind="footer.2">Privacy</a></p>
+  <p class="cell mono er"><a href="#top" data-bind="footer.3">Back to top</a></p>
+</footer>
+
+<script>
+(() => {
+'use strict';
+
+/* =====================================================================
+   DATA: every word, number and coordinate on the page. Swap here.
+   The hero chart is plotted from real latitude and longitude:
+   desktop sheet 120E to 150E by 30N to 20N, one cell per 5 degrees.
+   (Preview map coordinates in voyages are normalised 0..1.)
+   ===================================================================== */
+const DATA = {
+  brand: 'Nordwind',
+  ports: [
+    { name: 'ROTTERDAM', tz: 'Europe/Amsterdam' },
+    { name: 'SINGAPORE', tz: 'Asia/Singapore' },
+    { name: 'HOUSTON', tz: 'America/Chicago' }
+  ],
+  deskLine: 'Desk open 24 h',
+  storm: { watch: 'Watching', name: 'Typhoon Kalani', centre: '23.0N 133.0E', motion: 'ENE 8 kt', pressure: '950 hPa' },
+  sent: { label: 'Track sent', vessel: 'Oro Pacifico', route: 'TWKHH to USLGB', note: 'Held 130 nm south of the eye.', seas: 'Seas under 4 m against 9 m direct.' },
+  chart: {
+    sea: 'Philippine Sea',                     /* the title block: sea area and the sheet's extent */
+    extent: '20N to 30N, 120E to 150E',
+    eye: [23.0, 133.0],                    /* lat, lon of the centre now */
+    r0: 12,                                /* cone radius now, nautical miles */
+    forecast: [                            /* hours ahead, lat, lon, cone radius in nm */
+      [24, 24.3, 136.2, 45],
+      [48, 25.8, 139.7, 72],
+      [72, 27.4, 142.9, 102]
+    ],
+    port: ['TWKHH', 22.6, 120.3],          /* Kaohsiung */
+    depart: [21.7, 121.2],                 /* departure waypoint south of Taiwan: the tracks part here */
+    dest: 'USLGB',                         /* the direct track runs on through the eye towards Long Beach */
+    sent: [[21.0, 125.5], [20.75, 132.6], [21.3, 136.6], [22.9, 139.9], [24.15, 143.5]]  /* waypoints of the track sent; the last rejoins the direct track */
+  },
+  statement: 'We route ocean freight around the weather. Ships burn less and crews stay out of the storm.',
+  live: '412 vessels under route guidance today',
+  customersLead: 'Routing for',
+  customers: ['Halvard Bulk', 'Kestrel Tankers', 'Oro Line', 'Meridian Reefer', 'Sakai Kaiun'],
+  about: {
+    label: 'Routing',
+    text: 'A ship that sails the shortest line across an ocean rarely makes the shortest voyage. Head seas cost speed, swell costs fuel, and one bad crossing can cost a deck of containers. Our forecasters plan every passage from ensemble models and seventeen years of hull performance data, then revise the track every six hours until the ship is alongside. The master always has the last word. We make sure it is an informed one.',
+    facts: ['Route guidance since 2009', '14,200 voyages routed in 2025', '2.6 million tonnes of fuel saved']
+  },
+  voyagesLabel: 'Recent voyages',
+  voyagesNote: 'Every passage closes with a post-voyage report: the track we sent, the weather it met, and the fuel it saved against the charter-party warranty.',
+  voyages: [
+    { vessel: 'Halvard Spirit', from: 'Rotterdam', to: 'Santos', codes: ['NLRTM', 'BRSSZ'], fuel: 212, hours: 31, dep: '03 Sep', arr: '18 Sep', avoided: 'Biscay low, 984 hPa', seas: '3.5 m against 7.8 m direct', o: [0.82, 0.2], d: [0.18, 0.84], s: [0.56, 0.42, 0.34] },
+    { vessel: 'Kestrel Venture', from: 'Singapore', to: 'Long Beach', codes: ['SGSIN', 'USLGB'], fuel: 340, hours: 46, dep: '21 Aug', arr: '09 Sep', avoided: 'Typhoon Mireille, 945 hPa', seas: '4.0 m against 11.5 m direct', o: [0.14, 0.7], d: [0.86, 0.32], s: [0.46, 0.46, 0.4] },
+    { vessel: 'Oro Meridian', from: 'Houston', to: 'Rotterdam', codes: ['USHOU', 'NLRTM'], fuel: 158, hours: 22, dep: '12 Aug', arr: '27 Aug', avoided: 'Hurricane Ines, category 2', seas: '3.0 m against 8.5 m direct', o: [0.16, 0.78], d: [0.86, 0.24], s: [0.44, 0.6, 0.32] },
+    { vessel: 'Sakai Maru', from: 'Yokohama', to: 'Vancouver', codes: ['JPYOK', 'CAVAN'], fuel: 276, hours: 38, dep: '02 Aug', arr: '14 Aug', avoided: 'North Pacific gale, 968 hPa', seas: '4.5 m against 9.0 m direct', o: [0.12, 0.62], d: [0.88, 0.4], s: [0.54, 0.36, 0.36] },
+    { vessel: 'Brage', from: 'Bergen', to: 'Halifax', codes: ['NOBGO', 'CAHAL'], fuel: 121, hours: 19, dep: '25 Jul', arr: '03 Aug', avoided: 'Icelandic low, 962 hPa', seas: '3.5 m against 9.0 m direct', o: [0.86, 0.3], d: [0.14, 0.64], s: [0.5, 0.32, 0.32] },
+    { vessel: 'Atlantic Tern', from: 'Santos', to: 'Qingdao', codes: ['BRSSZ', 'CNTAO'], fuel: 402, hours: 54, dep: '08 Jul', arr: '19 Aug', avoided: 'Cape rollers, 9 m swell', seas: '5.0 m against 9.0 m direct', o: [0.12, 0.34], d: [0.88, 0.44], s: [0.5, 0.66, 0.36] },
+    { vessel: 'Nordic Cobalt', from: 'Port Hedland', to: 'Qingdao', codes: ['AUPHE', 'CNTAO'], fuel: 187, hours: 27, dep: '30 Jun', arr: '11 Jul', avoided: 'Typhoon Haruto, 940 hPa', seas: '3.0 m against 10.0 m direct', o: [0.3, 0.86], d: [0.64, 0.14], s: [0.5, 0.5, 0.34] },
+    { vessel: 'Mar Ligure', from: 'Genoa', to: 'New York', codes: ['ITGOA', 'USNYC'], fuel: 133, hours: 17, dep: '17 Jun', arr: '29 Jun', avoided: 'Azores low, 990 hPa', seas: '2.5 m against 6.0 m direct', o: [0.88, 0.62], d: [0.12, 0.36], s: [0.48, 0.44, 0.3] }
+  ],
+  quotesLabel: 'From the bridge',
+  quotes: [
+    { q: 'South of Newfoundland they held us forty miles below the low, and we never saw more than four metres. The direct track had nine.', name: 'Ilse Marten', role: 'Master, MV Brage' },
+    { q: 'The routing note reaches the bridge before our own weather files finish downloading, and it tells me why, not only where.', name: 'Tomás Ferreira', role: 'Chief officer, Atlantic Tern' },
+    { q: 'Speed and consumption claims used to run for months. Their post-voyage report settles one in a page.', name: 'Hana Okafor', role: 'Chartering manager, Kestrel Tankers' }
+  ],
+  desk: {
+    label: 'The forecast desk',
+    text: 'Meteorologists and master mariners on a rota that never closes, across three ports, so a ship can always reach someone awake.'
+  },
+  team: [
+    ['Sigrid Aalto', 'Head of forecasting', 'Rotterdam', 'Europe/Amsterdam'],
+    ['Daan Verbeek', 'Master mariner, routing lead', 'Rotterdam', 'Europe/Amsterdam'],
+    ['Mei Lin Tan', 'Marine meteorologist', 'Singapore', 'Asia/Singapore'],
+    ['Arjun Pillai', 'Ensemble modeller', 'Singapore', 'Asia/Singapore'],
+    ['Rosa Delgado', 'Marine meteorologist', 'Houston', 'America/Chicago'],
+    ['Caleb Whitfield', 'Hull performance analyst', 'Houston', 'America/Chicago'],
+    ['Noor Haddad', 'Ocean current scientist', 'Rotterdam', 'Europe/Amsterdam'],
+    ['Kenji Arai', 'Duty forecaster, nights', 'Singapore', 'Asia/Singapore']
+  ],
+  researchLabel: 'Research',
+  research: [
+    ['Ensemble routing: choosing a track when the forecasts disagree', 'Paper', '2026'],
+    ['Parametric roll on post-Panamax container ships: 600 voyages of motion data', 'Dataset', '2025'],
+    ['Why the great circle is rarely the shortest voyage', 'Essay', '2024']
+  ],
+  careers: {
+    label: 'Careers',
+    text: 'We hire forecasters who can explain a deepening low to a master at 03:00. Two openings on the Singapore desk.',
+    link: 'Read the openings',
+    meta: '2 roles, Singapore desk'
+  },
+  contact: { label: 'Contact', l1: 'Routing desk, open 24 hours', l2: '+31 10 808 4410', l3: 'desk@nordwindrouting.com', big: 'Plan a passage' },
+  footer: ['© 2026 Nordwind Routing B.V.', 'Maashaven Oostzijde 12, Rotterdam', 'Privacy', 'Back to top']
+};
+/* ===================================================================== */
+
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const root = document.documentElement;
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const MOBILE = matchMedia('(max-width: 819px)');
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const pad2 = (n) => String(n).padStart(2, '0');
+const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
+const F = 2; /* CSS px per dither pixel: an integer, so image-rendering: pixelated stays crisp; 2 reads as halftone print, not pixel art */
+
+/* the advisory clock: the last six-hourly synoptic time, and the forecast times counted from it */
+const ADV = (() => {
+  const t0 = Math.floor(Date.now() / 216e5) * 216e5, d0 = new Date(t0);
+  const D = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+  const MO = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  const z = (d) => pad2(d.getUTCHours()) + 'Z';
+  return {
+    hour: z(d0),
+    issued: `${z(d0)} ${D[d0.getUTCDay()]} ${pad2(d0.getUTCDate())} ${MO[d0.getUTCMonth()]}`,
+    at: (h) => { const d = new Date(t0 + h * 36e5); return `${D[d.getUTCDay()]} ${z(d)}`; }
+  };
+})();
+
+/* ---------- 1. content ---------- */
+function bind() {
+  $$('[data-bind]').forEach((el) => {
+    const v = el.dataset.bind.split('.').reduce((o, k) => (o == null ? o : o[k]), DATA);
+    if (typeof v === 'string') el.textContent = v;
+  });
+  $('#adv-issued').textContent = ADV.issued;
+  $('#snt-l').textContent = `${DATA.sent.label} ${ADV.hour}`;
+}
+function render() {
+  $('#cust').innerHTML = DATA.customers.map((c) => `<li>${esc(c)}</li>`).join('');
+  $('#facts').innerHTML = DATA.about.facts.map((f) => `<li class="lbl">${esc(f)}</li>`).join('');
+  $('#rows').innerHTML = DATA.voyages.map((v, i) => `
+    <li class="row" tabindex="0" data-i="${i}">
+      <span class="v-name">${esc(v.vessel)}</span>
+      <span class="v-route lbl">${esc(v.from)} to ${esc(v.to)}</span>
+      <span class="v-num"><span class="mlab">Fuel saved </span>${v.fuel} t</span>
+      <span class="v-num"><span class="mlab">Storm hours </span>${v.hours} h</span>
+    </li>`).join('');
+  const q = $('#quotes');
+  $('.q-l', q).style.gridRow = `1 / span ${DATA.quotes.length}`;
+  q.insertAdjacentHTML('beforeend', DATA.quotes.map((x) => `
+    <blockquote class="cell q"><p class="t28">“${esc(x.q)}”</p></blockquote>
+    <div class="cell er flip role"><div class="fill"><p class="nm">${esc(x.name)}</p><p class="lbl">${esc(x.role)}</p></div></div>`).join(''));
+  $('#roster').innerHTML = DATA.team.map((p) => `
+    <tr><td class="c-n">${esc(p[0])}<span class="sub">${esc(p[1])}</span></td><td class="c-r">${esc(p[1])}</td><td class="c-b">${esc(p[2])}</td><td class="c-t"><span class="base" aria-hidden="true">${esc(p[2])}</span><span class="lt" data-tz="${esc(p[3])}">00:00</span></td></tr>`).join('');
+  const rs = $('#research');
+  $('.rs-l', rs).style.gridRow = `1 / span ${DATA.research.length}`;
+  rs.insertAdjacentHTML('beforeend', DATA.research.map((r) => `
+    <div class="cell er rs-r"><p class="t28">${esc(r[0])}</p><p class="mono">${esc(r[1])}</p><p class="mono">${esc(r[2])}</p></div>`).join(''));
+  $('#big').href = 'mailto:' + DATA.contact.l3;
+}
+
+/* ---------- 2. value noise (log-polar friendly: wraps in x) + Bayer 8x8 LUT ---------- */
+const PERM = new Uint8Array(512), VAL = new Float32Array(256);
+(function seed() {
+  let s = 1337;
+  const rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const p = Array.from({ length: 256 }, (_, i) => i);
+  for (let i = 255; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); const t = p[i]; p[i] = p[j]; p[j] = t; }
+  for (let i = 0; i < 512; i++) PERM[i] = p[i & 255];
+  for (let i = 0; i < 256; i++) VAL[i] = rnd();
+})();
+function vnoise(x, y, P) {
+  let xi = Math.floor(x), yi = Math.floor(y);
+  const xf = x - xi, yf = y - yi;
+  xi = ((xi % P) + P) % P;
+  const xj = (xi + 1) % P, ya = yi & 255, yb = (yi + 1) & 255;
+  const a = VAL[PERM[PERM[xi] + ya]], b = VAL[PERM[PERM[xj] + ya]];
+  const c = VAL[PERM[PERM[xi] + yb]], d = VAL[PERM[PERM[xj] + yb]];
+  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+const BAYER = new Float32Array([
+  0, 32, 8, 40, 2, 34, 10, 42, 48, 16, 56, 24, 50, 18, 58, 26,
+  12, 44, 4, 36, 14, 46, 6, 38, 60, 28, 52, 20, 62, 30, 54, 22,
+  3, 35, 11, 43, 1, 33, 9, 41, 51, 19, 59, 27, 49, 17, 57, 25,
+  15, 47, 7, 39, 13, 45, 5, 37, 63, 31, 55, 23, 61, 29, 53, 21
+].map((b) => (b + 0.5) / 64));
+
+/* theme colours as packed RGBA for ImageData */
+const COL = {};
+function hexU32(hex) {
+  const h = hex.trim().replace('#', '');
+  const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16);
+  return (255 << 24 | (n & 255) << 16 | ((n >> 8) & 255) << 8 | (n >> 16)) >>> 0;
+}
+function readColours() {
+  const cs = getComputedStyle(root);
+  COL.paper = hexU32(cs.getPropertyValue('--paper'));
+  COL.dot = hexU32(cs.getPropertyValue('--ink'));
+  COL.sodium = hexU32(cs.getPropertyValue('--sodium'));
+}
+
+/* ---------- 3. the sheet: the hero's cell rules are the chart's graticule ---------- */
+let S = { lonL: 120, latT: 30, kx: 48, ky: 56, w: 1, h: 1, mobile: false };
+const X = (lon) => (lon - S.lonL) * S.kx;
+const Y = (lat) => (S.latT - lat) * S.ky;
+function frameSheet() {
+  const cr = $('.chart').getBoundingClientRect(), k = $('.k1').getBoundingClientRect();
+  const mobile = MOBILE.matches, colW = k.width, rowH = k.height;
+  /* desktop: each cell is 5 degrees square, 120E to 150E by 30N to 20N.
+     phone: the 2 x 2 is split by the 135E meridian and the 25N parallel, 10 degrees of longitude a column */
+  const f = mobile ? { lonL: 125, kx: colW / 10 } : { lonL: 120, kx: colW / 5 };
+  f.ky = mobile ? f.kx * 1.1 : rowH / 5;
+  f.latT = 25 + rowH / f.ky;
+  return Object.assign(f, { w: Math.round(cr.width), h: Math.round(cr.height), colW, rowH, mobile });
+}
+
+/* the forecast cone: circles at each forecast position joined by their outer tangents, as the advisories draw it */
+function coneHull(C) {
+  const n = C.length, seg = [];
+  for (let i = 0; i < n - 1; i++) {
+    const [ax, ay, ar] = C[i], [bx, by, br] = C[i + 1];
+    const dx = bx - ax, dy = by - ay, d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d;
+    const s = Math.max(-0.95, Math.min(0.95, (br - ar) / d)), c = Math.sqrt(1 - s * s);
+    seg.push({ aL: Math.atan2(-s * uy - c * ux, -s * ux + c * uy), aR: Math.atan2(-s * uy + c * ux, -s * ux - c * uy) });
+  }
+  const out = [];
+  const pt = (i, a) => [C[i][0] + C[i][2] * Math.cos(a), C[i][1] + C[i][2] * Math.sin(a)];
+  const arc = (i, a0, a1) => { const k = Math.max(1, Math.ceil(Math.abs(a1 - a0) / 0.09)); for (let j = 0; j <= k; j++) out.push(pt(i, a0 + (a1 - a0) * j / k)); };
+  const near = (a0, a1) => { let d = a1 - a0; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return a0 + d; };
+  out.push(pt(0, seg[0].aL));
+  for (let i = 1; i < n - 1; i++) arc(i, seg[i - 1].aL, near(seg[i - 1].aL, seg[i].aL));
+  let a0 = seg[n - 2].aL, a1 = seg[n - 2].aR; while (a1 < a0) a1 += 2 * Math.PI; arc(n - 1, a0, a1);
+  for (let i = n - 2; i >= 1; i--) arc(i, seg[i].aR, near(seg[i].aR, seg[i - 1].aR));
+  let b0 = seg[0].aR, b1 = seg[0].aL; while (b1 < b0) b1 += 2 * Math.PI; arc(0, b0, b1);
+  return out;
+}
+
+/* the plotted layer: cone, centre track, the two tracks, and the 12px labels.
+   Nodes are made once, so a relayout never restarts the entrance. */
+const Plot = (() => {
+  const NS = 'http://www.w3.org/2000/svg', svg = $('.plot'), marks = $('.marks'), E = {};
+  const node = (tag, cls, at) => { const e = document.createElementNS(NS, tag); e.setAttribute('class', cls); for (const k in at) e.setAttribute(k, at[k]); svg.appendChild(e); return e; };
+  const chip = (cls, text, delay) => { const s = document.createElement('span'); s.className = 'mk ' + cls; s.textContent = text; s.style.setProperty('--ld', delay + 'ms'); marks.appendChild(s); return s; };
+  const r1 = (n) => Math.round(n * 10) / 10;
+  const line = (pts) => 'M' + pts.map((p) => r1(p[0]) + ' ' + r1(p[1])).join('L');
+  function init() {
+    const C = DATA.chart;
+    E.hCone = node('path', 'halo h-cone draw', { pathLength: 1, style: '--pd:1000ms' });
+    E.cone = node('path', 'cone draw', { pathLength: 1, style: '--pd:1000ms' });
+    E.hCtr = node('path', 'halo h-ctr draw', { pathLength: 1, style: '--pd:1150ms' });
+    E.ctr = node('path', 'ctr draw', { pathLength: 1, style: '--pd:1150ms' });
+    E.hDir = node('path', 'halo h-dir fade', { style: '--pd:1250ms' });
+    E.dir = node('path', 'dir fade', { style: '--pd:1250ms' });
+    E.hSent = node('path', 'halo h-sent draw', { pathLength: 1, style: '--pd:1420ms' });
+    E.sent = node('path', 'sent draw', { pathLength: 1, style: '--pd:1420ms' });
+    E.port = node('rect', 'port pop', { width: 8, height: 8, style: '--pd:1300ms' });
+    E.wpt = node('circle', 'wpt pop', { r: 3.5, style: '--pd:1380ms' });
+    E.dots = C.forecast.map((f, i) => node('circle', 'fdot pop', { r: 4.5, style: `--pd:${1450 + i * 110}ms` }));
+    E.lon = [125, 130, 135, 140, 145].map((v) => [v, chip('grat', v + 'E', 1650)]);
+    E.lat = [30, 25, 20].map((v) => [v, chip('grat', v + 'N', 1650)]);
+    E.fc = C.forecast.map((f, i) => chip('fc', ADV.at(f[0]), 1700 + i * 70));
+    E.from = chip('port', C.port[0], 1600);
+    E.dest = chip('port', C.dest, 1950);
+    E.tDir = chip('trk', 'Direct track', 1800);
+    E.tSent = chip('trk', DATA.sent.label, 1950);
+  }
+  /* place a chip on whole pixels inside the sheet: the first candidate position that clears every chip,
+     dot and solid cell already placed wins (the first one is the fallback) */
+  let taken = [];
+  const hit = (a, b) => a.x < b.x + b.w + 3 && b.x < a.x + a.w + 3 && a.y < b.y + b.h + 3 && b.y < a.y + a.h + 3;
+  function put(el, cands, show) {
+    el.hidden = !show;
+    if (!show) return;
+    const w = el.offsetWidth, h = el.offsetHeight;
+    let pick = null;
+    for (const c of cands) {
+      const [cx, cy] = c(w, h);
+      const r = { x: Math.round(Math.max(2, Math.min(S.w - w - 2, cx))), y: Math.round(Math.max(2, Math.min(S.h - h - 2, cy))), w, h };
+      if (!pick) pick = r;
+      if (!taken.some((q) => hit(q, r))) { pick = r; break; }
+    }
+    el.style.left = pick.x + 'px'; el.style.top = pick.y + 'px';
+    taken.push(pick);
+  }
+  function build() {
+    const C = DATA.chart, W = S.w, H = S.h, pxnm = S.ky / 60, mob = S.mobile;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    const eye = [X(C.eye[1]), Y(C.eye[0])];
+    const cir = [[eye[0], eye[1], C.r0 * pxnm]].concat(C.forecast.map((f) => [X(f[2]), Y(f[1]), f[3] * pxnm]));
+    const cone = coneHull(cir), coneD = line(cone) + 'Z', ctrD = line(cir);
+    E.hCone.setAttribute('d', coneD); E.cone.setAttribute('d', coneD);
+    E.hCtr.setAttribute('d', ctrD); E.ctr.setAttribute('d', ctrD);
+    const PA = [X(C.port[2]), Y(C.port[1])], D0 = [X(C.depart[1]), Y(C.depart[0])];
+    const ux = eye[0] - D0[0], uy = eye[1] - D0[1], tE = (W + 8 - D0[0]) / ux;
+    const D1 = [D0[0] + ux * tE, D0[1] + uy * tE];
+    const dirD = line([PA, D0, D1]);
+    E.hDir.setAttribute('d', dirD); E.dir.setAttribute('d', dirD);
+    const SP = [PA, D0].concat(C.sent.map((p) => [X(p[1]), Y(p[0])]), [D1]);
+    const sentD = line(SP);
+    E.hSent.setAttribute('d', sentD); E.sent.setAttribute('d', sentD);
+    E.port.setAttribute('x', r1(PA[0] - 4)); E.port.setAttribute('y', r1(PA[1] - 4));
+    E.wpt.setAttribute('cx', r1(D0[0])); E.wpt.setAttribute('cy', r1(D0[1]));
+    E.dots.forEach((d, i) => { d.setAttribute('cx', r1(cir[i + 1][0])); d.setAttribute('cy', r1(cir[i + 1][1])); });
+
+    /* cells that sit on the sheet (the advisory and the track sent) are solid: the field skips them and no label lands on them */
+    const cr = $('.chart').getBoundingClientRect();
+    const solids = $$('.adv, .snt').map((el) => el.getBoundingClientRect())
+      .map((r) => ({ x: r.left - cr.left, y: r.top - cr.top, w: r.width, h: r.height }))
+      .filter((r) => r.w > 0 && r.x < W && r.y < H && r.x + r.w > 0 && r.y + r.h > 0);
+    /* keep-out: solid cells, the eye, dots and marks, and samples along both tracks, so no chip sits on a line */
+    taken = solids.map((r) => Object.assign({}, r));
+    const er = (mob ? 15 : Math.max(22, 34 * S.colW / 240)) * 2.1;
+    taken.push({ x: eye[0] - er, y: eye[1] - er, w: er * 2, h: er * 2 });
+    cir.slice(1).forEach((c) => taken.push({ x: c[0] - 4, y: c[1] - 4, w: 8, h: 8 }));
+    taken.push({ x: PA[0] - 5, y: PA[1] - 5, w: 10, h: 10 }, { x: D0[0] - 4, y: D0[1] - 4, w: 8, h: 8 });
+    const sample = (pts) => { for (let i = 1; i < pts.length; i++) { const [ax, ay] = pts[i - 1], [bx, by] = pts[i], n = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / 14)); for (let k = 0; k <= n; k++) taken.push({ x: ax + (bx - ax) * k / n - 3, y: ay + (by - ay) * k / n - 3, w: 6, h: 6 }); } };
+    sample([D0, D1]); sample(SP);
+
+    /* graticule values where the rules cross: meridians along 25N, parallels down one meridian */
+    const y25 = Y(25), xm = X(mob ? 135 : 130);
+    E.lon.forEach(([v, el]) => put(el, [(w, h) => [X(v) + 5, y25 - 5 - h]], mob ? v === 135 : true));
+    E.lat.forEach(([v, el]) => put(el, [(w, h) => [xm - 5 - w, Math.abs(v - S.latT) < 0.01 ? 5 : Y(v) - 5 - h]], mob ? v === 25 : true));
+    /* forecast times beside their dots, on whichever side is clear (the phone sheet is too small to carry them) */
+    E.fc.forEach((el, i) => {
+      const x = cir[i + 1][0], y = cir[i + 1][1];
+      put(el, [(w, h) => [x + 9, y + 3], (w, h) => [x + 9, y - h - 3], (w, h) => [x - w - 9, y + 3], (w, h) => [x - w - 9, y - h - 3]], !mob);
+    });
+    /* ports: Kaohsiung beside its square (on the phone sheet it lies off the left edge); Long Beach where the track leaves */
+    const yIn = D0[1] + uy * ((0 - D0[0]) / ux), yOut = D0[1] + uy * ((W - D0[0]) / ux);
+    if (PA[0] >= 0) put(E.from, [(w, h) => [PA[0] + 9, PA[1] - h - 6], (w, h) => [PA[0] + 9, PA[1] + 6]], true);
+    else put(E.from, [(w, h) => [4, yIn - h - 9], (w, h) => [4, yIn + 9]], true);
+    put(E.dest, [(w, h) => [W - w - 4, yOut + 9], (w, h) => [W - w - 4, yOut - h - 9]], mob);
+    /* the two tracks named on the lines themselves */
+    const pD = [D0[0] + ux * 0.45, D0[1] + uy * 0.45], m = uy / ux;
+    put(E.tDir, [(w, h) => [pD[0] - w / 2, pD[1] - h - 10], (w, h) => [pD[0] - w / 2 + 80, pD[1] + m * 80 - h - 10]], !mob);
+    const sAt = (sx) => { const k = SP.findIndex((p, i) => i > 0 && p[0] >= sx); const a = SP[Math.max(0, k - 1)], b = SP[Math.max(1, k)]; return a[1] + (b[1] - a[1]) * ((sx - a[0]) / ((b[0] - a[0]) || 1)); };
+    put(E.tSent, [
+      (w, h) => [X(128) - w / 2, sAt(X(128)) + 10], (w, h) => [X(126.5) - w / 2, sAt(X(126.5)) + 10],
+      (w, h) => [X(128) - w / 2, sAt(X(128)) - h - 10], (w, h) => [X(130) - w / 2, sAt(X(130)) - h - 10]
+    ], !mob);
+    return { cone, eye, solids };
+  }
+  return { init, build };
+})();
+
+/* ---------- 4. the cyclone: one live field under the whole sheet ---------- */
+const Storm = (() => {
+  const ARMS = 2, K = 5.5, P = 12, TAU = Math.PI * 2;
+  const W_BAND = TAU / 70, NOISE_DRIFT = P / 52, CONE_K = 0.45;
+  const hero = $('.hero'), chartEl = $('.chart'), cv = $('canvas', chartEl), ctx = cv.getContext('2d', { alpha: false });
+  let w = 1, h = 1, img, u32, TH, LR, R, ENV, WALL, MASK;
+  let eye = { x: 0, y: 0 }, re = 34, RF = 1050, lensR = 128, ARM = 0.62;
+  let running = false, raf = 0, last = 0, visible = true;
+  const lens = { x: 0, y: 0, tx: 0, ty: 0, s: 0, ts: 0 };
+
+  function layout() {
+    readColours();
+    S = frameSheet();
+    const geo = Plot.build();
+    eye = { x: geo.eye[0], y: geo.eye[1] };
+    const sc = S.colW / 240;
+    if (S.mobile) { re = 15; RF = 560; lensR = 0; ARM = 0.72; }
+    else { re = Math.max(22, Math.round(34 * sc)); RF = 1050 * sc; lensR = 128 * sc; ARM = 0.62; }
+    w = Math.max(1, Math.ceil(S.w / F)); h = Math.max(1, Math.ceil(S.h / F));
+    cv.width = w; cv.height = h; cv.style.width = w * F + 'px'; cv.style.height = h * F + 'px';
+    img = ctx.createImageData(w, h); u32 = new Uint32Array(img.data.buffer); u32.fill(COL.paper);
+    const n = w * h;
+    TH = new Float32Array(n); LR = new Float32Array(n); R = new Float32Array(n);
+    ENV = new Float32Array(n); WALL = new Float32Array(n); MASK = new Uint8Array(n);
+    /* rasterise the cone (1: lighter field inside, as the advisory cone is drawn) and the solid cells (2: skipped) */
+    const off = document.createElement('canvas'); off.width = w; off.height = h;
+    const oc = off.getContext('2d');
+    oc.setTransform(1 / F, 0, 0, 1 / F, 0, 0);
+    oc.fillStyle = '#ff0000'; oc.beginPath();
+    geo.cone.forEach((p, i) => (i ? oc.lineTo(p[0], p[1]) : oc.moveTo(p[0], p[1])));
+    oc.closePath(); oc.fill();
+    oc.fillStyle = '#0000ff'; geo.solids.forEach((r) => oc.fillRect(r.x, r.y, r.w, r.h));
+    const md = oc.getImageData(0, 0, w, h).data;
+    const rw = re * 1.75, ww = re * 0.55;
+    for (let j = 0, k = 0; j < h; j++) {
+      const Yp = (j + 0.5) * F;
+      for (let i = 0; i < w; i++, k++) {
+        MASK[k] = md[k * 4 + 2] > 127 ? 2 : md[k * 4] > 127 ? 1 : 0;
+        const dx = (i + 0.5) * F - eye.x, dy = Yp - eye.y, r = Math.sqrt(dx * dx + dy * dy) + 0.001;
+        R[k] = r; TH[k] = Math.atan2(-dy, dx); LR[k] = Math.log(r);
+        const rr = r / RF;
+        ENV[k] = clamp01((r - re) / (re * 1.6)) / (1 + rr * rr * rr);
+        const q = (r - rw) / ww; WALL[k] = Math.exp(-q * q);
+      }
+    }
+  }
+
+  const ease3 = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : 1 - Math.pow(1 - x, 3));
+
+  function draw(nowMs) {
+    const t = RM ? 4 : nowMs / 1000;
+    const rot = (RM ? 0 : t) * W_BAND, nd = (RM ? 0 : t) * NOISE_DRIFT;
+    const developing = t < 2.6;
+    lens.x += (lens.tx - lens.x) * 0.28; lens.y += (lens.ty - lens.y) * 0.28; lens.s += (lens.ts - lens.s) * 0.16;
+    const lensOn = !RM && lensR > 0 && lens.s > 0.01, LR2 = lensR * lensR;
+    const pScale = P / TAU, C_P = COL.paper, C_D = COL.dot, C_S = COL.sodium;
+    for (let j = 0, k = 0; j < h; j++) {
+      const by = (j & 7) << 3, ly = (j + 0.5) * F - lens.y, rowLens = lensOn && ly * ly < LR2;
+      for (let i = 0; i < w; i++, k++) {
+        const m = MASK[k];
+        if (m === 2) continue;
+        let th = TH[k], lr = LR[k], boost = 0, inLens = 0;
+        if (rowLens) {
+          const lx = (i + 0.5) * F - lens.x, d2 = lx * lx + ly * ly;
+          if (d2 < LR2) {
+            /* lens: twirl the field around the pointer (the spiral winds tighter) and raise density */
+            let wl = 1 - Math.sqrt(d2) / lensR; wl = wl * wl * (3 - 2 * wl) * lens.s;
+            const a = wl * 2.1, ca = Math.cos(a), sa = Math.sin(a);
+            const ex = lens.x + lx * ca - ly * sa - eye.x, ey = lens.y + lx * sa + ly * ca - eye.y;
+            th = Math.atan2(-ey, ex); lr = Math.log(Math.sqrt(ex * ex + ey * ey) + 0.001);
+            boost = 0.2 * wl; inLens = wl;
+          }
+        }
+        const u = th * pScale - nd, v = lr * pScale;
+        const n = 0.62 * vnoise(u, v, P) + 0.38 * vnoise(u * 2 + 7.3, v * 2 + 3.1, P * 2);
+        let band = 0.5 + 0.5 * Math.cos(ARMS * th + K * lr - rot + 2.4 * (n - 0.5));
+        band = (band - 0.38) / 0.36; band = band < 0 ? 0 : band > 1 ? 1 : band * band * (3 - 2 * band);
+        /* arms peak near 70 percent: a dense dot field, never a solid slab; only the eyewall goes solid; inside the cone the arms thin */
+        let val = ENV[k] * (0.04 + ARM * band) * (0.7 + 0.4 * n) * (m === 1 ? CONE_K : 1) + WALL[k] * 0.95 + boost;
+        if (developing) val -= 1 - ease3((t - 0.3 - R[k] * 0.00042) / 1.45);
+        const th8 = BAYER[by | (i & 7)];
+        /* lens colour is dithered too: sodium dots thin out towards the lens edge */
+        u32[k] = val > th8 ? (inLens > BAYER[((by + 32) & 56) | ((i + 3) & 7)] * 0.85 ? C_S : C_D) : C_P;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  function loop(now) {
+    raf = requestAnimationFrame(loop);
+    if (now - last < 32) return;
+    last = now;
+    draw(now);
+  }
+  function start() { if (running || RM) return; running = true; last = 0; raf = requestAnimationFrame(loop); }
+  function stop() { running = false; cancelAnimationFrame(raf); }
+  function sync() { (visible && !document.hidden) ? start() : stop(); }
+
+  function init() {
+    Plot.init();
+    layout();
+    draw(performance.now()); /* first frame painted synchronously */
+    if (RM) return;
+    sync();
+    setTimeout(() => { if (!running) draw(performance.now()); }, 2700);
+    new IntersectionObserver((es) => { visible = es[0].isIntersecting; sync(); }).observe(hero);
+    document.addEventListener('visibilitychange', sync);
+    hero.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse' && e.pointerType !== 'pen') return;
+      const r = chartEl.getBoundingClientRect();
+      lens.tx = e.clientX - r.left; lens.ty = e.clientY - r.top;
+      if (lens.s < 0.02) { lens.x = lens.tx; lens.y = lens.ty; }
+      lens.ts = e.target.closest('.ch') ? 1 : 0;
+    });
+    hero.addEventListener('pointerleave', () => { lens.ts = 0; });
+  }
+  return { init, layout, redraw: () => draw(performance.now()) };
+})();
+
+/* ---------- 5. route preview: a tiny dithered chart per voyage ---------- */
+const Chart = (() => {
+  const box = $('#pv-map'), cv = $('canvas', box), ctx = cv.getContext('2d', { alpha: false });
+  let w = 1, h = 1, img, u32, cur = 0, anim = 0;
+  function layout() {
+    const r = box.getBoundingClientRect();
+    w = Math.max(1, Math.ceil(r.width / F)); h = Math.max(1, Math.ceil(r.height / F));
+    cv.width = w; cv.height = h; cv.style.width = w * F + 'px'; cv.style.height = h * F + 'px';
+    img = ctx.createImageData(w, h); u32 = new Uint32Array(img.data.buffer);
+  }
+  function bez(o, c, d, t) {
+    const a = 1 - t;
+    return [a * a * o[0] + 2 * a * t * c[0] + t * t * d[0], a * a * o[1] + 2 * a * t * c[1] + t * t * d[1]];
+  }
+  function draw(vy, p) {
+    const sx = vy.s[0] * w, sy = vy.s[1] * h, sr = vy.s[2] * h * 1.6, seed = vy.vessel.length * 1.7;
+    const C_P = COL.paper, C_D = COL.dot, C_S = COL.sodium;
+    for (let j = 0, k = 0; j < h; j++) {
+      const by = (j & 7) << 3;
+      for (let i = 0; i < w; i++, k++) {
+        const dx = i + 0.5 - sx, dy = j + 0.5 - sy, r = Math.sqrt(dx * dx + dy * dy) + 0.001;
+        const th = Math.atan2(-dy, dx), lr = Math.log(r);
+        let band = 0.5 + 0.5 * Math.cos(2 * th + 4.6 * lr + seed);
+        band = clamp01((band - 0.3) / 0.45); band = band * band * (3 - 2 * band);
+        const env = Math.exp(-(r / sr) * (r / sr) * 1.4);
+        const q = (r - sr * 0.17) / (sr * 0.06), wall = Math.exp(-q * q);
+        const ocean = 0.07 + 0.12 * vnoise(i / 6 + seed, j / 6, 256);
+        let val = r < sr * 0.1 ? 0 : env * (0.1 + 0.86 * band) + wall * 0.9 + ocean * (1 - env);
+        val -= 1 - p;
+        u32[k] = val > BAYER[by | (i & 7)] ? C_D : C_P;
+      }
+    }
+    const O = [vy.o[0] * w, vy.o[1] * h], D = [vy.d[0] * w, vy.d[1] * h];
+    const M = [(O[0] + D[0]) / 2, (O[1] + D[1]) / 2];
+    let nx = -(D[1] - O[1]), ny = D[0] - O[0];
+    const nl = Math.hypot(nx, ny) || 1; nx /= nl; ny /= nl;
+    const side = ((sx - M[0]) * nx + (sy - M[1]) * ny) > 0 ? -1 : 1;
+    const bow = Math.hypot(D[0] - O[0], D[1] - O[1]) * 0.42;
+    const C = [M[0] + nx * side * bow, M[1] + ny * side * bow];
+    const set = (x, y, c) => { x |= 0; y |= 0; if (x >= 0 && y >= 0 && x < w && y < h) u32[y * w + x] = c; };
+    const len = Math.hypot(D[0] - O[0], D[1] - O[1]);
+    /* direct track: a paper halo like the sent track's, then square dots twice the dither grain on a fixed pitch,
+       so it reads as a drawn line and not as more halftone; the comparison the key promises is visible */
+    for (let s = 0; s <= len; s += 0.5) {
+      const x = O[0] + (D[0] - O[0]) * s / len, y = O[1] + (D[1] - O[1]) * s / len;
+      for (let oy = -1; oy <= 2; oy++) for (let ox = -1; ox <= 2; ox++) set(x + ox, y + oy, C_P);
+    }
+    for (let s = 2; s <= len - 2; s += 4) {
+      const x = O[0] + (D[0] - O[0]) * s / len, y = O[1] + (D[1] - O[1]) * s / len;
+      set(x, y, C_D); set(x + 1, y, C_D); set(x, y + 1, C_D); set(x + 1, y + 1, C_D);
+    }
+    const qn = clamp01((p - 0.12) / 0.88);
+    const steps = 700;
+    for (let s = 0; s <= steps * qn; s++) { /* paper halo, then the track sent */
+      const pt = bez(O, C, D, s / steps);
+      for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) set(pt[0] + ox, pt[1] + oy, C_P);
+    }
+    for (let s = 0; s <= steps * qn; s++) { const pt = bez(O, C, D, s / steps); set(pt[0], pt[1], C_S); }
+    for (const E of [O, D]) for (let oy = -2; oy <= 2; oy++) for (let ox = -2; ox <= 2; ox++) set(E[0] + ox, E[1] + oy, Math.abs(ox) < 2 && Math.abs(oy) < 2 ? C_D : C_P);
+    ctx.putImageData(img, 0, 0);
+    const pa = $('#pv-a'), pb = $('#pv-b');
+    pa.textContent = vy.codes[0]; pb.textContent = vy.codes[1];
+    const place = (el, E) => {
+      const bw = w * F;
+      let x = E[0] * F, y = E[1] * F;
+      x = Math.min(bw - 30, Math.max(30, x));
+      el.style.left = Math.round(x) + 'px'; el.style.top = Math.round(Math.max(26, y)) + 'px';
+    };
+    place(pa, O); place(pb, D);
+  }
+  function show(i, animate) {
+    cur = i;
+    const vy = DATA.voyages[i];
+    $('#pv-name').textContent = vy.vessel;
+    $('#pv-count').textContent = `${pad2(i + 1)} / ${pad2(DATA.voyages.length)}`;
+    $('#pv-dep').textContent = `${vy.dep}, ${vy.from}`;
+    $('#pv-arr').textContent = `${vy.arr}, ${vy.to}`;
+    const nb = (s) => s.replace(/(\d) (hPa|m|kt|t|h)\b/g, '$1 $2');
+    $('#pv-avd').textContent = nb(vy.avoided);
+    $('#pv-seas').textContent = nb(vy.seas);
+    cancelAnimationFrame(anim);
+    if (!animate || RM) { draw(vy, 1); return; }
+    const t0 = performance.now(), dur = 520;
+    const step = (now) => {
+      const k = clamp01((now - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+      draw(vy, e);
+      if (k < 1) anim = requestAnimationFrame(step);
+    };
+    anim = requestAnimationFrame(step);
+  }
+  return { layout, show, redraw: () => draw(DATA.voyages[cur], 1), get cur() { return cur; } };
+})();
+
+/* ---------- 6. split-flap port clock, and UTC beside it ---------- */
+const Clock = (() => {
+  const el = $('#flap'), sr = $('#clock-sr'), utc = $('#utc');
+  const N = 15, CH = 'ABCDEFGHIKLMNOPRSTUVWXYZ0123456789';
+  const fm = {};
+  DATA.ports.forEach((p) => { fm[p.tz] = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: p.tz }); });
+  const fmU = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC' });
+  let pi = 0, shown = '';
+  el.textContent = '';
+  const slots = Array.from({ length: N }, () => { const s = document.createElement('span'); s.className = 'slot'; s.textContent = ' '; el.appendChild(s); return s; });
+  const text = (p) => (p.name.padEnd(9, ' ') + ' ' + fm[p.tz].format(new Date())).slice(0, N).padEnd(N, ' ');
+  const tickUTC = () => { if (utc) utc.textContent = fmU.format(new Date()) + ' UTC'; };
+  function put(str, animate) {
+    for (let i = 0; i < N; i++) {
+      const c = str[i] === ' ' ? ' ' : str[i];
+      const s = slots[i];
+      if (s.textContent === c) continue;
+      if (!animate || RM) { s.textContent = c; continue; }
+      const cycles = c === ' ' ? 1 : 2;
+      for (let k = 0; k <= cycles; k++) {
+        setTimeout(() => {
+          s.classList.remove('f'); void s.offsetWidth; s.classList.add('f');
+          s.textContent = k === cycles ? c : CH[(Math.random() * CH.length) | 0];
+        }, i * 24 + k * 62);
+      }
+    }
+    shown = str;
+    const p = DATA.ports[pi];
+    sr.textContent = `${p.name.charAt(0) + p.name.slice(1).toLowerCase()} local time ${str.slice(10).trim()}`;
+  }
+  function init() {
+    tickUTC();
+    if (RM) put(text(DATA.ports[0]), false);
+    else setTimeout(() => put(text(DATA.ports[0]), true), 520);
+    setInterval(() => { pi = (pi + 1) % DATA.ports.length; put(text(DATA.ports[pi]), true); }, 6000);
+    setInterval(() => { tickUTC(); const s = text(DATA.ports[pi]); if (s !== shown) put(s, true); }, 5000);
+  }
+  return { init };
+})();
+
+/* ---------- 7. scroll relationships ---------- */
+const Ink = (() => {
+  const p = $('#ink');
+  let lines = [];
+  function split() {
+    const words = DATA.about.text.split(' ');
+    p.textContent = '';
+    const spans = words.map((wd, i) => { const s = document.createElement('span'); s.textContent = wd + (i < words.length - 1 ? ' ' : ''); p.appendChild(s); return s; });
+    lines = []; let top = null;
+    spans.forEach((s) => { const t = s.offsetTop; if (top === null || Math.abs(t - top) > 4) { lines.push({ spans: [], p: -1 }); top = t; } lines[lines.length - 1].spans.push(s); });
+    update();
+  }
+  function update() {
+    const vh = innerHeight;
+    for (const ln of lines) {
+      const r = ln.spans[0].getBoundingClientRect();
+      const cy = r.top + r.height / 2;
+      const v = Math.round(clamp01((0.62 * vh - cy) / (0.17 * vh)) * 100) / 100;
+      if (v !== ln.p) { ln.p = v; for (const s of ln.spans) s.style.setProperty('--p', v); }
+    }
+  }
+  return { split, update };
+})();
+
+const Ledger = (() => {
+  const rows = () => $$('#rows .row');
+  let hover = -1, active = 0;
+  function pick() {
+    if (hover >= 0) return;
+    const rs = rows();
+    if (!rs.length) return;
+    const mobile = MOBILE.matches;
+    const target = mobile ? 60 + 196 + (innerHeight - 256) * 0.3 : innerHeight * 0.48;
+    let best = 0, bd = Infinity;
+    rs.forEach((r, i) => { const b = r.getBoundingClientRect(); const d = Math.abs(b.top + b.height / 2 - target); if (d < bd) { bd = d; best = i; } });
+    if (best !== active) set(best, true);
+  }
+  function set(i, animate) {
+    active = i;
+    rows().forEach((r, k) => r.classList.toggle('cur', k === i));
+    if (Chart.cur !== i || !animate) Chart.show(i, animate);
+  }
+  function init() {
+    const list = $('#rows');
+    list.addEventListener('pointerover', (e) => { const r = e.target.closest('.row'); if (!r || e.pointerType === 'touch') return; const i = +r.dataset.i; hover = i; if (i !== active) set(i, true); });
+    list.addEventListener('pointerleave', () => { hover = -1; pick(); });
+    list.addEventListener('focusin', (e) => { const r = e.target.closest('.row'); if (r) set(+r.dataset.i, true); });
+    set(0, false);
+  }
+  return { init, pick };
+})();
+
+function flips() {
+  const io = new IntersectionObserver((es) => {
+    es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('on'); io.unobserve(e.target); } });
+  }, { rootMargin: '0px 0px -10% 0px' });
+  $$('.sec .flip').forEach((el) => io.observe(el));
+  root.classList.add('flips');
+}
+
+function spy() {
+  const links = $$('.nav a');
+  const io = new IntersectionObserver((es) => {
+    es.forEach((e) => {
+      const id = e.target.id === 'quotes' ? 'voyages' : e.target.id;
+      if (e.isIntersecting) { links.forEach((a) => { a.classList.toggle('on', a.dataset.sec === id); if (a.dataset.sec === id) a.setAttribute('aria-current', 'location'); else a.removeAttribute('aria-current'); }); }
+    });
+  }, { rootMargin: '-45% 0px -54% 0px' });
+  ['routing', 'voyages', 'quotes', 'desk', 'research', 'careers', 'contact'].forEach((id) => { const s = document.getElementById(id); if (s) io.observe(s); });
+  const heroIO = new IntersectionObserver((es) => { if (es[0].isIntersecting && es[0].intersectionRatio > 0.5) links.forEach((a) => { a.classList.remove('on'); a.removeAttribute('aria-current'); }); }, { threshold: [0, 0.5, 1] });
+  heroIO.observe($('.hero'));
+}
+
+/* ---------- 8. controls: the night chart and the menu ---------- */
+function controls() {
+  const hdr = $('#hdr'), menu = $('.menu', hdr), pals = $$('.pal, .m-tog');
+  const isDark = () => root.getAttribute('data-theme') === 'dark';
+  const setTheme = (dark) => {
+    root.setAttribute('data-theme', dark ? 'dark' : 'light');
+    pals.forEach((b) => b.setAttribute('aria-pressed', String(dark)));
+    $('meta[name="theme-color"]').setAttribute('content', dark ? '#1E1F21' : '#FFFFFF');
+    try { localStorage.setItem('nordwind-theme', dark ? 'dark' : 'light'); } catch (e) {}
+    readColours(); Storm.redraw(); Chart.redraw();
+  };
+  pals.forEach((b) => { b.setAttribute('aria-pressed', String(isDark())); b.addEventListener('click', () => setTheme(!isDark())); });
+  const close = () => { hdr.classList.remove('open'); menu.setAttribute('aria-expanded', 'false'); };
+  menu.addEventListener('click', () => { const o = !hdr.classList.contains('open'); hdr.classList.toggle('open', o); menu.setAttribute('aria-expanded', String(o)); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && hdr.classList.contains('open')) { close(); menu.focus(); } });
+  $$('a[href^="#"]').forEach((a) => a.addEventListener('click', (e) => {
+    const id = a.getAttribute('href').slice(1), t = id === 'top' ? document.body : document.getElementById(id);
+    if (!t) return;
+    e.preventDefault(); close();
+    const y = id === 'top' ? 0 : t.getBoundingClientRect().top + scrollY - 60 + 1;
+    scrollTo({ top: y, behavior: RM ? 'auto' : 'smooth' });
+    history.replaceState(null, '', '#' + id);
+  }));
+}
+
+function localTimes() {
+  const fm = {};
+  const tick = () => $$('.lt').forEach((el) => {
+    const tz = el.dataset.tz;
+    fm[tz] = fm[tz] || new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: tz });
+    el.textContent = fm[tz].format(new Date());
+  });
+  tick(); setInterval(tick, 20000);
+}
+
+/* ---------- boot: content first, so a later failure never hides copy ---------- */
+try { bind(); render(); } catch (e) { console.warn(e); }
+try { readColours(); Storm.init(); } catch (e) { console.warn(e); }
+try { Chart.layout(); Ledger.init(); } catch (e) { console.warn(e); }
+try { Clock.init(); localTimes(); controls(); flips(); spy(); } catch (e) { console.warn(e); }
+try { Ink.split(); } catch (e) { console.warn(e); }
+
+let ticking = false;
+addEventListener('scroll', () => {
+  if (ticking) return; ticking = true;
+  requestAnimationFrame(() => { ticking = false; Ink.update(); Ledger.pick(); });
+}, { passive: true });
+
+let lastW = innerWidth, rz = 0;
+addEventListener('resize', () => {
+  cancelAnimationFrame(rz);
+  rz = requestAnimationFrame(() => {
+    Storm.layout(); Storm.redraw(); Chart.layout(); Chart.redraw();
+    if (innerWidth !== lastW) { lastW = innerWidth; Ink.split(); }
+  });
+});
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { Storm.layout(); Storm.redraw(); Ink.split(); Chart.layout(); Chart.redraw(); });
+setTimeout(() => root.classList.remove('intro'), 2600);
+})();
+</script>
+</body>
+</html>

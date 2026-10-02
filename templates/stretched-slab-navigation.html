@@ -1,0 +1,1268 @@
+<!-- TEMPLATE: Stretched Slab Navigation | ARCHETYPE: distorted-type navigation as the whole composition, hinged on the client's own tool: a LOG / GRADE wipe whose line IS the column boundary (avant-garde, one rule pushed to its limit) | REF: julienvonschultzendorff.com, Special Offer Inc., PIN-UP Magazine, MUDA | WHEN TO USE: a colourist, director, photographer or small studio whose two section names can carry the entire first screen | SWAP: edit the DATA object at top of the script -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Okapi Grade</title>
+<meta name="description" content="Okapi Grade: colour grading, conform and mastering for features, series and commercials. Kreuzberg, Berlin.">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#ffffff">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" rel="stylesheet">
+<script>
+  /* js flag hides slab letters until they are fitted; the timer is a failsafe so a broken script never leaves them hidden */
+  document.documentElement.classList.add('js');
+  setTimeout(function () { document.documentElement.classList.add('go'); }, 2600);
+</script>
+<style>
+  /* ---------- tokens: the interface is white and black, nothing else; colour comes only from the frames ---------- */
+  :root {
+    --paper: #ffffff;
+    --slab: #000000;
+    --pad: 8px;
+    --gut: 32px;  /* final gutter between the two strips: one stretched word space */
+    --bar: 28px;  /* monitor letterbox bar that carries the burn-ins */
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+    /* layout vars, overwritten by the script on load, resize, scroll and pointer */
+    --H: 100vh;
+    --lw: calc((100vw - 16px) / 2);
+    --rw: calc((100vw - 16px) / 2);
+    --hS: calc((100vh - 16px) * 0.56);
+    --bw: calc(100vw - 16px);
+    --bh: calc((100vh - 16px) * 0.42);
+    --cover: 20px;
+    --pinH: calc(100vh - 72px);
+    --reelH: 300vh;
+    --mh: 36vh;
+    --rowM: 7vh;
+    --monH: 200px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html {
+    background: var(--paper);
+    color: var(--slab);
+    scrollbar-color: var(--slab) var(--paper);
+    scrollbar-width: thin;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  ::-webkit-scrollbar { width: 8px; height: 8px; background: var(--paper); }
+  ::-webkit-scrollbar-thumb { background: var(--slab); }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--slab);
+    font-family: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+    font-stretch: 100%;
+    font-weight: 500;
+    font-size: 12px;
+    line-height: 1.4;
+    font-synthesis: none;
+    font-kerning: normal;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    caret-color: var(--slab);
+    overflow-x: clip;
+  }
+
+  ::selection { background: var(--slab); color: var(--paper); }
+
+  a { color: inherit; }
+  a:focus-visible, button:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+  section:focus { outline: none; }
+
+  .sr-only {
+    position: absolute !important;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%);
+    white-space: nowrap; border: 0;
+  }
+
+  /* ---------- the slab: one svg per word, independent x / y fit ---------- */
+  .fit {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .slabtxt {
+    font-family: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 900;
+    font-stretch: 125%;
+    font-size: 200px;
+    font-kerning: normal;
+    text-rendering: geometricPrecision;
+    fill: currentColor;
+  }
+  /* entrance: every letter grows from its own baseline */
+  .ltr { transform-box: view-box; transform-origin: 0 var(--base, 0px); }
+  .js:not(.go) .ltr { transform: scaleY(0); }
+  .go .ltr {
+    animation: grow 500ms var(--ease) backwards;
+    animation-delay: calc(var(--i, 0) * 60ms + 100ms);
+  }
+  @keyframes grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+
+  #measure { position: absolute; left: -9999px; top: 0; width: 10px; height: 10px; overflow: hidden; visibility: hidden; }
+
+  /* ---------- slab navigation ---------- */
+  .slab-btn {
+    display: block;
+    position: relative;
+    overflow: hidden;
+    background: var(--paper);
+    color: var(--slab);
+    text-decoration: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .slab-btn:focus-visible { outline: none; background: var(--slab); color: var(--paper); }
+  .slab-btn:active { background: var(--slab); color: var(--paper); }
+  /* location state: the strip of the section on screen stays inverted. An inverted strip carries a
+     5px black frame: fitted letters fill the cell to its edges, and without the frame the black cell
+     would lose its outline against the paper. */
+  .slabs .slab-btn { z-index: 1; }
+  .is-strips .slab-btn.is-here { background: var(--slab); color: var(--paper); }
+  .is-strips .slab-btn.is-here,
+  .is-strips .slab-btn:focus-visible,
+  .is-strips .slab-btn:active { box-shadow: 0 0 0 5px var(--slab); }
+  @media (hover: hover) {
+    .is-strips .slab-btn:hover { background: var(--slab); color: var(--paper); box-shadow: 0 0 0 5px var(--slab); }
+  }
+  .tail { display: none; }
+
+  /* ---------- the monitor: letterbox bars with burn-ins, the frame split into LOG and GRADE ---------- */
+  .viewer { min-width: 0; --wx: 50%; --swx: 50%; }
+  .tile {
+    position: relative;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--slab);
+    color: var(--paper);
+    isolation: isolate;
+    touch-action: pan-y;
+    container-type: inline-size;
+    cursor: ew-resize;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .bar {
+    position: relative;
+    flex: none;
+    height: var(--bar);
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    padding: 0 12px;
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .bi-clip { margin-right: auto; }
+  .pic { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+  .pic img {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+    -webkit-user-drag: none;
+  }
+  /* LOG: the flat camera original, left of the wipe */
+  .img-log {
+    filter: saturate(0.3) contrast(0.56) brightness(1.13);
+    clip-path: inset(0 calc(100% - var(--wx)) 0 0);
+  }
+  /* drawn over the picture and through the label bar, never across the burn-ins */
+  .wipe {
+    position: absolute;
+    top: var(--bar); bottom: 0;
+    left: var(--wx);
+    z-index: 2;
+    width: 2px;
+    margin-left: -1px;
+    background: var(--paper);
+    pointer-events: none;
+  }
+  .lbl { position: absolute; top: 50%; left: var(--wx); translate: 0 -50%; }
+  .lbl-log { transform: translateX(calc(-100% - 10px)); }
+  .lbl-grade { transform: translateX(10px); }
+  .tile.no-log .lbl-log, .tile.no-grade .lbl-grade { visibility: hidden; }
+  @container (max-width: 560px) { .bi-xf { display: none; } }
+  @container (max-width: 330px) { .bi-fps { display: none; } }
+
+  /* ---------- the instrument: a luma waveform read from the frame's own pixels ---------- */
+  .scope { display: none; }
+  .scope canvas {
+    position: absolute;
+    left: 0; right: 0;
+    top: 18px; bottom: 18px;
+    width: 100%;
+    height: calc(100% - 36px);
+    display: block;
+  }
+  .gl { position: absolute; left: 0; right: 0; height: 1px; background: var(--slab); pointer-events: none; }
+  .gl-hi { top: 18px; }
+  .gl-mid { top: 50%; }
+  .gl-lo { bottom: 18px; }
+  .sc-n { position: absolute; font-size: 11px; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .sc-hi { left: 0; top: 2px; }
+  .sc-cap { right: 0; top: 2px; }
+  .sc-lo { left: 0; bottom: 2px; }
+  .scope-wipe {
+    position: absolute;
+    top: 18px; bottom: 18px;
+    left: var(--swx);
+    width: 1px;
+    background: var(--slab);
+    pointer-events: none;
+  }
+
+  .note {
+    margin: 0;
+    max-width: 54ch;
+    font-size: 12px;
+    line-height: 1.45;
+    text-wrap: pretty;
+  }
+
+  /* ---------- reel ---------- */
+  .films { list-style: none; margin: 0; padding: 0; min-width: 0; }
+  .films li { min-width: 0; min-height: 0; }
+  .film {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: var(--paper);
+    color: var(--slab);
+    font: inherit;
+    text-align: left;
+    cursor: ew-resize;
+    touch-action: pan-y;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .film-title { position: relative; flex: 1 1 auto; min-width: 0; }
+  .film-meta {
+    flex: 0 0 172px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 6px 8px 5px 16px;
+    font-size: 12px;
+    line-height: 1.3;
+    font-variant-numeric: tabular-nums;
+    min-width: 0;
+  }
+  .film-meta span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .film:focus-visible { outline: none; }
+  .film.is-on, .film:focus-visible { background: var(--slab); color: var(--paper); }
+  @media (hover: hover) {
+    .film:hover { background: var(--slab); color: var(--paper); }
+  }
+
+  /* ---------- studio ---------- */
+  .st-copy p {
+    margin: 0;
+    max-width: 33em;
+    font-size: 20px;
+    line-height: 1.42;
+    font-weight: 400;
+    letter-spacing: -0.006em;
+    text-wrap: pretty;
+  }
+  .st-copy p + p { margin-top: 1.05em; }
+  .st-lists {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+    gap: 24px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .st-lists h3 {
+    margin: 0 0 8px;
+    font-size: 12px;
+    font-weight: 800;
+    font-stretch: 125%;
+    line-height: 1.2;
+  }
+  .st-lists ul { list-style: none; margin: 0; padding: 0; }
+  .st-lists li { text-wrap: balance; }
+  .st-lists li + li { margin-top: 2px; }
+
+  /* ---------- call ---------- */
+  .call-cell { position: relative; background: var(--paper); color: var(--slab); }
+  .call-link { position: absolute; inset: 0; display: block; text-decoration: none; color: inherit; }
+  .call-link:focus-visible { outline: none; }
+  .call-meta {
+    position: absolute;
+    top: 0; right: 0;
+    z-index: 2;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    text-align: right;
+    font-size: 12px;
+    line-height: 1.45;
+    font-variant-numeric: tabular-nums;
+  }
+  .call-meta a {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
+  .call-meta a:hover { text-decoration-thickness: 2px; }
+  .call-cell:focus-within, .call-cell:has(.call-link:active) { background: var(--slab); color: var(--paper); }
+  @media (hover: hover) {
+    .call-cell:hover { background: var(--slab); color: var(--paper); }
+  }
+
+  /* =================== DESKTOP / TABLET =================== */
+  @media (min-width: 701px) {
+    .slabs { position: fixed; inset: 0; z-index: 20; pointer-events: none; }
+    .slabs::after {
+      content: "";
+      position: absolute; left: 0; right: 0; bottom: 0;
+      height: var(--pad);
+      background: var(--paper);
+    }
+    /* paper between the monitor and the words, so nothing of the reel shows through the gap at scroll 0 */
+    .slabs::before {
+      content: "";
+      position: absolute; left: 0; right: 0;
+      bottom: calc(var(--pad) + var(--hS));
+      height: var(--cover);
+      background: var(--paper);
+      pointer-events: auto;
+    }
+    /* the wipe line continues through the gap into the joint between the two words */
+    .tail {
+      display: block;
+      position: absolute;
+      bottom: calc(var(--pad) + var(--hS));
+      left: calc(var(--pad) + var(--lw) - 1px);
+      width: 2px;
+      height: var(--cover);
+      background: var(--slab);
+      visibility: hidden;
+    }
+    .is-hero .tail { visibility: visible; }
+    .slabs .slab-btn { position: absolute; bottom: var(--pad); height: var(--hS); pointer-events: auto; }
+    .s-studio { left: var(--pad); width: var(--lw); }
+    /* the gutter opens as the words squash, so two equal-height strips never fuse into one word */
+    .s-reel { left: calc(var(--pad) + var(--lw) + var(--g, 0px)); width: calc(var(--rw) - var(--g, 0px)); }
+
+    .m-word { display: none; }
+
+    #reel { position: relative; height: var(--reelH); padding-top: var(--pad); }
+    .reel-pin {
+      position: sticky;
+      top: var(--pad);
+      height: var(--pinH);
+      margin: 0 var(--pad);
+      display: grid;
+      grid-template-columns: var(--lw) minmax(0, 1fr);
+      column-gap: var(--gut);
+    }
+    /* the monitor spans both columns at scroll 0 and narrows into the left column as the words squash */
+    .viewer {
+      grid-column: 1;
+      grid-row: 1;
+      position: relative;
+      z-index: 3;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      min-height: 0;
+    }
+    .tile { flex: none; width: var(--bw); height: var(--bh); }
+    .scope { display: block; position: relative; flex: 1 1 auto; align-self: stretch; min-height: 96px; margin-top: 18px; }
+    .note { flex: none; margin-top: 14px; }
+    .reel-word { position: absolute !important; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); }
+    .reel-word .fit { display: none; }
+    .films {
+      grid-column: 2;
+      grid-row: 1;
+      display: grid;
+      grid-template-rows: repeat(8, minmax(0, 1fr));
+      gap: var(--pad);
+      height: 100%;
+    }
+
+    /* studio opens as its own chapter: a clear breath after the reel, copy and lists sharing one top line */
+    #studio {
+      display: grid;
+      grid-template-columns: 50% minmax(0, 1fr);
+      column-gap: var(--gut);
+      align-items: start;
+      padding: clamp(120px, 22vh, 220px) var(--pad) 0;
+    }
+    .st-copy { padding-right: 56px; }
+    /* first 12px line sits on the cap line of the first 20px line */
+    .st-lists { padding: 7px 8px 0 0; }
+
+    #call { padding: clamp(96px, 18vh, 180px) var(--pad) 64px; }
+    .call-cell { height: calc(var(--H) - 72px); }
+  }
+
+  /* =================== PHONE =================== */
+  @media (max-width: 700px) {
+    :root { --bar: 22px; }
+    .slabs {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      z-index: 20;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      column-gap: 16px;
+      padding: 0 var(--pad) var(--pad);
+      background: var(--paper);
+      transform: translateY(100%);
+      visibility: hidden;
+      transition: transform 160ms cubic-bezier(0.4, 0, 1, 1), visibility 0s linear 160ms;
+    }
+    .slabs.bar-on {
+      transform: none;
+      visibility: visible;
+      transition: transform 240ms var(--ease), visibility 0s linear 0s;
+    }
+    .slabs .slab-btn { height: 40px; }
+
+    #reel { padding: var(--pad) var(--pad) 0; }
+    /* the monitor opens the page and stays on top through the reel, the words and films pass under it */
+    .viewer { position: sticky; top: var(--pad); z-index: 5; }
+    .viewer.stuck::before, .viewer.stuck::after {
+      content: "";
+      position: absolute; left: 0; right: 0;
+      height: var(--pad);
+      background: var(--paper);
+    }
+    .viewer.stuck::before { top: calc(var(--pad) * -1); }
+    .viewer.stuck::after { bottom: calc(var(--pad) * -1); }
+    .tile { width: 100%; }
+    .pic { flex: none; aspect-ratio: 2.39 / 1; }
+    .note { display: none; }
+    .m-word { display: block; position: relative; height: var(--mh); margin: 12px 0 0; }
+    .reel-word { position: relative; height: var(--mh); margin: 8px 0 0; }
+    .films {
+      display: grid;
+      grid-auto-rows: var(--rowM);
+      gap: 6px;
+      padding-top: 20px;
+    }
+    .film { scroll-margin-top: calc(var(--monH) + 28px); scroll-margin-bottom: 64px; }
+    .film-meta { flex-basis: 112px; padding: 4px 4px 3px 10px; font-size: 11px; line-height: 1.25; }
+
+    #studio { display: grid; gap: 40px; padding: 72px var(--pad) 0; }
+    .st-copy p { font-size: 18px; line-height: 1.45; }
+    .st-lists { gap: 16px; }
+
+    #call { padding: 72px var(--pad) 56px; }
+    .call-cell { height: calc(var(--H) - 64px); }
+    .call-link { top: 64px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ltr, .js:not(.go) .ltr, .go .ltr { animation: none !important; transform: none !important; }
+    .slabs, .slabs.bar-on { transition: none !important; }
+    html { scroll-behavior: auto !important; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="slabs" id="slabs" aria-label="Sections">
+  <a class="slab-btn s-studio" href="#studio" data-slab="studio" data-i0="0"><span class="sr-only">Studio</span></a>
+  <a class="slab-btn s-reel" href="#reel" data-slab="reel" data-i0="6"><span class="sr-only">Reel</span></a>
+  <i class="tail" aria-hidden="true"></i>
+</nav>
+
+<main id="main">
+  <section id="reel" aria-labelledby="reel-h">
+    <div class="reel-pin">
+      <div class="viewer" id="viewer">
+        <figure class="tile" id="tile">
+          <div class="bar bar-top" aria-hidden="true">
+            <span class="bi-clip">A003C011_220519_R1QM</span>
+            <span class="bi-xf">LogC3 to Rec.709</span>
+            <span class="bi-fps">23.976</span>
+            <span class="bi-tc">19:46:02:12</span>
+          </div>
+          <div class="pic" role="img" aria-label="Nothing for ninety miles, 2022: camera log left of the line, finished grade right of it">
+            <img class="img-grade" src="../assets/wc/stretched-slab-navigation/still-01-desert-road.webp" alt="" decoding="async" fetchpriority="high">
+            <img class="img-log" src="../assets/wc/stretched-slab-navigation/still-01-desert-road.webp" alt="" decoding="async">
+          </div>
+          <div class="bar bar-bot" aria-hidden="true">
+            <span class="lbl lbl-log">LOG</span>
+            <span class="lbl lbl-grade">GRADE</span>
+          </div>
+          <i class="wipe" aria-hidden="true"></i>
+        </figure>
+        <div class="scope" id="scope" aria-hidden="true">
+          <canvas width="640" height="300"></canvas>
+          <i class="gl gl-hi"></i><i class="gl gl-mid"></i><i class="gl gl-lo"></i>
+          <i class="scope-wipe"></i>
+          <span class="sc-n sc-hi">1023</span>
+          <span class="sc-n sc-cap">Waveform, luma, 10-bit</span>
+          <span class="sc-n sc-lo">0</span>
+        </div>
+        <p class="note" id="note"></p>
+      </div>
+      <a class="m-word m-studio" href="#studio" data-slab="studio" data-i0="0"><span class="sr-only">Studio</span></a>
+      <h2 class="reel-word" id="reel-h" data-slab="reel" data-i0="6"><span class="sr-only">Reel</span></h2>
+      <ul class="films" id="films" aria-label="Graded films. Point at or focus a title to compare camera log and finished grade; arrow keys move the wipe."></ul>
+    </div>
+  </section>
+
+  <section id="studio" aria-labelledby="studio-h">
+    <h2 class="sr-only" id="studio-h">Studio</h2>
+    <div class="st-copy" id="st-copy"></div>
+    <div class="st-lists" id="st-lists"></div>
+  </section>
+
+  <section id="call" aria-label="Contact">
+    <div class="call-cell">
+      <a class="call-link" id="call-link" href="#"><span class="sr-only" id="call-sr"></span></a>
+      <p class="call-meta" id="call-meta"></p>
+    </div>
+  </section>
+</main>
+
+<svg id="measure" aria-hidden="true" focusable="false"><text class="slabtxt" x="0" y="0"></text></svg>
+
+<script>
+(function () {
+  'use strict';
+
+  /* =====================================================================
+     DATA: everything a client swap needs. Words are fitted to their cells
+     automatically, so any length works (short words stretch, long squeeze).
+     Each film carries the burn-ins its monitor shows: source clip, camera
+     log, frame rate and source timecode.
+     ===================================================================== */
+  var DATA = {
+    studio: 'Okapi Grade',
+    nav: { studio: 'Studio', reel: 'Reel' },
+    showreel: {
+      /* the reel is the grades themselves: one frame per film (index into films), hard cuts */
+      order: [7, 3, 1, 0, 6, 5, 4, 2],
+      first: 6500,
+      cut: 3000,
+      note: 'Showreel, spring 2026. Camera log left of the line, our grade right of it; the waveform above is read from the same pixels. Run the pointer along a title to move the wipe, or use the arrow keys.',
+      noteTouch: 'Showreel, spring 2026. Camera log left of the line, our grade right of it. Drag along a title to move the wipe.'
+    },
+    stillBase: '../assets/wc/stretched-slab-navigation/',
+    display: 'Rec.709',
+    films: [
+      { title: 'Mist', director: 'Ines Halvorsen', year: 2026, format: 'Spot, 60 s',
+        still: 'still-07-greenhouse.webp', clip: 'B002C014_260204_R0KF', log: 'LogC4', fps: '25', tc: '10:41:16:08',
+        note: 'Shot under grow lights. We pulled the magenta out of the leaves, kept the greens dense and let the backlight bloom past 1,000 nits in the HDR pass.' },
+      { title: 'Last tram to Weissensee', director: 'Jonas Albrecht', year: 2026, format: 'Feature, ARRIRAW',
+        still: 'still-08-tram-blue-hour.webp', clip: 'A031C006_251118_R3VB', log: 'LogC3', fps: '23.976', tc: '17:52:09:21',
+        note: 'Blue hour lasts eleven minutes a night and the film needed forty. Four nights matched to the second one, sodium practicals kept warm against a cyan sky.' },
+      { title: 'Sonntag', director: 'Mira Okonkwo', year: 2025, format: 'Feature, 35 mm',
+        still: 'still-02-dawn-kitchen.webp', clip: 'SON_R4_0117_SCAN', log: 'Cineon', fps: '24', tc: '04:12:33:02',
+        note: 'Low contrast on purpose: blacks lifted, a pastel split with peach highlights and cool window light, grain matched to the 35 mm scan.' },
+      { title: 'Open until the rain stops', director: 'Dani Ferreira', year: 2025, format: 'Short, HDR',
+        still: 'still-04-night-market.webp', clip: 'A008C003_250927_SV41', log: 'S-Log3', fps: '23.976', tc: '22:07:45:17',
+        note: 'Practicals pushed to amber, reflections allowed to clip red, skin pulled out of the lantern light with a single key.' },
+      { title: 'Eight count', director: 'Aylin Demirtas', year: 2024, format: 'Series, 6 × 45 min',
+        still: 'still-06-boxing-gym.webp', clip: 'A012_C021_0611YT', log: 'Log3G10', fps: '25', tc: '15:28:50:04',
+        note: 'Monochrome with a tobacco tint in the mids and clean blacks. Only the shaft of light is allowed to reach white.' },
+      { title: 'Below the thermocline', director: 'Henrike Saal', year: 2024, format: 'Documentary',
+        still: 'still-03-underwater.webp', clip: 'D014C022_240802_FX61', log: 'S-Log3', fps: '25', tc: '11:03:27:19',
+        note: 'Water takes the red out first and we didn’t put it back. Cyan green through the whole film, the swimmer separated with luminance alone.' },
+      { title: 'Eis', director: 'Mareike Lund', year: 2023, format: 'Feature, Super 16',
+        still: 'still-05-birch-snow.webp', clip: 'EIS_R2_0441_SCAN', log: 'Cineon', fps: '24', tc: '02:51:14:06',
+        note: 'Bleach bypass built in the grade: saturation down, contrast up, silver in the highlights. The coat is the only colour we let through.' },
+      { title: 'Nothing for ninety miles', director: 'Cass Romero', year: 2022, format: 'Spot, 90 s',
+        still: 'still-01-desert-road.webp', clip: 'A003C011_220519_R1QM', log: 'LogC3', fps: '23.976', tc: '19:46:02:12',
+        note: 'The road movie look, done honestly: teal held in the shadows, warmth only above the horizon, skin left on the line.' }
+    ],
+    studioCopy: {
+      paragraphs: [
+        'Okapi Grade is a colour and finishing studio in a former print works in Kreuzberg. Two colourists, a conform editor and an assistant who rebuilds every timeline from the camera originals, never from proxies. We grade features, series and commercials, and we stay with a film from the first look test to the last QC note.',
+        'A session starts with the film, not a LUT. We conform your locked cut overnight, build the show look with the director and DP on the first morning, then work through the reels scene by scene. Sit in the suite or watch a calibrated stream from your own room; notes are logged against timecode and answered the same day.',
+        'You leave with masters, not files: a Dolby Vision master and its SDR trim, a DCP checked on our own screen, ProRes and IMF packages for the platforms, and the grade itself archived as a project we can reopen in five years when the director’s cut comes back.'
+      ],
+      clients: ['Lindwurm Film', 'Kiefer & Sohn', 'Stillwasser Pictures', 'Pavillon Neun', 'Brandmauer Commercials', 'Halde Filmproduktion', 'Nachtschicht Studios', 'Graukeil, agency', 'Ampel & Rauch, agency'],
+      suite: [
+        'Dual-layer LCD reference, 4,000 nits peak',
+        'PQ in P3 D65; broadcast trims in Rec.709 at gamma 2.4',
+        'Probe calibration every Monday before the first session',
+        '4K laser projection, 48 nits, 6 m screen, 14 seats',
+        'Dolby Vision, DCP (SMPTE), IMF App 2E, ProRes 4444 XQ',
+        'ACES EXR archive of every graded reel'
+      ]
+    },
+    call: { word: 'Call', phone: '+49 30 2196 4410', tel: '+493021964410', email: 'hallo@okapigrade.de', place: 'Kreuzberg, Berlin' }
+  };
+
+  /* ===================================================================== */
+  var NS = 'http://www.w3.org/2000/svg';
+  var root = document.documentElement;
+  var qs = function (s, el) { return (el || document).querySelector(s); };
+  var qsa = function (s, el) { return Array.prototype.slice.call((el || document).querySelectorAll(s)); };
+  var RM = matchMedia('(prefers-reduced-motion: reduce)');
+  var FINE = matchMedia('(hover: hover) and (pointer: fine)');
+  var MOB = matchMedia('(max-width: 700px)');
+  var clamp = function (v, a, b) { return Math.min(b, Math.max(a, v)); };
+
+  /* ---------- render content from DATA ---------- */
+  var list = qs('#films');
+  DATA.films.forEach(function (f, i) {
+    var li = document.createElement('li');
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'film';
+    b.dataset.i = i;
+    b.setAttribute('aria-pressed', 'false');
+    b.setAttribute('aria-controls', 'tile');
+    var t = document.createElement('span');
+    t.className = 'film-title';
+    t.dataset.slab = f.title.toUpperCase();
+    var sr = document.createElement('span');
+    sr.className = 'sr-only';
+    sr.textContent = f.title + ', ';
+    t.appendChild(sr);
+    var m = document.createElement('span');
+    m.className = 'film-meta';
+    [f.director, String(f.year), f.format].forEach(function (s) {
+      var x = document.createElement('span');
+      x.textContent = s;
+      m.appendChild(x);
+    });
+    b.appendChild(t);
+    b.appendChild(m);
+    li.appendChild(b);
+    list.appendChild(li);
+  });
+
+  qs('#st-copy').innerHTML = DATA.studioCopy.paragraphs.map(function (p) { return '<p>' + p + '</p>'; }).join('');
+  var li = function (arr) { return arr.map(function (s) { return '<li>' + s.replace(/&(?!amp;)/g, '&amp;') + '</li>'; }).join(''); };
+  qs('#st-lists').innerHTML =
+    '<div><h3>Clients</h3><ul>' + li(DATA.studioCopy.clients) + '</ul></div>' +
+    '<div><h3>The suite</h3><ul>' + li(DATA.studioCopy.suite) + '</ul></div>';
+
+  var callLink = qs('#call-link');
+  callLink.href = 'tel:' + DATA.call.tel;
+  callLink.dataset.slab = DATA.call.word.toUpperCase();
+  qs('#call-sr').textContent = DATA.call.word + ' ' + DATA.studio + ' on ' + DATA.call.phone;
+  qs('#call-meta').innerHTML =
+    '<a href="mailto:' + DATA.call.email + '">' + DATA.call.email + '</a>' +
+    '<a href="tel:' + DATA.call.tel + '">' + DATA.call.phone + '</a>' +
+    '<span>' + DATA.call.place + '</span>';
+
+  /* ---------- slab fitting ----------
+     Ink bounds come from canvas measureText (actualBoundingBox*), glyph positions
+     from the SVG text itself, so the letters touch all four edges of their cell.
+     The svg uses preserveAspectRatio="none": re-fitting on resize is pure CSS. */
+  var mText = qs('#measure text');
+  var ctx = document.createElement('canvas').getContext('2d');
+  var cache = Object.create(null);
+  var slabs = [];
+
+  function measure(word) {
+    if (cache[word]) return cache[word];
+    mText.textContent = word;
+    var len = 0, pos = [];
+    try {
+      len = mText.getComputedTextLength();
+      for (var i = 0; i < word.length; i++) pos.push(mText.getStartPositionOfChar(i).x);
+    } catch (e) { pos = []; }
+    ctx.font = '900 extra-expanded 200px Archivo, "Helvetica Neue", Arial, sans-serif';
+    try { if ('fontStretch' in ctx) ctx.fontStretch = 'extra-expanded'; } catch (e) {}
+    try { ctx.fontKerning = 'normal'; } catch (e) {}
+    var m = ctx.measureText(word);
+    var k = (len && m.width) ? len / m.width : 1;
+    if (Math.abs(k - 1) < 0.012) k = 1;
+    var L = -m.actualBoundingBoxLeft * k;
+    var R = m.actualBoundingBoxRight * k;
+    var A = m.actualBoundingBoxAscent || 140;
+    var Dd = m.actualBoundingBoxDescent || 0;
+    if (!pos.length) {
+      for (var j = 0; j < word.length; j++) {
+        pos.push((ctx.measureText(word.slice(0, j + 1)).width - ctx.measureText(word[j]).width) * k);
+      }
+    }
+    return (cache[word] = { L: L, W: Math.max(1, R - L), A: A, H: Math.max(1, A + Dd), pos: pos });
+  }
+
+  function makeSlab(host, word, perLetter, i0) {
+    var svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('class', 'fit');
+    svg.setAttribute('preserveAspectRatio', 'none');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    var nodes = [];
+    if (perLetter) {
+      word.split('').forEach(function (ch, k) {
+        var t = document.createElementNS(NS, 'text');
+        t.setAttribute('class', 'slabtxt ltr');
+        t.style.setProperty('--i', String(i0 + k));
+        t.textContent = ch;
+        svg.appendChild(t);
+        nodes.push(t);
+      });
+    } else {
+      var t = document.createElementNS(NS, 'text');
+      t.setAttribute('class', 'slabtxt');
+      t.textContent = word;
+      svg.appendChild(t);
+      nodes.push(t);
+    }
+    host.appendChild(svg);
+    var s = { svg: svg, word: word, nodes: nodes, perLetter: perLetter };
+    slabs.push(s);
+    return s;
+  }
+
+  function fit(s) {
+    var m = measure(s.word);
+    /* baseline sits at y = A and the viewBox starts at y = 0, so a scaleY about
+       (0, A) grows each letter from its baseline in every engine */
+    s.svg.setAttribute('viewBox', m.L.toFixed(2) + ' 0 ' + m.W.toFixed(2) + ' ' + m.H.toFixed(2));
+    s.svg.style.setProperty('--base', m.A.toFixed(2) + 'px');
+    if (s.perLetter) {
+      s.nodes.forEach(function (t, k) { t.setAttribute('x', (m.pos[k] || 0).toFixed(2)); t.setAttribute('y', m.A.toFixed(2)); });
+    } else {
+      s.nodes[0].setAttribute('x', '0');
+      s.nodes[0].setAttribute('y', m.A.toFixed(2));
+    }
+  }
+  function fitAll() { slabs.forEach(fit); }
+
+  /* build every slab: nav words + phone hero words animate per letter */
+  qsa('[data-slab]').forEach(function (el) {
+    var key = el.dataset.slab;
+    var word = key === 'studio' ? DATA.nav.studio.toUpperCase() : key === 'reel' ? DATA.nav.reel.toUpperCase() : key;
+    var perLetter = key === 'studio' || key === 'reel';
+    makeSlab(el, word, perLetter, +(el.dataset.i0 || 0));
+  });
+  qsa('.slab-btn .sr-only, .m-word .sr-only').forEach(function (n) {
+    n.textContent = n.parentNode.dataset.slab === 'studio' ? DATA.nav.studio : DATA.nav.reel;
+  });
+
+  /* ---------- the monitor ---------- */
+  var slabsEl = qs('#slabs');
+  var tile = qs('#tile');
+  var viewer = qs('#viewer');
+  var pic = qs('.pic', tile);
+  var gImg = qs('.img-grade', tile), lImg = qs('.img-log', tile);
+  var biClip = qs('.bi-clip', tile), biXf = qs('.bi-xf', tile), biFps = qs('.bi-fps', tile), biTc = qs('.bi-tc', tile);
+  var note = qs('#note');
+
+  /* ---------- layout ---------- */
+  var W = 0, H = 0, Win = 0, Hin = 0, D = 1, lw = 0, lwT = 0, p = 0, lastW = -1, lastH = -1;
+  var bandH = 0, wordsH = 0, monH = 0, bwNow = 0;
+  var wx = 0.5; /* wipe position inside the monitor once it is the reel viewer (0..1) */
+  var GUT = 32, GAP = 20, BAR = 28, BARM = 22;
+  var intro = true; /* the grade wipes in once at the entrance: the frame opens as pure log */
+  var setv = function (k, v) { root.style.setProperty(k, v); };
+
+  function setStatic(force) {
+    var w = root.clientWidth, h = window.innerHeight;
+    /* phones: ignore toolbar collapse (height-only changes) so the stack never jumps */
+    if (!force && MOB.matches && w === lastW && Math.abs(h - lastH) < 120) return;
+    var frac = Win ? lw / Win : 0.5;
+    lastW = w; lastH = h;
+    W = w; H = h; Win = W - 16; Hin = H - 16; D = Math.max(1, Hin - 48);
+    setv('--H', H + 'px');
+    if (MOB.matches) {
+      monH = BARM * 2 + Win / 2.39;
+      setv('--monH', monH.toFixed(2) + 'px');
+      setv('--mh', Math.max(120, (H - 36 - monH) / 2).toFixed(2) + 'px');
+      setv('--rowM', Math.max(48, Math.round(H * 0.07)) + 'px');
+      slabsEl.classList.add('is-strips');
+    } else {
+      /* the reel ends one row gap above an inverted strip's frame */
+      var pinH = Hin - 61;
+      var hold = Math.round(H * 0.3);
+      setv('--pinH', pinH + 'px');
+      setv('--reelH', (8 + D + hold + pinH) + 'px');
+      /* the opening band: about two fifths of the screen, the words take the rest */
+      bandH = Math.round(clamp(Hin * 0.42, 150, Hin - 200));
+      wordsH = Hin - bandH - GAP;
+    }
+    lw = lwT = Win * ((intro && !RM.matches) ? 1 : RM.matches ? 0.5 : clamp(frac, 0.2, 0.8));
+    apply();
+    onScroll();
+  }
+
+  /* p = 0: the monitor is the full-width band and its wipe is the column boundary.
+     p = 1: the monitor is the reel viewer in the left column and its wipe belongs to the film rows. */
+  function apply() {
+    if (MOB.matches) { paintWipe(); return; }
+    var hS = wordsH + (48 - wordsH) * p;
+    var bw = Win + (lw - Win) * p;
+    var bh = bandH + (BAR * 2 + lw / 2.39 - bandH) * p;
+    bwNow = bw;
+    setv('--lw', lw.toFixed(2) + 'px');
+    setv('--rw', (Win - lw).toFixed(2) + 'px');
+    setv('--hS', hS.toFixed(2) + 'px');
+    setv('--g', (GUT * p).toFixed(2) + 'px');
+    setv('--cover', (GAP * (1 - p)).toFixed(2) + 'px');
+    setv('--bw', bw.toFixed(2) + 'px');
+    setv('--bh', bh.toFixed(2) + 'px');
+    paintWipe();
+  }
+
+  var noLog = null, noGrade = null;
+  function paintWipe() {
+    var bw, wpx;
+    if (MOB.matches) { bw = tile.clientWidth || Win; wpx = wx * bw; }
+    else { bw = bwNow || Win; wpx = lw + (wx * lw - lw) * p; }
+    viewer.style.setProperty('--wx', (bw ? clamp(wpx / bw, 0, 1) * 100 : 50).toFixed(3) + '%');
+    viewer.style.setProperty('--swx', (wx * 100).toFixed(3) + '%');
+    var nl = wpx < 52, ng = bw - wpx < 70;
+    if (nl !== noLog) { noLog = nl; tile.classList.toggle('no-log', nl); }
+    if (ng !== noGrade) { noGrade = ng; tile.classList.toggle('no-grade', ng); }
+    markScope();
+  }
+  function setWipe(v) {
+    wx = clamp(v, 0, 1);
+    paintWipe();
+  }
+
+  /* ---------- scroll: the words squash onto the floor, the band narrows into the viewer ---------- */
+  var studioSec = qs('#studio'), callSec = qs('#call');
+  var navStudio = qs('.s-studio', slabsEl), navReel = qs('.s-reel', slabsEl);
+  var here = null;
+  function setHere(h) {
+    if (h === here) return;
+    here = h;
+    [[navStudio, 'studio'], [navReel, 'reel']].forEach(function (a) {
+      var on = a[1] === h;
+      a[0].classList.toggle('is-here', on);
+      if (on) a[0].setAttribute('aria-current', 'location'); else a[0].removeAttribute('aria-current');
+    });
+  }
+  var viewerEl = viewer;
+  function onScroll() {
+    var strips;
+    if (MOB.matches) {
+      slabsEl.classList.toggle('bar-on', window.scrollY > 56);
+      var r = viewerEl.getBoundingClientRect();
+      viewerEl.classList.toggle('stuck', r.top <= 8.5 && window.scrollY > 8);
+      strips = window.scrollY > 56;
+      root.classList.remove('is-hero');
+    } else {
+      p = clamp(window.scrollY / D, 0, 1);
+      strips = p > 0.97;
+      slabsEl.classList.toggle('is-strips', strips);
+      root.classList.toggle('is-hero', p < 0.02);
+      apply();
+      retarget(null);
+      if (p > 0.25) preloadStills();
+      if (p >= 0.15 && scopeDirty) markScope();
+    }
+    var mid = H * 0.5;
+    var st = studioSec.getBoundingClientRect().top, ct = callSec.getBoundingClientRect().top;
+    setHere(!strips || ct < mid ? '' : st < mid ? 'studio' : 'reel');
+  }
+  var ticking = false;
+  window.addEventListener('scroll', function () {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function () { ticking = false; onScroll(); });
+  }, { passive: true });
+  window.addEventListener('resize', function () { setStatic(false); });
+
+  /* ---------- pointer X redistributes the two columns (lerp 0.12) ----------
+     over the band the wipe line comes to the pointer (the grader's split);
+     over the words the word under the hand stretches and pushes the line away */
+  var ptr = null, raf = 0, last = 0, sweep = false;
+  function retarget(target) {
+    if (MOB.matches || intro) return;
+    var f = null;
+    if (RM.matches || !FINE.matches || !ptr) f = 0.5;
+    else {
+      var el = target || document.elementFromPoint(ptr.x, ptr.y);
+      var onNav = el && el.closest && el.closest('.slab-btn');
+      var onBand = p < 0.5 && el && (el === slabsEl || (el.closest && el.closest('.tile')));
+      if (onBand) f = clamp((ptr.x - 8) / Win, 0.2, 0.8);
+      else if (onNav) f = 0.68 - 0.36 * clamp(ptr.x / W, 0, 1);
+      else if (p >= 1) f = 0.5;
+    }
+    if (f === null) return;
+    lwT = Win * f;
+    kick();
+  }
+  function kick() {
+    if (raf) return;
+    last = performance.now();
+    raf = requestAnimationFrame(step);
+  }
+  function step(now) {
+    raf = 0;
+    var dt = Math.min(64, Math.max(1, now - last));
+    last = now;
+    /* the entrance drags the wipe a little slower, like a hand on the trackball; then lerp 0.12 */
+    var a = 1 - Math.pow(1 - (sweep ? 0.08 : 0.12), dt / 16.67);
+    lw += (lwT - lw) * a;
+    if (Math.abs(lwT - lw) < 0.25) { lw = lwT; sweep = false; }
+    apply();
+    if (lw !== lwT) raf = requestAnimationFrame(step);
+  }
+  window.addEventListener('pointermove', function (e) {
+    if (e.pointerType !== 'mouse') return;
+    sweep = false;
+    ptr = { x: e.clientX, y: e.clientY };
+    retarget(e.target);
+  }, { passive: true });
+  root.addEventListener('mouseleave', function () { ptr = null; retarget(null); });
+
+  /* ---------- the instrument: a luma waveform read from the frame's own pixels ----------
+     x on the scope is x on the frame (same width, same crop), so the wipe runs through both:
+     left of the line the trace is the flat log, right of it the graded signal. */
+  var scope = qs('#scope'), scv = qs('canvas', scope), sctx = scv.getContext('2d');
+  var SN = 480, SM = 200, SR = 300, GAIN = 0.24;
+  var srcC = document.createElement('canvas'); srcC.width = SN; srcC.height = SR;
+  var srcX = srcC.getContext('2d', { willReadFrequently: true });
+  var plotC = document.createElement('canvas'); plotC.width = SN; plotC.height = SM;
+  var plotX = plotC.getContext('2d');
+  var plotD = plotX.createImageData(SN, SM);
+  var hists = Object.create(null), curHist = null, scopeDirty = true, scopeRaf = 0;
+  var bin = function (y) { return Math.min(SM - 1, Math.max(0, Math.round(y * (SM - 1)))); };
+  var c01 = function (v) { return v < 0 ? 0 : v > 1 ? 1 : v; };
+
+  function buildHist(img, url) {
+    if (hists[url]) return hists[url];
+    var iw = img.naturalWidth, ih = img.naturalHeight;
+    if (!iw || !ih) return null;
+    var ch = Math.min(ih, iw / 2.39), cy = (ih - ch) / 2, d;
+    try {
+      srcX.clearRect(0, 0, SN, SR);
+      srcX.drawImage(img, 0, cy, iw, ch, 0, 0, SN, SR);
+      d = srcX.getImageData(0, 0, SN, SR).data;
+    } catch (e) { return null; }
+    var G = new Uint16Array(SN * SM), L = new Uint16Array(SN * SM);
+    /* LOG: the same chain as the css filter on the frame (saturate 0.3, contrast 0.56, brightness 1.13) */
+    var S = 0.3, C = 0.56, B = 1.13, K = 0.5 - 0.5 * C;
+    for (var y = 0; y < SR; y++) {
+      for (var x = 0; x < SN; x++) {
+        var o = (y * SN + x) * 4;
+        var r = d[o] / 255, g = d[o + 1] / 255, b = d[o + 2] / 255;
+        G[x * SM + bin(0.2126 * r + 0.7152 * g + 0.0722 * b)]++;
+        var r2 = c01((0.213 + 0.787 * S) * r + (0.715 - 0.715 * S) * g + (0.072 - 0.072 * S) * b);
+        var g2 = c01((0.213 - 0.213 * S) * r + (0.715 + 0.285 * S) * g + (0.072 - 0.072 * S) * b);
+        var b2 = c01((0.213 - 0.213 * S) * r + (0.715 - 0.715 * S) * g + (0.072 + 0.928 * S) * b);
+        r2 = c01((r2 * C + K) * B); g2 = c01((g2 * C + K) * B); b2 = c01((b2 * C + K) * B);
+        L[x * SM + bin(0.2126 * r2 + 0.7152 * g2 + 0.0722 * b2)]++;
+      }
+    }
+    return (hists[url] = { G: G, L: L });
+  }
+  function drawScope() {
+    scopeRaf = 0;
+    if (MOB.matches || !curHist) return;
+    var w = scv.width, h = scv.height;
+    if (!w || !h) return;
+    var cut = Math.round(wx * SN), dd = plotD.data;
+    for (var x = 0; x < SN; x++) {
+      var hh = x < cut ? curHist.L : curHist.G;
+      for (var m = 0; m < SM; m++) {
+        var n = hh[x * SM + m];
+        var o = ((SM - 1 - m) * SN + x) * 4;
+        dd[o] = dd[o + 1] = dd[o + 2] = 0;
+        dd[o + 3] = n ? Math.round(255 * (1 - Math.exp(-n * GAIN))) : 0;
+      }
+    }
+    plotX.putImageData(plotD, 0, 0);
+    sctx.clearRect(0, 0, w, h);
+    sctx.imageSmoothingEnabled = true;
+    try { sctx.imageSmoothingQuality = 'high'; } catch (e) {}
+    sctx.drawImage(plotC, 0, 0, w, h);
+    scopeDirty = false;
+  }
+  function markScope() {
+    scopeDirty = true;
+    if (MOB.matches || p < 0.15 || scopeRaf) return;
+    scopeRaf = requestAnimationFrame(drawScope);
+  }
+  function sizeScope() {
+    if (MOB.matches) return;
+    var r = scv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
+    var w = Math.round(r.width * dpr), h = Math.round(r.height * dpr);
+    if (w > 0 && h > 0 && (w !== scv.width || h !== scv.height)) { scv.width = w; scv.height = h; markScope(); }
+  }
+  if ('ResizeObserver' in window) new ResizeObserver(sizeScope).observe(scope);
+
+  /* ---------- frames: one decode at a time, burn-ins and waveform follow the picture ---------- */
+  var stillTok = 0;
+  function setStill(fi) {
+    var f = DATA.films[fi], url = DATA.stillBase + f.still, tok = ++stillTok;
+    var im = new Image();
+    im.src = url;
+    var done = function () {
+      if (tok !== stillTok) return;
+      if (gImg.getAttribute('src') !== url) { gImg.src = url; lImg.src = url; }
+      biClip.textContent = f.clip;
+      biXf.textContent = f.log + ' to ' + DATA.display;
+      biFps.textContent = f.fps;
+      biTc.textContent = f.tc;
+      pic.setAttribute('aria-label', f.title + ', ' + f.year + ': camera log left of the line, finished grade right of it');
+      curHist = buildHist(im, url);
+      markScope();
+    };
+    if (im.decode) im.decode().then(done, done); else { im.onload = done; im.onerror = done; }
+  }
+
+  /* ---------- the tool of the trade: LOG / GRADE wipe on the film rows ---------- */
+  var rows = qsa('.film', list);
+  var active = -1, dragging = false, inView = false, handOn = false;
+  var restNote = function () { return FINE.matches ? DATA.showreel.note : DATA.showreel.noteTouch; };
+  note.textContent = restNote();
+
+  function show(i) {
+    if (i === active) return;
+    active = i;
+    rows.forEach(function (r, k) {
+      r.classList.toggle('is-on', k === i);
+      r.setAttribute('aria-pressed', k === i ? 'true' : 'false');
+    });
+    if (i < 0) {
+      setStill(DATA.showreel.order[reelI]);
+      note.textContent = restNote();
+    } else {
+      setStill(i);
+      note.textContent = DATA.films[i].note;
+    }
+    syncVideo();
+  }
+  function titleRect(btn) { return qs('.film-title', btn).getBoundingClientRect(); }
+
+  list.addEventListener('pointerover', function (e) {
+    if (e.pointerType !== 'mouse') return;
+    var b = e.target.closest('.film');
+    if (b) show(+b.dataset.i);
+  });
+  list.addEventListener('pointermove', function (e) {
+    var b = e.target.closest('.film');
+    if (!b || RM.matches) return;
+    if (e.pointerType === 'mouse' || dragging) {
+      var r = titleRect(b);
+      setWipe((e.clientX - r.left) / r.width);
+    }
+  });
+  list.addEventListener('pointerdown', function (e) {
+    if (e.pointerType === 'mouse') return;
+    var b = e.target.closest('.film');
+    if (!b) return;
+    show(+b.dataset.i);
+    dragging = true;
+    if (!RM.matches) { var r = titleRect(b); setWipe((e.clientX - r.left) / r.width); }
+  });
+  list.addEventListener('click', function (e) {
+    var b = e.target.closest('.film');
+    if (b) show(+b.dataset.i);
+  });
+
+  /* the monitor itself: the hand on it holds the reel; a finger drags the wipe */
+  function tileDrag(e) {
+    if (RM.matches) return;
+    var r = tile.getBoundingClientRect();
+    var v = (e.clientX - r.left) / r.width;
+    if (!MOB.matches && p < 0.5) {
+      /* the band on a touch screen: the finger moves the wipe and the column boundary together */
+      if (e.pointerType !== 'mouse') { lwT = Win * clamp(v, 0.2, 0.8); kick(); }
+      return;
+    }
+    setWipe(v);
+  }
+  tile.addEventListener('pointerenter', function (e) { if (e.pointerType === 'mouse') { handOn = true; syncVideo(); } });
+  tile.addEventListener('pointerdown', function (e) {
+    if (e.pointerType === 'mouse') return;
+    dragging = true;
+    tileDrag(e);
+  });
+  tile.addEventListener('pointermove', function (e) {
+    if (e.pointerType === 'mouse' ? (!MOB.matches && p < 0.5) : !dragging) return;
+    tileDrag(e);
+  });
+  var endDrag = function () { dragging = false; };
+  window.addEventListener('pointerup', endDrag);
+  window.addEventListener('pointercancel', endDrag);
+
+  function zoneLeave(e) {
+    if (e.pointerType !== 'mouse') return;
+    var to = e.relatedTarget;
+    if (to && (list.contains(to) || tile.contains(to))) return;
+    var ae = document.activeElement;
+    if (ae && list.contains(ae) && ae.matches(':focus-visible')) return;
+    show(-1);
+  }
+  list.addEventListener('pointerleave', zoneLeave);
+  tile.addEventListener('pointerleave', function (e) {
+    if (e.pointerType === 'mouse') { handOn = false; syncVideo(); }
+    zoneLeave(e);
+  });
+
+  list.addEventListener('focusin', function (e) {
+    var b = e.target.closest('.film');
+    if (!b) return;
+    /* focus never lands under the slabs: a keyboard user entering the reel is taken to it first */
+    if (!MOB.matches && p < 0.97) {
+      window.scrollTo({ top: D, behavior: 'auto' });
+      onScroll();
+    }
+    show(+b.dataset.i);
+    if (b.matches(':focus-visible')) setWipe(0.5);
+  });
+  list.addEventListener('focusout', function (e) {
+    var to = e.relatedTarget;
+    if (to && list.contains(to)) return;
+    if (!list.matches(':hover') && !tile.matches(':hover')) show(-1);
+  });
+  list.addEventListener('keydown', function (e) {
+    var b = e.target.closest('.film');
+    if (!b) return;
+    var i = +b.dataset.i;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      setWipe(wx + (e.key === 'ArrowRight' ? 0.1 : -0.1));
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      var n = rows[clamp(i + (e.key === 'ArrowDown' ? 1 : -1), 0, rows.length - 1)];
+      n.focus();
+    } else if (e.key === 'Escape') {
+      b.blur();
+      show(-1);
+    }
+  });
+
+  /* stills load one at a time, only once the reel is near */
+  var preloaded = false;
+  function preloadStills() {
+    if (preloaded) return;
+    preloaded = true;
+    var i = 0;
+    (function next() {
+      if (i >= DATA.films.length) return;
+      var im = new Image();
+      im.decoding = 'async';
+      im.src = DATA.stillBase + DATA.films[i++].still;
+      var go = function () { setTimeout(next, 80); };
+      if (im.decode) im.decode().then(go, go); else im.onload = im.onerror = go;
+    })();
+  }
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(function (es) {
+      es.forEach(function (en) {
+        if (en.isIntersecting) { if (MOB.matches) preloadStills(); }
+        else show(-1);
+      });
+    }, { rootMargin: '200px 0px' }).observe(list);
+  }
+
+  /* ---------- showreel: hard cuts between graded frames, only in view, only when no hand is on it.
+     The next frame is decoded before the cut, so only one still loads at a time and a cut is never blank. ---------- */
+  var reelI = 0, reelT = 0, reelFirst = true;
+  function queueCut() {
+    var order = DATA.showreel.order;
+    var n = (reelI + 1) % order.length;
+    var im = new Image();
+    im.src = DATA.stillBase + DATA.films[order[n]].still;
+    var tok = { ready: false }, ok = function () { tok.ready = true; };
+    if (im.decode) im.decode().then(ok, ok); else im.onload = im.onerror = ok;
+    reelT = setTimeout(function cut() {
+      reelT = 0;
+      if (!tok.ready) { reelT = setTimeout(cut, 120); return; }
+      reelI = n;
+      setStill(order[reelI]);
+      syncVideo();
+    }, reelFirst ? DATA.showreel.first : DATA.showreel.cut); /* the opening frame holds while the page settles */
+    reelFirst = false;
+  }
+  function syncVideo() {
+    var want = inView && active < 0 && !handOn && !document.hidden && !RM.matches;
+    if (want) { if (!reelT) queueCut(); }
+    else if (reelT) { clearTimeout(reelT); reelT = 0; }
+  }
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(function (es) { inView = es[0].isIntersecting; syncVideo(); }, { threshold: 0.2 }).observe(tile);
+  }
+  document.addEventListener('visibilitychange', syncVideo);
+
+  /* ---------- slab links scroll to their section ---------- */
+  function goTo(id) {
+    var y;
+    if (id === 'reel') {
+      y = MOB.matches ? list.getBoundingClientRect().top + window.scrollY - (8 + monH + 18) : D;
+    } else {
+      y = qs('#st-copy').getBoundingClientRect().top + window.scrollY - 40;
+    }
+    window.scrollTo({ top: Math.max(0, Math.round(y)), behavior: RM.matches ? 'auto' : 'smooth' });
+    var sec = qs('#' + id);
+    sec.setAttribute('tabindex', '-1');
+    try { sec.focus({ preventScroll: true }); } catch (e) {}
+  }
+  qsa('a[href="#reel"], a[href="#studio"]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      e.preventDefault();
+      goTo(a.getAttribute('href').slice(1));
+    });
+  });
+
+  /* ---------- boot ---------- */
+  setStatic(true);
+  fitAll();
+  setStill(DATA.showreel.order[0]);
+  [MOB, RM, FINE].forEach(function (q) {
+    var h = function () { setStatic(true); note.textContent = active < 0 ? restNote() : note.textContent; syncVideo(); sizeScope(); markScope(); };
+    if (q.addEventListener) q.addEventListener('change', h); else if (q.addListener) q.addListener(h);
+  });
+
+  /* entrance: the frame opens as flat log and the grade wipes in to the boundary while the words grow */
+  function startIntro() {
+    if (!intro) return;
+    intro = false;
+    if (RM.matches || MOB.matches) { lw = lwT = Win * 0.5; apply(); return; }
+    lwT = Win * 0.5;
+    sweep = true;
+    retarget(null);
+    kick();
+  }
+
+  var fontsReady = Promise.race([
+    (document.fonts && document.fonts.load)
+      ? Promise.all([
+          document.fonts.load('900 extra-expanded 200px Archivo', 'STUDIOREELCALLMISTWEISSENSEE'),
+          document.fonts.load('500 12px Archivo')
+        ]).then(function () { return document.fonts.ready; })
+      : Promise.resolve(),
+    new Promise(function (r) { setTimeout(r, 2200); })
+  ]);
+  fontsReady.then(function () {
+    cache = Object.create(null);
+    fitAll();
+    root.classList.add('fitted');
+    requestAnimationFrame(function () { root.classList.add('go'); startIntro(); });
+  }, function () { root.classList.add('go'); startIntro(); });
+  if (document.fonts && document.fonts.addEventListener) {
+    document.fonts.addEventListener('loadingdone', function () { cache = Object.create(null); fitAll(); });
+  }
+})();
+</script>
+</body>
+</html>

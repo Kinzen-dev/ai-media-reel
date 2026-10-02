@@ -1,0 +1,763 @@
+<!-- TEMPLATE: Ruled Ticker Museum | ARCHETYPE: Ruled ticker programme under a ship's stern (typographic infrastructure: the live programme IS the homepage, one regular-weight grotesk, a masthead painted like a stern with the name, its port of registry and a draught scale, every listing a ticker row below the waterline) | REF: stedelijk.nl, Schauspielhaus Zurich, Museum of Modern Art in Warsaw, Unsound | WHEN TO USE: museums, theatres, festivals and venues whose dated programme should be the homepage itself | SWAP: edit the DATA object at top of the script (programme rows, hours, prices, port of registry, draught); nav and colophon are marked CONTENT blocks in the HTML -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Museum Kade</title>
+<meta name="description" content="Museum Kade is the municipal museum of modern art and design on the Werfkade in Lindehaven. Today's programme, opening hours and tickets.">
+<meta name="theme-color" content="#FFFFFF">
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+<link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
+<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=switzer@400&display=swap">
+<script>
+/* Entrance runs only when motion is welcome. Without this script the page is simply there. */
+document.documentElement.classList.add('js');
+if (!matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('boot');
+</script>
+<style>
+:root{
+  --paper:#FFFFFF;          /* the ground */
+  --ink:#0A0A0A;            /* type and every rule */
+  --blue:#1F3BFF;           /* colour object 1: the ticket button */
+  --coral:#FF5A4D;          /* colour object 2: the waterline tag */
+  --sun:#FFD400;            /* colour object 3: the signal flag on the late opening */
+
+  --g:36px;                 /* left margin, rows bleed off the right */
+  --rule:6px;
+  --hh:84px;                /* header height */
+  --fs-row:clamp(50px, calc(50px + (100vw - 390px) * .05143), 104px);
+  --fs-tag:calc(var(--fs-row) * .3846);              /* 40px at 1440 */
+  --fs-ui:clamp(17px, calc(17px + (100vw - 390px) * .00476), 22px);
+  --ph:calc(var(--fs-row) * 1.25);                   /* photo height = row height */
+  --phw:calc(var(--ph) * 1.5);                       /* photo width, 3:2 */
+  --pad:calc(var(--fs-row) * .11);
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+@media (max-width:999px){ :root{ --g:24px; --hh:64px; } }
+@media (max-width:600px){ :root{ --g:16px; --rule:3px; --hh:56px; --ph:calc(var(--fs-row) * .96); } }   /* 72 x 48 on a phone: a word-sized picture, so the title starts near x 100 */
+
+*,*::before,*::after{box-sizing:border-box}
+html{background:var(--paper);color:var(--ink);scrollbar-color:var(--ink) var(--paper);scroll-padding-top:var(--hh);-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font:400 var(--fs-ui)/1.35 Switzer,Arimo,"Helvetica Neue",Arial,sans-serif;font-synthesis:none;font-kerning:normal;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+h1,h2,h3,p,ul,ol,figure{margin:0;padding:0;font-size:inherit;font-weight:400}
+ul,ol{list-style:none}
+a{color:inherit}
+button,input{font:inherit;font-weight:400;color:inherit;letter-spacing:inherit}
+img,svg{display:block}
+::selection{background:var(--ink);color:var(--paper)}
+:focus-visible{outline:3px solid var(--ink);outline-offset:4px}
+.vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.skip{position:fixed;left:var(--g);top:10px;z-index:40;background:var(--ink);color:var(--paper);padding:.3em .6em;text-decoration:none;transform:translateY(-200%)}
+.skip:focus-visible{transform:none;outline-color:var(--blue)}
+
+/* ---------- header: honest text navigation in the quay's own words ---------- */
+.top{position:fixed;inset:0 0 auto 0;height:var(--hh);z-index:10;background:var(--paper);display:flex;align-items:center;padding:0 var(--g);overflow:hidden}
+.nav-l,.nav-r{display:flex;align-items:center;min-width:0}
+.nav-l{gap:34px}
+.nav-r{gap:30px;margin-left:auto;flex:none}
+.lk{text-decoration:none;text-decoration-thickness:1.5px;text-underline-offset:.24em;white-space:nowrap}
+.lk:hover{text-decoration-line:underline}
+.status{white-space:nowrap;will-change:transform}
+.st-s{display:none}
+.btn-ticket{display:block;background:var(--blue);color:#fff;text-decoration:none;padding:.26em .62em .34em;line-height:1.15;white-space:nowrap;transition:background-color .12s linear}
+.btn-ticket:hover{background:var(--ink)}
+.btn-ticket:active{transform:translateY(1px)}
+.btn-ticket:focus-visible{outline-offset:3px}
+.menu-btn{display:block;background:none;border:0;padding:8px 0;margin:0;cursor:pointer;line-height:1.15;text-decoration-thickness:1.5px;text-underline-offset:.24em}
+.menu-btn:hover,.menu-btn[aria-expanded="true"]{text-decoration-line:underline}
+@media (max-width:1299px){
+  .nav-l .lk,.nav-r .lk{display:none}   /* below 1300 the centred docked stern would run into the text links */
+}
+@media (max-width:999px){
+  .nav-r{gap:20px}
+}
+@media (max-width:600px){
+  .st-l{display:none}.st-s{display:inline}
+  .nav-r{gap:16px}
+}
+
+/* ---------- masthead: the stern (name, port of registry, draught scale, waterline) ---------- */
+main{padding-top:var(--hh)}
+.mast{position:relative;padding:6px var(--g) calc(var(--fs-tag) * .95)}
+.stern{display:block}
+.wm-slot{position:relative;display:block}
+.wm{position:relative;display:block;width:max-content;color:var(--ink);text-decoration:none;text-transform:uppercase;white-space:nowrap;font-size:13vw;line-height:.76;letter-spacing:0}
+.wm:focus-visible{outline-offset:8px}
+html.wmfix .wm{position:fixed;left:0;top:0;z-index:11;transform-origin:0 0;line-height:1;will-change:transform}
+html.wmfix .wm-a,html.wmfix .wm-b{position:absolute;white-space:pre;pointer-events:none}   /* the link's hit area is its ink box, never the tall line boxes above it */
+html.wmfix .wm-gap{display:none}
+/* the port of registry sits centred under the name, spaced like hull lettering */
+.port{display:block;width:var(--panel,auto);text-align:center;font-size:var(--fs-tag);line-height:1;text-transform:uppercase;letter-spacing:.2em;text-indent:.2em;white-space:nowrap;padding-top:calc(var(--fs-tag) * .78);transform-origin:0 0}
+/* draught marks: numerals one numeral high and one numeral apart, a 6px tick on each reading line */
+.draught{position:absolute;right:var(--g);bottom:0;font-size:var(--fs-tag);line-height:1;font-variant-numeric:tabular-nums;pointer-events:none;transform-origin:0 0}
+.dm{position:absolute;left:0;white-space:nowrap}
+.tk{position:absolute;left:0;height:var(--rule);background:var(--ink);transform-origin:0 50%}
+/* the waterline tag: flat coral, painted level, riding the first rule of the programme */
+.wl-tag{display:inline-block;background:var(--coral);color:var(--ink);font-size:var(--fs-tag);line-height:1;text-transform:uppercase;white-space:nowrap;padding:.2em .5em .26em;margin-top:calc(var(--fs-tag) * .6)}
+html.wmfix .wl-tag{position:fixed;left:0;top:0;margin:0;z-index:11;transform-origin:0 0;will-change:transform;pointer-events:none}
+@media (max-width:600px){ .mast{padding-bottom:calc(var(--fs-tag) * 1.35)} }
+
+/* ---------- the rows ---------- */
+.rl{position:relative;padding-top:var(--rule);scroll-margin-top:var(--hh)}
+.rl::before{content:"";position:absolute;left:0;right:0;top:0;height:var(--rule);background:var(--ink);transform-origin:0 50%}
+.row{position:relative;display:block;color:var(--ink);text-decoration:none;padding:var(--pad) 0;overflow-x:clip;overflow-y:visible}
+.track{display:flex;width:max-content}
+.tick .track{will-change:transform}
+.run{display:flex;align-items:center;flex:none;padding:0 calc(var(--fs-row) * .62) 0 var(--g)}
+.tag,.lab{display:flex;flex-direction:column;font-size:var(--fs-tag);line-height:1;text-transform:uppercase;white-space:nowrap;font-variant-numeric:tabular-nums}
+.tag{margin-right:calc(var(--fs-row) * .3)}
+.ph{flex:none;width:calc(var(--ph) * 1.5);height:var(--ph);object-fit:cover;margin-right:calc(var(--fs-row) * .17);position:relative;z-index:1;transition:transform .16s cubic-bezier(.4,0,1,1)}
+.t{position:relative;top:-.01em;font-size:var(--fs-row);line-height:.95;text-transform:uppercase;white-space:nowrap;margin-right:calc(var(--fs-row) * .3);font-variant-numeric:tabular-nums}
+/* signal flag: a swallowtail in sun yellow, flown on the late opening */
+.flag{flex:none;display:flex;flex-direction:column;justify-content:center;background:var(--sun);color:var(--ink);font-size:var(--fs-tag);line-height:1;text-transform:uppercase;white-space:nowrap;font-variant-numeric:tabular-nums;padding:.34em 1.15em .4em .45em;margin-right:calc(var(--fs-row) * .17);clip-path:polygon(0 0,100% 0,calc(100% - .72em) 50%,100% 100%,0 100%)}
+.rl:focus-within{z-index:3}
+.row:focus-visible{background:var(--ink);color:var(--paper);outline:2px solid var(--paper);outline-offset:-7px}
+@media (hover:hover){
+  .tick:hover,.panel .rl:hover{z-index:3}
+  .rl:hover>.row{background:var(--ink);color:var(--paper)}
+  .rl:hover .ph{transform:scale(1.6);transition:transform .24s var(--ease)}
+}
+
+/* harbour office: the rows that hold still, each statement wrapped onto two lines inside the screen */
+.vrow{display:grid;grid-template-columns:calc(var(--fs-tag) * 10.9) minmax(0,1fr);grid-template-areas:"tag t" "lab t";column-gap:calc(var(--fs-row) * .42);row-gap:calc(var(--fs-tag) * .6);align-items:start;padding:calc(var(--pad) * 1.1) var(--g) calc(var(--pad) * 1.3)}
+.vrow .tag{grid-area:tag;margin:0}
+.vrow .lab{grid-area:lab;align-self:end}
+.vrow .tag,.vrow .lab{white-space:normal}   /* one shared column, so the three statements start on one line like a timetable */
+.vt{grid-area:t;font-size:var(--fs-row);line-height:.95;text-transform:uppercase;font-variant-numeric:tabular-nums;min-width:0}
+.vt span{display:block}
+@media (max-width:1099px){
+  .vrow{grid-template-columns:minmax(0,1fr);grid-template-areas:"tag" "t" "lab";row-gap:calc(var(--fs-tag) * .55)}
+}
+
+/* entrance: rules draw, then rows unmask (only with html.boot) */
+@keyframes draw{from{transform:scaleX(0)}}
+@keyframes unmask{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+html.boot main .rl::before,html.boot footer .rl::before{animation:draw .3s cubic-bezier(.65,0,.35,1) backwards;animation-delay:calc(var(--i, 8) * 60ms + 60ms)}
+html.boot main .rl>.row,html.boot main .rl>.vrow{animation:unmask .6s var(--ease) backwards;animation-delay:calc(var(--i, 8) * 60ms + 250ms)}
+html.boot .tk{animation:draw .3s cubic-bezier(.65,0,.35,1) backwards;animation-delay:calc(var(--j, 0) * 60ms + 60ms)}
+html.boot .wl-tag{animation:unmask .45s var(--ease) .36s backwards}
+
+/* ---------- colophon ---------- */
+.nl{display:flex;align-items:center;gap:calc(var(--fs-row) * .3);padding:calc(var(--pad) * 2) var(--g)}
+.nl .tag{margin:0;flex:none}
+.field{flex:1 1 auto;min-width:0;max-width:15em;font-size:var(--fs-tag);line-height:1.1;border:0;border-bottom:1px solid var(--ink);border-radius:0;background:transparent;padding:.08em 0 .16em;caret-color:var(--blue);outline:none;-webkit-appearance:none;appearance:none}
+.field::placeholder{color:var(--ink);opacity:1}
+.field:focus-visible{border-bottom-width:var(--rule);padding-bottom:calc(.16em - var(--rule) + 1px)}
+.field::-webkit-search-cancel-button{display:none}
+.go{flex:none;font-size:var(--fs-tag);line-height:1.1;text-transform:uppercase;background:none;border:0;padding:.06em .12em;cursor:pointer;text-decoration:underline;text-decoration-thickness:.06em;text-underline-offset:.16em}
+.go:hover{background:var(--ink);color:var(--paper)}
+@media (max-width:600px){
+  .nl,.srch{flex-wrap:wrap;row-gap:12px}
+  .nl .tag,.srch .tag{flex-basis:100%;flex-direction:row;gap:.3em}
+  .field{max-width:none}
+}
+.nl-msg{padding:0 var(--g) calc(var(--pad) * 2);max-width:64ch;min-height:0}
+.nl-msg:empty{display:none}
+.partners{padding:calc(var(--pad) * 2) var(--g);max-width:calc(62ch + 2 * var(--g));text-wrap:pretty}
+.foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px 40px;padding:calc(var(--pad) * 2) var(--g) calc(var(--pad) * 3)}
+.foot ul{display:flex;flex-wrap:wrap;gap:6px 28px}
+.foot .lk[aria-current]{text-decoration-line:underline}
+.pz{background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:.24em}
+.pz:hover{text-decoration:none}
+.fine{width:100%;display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 40px}
+
+/* ---------- index panel ---------- */
+.panel{position:fixed;left:0;right:0;top:var(--hh);bottom:0;z-index:12;background:var(--paper);overflow-y:auto;overscroll-behavior:contain;clip-path:inset(0 0 100% 0);visibility:hidden;transition:clip-path .18s cubic-bezier(.7,0,.84,0),visibility 0s linear .18s}
+.panel.open{clip-path:inset(0 0 0 0);visibility:visible;transition:clip-path .34s var(--ease),visibility 0s}
+.srch{display:flex;align-items:center;gap:calc(var(--fs-row) * .3);padding:calc(var(--pad) * 2) var(--g)}
+.srch .tag{margin:0;flex:none}
+.results li a{display:grid;grid-template-columns:minmax(8.6em,max-content) minmax(0,1fr);column-gap:.6em;align-items:baseline;padding:.32em var(--g);font-size:var(--fs-tag);line-height:1.05;text-transform:uppercase;text-decoration:none;border-top:1px solid var(--ink)}
+.results li a span:first-child{font-variant-numeric:tabular-nums}
+.results li a:hover,.results li a:focus-visible{background:var(--ink);color:var(--paper);outline:none}
+.results .none{padding:.6em var(--g);border-top:1px solid var(--ink);max-width:64ch}
+@media (max-width:600px){ .results li a{grid-template-columns:minmax(0,1fr);row-gap:.12em} }
+/* index rows are sized so the longest label fits the screen, and wrap rather than cut a word */
+.mrow{padding:var(--pad) var(--g)}
+.mrow .t{display:block;margin:0;white-space:normal;text-wrap:balance;font-size:min(var(--fs-row), calc((100vw - 2 * var(--g)) / 8.6))}
+
+@media (prefers-reduced-motion:reduce){
+  .ph,.panel,.panel.open,.btn-ticket{transition:none!important}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#whats-on">Skip to the programme</a>
+
+<!-- CONTENT: header navigation -->
+<header class="top" id="top-bar">
+  <nav class="nav-l" aria-label="Main">
+    <a class="lk" href="#whats-on" data-board="arrivals">Arrivals</a>
+    <a class="lk" href="#whats-on" data-board="departures">Departures</a>
+    <a class="lk" href="#visit">Harbour office</a>
+    <p class="status" id="status"><span class="st-l">Open today</span><span class="st-s">Open today</span></p>
+  </nav>
+  <div class="nav-r">
+    <a class="lk" href="#moorings">Moorings</a>
+    <a class="btn-ticket" href="#tickets">Tickets</a>
+    <button class="menu-btn" type="button" aria-expanded="false" aria-controls="menu"><span class="menu-word">Index</span></button>
+  </div>
+</header>
+
+<main id="main">
+  <div class="mast" id="top">
+    <h1 class="stern">
+      <span class="wm-slot" id="wm-slot"><a class="wm" id="wm" href="#top" aria-label="Museum Kade, back to the top"><span class="wm-a">Museum</span><span class="wm-gap"> </span><span class="wm-b">Kade</span></a></span>
+      <span class="port" id="port"><span class="vh">, modern art and design, </span>Lindehaven</span>
+    </h1>
+    <p class="wl-tag" id="wltag">Free on Fridays</p>
+    <div class="draught" id="draught" aria-hidden="true"></div>
+  </div>
+
+  <section id="whats-on" aria-labelledby="h-on">
+    <h2 class="vh" id="h-on">In port: the programme</h2>
+    <ul class="rows" id="rows-prog">
+      <noscript><li class="rl"><p class="partners">The programme dates are set from your device’s clock and need JavaScript. Ask at the harbour office on the Werfkade for the printed programme.</p></li></noscript>
+    </ul>
+  </section>
+  <section id="moorings" aria-labelledby="h-mo">
+    <h2 class="vh" id="h-mo">Moorings</h2>
+    <ul class="rows" id="rows-moor"></ul>
+  </section>
+  <section id="visit" aria-labelledby="h-vi">
+    <h2 class="vh" id="h-vi">Harbour office</h2>
+    <ul class="rows" id="rows-visit"></ul>
+  </section>
+  <section id="collection" aria-labelledby="h-co">
+    <h2 class="vh" id="h-co">The hold</h2>
+    <ul class="rows" id="rows-coll"></ul>
+  </section>
+</main>
+
+<!-- CONTENT: colophon -->
+<footer class="colo">
+  <ul class="rows">
+    <li class="rl" id="newsletter" style="--i:8">
+      <form class="nl" id="nl" novalidate>
+        <label class="tag" for="nl-email"><span>Shipping news</span><span>once a month</span></label>
+        <input class="field" id="nl-email" name="email" type="email" inputmode="email" autocomplete="email" placeholder="Your email address" required>
+        <button class="go" type="submit">Sign up</button>
+      </form>
+      <p class="nl-msg" id="nl-msg" role="status" aria-live="polite"></p>
+    </li>
+    <li class="rl" style="--i:8">
+      <p class="partners">Museum Kade is the museum of modern art and design of the City of Lindehaven. The programme is made possible by the Harbour Culture Fund, Stichting Werfkade, the Port of Lindehaven and the 4,180 people who hold a mooring.</p>
+    </li>
+    <li class="rl" style="--i:8">
+      <div class="foot">
+        <ul aria-label="Language">
+          <li><a class="lk" href="?lang=en" hreflang="en" aria-current="true">English</a></li>
+          <li><a class="lk" href="?lang=nl" hreflang="nl" lang="nl">Nederlands</a></li>
+          <li><a class="lk" href="?lang=de" hreflang="de" lang="de">Deutsch</a></li>
+        </ul>
+        <button class="pz" type="button" id="pz" aria-pressed="false">Pause the moving rows</button>
+        <div class="fine">
+          <p>© <span id="yr"></span> Museum Kade, Werfkade 12, 4811 KD Lindehaven</p>
+          <ul aria-label="About the museum">
+            <li><a class="lk" href="#newsletter">Press</a></li>
+            <li><a class="lk" href="#newsletter">Jobs</a></li>
+            <li><a class="lk" href="#visit">Accessibility</a></li>
+            <li><a class="lk" href="#newsletter">Privacy</a></li>
+          </ul>
+        </div>
+      </div>
+    </li>
+  </ul>
+</footer>
+
+<!-- CONTENT: index panel -->
+<div class="panel" id="menu" role="dialog" aria-modal="true" aria-label="Index">
+  <div class="srch" id="search">
+    <label class="tag" for="q"><span>Search</span><span>the programme</span></label>
+    <input class="field" id="q" type="search" placeholder="Artist, title or day" autocomplete="off" spellcheck="false">
+  </div>
+  <ul class="results" id="results" aria-live="polite"></ul>
+  <ul class="rows">
+    <li class="rl"><a class="row mrow" href="#whats-on"><span class="t">In port</span></a></li>
+    <li class="rl"><a class="row mrow" href="#whats-on" data-board="arrivals"><span class="t">Arrivals</span></a></li>
+    <li class="rl"><a class="row mrow" href="#whats-on" data-board="departures"><span class="t">Departures</span></a></li>
+    <li class="rl"><a class="row mrow" href="#visit"><span class="t">Harbour office</span></a></li>
+    <li class="rl"><a class="row mrow" href="#moorings"><span class="t">Moorings</span></a></li>
+    <li class="rl"><a class="row mrow" href="#collection"><span class="t">The hold</span></a></li>
+    <li class="rl"><a class="row mrow" href="#newsletter"><span class="t">Shipping news</span></a></li>
+  </ul>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* =====================================================================
+   DATA: swap everything here. Dates are DAY OFFSETS from the visitor's
+   today, so the programme is always current on their own clock.
+   kind 'run'    = exhibition with start/end offsets
+   kind 'event'  = dated event over a range of days
+   kind 'weekly' = recurring weekly slot (weekday 0 = Sunday ... 6 = Saturday)
+   ===================================================================== */
+const DATA = {
+  name: ['Museum', 'Kade'],
+  port: 'Lindehaven',      // port of registry, painted under the name
+  draught: 4,              // the whole-metre mark nearest the waterline on the draught scale
+  freeDay: 5,              // weekday with free entry for everyone (0 = Sunday)
+  hours: {                 // by weekday, 0 = Sunday; null = closed
+    0: ['10:00', '18:00'],
+    1: null,
+    2: ['10:00', '18:00'],
+    3: ['10:00', '18:00'],
+    4: ['10:00', '18:00'],
+    5: ['10:00', '22:00'],
+    6: ['10:00', '18:00']
+  },
+  assets: '../assets/wc/ruled-ticker-museum/',
+  programme: [
+    { id: 'soft-industry', kind: 'run', start: -4, end: 128,
+      title: 'Hanna Ruis: Soft industry', label: 'Sculpture',
+      img: 'prog-01-yellow-sculpture.webp', alt: 'A glossy yellow steel ribbon looping across a white gallery floor' },
+    { id: 'pier-7', kind: 'run', start: -88, end: 5,
+      title: 'Jet Roemer: Pier 7', label: 'Photography',
+      img: 'prog-05-photo-wall.webp', alt: 'A wall of framed black and white photographs of cranes, ships and quays' },
+    { id: 'long-warp', kind: 'run', start: 14, end: 196,
+      title: 'The long warp', label: 'Textile commission',
+      img: 'prog-06-textile.webp', alt: 'An eleven metre weaving in red, pink and ochre stripes hanging in a tall white hall' },
+    { id: '41-chairs', kind: 'run', start: -61, end: 100,
+      title: '41 chairs by Auke Timmer', label: 'Design',
+      img: 'prog-04-chair-plinth.webp', alt: 'A bent plywood lounge chair on a white plinth against a mint wall' },
+    { id: 'friday-late', kind: 'weekly', weekday: 5, from: '18:00', until: '22:00',
+      title: 'Friday late', label: 'Late opening', flag: ['Tour', '19:30'],
+      img: 'prog-02-colour-field.webp', alt: 'A visitor seen from behind in front of a large blue over red colour field painting' },
+    { id: 'lightship', kind: 'run', start: -30, end: 121,
+      title: 'Mirte Vos: Lightship', label: 'Video installation',
+      img: 'prog-07-video-room.webp', alt: 'A dark room lit by a green projection, with a single black bench' },
+    { id: 'paper-harbour', kind: 'weekly', weekday: 6, from: '13:00', until: '16:00',
+      title: 'Paper harbour', label: 'Kids’ workshop',
+      img: 'prog-03-paper-workshop.webp', alt: 'Children’s hands gluing a cut-paper boat onto blue paper waves' },
+    { id: 'from-the-water', kind: 'weekly', weekday: 0, from: '11:00', verb: 'Sails',
+      title: 'The building from the water', label: 'Boat tour',
+      img: 'prog-08-facade-dusk.webp', alt: 'The long white museum building at dusk, its glass front lit, a harbour crane behind' }
+  ],
+  moorings: { tag: ['Moorings', '€45 a year'], title: 'Moor here all year',
+              perks: ['In as often as you like', 'and the night before every opening'] },
+  visit: {
+    address: { tag: ['Tram 4 or', 'ferry F2'], lines: ['Werfkade 12', 'Lindehaven'], label: ['Route and', 'step-free access'] },
+    tickets: { lines: ['Adults €19.50', 'Students €10'], label: ['Under 19 free', 'free on Fridays'],
+               tagUsual: ['Tickets', 'online or at the desk'], tagFree: ['Free today', 'book a time slot'] }
+  },
+  collection: { tag: ['Collection', 'online'], title: 'The hold: 96,412 works', label: ['Painting, design,', 'photography, film'] }
+};
+
+/* ---------------- helpers ---------------- */
+const root = document.documentElement;
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+
+/* ---------------- the clock: every date on the page comes from here ---------------- */
+const now = new Date();
+const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+const addDays = n => new Date(today.getFullYear(), today.getMonth(), today.getDate() + n);
+const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const WDL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const nowMin = now.getHours() * 60 + now.getMinutes();
+const toMin = t => { const [h, m] = t.split(':').map(Number); return h * 60 + (m || 0); };
+const dShort = d => `${WD[d.getDay()]} ${d.getDate()} ${MO[d.getMonth()]}`;
+const dDate = d => `${d.getDate()} ${MO[d.getMonth()]}`;
+const sameMonth = (a, b) => a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+
+/* the row tags speak the port's language: expected, arrived, in port, departs, sails */
+function tagFor(it) {
+  if (it.kind === 'weekly') {
+    let diff = (it.weekday - today.getDay() + 7) % 7;
+    const over = toMin(it.until || it.from) + (it.until ? 0 : 90);
+    if (diff === 0 && nowMin >= over) diff = 7;
+    const day = diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : dShort(addDays(diff));
+    if (it.verb) return [it.verb, `${day} ${it.from}`];
+    return [day, it.until ? (diff === 0 && nowMin >= toMin(it.from) ? `Until ${it.until}` : `From ${it.from}`) : it.from];
+  }
+  const s = addDays(it.start), e = addDays(it.end);
+  if (it.kind === 'event') {
+    if (it.start > 0) return ['Expected', `${dShort(s)} to ${sameMonth(s, e) ? e.getDate() : dDate(e)}`];
+    if (it.end === 0) return ['Today', 'Last day'];
+    return ['Today', `Until ${WD[e.getDay()]} ${e.getDate()}`];
+  }
+  if (it.start > 0) return ['Expected', it.start <= 21 ? dShort(s) : dDate(s)];
+  if (it.end === 0) return ['Departs', 'Today'];
+  if (it.end <= 6) return ['Departs', it.end === 1 ? 'Tomorrow' : dShort(e)];
+  if (-it.start <= 14) return ['Arrived', it.start === 0 ? 'Today' : dShort(s)];
+  return ['In port', 'Until ' + dDate(e)];
+}
+function groupOf(it) {
+  if (it.kind === 'weekly') return 'weekly';
+  if (it.start > 0) return 'arrivals';
+  if (it.end <= 6) return 'departures';
+  if (-it.start <= 14) return 'arrivals';
+  return 'in port';
+}
+
+function openState() {
+  const h = DATA.hours[now.getDay()];
+  if (h && nowMin >= toMin(h[0]) && nowMin < toMin(h[1]))
+    return { long: `Open now until ${h[1]}`, short: `Open until ${h[1]}`, tag: ['Open now', `Until ${h[1]}`] };
+  if (h && nowMin < toMin(h[0]))
+    return { long: `Opens today at ${h[0]}`, short: `Opens at ${h[0]}`, tag: ['Opens today', `At ${h[0]}`] };
+  for (let i = 1; i <= 7; i++) {
+    const wd = (now.getDay() + i) % 7, n = DATA.hours[wd];
+    if (n) {
+      const when = i === 1 ? 'tomorrow' : WDL[wd], w2 = i === 1 ? 'tomorrow' : WD[wd];
+      return { long: `Closed now, opens ${when} at ${n[0]}`, short: `Opens ${w2} ${n[0]}`, tag: ['Closed now', `Opens ${w2} ${n[0]}`] };
+    }
+  }
+  return { long: 'Closed', short: 'Closed', tag: ['Closed'] };
+}
+
+/* free entry counts as "today" only until the doors close on the free day */
+const freeToday = (() => { const h = DATA.hours[DATA.freeDay]; return today.getDay() === DATA.freeDay && !(h && nowMin >= toMin(h[1])); })();
+/* the waterline tag: free entry today, tomorrow, or on its weekday */
+function freeLine() {
+  if (freeToday) return 'Free today';
+  if ((today.getDay() + 1) % 7 === DATA.freeDay) return 'Free tomorrow';
+  return `Free on ${WDL[DATA.freeDay]}s`;
+}
+
+/* opening hours as a two-line statement (span, usual hours) plus the exceptions */
+function hoursParts() {
+  const H = DATA.hours;
+  const val = d => H[d] ? `${H[d][0]} to ${H[d][1]}` : 'closed';
+  let first = 1;                         /* the week starts on the first open day after a closed one */
+  for (let d = 0; d < 7; d++) if (!H[d] && H[(d + 1) % 7]) first = (d + 1) % 7;
+  const order = Array.from({ length: 7 }, (_, i) => (first + i) % 7);
+  const open = order.filter(d => H[d]), closed = order.filter(d => !H[d]);
+  const contiguous = open.every((d, i) => order[i] === d);
+  if (open.length && contiguous) {
+    const tally = {};
+    open.forEach(d => { tally[val(d)] = (tally[val(d)] || 0) + 1; });
+    const base = Object.keys(tally).sort((a, b) => tally[b] - tally[a])[0];
+    const span = open.length === 7 ? 'Every day' : `${WD[open[0]]} to ${WD[open[open.length - 1]]}`;
+    const extra = open.filter(d => val(d) !== base).map(d =>
+      H[d][0] === base.split(' to ')[0] ? `${WDL[d]}s until ${H[d][1]}` : `${WDL[d]}s ${H[d][0]} to ${H[d][1]}`);
+    if (closed.length) extra.push('closed on ' + closed.map(d => WDL[d] + 's').join(' and '));
+    return { lines: [span, base], extra };
+  }
+  const groups = [];
+  for (const d of order) {
+    const v = val(d), g = groups[groups.length - 1];
+    if (g && g.v === v) g.days.push(d); else groups.push({ v, days: [d] });
+  }
+  return { lines: groups.map(g => `${WD[g.days[0]]}${g.days.length > 1 ? ' to ' + WD[g.days[g.days.length - 1]] : ''} ${g.v}`), extra: [] };
+}
+
+/* ---------------- render ---------------- */
+const st = openState();
+$('#status').innerHTML = `<span class="st-l">${esc(st.long)}</span><span class="st-s">${esc(st.short)}</span>`;
+$('#wltag').textContent = freeLine();
+$('#yr').textContent = now.getFullYear();
+
+const lines = (arr, cls) => `<span class="${cls}">${arr.map(l => `<span>${esc(l)}</span>`).join('')}</span>`;
+let tickN = 0, stagger = 0;
+const nextI = () => Math.min(stagger++, 8);
+function row({ id, href, aria, run }) {
+  const dir = (tickN++ % 2) ? 1 : -1;
+  return `<li class="rl tick"${id ? ` id="${id}"` : ''} style="--i:${nextI()}" data-dir="${dir}"><a class="row" href="${esc(href)}" aria-label="${esc(aria)}"><span class="track"><span class="run">${run}</span></span></a></li>`;
+}
+function still({ id, tag, text, label }) {
+  return `<li class="rl"${id ? ` id="${id}"` : ''} style="--i:${nextI()}"><div class="vrow">${lines(tag, 'tag')}<p class="vt">${text.map(l => `<span>${esc(l)}</span>`).join('')}</p>${label.length ? lines(label, 'lab') : ''}</div></li>`;
+}
+
+const prog = DATA.programme.filter(it => it.kind === 'weekly' || it.end >= 0);
+prog.forEach(it => { it._tag = tagFor(it); it._group = groupOf(it); });
+$('#rows-prog').innerHTML = prog.map((it, i) => {
+  const img = `<img class="ph" src="${esc(DATA.assets + it.img)}" alt="" width="1536" height="1024"${i < 4 ? '' : ' loading="lazy"'} decoding="async">`;
+  const flag = it.flag ? `<span class="flag" aria-hidden="true">${it.flag.map(l => `<span>${esc(l)}</span>`).join('')}</span>` : '';
+  const aria = `${it.title}. ${it.label}, ${it._tag.join(' ')}${it.flag ? '. ' + it.flag.join(' ') : ''}`;
+  return row({ id: 'p-' + it.id, href: it.href || '#p-' + it.id, aria,
+    run: lines(it._tag, 'tag') + img + flag + `<span class="t">${esc(it.title)}</span>` + lines([it.label], 'lab') });
+}).join('');
+
+const Mo = DATA.moorings;
+$('#rows-moor').innerHTML = row({ href: '#moorings', aria: `${Mo.title}. ${Mo.tag.join(' ')}. ${Mo.perks.join(', ')}`,
+  run: lines(Mo.tag, 'tag') + `<span class="t">${esc(Mo.title)}</span>` + lines(Mo.perks, 'lab') });
+
+const V = DATA.visit, hp = hoursParts();
+$('#rows-visit').innerHTML =
+  still({ tag: st.tag, text: hp.lines, label: hp.extra }) +
+  still({ tag: V.address.tag, text: V.address.lines, label: V.address.label }) +
+  still({ id: 'tickets', tag: freeToday ? V.tickets.tagFree : V.tickets.tagUsual, text: V.tickets.lines, label: V.tickets.label });
+
+const C = DATA.collection;
+$('#rows-coll').innerHTML = row({ href: '#collection', aria: `${C.title}. ${C.label.join(' ')}`,
+  run: lines(C.tag, 'tag') + `<span class="t">${esc(C.title)}</span>` + lines(C.label, 'lab') });
+
+/* ---------------- the stern: fit the name, paint the draught scale, then scrub into the header ---------------- */
+const wm = $('#wm'), slot = $('#wm-slot'), wa = $('.wm-a', wm), wb = $('.wm-b', wm);
+const mast = $('#top'), scaleEl = $('#draught'), tagEl = $('#wltag'), rowsProg = $('#rows-prog');
+const header = $('#top-bar'), statusEl = $('#status');
+const cv = document.createElement('canvas').getContext('2d');
+const FAMILY = 'Switzer, Arimo, "Helvetica Neue", Arial, sans-serif';
+const M = t => { cv.font = `400 100px ${FAMILY}`; return cv.measureText(t.toUpperCase()); };
+const G = { ready: false };
+
+function fitWordmark() {
+  const vw = root.clientWidth;
+  const rs = getComputedStyle(root);
+  const g = parseFloat(rs.getPropertyValue('--g')) || 36;
+  const rule = parseFloat(rs.getPropertyValue('--rule')) || 6;
+  const two = vw <= 600;
+  const fT = parseFloat(getComputedStyle(scaleEl).fontSize) || 40;     /* the tag size: numerals and port line */
+  const [n1, n2] = DATA.name;
+  /* the draught scale takes a column on the right edge; the name fits the rest of the stern */
+  const numW = M(`${DATA.draught + 4}M`).width * fT / 100;
+  const tickW = Math.round(fT * .72), tickGap = Math.round(fT * .24);
+  const scaleW = Math.ceil(tickW + tickGap + numW);
+  const colGap = Math.round(fT * (two ? .75 : 1.15));
+  const panel = vw - 2 * g - scaleW - colGap;
+  const full = M(n1 + ' ' + n2), l1 = M(n1), l2 = M(n2), cap = M('H');
+  const ref = two ? l1 : full;
+  const inkW100 = ref.actualBoundingBoxLeft + ref.actualBoundingBoxRight;
+  const fs = panel / inkW100 * 100, s = fs / 100;
+  const fA = full.fontBoundingBoxAscent, fD = full.fontBoundingBoxDescent;
+  const asc = Math.max(l1.actualBoundingBoxAscent, l2.actualBoundingBoxAscent) * s;
+  const desc = Math.max(0, l1.actualBoundingBoxDescent, l2.actualBoundingBoxDescent) * s;
+  const capH = cap.actualBoundingBoxAscent * s;
+  const inkH = asc + desc;
+  const baseInBox = (fs - (fA + fD) * s) / 2 + fA * s;   /* baseline inside a line-height:1 box */
+  const spanTop = asc - baseInBox;
+  const gapY = capH * .2;
+  let W, H;
+  wm.style.fontSize = fs + 'px';
+  wa.style.fontSize = wb.style.fontSize = fs + 'px';
+  if (!two) {
+    const ox = full.actualBoundingBoxLeft * s;
+    wa.style.left = ox + 'px'; wa.style.top = spanTop + 'px';
+    wb.style.left = (ox + M(n1 + ' ').width * s) + 'px'; wb.style.top = spanTop + 'px';
+    W = inkW100 * s; H = inkH;
+  } else {
+    /* two lines on a phone: the second centred under the first, as on a narrow transom */
+    W = inkW100 * s; H = inkH * 2 + gapY;
+    const w2 = (l2.actualBoundingBoxLeft + l2.actualBoundingBoxRight) * s;
+    wa.style.left = l1.actualBoundingBoxLeft * s + 'px'; wa.style.top = spanTop + 'px';
+    wb.style.left = ((W - w2) / 2 + l2.actualBoundingBoxLeft * s) + 'px'; wb.style.top = (spanTop + inkH + gapY) + 'px';
+  }
+  wm.style.width = W + 'px'; wm.style.height = H + 'px';
+  slot.style.height = H + 'px';
+  mast.style.setProperty('--panel', W + 'px');
+  root.classList.add('wmfix');
+  Object.assign(G, { vw, g, rule, two, W, H, capH, fT, tickW, tickGap, scaleW, ready: true });
+  paintDraught();
+  geometry();
+}
+
+/* real draught marks: each numeral is as tall as the gap above it, its foot is the reading,
+   whole metres carry an M; the scale runs from the top of the name down to the waterline */
+function paintDraught() {
+  const { fT, tickW, tickGap, scaleW } = G;
+  const mr = mast.getBoundingClientRect(), sr = slot.getBoundingClientRect();
+  const top = sr.top - mr.top, h = mr.bottom - sr.top;
+  const c = fT * (M('8').actualBoundingBoxAscent / 100);
+  const base = fT * (.5 + (M('8').fontBoundingBoxDescent - M('8').fontBoundingBoxAscent) / 200);
+  const d0 = tagEl.offsetHeight / 2 + G.rule / 2 + c * .42;      /* the lowest mark clears the waterline tag */
+  let html = '';
+  for (let i = 0; d0 + 2 * c * i + c <= h; i++) {
+    const step = i % 5, metre = DATA.draught + Math.floor(i / 5);
+    const label = step === 0 ? metre + 'M' : String(step * 2);
+    const d = d0 + 2 * c * i;
+    html += `<span class="dm" style="bottom:${(d - base).toFixed(1)}px;padding-left:${tickW + tickGap}px;--j:${i}"><span class="tk" style="width:${tickW}px;bottom:${base.toFixed(1)}px"></span>${label}</span>`;
+  }
+  scaleEl.style.top = top + 'px';
+  scaleEl.style.width = scaleW + 'px';
+  scaleEl.innerHTML = html;
+}
+
+function geometry() {
+  if (!G.ready) return;
+  const hh = header.offsetHeight;
+  const sy = scrollY;
+  G.hh = hh;
+  G.y0 = slot.getBoundingClientRect().top + sy;
+  G.x0 = G.g;
+  G.wl = rowsProg.getBoundingClientRect().top + sy;     /* the waterline: the first rule of the programme */
+  G.compact = G.vw < 1300;                              /* matches the CSS breakpoint that hides the text links */
+  const dockH = G.two ? 30 : 26;
+  G.kT = Math.min(1, dockH / G.H);
+  /* the tag docks beside the slim name: never under 11px tall on a phone */
+  G.tw = tagEl.offsetWidth; G.th = tagEl.offsetHeight;
+  G.kd = Math.min(1, Math.max((G.two ? 17 : 22) / G.th, (G.two ? 12 : 15) / G.fT));
+  const gap = G.two ? 7 : 11;
+  const groupW = G.W * G.kT + gap + G.tw * G.kd;
+  G.xT = G.compact ? G.g : (G.vw - groupW) / 2;
+  G.yT = (hh - G.H * G.kT) / 2;
+  G.txD = G.xT + G.W * G.kT + gap;
+  G.tyD = G.yT + (G.H * G.kT - G.th * G.kd) / 2;
+  G.txR = G.vw - G.g - G.tw;
+  G.S = (G.y0 - G.yT) + G.H * (1 - G.kT);
+  const band = hh / 2 + (G.compact ? 18 : 22);           /* bottom of the nav controls */
+  G.Sk = Math.max(1, G.S - Math.max(0, band - G.yT));
+  apply();
+}
+
+function apply() {
+  if (!G.ready) return;
+  const s = Math.max(0, scrollY);
+  let k, x, y, z = 11, q;
+  if (RM) {
+    const docked = s > G.y0 + G.H - G.hh;
+    q = docked ? 1 : 0;
+    k = docked ? G.kT : 1; x = docked ? G.xT : G.x0; y = docked ? G.yT : G.y0 - s;
+    z = docked ? 11 : 9;
+  } else {
+    q = clamp(s / G.Sk);
+    k = lerp(1, G.kT, q); x = lerp(G.x0, G.xT, q);
+    y = Math.max(G.yT, G.y0 + G.H * (1 - k) - s);        /* the bottom edge stays locked to the page */
+  }
+  wm.style.transform = `translate3d(${x.toFixed(2)}px,${y.toFixed(2)}px,0) scale(${k.toFixed(4)})`;
+  wm.style.zIndex = z;
+  /* the tag rides the waterline as it rises, then settles beside the docked name */
+  const tyR = G.wl + G.rule / 2 - G.th / 2 - s;
+  const tx = lerp(G.txR, G.txD, q), ty = lerp(tyR, G.tyD, q), tk = lerp(1, G.kd, q);
+  tagEl.style.transform = `translate3d(${tx.toFixed(2)}px,${ty.toFixed(2)}px,0) scale(${tk.toFixed(4)})`;
+  tagEl.style.zIndex = z;
+  /* the open-now line steps out of the way at every width once the stern docks */
+  statusEl.style.transform = q > 0 ? `translateY(${(-q * G.hh * .9).toFixed(1)}px)` : '';
+}
+
+/* ---------------- tickers: slow constant drift, alternating, pause on hover or focus ---------------- */
+const ticks = [...document.querySelectorAll('.tick')].map(li => ({
+  li, track: $('.track', li), dir: +li.dataset.dir, pos: 0, w: 0, mult: 1, hover: false, focus: false, vis: false
+}));
+let paused = false;
+
+function measureTicks() {
+  const vw = root.clientWidth;
+  ticks.forEach(t => {
+    const tr = t.track;
+    tr.querySelectorAll('.run.clone').forEach(c => c.remove());
+    const orig = tr.firstElementChild;
+    t.w = orig.getBoundingClientRect().width;
+    if (RM || !t.w) { tr.style.transform = ''; return; }
+    const n = Math.max(3, Math.ceil(vw / t.w) + 2);
+    const mk = () => { const c = orig.cloneNode(true); c.classList.add('clone'); c.setAttribute('aria-hidden', 'true'); c.querySelectorAll('img').forEach(im => im.removeAttribute('loading')); return c; };
+    tr.insertBefore(mk(), orig);                    /* one copy to the left so rightward rows never show a gap */
+    for (let i = 2; i < n; i++) tr.appendChild(mk());
+    place(t);
+  });
+}
+function place(t) {
+  const m = ((t.pos % t.w) + t.w) % t.w;
+  t.track.style.transform = `translate3d(${(-t.w + m).toFixed(2)}px,0,0)`;
+}
+
+if (!RM) {
+  ticks.forEach(t => {
+    t.li.addEventListener('pointerenter', () => { t.hover = true; });
+    t.li.addEventListener('pointerleave', () => { t.hover = false; });
+    t.li.addEventListener('focusin', () => { t.focus = true; });
+    t.li.addEventListener('focusout', () => { t.focus = false; });
+  });
+  const io = new IntersectionObserver(es => es.forEach(e => {
+    const t = ticks.find(x => x.li === e.target); if (t) t.vis = e.isIntersecting;
+  }), { rootMargin: '120px 0px' });
+  ticks.forEach(t => io.observe(t.li));
+
+  /* the programme reads first: the rows hold still for a beat after the page has arrived, then start to run */
+  const HOLD = 4400, RAMP = 3000;
+  let startAt = Infinity;
+  const arm = () => { if (startAt === Infinity) startAt = performance.now() + HOLD; };
+  const loaded = document.readyState === 'complete' ? Promise.resolve() : new Promise(r => addEventListener('load', r, { once: true }));
+  Promise.all([loaded, document.fonts ? document.fonts.ready : Promise.resolve()]).then(arm, arm);
+  setTimeout(arm, 6000);
+  let last = performance.now();
+  const loop = tnow => {
+    const dt = Math.min(.05, (tnow - last) / 1000); last = tnow;
+    const ramp = clamp((tnow - startAt) / RAMP);
+    const fsRow = Math.min(104, Math.max(50, 50 + (root.clientWidth - 390) * .05143));
+    const V = 28 + 20 * clamp((fsRow - 50) / 54);   /* 48 px/s on desktop, 28 px/s on a phone */
+    const ease = 1 - Math.exp(-dt * 16);
+    for (const t of ticks) {
+      if (!t.vis || !t.w) continue;
+      const target = (t.hover || t.focus || paused) ? 0 : 1;
+      t.mult += (target - t.mult) * ease;
+      if (ramp > 0 && t.mult > .001) { t.pos += t.dir * V * ramp * t.mult * dt; place(t); }
+    }
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+}
+
+const pz = $('#pz');
+if (RM) { pz.hidden = true; }
+pz.addEventListener('click', () => {
+  paused = !paused;
+  pz.setAttribute('aria-pressed', String(paused));
+  pz.textContent = paused ? 'Start the moving rows' : 'Pause the moving rows';
+});
+
+/* ---------------- layout passes ---------------- */
+let raf = 0;
+addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; apply(); }); }, { passive: true });
+let rz = 0;
+addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { fitWordmark(); measureTicks(); }, 120); });
+fitWordmark(); measureTicks();
+const refit = () => { fitWordmark(); measureTicks(); };
+if (document.fonts) {
+  document.fonts.load(`400 100px Switzer`).then(refit, refit);
+  document.fonts.ready.then(refit);
+}
+addEventListener('load', refit);
+
+/* ---------------- index panel with programme search and the arrivals / departures boards ---------------- */
+const panel = $('#menu'), mbtn = $('.menu-btn'), mword = $('.menu-word'), q = $('#q'), results = $('#results');
+const outside = [$('#main'), $('.colo')];
+let lastFocus = null;
+function openMenu(focusEl) {
+  if (!panel.classList.contains('open')) lastFocus = document.activeElement;
+  panel.classList.add('open');
+  mbtn.setAttribute('aria-expanded', 'true'); mword.textContent = 'Close';
+  outside.forEach(el => el.inert = true);
+  setTimeout(() => (focusEl ? focusEl() : panel.querySelector('.mrow')).focus({ preventScroll: true }), 30);
+}
+function closeMenu(restore) {
+  panel.classList.remove('open');
+  mbtn.setAttribute('aria-expanded', 'false'); mword.textContent = 'Index';
+  outside.forEach(el => el.inert = false);
+  if (restore && lastFocus) lastFocus.focus({ preventScroll: true });
+}
+mbtn.addEventListener('click', () => panel.classList.contains('open') ? closeMenu(true) : openMenu());
+addEventListener('keydown', e => { if (e.key === 'Escape' && panel.classList.contains('open')) closeMenu(true); });
+panel.addEventListener('click', e => { const a = e.target.closest('a'); if (a && !a.hasAttribute('data-board')) closeMenu(false); });
+
+const index = prog.map(it => ({ it, hay: [it.title, it.label, it._tag.join(' '), it.flag ? it.flag.join(' ') : '', WDL[it.weekday] || '', it._group, it.verb || ''].join(' ').toLowerCase() }));
+function search() {
+  const v = q.value.trim().toLowerCase();
+  if (!v) { results.innerHTML = ''; return; }
+  const hits = index.filter(x => v.split(/\s+/).every(w => x.hay.includes(w)));
+  results.innerHTML = hits.length
+    ? hits.map(({ it }) => `<li><a href="#p-${esc(it.id)}"><span>${esc(it._tag.join(' '))}</span><span>${esc(it.title)}</span></a></li>`).join('')
+    : `<li class="none">Nothing on the programme matches “${esc(q.value.trim())}”. Try an artist, a title or a weekday such as Friday.</li>`;
+}
+q.addEventListener('input', search);
+/* Arrivals and Departures open the index as a board: the programme filtered by the port's own words */
+document.querySelectorAll('[data-board]').forEach(a => a.addEventListener('click', e => {
+  e.preventDefault();
+  q.value = a.dataset.board; search();
+  panel.scrollTop = 0;
+  openMenu(() => results.querySelector('a') || q);
+}));
+
+/* ---------------- newsletter ---------------- */
+const nl = $('#nl'), nlIn = $('#nl-email'), nlMsg = $('#nl-msg');
+nl.addEventListener('submit', e => {
+  e.preventDefault();
+  const v = nlIn.value.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
+    nlMsg.textContent = v ? 'That address is missing part of its domain. Use the full address, for example jan@post.nl.' : 'Add your email address to sign up.';
+    nlIn.setAttribute('aria-invalid', 'true'); nlIn.focus(); return;
+  }
+  nlIn.removeAttribute('aria-invalid');
+  nlMsg.textContent = `Almost done: open the confirmation we sent to ${v}. The next letter goes out on the first Thursday of the month.`;
+  nl.reset();
+});
+})();
+</script>
+</body>
+</html>

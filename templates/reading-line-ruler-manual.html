@@ -1,0 +1,1261 @@
+<!-- TEMPLATE: Measure, a page under a type gauge | ARCHETYPE: Chrome as instrument: a compositor's line gauge that ticks the sheet's real 40px baselines, a character gauge that reports the measure of the line being read, and a full-width cobalt reading line with a typoscope window, on a single-size typographic sheet | REF: Devouring Details (devouringdetails.com), Geist font page (Vercel), rauno.me | WHEN TO USE: a course, manual, field guide or reference product whose subject is craft and whose page should demonstrate it: one type size on one line grid, hierarchy from position, the measuring chrome carrying the identity | SWAP: edit the DATA object at top of the script (chapters, gauge, plate parameters) and the marked CONTENT blocks in the markup (all page copy); the grid tokens in :root are written in characters and lines -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Measure, a field manual on reading on screens</title>
+<meta name="description" content="Measure is an interactive field manual on reading on screens: measure, leading, rag, contrast, numerals and motion while reading. Fourteen chapters by Letterkaai, a type school in Antwerp.">
+<meta name="theme-color" content="#EDEDED">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@1&family=Inter+Tight:wght@400..600&display=swap" rel="stylesheet">
+<style>
+/* =====================================================================
+   MEASURE: tokens
+   One type size on one 40px line. The sheet is laid out in characters
+   of that size (1 character here = the mean advance of this page's
+   prose, 10px at 24px), so the reading column is a true 66 character
+   measure. Two gauges read the sheet: a line gauge down the left margin
+   and a character gauge along the top edge. The reading line is their
+   cursor.
+   ===================================================================== */
+:root{
+  --ground:#EDEDED;
+  --sheet:#FCFCFC;
+  --ink:#000000;
+  --xref:#8F8F8F;      /* cross-reference grey, 24px = large text, 3.3:1 */
+  --num:#6B6B6B;       /* gauge numerals, 12px mono, 5.2:1 on the sheet */
+  --tick:#A6A6A6;      /* gauge hairlines */
+  --cobalt:#1F4BFF;    /* the one accent: reading line, window, readouts, tag */
+  --window:rgba(31,75,255,.06);   /* the typoscope band: 6 percent cobalt */
+  --plate:#F6F6F5;
+  --edge:#ECECEC;
+  --rule:#DCDCDC;      /* the gauges' own edges, one L around the text */
+
+  --fs:24px;           /* the one size */
+  --lh:40px;           /* the one line: every baseline on the sheet sits on it */
+  --cap:calc(var(--fs) * .7275);   /* Inter Tight cap height, for the text-box trim maths */
+  --chw:calc(var(--fs) * .41658);  /* mean advance of this page's prose: 10px at 24px */
+  --col:calc(var(--chw) * 66);     /* the reading column, 660px: a 66 character measure */
+  --side:calc(var(--chw) * 30);    /* the margin column, 30 characters */
+  --gut:calc(var(--chw) * 6);
+  --gm:calc(var(--chw) * 12);      /* the line gauge's margin */
+  --pr:calc(var(--chw) * 6);
+  --sub:calc(var(--chw) * 28);     /* list axis inside the column: 28 | 3 | 35 */
+  --sub-g:calc(var(--chw) * 3);
+  --top:64px;          /* ground above the sheet */
+  --g-ax:76px;         /* line gauge tick axis, from the sheet's left edge */
+  --g-gap:8px;         /* numerals sit this far left of the axis */
+  --t1:8px; --t5:14px; --tc:24px;  /* tick lengths: line, fifth line, chapter */
+  --mono:12px;
+  /* a rule sits optically centred in a blank line, this far below a baseline */
+  --rd:calc((var(--lh) * 2 - var(--cap) + var(--fs) * .2) / 2);
+
+  --rl-top:417px;      /* JS writes these three from the layout */
+  --rl-h:400px;
+  --ax:196px;
+
+  --out:cubic-bezier(.16,1,.3,1);
+  --rise:cubic-bezier(.2,.8,.2,1);
+  /* spring, bounce ~0.2 (damping 0.8) */
+  --spring:linear(0, .0737, .2333, .4147, .5831, .7228, .8295, .9056, .9562, .9874, 1.0047, 1.0128, 1.0151, 1.0143, 1.012, 1.0093, 1.0067, 1.0045, 1.0028, 1.0016, 1);
+  color-scheme:light;
+}
+@media (max-width:760px){
+  :root{ --fs:18px; --lh:30px; --gm:44px; --pr:20px; --top:0px; --g-ax:28px; --g-gap:4px; --t1:5px; --t5:9px; --tc:13px; --mono:10px; --rl-top:265px; --ax:28px; }
+}
+
+/* reading line position: a registered number driven by the scroll timeline */
+@property --p{ syntax:'<number>'; inherits:false; initial-value:0; }
+
+*,*::before,*::after{ box-sizing:border-box; }
+html{
+  background:var(--ground);
+  scrollbar-color:var(--xref) var(--ground);
+  scrollbar-width:thin;
+  -webkit-text-size-adjust:100%; text-size-adjust:100%;
+}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:"Inter Tight", ui-sans-serif, system-ui, sans-serif;
+  font-weight:460;
+  font-size:var(--fs);
+  line-height:var(--lh);
+  letter-spacing:-.01em;
+  font-kerning:normal;
+  font-synthesis:none;
+  -webkit-font-smoothing:antialiased;
+  caret-color:var(--cobalt);
+}
+::selection{ background:var(--cobalt); color:var(--sheet); }
+:focus-visible{ outline:2px solid var(--cobalt); outline-offset:4px; border-radius:2px; }
+h1,h2,p,ul,ol,dl,dd,figure{ margin:0; padding:0; }
+ul,ol{ list-style:none; }
+a{ color:inherit; }
+
+/* every text block is trimmed to cap height and alphabetic baseline: its
+   top is its first cap line, its bottom its last baseline. Every gap
+   below is whole lines minus one cap height, so every baseline on the
+   sheet lands on a tick of the line gauge */
+p, .row > *, .rows--single > li, .toc ul{ text-box:trim-both cap alphabetic; text-wrap:pretty; }
+
+.vh{ font-size:16px; line-height:1.5; position:absolute !important; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+.skip{ position:fixed; left:16px; top:16px; z-index:60; background:var(--ink); color:var(--sheet);
+  font:500 12px/1 "Geist Mono", ui-monospace, monospace; letter-spacing:.02em; text-transform:uppercase;
+  padding:8px 10px; text-decoration:none; translate:0 -64px; transition:translate 160ms var(--out); }
+.skip:focus-visible{ translate:0 0; }
+
+/* =====================================================================
+   SHEET: 120 characters wide, 12 | 66 | 6 | 30 | 6
+   ===================================================================== */
+.sheet{
+  position:relative;
+  display:flow-root;
+  width:calc(var(--gm) + var(--col) + var(--gut) + var(--side) + var(--pr));
+  max-width:calc(100% - 32px);
+  margin:var(--top) auto 128px;
+  padding:0 var(--pr) calc(var(--lh) * 4) var(--gm);
+  background:var(--sheet);
+  animation:sheet-in 450ms var(--rise) both;
+}
+@keyframes sheet-in{ from{ opacity:0; translate:0 12px; } }
+
+.main{ width:var(--col); max-width:100%; }
+.grid3{ display:grid; grid-template-columns:var(--col) var(--gut) minmax(0, var(--side)); align-items:start; }
+.grid3 > :nth-child(2){ grid-column:3; }
+
+/* vertical rhythm, in whole lines */
+section{ display:flow-root; }
+.chapter{ margin-top:calc(var(--lh) * 4 - var(--cap)); }
+.chapter.first{ margin-top:calc(var(--lh) * 3 - var(--cap)); }
+.chapter > .vh + *{ margin-top:0; }
+.main > p + p, .note > p + p, .split p + p{ margin-top:calc(var(--lh) * 2 - var(--cap)); }
+.after-text{ margin-top:calc(var(--lh) * 2); }            /* a plate, two lines below a baseline */
+.after-plate{ margin-top:calc(var(--lh) * 2 - var(--cap)); }
+
+/* header: the wordmark is the page's one Instrument Serif word, sized so
+   its ink spans 0 to 66 on the gauge above it; the nav sits in the
+   margin column with its last baseline on the wordmark's */
+.head{
+  display:grid; grid-template-columns:var(--col) var(--gut) minmax(0, var(--side));
+  height:calc(var(--lh) * 5); align-items:end;
+}
+.head .toc{ grid-column:3; }
+.wm-box{ container-type:inline-size; }
+.wm{
+  font-family:"Instrument Serif", Georgia, serif; font-style:italic; font-weight:400;
+  font-size:calc(100cqi / 3.047);       /* ink width of the word is 3.047em */
+  line-height:1; letter-spacing:0; white-space:nowrap;
+  margin-left:calc(100cqi * .0141);     /* the italic M overhangs by .043em */
+  text-box:trim-both cap alphabetic;
+}
+.toc a, .plain{
+  text-decoration-line:underline;
+  text-decoration-color:transparent;
+  text-decoration-thickness:1px;
+  text-underline-offset:.24em;
+  transition:text-decoration-color 150ms ease;
+}
+.toc a:hover, .plain:hover{ text-decoration-color:currentColor; }
+
+/* cross-reference terms: grey, black on hover */
+.xr{ color:var(--xref); text-decoration:none; transition:color 150ms ease; }
+.xr:hover, .xr:focus-visible{ color:var(--ink); }
+.num{ font-variant-numeric:tabular-nums; }
+
+/* =====================================================================
+   PLATES: square, on the line grid, each sized to what it shows
+   ===================================================================== */
+.plate{
+  position:relative; min-width:0;
+  height:calc(var(--rows, 8) * var(--lh));
+  background:var(--plate);
+  border:1px solid var(--edge);
+  overflow:hidden;
+}
+.plate svg{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+.plate figcaption{
+  position:absolute; left:16px; bottom:16px;
+  font:400 12px/1 "Geist Mono", ui-monospace, monospace;
+  letter-spacing:.02em; text-transform:uppercase; color:var(--ink);
+  text-box:trim-both cap alphabetic;
+}
+.plate .ro{ font-family:"Geist Mono", ui-monospace, monospace; font-size:12px; letter-spacing:.02em; }
+.plate .aa{ font-family:"Inter Tight", sans-serif; font-weight:460; letter-spacing:-.03em; }
+.plate .nums text{ font-family:"Inter Tight", sans-serif; font-weight:460; letter-spacing:0; }
+.plate .pnum text{ font-variant-numeric:proportional-nums; }
+.plate .tnum text{ font-variant-numeric:tabular-nums; }
+.p-measure{ --rows:8; }
+
+/* the measure plate takes the full column; rag is tall, numerals narrow,
+   position and motion wide; the grid's axes are the sheet's own */
+.plates{
+  display:grid;
+  grid-template-columns:calc(var(--chw) * 30) var(--sub-g) calc(var(--chw) * 33) var(--gut) minmax(0, var(--side));
+  row-gap:var(--lh);
+}
+.p-rag{ grid-area:1 / 1; --rows:12; }
+.p-lead{ grid-area:1 / 3; --rows:12; }
+.p-num{ grid-area:1 / 5; --rows:12; }
+.p-pos{ grid-area:2 / 1 / 3 / 4; --rows:8; }
+.p-con{ grid-area:2 / 5; --rows:8; }
+.p-read{ grid-area:3 / 1 / 4 / 4; --rows:8; }
+.p-note{ grid-area:3 / 5; padding-top:calc(var(--lh) - var(--cap)); }
+
+/* =====================================================================
+   ROWS: lists ruled in the blank line between entries (row-rule is not
+   available, and a border would push the baselines off the grid)
+   ===================================================================== */
+.rows{ position:relative; margin-top:calc(var(--lh) * 2 - var(--cap)); }
+.rows + .rows{ margin-top:calc(var(--lh) * 4 - var(--cap)); }
+.rows > *{ position:relative; }
+.rows > * + *{ margin-top:calc(var(--lh) * 2 - var(--cap)); }
+.rows > *::before, .rows::after{ content:""; position:absolute; left:0; right:0; height:1px; background:var(--edge); }
+.rows > *::before{ top:calc(var(--rd) - var(--lh) * 2 + var(--cap)); }
+.rows::after{ bottom:calc(var(--rd) * -1); }
+.row, .split{ display:grid; grid-template-columns:var(--sub) var(--sub-g) minmax(0, 1fr); align-items:start; }
+.row > :last-child, .split > :last-child{ grid-column:3; }
+.row .n{ display:inline-block; width:calc(var(--chw) * 3.4); font-variant-numeric:tabular-nums; }
+.split .rows{ margin-top:0; }
+
+/* the Enrol link wears the hanging tag; its text baseline sits on the
+   grid (Geist Mono cap height is .71em) and its box ends on that
+   baseline, so the lines after it stay on the gauge */
+.tagbtn{
+  display:block; width:max-content;
+  margin-top:calc(var(--lh) * 2 - 8px - 12px * .71);
+  margin-bottom:-8px;
+  background:var(--cobalt); color:var(--sheet);
+  font:500 12px/1 "Geist Mono", ui-monospace, monospace;
+  letter-spacing:.02em; text-transform:uppercase; text-decoration:none;
+  padding:8px 10px;
+  text-box:trim-both cap alphabetic;
+  transition:background-color 150ms ease;
+}
+.tagbtn:hover{ background:var(--ink); }
+.tagbtn:focus-visible{ outline-color:var(--ink); outline-offset:3px; }
+
+/* =====================================================================
+   THE INSTRUMENT
+   (1) THE READING LINE is position:fixed and translated by
+   animation-timeline: scroll(root), linear and 1:1 with document
+   progress, no smoothing. The registered --p is rounded to whole pixels
+   so the 1px hairline never blurs across two device rows. Fallback:
+   without scroll timelines, JS writes the same translate on scroll (see
+   update()). It carries the typoscope window (the one line-height band
+   it crosses, tinted 6 percent cobalt), the cobalt line number on the
+   gauge, and the hanging chapter tag.
+   ===================================================================== */
+.reader{
+  position:fixed; left:0; right:0; top:var(--rl-top); height:0;
+  z-index:30; pointer-events:none;
+  translate:0 round(nearest, calc(var(--p) * var(--rl-h)), 1px);
+  animation:rl-progress linear both;
+  animation-timeline:scroll(root block);
+}
+@keyframes rl-progress{ from{ --p:0; } to{ --p:1; } }
+@supports not (animation-timeline: scroll()){
+  .reader{ animation:none; translate:none; }
+}
+.reader .win, .reader .line{
+  position:absolute; left:var(--ax); right:0;
+  transform-origin:0 50%;
+  animation:sweep 500ms var(--out) 760ms both;
+}
+.reader .win{ top:calc(var(--lh) / -2); height:var(--lh); background:var(--window); }
+.reader .line{ top:0; height:1px; background:var(--cobalt); }
+@keyframes sweep{ from{ scale:0 1; } }
+.reader .ro{
+  position:absolute; top:.5px; right:calc(100% - var(--ax) + var(--g-gap));
+  translate:0 -50%;
+  font:500 var(--mono)/1 "Geist Mono", ui-monospace, monospace; letter-spacing:.02em;
+  color:var(--cobalt); text-box:trim-both cap alphabetic;
+  animation:fade-in 260ms var(--out) 900ms both;
+}
+@keyframes fade-in{ from{ opacity:0; } }
+.tag{
+  position:absolute; top:1px; right:16px;
+  pointer-events:auto; cursor:pointer;
+  display:grid; overflow:hidden;
+  margin:0; border:0; border-radius:0;
+  padding:6px 9px;
+  background:var(--cobalt); color:var(--sheet);
+  font:500 12px/1 "Geist Mono", ui-monospace, monospace;
+  letter-spacing:.02em; text-transform:uppercase; text-align:left;
+  transition:background-color 150ms ease, width 200ms var(--out);
+  animation:tag-in 280ms var(--out) 1160ms both;
+}
+@keyframes tag-in{ from{ clip-path:inset(0 0 100% 0); } to{ clip-path:inset(0 0 0 0); } }
+.tag:hover{ background:var(--ink); }
+.tag:focus-visible{ outline-color:var(--ink); outline-offset:3px; }
+.tag .tl{ grid-area:1 / 1; justify-self:end; opacity:0; transition:opacity 200ms ease; white-space:nowrap; }
+.tag .tl.on{ opacity:1; }
+
+/* (2) THE LINE GAUGE: a compositor's gauge laid down the sheet's left
+   margin. One hairline tick on every real baseline of the sheet, a
+   longer tick and a numeral every fifth line, a long tick on the line
+   where each chapter starts. It belongs to the sheet, so it scrolls with
+   the text and stays true to it. Ticks draw top to bottom at load with a
+   12ms stagger from sibling-index() (inline --i is the fallback). Ticks
+   within four lines of the reading line, or of the pointer while it is
+   within 80px of the gauge, lengthen with a dock falloff eased by the
+   linear() spring. The current chapter's long tick turns black. */
+.lg{ position:absolute; left:0; top:0; bottom:0; width:var(--gm); pointer-events:none; }
+.lg::before{ content:""; position:absolute; left:var(--g-ax); top:var(--lh); bottom:0; width:1px; background:var(--rule); }
+.lg-t i{
+  position:absolute; left:var(--g-ax); top:calc(var(--n) * var(--lh) - 1px);
+  width:calc(var(--t1) + var(--x, 0px)); height:1px;
+  background:var(--tick);
+  transform-origin:0 50%;
+  transition:width 400ms var(--spring), background-color 150ms ease;
+  animation:tick-in 300ms var(--out) both;
+  animation-delay:calc(140ms + var(--i) * 12ms);
+}
+@supports (width: calc(sibling-index() * 1px)){
+  .lg-t i{ animation-delay:calc(140ms + min(sibling-index() - 1, 30) * 12ms); }
+}
+@keyframes tick-in{ from{ scale:0 1; } }
+.lg-t i.f{ width:calc(var(--t5) + var(--x, 0px)); background:var(--num); }
+.lg-t i.ch{ width:calc(var(--tc) + var(--x, 0px)); background:var(--num); }
+.lg-t i.ch.cur{ background:var(--ink); }
+.lg-n b{
+  position:absolute; right:calc(100% - var(--g-ax) + var(--g-gap)); top:calc(var(--n) * var(--lh) - .5px);
+  translate:0 -50%;
+  font:400 var(--mono)/1 "Geist Mono", ui-monospace, monospace; letter-spacing:.02em;
+  color:var(--num); text-box:trim-both cap alphabetic;
+  transition:opacity 150ms ease;
+  animation:fade-in 300ms var(--out) both;
+  animation-delay:calc(200ms + var(--i) * 12ms);
+}
+.lg-n b.hide{ opacity:0; }
+.lg.ready i, .lg.ready b{ animation:none; }
+
+/* (3) THE CHARACTER GAUGE runs along the sheet's top edge and sticks to
+   the viewport top while you read: 0 to 90 characters of the body face
+   at its real advance, starting on the reading column's left edge, so 66
+   falls exactly on its right edge. 45 to 75, the comfortable range, is
+   drawn in ink. The cobalt marker sits at the measure of whichever
+   column the reading line is crossing (66 in the prose, 35 in the lists,
+   30 in the margin) and slides on the spring when that changes. */
+.cg{
+  position:sticky; top:0; z-index:20;
+  height:var(--lh);
+  margin:0 calc(var(--pr) * -1) 0 calc(var(--gm) * -1);
+  background:var(--sheet);
+  overflow:hidden; pointer-events:none;
+}
+.cg::after{ content:""; position:absolute; left:var(--g-ax); right:0; bottom:0; height:1px; background:var(--rule); }
+/* the scale stops just past the column's right edge, so a narrow column
+   shows only the characters it can hold */
+.cg-s{ position:absolute; left:0; top:0; bottom:0; right:calc(var(--pr) - 12px); overflow:hidden; }
+.cg-t i{
+  position:absolute; bottom:0; left:calc(var(--gm) + var(--c) * var(--chw));
+  width:1px; height:calc(var(--lh) * .1);
+  background:var(--tick);
+  transform-origin:50% 100%;
+  animation:cg-in 300ms var(--out) both;
+  animation-delay:calc(160ms + var(--c) * 6ms);
+}
+@supports (width: calc(sibling-index() * 1px)){
+  .cg-t i{ animation-delay:calc(160ms + (sibling-index() - 1) * 6ms); }
+}
+@keyframes cg-in{ from{ scale:1 0; } }
+.cg-t i.t5{ height:calc(var(--lh) * .175); background:var(--num); }
+.cg-t i.t10{ height:calc(var(--lh) * .25); background:var(--num); }
+.cg-t i.in{ background:var(--ink); }
+.cg-t i.k{ height:calc(var(--lh) * .35); background:var(--ink); }
+.cg-r{ position:absolute; bottom:0; left:calc(var(--gm) + var(--chw) * 45); width:calc(var(--chw) * 30 + 1px); height:2px; background:var(--ink); }
+.cg-n b, .cg-k, .cg-m b{
+  position:absolute; top:calc(var(--lh) * .25);
+  font:400 var(--mono)/1 "Geist Mono", ui-monospace, monospace; letter-spacing:.02em;
+  color:var(--num); text-box:trim-both cap alphabetic; white-space:nowrap;
+}
+.cg-n b{ left:calc(var(--gm) + var(--c) * var(--chw) + .5px); translate:-50% 0; transition:opacity 150ms ease; }
+.cg-n b.k{ color:var(--ink); font-weight:500; }
+.cg-n b.hide{ opacity:0; }
+.cg-k{ right:calc(100% - var(--g-ax) + var(--g-gap)); }
+.cg-m{
+  position:absolute; left:calc(var(--gm) + .5px); top:0; bottom:0; width:0;
+  translate:calc(var(--mc, 0) * var(--chw)) 0;
+  transition:translate 640ms var(--spring);
+}
+.cg-m::before{ content:""; position:absolute; left:-4.5px; bottom:2px; width:9px; height:8px; background:var(--cobalt); clip-path:polygon(0 0, 100% 0, 50% 100%); }
+.cg-m b{ left:0; translate:-50% 0; color:var(--cobalt); font-weight:500; transition:opacity 150ms ease; }
+.cg-m.moving b{ opacity:0; transition-duration:80ms; }
+
+/* =====================================================================
+   RESPONSIVE
+   ===================================================================== */
+@media (max-width:1231px){
+  .sheet{ width:calc(var(--gm) + var(--col) + var(--pr)); }
+  .grid3{ display:block; }
+  .grid3 > :nth-child(2){ margin-top:calc(var(--lh) * 2 - var(--cap)); }
+  .note{ padding-left:calc(var(--chw) * 4); }
+  .head{ grid-template-columns:minmax(0, 1fr); grid-template-rows:calc(var(--lh) * 5) auto; height:auto; }
+  .head .toc{ grid-column:1; margin-top:calc(var(--lh) * 2 - var(--cap)); }
+  .toc ul{ display:flex; flex-wrap:wrap; column-gap:calc(var(--chw) * 3); row-gap:calc(var(--lh) - var(--cap)); text-box:normal; }
+  .toc li{ text-box:trim-both cap alphabetic; }
+  .plates{ grid-template-columns:minmax(0, 1fr) var(--sub-g) minmax(0, 1fr); }
+  .p-rag{ grid-area:1 / 1; } .p-num{ grid-area:1 / 3; }
+  .p-lead{ grid-area:2 / 1; --rows:10; } .p-con{ grid-area:2 / 3; --rows:10; }
+  .p-pos{ grid-area:3 / 1 / 4 / 4; } .p-read{ grid-area:4 / 1 / 5 / 4; }
+  .p-note{ grid-area:5 / 1 / 6 / 4; padding-left:calc(var(--chw) * 4); }
+}
+@media (max-width:760px){
+  .sheet{ width:auto; max-width:none; margin:0; padding:0 var(--pr) calc(var(--lh) * 4) var(--gm); }
+  .head{ grid-template-rows:calc(var(--lh) * 3) auto; }
+  .note, .p-note{ padding-left:calc(var(--chw) * 3); }
+  .row, .split{ grid-template-columns:minmax(0, 1fr); }
+  .row > :last-child{ grid-column:1; margin-top:calc(var(--lh) - var(--cap)); }
+  .split > :last-child{ grid-column:1; margin-top:calc(var(--lh) * 2 - var(--cap)); }
+  .plates{ grid-template-columns:minmax(0, 1fr); }
+  .p-rag, .p-num, .p-lead, .p-con, .p-pos, .p-read, .p-note{ grid-area:auto; }
+  .p-num{ --rows:10; } .p-con{ --rows:9; } .p-pos, .p-read, .p-measure{ --rows:10; }
+  .tag{ right:0; padding:5px 7px; font-size:11px; }
+  .cg-k{ display:none; }
+  .cg-s{ right:calc(var(--pr) - 6px); }
+}
+
+/* =====================================================================
+   REDUCED MOTION: the reading line still maps to scroll (it is driven by
+   the reader). Entrances, the dock springs, the marker's slide and the
+   plate loops stop; state changes stay as feedback.
+   ===================================================================== */
+@media (prefers-reduced-motion: reduce){
+  .sheet, .reader .win, .reader .line, .reader .ro, .tag, .lg i, .lg b, .cg i{ animation:none !important; }
+  .lg-t i{ transition:background-color 150ms ease; }
+  .cg-m{ transition:none; }
+  .tag{ transition:background-color 150ms ease; }
+  .tag .tl{ transition:none; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#preface">Skip to the manual</a>
+
+<!-- THE READING LINE: typoscope window, full-width hairline, line number readout, hanging chapter tag -->
+<div class="reader">
+  <span class="win" aria-hidden="true"></span>
+  <span class="line" aria-hidden="true"></span>
+  <span class="ro" aria-hidden="true">9</span>
+  <button class="tag" type="button" aria-label="Current chapter: Preface. Go to the next chapter, The plates."><span class="tl on">Preface</span><span class="tl" aria-hidden="true"></span></button>
+</div>
+
+<main class="sheet" id="top">
+  <!-- THE CHARACTER GAUGE (ticks and numerals are generated from DATA.gauge) -->
+  <div class="cg" aria-hidden="true">
+    <span class="cg-k">24/40</span>
+    <div class="cg-s"><span class="cg-r"></span><div class="cg-t"></div><div class="cg-n"></div></div>
+    <span class="cg-m moving"><b>0</b></span>
+  </div>
+  <!-- THE LINE GAUGE (one tick per 40px line of the sheet, generated from the layout) -->
+  <div class="lg" aria-hidden="true"><div class="lg-t"></div><div class="lg-n"></div></div>
+
+  <!-- CONTENT: header -->
+  <header class="head">
+    <div class="wm-box"><h1 class="wm">Measure<span class="vh">, an interactive field manual on reading on screens, by Letterkaai</span></h1></div>
+    <nav class="toc" aria-label="Contents">
+      <ul>
+        <li><a href="#preface">Preface</a></li>
+        <li><a href="#plates">The plates</a></li>
+        <li><a href="#contents">Contents</a></li>
+        <li><a href="#enrol">Enrol</a></li>
+        <li><a href="#questions">Questions</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- CONTENT: preface -->
+  <section id="preface" class="chapter first" aria-labelledby="h-preface">
+    <h2 class="vh" id="h-preface">Preface</h2>
+    <div class="grid3">
+      <div class="main">
+        <p data-first-line>Every screen you read from was set by someone who never saw it at your size, in your light, at your distance, on a late train or at three in the morning.</p>
+        <p>The blue hairline across this page is a reading line. It moves one to one with the scroll, counts the line it crosses in the left margin, and reports that line’s measure on the gauge above. Chapter seven is about when that helps, and when it gets in the way.</p>
+      </div>
+      <aside class="note" aria-label="Note on measure">
+        <p><a class="xr" href="#plate-01">Measure</a>: a line’s length in characters. The main text holds 66; the gauge marks the comfortable 45 to 75.</p>
+      </aside>
+    </div>
+
+    <figure class="plate p-measure main after-text" id="plate-01" data-plate="measure">
+      <svg aria-hidden="true" focusable="false"></svg>
+      <figcaption>01 Measure</figcaption>
+      <p class="vh">A paragraph re-wraps as its line length travels between 40 and 102 characters; the comfortable band runs from 45 to 75.</p>
+    </figure>
+
+    <div class="main after-plate">
+      <p>We teach typography to people who build software. The questions they bring are rarely about typefaces. They want to know why a settings page feels tiring by the fourth row, why the same contract reads better on paper, and why <a class="xr" href="#proto-11">dark mode</a> makes their text look heavier than it is.</p>
+      <p>Measure is our answer, written down. It isn’t a style guide, and it won’t tell you the right <a class="xr" href="#plate-02">line height</a>. It shows you what each decision does, lets you push it past the point where it breaks, and leaves the choosing to you.</p>
+    </div>
+  </section>
+
+  <!-- CONTENT: the plates -->
+  <section id="plates" class="chapter" aria-labelledby="h-plates">
+    <h2 class="vh" id="h-plates">The plates</h2>
+    <p class="main">Measure runs in the browser. Fourteen chapters, each built around a <a class="xr" href="#plate-01">plate</a> you can scrub, drag and break, with the CSS beside it and a note on what it costs in practice. It is written for the designers who set text and the engineers who ship it, and it assumes you know what a pixel is but not what a pica is.</p>
+
+    <div class="plates after-text">
+      <figure class="plate p-rag" id="plate-03" data-plate="rag">
+        <svg aria-hidden="true" focusable="false"></svg>
+        <figcaption>03 Rag</figcaption>
+        <p class="vh">A greedy ragged edge with a one-word last line is rebalanced, words moving between lines.</p>
+      </figure>
+      <figure class="plate p-lead" id="plate-02" data-plate="leading">
+        <svg aria-hidden="true" focusable="false"></svg>
+        <figcaption>02 Leading</figcaption>
+        <p class="vh">Six lines breathe between a line height of 1.0 and 2.0.</p>
+      </figure>
+      <figure class="plate p-num" id="plate-05" data-plate="numerals">
+        <svg aria-hidden="true" focusable="false"></svg>
+        <figcaption>05 Numerals</figcaption>
+        <p class="vh">A column of amounts switches between proportional and tabular figures; only tabular figures sit on the column guides.</p>
+      </figure>
+      <figure class="plate p-pos" id="plate-06" data-plate="position">
+        <svg aria-hidden="true" focusable="false"></svg>
+        <figcaption>06 Position</figcaption>
+        <p class="vh">Three entries of identical lines gain hierarchy when their first lines move to a second column, with no change of size.</p>
+      </figure>
+      <figure class="plate p-con" id="plate-04" data-plate="contrast">
+        <svg aria-hidden="true" focusable="false"></svg>
+        <figcaption>04 Contrast</figcaption>
+        <p class="vh">The letters Aa step from pale grey to black while the contrast ratio climbs a scale marked at 3, 4.5 and 7.</p>
+      </figure>
+      <figure class="plate p-read" id="plate-07" data-plate="reading">
+        <svg aria-hidden="true" focusable="false"></svg>
+        <figcaption>07 Motion while reading</figcaption>
+        <p class="vh">A reading line steps down a paragraph while fixations hop along each line in saccades; lines already read turn grey.</p>
+      </figure>
+      <aside class="note p-note" aria-label="Note on plate seven">
+        <p>Plate seven is the only one that moves while you read it. The chapter asks whether anything should.</p>
+      </aside>
+    </div>
+
+    <p class="main after-plate">Text-box trimming, pretty wrapping and scroll-driven animation have all reached browsers in the last three years. The plates use them where they help, show the fallback beside them, and say plainly when they don’t help at all.</p>
+  </section>
+
+  <!-- CONTENT: contents (numbering is real: the chapters are a sequence) -->
+  <section id="contents" class="chapter" aria-labelledby="h-contents">
+    <h2 class="vh" id="h-contents">Contents</h2>
+    <p class="main"><a class="xr" href="#plates">Principles</a> 01 to 07 are short essays on one decision each, and are best read in order. <a class="xr" href="#prototypes">Prototypes</a> 08 to 14 are complete components with their source, and can be read in any order once you know the principles they lean on.</p>
+
+    <ol class="rows main" id="prototypes" aria-label="Prototypes">
+      <li class="row" id="proto-08"><span><span class="n">08</span>Reading line</span><span>A fixed hairline that follows the scroll and names the chapter beneath it, as on this page.</span></li>
+      <li class="row" id="proto-09"><span><span class="n">09</span>Fluid measure</span><span>Line length held between 60 and 75 characters at every container width, without a breakpoint.</span></li>
+      <li class="row" id="proto-10"><span><span class="n">10</span>Sidenotes</span><span>Notes that sit in the margin on a wide screen and fold into the text on a phone.</span></li>
+      <li class="row" id="proto-11"><span><span class="n">11</span>Dark grade</span><span>Weight compensation, so pale text on a dark ground stops blooming.</span></li>
+      <li class="row" id="proto-12"><span><span class="n">12</span>Hyphenation</span><span>Soft hyphens, language tags and the limits browsers still have.</span></li>
+      <li class="row" id="proto-13"><span><span class="n">13</span>Long tables</span><span>Tabular figures, sticky headers and rows the eye can follow across.</span></li>
+      <li class="row" id="proto-14"><span><span class="n">14</span>Focus and caret</span><span>Selection, caret and focus rings set from the text colour, not the brand.</span></li>
+    </ol>
+
+    <dl class="rows main" aria-label="The edition">
+      <div class="row"><dt>Chapters</dt><dd><span class="num">14</span>, in two parts of seven</dd></div>
+      <div class="row"><dt>Plates</dt><dd><span class="num">31</span>, every one interactive</dd></div>
+      <div class="row"><dt>Reading time</dt><dd>About six hours, start to finish</dd></div>
+      <div class="row"><dt>Source</dt><dd>CSS and plain JavaScript, MIT licensed</dd></div>
+      <div class="row"><dt>Runs in</dt><dd>Any current browser, and offline after the first visit</dd></div>
+      <div class="row"><dt>Edition</dt><dd>Two, updated through <span class="num">2027</span></dd></div>
+    </dl>
+  </section>
+
+  <!-- CONTENT: enrol -->
+  <section id="enrol" class="chapter" aria-labelledby="h-enrol">
+    <h2 class="vh" id="h-enrol">Enrol</h2>
+    <div class="split main">
+      <div>
+        <p><span class="num">€240</span>, paid once, for the whole edition.</p>
+        <p><span class="num">€160</span> for students and teachers with a school address. <span class="num">€180</span> a seat for teams of five or more, on one invoice.</p>
+      </div>
+      <div>
+        <ul class="rows rows--single" aria-label="Included">
+          <li>Fourteen chapters and every plate added in this edition</li>
+          <li>Source for the seven prototypes, MIT licensed</li>
+          <li>Two open sessions a year with the school, recorded</li>
+          <li>A printed reading card, posted from Antwerp</li>
+        </ul>
+        <a class="tagbtn" href="mailto:enrol@letterkaai.example?subject=Measure%2C%20edition%20two">Enrol</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTENT: questions -->
+  <section id="questions" class="chapter" aria-labelledby="h-questions">
+    <h2 class="vh" id="h-questions">Questions</h2>
+    <dl class="rows main">
+      <div class="row"><dt>Do I need to know CSS?</dt><dd>No. Every plate works by dragging and scrubbing. The CSS sits beside it for the engineers, and you can read the whole manual without opening it.</dd></div>
+      <div class="row"><dt>Is it a course with deadlines?</dt><dd>There are no lessons to complete and nothing to hand in. Read the principles in order, then reach for the prototypes when a project needs them.</dd></div>
+      <div class="row"><dt>Which browsers does it support?</dt><dd>Any current browser. Where a plate depends on a newer feature, such as text-box trimming, it names the feature, shows the fallback and tells you what you lose.</dd></div>
+      <div class="row"><dt>Can I use the prototypes in client work?</dt><dd>Yes. The source is MIT licensed. Credit is welcome and never required.</dd></div>
+      <div class="row"><dt>How long does the edition last?</dt><dd>Edition two is updated until the end of <span class="num">2027</span>. Everything published before then stays yours.</dd></div>
+      <div class="row"><dt>Who writes it?</dt><dd>Letterkaai, a type school of nine people in Antwerp. We have taught reading on screens since <span class="num">2016</span>, mostly to people who build software.</dd></div>
+    </dl>
+  </section>
+
+  <!-- CONTENT: colophon -->
+  <footer class="split main chapter">
+    <p>Measure, edition two</p>
+    <div>
+      <p>Written and built by Letterkaai on the Kloosterstraat in Antwerp. Set in Inter Tight at one size on a 40 pixel line, with the wordmark in Instrument Serif and the gauges in Geist Mono.</p>
+      <p>© <span class="num">2026</span> Letterkaai vzw</p>
+    </div>
+  </footer>
+</main>
+
+<script>
+/* =====================================================================
+   DATA: swap chapters, gauge behaviour and plate parameters here.
+   Page copy lives in the CONTENT blocks of the markup.
+   ===================================================================== */
+const DATA = {
+  chapters: [
+    { id: 'preface',   tag: 'Preface' },
+    { id: 'plates',    tag: 'The plates' },
+    { id: 'contents',  tag: 'Contents' },
+    { id: 'enrol',     tag: 'Enrol' },
+    { id: 'questions', tag: 'Questions' }
+  ],
+  /* line gauge dock: reach in lines, stretch in px, pointer zone in px; character gauge range and marks */
+  gauge: { reach: 4, stretch: 12, zone: 80, chars: 90, marks: [45, 66, 75] },
+  /* Inter Tight metrics in em; advance = mean advance of this page's prose at 460 and -0.01em */
+  type: { cap: 0.7275, xHeight: 0.546, advance: 0.41658 },
+  plates: {
+    measure:  { rest: 66, path: [[1.4, 66, 66], [1.6, 66, 102], [1.0, 102, 102], [2.2, 102, 40], [1.0, 40, 40], [1.2, 40, 66]] },
+    contrast: { steps: ['#DCDCDB', '#BDBDBC', '#A1A1A0', '#8F8F8F', '#707070', '#4D4D4D', '#262626', '#000000'], rest: 4 },
+    numerals: ['1,111.10', '48,090.75', '7,404.11', '15,861.00', '72,466.96'],
+    fixations: [212, 248, 196, 231, 274, 205, 239, 188, 226, 261, 199, 243]
+  }
+};
+
+(() => {
+  'use strict';
+  const doc = document.documentElement;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+  const SCROLL_TIMELINE = CSS.supports('animation-timeline: scroll()');
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const $ = s => document.querySelector(s);
+
+  /* ---------------------------------------------------------------
+     The instrument's parts
+     --------------------------------------------------------------- */
+  const sheet = $('.sheet');
+  const reader = $('.reader');
+  const ro = reader.querySelector('.ro');
+  const tag = reader.querySelector('.tag');
+  const tagLabels = [...tag.querySelectorAll('.tl')];
+  const lg = $('.lg'), lgT = $('.lg-t'), lgN = $('.lg-n');
+  const cgT = $('.cg-t'), cgN = $('.cg-n');
+  const mark = $('.cg-m'), markN = mark.querySelector('b');
+  const first = $('[data-first-line]');
+  const chapters = DATA.chapters.map(c => ({ ...c, el: document.getElementById(c.id), top: 0, line: 0, tick: null }));
+  /* the text blocks whose measure the character gauge reports */
+  const TEXT = '.sheet p:not(.vh), .sheet dt, .sheet dd, .sheet .row > span, .sheet .rows--single > li';
+
+  const G = { O: 64, T: 417, H: 400, S: 1, lh: 40, fs: 24, cap: 17.5, xh: 6.55, chw: 10, ax: 196, gap: 14, dock: true, N: 1 };
+  const ticks = [], nums = new Map(), stretched = new Map();
+  let blocks = [], labels = [];
+  let current = -1, line = -1, hidden = null, measure = 0, pending = 66, intro = false, ptrY = null, fonts = false, moveT = 0;
+
+  function docTop(el) { let y = 0; for (let e = el; e; e = e.offsetParent) y += e.offsetTop; return y; }
+
+  /* Geometry. Offsets are layout values (offsetTop), so the sheet's
+     entrance translate never skews them. The reading line's top is the
+     first body line's x-height centre, so at scroll 0 it strikes that
+     line at any viewport; that line is line 9 of the gauge. */
+  function layout() {
+    const vw = innerWidth, vh = innerHeight;
+    const cs = getComputedStyle(first);
+    G.fs = parseFloat(cs.fontSize);
+    G.lh = parseFloat(cs.lineHeight);
+    G.cap = G.fs * DATA.type.cap;
+    G.xh = G.fs * DATA.type.xHeight / 2;
+    G.chw = G.fs * DATA.type.advance;
+    G.gap = vw > 760 ? 14 : 11;
+    G.dock = vw >= 960 && !reduce.matches;
+    G.O = docTop(sheet);
+    G.ax = Math.round(sheet.getBoundingClientRect().left + parseFloat(getComputedStyle(doc).getPropertyValue('--g-ax')));
+    G.T = Math.round(docTop(first) + G.cap - G.xh);
+    G.H = Math.max(80, Math.round(vh - G.T - (vw > 760 ? 80 : 96)));
+    doc.style.setProperty('--rl-top', G.T + 'px');
+    doc.style.setProperty('--rl-h', G.H + 'px');
+    doc.style.setProperty('--ax', G.ax + 'px');
+    G.S = Math.max(1, doc.scrollHeight - vh);
+    chapters.forEach(c => {
+      c.top = docTop(c.el);                                   /* the chapter's first cap line */
+      c.line = Math.round((c.top + G.cap - G.O) / G.lh);      /* the gauge line of its first baseline */
+    });
+    blocks = [...document.querySelectorAll(TEXT)].map(e => {
+      const top = docTop(e);
+      return { top, bottom: top + e.offsetHeight, m: Math.floor(e.getBoundingClientRect().width / G.chw + 0.02) };
+    }).sort((a, b) => a.top - b.top);
+    if (fonts) lines(Math.floor(sheet.offsetHeight / G.lh) - 1);
+    if (!G.dock) dock(null);
+    update();
+    fitTag();
+  }
+
+  /* The line gauge: one tick per line of the sheet, grown or trimmed in
+     place on relayout so the draw-in never replays */
+  function lines(N) {
+    if (N !== G.N) {
+      dock(null);
+      for (let n = Math.max(2, G.N + 1); n <= N; n++) {
+        const i = Math.min(n - 2, 30);
+        const t = document.createElement('i');
+        t.style.cssText = `--n:${n};--i:${i}`;
+        if (n % 5 === 0) {
+          t.className = 'f';
+          const b = document.createElement('b');
+          b.style.cssText = `--n:${n};--i:${i}`;
+          b.textContent = n;
+          lgN.appendChild(b); nums.set(n, b);
+        }
+        lgT.appendChild(t); ticks[n] = t;
+      }
+      for (let n = G.N; n > N; n--) {
+        if (ticks[n]) { ticks[n].remove(); ticks[n] = null; }
+        if (nums.has(n)) { nums.get(n).remove(); nums.delete(n); }
+      }
+      G.N = N;
+    }
+    chapters.forEach(c => {
+      const t = ticks[c.line] || null;
+      if (c.tick !== t) { if (c.tick) c.tick.classList.remove('ch', 'cur'); c.tick = t; }
+      if (t) t.classList.add('ch');
+    });
+    chapters.forEach((c, j) => { if (c.tick) c.tick.classList.toggle('cur', j === current); });
+  }
+
+  /* The character gauge: 0 to 90 at the body face's real advance */
+  function buildChars() {
+    const { chars, marks } = DATA.gauge;
+    const lo = marks[0], hi = marks[marks.length - 1];
+    let t = '', l = '';
+    for (let c = 0; c <= chars; c++) {
+      const k = marks.includes(c);
+      const cls = ((k ? 'k' : c % 10 === 0 ? 't10' : c % 5 === 0 ? 't5' : '') + (c >= lo && c <= hi ? ' in' : '')).trim();
+      t += `<i${cls ? ` class="${cls}"` : ''} style="--c:${c}"></i>`;
+      if (k || c % 10 === 0) l += `<b${k ? ' class="k"' : ''} style="--c:${c}" data-c="${c}">${c}</b>`;
+    }
+    cgT.innerHTML = t; cgN.innerHTML = l;
+    labels = [...cgN.children];
+  }
+
+  /* Dock falloff: ticks within `reach` lines of f lengthen */
+  function stretchAt(d) {
+    const R = DATA.gauge.reach + 0.5;
+    if (d >= R) return 0;
+    const c = Math.cos((d / R) * Math.PI / 2);
+    return Math.round(DATA.gauge.stretch * c * c * 2) / 2;
+  }
+  function dock(f) {
+    const want = new Map();
+    if (G.dock && f !== null) {
+      const r = DATA.gauge.reach + 1;
+      for (let n = Math.floor(f - r); n <= Math.ceil(f + r); n++) {
+        if (!ticks[n]) continue;
+        const x = stretchAt(Math.abs(n - f));
+        if (x > 0) want.set(n, x);
+      }
+    }
+    stretched.forEach((x, n) => { if (!want.has(n)) { if (ticks[n]) ticks[n].style.removeProperty('--x'); stretched.delete(n); } });
+    want.forEach((x, n) => { if (stretched.get(n) !== x) { ticks[n].style.setProperty('--x', x + 'px'); stretched.set(n, x); } });
+  }
+
+  /* The marker slides to the measure of the column under the line; its
+     numeral hides while it travels and takes the static numeral's place */
+  function setMeasure(m) {
+    pending = m;
+    if (!intro || m === measure) return;
+    measure = m;
+    mark.style.setProperty('--mc', m);
+    clearTimeout(moveT);
+    if (reduce.matches) { settleMark(); return; }
+    mark.classList.add('moving');
+    moveT = setTimeout(settleMark, 560);
+  }
+  function settleMark() {
+    markN.textContent = measure;
+    labels.forEach(l => l.classList.toggle('hide', Math.abs(+l.dataset.c - measure) < 3));
+    mark.classList.remove('moving');
+  }
+
+  /* Chapter under the reading line -> tag label (200ms crossfade) + black long tick */
+  function setChapter(i) {
+    if (i === current) return;
+    const firstRun = current === -1;
+    current = i;
+    const c = chapters[i], next = chapters[(i + 1) % chapters.length];
+    chapters.forEach((ch, j) => { if (ch.tick) ch.tick.classList.toggle('cur', j === i); });
+    if (firstRun) { tagLabels[0].textContent = c.tag; }
+    else {
+      const on = tagLabels.find(l => l.classList.contains('on')) || tagLabels[0];
+      const off = on === tagLabels[0] ? tagLabels[1] : tagLabels[0];
+      off.textContent = c.tag;
+      on.classList.remove('on'); on.setAttribute('aria-hidden', 'true');
+      off.classList.add('on'); off.removeAttribute('aria-hidden');
+    }
+    fitTag();
+    tag.setAttribute('aria-label', `Current chapter: ${c.tag}. Go to the next chapter, ${next.tag}.`);
+  }
+  function fitTag() {
+    const on = tagLabels.find(l => l.classList.contains('on')) || tagLabels[0];
+    const cs = getComputedStyle(tag);
+    const w = on.getBoundingClientRect().width + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+    tag.style.width = Math.ceil(w) + 'px';
+  }
+
+  function update() {
+    const y = scrollY;
+    const p = clamp(y / G.S, 0, 1);
+    const off = Math.round(p * G.H);
+    if (!SCROLL_TIMELINE) reader.style.translate = `0 ${off}px`;
+    const docY = y + G.T + off;                       /* the reading line, in document y */
+    const f = (docY + G.xh - G.O) / G.lh;             /* the gauge line it is crossing */
+    const n = Math.max(1, Math.round(f));
+    if (n !== line) { line = n; ro.textContent = n; }
+    /* the cobalt readout takes a numeral's place where they would touch */
+    const m5 = Math.round(f / 5) * 5, near = nums.get(m5);
+    const hide = near && Math.abs(docY - (G.O + m5 * G.lh)) < G.gap ? near : null;
+    if (hide !== hidden) { if (hidden) hidden.classList.remove('hide'); if (hide) hide.classList.add('hide'); hidden = hide; }
+    /* the pointer drives the dock while it is near the gauge; the reading line otherwise */
+    dock(ptrY !== null ? (ptrY + y - G.O) / G.lh : f);
+    let cur = 0;
+    for (let i = 0; i < chapters.length; i++) if (docY >= chapters[i].top - 1) cur = i;
+    setChapter(cur);
+    /* measure of the widest text block the line crosses; held across blank lines and plates */
+    let m = -1;
+    for (const b of blocks) { if (b.top - 2 > docY) break; if (docY <= b.bottom + 2 && b.m > m) m = b.m; }
+    if (m > 0) setMeasure(m);
+  }
+
+  /* TECHNIQUE (4): current chapter and line. Both follow the reading
+     line's own document y, computed in the same frame that positions it
+     (an IntersectionObserver cannot follow a band that moves, and a
+     scroll-target-group picks its target from the viewport edge). */
+  let raf = 0;
+  const schedule = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; update(); }); };
+  addEventListener('scroll', schedule, { passive: true });
+
+  /* Pointer path: within DATA.gauge.zone px of the gauge's axis, a mouse
+     takes the dock (tick = the line under the pointer); leaving the zone
+     hands it back to the reading line */
+  addEventListener('pointermove', e => {
+    const next = e.pointerType === 'mouse' && G.dock && Math.abs(e.clientX - G.ax) <= DATA.gauge.zone ? e.clientY : null;
+    if (next !== ptrY) { ptrY = next; schedule(); }
+  }, { passive: true });
+  doc.addEventListener('pointerleave', () => { if (ptrY !== null) { ptrY = null; schedule(); } });
+
+  /* Jumps land the chapter's first line exactly on the reading line */
+  function scrollToChapter(i) {
+    const c = chapters[i];
+    const target = (c.top + G.cap - G.xh - G.T) / (1 + G.H / G.S);
+    scrollTo({ top: Math.max(0, Math.round(target)), behavior: reduce.matches ? 'auto' : 'smooth' });
+    history.replaceState(null, '', '#' + c.id);
+  }
+  tag.addEventListener('click', () => scrollToChapter((Math.max(0, current) + 1) % chapters.length));
+  document.addEventListener('click', e => {
+    const a = e.target.closest('a[href^="#"]');
+    if (!a) return;
+    const id = a.getAttribute('href').slice(1);
+    const ci = chapters.findIndex(c => c.id === id);
+    if (ci >= 0) { e.preventDefault(); scrollToChapter(ci); return; }
+    const el = id && document.getElementById(id);
+    if (el && id !== 'top') {
+      e.preventDefault();
+      el.scrollIntoView({ block: 'center', behavior: reduce.matches ? 'auto' : 'smooth' });
+      history.replaceState(null, '', '#' + id);
+    }
+  });
+
+  /* ---------------------------------------------------------------
+     PLATES: each draws in real pixels (viewBox = its box), so hairlines
+     stay 1px at every width. Loops run only while a plate is on screen,
+     with offset phases; reduced motion draws the settled frame once.
+     --------------------------------------------------------------- */
+  const NS = 'http://www.w3.org/2000/svg';
+  const C = { ink: '#000000', grey: '#8F8F8F', cobalt: '#1F4BFF', plate: '#F6F6F5' };
+  function S(tag, attrs, parent) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  const crisp = v => Math.round(v) + 0.5;
+  const inOut = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  const out = t => 1 - Math.pow(1 - t, 3);
+  function track(t, segs) {
+    const total = segs.reduce((a, s) => a + s[0], 0);
+    let tt = ((t % total) + total) % total;
+    for (const [d, a, b] of segs) { if (tt <= d) return a + (b - a) * inOut(d ? tt / d : 1); tt -= d; }
+    return segs[segs.length - 1][2];
+  }
+  function rng(seed) { let x = seed % 2147483647; if (x <= 0) x += 2147483646; return () => (x = (x * 16807) % 2147483647) / 2147483647; }
+  function greek(n, seed) { const r = rng(seed); return Array.from({ length: n }, () => 2 + Math.round(Math.pow(r(), 1.5) * 7)); }
+  function wrap(words, max) {
+    const lines = []; let cur = [], pos = 0;
+    words.forEach((w, idx) => {
+      const start = cur.length ? pos + 1 : 0;
+      if (cur.length && start + w > max) { lines.push(cur); cur = []; pos = 0; cur.push([0, w, idx]); pos = w; return; }
+      cur.push([start, w, idx]); pos = start + w;
+    });
+    if (cur.length) lines.push(cur);
+    return lines;
+  }
+  const lineLen = line => line.length ? line[line.length - 1][0] + line[line.length - 1][1] : 0;
+  const linePath = (line, x0, y, cw) => line.map(([st, n]) => `M${(x0 + st * cw).toFixed(1)} ${y}h${(n * cw).toFixed(1)}`).join('');
+  const hexLerp = (a, b, k) => '#' + [1, 3, 5].map(i => Math.round(parseInt(a.substr(i, 2), 16) * (1 - k) + parseInt(b.substr(i, 2), 16) * k).toString(16).padStart(2, '0')).join('');
+  const lum = hex => { const v = [1, 3, 5].map(i => parseInt(hex.substr(i, 2), 16) / 255).map(c => c <= .04045 ? c / 12.92 : Math.pow((c + .055) / 1.055, 2.4)); return .2126 * v[0] + .7152 * v[1] + .0722 * v[2]; };
+  const ratio = (a, b) => { const la = lum(a), lb = lum(b); return (Math.max(la, lb) + .05) / (Math.min(la, lb) + .05); };
+  const readout = svg => S('text', { x: 16, y: 28, fill: C.ink, class: 'ro' }, svg);
+
+  const PLATES = {
+    /* 01 MEASURE: words re-wrap as the measure travels; the count updates */
+    measure(svg, w, h, sm) {
+      const cfg = DATA.plates.measure;
+      const pad = sm ? 20 : 64, maxC = 110, cw = (w - pad * 2) / maxC;
+      const y0 = sm ? 58 : 66;
+      const ro = readout(svg);
+      S('path', { d: `M${pad} ${crisp(y0)}H${w - pad}`, stroke: C.ink, fill: 'none' }, svg);
+      let dIn = '', dOut = '';
+      for (let c = 0; c <= maxC; c += 5) {
+        const x = crisp(pad + c * cw), len = c % 10 === 0 ? 7 : 4;
+        const seg = `M${x} ${y0 + 1}v${len}`;
+        if (c >= 45 && c <= 75) dIn += seg; else dOut += seg;
+      }
+      S('path', { d: dOut, stroke: C.grey, fill: 'none' }, svg);
+      S('path', { d: dIn, stroke: C.ink, fill: 'none' }, svg);
+      [45, 75].forEach(c => { const t = S('text', { x: pad + c * cw, y: y0 + 25, 'text-anchor': 'middle', fill: C.ink, class: 'ro' }, svg); t.textContent = c; });
+      const words = greek(sm ? 50 : 56, 11);
+      const lh = sm ? 13 : 17, py = y0 + (sm ? 46 : 50);
+      const paths = Array.from({ length: 14 }, () => S('path', { stroke: C.ink, fill: 'none' }, svg));
+      const hg = S('g', {}, svg);
+      const hl = S('path', { stroke: C.cobalt, fill: 'none' }, hg);
+      S('path', { d: `M-4.5 ${y0 - 10}h9L0 ${y0 - 1}Z`, fill: C.cobalt }, hg);
+      let last = -1;
+      return {
+        frame(t) {
+          const m = t === null ? cfg.rest : track(t, cfg.path);
+          const mc = Math.round(m);
+          if (mc !== last) {
+            last = mc;
+            const lines = wrap(words, mc);
+            paths.forEach((p, i) => p.setAttribute('d', lines[i] ? linePath(lines[i], pad, crisp(py + i * lh), cw) : ''));
+            ro.textContent = sm ? `${mc} CHARACTERS` : `${mc} CHARACTERS PER LINE`;
+            hl.setAttribute('d', `M0 ${y0}V${Math.round(py + (Math.min(lines.length, 14) - 1) * lh + 9)}`);
+          }
+          hg.setAttribute('transform', `translate(${crisp(pad + m * cw)} 0)`);
+        }
+      };
+    },
+
+    /* 02 LEADING: six lines breathe; the bracket measures one line gap */
+    leading(svg, w, h, sm) {
+      const x0 = sm ? 44 : 64, W = w - x0 - (sm ? 28 : 56), cols = 46, cw = W / cols;
+      const lines = wrap(greek(80, 23), cols).slice(0, 6);
+      const ro = readout(svg);
+      const paths = lines.map(() => S('path', { stroke: C.ink, fill: 'none' }, svg));
+      const br = S('path', { stroke: C.cobalt, fill: 'none' }, svg);
+      const cy = (h - 44) / 2 + 14, base = clamp(h / 30, 10.5, 16);
+      return {
+        frame(t) {
+          const L = t === null ? 1.5 : 1.5 + 0.5 * Math.sin(t * 2 * Math.PI / 6.4);
+          const s = base * L;
+          const ys = lines.map((_, i) => crisp(cy + (i - 2.5) * s));
+          paths.forEach((p, i) => p.setAttribute('d', linePath(lines[i], x0, ys[i], cw)));
+          const bx = crisp(x0 - 18);
+          br.setAttribute('d', `M${bx + 6} ${ys[0]}H${bx}V${ys[1]}H${bx + 6}`);
+          ro.textContent = `line-height: ${L.toFixed(2)}`;
+        }
+      };
+    },
+
+    /* 03 RAG: greedy wrap with a runt, then a balanced wrap; words travel.
+       The column is as tall as its plate allows (7 to 14 lines). */
+    rag(svg, w, h, sm) {
+      const x0 = sm ? 32 : 64, W = w - x0 * 2, M = 34, cw = W / M;
+      const lh = sm ? 17 : 21;
+      const target = clamp(Math.floor((h - 120) / lh), 7, 14);
+      function pretty(ws, L) {
+        const n = ws.length, pre = [0];
+        ws.forEach((v, i) => pre.push(pre[i] + v));
+        const len = (i, j) => pre[j] - pre[i] + (j - i - 1);
+        const f = Array.from({ length: L + 1 }, () => new Array(n + 1).fill(Infinity));
+        const back = Array.from({ length: L + 1 }, () => new Array(n + 1).fill(-1));
+        f[0][0] = 0;
+        for (let k = 1; k <= L; k++) for (let j = 1; j <= n; j++) for (let i = k - 1; i < j; i++) {
+          if (f[k - 1][i] === Infinity) continue;
+          const l = len(i, j); if (l > M) continue;
+          const last = k === L && j === n;
+          const cost = last ? (l < M * 0.6 ? Math.pow(M * 0.6 - l, 2) * 3 : 0) : Math.pow(M - l, 2);
+          if (f[k - 1][i] + cost < f[k][j]) { f[k][j] = f[k - 1][i] + cost; back[k][j] = i; }
+        }
+        if (f[L][n] === Infinity) return null;
+        const breaks = []; let j = n;
+        for (let k = L; k > 0; k--) { const i = back[k][j]; breaks.unshift([i, j]); j = i; }
+        return breaks.map(([i, j]) => { const line = []; let pos = 0; for (let q = i; q < j; q++) { line.push([pos, ws[q], q]); pos += ws[q] + 1; } return line; });
+      }
+      const spread = ls => { const e = ls.slice(0, -1).map(l => M - lineLen(l)); return e.reduce((a, v) => a + v * v, 0) + Math.pow(Math.max(0, M * 0.5 - lineLen(ls[ls.length - 1])), 2) * 3; };
+      const count = Math.round(target * 5.7);
+      let best = null;
+      for (let sd = 1; sd < 80; sd++) {
+        const ws = greek(count, 400 + sd);
+        const g = wrap(ws, M);
+        if (g.length !== target) continue;
+        const p = pretty(ws, target); if (!p) continue;
+        const score = spread(g) - spread(p);
+        if (!best || score > best.score) best = { ws, g, p, score };
+      }
+      if (!best) { const ws = greek(count, 401), g = wrap(ws, M); best = { ws, g, p: pretty(ws, g.length) || g, score: 0 }; }
+      const N = best.g.length;
+      const py = Math.round((h - 44 - (N - 1) * lh) / 2 + 12);
+      const pos = (layout) => { const out = []; layout.forEach((line, li) => line.forEach(([st, n, idx]) => { out[idx] = [x0 + st * cw, py + li * lh, n * cw]; })); return out; };
+      const A = pos(best.g), B = pos(best.p);
+      const endsA = best.g.map(l => x0 + lineLen(l) * cw), endsB = best.p.map(l => x0 + lineLen(l) * cw);
+      const ro = readout(svg);
+      const text = S('path', { stroke: C.ink, fill: 'none' }, svg);
+      const contour = S('path', { stroke: C.cobalt, fill: 'none' }, svg);
+      const segs = [[1.8, 0, 0], [1.0, 0, 1], [2.4, 1, 1], [0.8, 1, 0]];
+      return {
+        frame(t) {
+          const k = t === null ? 1 : track(t, segs);
+          let d = '';
+          for (let i = 0; i < A.length; i++) {
+            const a = A[i], b = B[i];
+            d += `M${(a[0] + (b[0] - a[0]) * k).toFixed(1)} ${crisp(a[1] + (b[1] - a[1]) * k)}h${a[2].toFixed(1)}`;
+          }
+          text.setAttribute('d', d);
+          let c = '';
+          for (let i = 0; i < N; i++) {
+            const x = crisp(endsA[i] + (endsB[i] - endsA[i]) * k + 7);
+            const yt = Math.round(py + i * lh - lh / 2), yb = Math.round(py + i * lh + lh / 2);
+            c += (i === 0 ? `M${x} ${yt}` : `H${x}`) + `V${yb}`;
+          }
+          contour.setAttribute('d', c);
+          ro.textContent = k > 0.5 ? 'text-wrap: pretty' : 'text-wrap: wrap';
+        }
+      };
+    },
+
+    /* 04 CONTRAST: Aa steps through greys; the ratio climbs a log scale */
+    contrast(svg, w, h, sm) {
+      const cfg = DATA.plates.contrast, steps = cfg.steps;
+      const x0 = sm ? 20 : 44;
+      const fs = Math.round(Math.min(h * 0.5, w * 0.36));
+      const aa = S('text', { x: x0, y: Math.round(h * 0.62), class: 'aa', 'font-size': fs, fill: steps[0] }, svg);
+      aa.textContent = 'Aa';
+      const sx = Math.round(w - (sm ? 52 : 76)), top = 46, bot = h - 62;
+      const yOf = r => bot - Math.log(r) / Math.log(21) * (bot - top);
+      S('path', { d: `M${sx + .5} ${top}V${bot}`, stroke: C.ink, fill: 'none' }, svg);
+      [1, 3, 4.5, 7, 21].forEach(r => {
+        const y = crisp(yOf(r));
+        S('path', { d: `M${sx - 5} ${y}H${sx + 1}`, stroke: C.ink, fill: 'none' }, svg);
+        const t = S('text', { x: sx + 10, y: y + 4, fill: C.ink, class: 'ro' }, svg); t.textContent = r;
+      });
+      const ptr = S('g', {}, svg);
+      S('path', { d: 'M-12 -4.5L-4 0L-12 4.5Z', fill: C.cobalt }, ptr);
+      const val = S('text', { x: -18, y: 4, 'text-anchor': 'end', fill: C.cobalt, class: 'ro' }, ptr);
+      const ro = readout(svg);
+      const segs = []; /* [duration, fromIndex, toIndex] */
+      steps.forEach((_, i) => { if (i) segs.push([0.28, i - 1, i]); segs.push([i === steps.length - 1 ? 1.6 : 0.75, i, i]); });
+      segs.push([0.5, steps.length - 1, 0]);
+      const total = segs.reduce((a, s) => a + s[0], 0);
+      return {
+        frame(t) {
+          let from = cfg.rest, to = cfg.rest, k = 1;
+          if (t !== null) {
+            let tt = ((t % total) + total) % total;
+            for (const [d, a, b] of segs) { if (tt <= d) { from = a; to = b; k = out(d ? tt / d : 1); break; } tt -= d; }
+          }
+          const hex = hexLerp(steps[from], steps[to], k);
+          aa.setAttribute('fill', hex);
+          const r = ratio(hex, C.plate);
+          ptr.setAttribute('transform', `translate(${sx} ${crisp(yOf(r)) - .5})`);
+          val.textContent = r.toFixed(2);
+          ro.textContent = `color: ${steps[k > 0.5 ? to : from].toLowerCase()}`;
+        }
+      };
+    },
+
+    /* 05 NUMERALS: proportional vs tabular; only tabular sits on the guides.
+       Figures scale with the plate's height (a narrow, tall column). */
+    numerals(svg, w, h, sm) {
+      const rows = DATA.plates.numerals;
+      const step = clamp(Math.round((h - 160) / 6), sm ? 26 : 30, 46);
+      const fs = Math.round(step * 0.68);
+      const blockH = (rows.length - 1) * step + 12;
+      const y0 = Math.round((h - blockH) / 2 + fs * 0.35);
+      const xr = Math.round(w / 2 + fs * 0.58 * 9 / 2);
+      const yAt = i => y0 + i * step + (i === rows.length - 1 ? 12 : 0);
+      const gP = S('g', { class: 'nums pnum' }, svg), gT = S('g', { class: 'nums tnum' }, svg);
+      const mk = g => rows.map((r, i) => { const t = S('text', { x: xr, y: yAt(i), 'text-anchor': 'end', fill: C.ink, 'font-size': fs }, g); t.textContent = r; return t; });
+      mk(gP); const tt = mk(gT);
+      const lastT = tt[rows.length - 1];
+      let tw = 120; try { tw = lastT.getComputedTextLength(); } catch (e) {}
+      S('path', { d: `M${Math.round(xr - tw - 6)} ${crisp(yAt(rows.length - 2) + Math.round(step * 0.44))}H${xr + 2}`, stroke: C.ink, fill: 'none' }, svg);
+      let gd = '';
+      try {
+        const str = rows[rows.length - 1];
+        for (let i = 0; i < str.length; i++) {
+          if (!/\d/.test(str[i])) continue;
+          const ex = lastT.getExtentOfChar(i);
+          const x = crisp(ex.x + ex.width / 2);
+          gd += `M${x} ${Math.round(y0 - fs * 0.95)}V${yAt(rows.length - 1) + 7}`;
+        }
+      } catch (e) {}
+      S('path', { d: gd, stroke: C.cobalt, fill: 'none', 'stroke-dasharray': '2 3' }, svg);
+      const ro = readout(svg);
+      const segs = [[1.6, 0, 0], [0.35, 0, 1], [2.4, 1, 1], [0.35, 1, 0]];
+      return {
+        frame(t) {
+          const k = t === null ? 1 : track(t, segs);
+          gP.setAttribute('opacity', (1 - k).toFixed(3));
+          gT.setAttribute('opacity', k.toFixed(3));
+          ro.textContent = k > 0.5 ? (sm ? 'tabular-nums' : 'font-variant-numeric: tabular-nums') : (sm ? 'proportional-nums' : 'font-variant-numeric: proportional-nums');
+        }
+      };
+    },
+
+    /* 06 POSITION: same size, new position; the second column axis appears */
+    position(svg, w, h, sm) {
+      const W = Math.min(w - (sm ? 52 : 104), 460);
+      const x0 = Math.round((w - W) / 2);
+      const x1 = x0 + Math.round(W * 0.34), bodyW = W - (x1 - x0);
+      const lh = sm ? 14 : 16, cw = bodyW / 30;
+      const entries = [0, 1, 2].map(e => ({ head: wrap(greek(2, 300 + e * 7), 30)[0], body: wrap(greek(30, 310 + e * 11), 30).slice(0, 3) }));
+      const area = [44, h - 58];
+      const hA = 3 * 4 * lh + 2 * lh * 0.75, hB = 3 * 3 * lh + 2 * lh;
+      const topA = Math.round((area[0] + area[1] - hA) / 2 + lh / 2), topB = Math.round((area[0] + area[1] - hB) / 2 + lh / 2);
+      const axis = S('path', { d: `M${crisp(x1 - 10)} ${area[0] + 2}V${area[1] - 6}`, stroke: C.cobalt, fill: 'none' }, svg);
+      const text = S('path', { stroke: C.ink, fill: 'none' }, svg);
+      const ro = readout(svg);
+      const segs = [[1.4, 0, 0], [0.9, 0, 1], [2.6, 1, 1], [0.7, 1, 0]];
+      return {
+        frame(t) {
+          const k = t === null ? 1 : track(t, segs);
+          let d = '';
+          entries.forEach((en, e) => {
+            const yA = topA + e * (4 * lh + lh * 0.75), yB = topB + e * (3 * lh + lh);
+            d += linePath(en.head, x0, crisp(yA + (yB - yA) * k), cw);
+            en.body.forEach((ln, j) => {
+              const ya = yA + (j + 1) * lh, yb = yB + j * lh;
+              d += linePath(ln, x0 + (x1 - x0) * k, crisp(ya + (yb - ya) * k), cw);
+            });
+          });
+          text.setAttribute('d', d);
+          axis.setAttribute('opacity', k.toFixed(3));
+          ro.textContent = k > 0.5 ? 'grid-template-columns: 1fr 2fr' : 'display: block';
+        }
+      };
+    },
+
+    /* 07 MOTION WHILE READING: a reading line steps down; fixations hop */
+    reading(svg, w, h, sm) {
+      const x0 = sm ? 36 : 60, W = w - x0 - (sm ? 24 : 48), cols = clamp(Math.round(W / 8.5), 40, 64), cw = W / cols;
+      const lines = wrap(greek(110, 77), cols).slice(0, 8);
+      const lh = sm ? 20 : 24, py = sm ? 62 : 68;
+      const ys = lines.map((_, i) => crisp(py + i * lh));
+      const r = rng(91);
+      const fix = lines.map(l => { const L = lineLen(l); return [0.1, 0.37, 0.63, 0.88].map(f => x0 + (f * L + (r() - 0.5) * 2.4) * cw); });
+      const paths = lines.map((l, i) => S('path', { d: linePath(l, x0, ys[i], cw), stroke: C.ink, fill: 'none' }, svg));
+      const mk = S('g', {}, svg);
+      S('path', { d: `M${x0 - 14} .5H${x0 + W + 12}`, stroke: C.cobalt, fill: 'none' }, mk);
+      S('path', { d: `M${x0 - 23} -4L${x0 - 16} .5L${x0 - 23} 5Z`, fill: C.cobalt }, mk);
+      const dots = [0, 1, 2, 3].map(() => S('circle', { r: 2.75, fill: C.cobalt, cx: 0, cy: 0 }, svg));
+      const arcs = [0, 1, 2].map(() => S('path', { stroke: C.cobalt, fill: 'none' }, svg));
+      const ro = readout(svg);
+      const D = 1.24, F = 0.24, N = lines.length, period = N * D + 1.4;
+      const durs = DATA.plates.fixations;
+      return {
+        frame(t) {
+          let li, u, reset = 0;
+          if (t === null) { li = 3; u = 0.8; }
+          else {
+            const tt = ((t % period) + period) % period;
+            if (tt < N * D) { li = Math.floor(tt / D); u = tt - li * D; }
+            else if (tt < N * D + 0.9) { li = N - 1; u = 0.95; }
+            else { li = N - 1; u = 0.95; reset = inOut((tt - N * D - 0.9) / 0.5); }
+          }
+          let my;
+          if (reset) my = ys[N - 1] + (ys[0] - ys[N - 1]) * reset;
+          else if (u > 0.96 && li < N - 1) my = ys[li] + (ys[li + 1] - ys[li]) * inOut((u - 0.96) / 0.28);
+          else my = ys[li];
+          mk.setAttribute('transform', `translate(0 ${Math.round(my - 4) - .5})`);
+          paths.forEach((p, j) => p.setAttribute('stroke', (!reset && j < li) || (reset && reset < 0.5 && j < li) ? C.grey : C.ink));
+          const shown = Math.min(4, Math.floor(u / F) + 1);
+          const fade = reset ? 1 - reset : (u > 0.96 ? 1 - (u - 0.96) / 0.28 : 1);
+          const fy = Math.round(ys[li] - 4);
+          dots.forEach((dd, k) => {
+            dd.setAttribute('cx', fix[li][k].toFixed(1)); dd.setAttribute('cy', fy);
+            dd.setAttribute('opacity', k < shown ? fade.toFixed(3) : 0);
+          });
+          arcs.forEach((a, k) => {
+            const xa = fix[li][k], xb = fix[li][k + 1];
+            a.setAttribute('d', `M${xa.toFixed(1)} ${fy - 4}Q${((xa + xb) / 2).toFixed(1)} ${fy - 15} ${xb.toFixed(1)} ${fy - 4}`);
+            a.setAttribute('opacity', k + 1 < shown ? fade.toFixed(3) : 0);
+          });
+          ro.textContent = `FIXATION ${durs[(li * 4 + shown - 1) % durs.length]} MS`;
+        }
+      };
+    }
+  };
+
+  const PHASE = { measure: 0, leading: 1.1, rag: 2.3, contrast: 0.6, numerals: 3.1, position: 1.7, reading: 0.4 };
+  const plates = [...document.querySelectorAll('.plate[data-plate]')].map(fig => ({ fig, svg: fig.querySelector('svg'), kind: fig.dataset.plate, api: null, w: 0, h: 0, visible: false }));
+  function buildPlate(pl) {
+    const r = pl.svg.getBoundingClientRect();
+    const w = Math.round(r.width), h = Math.round(r.height);
+    if (!w || !h || (w === pl.w && h === pl.h && pl.api)) return;
+    pl.w = w; pl.h = h;
+    pl.svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    pl.svg.replaceChildren();
+    try { pl.api = PLATES[pl.kind](pl.svg, w, h, w < 400); pl.api.frame(null); } catch (e) { pl.api = null; }
+  }
+  let running = false;
+  function loop(now) {
+    const live = plates.filter(p => p.visible && p.api);
+    if (!live.length || document.hidden || reduce.matches) { running = false; return; }
+    const s = now / 1000;
+    live.forEach(p => p.api.frame(s + PHASE[p.kind]));
+    requestAnimationFrame(loop);
+  }
+  function kick() {
+    if (reduce.matches) { plates.forEach(p => p.api && p.api.frame(null)); return; }
+    if (!running && plates.some(p => p.visible)) { running = true; requestAnimationFrame(loop); }
+  }
+  const io = new IntersectionObserver(es => {
+    es.forEach(e => { const p = plates.find(q => q.fig === e.target); if (p) p.visible = e.isIntersecting; });
+    kick();
+  }, { rootMargin: '80px 0px' });
+
+  /* ---------------------------------------------------------------
+     Boot: measure after fonts, keep geometry true on resize. The page
+     measures itself on arrival: the gauges draw, the line sweeps in,
+     and the marker slides from 0 to the measure of the struck line.
+     --------------------------------------------------------------- */
+  function boot() {
+    fonts = true;
+    buildChars();
+    layout();
+    plates.forEach(buildPlate);
+    plates.forEach(p => io.observe(p.fig));
+    kick();
+    setTimeout(() => { intro = true; setMeasure(pending); }, reduce.matches ? 0 : 650);
+    setTimeout(() => lg.classList.add('ready'), 2400);
+  }
+  let rz = 0;
+  const relayout = () => { if (!rz) rz = requestAnimationFrame(() => { rz = 0; layout(); plates.forEach(buildPlate); kick(); }); };
+  new ResizeObserver(relayout).observe(document.body);
+  addEventListener('resize', relayout);
+  reduce.addEventListener('change', () => { layout(); plates.forEach(p => p.api && p.api.frame(null)); kick(); });
+  document.addEventListener('visibilitychange', kick);
+
+  layout();
+  (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(boot, boot);
+})();
+</script>
+</body>
+</html>

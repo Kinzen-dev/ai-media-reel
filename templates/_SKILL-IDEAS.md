@@ -215,3 +215,22 @@ generative SVG filters, collab-cursor presence, data-physics particle sort, prin
     (the streaming response, the numbered step band, the question + options + progress) is naturally
     above the fold, so the thumbnail sells the mechanic with zero interaction almost for free. The
     recurring "title-only hero hides the mechanic" defect mostly afflicts interaction-mechanic templates.
+- 2026-10-02 world-class lane (batches 69-72; survey of ~500 real sites, Fable then Opus 5.5 builders):
+  * REFERENCE-GROUNDED BRIEFS NEED AN IDENTITY RULE. Calibrating builders on real screenshots of
+    best-in-class sites raised craft immediately (a fresh judge rated the first builds "same league"
+    on type, data and interaction), BUT briefs that described the reference's scroll=0 signature
+    produced reskins: "it simply IS cursor.com", "Etablissement's hero almost one to one". A new name
+    and palette do not make a new design. Fix: brief the REGISTER (the school's discipline) plus the
+    CLIENT'S OWN OBJECT as the hero (a release train for a release tool, to-scale structures for
+    engineers), and list the reference's hero elements as forbidden. Judges must ask the reskin
+    question explicitly per template.
+  * BESPOKE IMAGERY IS THE LEVER FOR PHOTO-LED REGISTERS. One art-directed set per template (one
+    photographer, one light, image 1 as style reference for the rest, no faces, no text in images)
+    via the Codex imagegen relay: luxury, interiors, food, architecture and illustration-led pages
+    became buildable at the real bar. Ask for real alpha on cut-outs (it works); WebP q84 is 2.5x
+    smaller than JPEG at equal quality.
+  * STATE ON DISK SURVIVES QUOTA STOPS. Persist every brief as JSON and launch builds with
+    {slug, name, briefFile}; name every model explicitly in workflow scripts (an inherited model
+    silently follows a mid-run session switch); a quota stop then costs a relaunch, not a rewrite.
+  * Effort pinning: a builder at max effort spent a whole 25-minute response thinking and hit the
+    output cap before writing a line; xhigh for builders, high for art direction.

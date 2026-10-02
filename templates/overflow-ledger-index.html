@@ -1,0 +1,1065 @@
+<!-- TEMPLATE: Overflow Ledger Index | ARCHETYPE: Found-objects intake ledger (an archive and shop as one register of display-size rows that run off the right edge, the object waiting at the end of each row) | REF: Visual (Archives) Society, MSCHF, LAMENT.TV, Roma Publications | WHEN TO USE: a collection, archive, gallery or small shop whose catalogue IS the site: registers, inventories, back catalogues, editions, programmes | SWAP: edit the DATA object at top of the script -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Office of Found Objects: intake register</title>
+<meta name="description" content="The intake register of the Office of Found Objects, Rotterdam: every object we take in, every text, talk, exhibition and edition, one sentence per entry.">
+<meta name="theme-color" content="#00A651">
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+<link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
+<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=switzer@400,500&display=swap">
+<style>
+/* Palette: white, black, one office green. 40 percent black only for what can no longer be had. */
+:root{
+  --paper:#FFFFFF;
+  --ink:#000000;
+  --green:#00A651;
+  --spent:rgba(0,0,0,.4);
+  --fs:6.6vw;                 /* register size: 95px at 1440 */
+  --lh:.83;
+  --row:calc(var(--fs) * var(--lh));
+  --g:24px;                   /* page gutter */
+  --rail:240px;               /* intake record column */
+  --desk-h:44px;
+  --filt-h:36px;
+  --speed:1200;               /* marquee speed, px per second (read by script) */
+  color-scheme:light;
+}
+@media (max-width:760px){
+  :root{ --fs:clamp(34px, 10.3vw, 46px); --g:16px; --desk-h:52px; --filt-h:38px; }
+}
+
+*,*::before,*::after{ box-sizing:border-box; }
+html{
+  background:var(--paper); color:var(--ink);
+  scrollbar-color:var(--ink) var(--paper); scrollbar-width:thin;
+  -webkit-text-size-adjust:100%; text-size-adjust:100%;
+}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font:400 12px/15px "Switzer","Inter Tight",system-ui,sans-serif;
+  font-variant-numeric:tabular-nums;
+  font-kerning:normal;
+  caret-color:var(--green);
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+}
+::selection{ background:var(--green); color:var(--ink); }
+::-webkit-scrollbar{ width:8px; height:8px; }
+::-webkit-scrollbar-track{ background:var(--paper); }
+::-webkit-scrollbar-thumb{ background:var(--ink); }
+:focus-visible{ outline:2px solid var(--green); outline-offset:2px; }
+a{ color:inherit; text-decoration-thickness:1px; text-underline-offset:.2em; }
+p{ margin:0; }
+button{ font:inherit; color:inherit; letter-spacing:inherit; }
+.vh{ position:absolute !important; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); clip-path:inset(50%); white-space:nowrap; }
+.skip{ position:absolute; left:-9999px; top:8px; z-index:40; background:var(--ink); color:var(--paper); padding:6px 8px; text-decoration:none; }
+.skip:focus{ left:var(--g); }
+
+/* bracketed values: brackets carry the colour the surface is not */
+.v{ white-space:nowrap; }
+.bk{ color:var(--green); }
+
+/* ---------- the intake desk: live counter strip ---------- */
+.desk{
+  position:sticky; top:0; z-index:20;
+  height:var(--desk-h);
+  background:var(--green); color:var(--ink);
+  display:grid;
+  grid-template-columns:var(--rail) minmax(0,1fr) auto;
+  grid-template-areas:"name state views";
+  column-gap:var(--g);
+  align-items:center;
+  padding:0 var(--g);
+}
+.desk .bk{ color:var(--paper); }
+.desk :focus-visible{ outline-color:var(--ink); }
+.desk-name{ grid-area:name; margin:0; font:inherit; font-weight:500; white-space:nowrap; }
+.desk-state{
+  grid-area:state; display:flex; gap:28px; min-width:0;
+  white-space:nowrap; overflow-x:auto; scrollbar-width:none;
+}
+.desk-state::-webkit-scrollbar{ display:none; }
+.views{ grid-area:views; display:flex; gap:20px; }
+.views a{
+  color:var(--paper); font-weight:500; text-decoration:none;
+  padding:14px 0; margin:-14px 0;
+}
+.views a:hover{ text-decoration:underline; }
+.views a[aria-current="page"]{ color:var(--ink); }
+
+/* ---------- filter line: text checkboxes ---------- */
+.filters{
+  position:sticky; top:var(--desk-h); z-index:19;
+  height:var(--filt-h);
+  background:var(--paper);
+  display:grid; grid-template-columns:var(--rail) minmax(0,1fr);
+  column-gap:var(--g); align-items:center;
+  padding-left:var(--g);
+}
+.fcount{ text-align:right; white-space:nowrap; overflow:hidden; }
+.fclear{
+  appearance:none; background:none; border:0; padding:6px 0; margin:-6px 12px -6px 0;
+  cursor:pointer; text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:.2em;
+  text-decoration-color:var(--green); font-weight:500;
+}
+.lane{
+  position:relative;
+  display:flex; align-items:center; gap:34px; min-width:0;
+  overflow-x:auto; scrollbar-width:none; white-space:nowrap;
+  padding-right:var(--g);
+}
+.lane::-webkit-scrollbar{ display:none; }
+.grp{ position:relative; display:flex; flex:none; gap:16px; border:0; margin:0; padding:0; min-width:max-content; }
+.chk{ position:relative; display:inline-flex; align-items:baseline; gap:6px; cursor:pointer; padding:10px 0; user-select:none; }
+.chk input{ position:absolute; left:0; top:50%; width:1px; height:1px; margin:0; opacity:0; }
+.box{ white-space:pre; }
+.box i{ font-style:normal; display:inline-block; width:.62em; text-align:center; }
+.box i::before{ content:"\00a0"; }
+.chk input:checked + .box i::before{ content:"x"; }
+.chk input:checked ~ .lbl{ font-weight:500; }
+.chk input:focus-visible + .box{ outline:2px solid var(--green); outline-offset:2px; }
+.chk:hover .lbl{ text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:.2em; }
+.chk.is-nil{ color:var(--spent); }
+.chk .n{ margin-left:2px; }
+
+/* ---------- the register ---------- */
+main{ overflow-x:clip; isolation:isolate; }   /* own stacking context: the hover band sits under every line of type, never over a neighbour */
+.register{ list-style:none; margin:0; padding:14px 0 0; }
+.entry{
+  display:grid; grid-template-rows:1fr; grid-template-columns:minmax(0,1fr);
+  transition:grid-template-rows 120ms linear;
+  scroll-margin-top:calc(var(--desk-h) + var(--filt-h) + 6px);
+}
+.entry-in{ min-height:0; min-width:0; }
+.entry.is-out{ grid-template-rows:0fr; }
+.entry.is-out > .entry-in, .entry.is-in > .entry-in{ overflow:clip; }
+.entry.is-out > .entry-in{ visibility:hidden; transition:visibility 0s linear 120ms; }
+
+.row{
+  position:relative;
+  display:grid;
+  grid-template-columns:var(--rail) minmax(0,1fr);
+  grid-template-rows:var(--row);
+  column-gap:var(--g);
+  padding-left:var(--g);
+  cursor:pointer;
+}
+/* the hover band: from the line top to just under the descenders. It is painted beneath all type,
+   so the neighbouring lines' descenders and cap tops cross it in black instead of being cut off. */
+.row::before{
+  content:""; position:absolute; left:0; right:0; top:0;
+  bottom:calc(var(--fs) * -.21);
+  background:var(--green); opacity:0; pointer-events:none; z-index:-1;
+}
+.row.is-hot::before, .row:has(.sent:focus-visible)::before{ opacity:1; }
+.row.is-hot .sent, .row:has(.sent:focus-visible) .sent{ color:var(--paper); }
+/* the record on the band reads like the desk strip: ink words, paper brackets */
+.row.is-hot .bk, .row:has(.sent:focus-visible) .bk{ color:var(--paper); }
+.row.is-hot .xref, .row:has(.sent:focus-visible) .xref{ text-decoration-color:var(--paper); }
+
+.rail{
+  align-self:end; text-align:right;
+  margin-bottom:calc(var(--fs) * .05 - 3px);   /* last rail baseline sits on the register baseline */
+  min-width:0;
+}
+.rl{ white-space:nowrap; }
+.rl .f + .f{ margin-left:12px; }
+.rl-find{ font-weight:500; }
+.rail-m{ display:none; }
+.xref{ text-decoration:underline; text-decoration-color:var(--green); text-decoration-thickness:1px; text-underline-offset:2px; }
+
+.line{
+  margin:0; min-width:0; display:flex; align-items:flex-start;
+  font:500 var(--fs)/var(--lh) "Switzer","Inter Tight",system-ui,sans-serif;
+  letter-spacing:-.03em;
+  font-variant-numeric:tabular-nums;
+}
+.sent{
+  appearance:none; background:none; border:0; padding:0; margin:0;
+  display:block; flex:1 1 auto; min-width:0;
+  font:inherit; line-height:inherit; letter-spacing:inherit; color:inherit;
+  text-align:left; cursor:pointer;
+  white-space:nowrap;
+  overflow-x:clip; overflow-y:visible;
+}
+.sent:focus-visible{ outline:none; }
+.track{ display:inline-flex; align-items:flex-start; will-change:auto; }
+.txt{ display:block; }
+.is-spent .txt{ color:var(--spent); }
+.row.is-hot .txt, .row:has(.sent:focus-visible) .txt{ color:inherit; }
+.end{
+  display:block; flex:none;
+  width:var(--row); height:var(--row);
+  margin-left:.3em; object-fit:cover;
+}
+.thumb{ display:none; }
+
+/* entrance: the register is set line by line, the record a beat later */
+@keyframes set{ from{ visibility:hidden; } to{ visibility:visible; } }
+.js .row{ animation:set 1ms steps(1,end) both; animation-delay:calc(var(--i) * 40ms); }
+.js .rail, .js .rail-m{ animation:set 1ms steps(1,end) both; animation-delay:calc(440ms + var(--i) * 40ms); }
+
+/* expanded entry: the sentence is allowed to wrap, the record and photographs open below */
+.entry.is-open .row{ grid-template-rows:auto; }
+.entry.is-open .sent{ white-space:normal; text-wrap:pretty; }
+.entry.is-open .track{ display:inline; transform:none !important; transition:none !important; }
+.entry.is-open .txt{ display:inline; }
+.entry.is-open .end{ display:none; }   /* open, the object moves into the photographs below */
+
+.panel{
+  display:grid; grid-template-rows:0fr;
+  transition:grid-template-rows 160ms cubic-bezier(.4,0,1,1);
+}
+.entry.is-open .panel{ grid-template-rows:1fr; transition:grid-template-rows 300ms cubic-bezier(.16,1,.3,1); }
+.panel-in{ min-height:0; overflow:hidden; }
+.pgrid{
+  display:grid; grid-template-columns:var(--rail) minmax(0,1fr);
+  column-gap:var(--g); padding:calc(var(--fs) * .3) 0 calc(var(--row) * .8) var(--g);
+}
+.prec{ text-align:right; }
+.prec .rl{ white-space:normal; }
+.prec .rl + .rl{ margin-top:1px; }
+.prec .v{ white-space:normal; }
+.pbody{
+  display:grid;
+  grid-template-columns:minmax(0,22vw) minmax(0,22vw) minmax(0,60ch);
+  gap:var(--g); align-items:start; padding-right:var(--g);
+}
+.ph{ margin:0; min-width:0; }
+.ph img, .ph .crop{ display:block; width:100%; aspect-ratio:1; object-fit:cover; }
+.ph .crop{ background-repeat:no-repeat; background-size:280%; }
+.ph figcaption{ margin-top:6px; }
+.ptext{ max-width:60ch; line-height:1.45; }
+.ptext p{ text-wrap:pretty; }
+.ptext p + p{ margin-top:.9em; }
+.act{ margin-top:1.4em !important; line-height:15px; }
+.actb{
+  appearance:none; background:none; border:0; padding:6px 0; margin:-6px 0;
+  cursor:pointer; font-weight:500;
+  text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:.2em; text-decoration-color:var(--green);
+}
+.actb:hover{ text-decoration-color:var(--ink); }
+.act .spent{ color:var(--spent); }
+
+/* empty state */
+.empty{ padding-top:0; }
+.empty[hidden]{ display:none; }
+.empty .row{ cursor:default; }
+.empty .ebtn{
+  appearance:none; background:none; border:0; padding:4px 0; margin:-4px 0; cursor:pointer;
+  font-weight:400;
+}
+.empty .ebtn:hover{ text-decoration:underline; }
+
+/* ---------- colophon, in the register's own format ---------- */
+.colophon{ padding:calc(var(--row) * 1.6) 0 calc(var(--row) * 1.2); scroll-margin-top:calc(var(--desk-h) + var(--filt-h)); }
+.crow{
+  display:grid; grid-template-columns:var(--rail) minmax(0,1fr);
+  grid-template-rows:var(--row) auto;
+  column-gap:var(--g); padding-left:var(--g);
+}
+.crow + .crow{ margin-top:calc(var(--row) * .9); }
+.crow .rail{ grid-column:1; grid-row:1; }
+.ctitle{
+  grid-column:2; grid-row:1; margin:0; min-width:0;
+  font:500 var(--fs)/var(--lh) "Switzer","Inter Tight",system-ui,sans-serif;
+  letter-spacing:-.03em; white-space:nowrap; overflow-x:clip;
+}
+.cbody{ grid-column:2; grid-row:2; max-width:62ch; padding:calc(var(--fs) * .3) var(--g) 0 0; line-height:1.45; }
+.cbody p{ text-wrap:pretty; }
+.cbody p + p{ margin-top:.9em; }
+.hours{ display:grid; grid-template-columns:12ch auto; column-gap:12px; line-height:15px; }
+.hours .is-today{ font-weight:500; }
+.stock{ line-height:15px; }
+.stock p + p{ margin-top:0; }
+
+/* ---------- 761 to 1180: desk stays one line, views tighten ---------- */
+@media (max-width:1180px) and (min-width:761px){
+  :root{ --rail:200px; }
+  .desk-state{ gap:20px; }
+  .views{ gap:14px; }
+}
+
+/* ---------- phone ---------- */
+@media (max-width:760px){
+  .desk{
+    height:var(--desk-h);
+    grid-template-columns:auto minmax(0,1fr);
+    grid-template-rows:15px 15px;
+    grid-template-areas:"name state" "views views";
+    row-gap:6px; column-gap:20px;
+    padding:8px var(--g);
+  }
+  .desk-state{ gap:20px; }
+  .views{ justify-content:space-between; }
+  .views a{ padding:10px 0; margin:-10px 0; }
+  .filters{ grid-template-columns:auto minmax(0,1fr); column-gap:0; }
+  .fcount .fc-text{ display:none; }
+  .register{ padding-top:4px; }
+  .row{
+    display:block; padding:7px var(--g) 0;
+    grid-template-rows:none;
+  }
+  .rail{ display:none; }
+  .rail-m{ display:block; white-space:nowrap; overflow:hidden; margin-bottom:3px; }
+  .rail-m .f + .f{ margin-left:10px; }
+  .thumb{
+    display:block; flex:none;
+    width:var(--row); height:var(--row);
+    margin-right:8px; object-fit:cover;
+  }
+  .end{ display:none; }
+  .entry.is-open .end{ display:none; }
+  .pgrid{ display:block; padding:16px var(--g) calc(var(--row) * 1.1); }
+  .prec{ text-align:left; margin-bottom:14px; }
+  .pbody{ grid-template-columns:1fr 1fr; padding-right:0; gap:12px; }
+  .ptext{ grid-column:1 / -1; }
+  .crow{ display:block; padding:0 var(--g); }
+  .crow .rail{ display:block; text-align:left; margin:0 0 3px; }
+  .ctitle{ display:block; white-space:normal; text-wrap:balance; }   /* no hover to read a colophon title to its end on a phone */
+  .cbody{ padding:12px 0 0; }
+  .empty .row{ display:block; }
+}
+
+/* ---------- reduced motion: no stagger, no marquee; focus wraps the sentence instead ---------- */
+@media (prefers-reduced-motion:reduce){
+  .js .row, .js .rail, .js .rail-m{ animation:none; }
+  .track{ transition:none !important; }
+  .panel, .entry.is-open .panel{ transition:none; }
+  .row:has(.sent:focus-visible){ grid-template-rows:auto; }
+  .row:has(.sent:focus-visible) .sent{ white-space:normal; text-wrap:pretty; }
+  .row:has(.sent:focus-visible) .track{ display:inline; transform:none !important; }
+  .row:has(.sent:focus-visible) .txt{ display:inline; }
+  .row:has(.sent:focus-visible) .end{ display:inline-block; vertical-align:top; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#register">Skip to the register</a>
+
+<header class="desk">
+  <h1 class="desk-name">Office of Found Objects</h1>
+  <p class="desk-state" id="deskState">
+    <span class="f">Received today <span class="v"><span class="bk">[</span>3<span class="bk">]</span></span></span>
+    <span class="f">Claimed this week <span class="v"><span class="bk">[</span>11<span class="bk">]</span></span></span>
+    <span class="f">Next sale <span class="v"><span class="bk">[</span>Saturday 10:00<span class="bk">]</span></span></span>
+    <span class="f">Office <span class="v"><span class="bk">[</span>Open Wednesday to Saturday<span class="bk">]</span></span></span>
+  </p>
+  <nav class="views" aria-label="Views" id="views"></nav>
+</header>
+
+<div class="filters" role="region" aria-label="Filter the register">
+  <p class="fcount" id="fcount"><span class="fc-text"></span></p>
+  <div class="lane" id="lane"></div>
+</div>
+
+<main id="register" tabindex="-1">
+  <ol class="register" id="list" aria-label="Intake register"></ol>
+  <div class="empty" id="empty" hidden>
+    <div class="row">
+      <div class="rail"><p class="rl"><span class="f"><button class="ebtn" type="button" data-clear>Clear <span class="v"><span class="bk">[</span>all filters<span class="bk">]</span></span></button></span></p></div>
+      <p class="rail-m"><span class="f"><button class="ebtn" type="button" data-clear>Clear <span class="v"><span class="bk">[</span>all filters<span class="bk">]</span></span></button></span></p>
+      <p class="line"><span class="sent" style="cursor:default">Nothing in the register matches all of these at once</span></p>
+    </div>
+  </div>
+  <section class="colophon" id="about" aria-label="Colophon"></section>
+  <noscript><p style="padding:24px">The register lists its entries with JavaScript. Write to desk@officeoffoundobjects.nl for a printed copy.</p></noscript>
+</main>
+
+<script>
+/* =====================================================================
+   DATA: everything on the page comes from here. Swap freely.
+   kinds: object | text | exhibition | talk | edition
+   obj:   photograph id (file obj-<id>.webp); for non-objects, the object it belongs with
+   dates: YYYY-MM-DD, talks: YYYY-MM-DDTHH:MM (visitor's clock decides Upcoming or Past)
+   ===================================================================== */
+const DATA = {
+  office: {
+    name: 'Office of Found Objects',
+    address: 'Mathenesserdijk 214, 3026 GE Rotterdam',
+    email: 'desk@officeoffoundobjects.nl',
+    kvk: '88412206'
+  },
+  desk: {
+    receivedToday: 3,
+    claimedThisWeek: 11,
+    timeZone: 'Europe/Amsterdam',
+    hours: { 3: ['11:00', '17:00'], 4: ['11:00', '17:00'], 5: ['11:00', '17:00'], 6: ['10:00', '17:00'] }, /* 0 = Sunday */
+    sale: { day: 6, time: '10:00' }
+  },
+  views: [
+    { id: 'register', label: 'Register' },
+    { id: 'exhibitions', label: 'Exhibitions', kinds: ['exhibition', 'talk'] },
+    { id: 'texts', label: 'Texts', kinds: ['text'] },
+    { id: 'shop', label: 'Shop', kinds: ['object', 'edition'] },
+    { id: 'about', label: 'About', anchor: 'about' }
+  ],
+  categories: ['Furniture', 'Tools', 'Paper', 'Glass', 'Textile', 'Sound', 'Kitchen'],
+  statuses: ['Available', 'Sold', 'On loan'],
+  files: ['jpg', 'pdf'],
+  imgBase: '../assets/wc/overflow-ledger-index/obj-',
+  entries: [
+    { no: '0454', kind: 'exhibition', date: '2026-10-02', obj: '11', cat: 'Kitchen',
+      text: 'One drawer each: eleven households in Hillesluis empty a kitchen drawer onto our long table, and we register every thing that falls out',
+      opens: '2026-10-24', closes: '2026-11-29', where: 'The long table, Mathenesserdijk 214', files: [],
+      story: ['Every kitchen has the drawer: string, a birthday candle, the key to something. In the spring we asked eleven households in Hillesluis to empty theirs onto our long table and let us write down what came out, in the order it came.',
+              'The drawers go home after five weeks. The register stays: 614 entries, from a single elastic band to a dentist’s appointment card for 1997.'] },
+    { no: '0453', kind: 'talk', date: '2026-10-02', obj: '06', cat: null,
+      text: 'A talk on how to put a price on an object that has never once been sold, with the dealer Maarten Hoogland and two of our regulars',
+      when: '2026-10-09T19:30', with: 'Maarten Hoogland', at: 'The office', files: [],
+      story: ['Most of what we take in has never had a price. A sign that was never lettered, a cassette nobody released. Maarten Hoogland has spent thirty years putting numbers on things like that at the Saturday market, and he thinks we undercharge.',
+              'Forty seats, free, first come. Bring an object if you want it priced in public; you do not have to sell it.'] },
+    { no: '0452', kind: 'object', date: '2026-10-02', obj: '01', find: true,
+      text: 'A school chair with a green seat, one of thirty left on the pavement when the school on the Schiedamseweg closed, found in Delfshaven',
+      from: 'Delfshaven', foundBy: 'The caretaker’s neighbour', material: 'Beech plywood, steel tube, green lacquer', size: '76 × 38 × 36 cm',
+      cat: 'Furniture', status: 'Available', price: 140, files: ['jpg'], focus: [48, 48], detail: 'the seat, worn through where a child leans in to write',
+      alt: 'A child’s school chair with a worn green seat and a plywood back on steel legs',
+      story: ['Thirty of these stood on the pavement for two days in September, after the school closed for good. A neighbour of the caretaker carried this one to us on the tram; the other twenty-nine went in the skip.',
+              'We kept it for the seat. Thirty-one years of green lacquer, worn through to the wood exactly where a child leans forward to write.'] },
+    { no: '0451', kind: 'object', date: '2026-10-02', obj: '12',
+      text: 'A cassette labelled Ma 1994 in pencil, found still inside a second-hand radio bought for four euros at a stall in Charlois',
+      from: 'Charlois', foundBy: 'A visitor to the Saturday sale', material: 'Polystyrene case, magnetic tape, paper label', size: '11 × 7 × 1.5 cm',
+      cat: 'Sound', status: 'Available', price: 15, files: ['jpg'], focus: [50, 62], detail: 'the label',
+      alt: 'A cassette tape in an open clear plastic case',
+      story: ['The radio was broken. The tape inside was not: forty-four minutes of a woman talking to someone in the room about a wedding, then ten minutes of the radio itself, recorded off air.',
+              'We have listened once, written down what is on it, and will not play it at the office. Whoever buys it gets the transcript in a sealed envelope.'] },
+    { no: '0450', kind: 'object', date: '2026-10-02', obj: '05',
+      text: 'Twelve metres of hemp mooring line, cut loose from a barge at the Maashaven and left coiled on the quay for anyone who wanted it',
+      from: 'Maashaven', foundBy: 'The office, on a Sunday walk', material: 'Three-strand hemp', size: '12 m, 6 kg',
+      cat: 'Textile', status: 'Available', price: 90, files: ['jpg'], focus: [60, 82], detail: 'the cut end, left unwhipped',
+      alt: 'A coil of thick red hemp rope with a frayed end',
+      story: ['The barge left for a breaker’s yard in Ghent in the morning. The crew had cut the old line and laid it in a coil on the quay, the way you leave something for the next person.',
+              'It still smells of tar. The frayed end is where it was cut, and we have not whipped it: the record says as found.'] },
+    { no: '0449', kind: 'text', date: '2026-09-30', obj: '02',
+      text: 'A letter from the ferryman’s daughter, who saw her father’s ticket punch in our window the morning after it had been sold',
+      by: 'Anouk Verhoef', words: 900, files: ['pdf'],
+      story: ['She recognised it by the dent in the handle, where it fell on the deck in a storm in 1983. Her father punched tickets on the Heijplaat crossing for twenty-two years.',
+              'We asked the buyer. He gave her the punch and kept the letter, and with the permission of both it is filed here in full.'] },
+    { no: '0448', kind: 'object', date: '2026-09-29', obj: '02',
+      text: 'A conductor’s ticket punch from the Heijplaat ferry, its chamber still holding the paper circles from the last crossing',
+      from: 'Heijplaat', foundBy: 'A clerk at the ferry office', material: 'Nickel-plated steel, spring', size: '15 × 6 cm',
+      cat: 'Tools', status: 'Sold', price: 65, files: ['jpg'], focus: [56, 50], detail: 'the spring and the dent in the handle',
+      alt: 'A nickel-plated hand ticket punch with a coiled spring',
+      story: ['When the crossing stopped, the ferry office was cleared in an afternoon. A clerk filled a crate with what nobody had a form for and brought it to our door.',
+              'We opened the chamber and counted 212 paper circles, one for each ticket of the last day. They stay in the record; the punch has gone home.'] },
+    { no: '0447', kind: 'text', date: '2026-09-28', obj: '04',
+      text: 'What the porter heard: a text on the telephone from a Kralingen student house and the forty years of calls it put through, by Daan Stoop',
+      by: 'Daan Stoop', words: 3100, files: ['pdf'],
+      story: ['Before mobile phones, one telephone served sixty students, and the porter took every message on a pad by the dial. Daan Stoop found three of those pads and the people who wrote on them.',
+              'An excerpt: “Your mother rang. She says nothing is wrong and to ring back before nine.” The full text runs to 3,100 words with the pads reproduced.'] },
+    { no: '0446', kind: 'edition', date: '2026-09-27', obj: '03', cat: 'Paper',
+      text: 'An edition of forty postcards reprinted from the never-sold Euromast box, numbered by hand and franked at the office',
+      printed: 'Sep 2026', run: 40, status: 'Available', price: 24, files: ['jpg'],
+      story: ['The original box stays sealed in the register. We photographed one card, reprinted it in the same blue on the same weight of board, and stopped at forty.',
+              'Each set is numbered by hand and franked with the office stamp, so it can go in the post the way the originals never did.'] },
+    { no: '0445', kind: 'object', date: '2026-09-26', obj: '10',
+      text: 'A glass carafe with a cork stopper, the last of a set from a café on the Nieuwe Binnenweg that poured water before you asked',
+      from: 'Middelland', foundBy: 'The café’s last owner', material: 'Blown glass, cork', size: '24 cm, 1 litre',
+      cat: 'Glass', status: 'Available', price: 45, files: ['jpg'], focus: [50, 15], detail: 'the cork from the last night',
+      alt: 'A clear glass carafe closed with a cork',
+      story: ['The café had forty of them in 1971 and one left when it closed this summer. The owner brought it in with the cork from the wine he opened on the last night.',
+              'Water on the table without asking was the house rule for fifty-two years. We kept the carafe because a rule is hard to keep otherwise.'] },
+    { no: '0444', kind: 'talk', date: '2026-09-25', obj: '07', cat: null,
+      text: 'The Saturday sale: thirty objects from the summer intake leave the office from ten o’clock, cash or card, nothing held back',
+      when: '2026-10-03T10:00', with: 'The whole office', at: 'Mathenesserdijk 214', files: [],
+      story: ['Four times a year the shelves are cleared. Every object on sale has a register number and a sentence, and the sentence goes with it on a card.',
+              'Doors at ten. No reservations on sale day, no dealers before eleven, and the coffee is free while it lasts.'] },
+    { no: '0443', kind: 'object', date: '2026-09-24', obj: '04',
+      text: 'A cream rotary telephone from the porter’s desk of a student house in Kralingen, with the house number written on the dial in biro',
+      from: 'Kralingen', foundBy: 'The house committee', material: 'Bakelite, steel, cotton cord', size: '22 × 15 × 12 cm',
+      cat: 'Sound', status: 'On loan', loan: 'to a library in Schiedam until 31 Jan 2027', files: ['jpg'], focus: [45, 50], detail: 'the dial',
+      alt: 'A cream rotary dial telephone with a coiled cord',
+      story: ['The house was turned into flats in August and the committee could not bring itself to bin the phone. It still rings; the bell is louder than you expect.',
+              'It is on loan for Kept, not collected in Schiedam, where it sits on a reading table and rings once an hour.'] },
+    { no: '0441', kind: 'talk', date: '2026-09-20', obj: '05', cat: null,
+      text: 'Show and tell at the library in Katendrecht: bring one object and one sentence about where you found it, and we write the record with you',
+      when: '2026-11-14T14:00', with: 'The intake desk', at: 'The library, Katendrecht', files: [],
+      story: ['The intake desk goes on the road for an afternoon. Bring something you have kept without knowing why; we register it with you on the spot and give you the record card.',
+              'Nothing leaves with us unless you want it to. Children’s objects especially welcome.'] },
+    { no: '0440', kind: 'edition', date: '2026-09-18', obj: '07', cat: 'Tools',
+      text: 'A folding rule of our own, one metre of beech printed with the register number of every object we have ever measured',
+      printed: 'Sep 2026', run: 120, status: 'Available', price: 34, files: ['jpg'],
+      story: ['Every object that comes in is measured at the desk with a carpenter’s rule. This one is printed with the numbers of the 451 things measured so far, in the order we measured them.',
+              'Made with a joinery in Gouda: one metre in ten folds, brass rivets, an edition of 120.'] },
+    { no: '0439', kind: 'object', date: '2026-09-15', obj: '07',
+      text: 'A carpenter’s folding ruler, two metres of boxwood and brass, found in a toolbox at a house clearance in Spangen',
+      from: 'Spangen', foundBy: 'A house clearance crew', material: 'Boxwood, brass', size: '2 m, folded 22 cm',
+      cat: 'Tools', status: 'Available', price: 28, files: ['jpg'], focus: [82, 48], detail: 'a brass hinge',
+      alt: 'A wooden folding carpenter’s ruler with brass hinges, partly opened',
+      story: ['The house had been lived in by one carpenter for fifty-eight years. The clearance crew kept the power tools and left us the box of things they could not price.',
+              'It is accurate to a millimetre over two metres, which is more than can be said for the one we use at the desk.'] },
+    { no: '0437', kind: 'exhibition', date: '2026-09-12', obj: '04', cat: null,
+      text: 'Kept, not collected: a year of the register hung as one wall of sentences in the reading room of a library in Schiedam',
+      opens: '2026-12-04', closes: '2027-01-31', where: 'Reading room, Lange Haven, Schiedam', files: [],
+      story: ['Twelve months of the register, printed at the size you are reading now, run around the four walls of a reading room. The sentences are longer than the walls, so they turn the corners.',
+              'Six objects from the year sit on the reading tables, among them the telephone from Kralingen, which rings once an hour.'] },
+    { no: '0436', kind: 'text', date: '2026-09-10', obj: '06', cat: null,
+      text: 'Why we keep things nobody asked for: the office’s intake policy, rewritten for its sixth year and argued over for most of the summer',
+      by: 'The office', words: 1800, files: ['pdf'],
+      story: ['We say yes to an object when someone can tell us in one sentence where it was found, and when the sentence is better than the object. We say no to anything that is only old.',
+              'This year we added a clause: if an object is claimed by the person it belonged to, it goes back, whatever we paid and whoever has bought it.'] },
+    { no: '0435', kind: 'object', date: '2026-09-08', obj: '06',
+      text: 'An enamel sign that was never lettered, kept for forty years behind the door of a sign-painter’s workshop in Crooswijk',
+      from: 'Crooswijk', foundBy: 'The sign-painter’s son', material: 'Vitreous enamel on steel', size: '40 × 28 cm',
+      cat: 'Glass', status: 'Available', price: 120, files: ['jpg'], focus: [25, 87], detail: 'a corner chipped by coats',
+      alt: 'A blank white enamel sign with a dark rim and chipped corners',
+      story: ['Enamel is glass fused onto steel, which is why it sits on the Glass shelf. This blank was ordered for a shop that closed before the letters were painted, and it hung behind the workshop door as a coat hook.',
+              'The chips on the corners are from the coats. The son asked that it go to someone who will leave it blank.'] },
+    { no: '0432', kind: 'edition', date: '2026-09-02', obj: '11', cat: 'Textile',
+      text: 'A tea towel woven with the full inventory of one kitchen drawer in Hillesluis, from the elastic bands to the spare key nobody can place',
+      printed: 'Sep 2026', run: 200, status: 'Available', price: 19, files: ['jpg'],
+      story: ['The inventory of drawer No. 7 from One drawer each, 83 lines, woven in black on undyed cotton by a mill in Tilburg.',
+              'Drying a plate with a list of someone else’s drawer is stranger than it sounds. An edition of 200, 50 × 70 cm.'] },
+    { no: '0430', kind: 'text', date: '2026-08-30', obj: '11',
+      text: 'An inventory of one kitchen drawer in Hillesluis, transcribed item by item and in the order it came out, by Samira El Idrissi',
+      by: 'Samira El Idrissi', words: 1200, files: ['pdf'],
+      story: ['Item 1: a roll of freezer bags, half used. Item 2: a church candle. Item 3: the instructions for a pressure cooker the family no longer owns, because they gave it to us.',
+              'Samira El Idrissi wrote the inventory without comment and then added one paragraph at the end. We print it in full.'] },
+    { no: '0429', kind: 'object', date: '2026-08-28', obj: '11',
+      text: 'An aluminium pressure cooker with a replacement handle, used every Sunday for thirty-one years in the same kitchen in Hillesluis',
+      from: 'Hillesluis', foundBy: 'The family who cooked in it', material: 'Aluminium, Bakelite handle', size: '6 litres',
+      cat: 'Kitchen', status: 'Available', price: 55, files: ['jpg'], focus: [42, 28], detail: 'the valve, which still whistles',
+      alt: 'An aluminium pressure cooker with a black handle',
+      story: ['The original handle broke in 1996 and the replacement came from a different make, which is why it does not quite match. The valve still whistles.',
+              'The family brought it in when they moved to a flat with an induction hob. It stands on the long table for One drawer each, then it is for sale.'] },
+    { no: '0426', kind: 'text', date: '2026-08-20', obj: '03',
+      text: 'On the difference between a souvenir and a stock: notes on four hundred postcards that never left their box, by Ilse Vermaat',
+      by: 'Ilse Vermaat', words: 2600, files: ['pdf'],
+      story: ['A souvenir is a postcard someone chose. A stock is four hundred of them that nobody did. Ilse Vermaat spent a week with the Blijdorp box and wrote about the second kind.',
+              'The text is printed at the size of the cards, 10.5 by 14.8 centimetres, and folds into the box.'] },
+    { no: '0424', kind: 'object', date: '2026-08-14', obj: '03',
+      text: 'A box of four hundred unused postcards of the Euromast, bought by a kiosk in Blijdorp in 1979 and never put on the rack',
+      from: 'Blijdorp', foundBy: 'The kiosk owner’s granddaughter', material: 'Printed board, cardboard box', size: '400 cards, 16 × 12 × 8 cm',
+      cat: 'Paper', status: 'Available', price: 35, files: ['jpg'], focus: [50, 40], detail: 'the top of the stack',
+      alt: 'An open cardboard box packed with blank postcards',
+      story: ['The kiosk ordered too many in 1979 and kept the surplus under the counter for forty-seven years. The granddaughter found the box when the kiosk was sold.',
+              'The box is for sale whole. Single cards are not; the reprint edition exists so that the box can stay a box.'] },
+    { no: '0422', kind: 'exhibition', date: '2026-08-10', obj: '10', cat: null,
+      text: 'Open shelves: every object received over the summer, shown once at the office before it is sold, lent out or kept',
+      opens: '2026-09-05', closes: '2026-09-27', where: 'The office', files: ['pdf'],
+      story: ['Ninety-four objects on open shelves, each with its sentence on a card and its register number in pencil. Visitors could pick anything up.',
+              'Three things broke and one went missing. All four are recorded in the catalogue.'] },
+    { no: '0420', kind: 'text', date: '2026-08-02', obj: '09',
+      text: 'Gloves that kept the shape of a hand: a conversation with the allotment holder in Pernis who hung them on the same nail for thirty-eight years, by Joost de Rooij',
+      by: 'Joost de Rooij', words: 2200, files: ['pdf'],
+      story: ['He gave up the allotment this summer at eighty-one. The shed went to the next holder, the apron and gloves came to us, and the nail is still there.',
+              'Joost de Rooij recorded two afternoons of talk about beans, weather and the neighbour who borrowed a spade in 1994.'] },
+    { no: '0419', kind: 'object', date: '2026-07-30', obj: '09',
+      text: 'A canvas apron and a pair of work gloves, hung on one nail in an allotment shed in Pernis from 1988 until this summer',
+      from: 'Pernis', foundBy: 'The allotment holder', material: 'Cotton canvas, leather', size: 'Apron 90 cm, gloves size 10',
+      cat: 'Textile', status: 'On loan', loan: 'to a school garden in Charlois until June 2027', files: ['jpg'], focus: [40, 58], detail: 'the fingers, still curled',
+      alt: 'A folded canvas work apron with a pair of worn leather gloves on top',
+      story: ['The gloves have kept the shape of his hands; you can see which fingers did the work. The apron pocket still had seed packets in it, which we planted.',
+              'On loan to a school garden in Charlois, where the children are not allowed to wear them but are allowed to look.'] },
+    { no: '0416', kind: 'text', date: '2026-07-14', obj: '08',
+      text: 'A short history of the orange crate, from the auction floor at Barendrecht to a market stall to our front step, by Mila Kortekaas',
+      by: 'Mila Kortekaas', words: 1500, files: ['pdf'],
+      story: ['The orange crate is the most common object in the city and the least kept. Mila Kortekaas traced ours back through three owners using the faded marks on its side.',
+              'It went for EUR 22 at the summer sale to a man who said he needed it for lemons.'] },
+    { no: '0415', kind: 'object', date: '2026-07-11', obj: '08',
+      text: 'An orange vegetable crate from the Saturday market on the Afrikaanderplein, used for nineteen years for lemons and then for a cat',
+      from: 'Afrikaanderwijk', foundBy: 'A stallholder', material: 'Polypropylene', size: '50 × 30 × 25 cm',
+      cat: 'Kitchen', status: 'Sold', price: 22, files: ['jpg'], focus: [78, 36], detail: 'the handle slot',
+      alt: 'An orange plastic market crate',
+      story: ['The stallholder retired and gave his crates away one by one to regulars. This one was the cat’s, and he made it a condition that it go somewhere it would be looked at.',
+              'Sold at the summer sale. The buyer has promised lemons, and the record will be updated if anything changes.'] },
+    { no: '0412', kind: 'edition', date: '2026-06-10', obj: '03', cat: 'Paper',
+      text: 'A pad of fifty blank intake records, printed so you can register the things in your own house the way we register ours',
+      printed: 'Jun 2026', run: 500, status: 'Available', price: 12, files: ['jpg', 'pdf'],
+      story: ['The same card we fill in at the desk: number, received, from, found by, material, size, and one line for the sentence. Fifty to a pad, glued at the top.',
+              'The template is also free as a .pdf if you would rather print your own.'] },
+    { no: '0409', kind: 'talk', date: '2026-05-14', obj: '04', cat: null,
+      text: 'An evening of objects brought in off the street, each one recorded on the spot and read aloud before it was taken home again',
+      when: '2026-05-29T19:00', with: 'The intake desk', at: 'The office', files: ['pdf'],
+      story: ['Thirty-eight people came with something. We wrote a record for each, read the sentence aloud, and handed the object back.',
+              'The transcript of the evening is the most requested thing we have ever filed.'] },
+    { no: '0407', kind: 'edition', date: '2026-04-18', obj: '12', cat: 'Sound',
+      text: 'A cassette of sixty minutes of our front door, recorded through one Saturday sale and dubbed in a run of one hundred',
+      printed: 'Apr 2026', run: 100, status: 'Sold', price: 9, files: ['jpg'],
+      story: ['A microphone taped above the door from ten until the last visitor left. The bell, the weather, two people arguing about a lamp.',
+              'Sold out in May. One copy is kept in the register and can be heard at the desk.'] },
+    { no: '0404', kind: 'text', date: '2026-02-26', obj: '01',
+      text: 'What a classroom leaves behind: a text written for Things that stayed behind, on coat hooks, chalk ledges and chairs, by Ilse Vermaat',
+      by: 'Ilse Vermaat', words: 2400, files: ['pdf'],
+      story: ['Ilse Vermaat walked through three closed schools before they were cleared and wrote down what was too fixed to move: the hooks, the ledges, the marks where the chairs stood.',
+              'Written for the exhibition, it reads now as a description of the chair we took in this week, which came from a fourth school.'] },
+    { no: '0402', kind: 'exhibition', date: '2026-01-20', obj: '01', cat: 'Furniture',
+      text: 'Things that stayed behind: furniture and fittings from three schools that closed in the west of the city, shown in the order they were carried out',
+      opens: '2026-03-06', closes: '2026-04-26', where: 'The office', files: ['pdf'],
+      story: ['Desks, a bell, a register of absences, two hundred and six chairs, laid out in one line along the floor in the order the removal men carried them out.',
+              'Most of the furniture went on to the schools’ new buildings. The catalogue lists all 731 pieces.'] },
+    { no: '0399', kind: 'edition', date: '2025-12-15', obj: '06', cat: 'Paper',
+      text: 'The register for 2025 as one poster: every entry of the year, 1,212 lines in office green on newsprint, folded to fit a coat pocket',
+      printed: 'Dec 2025', run: 300, status: 'Available', price: 30, files: ['jpg', 'pdf'],
+      story: ['Every intake, text, talk and exhibition filed in 2025, one per line, in the order they were written. It is 118 centimetres tall and still too short.',
+              'Printed on newsprint in office green and folded twice. 300 copies.'] },
+    { no: '0396', kind: 'talk', date: '2025-10-01', obj: '07', cat: null,
+      text: 'A walk from Delfshaven to Spangen along the route of last year’s house clearances, stopping at every door that gave us something',
+      when: '2025-10-18T11:00', with: 'The intake desk', at: 'Starts at the Delfshaven quay', files: [],
+      story: ['Eleven doors in four kilometres. At each one we read out the record of what came from it, and where they were in, the people who live there now came out to listen.',
+              'The walk ended at a bakery in Spangen that still gives us its broken trays.'] },
+    { no: '0391', kind: 'exhibition', date: '2025-07-01', obj: '02', cat: null,
+      text: 'Lost on the water: the contents of a ferry’s lost property cupboard, emptied after the last crossing and shown exactly as we found them',
+      opens: '2025-09-12', closes: '2025-11-02', where: 'The office', files: ['pdf'],
+      story: ['Umbrellas, one shoe, a set of dentures, nine hundred gloves. The cupboard had not been emptied since 1999.',
+              'It was the first time we showed a whole place rather than a single object. The ticket punch arrived a year later from the same office.'] }
+  ],
+  colophon: {
+    bring: ['Bring it to the desk on a Wednesday, Thursday or Friday afternoon, with one sentence about where you found it.',
+            'We write the intake record with you, give the object its number and hand you a copy of the card.',
+            'Within two weeks we tell you whether we are keeping it; if we are not, you can take it home or leave it for the Saturday sale.'],
+    stockists: [
+      ['Leeszaal Noord, Rotterdam', 'postcards and intake cards'],
+      ['Boekhandel Het Erf, Utrecht', 'the 2025 register poster'],
+      ['Paperroom, Ghent', 'all editions'],
+      ['Werkplaats Vinkhuizen, Groningen', 'folding rules']
+    ],
+    imprint: ['Office of Found Objects is a collective of four, registered in Rotterdam under Chamber of Commerce number 88412206.',
+              'Objects are photographed by the office on a grey sweep and not retouched. The register is set in Switzer, at two sizes.']
+  }
+};
+
+/* =====================================================================
+   Behaviour. Nothing below needs editing to swap content.
+   ===================================================================== */
+(() => {
+  'use strict';
+  document.documentElement.classList.add('js');
+  const RM = matchMedia('(prefers-reduced-motion: reduce)');
+  const HOVER = matchMedia('(hover: hover) and (pointer: fine)');
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const T0 = performance.now();
+  const $ = (s, r = document) => r.querySelector(s);
+
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const br = html => `<span class="v"><span class="bk">[</span>${html}<span class="bk">]</span></span>`;
+  const fld = (k, v) => `<span class="f">${k} ${br(v)}</span>`;
+  const pd = s => { const [y, m, d] = s.slice(0, 10).split('-').map(Number); return { y, m, d }; };
+  const fmtDate = s => { const { y, m, d } = pd(s); return `${d} ${MON[m - 1]} ${y}`; };
+  const fmtWhen = s => `${fmtDate(s)}, ${s.slice(11, 16)}`;
+  const fmtRange = (a, b) => { const A = pd(a), B = pd(b); return A.y === B.y ? `${A.d} ${MON[A.m - 1]} to ${B.d} ${MON[B.m - 1]} ${B.y}` : `${fmtDate(a)} to ${fmtDate(b)}`; };
+  const localDate = (s, endOfDay) => { const { y, m, d } = pd(s); return endOfDay ? new Date(y, m - 1, d, 23, 59, 59) : new Date(y, m - 1, d); };
+  const slug = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const toMin = s => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
+  const imgSrc = id => `${DATA.imgBase}${id}.webp`;
+
+  /* ---------- derived model ---------- */
+  const ENTRIES = DATA.entries.slice().sort((a, b) => b.no.localeCompare(a.no));
+  const OBJ = {};
+  ENTRIES.forEach(e => { if (e.kind === 'object') OBJ[e.obj] = e; });
+  const catOf = e => (e.cat === null ? null : (e.cat || (OBJ[e.obj] && OBJ[e.obj].cat) || null));
+  const now = new Date();
+  function statusOf(e) {
+    if (e.kind === 'exhibition') {
+      if (now < localDate(e.opens)) return 'Upcoming';
+      if (now > localDate(e.closes, true)) return 'Past';
+      return 'On now';
+    }
+    if (e.kind === 'talk') {
+      const [d, t] = e.when.split('T'); const { y, m, d: dd } = pd(d); const [hh, mm] = t.split(':').map(Number);
+      return now < new Date(y, m - 1, dd, hh, mm) ? 'Upcoming' : 'Past';
+    }
+    return e.status || null;
+  }
+  const priceOf = e => e.status === 'Sold' ? 'Sold' : e.status === 'On loan' ? 'On loan' : `EUR ${e.price}`;
+  const wordsOf = e => `${Number(e.words).toLocaleString('en-GB')} words`;
+  const refNo = e => { const o = OBJ[e.obj]; return o && o.no !== e.no ? o.no : null; };
+  const xref = no => `<a class="xref" href="#open=${no}" data-open="${no}">${no}</a>`;
+  const facet = {
+    cat: e => { const c = catOf(e); return c ? [slug(c)] : []; },
+    status: e => (e.kind === 'object' || e.kind === 'edition') && e.status ? [slug(e.status)] : [],
+    ext: e => e.files || []
+  };
+
+  /* ---------- intake desk (strip) ---------- */
+  function deskNow() {
+    try {
+      const f = new Intl.DateTimeFormat('en-GB', { timeZone: DATA.desk.timeZone, weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+      const p = Object.fromEntries(f.formatToParts(new Date()).map(x => [x.type, x.value]));
+      return { wd: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(p.weekday), mins: (+p.hour % 24) * 60 + (+p.minute) };
+    } catch (_) { const d = new Date(); return { wd: d.getDay(), mins: d.getHours() * 60 + d.getMinutes() }; }
+  }
+  function officeLine() {
+    const { wd, mins } = deskNow(); const H = DATA.desk.hours; const t = H[wd];
+    if (t && mins >= toMin(t[0]) && mins < toMin(t[1])) return `Open until ${t[1]}`;
+    if (t && mins < toMin(t[0])) return `Opens today at ${t[0]}`;
+    for (let k = 1; k <= 7; k++) { const d = (wd + k) % 7; if (H[d]) return `Closed until ${k === 1 ? 'tomorrow' : DAYS[d]} ${H[d][0]}`; }
+    return 'Closed';
+  }
+  function saleLine() {
+    const { wd, mins } = deskNow(); const s = DATA.desk.sale; const close = (DATA.desk.hours[s.day] || [s.time, '17:00'])[1];
+    if (wd === s.day && mins < toMin(s.time)) return `Today ${s.time}`;
+    if (wd === s.day && mins < toMin(close)) return `On now until ${close}`;
+    return `${DAYS[s.day]} ${s.time}`;
+  }
+  function renderDesk() {
+    $('#deskState').innerHTML =
+      fld('Received today', DATA.desk.receivedToday) +
+      fld('Claimed this week', DATA.desk.claimedThisWeek) +
+      fld('Next sale', saleLine()) +
+      fld('Office', officeLine());
+    $('#views').innerHTML = DATA.views.map(v => `<a href="#${v.anchor ? '' : 'view='}${v.anchor || v.id}" data-view="${v.id}">${v.label}</a>`).join('');
+  }
+
+  /* ---------- register rows ---------- */
+  function railLines(e) {
+    const L = [];
+    const line = (...f) => `<p class="rl">${f.map(([k, v]) => fld(k, v)).join('')}</p>`;
+    const r = refNo(e);
+    if (e.find) L.push('<p class="rl rl-find">Find of the week</p>');
+    switch (e.kind) {
+      case 'object': L.push(line(['From', esc(e.from)], ['Price', priceOf(e)]), line(['Received', fmtDate(e.date)], ['No.', e.no])); break;
+      case 'text': L.push(line(['By', esc(e.by)], ...(r ? [['Object', xref(r)]] : [])), line(['Length', wordsOf(e)], ['No.', e.no])); break;
+      case 'exhibition': L.push(line(['Dates', fmtRange(e.opens, e.closes)]), line(['Status', statusOf(e)], ['No.', e.no])); break;
+      case 'talk': L.push(line(['With', esc(e.with)]), line(['On', fmtWhen(e.when)]), line(['Status', statusOf(e)], ['No.', e.no])); break;
+      case 'edition': L.push(line(['Run', e.run], ['Price', e.status === 'Sold' ? 'Sold out' : `EUR ${e.price}`]), line(['Printed', e.printed], ['No.', e.no])); break;
+    }
+    return L.join('');
+  }
+  function railFlat(e) {
+    const F = [['No.', e.no]];
+    switch (e.kind) {
+      case 'object': F.push(['Price', priceOf(e)], ['From', esc(e.from)], ['Received', fmtDate(e.date)]); break;
+      case 'text': F.push(['By', esc(e.by)], ['Length', wordsOf(e)]); break;
+      case 'exhibition': F.push(['Status', statusOf(e)], ['Dates', fmtRange(e.opens, e.closes)]); break;
+      case 'talk': F.push(['Status', statusOf(e)], ['On', fmtWhen(e.when)], ['With', esc(e.with)]); break;
+      case 'edition': F.push(['Price', e.status === 'Sold' ? 'Sold out' : `EUR ${e.price}`], ['Run', e.run], ['Printed', e.printed]); break;
+    }
+    const out = F.map(([k, v]) => fld(k, v));
+    if (e.find) out.splice(1, 0, '<span class="f rl-find">Find of the week</span>');
+    return out.join('');
+  }
+  function rowHTML(e, i) {
+    const own = e.kind === 'object';
+    const alt = own ? esc(e.alt) : '';
+    const src = imgSrc(e.obj);
+    const spent = e.status === 'Sold';
+    return `<li class="entry" id="e-${e.no}" data-no="${e.no}" style="--i:${Math.min(i, 12)}">
+<div class="entry-in">
+<div class="row${e.find ? ' is-find' : ''}${spent ? ' is-spent' : ''}">
+<div class="rail">${railLines(e)}</div>
+<p class="rail-m">${railFlat(e)}</p>
+<h2 class="line">${own ? `<img class="thumb" src="${src}" alt="${alt}" width="96" height="96" decoding="async">` : ''}<button class="sent" type="button" id="b-${e.no}" aria-expanded="false" aria-controls="p-${e.no}"><span class="track"><span class="txt">${esc(e.text)}</span><img class="end" src="${src}" alt="${alt}" width="160" height="160" decoding="async"></span></button></h2>
+</div>
+<div class="panel" id="p-${e.no}" role="region" aria-labelledby="b-${e.no}"><div class="panel-in"></div></div>
+</div>
+</li>`;
+  }
+
+  /* ---------- expanded entry ---------- */
+  const reserved = new Set();
+  function recordLines(e) {
+    const R = [['No.', e.no]];
+    const r = refNo(e);
+    const c = catOf(e);
+    switch (e.kind) {
+      case 'object':
+        R.push(['Received', fmtDate(e.date)], ['From', esc(e.from)], ['Found by', esc(e.foundBy)], ['Material', esc(e.material)], ['Size', esc(e.size)], ['Category', c], ['Status', e.status], ['Price', e.status === 'Available' ? `EUR ${e.price}` : e.status === 'Sold' ? `Sold, EUR ${e.price}` : 'Not for sale while on loan']); break;
+      case 'text': R.push(['Filed', fmtDate(e.date)], ['By', esc(e.by)], ['Length', wordsOf(e)]); if (r) R.push(['Object', xref(r)]); if (c) R.push(['Category', c]); break;
+      case 'exhibition': R.push(['Dates', fmtRange(e.opens, e.closes)], ['Where', esc(e.where)], ['Status', statusOf(e)]); if (r) R.push(['Object', xref(r)]); break;
+      case 'talk': R.push(['On', fmtWhen(e.when)], ['With', esc(e.with)], ['At', esc(e.at)], ['Status', statusOf(e)]); if (r) R.push(['Object', xref(r)]); break;
+      case 'edition': R.push(['Printed', e.printed], ['Run', e.run], ['Price', `EUR ${e.price}`], ['Status', e.status === 'Sold' ? 'Sold out' : e.status]); if (r) R.push(['Object', xref(r)]); break;
+    }
+    if (e.files && e.files.length) R.push(['Files', e.files.map(f => '.' + f).join(' ')]);
+    return R.map(([k, v]) => `<p class="rl">${fld(k, v)}</p>`).join('');
+  }
+  function actionHTML(e) {
+    const st = statusOf(e);
+    const isRes = reserved.has(e.no);
+    if ((e.kind === 'object' || e.kind === 'edition') && e.status === 'Available') {
+      return isRes
+        ? `Reserved under your name until ${DAYS[DATA.desk.sale.day]} ${DATA.desk.sale.time}; pay and collect at the desk. <button class="actb" type="button" data-act="${e.no}">Cancel</button>`
+        : `<button class="actb" type="button" data-act="${e.no}">Reserve ${br('EUR ' + e.price)}</button>`;
+    }
+    if (e.kind === 'object' && e.status === 'On loan') return `On loan ${br(esc(e.loan))}`;
+    if (e.status === 'Sold') return `<span class="spent">${e.kind === 'edition' ? 'Sold out' : 'Sold'}</span>`;
+    if (e.kind === 'talk' && st === 'Upcoming') {
+      return isRes
+        ? `Place booked. We hold it until fifteen minutes before the start. <button class="actb" type="button" data-act="${e.no}">Cancel</button>`
+        : `<button class="actb" type="button" data-act="${e.no}">Book a place ${br('free')}</button>`;
+    }
+    return '';
+  }
+  function cropPos(f) { const k = 2.8; const p = v => Math.max(0, Math.min(100, ((v / 100) * k - 0.5) / (k - 1) * 100)); return `${p(f[0]).toFixed(1)}% ${p(f[1]).toFixed(1)}%`; }
+  function panelHTML(e) {
+    const o = OBJ[e.obj] || e;
+    const src = imgSrc(e.obj);
+    const own = e.kind === 'object';
+    const figs = own
+      ? `<figure class="ph"><img src="${src}" alt="${esc(e.alt)}" loading="lazy" decoding="async"><figcaption>As received, ${fmtDate(e.date)}</figcaption></figure>
+         <figure class="ph"><div class="crop" role="img" aria-label="Detail: ${esc(e.detail)}" style="background-image:url('${src}');background-position:${cropPos(e.focus || [50, 50])}"></div><figcaption>Detail: ${esc(e.detail)}</figcaption></figure>`
+      : `<figure class="ph"><img src="${src}" alt="${esc(o.alt || '')}" loading="lazy" decoding="async"><figcaption>${o.no && o.no !== e.no ? `Object ${br(xref(o.no))}` : 'From the register'}</figcaption></figure>
+         <figure class="ph"><div class="crop" role="img" aria-label="Detail: ${esc(o.detail || '')}" style="background-image:url('${src}');background-position:${cropPos(o.focus || [50, 50])}"></div><figcaption>Detail: ${esc(o.detail || '')}</figcaption></figure>`;
+    const act = actionHTML(e);
+    return `<div class="pgrid"><div class="prec">${recordLines(e)}</div><div class="pbody">${figs}<div class="ptext">${e.story.map(p => `<p>${esc(p)}</p>`).join('')}${act ? `<p class="act" aria-live="polite">${act}</p>` : ''}</div></div></div>`;
+  }
+
+  /* ---------- colophon ---------- */
+  function renderColophon() {
+    const { wd } = deskNow();
+    const H = DATA.desk.hours;
+    const order = [1, 2, 3, 4, 5, 6, 0];
+    const hours = order.map(d => {
+      const t = H[d];
+      const val = t ? `${t[0]} to ${t[1]}${d === DATA.desk.sale.day ? ', sale from ' + DATA.desk.sale.time : ''}` : 'Closed';
+      return `<span class="${d === wd ? 'is-today' : ''}">${DAYS[d]}</span><span class="${d === wd ? 'is-today' : ''}">${val}${d === wd ? ' ' + br('today') : ''}</span>`;
+    }).join('');
+    const C = DATA.colophon;
+    const crow = (rail, title, body) => `<div class="crow"><div class="rail">${rail}</div><h2 class="ctitle">${title}</h2><div class="cbody">${body}</div></div>`;
+    $('#about').innerHTML =
+      crow(`<p class="rl">${fld('Desk', esc(DATA.office.address.split(',')[0]))}</p>`, 'How to bring us an object', C.bring.map(s => `<p>${esc(s)}</p>`).join('')) +
+      crow(`<p class="rl">${fld('Today', officeLine())}</p>`, 'Opening hours', `<div class="hours">${hours}</div>`) +
+      crow(`<p class="rl">${fld('Editions', ENTRIES.filter(e => e.kind === 'edition').length)}</p>`, 'Stockists', `<div class="stock">${C.stockists.map(([n, w]) => `<p>${esc(n)}: ${esc(w)}</p>`).join('')}</div>`) +
+      crow(`<p class="rl">${fld('KvK', DATA.office.kvk)}</p>`, 'Imprint', `<p>${esc(DATA.office.name)}, ${esc(DATA.office.address)}. Write to <a href="mailto:${DATA.office.email}">${DATA.office.email}</a>.</p>${C.imprint.map(s => `<p>${esc(s)}</p>`).join('')}`);
+  }
+
+  /* ---------- filters ---------- */
+  const GROUPS = [
+    { key: 'cat', label: 'Category', opts: DATA.categories.map(c => ({ id: slug(c), label: c })) },
+    { key: 'status', label: 'Availability', opts: DATA.statuses.map(s => ({ id: slug(s), label: s })) },
+    { key: 'ext', label: 'File type', opts: DATA.files.map(f => ({ id: f, label: '.' + f })) }
+  ];
+  const state = { view: 'register', cat: new Set(), status: new Set(), ext: new Set(), open: null };
+  function renderLane() {
+    $('#lane').innerHTML = GROUPS.map(g => `<fieldset class="grp"><legend class="vh">${g.label}</legend>${g.opts.map(o =>
+      `<label class="chk" data-g="${g.key}" data-o="${o.id}"><input type="checkbox" name="${g.key}" value="${o.id}"><span class="box" aria-hidden="true"><span class="bk">[</span><i></i><span class="bk">]</span></span><span class="lbl">${o.label}</span><span class="n"></span></label>`).join('')}</fieldset>`).join('');
+  }
+  const viewOK = (e, v) => { const V = DATA.views.find(x => x.id === v); return !V || !V.kinds || V.kinds.includes(e.kind); };
+  const groupOK = (e, key, set) => set.size === 0 || facet[key](e).some(x => set.has(x));
+  const visible = e => viewOK(e, state.view) && GROUPS.every(g => groupOK(e, g.key, state[g.key]));
+  const filtered = () => state.view !== 'register' || GROUPS.some(g => state[g.key].size);
+
+  /* ---------- hash state ---------- */
+  function readHash() {
+    const h = location.hash.replace(/^#/, '');
+    const p = {};
+    h.split('&').forEach(kv => { const [k, v] = kv.split('='); if (k) p[decodeURIComponent(k)] = decodeURIComponent(v || ''); });
+    state.view = DATA.views.some(v => v.id === p.view && !v.anchor) ? p.view : 'register';
+    GROUPS.forEach(g => { const ok = new Set(g.opts.map(o => o.id)); state[g.key] = new Set((p[g.key] || '').split(',').filter(x => ok.has(x))); });
+    state.open = p.open && ROWS[p.open] ? p.open : null;
+    return h === 'about';
+  }
+  function writeHash() {
+    const parts = [];
+    if (state.view !== 'register') parts.push('view=' + state.view);
+    GROUPS.forEach(g => { if (state[g.key].size) parts.push(g.key + '=' + [...state[g.key]].join(',')); });
+    if (state.open) parts.push('open=' + state.open);
+    const url = location.pathname + location.search + (parts.length ? '#' + parts.join('&') : '');
+    try { history.replaceState(null, '', url); } catch (_) {}
+  }
+
+  /* ---------- build ---------- */
+  renderDesk();
+  renderLane();
+  const list = $('#list');
+  list.innerHTML = ENTRIES.map(rowHTML).join('');
+  const ROWS = {};
+  const ORDER = [];
+  list.querySelectorAll('.entry').forEach(li => {
+    const no = li.dataset.no;
+    const r = { no, li, e: ENTRIES.find(x => x.no === no), row: $('.row', li), btn: $('.sent', li), track: $('.track', li), panel: $('.panel-in', li) };
+    r.panel.parentElement.inert = true;
+    ROWS[no] = r; ORDER.push(r);
+  });
+  renderColophon();
+  const FIND = ORDER.find(r => r.e.find) || null;
+
+  /* ---------- measuring the overflow ---------- */
+  const gutter = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--g')) || 24;
+  const speed = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--speed')) || 1200;
+  function endX(r) { return Math.min(0, Math.round(r.btn.clientWidth - gutter() - r.track.offsetWidth)); }
+  function setX(r, x, ms, ease) {
+    r.track.style.transition = ms ? `transform ${ms}ms ${ease}` : 'none';
+    r.track.style.transform = x ? `translate3d(${x}px,0,0)` : '';
+    r.x = x;
+  }
+  let findPlaced = false;
+  function placeFind(animate) {
+    if (!FIND || state.open === FIND.no) return;
+    const x = endX(FIND);
+    if (!animate || RM.matches) { setX(FIND, x, 0); findPlaced = true; return; }
+    setX(FIND, 0, 0);
+    void FIND.track.offsetWidth;
+    const wait = Math.max(0, 300 - (performance.now() - T0));
+    setTimeout(() => { setX(FIND, endX(FIND), 1100, 'cubic-bezier(.16,1,.3,1)'); findPlaced = true; }, wait);
+  }
+  const homeX = r => (r === FIND ? endX(r) : 0);
+
+  /* ---------- hover: the band, and the sentence read to its end ---------- */
+  ORDER.forEach(r => {
+    r.row.addEventListener('pointerenter', ev => {
+      if (ev.pointerType !== 'mouse' || !HOVER.matches) return;
+      r.row.classList.add('is-hot');
+      if (RM.matches || state.open === r.no) return;
+      const x = endX(r);
+      const from = typeof r.x === 'number' ? r.x : 0;
+      const dist = Math.abs(x - from);
+      if (dist < 1) return;
+      setX(r, x, Math.max(220, Math.round(dist / speed() * 1000)), 'linear');
+    });
+    r.row.addEventListener('pointerleave', ev => {
+      if (ev.pointerType !== 'mouse') return;
+      r.row.classList.remove('is-hot');
+      if (RM.matches || state.open === r.no) return;
+      const x = homeX(r);
+      if (Math.abs((r.x || 0) - x) < 1) return;
+      setX(r, x, 320, 'cubic-bezier(.16,1,.3,1)');
+    });
+  });
+
+  /* ---------- open / close ---------- */
+  function openEntry(no, { scroll = false, focus = false } = {}) {
+    const r = ROWS[no]; if (!r) return;
+    if (state.open && state.open !== no) closeEntry(state.open, { quiet: true });
+    if (r.li.classList.contains('is-out')) { resetFilters(false); }
+    if (!r.panel.firstChild) r.panel.innerHTML = panelHTML(r.e);
+    r.li.classList.add('is-open');
+    r.panel.parentElement.inert = false;
+    r.btn.setAttribute('aria-expanded', 'true');
+    r.x = 0;
+    state.open = no;
+    writeHash();
+    if (scroll) r.li.scrollIntoView({ block: 'start', behavior: RM.matches ? 'auto' : 'smooth' });
+    if (focus) r.btn.focus({ preventScroll: true });
+  }
+  function closeEntry(no, { quiet = false, focus = false } = {}) {
+    const r = ROWS[no]; if (!r) return;
+    r.li.classList.remove('is-open');
+    r.panel.parentElement.inert = true;
+    r.btn.setAttribute('aria-expanded', 'false');
+    if (state.open === no) state.open = null;
+    setX(r, 0, 0);
+    if (r === FIND) requestAnimationFrame(() => setX(FIND, endX(FIND), 0));
+    if (!quiet) writeHash();
+    if (focus) r.btn.focus();
+  }
+
+  list.addEventListener('click', ev => {
+    const a = ev.target.closest('a[data-open]');
+    if (a) { ev.preventDefault(); ev.stopPropagation(); openEntry(a.dataset.open, { scroll: true, focus: true }); return; }
+    const act = ev.target.closest('[data-act]');
+    if (act) {
+      const no = act.dataset.act; const r = ROWS[no];
+      reserved.has(no) ? reserved.delete(no) : reserved.add(no);
+      const holder = act.closest('.act');
+      if (holder) { holder.innerHTML = actionHTML(r.e); const b = holder.querySelector('.actb'); if (b) b.focus(); }
+      return;
+    }
+    if (ev.target.closest('.panel')) return;
+    const li = ev.target.closest('.entry');
+    if (!li) return;
+    const no = li.dataset.no;
+    state.open === no ? closeEntry(no) : openEntry(no);
+  });
+  document.addEventListener('keydown', ev => {
+    if (ev.key === 'Escape' && state.open) { ev.preventDefault(); closeEntry(state.open, { focus: true }); }
+  });
+
+  /* ---------- filtering ---------- */
+  const lane = $('#lane');
+  const fcount = $('#fcount');
+  const empty = $('#empty');
+  function apply({ first = false } = {}) {
+    let n = 0;
+    ORDER.forEach(r => {
+      const vis = visible(r.e);
+      const was = !r.li.classList.contains('is-out');
+      if (vis && !was && !first) { r.li.classList.add('is-in'); setTimeout(() => r.li.classList.remove('is-in'), 140); }
+      r.li.classList.toggle('is-out', !vis);
+      r.li.inert = !vis;
+      if (vis) n++;
+      if (!vis && state.open === r.no) closeEntry(r.no, { quiet: true });
+    });
+    lane.querySelectorAll('.chk').forEach(l => {
+      const g = l.dataset.g, o = l.dataset.o;
+      const c = ENTRIES.filter(e => viewOK(e, state.view) && GROUPS.every(G => G.key === g ? facet[g](e).includes(o) : groupOK(e, G.key, state[G.key]))).length;
+      l.querySelector('.n').textContent = c;
+      l.classList.toggle('is-nil', c === 0 && !state[g].has(o));
+      l.querySelector('input').checked = state[g].has(o);
+    });
+    document.querySelectorAll('#views a').forEach(a => {
+      if (a.dataset.view === state.view) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    });
+    empty.hidden = n !== 0;
+    counts.n = n;
+    renderCount();
+    writeHash();
+    if (FIND && !first) requestAnimationFrame(() => { if (state.open !== FIND.no) setX(FIND, endX(FIND), 0); });
+    setTimeout(updateAt, first ? 0 : 140);
+  }
+  const counts = { n: ENTRIES.length, at: ENTRIES[0].no };
+  function renderCount() {
+    const total = ENTRIES.length;
+    const txt = filtered() ? `${counts.n} of ${total}, at No. ${br(counts.at)}` : `${total} entries, at No. ${br(counts.at)}`;
+    fcount.innerHTML = (filtered() ? '<button class="fclear" type="button" data-clear>Clear</button>' : '') + `<span class="fc-text">${counts.n ? txt : `0 of ${total}`}</span>`;
+  }
+  function resetFilters(doApply = true) {
+    state.view = 'register'; GROUPS.forEach(g => state[g.key].clear());
+    apply();
+  }
+  lane.addEventListener('change', ev => {
+    const i = ev.target; if (!i.matches('input[type=checkbox]')) return;
+    const set = state[i.name]; i.checked ? set.add(i.value) : set.delete(i.value);
+    apply();
+  });
+  document.addEventListener('click', ev => {
+    if (ev.target.closest('[data-clear]')) { ev.preventDefault(); resetFilters(); return; }
+    const v = ev.target.closest('#views a');
+    if (v) {
+      ev.preventDefault();
+      const V = DATA.views.find(x => x.id === v.dataset.view);
+      if (V.anchor) { document.getElementById(V.anchor).scrollIntoView({ behavior: RM.matches ? 'auto' : 'smooth' }); return; }
+      state.view = V.id; apply(); scrollTo({ top: 0, behavior: 'auto' });
+    }
+  });
+
+  /* ---------- scroll: the filter line keeps the register number in view ---------- */
+  let ticking = false;
+  function updateAt() {
+    ticking = false;
+    const top = $('.filters').getBoundingClientRect().bottom + 4;
+    let at = null;
+    for (const r of ORDER) {
+      if (r.li.classList.contains('is-out')) continue;
+      if (r.li.getBoundingClientRect().bottom > top + 10) { at = r.no; break; }
+    }
+    if (!at) { const last = ORDER.filter(r => !r.li.classList.contains('is-out')).pop(); at = last ? last.no : counts.at; }
+    if (at !== counts.at) { counts.at = at; const v = fcount.querySelector('.fc-text .v'); if (v) v.innerHTML = `<span class="bk">[</span>${at}<span class="bk">]</span>`; }
+  }
+  addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(updateAt); } }, { passive: true });
+
+  /* ---------- start ---------- */
+  const goAbout = readHash();
+  apply({ first: true });
+  if (state.open) openEntry(state.open, { scroll: true });
+  if (goAbout) requestAnimationFrame(() => document.getElementById('about').scrollIntoView());
+
+  let fontsDone = false;
+  const afterFonts = () => {
+    if (fontsDone) return; fontsDone = true;
+    placeFind(performance.now() - T0 < 1600);
+  };
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(afterFonts);
+    document.fonts.addEventListener && document.fonts.addEventListener('loadingdone', () => { if (fontsDone && FIND && state.open !== FIND.no) setX(FIND, endX(FIND), 0); });
+    setTimeout(afterFonts, 2000);
+  } else { afterFonts(); }
+
+  let rz;
+  addEventListener('resize', () => {
+    clearTimeout(rz);
+    rz = setTimeout(() => {
+      ORDER.forEach(r => { r.row.classList.remove('is-hot'); if (r !== FIND && state.open !== r.no) setX(r, 0, 0); });
+      if (FIND && state.open !== FIND.no) setX(FIND, endX(FIND), 0);
+      updateAt();
+    }, 120);
+  });
+  RM.addEventListener && RM.addEventListener('change', () => { if (FIND && state.open !== FIND.no) setX(FIND, endX(FIND), 0); });
+  setInterval(() => { const o = $('#deskState .f:last-child .v'); if (o) o.innerHTML = `<span class="bk">[</span>${officeLine()}<span class="bk">]</span>`; }, 60000);
+})();
+</script>
+</body>
+</html>

@@ -8,6 +8,7 @@ import json, sys
 
 # Category display order + names. The gallery renders categories in THIS order.
 ORDER = [
+    ("worldclass",  "World-Class Now (2026)"),
     ("interaction", "Interaction & Motion"),
     ("spatial",     "3D & Spatial"),
     ("generative",  "Generative & Data-Art"),
@@ -217,6 +218,10 @@ KEYWORDS = [  # fallback for any slug not in SLUG_CAT (first match wins)
 
 def classify(t):
     s = t["slug"]
+    # An explicit "lane" field on the manifest entry locks the bucket (world-class lane onward):
+    # set it at catalog time and the SLUG_CAT-forgotten misbucket gotcha cannot recur.
+    if t.get("lane") in VALID:
+        return t["lane"]
     if s in SLUG_CAT and SLUG_CAT[s] in VALID:
         return SLUG_CAT[s]
     hay = " ".join(str(t.get(k, "")) for k in ("slug", "archetype", "title", "signature", "whenToUse")).lower()
@@ -231,7 +236,7 @@ def main():
     counts = {k: 0 for k, _ in ORDER}
     unmapped = []
     for t in d["templates"]:
-        if t["slug"] not in SLUG_CAT:
+        if t["slug"] not in SLUG_CAT and t.get("lane") not in VALID:
             unmapped.append(t["slug"])
         c = classify(t)
         t["category"] = c

@@ -40,6 +40,253 @@ After each batch, append any NEW design insight or loop-methodology insight to `
 (two skill candidates: the loop itself + award-level frontend design). King will promote these to
 real skills later via /promote-to-skill. Concrete + actionable bullets only; do not let it go stale.
 
+## CURRENT LANE - RESUMED 2026-10-02 (King): WORLD-CLASS NOW (no fixed theme)
+King (paraphrased from his Thai message): run the loop as before, no theme this round; survey modern
+world-class website design (convention-breaking, minimal, luxurious, refined taste: "the real
+world-class"), then loop on it; he wants to see what is new in the current era; use Fable 5.1 fully; go long.
+- LANE = contemporary world-class registers for FICTIONAL brands (each with its own content model),
+  cataloged with `lane: "worldclass"` + `builtBy: "Fable 5.1"` into the new gallery category
+  "World-Class Now (2026)" (first in ORDER; `_categorize.py` now honours an explicit `lane` field, so
+  no SLUG_CAT entry is needed for this lane).
+- SURVEY (round 5) = `_audit-workflow-5.js`: 10 independent lenses (avant-garde, minimal-reductive,
+  luxury-maison, editorial-culture, type-and-graphic-studios, award-studios-now, tech-craft,
+  asia-and-beyond, technique-and-motion, contrarian-excluded), Fable scouts. NEW: scouts SCREENSHOT the
+  real exemplar sites (`~/Projects/_qa-harness/mediagen-survey-shoot.mjs <lens> <name>=<url> ...`) so
+  findings carry observed grammar + real typeface fingerprints. Outputs live OUTSIDE the deployed tree:
+  `findings/worldclass-survey-2026-10/` (`raw/<lens>.json`, `shots/<lens>/*.jpg` git-ignored,
+  `library-digest.txt`). Curated fuel = `showcase/templates/_backlog-worldclass.json`.
+- PIPELINE CHANGES (`_batch-workflow.js`, backward compatible; args gain `refShots` + `typeStack`):
+  (1) builders + art director READ the real reference screenshots (calibration against the real
+  thing, never a 1:1 clone); (2) builders self-capture once (harness thumbs + motion filmstrip) and
+  self-critique before returning; (3) refuse-list of generated-page tells baked into SHARED (tracked
+  caps eyebrows, false 01/02/03 numbering, mono costume, accent word in a headline, fade-up on every
+  section ...); (4) craft references handed to builders/AD: `~/.claude-upscale/skills/impeccable/
+  reference/{craft-floor,animate,typeset}.md`; (5) deterministic design-defect detector in the build
+  + AD gates: `node ~/.claude-upscale/skills/impeccable/scripts/detect.mjs --no-config
+  --no-design-system <file>` (contrast, sub-11px UI text, gradient text, body tracking ...);
+  (6) verify stage checks WEBFONT LOAD + live scroll choreography + console errors; (7) fonts may come
+  from Google Fonts or Fontshare. Models: build + AD = session (Fable 5.1), verify = Sonnet, judge =
+  fresh Fable with the reference shots beside ours.
+- ENVIRONMENT GOTCHAS (this session): the shell starts with a BARE PATH (no Homebrew, no node; the rtk
+  hook then dies with "command not found: rtk"). Prefix every Bash command with
+  `export PATH=/Users/triok.t/.nvm/versions/node/v24.14.1/bin:/opt/homebrew/bin:$PATH;` - the workflow
+  prompts carry this as an ENV note for subagents. Local server = `python3 -m http.server 8765 --bind
+  127.0.0.1` from showcase/. Deploy clone re-created at /tmp/reel-deploy (github-ktpz alias). Headless
+  FPS is load-sensitive while scouts/builders run browsers (passport read scroll 36 under load): never
+  fail on FPS alone, spot-check when quiet.
+- BATCH NUMBERING continues from 68: first world-class batch = 69.
+- SURVEY DONE `wwq1oqzo4` (10/10 lenses, 100 findings, ~500 real sites captured, 3.5M subagent tokens,
+  81 min). Curated to `_backlog-worldclass.json`: 93 unique directions (34 strength-5) after merging 6
+  cross-lens duplicates; each carries signature / grammar / typeStack / motion / contentModel /
+  buildRisk / refShots. Status helper: `python3 _backlog_set.py <status> <backlog-slug>=<template-slug>`.
+  The `lenses` block holds each lens's landscape + dated-moves list + motion notes (brief fuel).
+  CROSS-LENS READ OF 2026: structure IS the design (index / ledger / programme as homepage; display to
+  text 6:1 to 15:1 or no display tier at all); flat total colour and paper tones, never gradients /
+  glass / shadows / rounded cards; browser defaults worn as couture; navigation as composition;
+  live local facts as micro-interaction; luxury by subtraction and ONE loud decision (linen and
+  saturated fields, not gold on black); tech went light and warm with small headlines and real-DOM
+  product windows; motion = state machines, scrubbed-linear or played-once, hover as hard swap.
+- IMAGE GENERATION UNLOCKED (King 2026-10-02: "use it without limit, whatever the idea needs"):
+  kinzen-codex-imagegen skill = Codex workers with built-in image gen, no API billing. Wrapper:
+  `./_img-job.sh <slug> <brief.md> [worker 2..4]` (run_in_background; relays, waits for result.md,
+  then `_img-ingest.sh` writes WebP q84 copies to showcase/assets/wc/<slug>/ + a contact sheet at
+  output/imagegen/wc/<slug>/_contact.jpg; masters stay in output/imagegen/, git-ignored). Briefs live
+  in output/imagegen/wc/_briefs/. Measured: ~2.5 min per 1536x1024 image, photographic quality is
+  real (pilot: board-formed concrete corridor). 3 workers run in parallel (default + w2 + w3).
+  GOTCHA: a NEW worker session opens on a Codex "Update available" prompt -> job stays QUEUED; the
+  wrapper now sends Escape (skip, never update) and drains the spool via kinzen-inbox.sh --deliver.
+  RULE: every photo-led template gets its OWN art-directed set (one photographer, one light), image 1
+  as the style reference for the rest; no people's faces, no text in images. Deploy must also rsync
+  showcase/assets/ -> /tmp/reel-deploy/assets/.
+- IDENTITY RULE (set at batch 69): references are the SCHOOL, never the site. Every brief shifts
+  client type, name, palette / ink set and at least one device so the result is "same league", not a
+  clone (e.g. GT Mechanik plates -> TAKT keyboard switches whose ruler measures key travel;
+  Etablissement -> Tensile structural engineers with to-scale span diagrams; ERA -> Cap Llimona with a
+  green / sea-glass / ivory palette, lemon cut-outs and scooped-corner frame).
+- IN FLIGHT (04:10, launched as images landed; one workflow per 1-2 templates so nothing waits):
+  BATCH 69 = `wk6inlnam` cropped-wordmark-ledger (Tensile, structural engineers) + technical-plate-
+  specimen (TAKT keyboard switches); `wnf02f8d6` riviera-arch-portal (Cap Llimona, Mallorca; 7 imgs)
+  + warm-paper-agent-window (Halyard; 2 painted grounds); `wfza0832c` stretched-slab-navigation
+  (Okapi Grade colourist; 8 graded film stills + LOG/GRADE wipe).
+  BATCH 70 = `wnrcye5a7` sticky-megatype-dossier (Kino Sirene cinematheque) + spiral-stair-contents
+  (The Stair Lectures); `w3fu68yxd` script-splice-salon (Salon du Fauve; 6 interiors);
+  `w66lncanm` ruled-ticker-museum (Museum Kade; 8 programme shots); opus-plan-index WAITING on its
+  8 typological building photos (w2).
+  BATCH 71 image sets queued: tategaki-confectioner (wagashi, w1), expedition-column-rules (Atacama
+  astronomy camp "Cielo Alto", w2), watercolour-shopfront (seed merchants "Pimpernel and Daughter",
+  12 ink-and-wash illustrations, w3). Image-free picks for 71: bi-script-specimen-bands (Thai
+  foundry; builder must load the thai-style skill), dark-figure-plate.
+- MODEL SWITCH 07:00 (King: Fable 5.1 near its quota -> move to Opus 5.5). The 9 Fable workflows still
+  in flight were stopped; 3 builds had already written complete files (cropped-wordmark-ledger,
+  warm-paper-agent-window, sticky-megatype-dossier: catalog these builtBy "Fable 5.1"); the other 9
+  were relaunched from scratch on Opus 5.5 (catalog builtBy "Opus 5.5"). `_batch-workflow.js` now
+  names every model explicitly (BUILD_MODEL / AD_MODEL = 'opus', verify 'sonnet'; per-archetype
+  buildModel / adModel overrides), takes `briefFile` (JSON brief on disk) and `skipBuild` (finish an
+  existing file with verify + art direction only). Verified in the transcripts: builders =
+  claude-opus-5-5, verifiers = claude-sonnet-5-5. Judge = fresh Opus 5.5 (Agent model 'opus').
+  BRIEFS NOW LIVE ON DISK: `findings/worldclass-survey-2026-10/briefs/<slug>.json` (all 12; extracted
+  from the build transcripts). Launch new builds with {slug, name, briefFile} so a context reset or a
+  quota stop can always relaunch without the conversation.
+  IN FLIGHT 07:02: `wcw31k4w2` finish (verify + AD) the 3 Fable files; `wmo6x84q3` technical-plate-
+  specimen, riviera-arch-portal, stretched-slab-navigation; `wztg74p37` spiral-stair-contents,
+  script-splice-salon, ruled-ticker-museum; `w4ccqj2y8` opus-plan-index, expedition-column-rules,
+  tategaki-confectioner. The seed-shop illustration set (watercolour-shopfront) is generating on
+  Codex worker w3 (its first relay sat unsubmitted in the pane after a Codex reconnect; submitted by
+  hand 06:52: GOTCHA, after a "Reconnected ... recovered queues remain paused" notice, check panes).
+- BATCH 71 IN FLIGHT 07:10 `wikotz2r0` (Opus 5.5, briefs on disk): watercolour-shopfront (Pimpernel
+  and Daughter seed merchants; 12 ink-and-wash illustrations, multiply-blended), thai-script-specimen-
+  bands (Rueang Type; Noto Sans Thai vs Looped switch, weight scrub; builder told to load thai-style),
+  dark-figure-plate (Corvid Systems R1 appliance; amber accent; JS isometric projection).
+  BATCH 72 IMAGE SETS QUEUED 07:12: linocut-dining-rooms (The Ropewalk, 1-bit linocut facade + spots +
+  scallop border, w1), instrument-catalogue (Kobold Instruments K-1 / R-2 / W-3: alpha front
+  elevations + black stage shots, w2), gouache-fruit-mark (six seasonal gouache fruits for a canal
+  cafe, w3). Batch-72 image-free candidates: reading-line-ruler-manual, overflow-ledger-index,
+  hairline-cell-ledger-dither. Briefs for all of these must be written to briefs/<slug>.json first.
+- 07:40 STATUS: `wcw31k4w2` DONE (3 Fable files verified + Opus AD'd; my gate clean: 120fps, no
+  overflow, fonts loaded, 4/4 live scroll frames, 0 dashes; lint HIGHs = by-design crops). Fresh Opus
+  judge running on those 3. Launched batch 72: `wcxi3s38f` reading-line-ruler-manual + hairline-
+  cell-ledger-dither; `wil1frf1r` gouache-fruit-cafe (Lock House, seasonal fruit by month) +
+  linocut-ropewalk-dining (The Ropewalk, Bristol quay; live sunset). Images still generating:
+  instrument-catalogue (w2), overflow-ledger-index found objects (w4). Pending builds once images
+  land: instrument catalogue, overflow-ledger-index (brief on disk).
+- FIRST JUDGE (Opus, 08:05) on the 3 Fable files: cropped-wordmark-ledger PASS 8/10 (elevations:
+  420 m structure drawn behind the cropped word + arrow row as a dimension line; phone word fills the
+  screen; crop shows the n's shoulder); sticky-megatype-dossier NEEDS-FIX 8/10 (Country/Print header
+  collision; floating collision marks; nav words were the reference's own "Agenda"/"Search"; siren
+  too clean; focus search on arrival); warm-paper-agent-window NEEDS-FIX 7/10 ("it simply IS
+  cursor.com": delete the CLI-overlap window, make the RELEASE TRAIN the hero object, masts ground).
+  Three Opus fix / elevation agents dispatched (08:07). Re-judge all three after fixes.
+- LANE LESSON (judge, decisive; now baked into _batch-workflow.js SHARED + AD prompt as the
+  IDENTITY RULE): briefs derived from a reference's scroll=0 signature produce RESKINS ("the
+  reference renamed"), even with a new client name and palette. Brief the REGISTER plus the CLIENT'S
+  OWN OBJECT (the release train, the to-scale structures, the siren) and forbid the reference's hero
+  layout, chrome positions and nav words. Briefs written before 08:10 (the 15 in flight) carry the
+  old method: expect identity fixes after judging. New briefs: describe the school in one paragraph,
+  then design the hero FROM the client's object; list the reference's specific hero elements as
+  things NOT to reproduce.
+- `wztg74p37` DONE (spiral-stair-contents, script-splice-salon, ruled-ticker-museum: 9/9 agents,
+  0 errors); my gate clean; fresh Opus judge running (with the reskin question made explicit).
+- 08:40 STATUS: ALL 15 BUILDS COMPLETE (0 agent errors), all gated clean (120fps, no overflow, fonts
+  load, 4/4 live scroll frames, 0 dashes). JUDGE 2 (stair / salon / museum): all NEEDS-FIX for
+  RESKIN (7, 6, 6): HTML Review, House of Honey, Stedelijk renamed. Own-object recompositions
+  dispatched to Opus fix agents: stair -> a real 1911 NEWEL stair (newel column, winder wedges,
+  handrail, masthead at the foot); salon -> a lacquer COLOUR FAN DECK from a brass rivet whose top
+  chip drenches the screen; museum -> SHIP'S STERN typography (name over home port LINDEHAVEN,
+  painted draught-mark scale, coral waterline tag, port-word date tags, no arrow suffixes).
+  Judges 3-5 running: (shop, Thai, figure plate), (TAKT, Cap Llimona, Okapi Grade), (gouache,
+  linocut, reading line, Nordwind), (plan index, Cielo Alto, Kagetsu-an). Fix agents running:
+  Halyard (release train), Kino Sirene, Tensile. `wwz1do3kr` building overflow-ledger-index (FIRST
+  build under the IDENTITY RULE: watch whether its first judge still says "reskin").
+  Codex worker w2 dropped the instrument job on "Selected model is at capacity": re-submitted by
+  kinzen-send at 08:38 (GOTCHA: check worker panes for capacity errors when a set never lands).
+- 08:55: JUDGE 3 (shop / Thai / figure plate) = all NEEDS-FIX for RESKIN (6, 7, 7: Choosing
+  Keeping, Cadson Demak, Oxide renamed). Own-object fixes dispatched: shop -> SEED-DRAWER CABINET
+  (2x6 drawer fronts with brass card frames; no rail, no strip; finder as a seed-packet form line);
+  Thai -> THAI VERTICAL-METRICS PROOF (five guide lines, เรื่อง 900 standing on them, เล่า 100, loop
+  switch on the hero word; three Thai slips fixed; tone-mark stroke defect); Corvid -> the CUSTOMER'S
+  FLOOR PLAN (ward-b comms room, rack 3 lifted with the R1, roost readout as the rack label).
+  Common fix procedure now lives in `_fix-prompt.md` (agents read it; prompts carry only the
+  specifics). Instrument-catalogue build launched `wx8kopi4i` under the IDENTITY RULE (the playable
+  K-1 is the hero). 9 fix agents + 3 judges + 2 builds in flight.
+- 09:20: JUDGES 4 + 5 = all NEEDS-FIX for RESKIN (TAKT 7 GT Mechanik; Cap Llimona 6 ERA; Okapi
+  Grade 7 Schultzendorff; Bureau HAV 6.5 KGDVS; Cielo Alto 7 White Desert; Kagetsu-an 7.5 Ougiya),
+  every one with working mechanics and own content BURIED BELOW THE FOLD. Own-object fixes
+  dispatched: TAKT live switch in the hero + cross-stem plan + label overprint fix; Cap Llimona
+  ivory site plan of the headland with 42 plots + true condensed didone; Okapi LOG/GRADE split as
+  the opening band + keyboard focus fix; HAV "one scale" sheet (spans set by building length,
+  drawing labels); Cielo Alto TONIGHT'S DARKNESS (rules = hours, dusk / dawn band, plain-text nav,
+  no glass); Kagetsu-an live 二十四節気 band in the hero + four copy slips. Halyard fix DONE (release
+  train hero, masts ground; all gates pass). 15 fix agents dispatched in total; re-judge each after
+  its fix, then catalog passes. Score so far for the 15 original builds: 1 PASS (Tensile), 14 own-
+  object recompositions. The lesson is now permanent in the pipeline (IDENTITY RULE).
+- 09:35: JUDGE 6 = gouache 6 (Cafe Cecilia), Ropewalk 7 (Quo Vadis; + Sunday-hours data bug),
+  Measure 5 (Devouring Details coordinate copy), Nordwind 7 (Aspen): all NEEDS-FIX for RESKIN.
+  Fixes dispatched: Lock House -> the painted COTTAGE DOOR (lettered panels, hours notice pinned);
+  Ropewalk -> the whole print above the fold flanked by live notices driving the sign; Measure ->
+  a COMPOSITOR'S LINE GAUGE (baseline ruler + character gauge + reading window); Nordwind -> the
+  ROUTING CHART (real cone, forecast dots, direct vs sent tracks, graticule labels). Tensile
+  elevation DONE (420 m bridge drawn behind the cropped word; dimension-line announce row).
+  ROUND-1 TALLY: 15 judged; 1 PASS; 14 reskins -> all 14 recomposed around own objects (Halyard
+  and Tensile done; 17 fix agents running). Next: re-judge in trios as fixes land, catalog PASSes.
+- 10:20 FIRST PASSES: re-judge 1 = cropped-wordmark-ledger PASS 8 (the 420 m crossing through the
+  word = "an image only a structural engineer could own"), sticky-megatype-dossier PASS 8 (grid still
+  BNM-like but execution and live content at reference level), warm-paper-agent-window 8 NEEDS-FIX
+  (390 window-bar title collision; train must read at 300px as a dark chain; nav still Cursor's).
+  Finishing fixes dispatched for the two passes (unit no-break spaces, "Ter" crop, masthead hold;
+  "4200 prints", Titles i-dot, first box headed by tonight's film) and a 2nd fix round for Halyard.
+  PLAN: catalog + DEPLOY the two passes as soon as their finishing fixes land (first visible output
+  of the lane on the gallery; builtBy "Fable 5.1" for both, lane "worldclass").
+  Also built under the IDENTITY RULE and now in first judging: overflow-ledger-index, instrument-
+  catalogue. Re-judges running: museum, shop / Okapi / salon, Thai.
+- LATE RESULTS after the limit (agents kept running): re-judge 2 = stretched-slab-navigation PASS 8
+  (elevations: clean the squash so no title sits half under the tile; live timecode; hovered row
+  grows), script-splice-salon PASS 8 (elevations: fade statement / wordmark early in the drench so
+  no ochre sliver; replace the deck's soft shadow with a 1px oxblood edge; Rooms frame sized to the
+  photo; chip fans on hover), watercolour-shopfront 7 NEEDS-FIX (redraw the 12 drawer fronts in the
+  illustrator's ink hand, not vector UI chrome; close the gap above the wordmark; a visible drawer
+  pull with packets; dots instead of 7 identical pills). PASSES SO FAR = 4 (Tensile, Kino Sirene,
+  Okapi Grade, Salon du Fauve). Recompositions finished and awaiting re-judge: dark-figure-plate,
+  gouache-fruit-cafe, reading-line-ruler-manual, technical-plate-specimen, linocut-ropewalk-dining,
+  tategaki-confectioner, expedition-column-rules, hairline-cell-ledger-dither, opus-plan-index,
+  riviera-arch-portal (+ thai and instrument-catalogue judge results pending; spiral-stair fix and
+  Halyard / Tensile / Kino finishing fixes may still land). New judge habit (lane note): check
+  in-between scroll frames, and any new device must be drawn in the page's existing hand.
+- instrument-catalogue PASS 8 on its FIRST judge ("the scroll=0 frame is the client's own
+  composition") = the IDENTITY RULE works on first build. Elevations: pressed graphite keys must
+  not turn into a second red key; LCD alternates ready / play: a to k (drop the grey hint; fix "the
+  red one is a" vs computer key f); draw R-2 and W-3 at the K-1's mm scale on a shared ground line;
+  stop the W-3 needle short of the band numbers. thai-script-specimen-bands 8 NEEDS-FIX: Thai
+  compounds break in body copy (route descriptions, scrub note, licensing cells, colophon through
+  the page's rich() {compound} mechanism; list in the verdict); elevations: proof takes ~70% of the
+  first screen with the pun leader on the mai ek; vary bands 2-3; poster cap; licensing wording.
+  PASSES = 5: cropped-wordmark-ledger, sticky-megatype-dossier, stretched-slab-navigation,
+  script-splice-salon, instrument-catalogue (all need their listed elevations applied, then gate,
+  catalog, deploy).
+- USAGE LIMIT HIT ~10:45 (2026-10-02). EXACT RESUME POINT (nothing of this lane cataloged or
+  deployed yet; manifest still 327; main repo has uncommitted work):
+  PASSED, finishing fixes were running: cropped-wordmark-ledger, sticky-megatype-dossier -> gate,
+  eyeball, catalog (builtBy "Fable 5.1", lane "worldclass"), deploy (rsync templates AND assets).
+  JUDGED NEEDS-FIX, fix not yet dispatched: overflow-ledger-index 7 (move each intake record from
+  the left rail to the END of its row after the photo; black view words + [Register] in the green
+  strip, white was 3.19:1; phone desk strip order; find row snapped to a word boundary with its
+  photo at the end on phone; hover slows over the last 300px); ruled-ticker-museum 8 (phone rows:
+  date tag as a static line above, 72x48 photo, flag after title; hover photo scales from its left
+  edge; LINDEHAVEN + draught scale scrub with the name; snap arrival / departure days to open days).
+  WERE IN FLIGHT when the limit hit (check each file with ./_gate.sh; a cut-off agent may have left
+  a half-applied recomposition: backups of the pre-fix files are in the session scratchpad):
+  Halyard 2nd fix round; fix agents for spiral-stair (newel stair), technical-plate (live switch),
+  riviera (site plan), opus-plan (one-scale sheet), expedition (tonight's darkness), tategaki
+  (solar-term band), gouache (painted door), linocut (notice board), reading-line (line gauge),
+  hairline-dither (routing chart); judges for (shop, Okapi, salon) re-judge and (instrument-
+  catalogue first judge, Thai re-judge). Corvid (dark-figure-plate) fix DONE, needs re-judge;
+  seed shop, Okapi, salon, Thai, museum fixes DONE (judges were running).
+  Briefs for every template: findings/worldclass-survey-2026-10/briefs/<slug>.json; judge prompt
+  _judge-prompt.md; fix procedure _fix-prompt.md; interactions judge-interactions.json.
+- (superseded by the switch above) SESSION USAGE LIMIT HIT ~04:25 WITH 12 BUILDS IN FLIGHT. RESUME POINT WAS:
+  nothing in this lane is gated, judged, cataloged or deployed yet (manifest still 327). Also launched
+  after the list above: `wjchcmzqz` opus-plan-index (Bureau HAV), `wyi56phqw` expedition-column-rules
+  (Cielo Alto, Atacama; 7 imgs), `w731ou0rm` tategaki-confectioner (Kagetsu-an; 8 imgs; Japanese
+  vertical text). The watercolour-shopfront image set (12 illustrations, w3) was still generating.
+  ON RESUME: (1) restart the server: `cd showcase && python3 -m http.server 8765 --bind 127.0.0.1`
+  (the tracked one hit its 2h cap); (2) check DISK for the 12 slugs (cropped-wordmark-ledger,
+  technical-plate-specimen, riviera-arch-portal, warm-paper-agent-window, stretched-slab-navigation,
+  sticky-megatype-dossier, spiral-stair-contents, script-splice-salon, ruled-ticker-museum,
+  opus-plan-index, expedition-column-rules, tategaki-confectioner); a file that exists but whose
+  workflow died before verify / art-direct goes through `_verify-workflow.js`; a slug with no file is
+  relaunched from its brief (the briefs are in the workflow transcripts under the session's
+  subagents/workflows/ dir, and each direction's source is in `_backlog-worldclass.json`);
+  (3) `./_gate.sh <slugs>`; (4) fresh judge per `_judge-prompt.md`; (5) fix / elevate; (6) catalog:
+  `python3 _catalog.py entries.json` with `lane: "worldclass"`, `builtBy: "Fable 5.1"`; (7) deploy:
+  rsync showcase/templates/ AND showcase/assets/ into /tmp/reel-deploy, commit, push;
+  (8) then the held batch-71 picks: watercolour-shopfront (when its images exist),
+  bi-script-specimen-bands (Thai; builder loads thai-style), dark-figure-plate.
+  The main repo has uncommitted work from this session (scripts, backlog, runbook, assets).
+- JUDGE: reusable prompt at `_judge-prompt.md` (fresh Fable per completed workflow; reads thumbs +
+  phone + filmstrip + the reference shots AND exercises the signature interaction with a headless
+  probe; PASS = 8+/10 against the references, no defect, interaction works; elevations required).
+- MACHINE LOAD is high tonight (load avg ~29 on 10 cores: other sessions run ffmpeg + headless
+  Chromium too), so headless FPS readings are unreliable: note them, never fail on them.
+
 ## STATE (update each batch; _manifest.json is the source of truth)
 - 2026-06-23 RESUMED (King reviewed the categorized gallery, found it useful, said go long after BOLD/wow ideas). Gallery now has 9 categories + jump-nav + live filter + localStorage favorites (star per card, Favorites pill). Library = 171 cataloged.
 - Batch 35 DONE + cataloged (psychedelic-60s-poster, digital-memorial-tribute, masterclass-course-pdp, chord-diagram-hero, scroll-timeline-chapter-nav - recovered via verify-only, all PASS -> 176 live).

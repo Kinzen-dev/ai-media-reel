@@ -1,0 +1,1005 @@
+<!-- TEMPLATE: Spiral stair contents | ARCHETYPE: Handmade web grown into craft: default Times and Arial on one audacious structural idea, a CSS 3D spiral staircase whose treads are the contents rows | REF: The HTML Review issue 05, Internet Phone Book, Are.na | WHEN TO USE: a programme, season, issue or syllabus of roughly 8 to 16 dated entries where the contents list itself should be the object (lecture series, literary journal issue, festival line-up, course syllabus) | SWAP: edit the DATA object at top of the script (lectures, past seasons) and the marked CONTENT blocks in the markup (masthead, about, attend, colophon) -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>the stair lectures, season 9</title>
+<meta name="description" content="Twelve free public lectures on the main staircase of the Carrow Library, every other Thursday, autumn and winter 2026. Eighty seats on the steps, doors at 18:30.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Arimo:wght@400&family=Tinos:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+@property --u { syntax: '<number>'; inherits: false; initial-value: 1; }
+
+:root {
+  --paper: #FBFAF6;
+  --ink: #111111;
+  --ink-2: #55534C;
+  --front: #FFFFFF;
+  --top: #F4F2EC;
+  --side: #EDEBE5;
+  --edge: #E2E0D9;
+  --next: #FFE600;
+  --next-edge: #DCC600;
+  --serif: 'Tinos', 'Times New Roman', Times, serif;
+  --sans: 'Arimo', Arial, Helvetica, sans-serif;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 0.2, 1);
+  color-scheme: light;
+  scrollbar-color: var(--ink) var(--paper);
+  scrollbar-width: thin;
+}
+
+* { box-sizing: border-box; }
+html { background: var(--paper); -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 19px/1.52 var(--serif);
+  caret-color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+::selection { background: var(--ink); color: var(--paper); }
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: var(--paper); }
+::-webkit-scrollbar-thumb { background: var(--ink); border: 3px solid var(--paper); border-radius: 9px; }
+
+a { color: inherit; text-decoration-line: underline; text-decoration-thickness: 1px; text-underline-offset: 0.2em; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+time, .num { font-family: var(--sans); font-size: 0.86em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vh { position: absolute !important; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.skip { position: absolute; left: 40px; top: -60px; z-index: 20; background: var(--front); padding: 8px 12px; border: 1px solid var(--edge); font: 400 15px/1.2 var(--sans); }
+.skip:focus { top: 16px; }
+
+/* ---------- the flight: pinned stage, document scroll drives the stair ---------- */
+@property --sl { syntax: '<length>'; inherits: true; initial-value: 0px; }
+@property --srot { syntax: '<angle>'; inherits: true; initial-value: 0deg; }
+.flight {
+  position: relative;
+  height: calc(100vh + 300vh);
+  height: calc(100svh + 300svh);
+}
+.stage {
+  /* geometry, desktop: a stone newel stair, 8.5 degrees of turn per tread */
+  --W: clamp(520px, 41.7vw, 640px);  /* newel axis to the wall end of a tread */
+  --R: calc(var(--W) * 0.06);         /* newel apothem: treads start at its face */
+  --H: 104px;                         /* one riser */
+  --dt: 8.5deg;
+  --base: -12.75deg;
+  --hr: 88px;                         /* handrail height over each tread */
+  --Rb: calc(var(--W) + 10px);        /* balusters stand just outside the tread ends */
+  --stack: 66deg;
+  --slide: 24px;
+  --newel-x: 40%;
+  --eye-y: -12%;
+  --foot: max(156px, 17.4svh);       /* floor line: the foot of the stair */
+  --read-y: calc(100svh - var(--foot));
+  --lift: 30svh;
+  --liftf: 0.3;
+  /* the step back at the top of the climb, so the whole stair ends inside the stage */
+  --Z: 1700px;
+  --rb: 55deg;
+  --dy: 12svh;
+  --pos: 0;
+  --c: 0;
+  --b: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100svh;
+  overflow: clip;
+  perspective: max(1020px, 113svh);
+  perspective-origin: var(--newel-x) var(--eye-y);
+  transition: --sl 380ms var(--ease-out), --srot 380ms var(--ease-out);
+}
+
+/* masthead (CONTENT lives in the markup): at the foot of the stair, where the speaker stands */
+.mast { position: absolute; z-index: 4; left: 40px; bottom: var(--foot); text-align: left; }
+.mast h1 {
+  margin: 0;
+  font: 400 clamp(44px, 4.6vw, 72px)/1 var(--serif);
+  letter-spacing: -0.012em;
+  white-space: nowrap;
+}
+.mast p { margin: 0; font: 400 clamp(17px, 1.5vw, 22px)/1.27 var(--sans); }
+.mast .season { margin-top: 8px; }
+
+/* the stair: one rigid body (newel, treads, rail, landing) */
+.stair, .gstair {
+  position: absolute;
+  z-index: 1;
+  left: var(--newel-x);
+  top: var(--read-y);
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+  transform:
+    translate3d(0, calc(var(--c) * var(--lift) * -1 + var(--b) * var(--dy) + var(--sl)), calc(var(--b) * var(--Z) * -1))
+    rotateY(calc(var(--b) * var(--rb) + var(--srot)));
+}
+.gstair { z-index: 5; pointer-events: none; }
+.treads { position: absolute; left: 0; top: 0; margin: 0; padding: 0; list-style: none; transform-style: preserve-3d; }
+.tread, .gtread, .landing {
+  --rel: calc(var(--i) - var(--pos));
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-style: preserve-3d;
+  transform:
+    translate3d(0, calc(var(--rel) * var(--H) * -1), calc((1 - var(--u)) * -48px))
+    rotateY(calc(var(--stack) * (1 - var(--u)) + (var(--base) + var(--rel) * var(--dt)) * var(--u)));
+}
+.tread, .landing { animation: unfold 520ms var(--ease-out) both; animation-delay: calc(160ms + var(--k) * 60ms); }
+.tread { cursor: pointer; }
+.landing, .newel, .rail, .bal { pointer-events: none; }
+@keyframes unfold { from { --u: 0; } to { --u: 1; } }
+
+.box, .lseg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-style: preserve-3d;
+  transition: transform 160ms var(--ease-exit);
+}
+.lseg { transform: rotateY(calc(var(--s) * var(--dt))); transition: none; }
+.face {
+  position: absolute;
+  left: 0;
+  top: 0;
+  margin: 0;
+  border: 1px solid var(--edge);
+  transform-origin: 0 0;
+}
+/* the tread is a winder wedge, narrow at the newel and wide at the wall:
+   painted as a triangle (no clip-path, which is costly on 3D layers); the inner tip hides inside the newel */
+.top {
+  --tc: var(--top);
+  width: var(--W);
+  height: calc(var(--W) * sin(var(--dt)));
+  border: 0;
+  border-top: 1px solid var(--edge);
+  background: linear-gradient(to bottom left, var(--tc) 50%, transparent calc(50% + 0.75px));
+  transform: translateY(calc(var(--H) * -1)) rotateX(-90deg);
+}
+.wall {
+  width: calc(var(--W) * sin(var(--dt)));
+  height: var(--H);
+  background: var(--side);
+  transform: translate3d(var(--W), calc(var(--H) * -1), 0) rotateY(90deg);
+  backface-visibility: hidden;
+}
+.front {
+  -webkit-appearance: none;
+  appearance: none;
+  left: var(--R);
+  width: calc(var(--W) - var(--R));
+  height: var(--H);
+  transform: translateY(calc(var(--H) * -1));
+  backface-visibility: hidden;
+  background: var(--front);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1.4fr) minmax(0, 0.95fr) auto;
+  column-gap: 16px;
+  align-items: center;
+  padding: 0 20px 0 16px;
+}
+.front:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.row:focus-visible { outline-offset: -2px; position: relative; z-index: 1; }
+.tread:hover .box, .tread:focus-within .box, .tread.is-open .box, .gtread .box {
+  transform: translateX(var(--slide));
+  transition: transform 240ms var(--ease-out);
+}
+.tread:hover .top, .tread:focus-within .top, .tread.is-open .top { --tc: var(--side); }
+.tread.is-next .front { background: var(--next); border-color: var(--next-edge); }
+.lfront { cursor: default; }
+.lfront .t { font-weight: 400; }
+
+/* outer handrail: a baluster on every tread, a rail from baluster top to baluster top */
+.bal, .rail { position: absolute; left: 0; top: 0; background: var(--ink); }
+.bal { background: var(--ink-2); }
+.bal {
+  width: 1.5px;
+  height: calc(var(--hr) + var(--H) * 0.5);
+  margin-left: -0.75px;
+  transform-origin: 50% 0;
+  transform:
+    translate3d(calc(var(--Rb) * cos(var(--dt) / 2)), calc((var(--H) + var(--hr)) * -1), calc(var(--Rb) * sin(var(--dt) / 2) * -1))
+    rotateY(calc(var(--dt) / 2 + var(--ba, 45deg)));
+}
+.bal.b2 { --ba: -45deg; }
+.rail {
+  --rise: var(--H);
+  --chord: calc(var(--Rb) * sin(var(--dt) / 2) * 2);
+  width: hypot(var(--chord), var(--rise));
+  height: 2px;
+  margin-top: -1px;
+  transform-origin: 0 50%;
+  transform:
+    translate3d(calc(var(--Rb) * cos(var(--dt) / 2)), calc((var(--H) + var(--hr)) * -1), calc(var(--Rb) * sin(var(--dt) / 2) * -1))
+    rotateY(calc(90deg + var(--dt)))
+    rotateZ(calc(atan2(var(--rise), var(--chord)) * -1))
+    rotateX(var(--rx, 0deg));
+}
+.rail.rh { --rx: 90deg; height: 2px; margin-top: -1px; }
+.landing .rail { --rise: 0px; }
+
+/* the newel: an octagonal stone shaft on a plinth, capped above the landing */
+.newel {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-style: preserve-3d;
+  transform: translateY(calc(var(--pos) * var(--H))) rotateY(calc(var(--pos) * var(--dt) * -1));
+}
+.nf {
+  position: absolute;
+  left: calc(var(--a) * -0.4142);
+  top: var(--y0);
+  width: calc(var(--a) * 0.8284);
+  height: var(--h);
+  border: 1px solid var(--edge);
+  background: var(--front);
+  transform-origin: 50% 50%;
+  transform: rotateY(calc(var(--k) * 45deg + 22.5deg)) translateZ(var(--a));
+  backface-visibility: hidden;
+}
+.ntop {
+  position: absolute;
+  left: calc(var(--a) * -1.06);
+  top: calc(var(--y0) - var(--a) * 1.06);
+  width: calc(var(--a) * 2.12);
+  height: calc(var(--a) * 2.12);
+  border-radius: 50%;
+  background: var(--top);
+  border: 1px solid var(--edge);
+  transform-origin: 50% 50%;
+  transform: rotateX(90deg);
+}
+.shaft { --a: var(--R); --y0: calc(var(--H) * -13 - 120px); --h: calc(var(--H) * 13 + 94px); }
+.plinth { --a: calc(var(--R) * 1.42); --y0: -26px; --h: 26px; }
+.cap { --a: calc(var(--R) * 1.3); --y0: calc(var(--H) * -13 - 138px); --h: 18px; }
+
+/* row cells, shared by the treads, the flat list and the sheet */
+.n { font: 400 11px/1 var(--sans); font-variant-numeric: tabular-nums; align-self: center; }
+.t { font: 700 17px/1.16 var(--serif); text-wrap: balance; min-width: 0; }
+.d { font: italic 400 15px/1.2 var(--serif); min-width: 0; }
+.w { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; text-align: right; min-width: 0; }
+.sp { font: 400 15px/1.2 var(--serif); white-space: nowrap; }
+.dt { font: 400 12px/1.2 var(--sans); font-variant-numeric: tabular-nums; }
+.dt s { text-decoration-thickness: 1px; }
+
+/* ---------- the sheet: the opened tread unfolds below its own riser ---------- */
+.sheet {
+  position: absolute;
+  left: var(--R);
+  top: 0;
+  width: calc(var(--W) - var(--R));
+  max-height: var(--sheet-max, none);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  pointer-events: auto;
+  background: var(--front);
+  border: 1px solid var(--edge);
+  border-top: 0;
+  padding: 16px 20px 0 16px;
+  backface-visibility: hidden;
+  scrollbar-width: thin;
+}
+.sheet[hidden] { display: none; }
+.sh-head { display: grid; grid-template-columns: 24px minmax(0, 1fr); align-items: baseline; column-gap: 16px; }
+.sh-head .n { align-self: baseline; position: relative; top: -2px; }
+.sheet h2 { margin: 0; font: 700 22px/1.15 var(--serif); letter-spacing: -0.005em; text-wrap: balance; }
+.sheet h2:focus { outline: none; }
+.sheet h2:focus-visible { outline: none; }
+.sh-meta { margin: 8px 0 0 40px; font: 400 16px/1.4 var(--serif); }
+.sh-meta em { font-style: italic; }
+.sh-abs { margin: 12px 0 0 40px; font: 400 16.5px/1.48 var(--serif); text-wrap: pretty; hanging-punctuation: first; max-width: 62ch; }
+.sh-bio { margin: 10px 0 0 40px; font: 400 15px/1.42 var(--serif); color: var(--ink-2); text-wrap: pretty; max-width: 62ch; }
+.sh-act { position: sticky; bottom: 0; margin: 4px 0 0; padding: 10px 0 14px 40px; background: var(--front); display: flex; flex-wrap: wrap; gap: 6px 22px; align-items: baseline; font: 400 16px/1.3 var(--serif); }
+.sh-act .note { color: var(--ink-2); }
+.linkbtn {
+  -webkit-appearance: none; appearance: none; background: none; border: 0; padding: 0; margin: 0;
+  font: inherit; color: inherit; cursor: pointer;
+  text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.2em;
+}
+.linkbtn:hover { text-decoration-thickness: 2px; }
+.linkbtn .num { margin-left: 4px; color: var(--ink-2); text-decoration: none; display: inline-block; }
+@media (hover: none), (pointer: coarse) { .linkbtn .num { display: none; } }
+/* reduced motion: the sheet hangs from its row in the flat list, in the flow */
+.sheet.in-flat { position: relative; left: auto; width: auto; max-height: none; overflow: visible; padding-left: 14px; margin: 0 0 -1px; }
+
+/* ---------- reduced motion: a flat list with stepped indents (hidden otherwise) ---------- */
+.flat { display: none; }
+.flat ol { list-style: none; margin: 0; padding: 0; }
+.flat li { margin: 0 0 -1px calc(var(--i) * 16px); }
+.row {
+  -webkit-appearance: none; appearance: none;
+  width: 100%;
+  min-height: 74px;
+  background: var(--front);
+  border: 1px solid var(--edge);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1.4fr) minmax(0, 0.95fr) minmax(0, 1fr);
+  column-gap: 16px;
+  align-items: center;
+  padding: 12px 18px 12px 14px;
+}
+.row:hover { border-color: #C9C6BD; }
+.row.is-next { background: var(--next); border-color: var(--next-edge); }
+
+/* ---------- the quiet column after the stage releases ---------- */
+.col {
+  --col-x: 30.5vw;
+  margin: 0 0 0 var(--col-x);
+  padding: 18vh 40px 120px 0;
+  max-width: calc(var(--col-x) + 680px);
+  width: calc(100% - var(--col-x));
+}
+.col section, .col footer { max-width: 640px; }
+.col section + section, .col section + footer { margin-top: 104px; }
+.col h2 {
+  margin: 0 0 20px;
+  font: 400 34px/1.1 var(--serif);
+  letter-spacing: -0.008em;
+  text-wrap: balance;
+}
+.col p { margin: 0; max-width: 62ch; text-wrap: pretty; hanging-punctuation: first; }
+.col p + p { margin-top: 0.85em; }
+
+.attend { display: grid; grid-template-columns: 9.5em minmax(0, 1fr); gap: 14px 24px; margin: 0; }
+.attend dt { font: 700 17px/1.6 var(--serif); }
+.attend dd { margin: 0; max-width: 54ch; text-wrap: pretty; }
+
+.seasons { list-style: none; margin: 34px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px 36px; }
+.seasons li { min-width: 0; }
+.mini {
+  position: relative;
+  height: 252px;
+  overflow: clip;
+  perspective: 820px;
+  perspective-origin: 50% 12%;
+  border-bottom: 1px solid var(--edge);
+}
+.scene {
+  --view: rotateX(-24deg) rotateY(-38deg);
+  --ms: 1;
+  position: absolute;
+  left: var(--sx, 50%);
+  top: var(--sy, 80%);
+  width: 0; height: 0;
+  transform-style: preserve-3d;
+  transform: var(--view) scale3d(var(--ms), var(--ms), var(--ms));
+}
+.lean { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-style: preserve-3d; transform-origin: 0 0; transform: rotateX(13deg); }
+.mb { position: absolute; left: 0; top: 0; transform-style: preserve-3d; }
+.mb i { position: absolute; left: 0; top: 0; display: block; border: 1px solid #8F8C84; transform-origin: 0 0; }
+.mb .mf { background: var(--front); }
+.mb .mt { background: var(--top); }
+.mb .mr { background: var(--side); }
+.seasons figcaption { margin-top: 14px; font: 400 16px/1.45 var(--serif); }
+.seasons figcaption strong { display: block; font: 700 17px/1.3 var(--serif); }
+.seasons figcaption .when { display: block; margin: 2px 0 6px; }
+.seasons figure { margin: 0; }
+
+.colophon p { font-size: 17px; line-height: 1.55; }
+.colophon .credits { color: var(--ink); }
+.end { margin-top: 56px; font: 400 15px/1.4 var(--sans); color: var(--ink-2); }
+
+/* ---------- phone and tablet: near-frontal newel stair under a masthead floor ---------- */
+@media (max-width: 1099px) {
+  .stage {
+    --W: 82vw;
+    --H: 112px;
+    --dt: 5deg;
+    --base: -7.5deg;
+    --hr: 64px;
+    --Rb: calc(var(--W) + 6px);
+    --stack: 40deg;
+    --slide: 12px;
+    --newel-x: calc(6vw + var(--W) * 0.065);
+    --eye-y: 9%;
+    --foot: 26px;
+    --lift: 16svh;
+    --liftf: 0.16;
+    --Z: 1750px;
+    --rb: 24deg;
+    --dy: -6svh;
+    perspective: 900px;
+  }
+  .mast {
+    top: 0; left: 0; right: 0; bottom: auto;
+    padding: 22px 7vw 16px;
+    text-align: left;
+    background: var(--paper);
+    border-bottom: 1px solid var(--edge);
+  }
+  .mast h1 { font-size: clamp(40px, 11.3vw, 64px); letter-spacing: -0.01em; }
+  .mast p { font-size: clamp(16px, 4.4vw, 20px); }
+  .mast .season { margin-top: 4px; }
+
+  .front {
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    grid-template-areas: "n t sp" "n d dt";
+    column-gap: 10px;
+    row-gap: 5px;
+    align-content: center;
+    align-items: baseline;
+    padding: 0 12px 0 10px;
+  }
+  .front .n { grid-area: n; align-self: center; }
+  .front .t { grid-area: t; font-size: 16px; }
+  .front .d { grid-area: d; font-size: 14px; }
+  .front .w { display: contents; }
+  .front .sp { grid-area: sp; font-size: 14px; text-align: right; }
+  .front .dt { grid-area: dt; text-align: right; }
+
+  .sheet { padding: 14px 12px 0 10px; }
+  .sh-head { grid-template-columns: 20px minmax(0, 1fr); column-gap: 10px; }
+  .sheet h2 { font-size: 20px; }
+  .sh-meta, .sh-abs, .sh-bio { margin-left: 30px; }
+  .sh-abs { font-size: 15.5px; line-height: 1.45; }
+  .sh-bio { font-size: 14px; }
+  .sh-act { padding-left: 30px; }
+  .col { --col-x: 7vw; margin: 0 7vw; padding: 14vh 0 96px; width: auto; max-width: none; }
+  .col h2 { font-size: 30px; }
+  body { font-size: 18px; }
+  .attend { grid-template-columns: 1fr; gap: 4px; }
+  .attend dd { margin-bottom: 14px; }
+  .seasons { gap: 34px 20px; }
+  .flat li { margin-left: calc(var(--i) * 7px); }
+  .row {
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    grid-template-areas: "n t sp" "n d dt";
+    column-gap: 10px; row-gap: 5px; align-items: baseline;
+  }
+  .row .n { grid-area: n; align-self: center; }
+  .row .t { grid-area: t; font-size: 16px; }
+  .row .d { grid-area: d; font-size: 14px; }
+  .row .w { display: contents; }
+  .row .sp { grid-area: sp; font-size: 14px; text-align: right; }
+  .row .dt { grid-area: dt; text-align: right; }
+}
+/* tablet: keep the masthead floor, but let the flight turn harder than on a phone */
+@media (min-width: 700px) and (max-width: 1099px) {
+  .stage {
+    --W: min(64vw, 600px);
+    --dt: 6.5deg;
+    --base: -9.75deg;
+    --hr: 80px;
+    --stack: 60deg;
+    --newel-x: 24%;
+    --Z: 1900px;
+    --rb: 30deg;
+    --dy: -4svh;
+    perspective: 1000px;
+  }
+  .stage .mast { padding-left: 24%; }
+}
+@media (max-width: 520px) {
+  .seasons { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mini { height: 168px; }
+  .scene { --ms: 0.64; }
+  .seasons figcaption { font-size: 15px; }
+  .seasons figcaption strong { font-size: 16px; }
+}
+
+/* ---------- reduced motion: no unfold, no pinned rotation ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .tread, .landing { animation: none; }
+  .box { transition: none !important; }
+  .stage { transition: none; }
+  .flight { height: auto; }
+  .stage { position: relative; height: min(100svh, 940px); }
+  .stair { pointer-events: none; }
+  .flat { display: block; padding: 10vh 40px 0 30.5vw; }
+  .flat > h2 { margin: 0 0 22px; font: 400 34px/1.1 var(--serif); }
+  .flat ol { max-width: 760px; }
+}
+@media (prefers-reduced-motion: reduce) and (max-width: 1099px) {
+  .flat { padding: 8vh 7vw 0; }
+  .flat > h2 { font-size: 30px; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#about">Skip past the staircase</a>
+<main>
+  <section class="flight" aria-label="Season 9 contents">
+    <div class="stage" id="stage">
+      <!-- CONTENT: masthead -->
+      <header class="mast">
+        <h1>the stair lectures</h1>
+        <p class="season">Season 9, autumn and winter 2026,<br>Carrow Library</p>
+        <p class="next" id="next-line">Every other Thursday, doors 18:30</p>
+      </header>
+      <!-- the stair: newel, treads and landing are built from DATA.lectures -->
+      <div class="stair" id="stair">
+        <div class="newel" id="newel" aria-hidden="true"></div>
+        <ol class="treads" id="treads" aria-label="Twelve lectures, in order"></ol>
+      </div>
+      <!-- the opened tread unfolds here, drawn over the stair in the same geometry -->
+      <div class="gstair" id="gstair">
+        <div class="gtread" id="gtread"><div class="box" id="gbox">
+          <aside class="sheet" id="sheet" aria-labelledby="sheet-title" hidden>
+            <div class="sh-head"><span class="n" id="sheet-n">01</span><h2 id="sheet-title" tabindex="-1">Lecture</h2></div>
+            <p class="sh-meta" id="sheet-meta"></p>
+            <p class="sh-abs" id="sheet-abs"></p>
+            <p class="sh-bio" id="sheet-bio"></p>
+            <p class="sh-act" id="sheet-act"></p>
+          </aside>
+        </div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="flat" id="flat" aria-labelledby="flat-h">
+    <h2 id="flat-h">This season</h2>
+    <ol id="flat-list"></ol>
+  </section>
+
+  <div class="col">
+    <!-- CONTENT: about the series -->
+    <section id="about" aria-labelledby="about-h">
+      <h2 id="about-h">About the series</h2>
+      <p>The main staircase of the Carrow Library was built in 1911 to carry readers from the lending hall up to the reading room: forty-four stone treads turning once round a single newel. Every other Thursday this autumn and winter it carries something else. Eighty people sit on the steps, a speaker stands at the foot, and for an hour the busiest stair in the building becomes its quietest room.</p>
+      <p>The lectures are free and always have been. Each is fifty minutes on one subject by someone who has spent years on it, then questions from the steps. Nothing is filmed. Everything is transcribed, and the transcripts are shelved in the reading room at the top of the stair, catalogued like any other book.</p>
+    </section>
+
+    <!-- CONTENT: how to attend -->
+    <section id="attend" aria-labelledby="attend-h">
+      <h2 id="attend-h">How to attend</h2>
+      <dl class="attend">
+        <dt>Seats</dt>
+        <dd>Eighty, on the treads, first come. No booking and no tickets. Cushions are handed out at the door; the stone is cold by November.</dd>
+        <dt>Doors</dt>
+        <dd><time>18:30</time> at the Wherry Street entrance. The lecture begins at <time>19:00</time> and the stair is clear by <time>20:15</time>.</dd>
+        <dt>Access</dt>
+        <dd>Twelve chairs at the foot of the stair are kept for anyone who would rather not sit on a step. The reading room landing has step-free space for four wheelchairs, reached by the lift behind the issue desk. A hearing loop covers the whole stairwell.</dd>
+        <dt>Transcripts</dt>
+        <dd>Every lecture is transcribed live onto a screen at the foot of the stair. The full text is on the reading room shelves within a week, and in large print on request.</dd>
+        <dt>Children</dt>
+        <dd>Welcome with an adult. The lowest treads are theirs.</dd>
+      </dl>
+    </section>
+
+    <!-- CONTENT: past seasons (drawings built from DATA.pastSeasons) -->
+    <section id="past" aria-labelledby="past-h">
+      <h2 id="past-h">Past seasons</h2>
+      <p>Seasons one to four were held here, on this stair. While it was taken apart and relaid between 2024 and 2026, the lectures went to whatever stair the building could spare.</p>
+      <ol class="seasons" id="seasons"></ol>
+    </section>
+
+    <!-- CONTENT: colophon -->
+    <footer class="colophon" id="colophon" aria-labelledby="colo-h">
+      <h2 id="colo-h">Colophon</h2>
+      <p class="credits">The Stair Lectures are organised by the Friends of the Carrow Library with the library&rsquo;s adult learning team, and paid for by the Friends&rsquo; annual book sale. Programme by Wen Aldous; doors, cushions and the hearing loop by Patrick Oyelaran. Suggest a speaker, or offer to be one, at the issue desk or by letter to the Friends, Carrow Library, 14 Wherry Street.</p>
+      <p>This page has no images. It is set in two typefaces, Tinos and Arimo, which share their measurements with the Times and Arial already on your computer. The staircase is an ordered list of twelve buttons turned in three dimensions with CSS, and the yellow step is worked out from today&rsquo;s date. <span id="weight">Your browser is weighing the page.</span></p>
+      <p class="end">Carrow Library, 14 Wherry Street. Free, no booking, doors <time>18:30</time>.</p>
+    </footer>
+  </div>
+</main>
+
+<script>
+/* ==========================================================================
+   DATA: swap everything here. Dates are ISO (YYYY-MM-DD), local time.
+   The next lecture is computed from the visitor's date; preview another day
+   with ?today=YYYY-MM-DD in the URL.
+   ========================================================================== */
+const DATA = {
+  series: 'The Stair Lectures',
+  seasonShort: 'Season 9',
+  venue: 'Main staircase, Carrow Library, 14 Wherry Street',
+  doors: '18:30', start: '19:00', end: '20:00',
+  lectures: [
+    { date: '2026-08-27', title: 'Two risers and a going', discipline: 'architectural history', speaker: 'Margit Halloran',
+      abstract: 'In 1675 François Blondel wrote down the rule every stair since has been measured against: twice the rise plus the going should equal one stride. Halloran has spent ten years with a folding rule and a notebook on the stairs of public buildings, and she opens the season on the one she knows best. The Carrow stair breaks Blondel’s rule on purpose at the seventh tread; she will show you where, and why the architect wanted readers to slow down there.',
+      bio: 'Margit Halloran teaches building history at the Wherry School of Architecture. Her survey of 212 civic stairs, Going and Rise, is in the reading room.' },
+    { date: '2026-09-10', title: 'The catalogue drawer', discipline: 'library science', speaker: 'Tobias Wren',
+      abstract: 'Before the database there was the drawer: oak, a thousand cards deep, with a brass rod through the bottom so nobody could walk off with a subject. The Carrow kept its card catalogue until 1998, and 214 drawers of it survive in the basement. Wren, who filed cards here as a teenager, explains how a catalogue thinks: what a see-also is for, why subjects drift, and what we lost when the search box stopped letting us browse the next card along.',
+      bio: 'Tobias Wren is the Carrow’s collections librarian. He started as a Saturday shelver in 1994 and has not really left the building since.' },
+    { date: '2026-09-24', title: 'How pigeons read a magnetic map', discipline: 'animal navigation', speaker: 'Adaeze Nwosu',
+      abstract: 'Release a homing pigeon two hundred kilometres from its loft, in country it has never seen, and it will usually be home before dark. Nwosu’s lab has tracked more than three thousand flights with GPS loggers the weight of a paperclip. She explains the three cues birds seem to combine, the Earth’s magnetic field, the position of the sun and the smell of the wind, and the one result from last year that nobody in her field can yet explain.',
+      bio: 'Adaeze Nwosu is a reader in sensory biology and keeps forty-two pigeons on a roof in Holloway Fields. She has named none of them.' },
+    { date: '2026-10-08', title: 'Lighthouse logbooks, 1840 to 1920', discipline: 'maritime history', speaker: 'Hal Petrossian',
+      abstract: 'Every night for eighty years the keepers of the Sallow Point light wrote down the same four things: the wind, the sea, the hours the lamp burned and the ships they saw. The logbooks reached the Carrow in a tea chest in 2019, and Petrossian has read all 29,000 nights of them. He will talk about what a record kept out of duty can tell us that no diary could: storms, wrecks, a keeper’s slow blindness, and one entry from 1887 that is only a drawing.',
+      bio: 'Hal Petrossian is a maritime historian and a former coastguard. His edition of the Sallow Point logs comes out from the Carrow Press next spring.' },
+    { date: '2026-10-22', title: 'Salt, sugar, smoke', discipline: 'food history', speaker: 'Rosa Imbert',
+      abstract: 'For most of history, keeping food was harder than growing it. Imbert follows the three oldest ways people have bought time from rot, and the trades each one built: the salt roads of the Atlantic coast, the sugar boiling houses that paid for half the grand terraces in this city, and the smokehouses on the river that closed the year the Carrow opened. Bring a question about your grandmother’s pantry. She will have an answer, and probably a recipe.',
+      bio: 'Rosa Imbert is a food historian and a former pastry cook. She runs the Preserving Society, which meets in the library kitchen on the first Monday of the month.' },
+    { date: '2026-11-05', title: 'Weather in translation', discipline: 'translation', speaker: 'Kenji Arakawa-Moss',
+      abstract: 'Japanese has more than one word for the showers of late autumn; Scots has a word for a bright spell between storms; English mostly says it is nice out. Arakawa-Moss translates novels for a living, and weather is where he gets stuck. He takes six weather sentences from six languages and shows what a translator does when the word simply does not exist on the other side: borrow it, explain it, or quietly leave the sky out.',
+      bio: 'Kenji Arakawa-Moss translates fiction from Japanese and Portuguese. He is the Carrow’s translator in residence for 2026.' },
+    { date: '2026-11-19', title: 'The bellringer’s arithmetic', discipline: 'mathematics', speaker: 'Philippa Strand',
+      abstract: 'Seven bells can be rung in 5,040 different orders, and English ringers worked out how to ring every one of them, without a repeat and without writing anything down, long before anyone called it group theory. Strand, who rings at St Olave’s every Sunday, explains the method, rings a short touch of it on handbells with three friends, and shows why a peal is really a walk through a very large and very orderly maze.',
+      bio: 'Philippa Strand lectures in algebra and rings the tenor at St Olave’s, Carrow Street. She has rung 61 peals and remembers every one.' },
+    { date: '2026-12-03', title: 'Mending: an argument', discipline: 'textile conservation', speaker: 'Noor Haddad',
+      abstract: 'A darn is a confession: something wore out and someone cared enough to fix it. Haddad conserves textiles for museums, where the rule is to stabilise and never disguise, and at home, where the rule is to make it last another winter. She brings four objects, a christening gown, a miner’s jacket, a regimental flag and a sock, and argues that a visible repair is not a failure of craft but the most honest record an object can carry.',
+      bio: 'Noor Haddad is senior textile conservator at the Halden Museum. Bring one worn thing with you; she will mend it on the bottom step afterwards.' },
+    { date: '2026-12-17', title: 'The rivers under Carrow Street', discipline: 'urban hydrology', speaker: 'Owen Clery',
+      abstract: 'Three rivers run under this library. You have walked over all of them and heard none. Clery has spent fifteen years tracing the city’s lost watercourses through old maps, sewer plans, sudden subsidence and streets that curve for no reason. He follows the Fleme from its spring in the hills to the culvert below our cloakroom, and explains why cities buried their rivers in the first place, and why some are now digging them back up.',
+      bio: 'Owen Clery is a drainage engineer and the author of Under Your Feet, a walking guide to the city’s hidden water. He leads a river walk the Saturday after.' },
+    { date: '2026-12-31', title: 'The year’s last page', discipline: 'history of print', speaker: 'June Okonkwo-Hale',
+      abstract: 'For two centuries the best-selling book in the country was not the Bible but the almanac: a cheap, thin annual of tides, fairs, eclipses, remedies and wildly confident predictions, read to pieces and thrown away each December. On the last night of the year Okonkwo-Hale reads from the Carrow’s run of almanacs, 1702 to 1899, and asks what people wanted from a book they knew would be useless in twelve months. Out by 19:45, in good time for midnight.',
+      bio: 'June Okonkwo-Hale is a historian of print and ephemera. She collects almanacs, most of them with the corners torn off.' },
+    { date: '2027-01-14', title: 'Small claims', discipline: 'law', speaker: 'Beatrix Mole',
+      abstract: 'Most people who ever go to court go for a small claim: a deposit not returned, a boiler badly fitted, a hedge. Mole sat as a district judge for nineteen years and heard roughly eleven thousand of them. She explains how the small claims track actually works, what a judge notices in the first minute, why the best evidence is usually a dated photograph, and the three sentences she wishes every claimant would leave out of their witness statement.',
+      bio: 'Beatrix Mole was a district judge from 2004 to 2023. She now volunteers at the library’s free legal advice evening on Tuesdays.' },
+    { date: '2027-01-28', title: 'On the night shift', discipline: 'chronobiology', speaker: 'Samuel Achterberg',
+      abstract: 'One in seven working people in this city works while everyone else sleeps: nurses, bakers, cleaners, drivers, the people who restock the shop where you bought breakfast. Achterberg studies what that does to a body built for daylight. He closes the season with what his research has found about sleep debt, meal timing and light, the small changes that measurably help, and the ones the shift-work industry sells that do not.',
+      bio: 'Samuel Achterberg is a chronobiologist at the Wherry Institute. He worked nights as a hospital porter for six years before his doctorate.' }
+  ],
+  pastSeasons: [
+    { kind: 'dock', season: 'Season 5, autumn 2024', from: '2024-09-12', to: '2024-11-07', count: 'five lectures',
+      stair: 'The loading-dock steps on Wherry Lane: three concrete steps and standing room.' },
+    { kind: 'ladder', season: 'Season 6, spring 2025', from: '2025-03-06', to: '2025-05-15', count: 'six lectures',
+      stair: 'The map room ladder: thirty chairs on the floor, the speaker on the fourth rung.' },
+    { kind: 'dogleg', season: 'Season 7, autumn 2025', from: '2025-09-11', to: '2025-12-18', count: 'eight lectures',
+      stair: 'The reading room stair: a dog-leg with a half landing and sixty seats.' },
+    { kind: 'straight', season: 'Season 8, spring 2026', from: '2026-02-26', to: '2026-06-04', count: 'eight lectures',
+      stair: 'The north stair in the stack wing: a straight flight of sixteen.' }
+  ]
+};
+
+(() => {
+  const $ = (s, r = document) => r.querySelector(s);
+  const L = DATA.lectures;
+  const N = L.length;
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const parse = iso => { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d); };
+  const dayMonth = iso => { const d = parse(iso); return `${d.getDate()} ${MONTHS[d.getMonth()]}`; };
+  const longDate = iso => { const d = parse(iso); return `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`; };
+  const pad = n => String(n).padStart(2, '0');
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+  /* ---- live fact: which evening is next ---- */
+  const q = new URLSearchParams(location.search).get('today');
+  const now = q && /^\d{4}-\d{2}-\d{2}$/.test(q) ? parse(q) : new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const next = L.findIndex(l => parse(l.date) >= today);
+  const tonight = next >= 0 && parse(L[next].date).getTime() === today.getTime();
+  const nextLine = $('#next-line');
+  if (next < 0) nextLine.textContent = 'The season has ended; all twelve transcripts are in the reading room';
+  else if (tonight) nextLine.textContent = `Tonight at ${DATA.start}: lecture ${next + 1}`;
+  else nextLine.textContent = `Next: ${longDate(L[next].date)}, lecture ${next + 1}`;
+  const isPast = i => next < 0 || i < next;
+
+  const rm = matchMedia('(prefers-reduced-motion: reduce)');
+  /* the stair opens so that the next evening is among the four nearest treads */
+  let r0 = next < 0 ? 0 : clamp(next - 3, 0, N - 4);
+
+  const cells = (l, i) => {
+    const date = isPast(i)
+      ? `<s>${dayMonth(l.date)}</s><span class="vh">, held</span>`
+      : `${dayMonth(l.date)}${i === next ? '<span class="vh">, next lecture</span>' : ''}`;
+    return `<span class="n">${pad(i + 1)}</span><span class="t">${esc(l.title)}</span>` +
+      `<span class="d">${esc(l.discipline)}</span>` +
+      `<span class="w"><span class="sp">${esc(l.speaker)}</span><span class="dt">${date}</span></span>`;
+  };
+
+  /* ---- build the stair: treads with their rail, the landing, the newel ---- */
+  const stage = $('#stage');
+  const stair = $('#stair');
+  const list = $('#treads');
+  const LAND = N; /* the reading room landing is the thirteenth step */
+  const RAIL = '<i class="bal"></i><i class="bal b2"></i><i class="rail"></i><i class="rail rh"></i>';
+  const treads = L.map((l, i) => {
+    const li = document.createElement('li');
+    li.className = 'tread' + (i === next ? ' is-next' : '') + (isPast(i) ? ' is-past' : '');
+    li.style.setProperty('--i', i);
+    li.style.setProperty('--k', Math.max(0, i - r0));
+    li.innerHTML =
+      '<div class="box">' +
+        '<div class="face top" aria-hidden="true"></div>' +
+        '<div class="face wall" aria-hidden="true"></div>' +
+        `<button class="face front" type="button" aria-controls="sheet" aria-expanded="false">${cells(l, i)}</button>` +
+      '</div>' + RAIL;
+    list.append(li);
+    return li;
+  });
+
+  const held = next < 0 ? N : next;
+  const landing = document.createElement('div');
+  landing.className = 'landing';
+  landing.setAttribute('aria-hidden', 'true');
+  landing.style.setProperty('--i', LAND);
+  landing.style.setProperty('--k', Math.max(0, LAND - r0));
+  let lh = '';
+  for (let s = 0; s < 8; s++) {
+    lh += `<div class="lseg" style="--s:${s}"><div class="face top"></div><div class="face wall"></div>` +
+      (s === 0 ? '<div class="face front lfront"><span class="n"></span><span class="t">The reading room landing</span>' +
+        '<span class="d">where the transcripts are shelved</span>' +
+        `<span class="w"><span class="sp">${held ? `${held} of ${N} on the shelf` : 'the shelf is waiting'}</span><span class="dt">top of the stair</span></span></div>` : '') +
+      '<i class="bal"></i><i class="bal b2"></i>' + (s < 7 ? '<i class="rail"></i><i class="rail rh"></i>' : '') + '</div>';
+  }
+  landing.innerHTML = lh;
+  stair.append(landing);
+
+  const newel = $('#newel');
+  let nh = '';
+  for (const part of ['plinth', 'shaft', 'cap']) for (let k = 0; k < 8; k++) nh += `<i class="nf ${part}" style="--k:${k}"></i>`;
+  newel.innerHTML = nh + '<i class="ntop plinth"></i><i class="ntop cap"></i>';
+  const nfaces = [...newel.querySelectorAll('.nf')];
+
+  /* ---- flat list for reduced motion ---- */
+  const flat = $('#flat-list');
+  const rows = L.map((l, i) => {
+    const li = document.createElement('li');
+    li.style.setProperty('--i', i);
+    li.innerHTML = `<button class="row${i === next ? ' is-next' : ''}" type="button" aria-controls="sheet" aria-expanded="false">${cells(l, i)}</button>`;
+    flat.append(li);
+    return li.firstElementChild;
+  });
+
+  /* ---- scroll: the document drives the stair, strictly, no smoothing ----
+     the first 80% of the pinned scroll climbs tread by tread to the landing;
+     the last 20% steps back so the whole stair stands inside the stage before it releases */
+  const flight = $('.flight');
+  const CLIMB = 0.8;
+  let pos = r0, c = 0, b = 0, ticking = false;
+  let DT = 8.5, RB = 34, LIFTF = 0.3, SROT = 0;
+  const span = () => Math.max(1, flight.offsetHeight - stage.offsetHeight);
+  function readGeo() {
+    const cs = getComputedStyle(stage);
+    DT = parseFloat(cs.getPropertyValue('--dt')) || 8.5;
+    RB = parseFloat(cs.getPropertyValue('--rb')) || 0;
+    LIFTF = parseFloat(cs.getPropertyValue('--liftf')) || 0.3;
+  }
+  /* the newel turns with the stair; each face takes its tone from where it faces (light from front left) */
+  const DARK = [228, 225, 217];
+  function shade() {
+    const rot = -pos * DT + b * RB + SROT;
+    nfaces.forEach((f, j) => {
+      const t = Math.max(0, Math.cos(((j % 8) * 45 + 22.5 + rot + 35) * Math.PI / 180));
+      f.style.backgroundColor = `rgb(${DARK.map(v => Math.round(v + (255 - v) * t)).join(',')})`;
+    });
+  }
+  function update() {
+    ticking = false;
+    const p = rm.matches ? 0 : clamp((window.scrollY - flight.offsetTop) / span(), 0, 1);
+    c = clamp(p / CLIMB, 0, 1);
+    const t = clamp((p - CLIMB) / (1 - CLIMB), 0, 1);
+    b = t * t * (3 - 2 * t);
+    pos = r0 + c * (LAND - r0);
+    stage.style.setProperty('--pos', pos.toFixed(4));
+    stage.style.setProperty('--c', c.toFixed(4));
+    stage.style.setProperty('--b', b.toFixed(4));
+    shade();
+    watchSheet();
+  }
+  addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } }, { passive: true });
+  addEventListener('resize', () => { readGeo(); update(); if (openIdx >= 0 && !rm.matches) place(openIdx, openPos); });
+  function applyMode() {
+    const red = rm.matches;
+    if (openIdx >= 0) close(false);
+    stair.inert = red;
+    if (red) stair.setAttribute('aria-hidden', 'true'); else stair.removeAttribute('aria-hidden');
+    update();
+  }
+
+  /* the scroll position at which the stair stands at a given step */
+  const scrollFor = target => Math.round(flight.offsetTop + ((LAND - r0) > 0 ? (target - r0) / (LAND - r0) : 0) * CLIMB * span());
+  const narrow = matchMedia('(max-width: 1099px)');
+  function bring(i, smooth) {
+    if (rm.matches) return;
+    if (i >= pos - 0.5 && i <= pos + 3.5 && b < 0.02) return;
+    if (i < r0) r0 = i;
+    window.scrollTo({ top: scrollFor(clamp(i - 1, r0, LAND)), behavior: smooth ? 'smooth' : 'auto' });
+    update();
+  }
+
+  /* ---- the sheet: the opened tread unfolds below its riser ---- */
+  const sheet = $('#sheet');
+  const gtread = $('#gtread');
+  const gbox = $('#gbox');
+  const mast = $('.mast');
+  let openIdx = -1;
+  let openPos = 0;
+  let opener = null;
+  let settleUntil = 0;
+  let restoring = false;
+  function icsHref(l, i) {
+    const d = l.date.replace(/-/g, '');
+    const st = new Date();
+    const stamp = `${st.getUTCFullYear()}${pad(st.getUTCMonth() + 1)}${pad(st.getUTCDate())}T${pad(st.getUTCHours())}${pad(st.getUTCMinutes())}00Z`;
+    const e = s => String(s).replace(/\\/g, '\\\\').replace(/([,;])/g, '\\$1');
+    const lines = [
+      'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Carrow Library//Stair Lectures//EN', 'BEGIN:VEVENT',
+      `UID:stair-s9-${pad(i + 1)}@carrow-library.example`, `DTSTAMP:${stamp}`,
+      `DTSTART:${d}T${DATA.start.replace(':', '')}00`, `DTEND:${d}T${DATA.end.replace(':', '')}00`,
+      `SUMMARY:${e(`${DATA.series} ${i + 1}: ${l.title}`)}`,
+      `LOCATION:${e(DATA.venue)}`,
+      `DESCRIPTION:${e(`${l.speaker}, ${l.discipline}. Free, doors ${DATA.doors}.`)}`,
+      'END:VEVENT', 'END:VCALENDAR'
+    ];
+    return 'data:text/calendar;charset=utf-8,' + encodeURIComponent(lines.join('\r\n'));
+  }
+  function fill(i) {
+    const l = L[i];
+    $('#sheet-n').textContent = pad(i + 1);
+    $('#sheet-title').textContent = l.title;
+    const when = isPast(i)
+      ? `Held on <time>${longDate(l.date)}</time>`
+      : `<time>${longDate(l.date)}</time>, doors <time>${DATA.doors}</time>, lecture&nbsp;at&nbsp;<time>${DATA.start}</time>`;
+    $('#sheet-meta').innerHTML = `${esc(l.speaker)}, <em>${esc(l.discipline)}</em><br>${when}`;
+    $('#sheet-abs').textContent = l.abstract;
+    $('#sheet-bio').textContent = l.bio;
+    const act = isPast(i)
+      ? '<span class="note">Transcript on the reading room shelves</span>'
+      : `<a href="${icsHref(l, i)}" download="stair-lecture-${pad(i + 1)}.ics">Add to calendar</a>`;
+    $('#sheet-act').innerHTML = act + '<button class="linkbtn" type="button" id="sheet-close">Close<span class="num">esc</span></button>';
+    $('#sheet-close').addEventListener('click', () => close(true));
+  }
+  function setExpanded(i, v) {
+    const btn = treads[i] && treads[i].querySelector('.front');
+    if (btn) btn.setAttribute('aria-expanded', String(v));
+    if (rows[i]) rows[i].setAttribute('aria-expanded', String(v));
+    if (treads[i]) treads[i].classList.toggle('is-open', v);
+  }
+  /* place the opened tread face-on and lift the whole stair (only while a sheet is open) so the
+     unfolded tread fits inside the stage; face-on at z 0 means no perspective to correct for */
+  function place(i, posT) {
+    sheet.style.removeProperty('--sheet-max');
+    const cs = getComputedStyle(stage);
+    const H = treads[i].querySelector('.front').offsetHeight;
+    const cT = (LAND - r0) > 0 ? (posT - r0) / (LAND - r0) : 0;
+    const y0 = stair.offsetTop - cT * LIFTF * stage.offsetHeight - (i - posT) * H;
+    /* a tread the scroll cannot bring face-on (the first two) is turned there with the whole stair */
+    SROT = -(parseFloat(cs.getPropertyValue('--base')) + (i - posT) * DT);
+    if (Math.abs(SROT) < 0.01) SROT = 0;
+    stage.style.setProperty('--srot', SROT.toFixed(2) + 'deg');
+    shade();
+    const limit = stage.offsetHeight - 24;
+    const minTop = narrow.matches ? mast.offsetHeight + 12 : 24;
+    const slMin = Math.min(0, minTop + H - y0);
+    let sl = Math.min(0, limit - y0 - sheet.offsetHeight);
+    if (sl < slMin) {
+      sl = slMin;
+      sheet.style.setProperty('--sheet-max', Math.floor(limit - y0 - sl) + 'px');
+    }
+    stage.style.setProperty('--sl', sl.toFixed(1) + 'px');
+  }
+  function open(i, source) {
+    if (openIdx === i && !sheet.hidden) { close(true); return; }
+    if (openIdx >= 0) setExpanded(openIdx, false);
+    openIdx = i;
+    opener = source || null;
+    fill(i);
+    setExpanded(i, true);
+    const wasHidden = sheet.hidden;
+    if (rm.matches) { sheet.classList.add('in-flat'); rows[i].after(sheet); }
+    else { sheet.classList.remove('in-flat'); gbox.append(sheet); gtread.style.setProperty('--i', i); }
+    sheet.hidden = false;
+    sheet.scrollTop = 0;
+    if (!rm.matches) {
+      if (i < r0) r0 = i;
+      openPos = clamp(i - 1.5, r0, LAND);
+      settleUntil = performance.now() + 1500;
+      place(i, openPos);
+      window.scrollTo({ top: scrollFor(openPos), behavior: 'smooth' });
+      if (wasHidden && sheet.animate) {
+        sheet.animate([{ clipPath: 'inset(0 0 100% 0)' }, { clipPath: 'inset(0 0 0% 0)' }],
+          { duration: 320, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' });
+      }
+    }
+    $('#sheet-title').focus({ preventScroll: true });
+  }
+  function close(restore) {
+    if (sheet.hidden) return;
+    const i = openIdx;
+    const done = () => { if (openIdx < 0) sheet.hidden = true; };
+    if (!rm.matches && sheet.animate) {
+      sheet.animate([{ clipPath: 'inset(0 0 0% 0)' }, { clipPath: 'inset(0 0 100% 0)' }],
+        { duration: 150, easing: 'cubic-bezier(0.4, 0, 1, 1)' }).onfinish = done;
+    } else done();
+    if (i >= 0) setExpanded(i, false);
+    stage.style.setProperty('--sl', '0px');
+    stage.style.setProperty('--srot', '0deg');
+    SROT = 0;
+    shade();
+    openIdx = -1;
+    if (restore && opener) { restoring = true; opener.focus({ preventScroll: true }); restoring = false; }
+  }
+  /* scrolling away from an open tread folds it back up */
+  function watchSheet() {
+    if (openIdx < 0 || sheet.hidden || rm.matches || performance.now() < settleUntil) return;
+    if (Math.abs(pos - openPos) > 2.5 || b > 0.05) close(sheet.contains(document.activeElement));
+  }
+
+  treads.forEach((li, i) => {
+    const btn = li.querySelector('.front');
+    li.addEventListener('click', () => open(i, btn));
+    btn.addEventListener('focus', () => {
+      if (!restoring && btn.matches(':focus-visible')) requestAnimationFrame(() => bring(i, false));
+    });
+  });
+  rows.forEach((row, i) => row.addEventListener('click', () => open(i, row)));
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !sheet.hidden) { e.preventDefault(); close(true); }
+  });
+  rm.addEventListener ? rm.addEventListener('change', applyMode) : rm.addListener(applyMode);
+  readGeo();
+  applyMode();
+
+  /* ---- past seasons: tiny stacks of the same slabs ---- */
+  const S = 1.5; /* drawing scale */
+  function box(x, y, z, w, h, d) {
+    [x, y, z, w, h, d] = [x, y, z, w, h, d].map(v => Math.round(v * S));
+    const b = document.createElement('div');
+    b.className = 'mb';
+    b.style.transform = `translate3d(${x}px, ${y}px, ${z}px)`;
+    b.innerHTML =
+      `<i class="mt" style="width:${w}px;height:${d}px;transform:translateY(${-h}px) rotateX(-90deg)"></i>` +
+      `<i class="mr" style="width:${d}px;height:${h}px;transform:translate(${w}px, ${-h}px) rotateY(90deg)"></i>` +
+      `<i class="mf" style="width:${w}px;height:${h}px;transform:translateY(${-h}px)"></i>`;
+    return b;
+  }
+  const BUILD = {
+    dock(s) { s.style.setProperty('--sy', '74%'); for (let i = 0; i < 3; i++) s.append(box(-56, 0, 36 - i * 24, 112, (i + 1) * 15, 72 - i * 24)); },
+    ladder(s) {
+      s.style.setProperty('--sy', '92%');
+      const g = document.createElement('div'); g.className = 'lean';
+      g.append(box(-26, 0, 0, 5, 118, 5), box(22, 0, 0, 5, 118, 5));
+      for (let i = 0; i < 7; i++) g.append(box(-21, -(12 + i * 15), -1, 43, 3, 4));
+      s.append(g);
+    },
+    dogleg(s) {
+      /* first flight climbs away from you, half landing, second flight climbs back on the far side;
+         drawn from higher up so both flights show their treads */
+      s.style.setProperty('--view', 'rotateX(-50deg) rotateY(-34deg)');
+      s.style.setProperty('--sy', '58.3%');
+      for (let i = 0; i < 5; i++) s.append(box(1, -i * 9, 52 - i * 15, 50, 9, 15));
+      s.append(box(-51, -45, -23, 102, 9, 30));
+      for (let j = 0; j < 5; j++) s.append(box(-51, -(54 + j * 9), -8 + j * 15, 50, 9, 15));
+    },
+    straight(s) { s.style.setProperty('--sy', '73%'); for (let i = 0; i < 9; i++) s.append(box(-31, -i * 10, 60 - i * 15, 62, 10, 15)); }
+  };
+  const seasons = $('#seasons');
+  DATA.pastSeasons.forEach(ps => {
+    const li = document.createElement('li');
+    li.innerHTML =
+      `<figure><div class="mini" aria-hidden="true"><div class="scene"></div></div>` +
+      `<figcaption><strong>${esc(ps.season)}</strong>` +
+      `<span class="when"><time>${dayMonth(ps.from)}</time> to <time>${dayMonth(ps.to)}</time>, ${esc(ps.count)}</span>` +
+      `${esc(ps.stair)}</figcaption></figure>`;
+    (BUILD[ps.kind] || BUILD.straight)(li.querySelector('.scene'));
+    seasons.append(li);
+  });
+
+  /* ---- colophon: the page weighs itself ---- */
+  function weigh() {
+    try {
+      const nav = performance.getEntriesByType('navigation')[0];
+      let html = nav ? (nav.transferSize || nav.encodedBodySize || nav.decodedBodySize || 0) : 0;
+      if (!html) html = new Blob([document.documentElement.outerHTML]).size;
+      let css = 0, type = 0;
+      performance.getEntriesByType('resource').forEach(r => {
+        const s = r.transferSize || r.encodedBodySize || 0;
+        if (/\.woff2?(\?|$)|fonts\.gstatic/.test(r.name)) type += s; else css += s;
+      });
+      const kb = b => Math.max(1, Math.round(b / 1024));
+      $('#weight').textContent = type
+        ? `Measured in your browser a moment ago, the whole page weighs ${kb(html + css + type)} KB: ${kb(html + css)} KB of HTML, CSS and script, and ${kb(type)} KB of type.`
+        : `Measured in your browser a moment ago, the page weighs ${kb(html + css)} KB, plus the two typefaces.`;
+    } catch (err) { /* leave the sentence as written */ }
+  }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => setTimeout(weigh, 400));
+  else addEventListener('load', () => setTimeout(weigh, 400));
+})();
+</script>
+</body>
+</html>

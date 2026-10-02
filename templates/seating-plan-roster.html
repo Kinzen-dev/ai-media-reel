@@ -68,6 +68,13 @@ p{text-wrap:pretty}
 .fan .uline.show{opacity:1;transition-duration:150ms}
 .podium{fill:#F1E9DA;transition:fill 150ms ease-out}
 .podium.tonight{fill:#E8A54B}
+/* nobody conducts tonight: the podium is drawn empty */
+.podium.empty{fill:none;stroke:#F1E9DA;stroke-width:1.5}
+.pool{transition:opacity 150ms ease-out}
+.fan.lit .pool{opacity:.4}
+.go .pool-g{animation:pool 900ms var(--ease) both;animation-delay:1000ms}
+@keyframes pool{from{opacity:0}to{opacity:1}}
+.pre:not(.go) .pool-g{opacity:0}
 .go .arc{animation:setin 820ms var(--ease) both;animation-delay:calc(var(--i) * 60ms)}
 .go .arc text{animation:weight 820ms var(--ease) both;animation-delay:calc(var(--i) * 60ms)}
 .go .podium-g{animation:podium 520ms var(--ease) both;animation-delay:1060ms}
@@ -248,7 +255,21 @@ footer .f-end{margin-left:auto}
 
     <div class="stage" id="stage">
       <svg class="fan" id="fan" viewBox="0 0 1440 900" width="1440" height="900" aria-hidden="true" focusable="false">
+        <defs>
+          <!-- the one stage light: warm white pooled on the podium, falling off at the stage lip -->
+          <radialGradient id="poolG" gradientUnits="userSpaceOnUse" cx="720" cy="860" r="700">
+            <stop offset="0" stop-color="#F1E9DA" stop-opacity=".1"/>
+            <stop offset=".28" stop-color="#F1E9DA" stop-opacity=".05"/>
+            <stop offset=".62" stop-color="#F1E9DA" stop-opacity=".014"/>
+            <stop offset="1" stop-color="#F1E9DA" stop-opacity="0"/>
+          </radialGradient>
+          <linearGradient id="lipG" gradientUnits="userSpaceOnUse" x1="0" y1="836" x2="0" y2="900">
+            <stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/>
+          </linearGradient>
+          <mask id="lipM" maskUnits="userSpaceOnUse" x="0" y="0" width="1440" height="900"><rect width="1440" height="900" fill="url(#lipG)"/></mask>
+        </defs>
         <defs id="fanDefs"></defs>
+        <g class="pool-g"><rect class="pool" width="1440" height="900" fill="url(#poolG)" mask="url(#lipM)"/></g>
         <g id="arcs"></g>
         <path class="uline" id="uline" d="M0 0"/>
         <g class="podium-g"><rect class="podium" id="podium" x="707" y="851" width="26" height="9" rx="1"/></g>
@@ -720,6 +741,10 @@ const DATA = {
     if (tonight && tonight.lead.conductor) {
       $('#podium').classList.add('tonight');
       const pm = $('#podiumM'); if (pm) pm.setAttribute('fill', '#E8A54B');
+    } else if (tonightLeader) {
+      $('#podium').classList.add('empty');
+      const pm = $('#podiumM');
+      if (pm) { pm.setAttribute('fill', 'none'); pm.setAttribute('stroke', '#F1E9DA'); pm.setAttribute('stroke-width', '1.25'); }
     }
   }
   function render() {
@@ -797,12 +822,8 @@ const DATA = {
     }
     render();
   }
-  function positionCardDesk(p) {
-    card.style.width = '340px';
-    const W = 340, H = card.offsetHeight || 230;
-    const g = p.geo || { x: 720, y: 600, t0: 0.5, t1: 0.5, a0: Math.PI / 2, a1: Math.PI / 2, r: 400, fs: 22 };
-    const tm = (g.t0 + g.t1) / 2, M = 16, top = 64, bottom = 900 - 16, gap = 16;
-    // bounding box of the curved name: sample its arc at descender and ascender radii
+  // bounding box of a curved name: sample its arc at descender and ascender radii
+  function nameBox(g) {
     const bb = { l: 1e9, r: -1e9, t: 1e9, b: -1e9 };
     for (let k = 0; k <= 10; k++) {
       const a = g.a1 + (g.a0 - g.a1) * k / 10;
@@ -811,19 +832,32 @@ const DATA = {
         bb.l = Math.min(bb.l, x); bb.r = Math.max(bb.r, x); bb.t = Math.min(bb.t, y); bb.b = Math.max(bb.b, y);
       }
     }
+    return bb;
+  }
+  function positionCardDesk(p) {
+    card.style.width = '340px';
+    const W = 340, H = card.offsetHeight || 230;
+    const g = p.geo || { x: 720, y: 600, t0: 0.5, t1: 0.5, a0: Math.PI / 2, a1: Math.PI / 2, r: 400, fs: 22 };
+    const M = 16, top = 64, bottom = 900 - 16, gap = 16;
+    const bb = nameBox(g);
     const cxn = (bb.l + bb.r) / 2, cyn = (bb.t + bb.b) / 2;
-    const fits = (x, y) => x >= M && x + W <= 1440 - M && y >= top && y + H <= bottom;
-    const below = [cxn - W / 2, bb.b + gap];
-    const above = [cxn - W / 2, bb.t - gap - H];
-    const right = [bb.r + gap, cyn - H / 2];
-    const left = [bb.l - gap - W, cyn - H / 2];
-    let order = cyn > 560 ? [above, below] : [below, above];
-    if (tm < 0.16) order = [right, ...order];
-    if (tm > 0.84) order = [left, ...order];
-    let pos = order.find(c => fits(c[0], c[1]));
-    if (!pos) pos = order[0];
-    const x = Math.min(Math.max(pos[0], M), 1440 - M - W);
-    const y = Math.min(Math.max(pos[1], top), bottom - H);
+    // candidate anchors around the name; the card may not hide the name itself,
+    // the section it has just lit, or the podium caption, and prefers to sit close
+    const cands = [];
+    for (let k = -4; k <= 4; k++) { const x = cxn - W / 2 + k * 50; cands.push([x, bb.b + gap], [x, bb.t - gap - H]); }
+    for (let k = -3; k <= 3; k++) for (let j = 0; j <= 5; j++) { const y = cyn - H / 2 + k * 40; cands.push([bb.r + gap + j * 60, y], [bb.l - gap - W - j * 60, y]); }
+    const capBox = { l: 560, r: 880, t: 760, b: 828 };
+    const ov = (a, x, y) => Math.max(0, Math.min(a.r, x + W) - Math.max(a.l, x)) * Math.max(0, Math.min(a.b, y + H) - Math.max(a.t, y));
+    let pos = null, best = Infinity;
+    cands.forEach(([cx0, cy0]) => {
+      const x = Math.min(Math.max(cx0, M), 1440 - M - W);
+      const y = Math.min(Math.max(cy0, top), bottom - H);
+      let s = ov(bb, x, y) * 40 + ov(capBox, x, y) * 3;
+      seating.forEach(q => { if (q !== p && q.geo) s += ov(nameBox(q.geo), x, y) * (q.sec === p.sec ? 40 : 1); });
+      s += Math.hypot(x + W / 2 - cxn, y + H / 2 - cyn) * 60;
+      if (s < best) { best = s; pos = [x, y]; }
+    });
+    const [x, y] = pos;
     card.style.left = `${x.toFixed(0)}px`;
     card.style.top = `${y.toFixed(0)}px`;
     card.style.right = 'auto';

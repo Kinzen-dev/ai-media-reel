@@ -56,15 +56,15 @@ p{text-wrap:pretty}
 .tool{position:absolute;left:0;top:0;padding:0;margin:0;border:0;background:transparent;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .tool:focus-visible{outline:none}
 .slot:has(.tool:focus-visible) .paint{filter:url(#paintFocus)}
-.tool img{position:absolute;max-width:none;user-select:none;-webkit-user-drag:none;pointer-events:none;filter:drop-shadow(0 1px 1.2px rgba(27,29,26,.36));transition:filter 200ms ease-out,opacity 200ms ease-out}
-.slot.lift .tool img{filter:drop-shadow(4px 11px 9px rgba(27,29,26,.30));transition:filter 300ms var(--ease-out)}
+.tool img{position:absolute;max-width:none;user-select:none;-webkit-user-drag:none;pointer-events:none;filter:drop-shadow(0 1px .8px rgba(27,29,26,.34)) drop-shadow(2px 6px 5px rgba(27,29,26,.27));transition:filter 200ms ease-out,opacity 200ms ease-out}
+.slot.lift .tool img{filter:drop-shadow(0 2px 2px rgba(27,29,26,.18)) drop-shadow(7px 18px 15px rgba(27,29,26,.30));transition:filter 300ms var(--ease-out)}
 .slot.off .tool img{opacity:0;transition:none}
 .js-hang .slot:not(.is-out) .hang{opacity:0}
 .fix{position:absolute;pointer-events:none}
 .fix.peg{z-index:2}
 .fix.clip{z-index:4}
-.ledge{position:absolute;z-index:2;background:#CDD3C6;border-top:1px solid #DDE2D6;box-shadow:0 1px 0 rgba(27,29,26,.10),0 3px 5px -1px rgba(27,29,26,.24)}
-.ledge::after{content:"";position:absolute;left:0;right:0;bottom:0;height:42%;background:rgba(27,29,26,.07)}
+.ledge{position:absolute;z-index:2;background:#C4CABC;border-top:1px solid #DCE1D5;box-shadow:0 1px 0 rgba(27,29,26,.16),1px 4px 5px -1px rgba(27,29,26,.26)}
+.ledge::after{content:"";position:absolute;left:0;right:0;bottom:0;height:50%;background:rgba(27,29,26,.09)}
 .note{position:absolute;z-index:5;color:var(--graphite);font-size:13px;line-height:1.3;white-space:nowrap;pointer-events:none;transform:rotate(-1.6deg);transform-origin:0 0;letter-spacing:.01em}
 .note.right{text-align:right;transform-origin:100% 0}
 .note span{display:block}
@@ -407,7 +407,7 @@ table.cat{width:100%;border-collapse:collapse;font-size:14px;line-height:1.4;fon
           <li>Ground by hand on a wet stone, honed, and stropped before it hangs on the board.</li>
         </ul>
         <div class="scale">
-          <svg viewBox="0 0 380 92" role="img" aria-label="Rockwell C hardness scale from 52 to 66. A kitchen knife is about 56, a Hjort edge is 61, a new file is about 65." id="scaleSvg"></svg>
+          <svg viewBox="0 0 380 84" role="img" aria-label="Rockwell C (HRC) hardness scale from 52 to 66. A kitchen knife is about 56, a Hjort edge is 61, a new file is about 65." id="scaleSvg"></svg>
           <p>Hard enough to hold an edge through a day of oak, soft enough to sharpen on a stone at the bench.</p>
         </div>
       </div>
@@ -919,7 +919,7 @@ const DATA = {
     el.style.width = w + 'px'; el.style.height = h + 'px';
     if (t.out) {
       // a sold-out tool is shown the way the board shows it: only its painted silhouette
-      const u = `url("${DATA.img + t.file}")`, ms = `${1024 * sc}px ${1536 * sc}px`, mp = `${-t.box[0] * sc}px ${-t.box[2] * sc}px`;
+      const u = `url('${DATA.img + t.file}')`, ms = `${1024 * sc}px ${1536 * sc}px`, mp = `${-t.box[0] * sc}px ${-t.box[2] * sc}px`;
       el.innerHTML = `<div class="sil" style="-webkit-mask-image:${u};mask-image:${u};-webkit-mask-size:${ms};mask-size:${ms};-webkit-mask-position:${mp};mask-position:${mp}"></div>`;
     } else {
       el.innerHTML = `<img src="${DATA.img + t.file}" alt="" draggable="false" style="width:${1024 * sc}px;height:${1536 * sc}px;left:${-t.box[0] * sc}px;top:${-t.box[2] * sc}px">`;
@@ -1025,11 +1025,15 @@ const DATA = {
       sheet.classList.add('open');
       // tool art for the sheet
       const art = makeArt(t);
-      const tgt = sheetTarget();
+      const figEl = $('#fig'); figEl.style.height = '';
+      const tgt0 = sheetTarget();
       const rt = nearestAngle(t.sheetRot, art.g.r);
       const q = Math.abs(rt) % 180 === 90;
       const extW = q ? art.h : art.w, extH = q ? art.w : art.h;
-      const sc = Math.min(tgt.fw * .94 / extW, tgt.fh * .9 / extH);
+      const sc = Math.min(tgt0.fw * .94 / extW, tgt0.fh * .9 / extH);
+      // the figure closes up on the tool, so the rule sits right under it like a bench rule
+      figEl.style.height = Math.max(56, Math.ceil(extH * sc + 14)) + 'px';
+      const tgt = sheetTarget();
       const lenPx = t.long * state.k * sc;
       drawRule(lenPx, t.long, (tgt.fw - (q ? art.h : art.w) * sc) / 2);
       const final = `translate(-50%,-50%) rotate(${rt}deg) scale(${sc})`;
@@ -1255,8 +1259,7 @@ const DATA = {
       ${mk(56, 'kitchen knife', 12)}
       ${mk(65, 'new file', 12)}
       <rect x="${x(61) - 4}" y="30" width="8" height="30" fill="#000" style="filter:url(#paint);mix-blend-mode:multiply"/>
-      <text x="${x(61)}" y="20" text-anchor="middle" fill="#1B1D1A">Hjort, 61</text>
-      <text x="370" y="90" text-anchor="end" font-size="13" fill="#4A4F47">Rockwell C</text></g>`;
+      <text x="${x(61)}" y="20" text-anchor="middle" fill="#1B1D1A">Hjort, 61 HRC</text></g>`;
   })();
 
   /* ---------- the shop's hours, in Stockholm time ---------- */

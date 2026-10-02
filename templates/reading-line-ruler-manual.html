@@ -24,11 +24,11 @@
   --ground:#EDEDED;
   --sheet:#FCFCFC;
   --ink:#000000;
-  --xref:#8F8F8F;      /* cross-reference grey, 24px = large text, 3.3:1 */
+  --xref:#7A7A7A;      /* cross-reference grey, 24px = large text: 4.0:1 on the sheet, 3.2:1 under the 14% band */
   --num:#6B6B6B;       /* gauge numerals, 12px mono, 5.2:1 on the sheet */
   --tick:#A6A6A6;      /* gauge hairlines */
   --cobalt:#1F4BFF;    /* the one accent: reading line, window, readouts, tag */
-  --window:rgba(31,75,255,.10);   /* the typoscope band: 10 percent cobalt, so it holds at thumbnail size */
+  --window:rgba(31,75,255,.14);   /* the typoscope band: 14 percent cobalt, so the line carries the page at thumbnail size */
   --note:#666666;      /* sidenote grey, 5.6:1 on the sheet and 4.7:1 under the window */
   --plate:#F6F6F5;
   --edge:#ECECEC;
@@ -106,6 +106,12 @@ a{ color:inherit; }
    sheet lands on a tick of the line gauge */
 p, .row > *, .rows--single > li, .toc ul{ text-box:trim-both cap alphabetic; text-wrap:pretty; }
 
+/* the struck line yields to the tag: where the sheet is narrow enough
+   for the hanging tag to reach the text (phones), notch() cuts a float
+   into the end of the preface's first lines, as wide as the tag needs,
+   so nothing covers the line the reading line strikes at load */
+[data-first-line]::before{ content:""; float:right; width:var(--nw, 0px); height:var(--nh, 0px); }
+
 .vh{ font-size:16px; line-height:1.5; position:absolute !important; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
 .skip{ position:fixed; left:16px; top:16px; z-index:60; background:var(--ink); color:var(--sheet);
   font:500 12px/1 "Geist Mono", ui-monospace, monospace; letter-spacing:.02em; text-transform:uppercase;
@@ -141,8 +147,13 @@ section{ display:flow-root; }
 .after-plate{ margin-top:calc(var(--lh) * 2 - var(--cap)); }
 
 /* header: the wordmark is the page's one Instrument Serif word, sized so
-   its ink spans 0 to 66 on the gauge above it; the nav sits in the
-   margin column with its last baseline on the wordmark's */
+   its ink spans 0 to 45 on the gauge above it: the word is set to the
+   shortest comfortable measure, and the gauge's ink range starts where
+   its last letter ends. That keeps it under three lines tall, so the
+   sheet's hierarchy comes from position, not from a display headline.
+   On a phone the column holds fewer than 45 characters and the word
+   spans the column. The nav sits in the margin column with its last
+   baseline on the wordmark's */
 .head{
   display:grid; grid-template-columns:var(--col) var(--gut) minmax(0, var(--side));
   height:calc(var(--lh) * 5); align-items:end;
@@ -151,9 +162,9 @@ section{ display:flow-root; }
 .wm-box{ container-type:inline-size; }
 .wm{
   font-family:"Instrument Serif", Georgia, serif; font-style:italic; font-weight:400;
-  font-size:calc(100cqi / 3.047);       /* ink width of the word is 3.047em */
+  font-size:calc(min(100cqi, var(--chw) * 45) / 3.047);   /* ink width of the word is 3.047em */
   line-height:1; letter-spacing:0; white-space:nowrap;
-  margin-left:calc(100cqi * .0141);     /* the italic M overhangs by .043em */
+  margin-left:.043em;                   /* the italic M overhangs by .043em */
   text-box:trim-both cap alphabetic;
 }
 .toc a, .plain{
@@ -194,18 +205,24 @@ section{ display:flow-root; }
 .plate .tnum text{ font-variant-numeric:tabular-nums; }
 .p-measure{ --rows:8; }
 
-/* the measure plate takes the full column; rag is tall, numerals narrow,
-   position and motion wide; the grid's axes are the sheet's own */
+/* the measure plate takes the full column. The rest read in their
+   chapter order, 02 to 07, left to right and down, because the
+   numbering is real: leading, rag and contrast share the first row,
+   tall; numerals and position the second, position running wide from
+   the column's second axis to the margin's edge; motion while reading
+   runs wide across the column beside its note. Every plate keeps the
+   shape of what it shows, every row is whole lines, and the grid's axes
+   are the sheet's own */
 .plates{
   display:grid;
   grid-template-columns:calc(var(--chw) * 30) var(--sub-g) calc(var(--chw) * 33) var(--gut) minmax(0, var(--side));
   row-gap:var(--lh);
 }
-.p-rag{ grid-area:1 / 1; --rows:12; }
-.p-lead{ grid-area:1 / 3; --rows:12; }
-.p-num{ grid-area:1 / 5; --rows:12; }
-.p-pos{ grid-area:2 / 1 / 3 / 4; --rows:8; }
-.p-con{ grid-area:2 / 5; --rows:8; }
+.p-lead{ grid-area:1 / 1; --rows:12; }
+.p-rag{ grid-area:1 / 3; --rows:12; }
+.p-con{ grid-area:1 / 5; --rows:12; }
+.p-num{ grid-area:2 / 1; --rows:10; }
+.p-pos{ grid-area:2 / 3 / 3 / 6; --rows:10; }
 .p-read{ grid-area:3 / 1 / 4 / 4; --rows:8; }
 .p-note{ grid-area:3 / 5; padding-top:calc(var(--lh) - var(--cap)); }
 
@@ -261,11 +278,14 @@ section{ display:flow-root; }
    (1) THE READING LINE is position:fixed and translated by
    animation-timeline: scroll(root), linear and 1:1 with document
    progress, no smoothing. The registered --p is rounded to whole pixels
-   so the 1px hairline never blurs across two device rows. Fallback:
-   without scroll timelines, JS writes the same translate on scroll (see
-   update()). It carries the typoscope window (the one line-height band
-   it crosses, tinted 6 percent cobalt), the cobalt line number on the
-   gauge, and the hanging chapter tag.
+   so the hairline never blurs across two device rows. It is drawn 2px
+   on 1x screens, centred in its band, so it still reads when the page
+   is seen small, and stays a 1px hairline (two device pixels) on 2x
+   screens and up. Fallback: without scroll timelines, JS writes the
+   same translate on scroll (see update()). It carries the typoscope
+   window (the one line-height band it crosses, tinted 14 percent
+   cobalt), the cobalt line number on the gauge, and the hanging
+   chapter tag.
    ===================================================================== */
 .reader{
   position:fixed; left:0; right:0; top:var(--rl-top); height:0;
@@ -294,6 +314,11 @@ section{ display:flow-root; }
   animation:fade-in 260ms var(--out) 900ms both;
 }
 @keyframes fade-in{ from{ opacity:0; } }
+/* 1x screens: a 2px line on the band's centre, the readout centred on it */
+@media (max-resolution:1.99dppx){
+  .reader .line{ top:-1px; height:2px; }
+  .reader .ro{ top:0; }
+}
 /* The hanging tag. Both labels share one cell, right-aligned to the
    box's fixed right edge. The single track is minmax(0, 1fr), so it is
    exactly the box: a label that is fading out (or already hidden) can
@@ -427,9 +452,9 @@ section{ display:flow-root; }
   .toc ul{ display:flex; flex-wrap:wrap; column-gap:calc(var(--chw) * 3); row-gap:calc(var(--lh) - var(--cap)); text-box:normal; }
   .toc li{ text-box:trim-both cap alphabetic; }
   .plates{ grid-template-columns:minmax(0, 1fr) var(--sub-g) minmax(0, 1fr); }
-  .p-rag{ grid-area:1 / 1; } .p-num{ grid-area:1 / 3; }
-  .p-lead{ grid-area:2 / 1; --rows:10; } .p-con{ grid-area:2 / 3; --rows:10; }
-  .p-pos{ grid-area:3 / 1 / 4 / 4; } .p-read{ grid-area:4 / 1 / 5 / 4; }
+  .p-lead{ grid-area:1 / 1; --rows:12; } .p-rag{ grid-area:1 / 3; --rows:12; }
+  .p-con{ grid-area:2 / 1; --rows:10; } .p-num{ grid-area:2 / 3; --rows:10; }
+  .p-pos{ grid-area:3 / 1 / 4 / 4; --rows:8; } .p-read{ grid-area:4 / 1 / 5 / 4; --rows:8; }
   .p-note{ grid-area:5 / 1 / 6 / 4; padding-left:calc(var(--chw) * 4); }
 }
 @media (max-width:760px){
@@ -441,8 +466,8 @@ section{ display:flow-root; }
   .row > .sn{ grid-column:1; }
   .split > :last-child{ grid-column:1; margin-top:calc(var(--lh) * 2 - var(--cap)); }
   .plates{ grid-template-columns:minmax(0, 1fr); }
-  .p-rag, .p-num, .p-lead, .p-con, .p-pos, .p-read, .p-note{ grid-area:auto; }
-  .p-num{ --rows:10; } .p-con{ --rows:9; } .p-pos, .p-read, .p-measure{ --rows:10; }
+  .p-lead, .p-rag, .p-con, .p-num, .p-pos, .p-read, .p-note{ grid-area:auto; }
+  .p-lead, .p-num{ --rows:10; } .p-con{ --rows:9; } .p-pos, .p-read, .p-measure{ --rows:10; }
   .tag{ right:0; padding:5px 7px; font-size:11px; }
   .cg-k{ display:none; }
   .cg-s{ right:calc(var(--pr) - 6px); }
@@ -528,15 +553,20 @@ section{ display:flow-root; }
     <p class="main">Measure runs in the browser. Fourteen chapters, each built around a <a class="xr" href="#plate-01">plate</a> you can scrub, drag and break, with the CSS beside it and a note on what it costs in practice. It is written for the designers who set text and the engineers who ship it, and it assumes you know what a pixel is but not what a pica is.</p>
 
     <div class="plates after-text">
+      <figure class="plate p-lead" id="plate-02" data-plate="leading">
+        <svg aria-hidden="true" focusable="false"></svg>
+        <figcaption>02 Leading</figcaption>
+        <p class="vh">Six lines breathe between a line height of 1.0 and 2.0.</p>
+      </figure>
       <figure class="plate p-rag" id="plate-03" data-plate="rag">
         <svg aria-hidden="true" focusable="false"></svg>
         <figcaption>03 Rag</figcaption>
         <p class="vh">A greedy ragged edge with a one-word last line is rebalanced, words moving between lines.</p>
       </figure>
-      <figure class="plate p-lead" id="plate-02" data-plate="leading">
+      <figure class="plate p-con" id="plate-04" data-plate="contrast">
         <svg aria-hidden="true" focusable="false"></svg>
-        <figcaption>02 Leading</figcaption>
-        <p class="vh">Six lines breathe between a line height of 1.0 and 2.0.</p>
+        <figcaption>04 Contrast</figcaption>
+        <p class="vh">The letters Aa step from pale grey to black while the contrast ratio climbs a scale marked at 3, 4.5 and 7.</p>
       </figure>
       <figure class="plate p-num" id="plate-05" data-plate="numerals">
         <svg aria-hidden="true" focusable="false"></svg>
@@ -547,11 +577,6 @@ section{ display:flow-root; }
         <svg aria-hidden="true" focusable="false"></svg>
         <figcaption>06 Position</figcaption>
         <p class="vh">Three entries of identical lines gain hierarchy when their first lines move to a second column, with no change of size.</p>
-      </figure>
-      <figure class="plate p-con" id="plate-04" data-plate="contrast">
-        <svg aria-hidden="true" focusable="false"></svg>
-        <figcaption>04 Contrast</figcaption>
-        <p class="vh">The letters Aa step from pale grey to black while the contrast ratio climbs a scale marked at 3, 4.5 and 7.</p>
       </figure>
       <figure class="plate p-read" id="plate-07" data-plate="reading">
         <svg aria-hidden="true" focusable="false"></svg>
@@ -709,6 +734,7 @@ const DATA = {
     G.cap = G.fs * DATA.type.cap;
     G.xh = G.fs * DATA.type.xHeight / 2;
     G.chw = G.fs * DATA.type.advance;
+    notch();                                                  /* may re-wrap the preface: measure after it */
     G.gap = vw > 760 ? 14 : 11;
     G.dock = vw >= 960 && !reduce.matches;
     G.O = docTop(sheet);
@@ -731,6 +757,36 @@ const DATA = {
     if (!G.dock) dock(null);
     update();
     fitTag();
+  }
+
+  /* The struck line yields to the tag. At load the tag hangs from the
+     reading line just under the preface's first line, naming the first
+     chapter. Where it would cover the end of that line, or touch the cap
+     line of the one under it, those lines get a float notch as wide as
+     the overlap plus a gap, so nothing covers the demonstrated line when
+     the page opens. The size comes from the first chapter's label, never
+     the current one, so a chapter change never re-wraps the preface. On
+     a wide sheet the tag hangs in the margin and the notch is 0. */
+  const NOTCH = { gap: 12, clear: 4 };   /* px: room left of the tag; clearance over a cap line */
+  function notch() {
+    const cs = getComputedStyle(tag);
+    const probe = document.createElement('span');
+    probe.className = 'tl';
+    probe.textContent = chapters[0].tag;
+    tag.appendChild(probe);
+    const tagW = probe.getBoundingClientRect().width + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+    probe.remove();
+    const left = reader.getBoundingClientRect().right - parseFloat(cs.right) - tagW;
+    const over = first.getBoundingClientRect().right - left + NOTCH.gap;
+    let w = 0, h = 0;
+    if (over > 0) {
+      const foot = parseFloat(cs.top) + tag.offsetHeight - G.xh;          /* the tag's foot, below the first baseline */
+      const k = Math.max(1, Math.ceil((foot + G.cap + NOTCH.clear) / G.lh));   /* lines it reaches */
+      w = Math.ceil(over);
+      h = (k - 0.5) * G.lh;                                               /* ends mid-line k: lines 1 to k only */
+    }
+    first.style.setProperty('--nw', w + 'px');
+    first.style.setProperty('--nh', h + 'px');
   }
 
   /* The line gauge: one tick per line of the sheet, grown or trimmed in

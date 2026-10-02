@@ -76,7 +76,7 @@ p{margin:0}
 .word .k{margin-right:.03em}
 .word .bl0{display:inline-block;width:0;height:0;vertical-align:baseline}
 /* one drawing sheet: SECTION A-A in the middle, its stem rising out of the top edge to carry the word */
-.sheet0{margin-top:var(--s0m,64px);display:grid;grid-template-columns:minmax(0,1fr) var(--s0w,408px) minmax(0,1fr);min-height:var(--s0h,314px);background:var(--sky)}
+.sheet0{margin-top:var(--s0m,64px);display:grid;grid-template-columns:minmax(0,1fr) var(--s0w,408px) minmax(0,1fr);min-height:var(--s0x,314px);background:var(--sky)}
 .s0-sec{position:relative;grid-column:2;grid-row:1;min-height:var(--s0h,314px);cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
 .s0-sec:focus-visible{outline-offset:-4px}
 .s0-sec .sec0{position:absolute;left:0;top:calc(.5px - var(--s0r,76px));width:100%;height:calc(var(--s0h,314px) + var(--s0r,76px))}
@@ -356,7 +356,23 @@ footer ul{list-style:none;margin:0;padding:0;display:flex;gap:18px;flex-wrap:wra
   .s0-r{grid-column:2;grid-row:2}
   .dA{min-height:240px}
 }
+@media (max-width:1100px){
+  .stn.hide-m .nm{display:none}
+}
+/* tablets: one grid for the whole sheet, the tester strip spans it as on phones */
+@media (min-width:641px) and (max-width:900px){
+  .sheet0{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"sec sec" "copy da" "db da" "strip strip" "lede lede"}
+  .s0-l,.s0-r{display:contents}
+  .s0-sec{grid-area:sec}
+  .s0-copy{grid-area:copy;padding:16px 16px 0}
+  .dB{grid-area:db;padding:16px}
+  .dA{grid-area:da;margin:16px 16px 16px 0}
+  .pb-strip{grid-area:strip;height:46px;border-left:0;border-right:0}
+  .lede{grid-area:lede;margin:14px 16px 16px}
+}
 @media (max-width:900px){
+  .dA .plot{top:62px}
+  .hread{top:43px;left:11px;right:auto}
   .cg>.plate{grid-column:1/-1;grid-row:auto}
   .tester{grid-template-columns:1fr}
   .t-stage{border-right:0;border-bottom:1px solid var(--navy)}
@@ -379,7 +395,9 @@ footer ul{list-style:none;margin:0;padding:0;display:flex;gap:18px;flex-wrap:wra
   .s0-copy .sel{grid-area:sel;align-self:end;margin:0 14px 2px 12px}
   .pb-strip{grid-area:strip;margin:10px 0 0;border-left:0;border-right:0}
   .s0-copy .hint{grid-area:hint;margin:12px 14px 0;font-size:13px;line-height:18px;max-width:none}
-  .dA{grid-area:da;margin:16px 14px 0;height:250px;min-height:0}
+  .dA{grid-area:da;margin:16px 14px 0;height:262px;min-height:0}
+  .dA .plot{top:62px}
+  .hread{top:43px;left:11px;right:auto}
   .dB{grid-area:db;margin:18px 14px 0}
   .lede{grid-area:lede;margin:18px 14px 18px;font-size:14px;line-height:20px}
   .act.act-h{width:44px}
@@ -892,7 +910,7 @@ class HeroSection {
     let tk = '';
     for (let i = 0; i <= 8; i++) tk += `M-3.4 ${(-4.6 + i * .5).toFixed(1)}h${i % 2 ? -.35 : -.6}`;
     s += `<path class="s ink" style="--dl:940ms" d="M-3.4 -4.6V-.6${tk}"/><path class="s st ink" style="--dl:940ms" d="M-3.4 -2.6h-.85"/>`;
-    for (let i = 1; i <= 4; i++) s += `<text class="ink${i === 2 ? ' b6' : ''}${i % 2 ? ' tl-o' : ''}" style="--dl:960ms" x="-4.5" y="${(-4.6 + i + .24).toFixed(2)}" text-anchor="end">${i === 2 ? '2.0' : i === 4 ? '4 mm' : i}</text>`;
+    for (let i = 1; i <= 4; i++) s += `<text class="ink${i === 2 ? ' b6' : ''}${i % 2 ? ' tl-o' : ''}" style="--dl:960ms" x="-4.5" y="${(i === 4 ? -.74 : -4.6 + i + .24).toFixed(2)}" text-anchor="end">${i === 2 ? '2.0' : i === 4 ? '4 mm' : i}</text>`;
     /* PCB, plate and the two housings, cut and hatched */
     s += `<rect class="s dash" x="-10.5" y="11.6" width="21" height="1.6"/>`;
     s += `<path class="s dr"${ht}${dl(520)} d="M-10.5 5.1H-7V6.6H-10.5Z"/><path class="s dr"${ht}${dl(540)} d="M7 5.1H10.5V6.6H7Z"/>`;
@@ -952,17 +970,21 @@ function fitHero() {
   const inner = sheet.clientWidth;
   const avail = barTop - (mob ? 8 : 14) - yb - (mob ? 104 : 0);
   const maxW = wide ? inner * .31 : inner - 8;
-  const k = [5, 4, 3, 2].find(v => (H0.rise + H0.sheet) * v * MMPX <= avail && H0.vw * v * MMPX <= maxW) || 2;
-  const ppm = k * MMPX;
+  let k = [5, 4, 3, 2].find(v => (H0.rise + H0.sheet) * v * MMPX <= avail && H0.vw * v * MMPX <= maxW) || 2;
+  /* a short wide screen cannot hold the sheet's two halves above the fold at any scale, so it keeps the section at 4:1 and lets the sheet run on */
+  if (wide && k < 4 && H0.vw * 4 * MMPX <= maxW) k = 4;
+  const ppm = k * MMPX, sheetH = wide ? Math.max(H0.sheet * ppm, 300) : H0.sheet * ppm;
   heroPPM = ppm;
   sheet.style.setProperty('--s0w', (H0.vw * ppm).toFixed(2) + 'px');
   sheet.style.setProperty('--s0h', (H0.sheet * ppm).toFixed(2) + 'px');
+  sheet.style.setProperty('--s0x', sheetH.toFixed(2) + 'px');
   sheet.style.setProperty('--s0r', (H0.rise * ppm).toFixed(2) + 'px');
   sheet.style.setProperty('--s0m', Math.max(0, yb + H0.rise * ppm - 1.5 - T0).toFixed(2) + 'px');
   if (k !== heroK) { heroK = k; heroSec.scale(ppm, k); }
   /* DETAIL B takes the room beside the copy on wide screens, a row of its own below */
-  const room = wide ? Math.min(200, H0.sheet * ppm - 2 - 32 - 12 - 46 - $('#pc .plabel').offsetHeight - 8) : Math.min(inner - 60, 230);
-  sheet.style.setProperty('--dbw', Math.ceil(Math.max(fitPlan(room), 150)) + 'px');
+  /* (its caption is held to two lines: the column never drops below the caption's width) */
+  const room = wide ? Math.min(200, sheetH - 2 - 32 - 12 - 46 - 34 - 8) : Math.min(inner - 60, 230);
+  sheet.style.setProperty('--dbw', Math.ceil(Math.max(fitPlan(room), 176)) + 'px');
   dipWord(tester.t);
 }
 
@@ -1777,13 +1799,14 @@ function init() {
   $$('.act').forEach(b => b.addEventListener('click', e => { selectType(b.dataset.t); if (e.detail) b.blur(); }));
   selectType('T');
   $$('#plot .cv').forEach(p => p.classList.remove('redraw'));
-  const holdable = el => {
-    el.addEventListener('pointerdown', e => { if (e.button > 0) return; try { el.setPointerCapture(e.pointerId); } catch (_) {} press(); });
+  /* the word is a keycap for mouse and pen only: on a phone most swipes start on it, and a swipe is not a keypress */
+  const holdable = (el, noTouch) => {
+    el.addEventListener('pointerdown', e => { if (e.button > 0 || (noTouch && e.pointerType === 'touch')) return; try { el.setPointerCapture(e.pointerId); } catch (_) {} press(); });
     el.addEventListener('pointerup', () => { if (tester.pressed && !held.size) release(); });
     el.addEventListener('pointercancel', () => { if (tester.pressed && !held.size) release(true); });
     el.addEventListener('contextmenu', e => e.preventDefault());
   };
-  holdable($('#stage')); holdable($('#heroStage')); holdable($('.word'));
+  holdable($('#stage')); holdable($('#heroStage')); holdable($('.word'), true);
   const plotSvg = $('#plot svg'), hit = $('#plotHit');
   const toT = e => { const pt = plotSvg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; const p = pt.matrixTransform(plotSvg.getScreenCTM().inverse()); return clamp((p.x - PL.x0) / (PL.x1 - PL.x0) * 4, 0, 4); };
   hit.addEventListener('pointermove', e => {

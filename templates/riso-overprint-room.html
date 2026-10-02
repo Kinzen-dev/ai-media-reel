@@ -108,21 +108,24 @@ button.pg:not([aria-pressed="true"]):hover .st::after,button.pg:not([aria-presse
 .qhead,.ql{display:grid;grid-template-columns:var(--qcols);column-gap:1.5ch;white-space:nowrap}
 .qhead{font:400 var(--qf)/1 var(--q);padding-bottom:6px;border-bottom:1px solid var(--k);margin-bottom:3px}
 .queue{flex:1;min-height:0;overflow:hidden;font:400 var(--qf)/var(--lh) var(--q);font-variant-numeric:tabular-nums}
-.ql > span,.qhead > span{overflow:hidden;min-width:0}
+/* overflow:clip, not hidden: hidden spans knock holes in the multiply overprint in Chromium */
+.ql > span,.qhead > span{overflow:clip;min-width:0}
 .c-q{text-align:right}
 .c-ti{display:none}
 .ql.done > span:not(.c-day){text-decoration:line-through;text-decoration-thickness:1px}
 .ql{position:relative;isolation:isolate}
 .ql::before{content:"";position:absolute;inset:0 -6px;background:var(--drum);z-index:-1;clip-path:inset(0 0 100% 0);transition:clip-path 70ms linear}
 .ql:hover::before{clip-path:inset(0);transition-duration:130ms}
-.ql.on::before{clip-path:inset(0)}
+.ql.on::before,.ql.last::before{clip-path:inset(0)}
 .slug{position:absolute;left:calc(var(--m) + 14px);right:calc(var(--m) + 14px);bottom:0;height:var(--mb);display:flex;align-items:center;justify-content:space-between;gap:24px;font:400 10px/1.25 var(--q);font-variant-numeric:tabular-nums}
 .slug span{min-width:0}
 .slug .cap{text-align:right}
 
-.over{position:absolute;left:-0.035em;bottom:0;font:400 150px/.86 var(--slab);color:var(--drum);letter-spacing:-0.01em;white-space:nowrap}
+/* padding widens the ink mask box so glyph overhang is never sheared off */
+.over,.count,.dd{padding-inline:.1em}
+.over{position:absolute;left:-0.135em;bottom:0;font:400 150px/.86 var(--slab);color:var(--drum);letter-spacing:-0.01em;white-space:nowrap}
 .over .ln{display:block}
-.count{position:absolute;right:-0.02em;bottom:0;font:400 150px/.86 var(--slab);color:var(--drum);display:flex;white-space:nowrap}
+.count{position:absolute;right:-0.1em;bottom:0;font:400 150px/.86 var(--slab);color:var(--drum);display:flex;white-space:nowrap}
 .count i{display:block;width:.66em;text-align:center;font-style:normal}
 
 /* the feed: black pass, then the second drum lands off register and settles */
@@ -136,7 +139,7 @@ button.pg:not([aria-pressed="true"]):hover .st::after,button.pg:not([aria-presse
 .feed .roll.rk{animation:roll 500ms linear 150ms forwards}
 .feed .layer.d{animation:pass 450ms linear 950ms both,settle 1000ms linear 950ms both}
 .feed .roll.rd{animation:roll 450ms linear 950ms forwards}
-.feed .ql.on::before{animation:pass 140ms linear both;animation-delay:calc(950ms + 450ms * var(--ly,.3))}
+.feed .ql.on::before,.feed .ql.last::before{animation:pass 140ms linear both;animation-delay:calc(950ms + 450ms * var(--ly,.3))}
 .repass{animation:pass 450ms linear both}
 @keyframes pass{from{clip-path:inset(0 0 100% 0)}to{clip-path:inset(0)}}
 @keyframes band{0%,50%{opacity:1}100%{opacity:0}}
@@ -157,8 +160,8 @@ button.pg:not([aria-pressed="true"]):hover .st::after,button.pg:not([aria-presse
 .in{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px}
 .lede{max-width:60ch}
 
-.dh{position:relative;display:inline-block;font-family:var(--slab);font-weight:400;line-height:.9;white-space:nowrap}
-.dh .dd{position:absolute;left:0;top:0;color:var(--drum);mix-blend-mode:multiply;transform:translate(2px,1px);pointer-events:none}
+.dh{position:relative;display:inline-block;padding-right:.1em;font-family:var(--slab);font-weight:400;line-height:.9;white-space:nowrap}
+.dh .dd{position:absolute;left:-.1em;top:0;color:var(--drum);mix-blend-mode:multiply;transform:translate(2px,1px);pointer-events:none}
 
 /* print with us */
 #print .head{grid-column:1 / span 5}
@@ -342,7 +345,7 @@ button.cell:hover,button.cell:focus-visible{outline:1.5px solid var(--k);outline
   .qhead{padding-bottom:4px}
   .slug{left:calc(var(--m) + 8px);right:calc(var(--m) + 8px);font-size:10px;gap:10px}
   .slug .book-of{display:none}
-  .count{right:-0.02em}
+  .count{right:-0.1em}
   .sec{padding-top:96px}
   .in{grid-template-columns:minmax(0,1fr);column-gap:0}
   .in > *{grid-column:1 / -1 !important}
@@ -832,7 +835,7 @@ function fitLines(S) {
 }
 function statusOf(k, e, S) {
   if (k === S.run) return { cls: ' on', html: 'ON THE DRUM <span class="cw"><span class="cnt">' + pad4(S.count) + '</span>/' + e.j.q + '</span>' };
-  if (k <= S.last) return { cls: ' done', html: 'done ' + hhmm(e.end) };
+  if (k <= S.last) return { cls: k === S.curK && S.run < 0 ? ' done last' : ' done', html: 'done ' + hhmm(e.end) };
   if (e.day === S.dn) return { cls: '', html: k === S.nextK ? 'next' : 'queued' };
   return { cls: '', html: e.j.st || 'booked' };
 }
@@ -845,7 +848,7 @@ function renderQueue(S) {
     out.push(`<div class="ql${st.cls}" role="row" data-k="${k}"><span role="cell" class="c-day">${dl}</span><span role="cell" class="c-t">${hhmm(e.start)}</span><span role="cell" class="c-n">${j.n}</span><span role="cell" class="c-c">${esc(j.c)}</span><span role="cell" class="c-d">${esc(j.d)}</span><span role="cell" class="c-ti">${esc(j.t)}</span><span role="cell" class="c-s">${j.s}</span><span role="cell" class="c-k">${j.k}</span><span role="cell" class="c-p">${esc(j.p)}</span><span role="cell" class="c-q">${j.q}</span><span role="cell" class="c-st">${st.html}</span><span role="cell" class="c-x">${esc(j.x || '')}</span></div>`);
   });
   el.queue.innerHTML = out.join('');
-  const on = $('.ql.on', el.queue);
+  const on = $('.ql.on', el.queue) || $('.ql.last', el.queue);
   if (on) {
     const sh = $('.sheet').clientHeight || 1;
     on.style.setProperty('--ly', ((on.getBoundingClientRect().top + scrollY) / sh).toFixed(3));

@@ -26,7 +26,8 @@
   --hair-l:rgba(15,51,39,.28);
   --chrome:var(--ivory);
   --frame:var(--chrome);
-  --plate:var(--green); /* the chrome's label plate: the field's own colour, ivory while a photograph runs under it */
+  --bandc:var(--green); /* the head band: the colour of the chapter running just below its edge */
+  --band:86px;          /* the head band's depth: content leaves the field under its straight edge */
   --fi:22px;            /* frame inset */
   --scoop:16px;
   --aw:33vw;            /* arch width */
@@ -38,12 +39,12 @@
   --ui:'Archivo',system-ui,sans-serif;
   --ease:cubic-bezier(0.16,1,0.3,1);
 }
-html[data-field="glass"]{--chrome:var(--ink);--plate:var(--glass)}
-html[data-field="lime"]{--chrome:var(--ink);--plate:var(--lime)}
-html[data-field="photo"]{--chrome:var(--ink);--frame:var(--ivory);--plate:var(--ivory)}
+html[data-field="glass"]{--chrome:var(--ink);--bandc:var(--glass)}
+html[data-field="lime"]{--chrome:var(--ink);--bandc:var(--lime)}
+html[data-photo="1"]{--frame:var(--ivory)}
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{background:var(--green);color:var(--ivory);scrollbar-color:#6A8A7E var(--green);scrollbar-width:thin;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+html{background:var(--green);color:var(--ivory);scrollbar-color:#6A8A7E var(--green);scrollbar-width:thin;-webkit-text-size-adjust:100%;text-size-adjust:100%;scroll-padding:calc(var(--band) + 16px) 0 calc(var(--fi) + 16px)}
 body{font-family:var(--ui);font-stretch:125%;font-weight:650;overflow-x:clip;background:var(--green)}
 img{display:block;max-width:100%;height:auto}
 a{color:inherit;text-decoration:none}
@@ -71,12 +72,18 @@ ul,ol{list-style:none}
 .js .frame path{stroke-dasharray:1;animation:draw .9s var(--ease) .05s both}
 @keyframes draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
 
+/* the head band: on the solid chapters everything leaves the field under one straight edge, and the frame line
+   is drawn over it; it steps aside for the plan at rest and whenever a photograph runs under the chrome */
+.band{position:fixed;z-index:39;left:0;right:0;top:0;height:var(--band);background:var(--bandc);opacity:0;pointer-events:none;transition:opacity .2s var(--ease),background-color .25s var(--ease)}
+html[data-band="on"] .band{opacity:1}
 .chrome{position:relative;z-index:41;color:var(--chrome);transition:color .3s var(--ease)}
-.lemon-mark,.corner{background:var(--plate);transition:background-color .2s var(--ease)}
+/* a chrome element gets its scooped ivory plate only while a photograph runs under it */
+.lemon-mark,.corner{background:transparent;transition:background-color .2s var(--ease),color .2s var(--ease)}
+.lemon-mark.on-photo,.corner.on-photo{background:var(--ivory);color:var(--ink)}
 @supports (corner-shape:scoop){.lemon-mark,.corner{border-radius:8px;corner-shape:scoop}}
-.lemon-mark{position:fixed;z-index:41;top:calc(var(--fi) + 14px);left:calc(var(--fi) + 16px);width:58px;height:58px;display:grid;place-items:center}
-.lemon-mark svg{width:42px;height:42px;overflow:visible;display:block}
-.corner{position:fixed;z-index:41;top:calc(var(--fi) + 18px);right:calc(var(--fi) + 18px);display:flex;align-items:center;gap:28px;padding:10px 12px}
+.lemon-mark{position:fixed;z-index:41;top:calc(var(--fi) + 9px);left:calc(var(--fi) + 15px);width:52px;height:52px;display:grid;place-items:center}
+.lemon-mark svg{width:40px;height:40px;overflow:visible;display:block}
+.corner{position:fixed;z-index:41;top:calc(var(--fi) + 14px);right:calc(var(--fi) + 18px);display:flex;align-items:center;gap:28px;padding:10px 12px}
 .corner a{display:inline-flex;align-items:center;gap:10px;padding:5px 0 6px;background:linear-gradient(currentColor,currentColor) 0 100%/0 1px no-repeat;transition:background-size .5s var(--ease),opacity .3s var(--ease)}
 .corner a:hover,.corner a:focus-visible{background-size:100% 1px}
 .corner:has(a:hover) a:not(:hover){opacity:.5}
@@ -137,13 +144,17 @@ ul,ol{list-style:none}
 .js .key,.js .chrome{animation:fade .8s var(--ease) 1.1s backwards}
 @keyframes fade{from{opacity:0}}
 .flood{position:absolute;inset:0;z-index:8;background:var(--glass);clip-path:inset(100% 0 0 0);pointer-events:none}
+/* the flood's engraved edge: the gate's two concentric hairlines trail just inside its boundary as it grows */
+.farcs{position:absolute;inset:0;width:100%;height:100%;z-index:9;pointer-events:none;color:var(--ink);opacity:0}
+.farcs path{fill:none;stroke:currentColor;stroke-width:1}
+.farcs .a1{opacity:.72}.farcs .a2{opacity:.4}
 
 /* ---------- 2. the range: it rises into the flooded, still-pinned field ---------- */
 .range{position:relative;z-index:3;background:var(--glass);color:var(--ink);padding:0 40px 30vh}
 .js .range{margin-top:-100vh;margin-top:-100svh}
-.range-in{display:flex;flex-direction:column;align-items:center}
+.range-in{display:flex;flex-direction:column;align-items:center;padding-top:var(--band)}
 .axis{width:1px;background:currentColor;transform-origin:top;transform:scaleY(var(--g,1))}
-.range-in > .axis{height:24vh}
+.range-in > .axis{height:max(48px,calc(24vh - var(--band)))}
 .statement{width:min(900px,100%);margin-top:10vh}
 .statement .dd{font-size:66px;line-height:.93}
 .statement .ln{opacity:var(--lo,1);transform:translateY(calc((1 - var(--lo,1)) * 12px))}
@@ -179,6 +190,43 @@ ul,ol{list-style:none}
 .toggle .ring::after{transform:scale(0)}
 .toggle[aria-pressed="true"] .ring::after{transform:scale(1)}
 .only .tbl tbody tr:not(.avail){display:none}
+/* the key plan: the gate's plan in miniature beside the list, lit by the row under the pointer and by the selection */
+.keyplan,.kp-key{display:none}
+.keyplan{position:relative;margin-top:36px;width:100%;color:var(--ink)}
+.keyplan svg{display:block;width:100%;height:auto;overflow:visible}
+.kp-frame,.kp-coast,.kp-road,.kp-arch,.kp-lot rect{fill:none;stroke:currentColor;stroke-width:1}
+.kp-frame{opacity:.6}
+.kp-coast{stroke-width:1.3}
+.kp-road{opacity:.34}
+.kp-arch{opacity:.78}.kp-arch.o{opacity:.4}
+.kp-lot{transition:opacity .3s var(--ease)}
+.kp-lot rect{opacity:.74}
+.kp-lot rect.ft{fill:currentColor;stroke:none;opacity:1}
+.kp-lot.st-L rect{opacity:.3}
+.keyplan.lit .kp-lot:not(.on):not(.sel){opacity:.4}
+.only .kp-lot:not(.st-A){opacity:.22}
+.kp-lot.on rect,.kp-lot.sel rect{opacity:1}
+.kp-ring{position:absolute;left:calc(var(--kx,50) * 1%);top:calc(var(--ky,50) * 1%);width:24px;height:24px;margin:-12px 0 0 -12px;border:1px solid currentColor;border-radius:50%;opacity:0;transform:scale(1.7);transition:opacity .3s var(--ease),transform .55s var(--ease);pointer-events:none}
+.kp-ring.on{opacity:1;transform:none}
+.kp-ring.dbl::after{content:"";position:absolute;inset:-6px;border:1px solid currentColor;border-radius:50%;opacity:.4}
+.kp-label{position:absolute;left:calc(var(--kx,50) * 1%);top:calc(var(--ky,50) * 1%);transform:translate(19px,-50%);padding:3px 5px;background:var(--lime);white-space:nowrap;opacity:0;transition:opacity .3s var(--ease);pointer-events:none}
+.kp-label.flip{transform:translate(calc(-100% - 19px),-50%)}
+.kp-label.on{opacity:1}
+.kp-key{grid-template-columns:auto auto;justify-content:start;gap:10px 26px;margin-top:22px;color:var(--ink)}
+.kp-key li{display:flex;align-items:center;gap:9px;white-space:nowrap}
+.kp-key svg{width:15px;height:10px;overflow:visible;flex:none}
+/* wide fields: the heading, the key plan and its key hold still on the left while the list runs on the right */
+@media (min-width:1280px){
+  .sel-grid{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:0 clamp(48px,5vw,72px);max-width:1328px;margin:0 auto;align-items:start}
+  .sel-side{position:sticky;top:calc(var(--band) + 40px);max-width:none;margin:0;text-align:left}
+  .sel-side .dd{text-align:left;font-size:56px}
+  .sel-side p{margin-top:22px}
+  .keyplan{display:block}
+  .kp-key{display:grid}
+  .sel-grid .tbl{margin:0;max-width:none}
+  .sel-grid .tbl-foot{max-width:none}
+  .sel-grid .tbl th,.sel-grid .tbl td{padding-inline:12px}
+}
 
 /* ---------- 4. amenities pager ---------- */
 .amen{position:relative;height:340vh;background:var(--green)}
@@ -213,10 +261,20 @@ ul,ol{list-style:none}
 .stop .n{font-family:var(--dd);font-weight:400;font-variation-settings:'opsz' 100;font-variant-numeric:lining-nums;font-size:150px;line-height:.8;margin-top:22px}
 .stop .unit{margin-top:14px}
 .stop .lb{margin-top:12px;color:var(--ivory-2);line-height:1.3}
+.loc-head .ln{display:inline}
+/* wide fields: the title hangs from the gate's rule like the four plumb lines beside it */
+@media (min-width:1280px){
+  .loc{display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr);max-width:1240px;margin:0 auto;border-top:1px solid var(--hair-d)}
+  .loc-head{max-width:none;margin:0;padding:36px 28px 0 0;text-align:left}
+  .loc-head .dd{text-align:left;font-size:58px}
+  .loc-head .ln{display:block}
+  .loc-head p{margin-top:22px}
+  .loc .plumb{margin:0;border-top:0;max-width:none}
+}
 
 /* ---------- 6. architect ---------- */
 .architect{position:relative;background:var(--lime);color:var(--ink);padding:30vh 56px 26vh;overflow:clip}
-.arch-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,800px) minmax(0,1fr);align-items:center;gap:32px;max-width:1336px;margin:0 auto}
+.arch-grid{display:grid;grid-template-columns:minmax(150px,1fr) minmax(0,800px) minmax(150px,1fr);align-items:center;gap:32px;max-width:1336px;margin:0 auto}
 .detail{width:min(210px,100%);justify-self:end;display:flex;flex-direction:column;align-items:center;gap:22px;color:var(--ink)}
 .detail .plate-w{width:100%}
 .detail .plate-w::before{inset:-11px -11px 0}
@@ -273,7 +331,8 @@ ul,ol{list-style:none}
 
 /* ---------- phone ---------- */
 @media (max-width:760px){
-  :root{--fi:12px;--scoop:10px;--aw:76vw;--at:32vh;--at:32svh;--ab:128px;--mf:60px}
+  :root{--fi:12px;--scoop:10px;--aw:76vw;--at:32vh;--at:32svh;--ab:128px;--mf:60px;--band:0px}
+  .band{display:none}   /* the phone's chrome stays at the head of the page, so nothing passes under it */
   .lemon-mark{position:absolute;width:44px;height:44px;top:calc(var(--fi) + 10px);left:calc(var(--fi) + 10px)}
   .lemon-mark svg{width:32px;height:32px}
   .corner{position:absolute;top:calc(var(--fi) + 12px);right:calc(var(--fi) + 10px);padding:8px 10px}
@@ -287,7 +346,6 @@ ul,ol{list-style:none}
   .key li{gap:7px}
   .range{padding:0 24px 30vh}
   .statement .dd{font-size:38px;line-height:.98}
-  .statement .ln{display:inline}
   .lemon{width:74vw;left:-8vw;bottom:-30vw}
   .residences{padding:20vh 20px 18vh}
   .sec-head .dd{font-size:38px}
@@ -353,6 +411,8 @@ ul,ol{list-style:none}
   .dusk .stage{position:relative}
   .dusk .echo,.dusk .arcs,.coords{display:none}
   .lemon,.pine{transform:none}
+  .farcs{display:none}
+  .kp-ring{transform:none;transition:opacity .2s linear}
   .statement .ln{opacity:1;transform:none}
   .sig.armed{clip-path:none}
   .axis,.stop .line{transform:none}
@@ -365,6 +425,7 @@ ul,ol{list-style:none}
 <a class="skip ui" href="#range">Skip to the residences</a>
 
 <!-- persistent scooped frame: drawn corner to corner -->
+<div class="band" aria-hidden="true"></div>
 <svg class="frame" aria-hidden="true"><path class="fa" pathLength="1"/><path class="fb" pathLength="1"/></svg>
 
 <header class="chrome">
@@ -404,6 +465,7 @@ ul,ol{list-style:none}
       <a class="arch-link" href="#range" id="archLink"></a>
       <div class="plot-tip ui ui-s" id="plotTip" aria-hidden="true"></div>
       <div class="flood" aria-hidden="true"></div>
+      <svg class="farcs" aria-hidden="true"><path class="a1"/><path class="a2"/></svg>
     </div>
   </section>
 
@@ -420,19 +482,23 @@ ul,ol{list-style:none}
 
   <!-- 3. RESIDENCE SELECTOR (limewash) -->
   <section class="residences f-lime" id="residences" data-field="lime" aria-labelledby="resH">
-    <div class="sec-head">
-      <h2 class="dd" id="resH"></h2>
-      <p class="ui cap2" id="resCap"></p>
-    </div>
-    <div id="tblWrap">
-      <table class="tbl ui">
-        <caption class="vh" id="tblCaption"></caption>
-        <thead><tr id="tblHead"></tr></thead>
-        <tbody id="tblBody"></tbody>
-      </table>
-      <div class="tbl-foot ui ui-s">
-        <span id="tblCount"></span>
-        <button class="toggle ui ui-s" type="button" aria-pressed="false" id="onlyAvail"><span class="ring" aria-hidden="true"></span><span id="onlyLabel"></span></button>
+    <div class="sel-grid" id="selGrid">
+      <div class="sec-head sel-side">
+        <h2 class="dd" id="resH"></h2>
+        <div class="keyplan" id="keyplan" aria-hidden="true"><svg id="keySvg"></svg><span class="kp-ring dbl" id="kpSel"></span><span class="kp-ring" id="kpRing"></span><span class="kp-label ui ui-s" id="kpLabel"></span></div>
+        <ul class="kp-key ui ui-s" id="kpKey" aria-hidden="true"></ul>
+        <p class="ui cap2" id="resCap"></p>
+      </div>
+      <div id="tblWrap">
+        <table class="tbl ui">
+          <caption class="vh" id="tblCaption"></caption>
+          <thead><tr id="tblHead"></tr></thead>
+          <tbody id="tblBody"></tbody>
+        </table>
+        <div class="tbl-foot ui ui-s">
+          <span id="tblCount"></span>
+          <button class="toggle ui ui-s" type="button" aria-pressed="false" id="onlyAvail"><span class="ring" aria-hidden="true"></span><span id="onlyLabel"></span></button>
+        </div>
       </div>
     </div>
   </section>
@@ -445,8 +511,10 @@ ul,ol{list-style:none}
 
   <!-- 5. LOCATION BY MINUTES (cypress) -->
   <section class="location f-green" id="location" data-field="green" aria-labelledby="locH">
-    <div class="sec-head"><h2 class="dd" id="locH"></h2><p class="ui cap2" id="locCap" style="color:var(--ivory-2)"></p></div>
-    <ol class="plumb" id="plumb"></ol>
+    <div class="loc">
+      <div class="sec-head loc-head"><h2 class="dd" id="locH"></h2><p class="ui cap2" id="locCap" style="color:var(--ivory-2)"></p></div>
+      <ol class="plumb" id="plumb"></ol>
+    </div>
   </section>
 
   <!-- 6. THE ARCHITECT'S NOTE (limewash), beside a detail of the same plan -->
@@ -467,7 +535,7 @@ ul,ol{list-style:none}
   </section>
 
   <!-- 7. DUSK: the gate closes behind you, back onto the plan; then the viewing request -->
-  <section class="dusk f-green" id="dusk" data-field="photo" aria-label="Cap Llimona at dusk">
+  <section class="dusk f-green" id="dusk" data-field="green" aria-label="Cap Llimona at dusk">
     <div class="stage">
       <svg class="plan echo" aria-hidden="true"><g clip-path="url(#planClip)" mask="url(#planMaskEcho)"><use href="#planArt"/></g></svg>
       <div class="window"><img src="../assets/wc/riviera-arch-portal/dusk-exterior.webp" width="1536" height="1024" loading="lazy" alt="The same axis at blue hour: the lit pool, warm windows in the white houses and the headland against a coral horizon"></div>
@@ -559,7 +627,7 @@ const DATA = {
       alt: 'A white lime-plaster stair with a lemon branch and its shadow moving across the wall' }
   ],
   location: {
-    title: 'Minutes from the gate',
+    title: ['Minutes', 'from the gate'],
     caption: 'Measured from the residents’ gate on the Camí des Cap',
     stops: [
       { min: 6, unit: 'Min on foot', label: ['GR 221 trailhead,', 'the dry stone route'] },
@@ -603,6 +671,16 @@ const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
 const pad2 = n => String(n).padStart(2, '0');
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 
+/* the plan's status swatches, shared by the key on the gate and the key beside the list */
+const SWS = 'stroke="currentColor" vector-effect="non-scaling-stroke"';
+const SW = {
+  A: `<rect x=".5" y=".5" width="14" height="9" fill="none" ${SWS} opacity=".8"/><rect x="3.5" y="2.5" width="8" height="5" fill="currentColor"/>`,
+  R: `<rect x=".5" y=".5" width="14" height="9" fill="none" ${SWS} opacity=".8"/><rect x="3.5" y="2.5" width="8" height="5" fill="none" ${SWS}/><rect x="3.5" y="2.5" width="4" height="5" fill="currentColor"/>`,
+  S: `<rect x=".5" y=".5" width="14" height="9" fill="none" ${SWS} opacity=".8"/><rect x="3.5" y="2.5" width="8" height="5" fill="none" ${SWS}/>`,
+  L: `<rect x=".5" y=".5" width="14" height="9" fill="none" ${SWS} stroke-dasharray="2.4 2"/>`
+};
+const swatch = ([k, t]) => `<li><svg viewBox="0 0 15 10" aria-hidden="true">${SW[k]}</svg>${esc(t)}</li>`;
+
 /* ---------- render content from DATA ---------- */
 const B = DATA.brand, R = DATA.residences, PLN = DATA.plan;
 const rowsBy = new Map(R.rows.map(r => [+r[0], r]));
@@ -622,6 +700,7 @@ $('#rangeLines').innerHTML = DATA.range.lines.map(l => `<span class="ln">${l} </
 T('rangeNote', DATA.range.note);
 
 T('resH', R.title); T('resCap', R.caption); T('tblCaption', R.title + ': ' + R.caption);
+$('#kpKey').innerHTML = PLN.key.map(swatch).join('');
 $('#tblHead').innerHTML = R.head.map((h, i) => `<th scope="col"${[2, 3, 4].includes(i) ? ' class="r"' : ''}>${h || '<span class="vh">Select</span>'}</th>`).join('');
 $('#tblBody').innerHTML = R.rows.map(([no, type, beds, int, ter, ori, st]) => {
   const k = st === 'Available' ? 'avail' : st === 'Sold' ? 'sold' : 'res';
@@ -653,7 +732,7 @@ $('#pages').innerHTML = DATA.amenities.map((a, i) => {
 }).join('');
 
 const L = DATA.location;
-T('locH', L.title); T('locCap', L.caption);
+$('#locH').innerHTML = L.title.map(l => `<span class="ln">${l} </span>`).join(''); T('locCap', L.caption);
 $('#plumb').innerHTML = L.stops.map(s => `<li class="stop" style="--m:${s.min}">
   <span class="line" aria-hidden="true"></span>
   <span class="ride"><span class="n">${s.min}</span><span class="unit ui">${s.unit}</span><span class="lb ui">${s.label.join('<br>')}</span></span></li>`).join('');
@@ -683,22 +762,52 @@ function showPicked() {
   vSel.querySelector('button').onclick = () => setPick(null);
 }
 function markPlots() { $$('.plot', plotsEl).forEach(p => p.classList.toggle('sel', !!picked && p.dataset.no === picked.no)); }
+/* the key plan beside the list: the row under the pointer (or in focus) lights its plot; the picked one keeps a double ring */
+const selEl = $('#selGrid'), keyWrap = $('#keyplan'), keySvg = $('#keySvg'), kpSel = $('#kpSel'), kpRing = $('#kpRing'), kpLabel = $('#kpLabel');
+let KP = null, kpHover = null;
+function kpPlace(el, no) {
+  const pt = no && KP ? KP.get(no) : null;
+  if (pt) { el.style.setProperty('--kx', pt.x.toFixed(2)); el.style.setProperty('--ky', pt.y.toFixed(2)); }
+  el.classList.toggle('on', !!pt);
+  return pt;
+}
+function kpShow() {
+  if (!KP) return;
+  const sel = picked ? picked.no : null, hov = kpHover;
+  $$('.kp-lot', keySvg).forEach(g => { g.classList.toggle('on', g.dataset.no === hov); g.classList.toggle('sel', g.dataset.no === sel); });
+  keyWrap.classList.toggle('lit', !!(hov || sel));
+  kpPlace(kpSel, sel);
+  kpPlace(kpRing, hov && hov !== sel ? hov : null);
+  const no = hov || sel, pt = kpPlace(kpLabel, no);
+  if (pt) { kpLabel.textContent = `No. ${no}`; kpLabel.classList.toggle('flip', pt.x > 68); }
+}
 function setPick(tr) {
   $$('#tblBody tr').forEach(r => { const on = r === tr; r.classList.toggle('sel', on); r.querySelector('.pick').setAttribute('aria-pressed', on); });
   picked = tr ? { no: tr.dataset.no, type: tr.dataset.type } : null;
-  showPicked(); markPlots();
+  showPicked(); markPlots(); kpShow();
 }
 $('#tblBody').addEventListener('click', e => {
   const tr = e.target.closest('tr'); if (!tr || tr.classList.contains('sold')) return;
   setPick(tr.classList.contains('sel') ? null : tr);
 });
-/* a row under the pointer marks its plot, a plot under the pointer marks its row */
-$('#tblBody').addEventListener('pointerover', e => {
-  const tr = e.target.closest('tr');
+/* a row under the pointer marks its plot (on the gate and on the key plan), a plot under the pointer marks its row */
+const rowHover = tr => {
   $$('.plot.hl', plotsEl).forEach(p => p.classList.remove('hl'));
   const p = tr && plotsEl.querySelector(`[data-no="${tr.dataset.no}"]`); if (p) p.classList.add('hl');
-});
-$('#tblBody').addEventListener('pointerleave', () => $$('.plot.hl', plotsEl).forEach(p => p.classList.remove('hl')));
+  kpHover = tr ? tr.dataset.no : null; kpShow();
+};
+$('#tblBody').addEventListener('pointerover', e => rowHover(e.target.closest('tr')));
+$('#tblBody').addEventListener('pointerleave', () => rowHover(null));
+$('#tblBody').addEventListener('focusin', e => rowHover(e.target.closest('tr')));
+$('#tblBody').addEventListener('focusout', () => rowHover(null));
+/* the whole selector (heading, key plan, list and its foot) set inside the frame, below the band */
+function landSelector(behavior) {
+  if (!A) return;
+  const r = selEl.getBoundingClientRect(), top = r.top + scrollY;
+  const head = DESK ? A.band : A.fi, room = innerHeight - head - A.fi;
+  const off = r.height <= room - 40 ? head + (room - r.height) / 2 : head + 24;
+  scrollTo({ top: Math.max(0, Math.round(top - off)), behavior });
+}
 function showTip(a) {
   const p = PL && PL.plots.find(q => pad2(q.no) === a.dataset.no), r = rowsBy.get(+a.dataset.no);
   if (!p || !r) return;
@@ -719,7 +828,7 @@ plotsEl.addEventListener('pointerout', e => { const a = e.target.closest('.plot'
 plotsEl.addEventListener('focusin', e => { const a = e.target.closest('.plot'); if (a) showTip(a); });
 plotsEl.addEventListener('focusout', hideTip);
 /* in-page links travel by smooth scroll, so the gate opens on the way (instant under reduced motion);
-   a plot travels to its row, centred, and picks it for the viewing request */
+   a plot travels to the selector, set whole inside the frame, and picks its row for the viewing request */
 document.addEventListener('click', e => {
   const a = e.target.closest('a[href^="#"]'); if (!a) return;
   const behavior = rmQ.matches ? 'auto' : 'smooth';
@@ -727,19 +836,20 @@ document.addEventListener('click', e => {
     e.preventDefault();
     const row = document.getElementById('res-' + a.dataset.no); if (!row) return;
     setPick(row); hideTip();
-    scrollTo({ top: row.getBoundingClientRect().top + scrollY - innerHeight / 2 + row.offsetHeight / 2, behavior });
+    landSelector(behavior);
     row.classList.add('hl'); setTimeout(() => row.classList.remove('hl'), 1800);
     return;
   }
   const id = a.getAttribute('href').slice(1); const el = id ? document.getElementById(id) : null;
   if (!el) return;
   e.preventDefault();
-  scrollTo({ top: id === 'top' ? 0 : el.getBoundingClientRect().top + scrollY, behavior });
+  if (id === 'residences') landSelector(behavior);
+  else scrollTo({ top: id === 'top' ? 0 : el.getBoundingClientRect().top + scrollY, behavior });
   if (history.replaceState) history.replaceState(null, '', '#' + id);
 });
 $('#onlyAvail').addEventListener('click', e => {
   const b = e.currentTarget, on = b.getAttribute('aria-pressed') !== 'true';
-  b.setAttribute('aria-pressed', on); $('#tblWrap').classList.toggle('only', on); setCount(on); requestUpdate(true);
+  b.setAttribute('aria-pressed', on); selEl.classList.toggle('only', on); setCount(on); requestUpdate(true);
 });
 $('#req').addEventListener('submit', e => {
   e.preventDefault();
@@ -757,6 +867,7 @@ let RM = rmQ.matches, DESK = deskQ.matches;
 
 const gate = $('#gate'), gStage = $('.stage', gate), gWin = $('.window', gate), gImg = $('#heroImg');
 const gArcs = $$('.arcs path', gate), gFlood = $('.flood', gate), archLink = $('#archLink');
+const fArcSvg = $('.farcs', gate), fArcs = $$('path', fArcSvg);
 const mark = $('#mark'), keyEl = $('#planKey');
 const planSvg = $('#plan'), planArt = $('#planArt'), planMask = $('#planMask'), planMaskEcho = $('#planMaskEcho'), detailSvg = $('#detailSvg');
 const amen = $('#amenities'), pages = $$('.page', amen);
@@ -817,8 +928,9 @@ function glyphBox(span, pad) {
 function measure() {
   const st = gStage.getBoundingClientRect(), r = archLink.getBoundingClientRect();
   const vw = st.width, vh = st.height;
-  const fi = parseFloat(getComputedStyle(root).getPropertyValue('--fi')) || 22;
-  A = { vw, vh, fi, cx: r.left - st.left + r.width / 2, w: r.width, top: r.top - st.top, base: r.bottom - st.top };
+  const rcs = getComputedStyle(root);
+  const fi = parseFloat(rcs.getPropertyValue('--fi')) || 22, band = parseFloat(rcs.getPropertyValue('--band')) || 0;
+  A = { vw, vh, fi, band, cx: r.left - st.left + r.width / 2, w: r.width, top: r.top - st.top, base: r.bottom - st.top };
   A.h = A.base - A.top;
   A.d = Math.min(18, Math.max(9, A.w * 0.038));   // gap between the concentric arcs
   // the arcs break only where the inscription crosses them, like a moulding cut by an engraver
@@ -870,14 +982,8 @@ function chromeBox(el) {
   return [r.left, r.top + dy, r.right, r.bottom + dy];
 }
 function renderKey(scalePx, scaleM) {
-  const S = 'stroke="currentColor" vector-effect="non-scaling-stroke"';
-  const sw = {
-    A: `<rect x=".5" y=".5" width="14" height="9" fill="none" ${S} opacity=".8"/><rect x="3.5" y="2.5" width="8" height="5" fill="currentColor"/>`,
-    R: `<rect x=".5" y=".5" width="14" height="9" fill="none" ${S} opacity=".8"/><rect x="3.5" y="2.5" width="8" height="5" fill="none" ${S}/><rect x="3.5" y="2.5" width="4" height="5" fill="currentColor"/>`,
-    S: `<rect x=".5" y=".5" width="14" height="9" fill="none" ${S} opacity=".8"/><rect x="3.5" y="2.5" width="8" height="5" fill="none" ${S}/>`,
-    L: `<rect x=".5" y=".5" width="14" height="9" fill="none" ${S} stroke-dasharray="2.4 2"/>`
-  };
-  const items = (DESK ? PLN.key : PLN.key.slice(0, 3)).map(([k, t]) => `<li><svg viewBox="0 0 15 10" aria-hidden="true">${sw[k]}</svg>${esc(t)}</li>`).join('');
+  const S = SWS;
+  const items = (DESK ? PLN.key : PLN.key.slice(0, 3)).map(swatch).join('');
   let scale = '';
   if (DESK) {
     const north = `<svg width="14" height="32" viewBox="0 0 14 32" aria-hidden="true"><g transform="rotate(${PLN.north} 7 19)"><path d="M7 8V31" fill="none" ${S}/><path d="M7 8l3.4 9.4L7 15.2Z" fill="currentColor"/><path d="M7 8L3.6 17.4 7 15.2Z" fill="none" ${S}/><text x="7" y="5.6" font-size="7" text-anchor="middle" fill="currentColor" font-family="Archivo, sans-serif" font-weight="700">N</text></g></svg>`;
@@ -1104,19 +1210,33 @@ function buildPlan(enter) {
     const x = clamp(dp.x - vw / 2, fi, W - fi - vw), y = clamp(dp.y - vh * .55, fi, H - fi - vh);
     detailSvg.setAttribute('viewBox', `${hx(x)} ${hx(y)} ${vw} ${hx(vh)}`);
   }
+
+  /* the key plan beside the selector: this same field in miniature (its scooped frame, the coast, the road,
+     the gate and its moulding, and the 42 plots), in hairline, numbered exactly as on the gate */
+  KP = null; keySvg.innerHTML = '';
+  if (getComputedStyle(keyWrap).display !== 'none') {
+    const bw = W - 2 * fi, bh = H - 2 * fi, k = (keyWrap.clientWidth || 300) / bw, c = 7 / k;
+    const x0 = fi, y0 = fi, x1 = W - fi, y1 = H - fi;
+    keySvg.setAttribute('viewBox', `${x0} ${y0} ${bw} ${bh}`);
+    const frameD = `M${x0} ${y0 + c}A${c} ${c} 0 0 0 ${x0 + c} ${y0}L${x1 - c} ${y0}A${c} ${c} 0 0 0 ${x1} ${y0 + c}L${x1} ${y1 - c}A${c} ${c} 0 0 0 ${x1 - c} ${y1}L${x0 + c} ${y1}A${c} ${c} 0 0 0 ${x0} ${y1 - c}Z`;
+    let kl = '';
+    for (const p of plots) {
+      const { w, h, st } = p, fw = w * .58, fh = h * .54;
+      kl += `<g class="kp-lot st-${st}" data-no="${pad2(p.no)}" transform="translate(${hx(p.x)} ${hx(p.y)}) rotate(${(p.ang * 180 / Math.PI).toFixed(1)})"><rect ${NS} x="${(-w / 2).toFixed(1)}" y="${(-h / 2).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}"/>`;
+      if (st === 'A' || st === 'R') kl += `<rect class="ft" x="${(-fw / 2).toFixed(1)}" y="${(p.sgn * h * .1 - fh / 2).toFixed(1)}" width="${(st === 'A' ? fw : fw / 2).toFixed(1)}" height="${fh.toFixed(1)}"/>`;
+      kl += '</g>';
+    }
+    keySvg.innerHTML = `<defs><clipPath id="kpClip"><path d="${frameD}"/></clipPath><mask id="kpMask" maskUnits="userSpaceOnUse" x="0" y="0" width="${W}" height="${H}"><rect width="${W}" height="${H}" fill="#fff"/><path d="${halo}" fill="#000"/></mask></defs><path class="kp-frame" ${NS} d="${frameD}"/>` +
+      `<g clip-path="url(#kpClip)"><path class="kp-road" ${NS} mask="url(#kpMask)" d="${pl(road)}"/><path class="kp-coast" ${NS} d="${pl(coast)}"/>` +
+      `<path class="kp-arch" ${NS} d="${pathFor(shape(1), 0, false)}"/><path class="kp-arch o" ${NS} d="${pathFor(shape(1), A.d * 2, false)}"/><g>${kl}</g></g>`;
+    KP = new Map(plots.map(p => [pad2(p.no), { x: (p.x - x0) / bw * 100, y: (p.y - y0) / bh * 100 }]));
+  }
   PL = { plots, count: plots.length };
+  kpShow();
 }
 
 let field = 'green';
 function setField(f) { if (f !== field) { field = f; root.dataset.field = f; } }
-function chromePts() {
-  const pts = [];
-  chromeEls.forEach((el, i) => {
-    const r = el.getBoundingClientRect(), cy = r.top + r.height / 2;
-    if (i) pts.push([r.left + 10, cy], [r.right - 10, cy]); else pts.push([r.left + r.width / 2, cy]);
-  });
-  return pts;
-}
 
 function update() {
   const y = scrollY, vh = innerHeight;
@@ -1142,6 +1262,17 @@ function update() {
   plotsEl.style.visibility = open > 0.02 ? 'hidden' : '';
   if (open > 0.02 && tip.classList.contains('on')) hideTip();
   if (!RM) gFlood.style.clipPath = flood > 0 ? clipFor(2 * flood) : 'inset(100% 0 0 0)';
+  /* the flood's engraved edge: two hairlines just inside its boundary, the second trailing a little, both let go
+     before the vault's sides reach the field's edges */
+  let fo = 0;
+  if (!RM && flood > 0 && flood < 1) {
+    const t = 2 * flood, fade = 1 - clamp((flood - .8) / .16);
+    if (shape(t).rx > A.d * 2.6 && fade > 0) {
+      fArcs.forEach((p, i) => p.setAttribute('d', pathFor(shape(Math.max(0, t - .035 * i)), -A.d * (i + 1), false)));
+      fo = fade * clamp((shape(t).rx - A.d * 2.6) / (A.d * 2));
+    }
+  }
+  fArcSvg.style.opacity = fo ? fo.toFixed(3) : 0;
 
   /* 2. the range rises over the pinned, flooded field and holds there: the axis is drawn down, then the statement line by line */
   if (!RM) {
@@ -1169,7 +1300,9 @@ function update() {
     pages[0].style.setProperty('--pf', clamp(pp / 0.2));
     pages[1].style.setProperty('--pf', clamp((pp - 0.42) / 0.16));
     pages[2].style.setProperty('--pf', clamp((pp - 0.8) / 0.2));
-    pagerField = f3 > 0.6 ? 'lime' : f2 > 0.6 ? 'glass' : 'green';
+    // the band takes a page's colour once that page's rising edge has passed under it
+    const cov = 1 - (A.band + 1) / vh;
+    pagerField = f3 >= cov ? 'lime' : f2 >= cov ? 'glass' : 'green';
   }
 
   /* 7. dusk: the gate closes behind you, back onto the plan */
@@ -1200,38 +1333,50 @@ function update() {
     }
   }
 
-  /* which chapter runs under the chrome: theme it, and give it a label plate while a photograph is under it */
-  const pts = chromePts();
-  const line = pts.length ? Math.max(40, pts[0][1]) : 60;
+  /* the chrome's ground. The band takes the colour of whatever runs just below its edge, so rows, headings and
+     numerals leave the field under one straight edge. Where a photograph runs under a chrome element, that element
+     gets its ivory plate and the band steps aside; the plan at rest (the gate, the closed dusk) keeps it away too. */
+  const probe = DESK ? A.band + 1 : 40;
+  let f = 'green', rest = false, onPhoto = null;
   for (const s of sections) {
     const r = s.getBoundingClientRect();
-    if (r.top <= line && r.bottom > line) {
-      let f = s.dataset.field || 'green';
-      if (s === gate) {
-        if (flood > 0 && pts.every(p => within(shape(2 * flood), p[0], p[1]))) f = 'glass';
-        else if (!RM && !entranceLive && open > 0 && pts.some(p => within(shape(1 + open), p[0], p[1]))) f = 'photo';
-        else f = 'green';
-      } else if (s === amen) {
-        f = pagerField || 'green';
-        if (!(DESK && !RM)) {
-          const pg = pages.find(p => { const q = p.getBoundingClientRect(); return q.top <= line && q.bottom > line; });
-          f = pg ? pg.dataset.field : 'green';
-        }
-      } else if (s === dusk) {
-        const dr = dStage.getBoundingClientRect(), live = DESK && !RM;
-        const sh = live ? shape(2 - duskClose) : null;
-        const onPhoto = p => {
-          if (p[1] < dr.top || p[1] > dr.bottom) return false;
-          if (sh) return within(sh, p[0], p[1] - dr.top);
-          if (!DESK) { const wr = dWin.getBoundingClientRect(); return p[0] > wr.left && p[0] < wr.right && p[1] > wr.top && p[1] < wr.bottom; }
-          return true;
-        };
-        f = pts.some(onPhoto) ? 'photo' : 'green';
+    if (!(r.top <= probe && r.bottom > probe)) continue;
+    f = s.dataset.field || 'green';
+    if (s === gate) {
+      const st = gStage.getBoundingClientRect().top, sh = shape(1 + open), fl = flood > 0 ? shape(2 * flood) : null;
+      f = fl ? 'glass' : 'green';
+      rest = flood < 1 && st > -1;
+      onPhoto = (x, y) => within(sh, x, y - st) && !(fl && within(fl, x, y - st));
+    } else if (s === amen) {
+      if (DESK && !RM) f = pagerField || 'green';
+      else { const pg = pages.find(p => { const q = p.getBoundingClientRect(); return q.top <= probe && q.bottom > probe; }); f = pg ? pg.dataset.field : 'green'; }
+    } else if (s === dusk) {
+      f = 'green';
+      const dr = dStage.getBoundingClientRect();
+      if (DESK && !RM) {
+        const sh = shape(2 - duskClose);
+        rest = Math.abs(dr.top) < 1;
+        onPhoto = (x, y) => y >= dr.top && y <= dr.bottom && within(sh, x, y - dr.top);
+      } else {
+        const wr = dWin.getBoundingClientRect();
+        onPhoto = (x, y) => x > wr.left && x < wr.right && y > wr.top && y < wr.bottom;
       }
-      setField(f);
-      break;
     }
+    break;
   }
+  let anyPhoto = false;
+  for (const el of chromeEls) {
+    const q = el.getBoundingClientRect(), mx = (q.left + q.right) / 2;
+    const pts = [[q.left + 3, q.top + 3], [q.right - 3, q.top + 3], [q.left + 3, q.bottom - 3], [q.right - 3, q.bottom - 3], [mx, (q.top + q.bottom) / 2]];
+    if (DESK) pts.push([mx, A.band]);
+    const on = !!onPhoto && q.bottom > 0 && pts.some(p => onPhoto(p[0], p[1]));
+    el.classList.toggle('on-photo', on);
+    anyPhoto = anyPhoto || on;
+  }
+  setField(f);
+  const bandOn = DESK && !rest && !anyPhoto ? 'on' : 'off', ph = anyPhoto ? '1' : '';
+  if (root.dataset.band !== bandOn) root.dataset.band = bandOn;
+  if ((root.dataset.photo || '') !== ph) root.dataset.photo = ph;
 }
 
 let ticking = false;

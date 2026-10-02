@@ -26,7 +26,9 @@ if (!matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentEl
   --g:36px;                 /* left margin, rows bleed off the right */
   --rule:6px;
   --hh:84px;                /* header height */
-  --fs-row:clamp(50px, calc(50px + (100vw - 390px) * .05143), 104px);
+  /* 50px on a phone, 104px at 1440, then on in proportion to the width inside the left margin (to 140px), so a wider
+     screen cuts every row at the very letter 1440 does: the rows still run off a 1680 or 1920 screen */
+  --fs-row:max(clamp(50px, calc(50px + (100vw - 390px) * .05143), 104px), min(calc((100vw - 36px) * .074074), 140px));
   --fs-tag:calc(var(--fs-row) * .3846);              /* 40px at 1440 */
   --fs-ui:clamp(17px, calc(17px + (100vw - 390px) * .00476), 22px);
   --ph:calc(var(--fs-row) * 1.25);                   /* photo height = row height */
@@ -66,10 +68,13 @@ img,svg{display:block}
 .btn-ticket:focus-visible{outline-offset:3px}
 .menu-btn{display:block;background:none;border:0;padding:8px 0;margin:0;cursor:pointer;line-height:1.15;text-decoration-thickness:1.5px;text-underline-offset:.24em}
 .menu-btn:hover,.menu-btn[aria-expanded="true"]{text-decoration-line:underline}
-@media (max-width:1299px){
-  .nav-l .lk,.nav-r .lk{display:none}   /* below 1300 the centred docked stern would run into the text links */
-}
+/* the text links stay wherever the docked stern fits between them (the script measures that and sets navtight
+   only where it cannot, which on a laptop never happens); below 1000 there is no room for them at rest either */
+html.navtight .nav-l .lk,html.navtight .nav-r .lk{display:none}
+html.stshort .st-l{display:none}
+html.stshort .st-s{display:inline}
 @media (max-width:999px){
+  .nav-l .lk,.nav-r .lk{display:none}
   .nav-r{gap:20px}
 }
 @media (max-width:600px){
@@ -93,9 +98,12 @@ html.wmfix .wm-gap{display:none}
 .draught{position:absolute;right:var(--g);bottom:0;font-size:var(--fs-tag);line-height:1;font-variant-numeric:tabular-nums;pointer-events:none;transform-origin:0 0}
 .dm{position:absolute;left:0;white-space:nowrap}
 .tk{position:absolute;left:0;height:var(--rule);background:var(--ink);transform-origin:0 50%}
-/* the waterline tag: flat coral, painted level, riding the first rule of the programme */
-.wl-tag{display:inline-block;background:var(--coral);color:var(--ink);font-size:var(--fs-tag);line-height:1;text-transform:uppercase;white-space:nowrap;padding:.2em .5em .26em;margin-top:calc(var(--fs-tag) * .6)}
+/* the boot top: a flat coral band painted across the waterline (the first rule of the programme), lettered in the
+   port line's own spaced hull capitals; its paint runs off the stern's edge like the rows, and it is taken aboard
+   as a short band beside the docked name. Right padding + the last letter's .2em = the left padding. */
+.wl-tag{display:inline-block;position:relative;background:var(--coral);color:var(--ink);font-size:var(--fs-tag);line-height:1;text-transform:uppercase;letter-spacing:.2em;white-space:nowrap;padding:.2em .34em .26em .54em;margin-top:calc(var(--fs-tag) * .6)}
 html.wmfix .wl-tag{position:fixed;left:0;top:0;margin:0;z-index:11;transform-origin:0 0;will-change:transform;pointer-events:none}
+html.wmfix .wl-tag::after{content:"";position:absolute;left:100%;top:0;bottom:0;width:calc(var(--g) - .54em);background:var(--coral);transform-origin:0 50%;transform:scaleX(var(--bleed, 1))}
 @media (max-width:600px){ .mast{padding-bottom:calc(var(--fs-tag) * 1.35)} }
 
 /* ---------- the rows ---------- */
@@ -190,6 +198,11 @@ html.boot .wl-tag{animation:unmask .45s var(--ease) .36s backwards}
 .results li a:hover,.results li a:focus-visible{background:var(--ink);color:var(--paper);outline:none}
 .results .none{padding:.6em var(--g);border-top:1px solid var(--ink);max-width:64ch}
 @media (max-width:600px){ .results li a{grid-template-columns:minmax(0,1fr);row-gap:.12em} }
+/* the arrivals and departures boards: the board's own name at row size, what it lists as a two-line label after it */
+.board{border-bottom:var(--rule) solid var(--ink)}
+.board-top{display:flex;flex-wrap:wrap;align-items:center;gap:calc(var(--fs-tag) * .4) calc(var(--fs-row) * .3);padding:calc(var(--pad) * 1.2) var(--g) calc(var(--pad) * 1.5)}
+.board-h{font-size:min(var(--fs-row), calc((100vw - 2 * var(--g)) / 8.6));line-height:.95;text-transform:uppercase;white-space:nowrap}
+.board-top .lab{flex:none}
 /* index rows are sized so the longest label fits the screen, and wrap rather than cut a word */
 .mrow{padding:var(--pad) var(--g)}
 .mrow .t{display:block;margin:0;white-space:normal;text-wrap:balance;font-size:min(var(--fs-row), calc((100vw - 2 * var(--g)) / 8.6))}
@@ -285,6 +298,13 @@ html.boot .wl-tag{animation:unmask .45s var(--ease) .36s backwards}
 
 <!-- CONTENT: index panel -->
 <div class="panel" id="menu" role="dialog" aria-modal="true" aria-label="Index">
+  <section class="board" id="board" aria-labelledby="board-h" hidden>
+    <div class="board-top">
+      <h2 class="board-h" id="board-h">Departures</h2>
+      <p class="lab" id="board-lab"></p>
+    </div>
+    <ul class="results" id="board-list"></ul>
+  </section>
   <div class="srch" id="search">
     <label class="tag" for="q"><span>Search</span><span>the programme</span></label>
     <input class="field" id="q" type="search" placeholder="Artist, title or day" autocomplete="off" spellcheck="false">
@@ -440,11 +460,11 @@ function openState() {
 
 /* free entry counts as "today" only until the doors close on the free day */
 const freeToday = (() => { const h = DATA.hours[DATA.freeDay]; return today.getDay() === DATA.freeDay && !(h && nowMin >= toMin(h[1])); })();
-/* the waterline tag: free entry today, tomorrow, or on its weekday */
+/* the boot top's lettering: free entry today, tomorrow, or on its weekday */
 function freeLine() {
   if (freeToday) return 'Free today';
   if ((today.getDay() + 1) % 7 === DATA.freeDay) return 'Free tomorrow';
-  return `Free on ${WDL[DATA.freeDay]}s`;
+  return `Free ${WDL[DATA.freeDay]}s`;
 }
 
 /* opening hours as a two-line statement (span, usual hours) plus the exceptions */
@@ -608,19 +628,45 @@ function geometry() {
   /* the port line and the draught scale are painted on the same stern: their untransformed page boxes */
   const mTop = mast.getBoundingClientRect().top + sy;
   G.parts = [portEl, scaleEl].map(el => ({ el, x: el.offsetLeft, y: mTop + el.offsetTop }));
-  G.compact = G.vw < 1300;                              /* matches the CSS breakpoint that hides the text links */
-  const dockH = G.two ? 30 : 26;
+  /* the docked name keeps one ratio to the nav type; the boot top docks beside it as a short band */
+  const fsUi = parseFloat(getComputedStyle(header).fontSize) || 22;
+  const dockH = G.two ? 30 : 26 * Math.min(1, fsUi / 22);
   G.kT = Math.min(1, dockH / G.H);
-  /* the tag docks beside the slim name: never under 11px tall on a phone */
   G.tw = tagEl.offsetWidth; G.th = tagEl.offsetHeight;
   G.kd = Math.min(1, Math.max((G.two ? 17 : 22) / G.th, (G.two ? 12 : 15) / G.fT));
   const gap = G.two ? 7 : 11;
-  const groupW = G.W * G.kT + gap + G.tw * G.kd;
-  G.xT = G.compact ? G.g : (G.vw - groupW) / 2;
+  const nameW = G.W * G.kT;
+  /* where it docks: on the page's centre line when that clears the text links by a nav gap and a half,
+     slid along the gap between them when it does not; only where even the gap is too narrow (tablets)
+     do the links give way, and then the stern docks on the left margin */
+  root.classList.remove('navtight', 'stshort');
+  const navR = header.querySelector('.nav-r');
+  const firstR = () => [...navR.children].find(c => c.offsetWidth);
+  const leftLinks = [...header.querySelectorAll('.nav-l .lk')].filter(a => a.offsetWidth);
+  const clear = Math.max(30, fsUi * 1.6);
+  let tight = G.two || !leftLinks.length, xT = G.g;
+  if (!tight) {
+    const L = Math.max(...leftLinks.map(a => a.getBoundingClientRect().right));
+    const R = firstR().getBoundingClientRect().left;
+    const groupW = nameW + gap + G.tw * G.kd;
+    const lo = L + clear, hi = R - clear - groupW;
+    if (lo <= hi) xT = clamp((G.vw - groupW) / 2, lo, hi); else tight = true;
+  }
+  root.classList.toggle('navtight', tight);
+  const R0 = firstR().getBoundingClientRect().left;
+  /* at rest the open-now line keeps clear of the right-hand group, in its short form if it has to */
+  if (statusEl.getBoundingClientRect().right > R0 - 24) root.classList.add('stshort');
+  if (tight) {
+    /* docked on the left margin, the band never runs into Tickets: it takes a smaller hand first */
+    const room = R0 - clear * (G.two ? .5 : 1) - (G.g + nameW + gap);
+    if (G.tw * G.kd > room) G.kd = Math.max((G.two ? 9.5 : 12) / G.fT, room / G.tw);
+  }
+  G.xT = xT;
   G.yT = (hh - G.H * G.kT) / 2;
-  G.txD = G.xT + G.W * G.kT + gap;
+  G.txD = G.xT + nameW + gap;
   G.tyD = G.yT + (G.H * G.kT - G.th * G.kd) / 2;
-  G.txR = G.vw - G.g - G.tw;
+  /* at rest the band's last letter ends on the right margin, under the draught numerals; its paint runs on off the edge */
+  G.txR = G.vw - G.g - G.tw + G.fT * .54;
   /* ONE scrub for the whole stern: it recedes like a ship leaving port, standing on the waterline tag
      (whose top edge is its foot) while name, port line and draught scale shrink together, until the
      name sits in the header. At 1440 that takes the same ~230px the waterline needs to reach the header. */
@@ -659,6 +705,9 @@ function apply() {
   const tx = lerp(G.txR, G.txD, qe), ty = lerp(tyR, G.tyD, qe), tk = lerp(1, G.kd, qe);
   tagEl.style.transform = `translate3d(${tx.toFixed(2)}px,${ty.toFixed(2)}px,0) scale(${tk.toFixed(4)})`;
   tagEl.style.zIndex = z;
+  /* the paint that ran off the edge is drawn in as the band is taken aboard */
+  const bl = (1 - qe).toFixed(3);
+  if (bl !== G.bl) { tagEl.style.setProperty('--bleed', bl); G.bl = bl; }
   /* the open-now line steps out of the way (gone by mid-scrub) at every width once the stern starts to dock */
   statusEl.style.transform = q > 0 ? `translateY(${(-Math.min(1, q * 2) * G.hh * .9).toFixed(1)}px)` : '';
 }
@@ -667,10 +716,11 @@ function apply() {
 const ticks = [...document.querySelectorAll('.tick')].map(li => ({
   li, track: $('.track', li), dir: +li.dataset.dir, pos: 0, w: 0, mult: 1, hover: false, focus: false, vis: false
 }));
-let paused = false;
+let paused = false, fsRowNow = 104;
 
 function measureTicks() {
   const vw = root.clientWidth;
+  fsRowNow = parseFloat(getComputedStyle($('.t')).fontSize) || 104;
   ticks.forEach(t => {
     const tr = t.track;
     tr.querySelectorAll('.run.clone').forEach(c => c.remove());
@@ -712,8 +762,7 @@ if (!RM) {
   const loop = tnow => {
     const dt = Math.min(.05, (tnow - last) / 1000); last = tnow;
     const ramp = clamp((tnow - startAt) / RAMP);
-    const fsRow = Math.min(104, Math.max(50, 50 + (root.clientWidth - 390) * .05143));
-    const V = 28 + 20 * clamp((fsRow - 50) / 54);   /* 48 px/s on desktop, 28 px/s on a phone */
+    const V = 28 + 20 * clamp((fsRowNow - 50) / 54);   /* 48 px/s on desktop, 28 px/s on a phone */
     const ease = 1 - Math.exp(-dt * 16);
     for (const t of ticks) {
       if (!t.vis || !t.w) continue;
@@ -749,6 +798,7 @@ addEventListener('load', refit);
 
 /* ---------------- index panel with programme search and the arrivals / departures boards ---------------- */
 const panel = $('#menu'), mbtn = $('.menu-btn'), mword = $('.menu-word'), q = $('#q'), results = $('#results');
+const boardEl = $('#board'), boardH = $('#board-h'), boardLab = $('#board-lab'), boardList = $('#board-list');
 const outside = [$('#main'), $('.colo')];
 let lastFocus = null;
 function openMenu(focusEl) {
@@ -764,7 +814,7 @@ function closeMenu(restore) {
   outside.forEach(el => el.inert = false);
   if (restore && lastFocus) lastFocus.focus({ preventScroll: true });
 }
-mbtn.addEventListener('click', () => panel.classList.contains('open') ? closeMenu(true) : openMenu());
+mbtn.addEventListener('click', () => { if (panel.classList.contains('open')) closeMenu(true); else { showBoard(null); openMenu(); } });
 addEventListener('keydown', e => { if (e.key === 'Escape' && panel.classList.contains('open')) closeMenu(true); });
 panel.addEventListener('click', e => { const a = e.target.closest('a'); if (a && !a.hasAttribute('data-board')) closeMenu(false); });
 
@@ -777,13 +827,32 @@ function search() {
     ? hits.map(({ it }) => `<li><a href="#p-${esc(it.id)}"><span>${esc(it._tag.join(' '))}</span><span>${esc(it.title)}</span></a></li>`).join('')
     : `<li class="none">Nothing on the programme matches “${esc(q.value.trim())}”. Try an artist, a title or a weekday such as Friday.</li>`;
 }
-q.addEventListener('input', search);
-/* Arrivals and Departures open the index as a board: the programme filtered by the port's own words */
+/* Arrivals and Departures open the index as a board: the board's own heading, then the programme rows the
+   port's words put on it, soonest first; the search field below stays the visitor's own */
+const BOARDS = {
+  arrivals: { title: 'Arrivals', lab: ['New in port', 'and expected'], order: (a, b) => a._s - b._s,
+              none: 'Nothing has berthed in the last fortnight and nothing is expected yet.' },
+  departures: { title: 'Departures', lab: ['Leaving port', `by ${dShort(addDays(6))}`], order: (a, b) => a._e - b._e,
+                none: `Nothing leaves port before ${dShort(addDays(7))}.` }
+};
+function showBoard(name) {
+  const B = BOARDS[name];
+  boardEl.hidden = !B;
+  if (!B) return;
+  const items = prog.filter(it => it._group === name).sort(B.order);
+  boardH.textContent = B.title;
+  boardLab.innerHTML = B.lab.map(l => `<span>${esc(l)}</span>`).join('');
+  boardList.innerHTML = items.length
+    ? items.map(it => `<li><a href="#p-${esc(it.id)}"><span>${esc(it._tag.join(' '))}</span><span>${esc(it.title)}</span></a></li>`).join('')
+    : `<li class="none">${esc(B.none)}</li>`;
+}
+q.addEventListener('input', () => { boardEl.hidden = true; search(); });
 document.querySelectorAll('[data-board]').forEach(a => a.addEventListener('click', e => {
   e.preventDefault();
-  q.value = a.dataset.board; search();
+  q.value = ''; search();
+  showBoard(a.dataset.board);
   panel.scrollTop = 0;
-  openMenu(() => results.querySelector('a') || q);
+  openMenu(() => boardList.querySelector('a') || q);
 }));
 
 /* ---------------- newsletter ---------------- */

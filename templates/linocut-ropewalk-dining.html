@@ -249,12 +249,15 @@ ul, ol { list-style: none; margin: 0; padding: 0; }
 }
 .sign { overflow: visible; }
 .sign text {
-  font-family: var(--fell); font-style: normal; font-weight: 400; letter-spacing: 0.01em;
-  fill: #ffffff; stroke: #ffffff; stroke-width: 0.8px; stroke-linejoin: miter;
+  font-family: var(--fell); font-style: normal; font-weight: 400; letter-spacing: 0.03em;
   transition: fill 400ms linear, stroke 400ms linear;
 }
+/* the cutter clears a margin round each letter before cutting it, so the panel's grain never runs into the word */
+.sign .clear { fill: #000000; stroke: #000000; stroke-width: 5px; stroke-linejoin: round; }
+.sign .word { fill: #ffffff; stroke: #ffffff; stroke-width: 1.5px; stroke-linejoin: miter; }
 .plate.lit .sign-light { opacity: 1; }
-.plate.lit .sign text { fill: #000000; stroke: #000000; }
+.plate.lit .sign .clear { fill: #ffffff; stroke: #ffffff; }
+.plate.lit .sign .word { fill: #000000; stroke: #000000; }
 @container (max-width: 640px) { .sign, .sign-light { display: none; } }
 .gpatch, .gcut { position: absolute; pointer-events: none; }
 .gpatch { background: #ffffff; }
@@ -330,11 +333,13 @@ ul, ol { list-style: none; margin: 0; padding: 0; }
 }
 .tonight h2 { font: 400 19px/1.25 var(--fellsc); letter-spacing: 0.03em; margin-bottom: 12px; }
 .tonight p:not(.big) { font-size: 15px; line-height: 1.5; letter-spacing: 0.045em; }
-.tonight p:not(.big) + p { margin-top: 9px; }
-.tonight .lamps { padding-bottom: 14px; }
+.tonight p:not(.big) + p:not(.lamps) { margin-top: 9px; }
+/* the evening line hangs at the foot of the notice, as the lantern does in the notice opposite */
+.tonight .lamps { margin-top: auto; padding-top: 9px; padding-bottom: 14px; }
 /* The solar footnote is one quiet line under the notice. Asked for, the method takes the place of the
    notice's own lines (it is always shorter than they are), so nothing on the board moves. */
-.tonight .note { order: 3; margin-top: auto; padding-top: 9px; border-top: 1px solid var(--ink); }
+.tonight .note { order: 3; padding-top: 9px; border-top: 1px solid var(--ink); }
+.tonight.method-open .note, .top.fit2 .tonight .note { margin-top: auto; }
 .tonight .method { order: 2; }
 .tonight.method-open > p:not(.big):not(.method) { display: none; }
 html:not(.js) .tonight .note { display: none; }
@@ -355,6 +360,7 @@ html:not(.js) .tonight .note { display: none; }
 .top.fit1 .clock { font-size: 14px; }
 .top.fit1 .status { font-size: 38px; margin: 8px 0 10px; }
 .top.fit1 .nowline, .top.fit1 .tonight p:not(.big), .top.fit1 .sittings li { font-size: 14px; }
+.top.fit1 .sittings li { padding-left: 3px; padding-right: 3px; column-gap: 6px; }
 .top.fit1 .sittings { margin-top: 14px; }
 .top.fit1 .tonight .big { font-size: 70px; }
 .top.fit1 .tonight h2 { font-size: 17px; margin-bottom: 8px; }
@@ -484,15 +490,18 @@ html:not(.js) .tonight .note { display: none; }
 }
 
 /* ---------- desktop: the first screen ends on a finished board ----------
-   The print row always runs to 12px above the frame. Where the screen is too narrow for the print to
-   fill that height (16:10), the spare height becomes more paper sky inside the frame, with the print
-   standing on the frame's foot. The sky is capped, so a 4:3 screen shows the bill of fare under the
-   print rather than an empty sky. The board starts under the frame's edge, never as a sliver. */
+   The print row runs to 12px above the frame. Where the screen is too narrow for the print to fill
+   that height (16:10), the spare height becomes more paper sky inside the frame, with the print
+   standing on the frame's foot. Past 100px of spare height (a 4:3 screen) the sky is left alone and
+   the board shows instead, always by at least the whole head of the bill of fare, never as a sliver
+   of empty boxes: the clamp() is a step, all of the spare height or none of it. */
 @media (min-width: 1200px) {
   .sheet { container-type: inline-size; }
   .facade {
+    --nat: calc((min(var(--pw), 100cqw - 2 * var(--gap) - 2 * var(--side)) - 4px) / 1.5 + 4px);
+    --spare: calc(var(--row) - var(--nat));
     justify-content: flex-end;
-    min-height: min(var(--row), calc((min(var(--pw), 100cqw - 2 * var(--gap) - 2 * var(--side)) - 4px) / 1.5 + 4px + 96px));
+    min-height: calc(var(--nat) + clamp(0px, (100px - var(--spare)) * 1000, var(--spare)));
   }
   .top { margin-bottom: 4px; }
 }
@@ -514,7 +523,7 @@ html:not(.js) .tonight .note { display: none; }
 @media (min-width: 761px) and (max-width: 1199px) {
   .sheet { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) var(--side); }
   .top { grid-template-rows: var(--head) auto auto; }
-  .facade { grid-column: 1 / -1; grid-row: 2; align-items: center; }
+  .facade { grid-column: 1 / -1; grid-row: 2; align-items: center; margin-bottom: 4px; }
   .plate { width: min(100%, calc(var(--pw) - 4px)); }
   .now { grid-column: 1; grid-row: 3; }
   .tonight { grid-column: 2 / 4; grid-row: 3; }
@@ -541,7 +550,7 @@ html:not(.js) .tonight .note { display: none; }
   .status { font-size: 44px; }
   .nowline, .tonight p:not(.big), .sittings li { font-size: 15px; }
   .tonight .big { font-size: 76px; }
-  .tonight .note { margin-top: 16px; }
+  .tonight .note, .tonight.method-open .note { margin-top: 16px; }
   .how { font-size: 14px; padding-top: 6px; padding-bottom: 7px; }
 
   .pair { display: flex; flex-direction: column; border: var(--rule) solid var(--ink); background: var(--paper); }
@@ -612,14 +621,21 @@ html:not(.js) .tonight .note { display: none; }
           <!-- The cutter's hand: the gouge wanders off the drawn letter by a pixel or so, and leaves
                chips of uncut lino in the cut. Units are the print's own pixels. -->
           <filter id="sign-cut" x="-20%" y="-30%" width="140%" height="160%" color-interpolation-filters="sRGB">
-            <feTurbulence type="fractalNoise" baseFrequency="0.5" numOctaves="2" seed="5" result="wander"/>
-            <feDisplacementMap in="SourceGraphic" in2="wander" scale="3" xChannelSelector="R" yChannelSelector="G" result="cut"/>
-            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="1" seed="12" result="lino"/>
-            <feColorMatrix in="lino" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -16 0 0 0 10.2" result="chips"/>
+            <feTurbulence type="fractalNoise" baseFrequency="0.3" numOctaves="2" seed="5" result="wander"/>
+            <feDisplacementMap in="SourceGraphic" in2="wander" scale="2" xChannelSelector="R" yChannelSelector="G" result="cut"/>
+            <feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="1" seed="12" result="lino"/>
+            <feColorMatrix in="lino" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -20 0 0 0 15.4" result="chips"/>
             <feComposite in="cut" in2="chips" operator="in"/>
           </filter>
+          <filter id="sign-clear-cut" x="-20%" y="-30%" width="140%" height="160%" color-interpolation-filters="sRGB">
+            <feTurbulence type="fractalNoise" baseFrequency="0.18" numOctaves="2" seed="8" result="wander"/>
+            <feDisplacementMap in="SourceGraphic" in2="wander" scale="3" xChannelSelector="R" yChannelSelector="G"/>
+          </filter>
         </defs>
-        <g id="sign-line"><text id="sign-word" text-anchor="middle" filter="url(#sign-cut)"></text></g>
+        <g id="sign-line">
+          <text class="clear" id="sign-clear" text-anchor="middle" filter="url(#sign-clear-cut)"></text>
+          <text class="word" id="sign-word" text-anchor="middle" filter="url(#sign-cut)"></text>
+        </g>
       </svg>
     </div>
   </figure>
@@ -1004,11 +1020,13 @@ const DATA = {
   const topEl = $('.top'), nowEl = $('#now'), sunEl = $('#tonight'), facadeEl = $('.facade');
   const howEl = $('#sun-how'), methodEl = $('#sun-method');
   const FITS = ['fit1', 'fit2', 'fit3'];
+  // a sitting set on two lines (its hours dropped under its name) does not count as fitting at full size
+  const sittingWraps = () => Array.from(nowEl.querySelectorAll('.sittings li')).some(li => li.children.length > 1 && li.children[1].offsetTop - li.children[0].offsetTop > 4);
   function fitLevels() {
     if (Math.abs(nowEl.offsetTop - facadeEl.offsetTop) > 2 || Math.abs(sunEl.offsetTop - facadeEl.offsetTop) > 2) return;
     for (let i = 0; i < FITS.length; i++) {
       const row = Math.max(plate.offsetHeight + 4, parseFloat(getComputedStyle(facadeEl).minHeight) || 0);
-      if (nowEl.offsetHeight <= row + 1 && sunEl.offsetHeight <= row + 1) return;
+      if (nowEl.offsetHeight <= row + 1 && sunEl.offsetHeight <= row + 1 && (i > 0 || !sittingWraps())) return;
       topEl.classList.add(FITS[i]);
     }
   }
@@ -1030,7 +1048,8 @@ const DATA = {
   sunEl.addEventListener('keydown', e => { if (e.key === 'Escape' && !methodEl.hidden) { showMethod(false); howEl.focus(); } });
 
   /* ---------- the hanging sign: its boxes, the reverse panel and the cut letters, from DATA.print.sign ---------- */
-  const signSvg = $('#sign'), signLine = $('#sign-line'), signWord = $('#sign-word'), signLight = plate.querySelector('.sign-light');
+  const signSvg = $('#sign'), signLine = $('#sign-line'), signLight = plate.querySelector('.sign-light');
+  const signWord = $('#sign-word'), signTexts = [$('#sign-clear'), signWord];
   const SIGN = DATA.print.sign;
   (function placeSign() {
     const [W, H] = DATA.print.size;
@@ -1050,26 +1069,26 @@ const DATA = {
   })();
   // Each letter is cut a little off the line and off the upright, the same way every time.
   const JIT = [[-3, 0], [2.5, -0.8], [-1.5, 1], [3, -0.7], [-2.5, 0.7], [2, -0.6], [-1, 0.5]];
-  const SIGN_WORDS = ['open', 'closed'];
   let signFs = 0;
   function sizeSign() {
-    // the longer word fills three quarters of the panel; both words are cut at that size
-    const cur = signWord.textContent, w = signSvg.viewBox.baseVal.width;
+    // each word is cut as large as the panel takes it: three quarters of its width, and no taller than it can hang
+    const word = signWord.textContent;
+    if (!word) return;
     signWord.style.fontSize = '20px';
-    let len = 0;
-    SIGN_WORDS.forEach(word => { signWord.textContent = word; len = Math.max(len, signWord.getComputedTextLength()); });
-    signWord.textContent = cur;
-    if (len > 0) signFs = Math.min(26, 20 * w * 0.74 / len);
+    const len = signWord.getComputedTextLength();
+    if (len > 0) signFs = Math.min(30, 20 * signSvg.viewBox.baseVal.width * 0.76 / len);
     const fs = signFs || 20;
-    signWord.style.fontSize = fs.toFixed(2) + 'px';
-    signWord.setAttribute('y', (fs * 0.2).toFixed(2));
+    // set the x-height on the panel's mid-line, nudged for ascenders and descenders
+    const y = fs * (0.2 + (/[bdfhklt]/.test(word) ? 0.07 : 0) - (/[gjpqy]/.test(word) ? 0.07 : 0));
+    signTexts.forEach(t => { t.style.fontSize = fs.toFixed(2) + 'px'; t.setAttribute('y', y.toFixed(2)); });
   }
   function letterSign(word) {
     if (signWord.textContent === word) return;
-    signWord.textContent = word;
-    signWord.setAttribute('rotate', Array.from(word, (c, i) => JIT[i % JIT.length][0]).join(' '));
-    signWord.setAttribute('dy', Array.from(word, (c, i) => JIT[i % JIT.length][1]).join(' '));
-    if (!signFs) sizeSign();
+    const rot = Array.from(word, (c, i) => JIT[i % JIT.length][0]).join(' ');
+    const dy = Array.from(word, (c, i) => JIT[i % JIT.length][1]).join(' ');
+    signTexts.forEach(t => { t.textContent = word; t.setAttribute('rotate', rot); t.setAttribute('dy', dy); });
+    signFs = 0;
+    sizeSign();
   }
 
   function renderLive() {

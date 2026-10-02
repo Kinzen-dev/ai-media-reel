@@ -19,8 +19,9 @@
    ink-2  #34405F   reading text
    ink-3  #5A6482   table heads, notes (5.9:1 on paper)
    sky    #3A6AA8   hero ground above the horizon while the photograph decodes (salt #D7D8DD below it)
-   twilight steps on the band: civil #93AAD3, nautical #5872A8, astronomical #2B3D6E
-   ember  #E4572E   ONE element only: the NOW tick on tonight's band
+   twilight steps on the band: civil #93AAD3, nautical #5872A8, astronomical #2B3D6E;
+   moonlit hours inside the astronomical night take the astronomical step, so only true dark is full ink
+   ember  #E4572E   ONE element only: the NOW tick on tonight's band (parked at sunset in daylight)
    ------------------------------------------------------------------ */
 :root{
   --paper:#FFFFFF;
@@ -170,6 +171,11 @@ a{color:inherit;text-decoration-thickness:1px;text-underline-offset:.24em}
 /* while the photograph decodes, the stage is the photograph in two flat fields: sky above the horizon
    (white rules, hours and words stay legible) and salt below it (the ink band and the name stay legible) */
 .stage{position:sticky;top:0;height:100vh;height:100svh;min-height:560px;overflow:hidden;background-image:linear-gradient(to bottom, var(--sky) 0, var(--sky) var(--salt, 57%), #D7D8DD var(--salt, 57%), #D7D8DD 100%)}
+/* on the way out the stage's lower edge dissolves into the paper (JS grows --dz from 0 to 15%) */
+.stage.dz{
+  -webkit-mask-image:linear-gradient(to bottom, #000 calc(100% - var(--dz, 0%)), transparent 100%);
+  mask-image:linear-gradient(to bottom, #000 calc(100% - var(--dz, 0%)), transparent 100%);
+}
 .hero-img{
   position:absolute;left:0;top:0;width:108%;height:106%;max-width:none;
   object-fit:cover;object-position:50% 75%;
@@ -286,8 +292,7 @@ a{color:inherit;text-decoration-thickness:1px;text-underline-offset:.24em}
 .season{padding:20vh 0 16vh}
 .tbl-wrap{grid-column:r1 / r7;margin-top:13vh}
 .tbl{width:100%;border-collapse:collapse;table-layout:fixed;font:400 15px/1.4 var(--f-ui)}
-.tbl col.c1,.tbl col.c2,.tbl col.c3,.tbl col.c4{width:var(--i)}
-.tbl col.c5{width:calc(2 * var(--i))}
+.tbl col{width:var(--i)}
 .tbl th{font:400 13px/1.34 var(--f-ui);color:var(--ink-3);text-align:left;padding:0 16px 12px 0;vertical-align:bottom}
 .tbl td{padding:17px 16px 17px 0;border-top:1px solid var(--hair);vertical-align:top;font-variant-numeric:tabular-nums}
 .tbl tr:last-child td{border-bottom:1px solid var(--hair)}
@@ -298,6 +303,9 @@ a{color:inherit;text-decoration-thickness:1px;text-underline-offset:.24em}
 .tbl tr.closed td{color:var(--ink-3)}
 .tbl .rate{font:500 13px/1.45 var(--f-place);letter-spacing:.05em}
 .tbl .avail-full{color:var(--ink-3)}
+.tbl .pl{display:block;margin-top:9px}
+.go-l{display:inline-block;padding:2px 0;margin:-2px 0;color:var(--ink);text-decoration-line:underline;text-decoration-thickness:1px;text-underline-offset:.3em;transition:text-decoration-thickness .2s var(--ease)}
+.go-l:hover{text-decoration-thickness:2px}
 .tbl tr.fm td{color:var(--ink-3);padding-right:0}
 .tbl tr.fm .moon{display:inline-block;vertical-align:-1px;margin-right:9px}
 .note{grid-column:r3 / r6;margin:28px 0 0;font:400 13px/1.55 var(--f-ui);color:var(--ink-3);max-width:72ch;text-wrap:pretty}
@@ -367,7 +375,7 @@ a{color:inherit;text-decoration-thickness:1px;text-underline-offset:.24em}
   .hero .place{animation:surface 1.3s var(--ease-long) .72s both}
   .tn-band{animation:wipe 1.1s var(--ease-long) .9s both}
   .tn-dur,.tn-lbls{animation:fadeIn .5s var(--ease) 1.75s both}
-  .hero-cap{animation:fadeIn .7s var(--ease) 1.6s both}
+  .hero-cap{animation:fadeIn .7s var(--ease) 1.6s backwards}
   .nav-row{animation:fadeIn .6s var(--ease) .12s backwards}
   .hero-img{animation:plateIn .9s var(--ease) both}
 }
@@ -397,7 +405,7 @@ a{color:inherit;text-decoration-thickness:1px;text-underline-offset:.24em}
 }
 
 /* ------------------------------------------------------------------
-   PHONE 390: three rules (19:00, 01:00, 07:00), Menu + Ask us, stacked
+   PHONE 390: three rules (the first, middle and last hour of tonight), Menu + Ask us, stacked
    ------------------------------------------------------------------ */
 @media (max-width:720px){
   .nav-row{padding-top:8px}
@@ -464,6 +472,8 @@ a{color:inherit;text-decoration-thickness:1px;text-underline-offset:.24em}
   .tbl td.dk{grid-column:1;grid-row:3;margin-top:8px;color:var(--ink-2);padding-right:12px}
   .tbl td.dk::before{content:attr(data-l) ' '}
   .tbl td.av{grid-column:2;grid-row:3;margin-top:8px;color:var(--ink-3)}
+  .tbl td.go{grid-column:2;grid-row:4;margin-top:8px}
+  .tbl td.go:empty{display:none}
   .tbl tr.fm td{grid-column:1 / 3;grid-row:auto}
   .note{grid-column:r1 / r7}
 
@@ -570,12 +580,12 @@ a{color:inherit;text-decoration-thickness:1px;text-underline-offset:.24em}
     <div class="tbl-wrap">
       <table class="tbl" aria-describedby="seasonNote">
         <caption class="sr-only">Departures and rates for the next six months</caption>
-        <colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"><col class="c5"></colgroup>
-        <thead><tr><th scope="col" data-k="season.heads.0">Departure, six nights</th><th scope="col" data-k="season.heads.1">Moon</th><th scope="col" data-k="season.heads.2">True dark, middle night</th><th scope="col" data-k="season.heads.3">Rate per guest</th><th scope="col" data-k="season.heads.4">Availability</th></tr></thead>
-        <tbody id="seasonRows"><tr class="noscript-row"><td colspan="5">Departure dates are computed from the moon in your browser; enable scripts to see them.</td></tr></tbody>
+        <colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"><col class="c5"><col class="c6"></colgroup>
+        <thead><tr><th scope="col" data-k="season.heads.0">Departure, six nights</th><th scope="col" data-k="season.heads.1">Moon</th><th scope="col" data-k="season.heads.2">True dark, middle night</th><th scope="col" data-k="season.heads.3">Rate per guest</th><th scope="col" data-k="season.heads.4">Places</th><th scope="col"><span class="sr-only" data-k="season.heads.5">Enquire</span></th></tr></thead>
+        <tbody id="seasonRows"><tr class="noscript-row"><td colspan="6">Departure dates are computed from the moon in your browser; enable scripts to see them.</td></tr></tbody>
       </table>
     </div>
-    <p class="note" id="seasonNote" data-k="season.note">Sun and moon times, darkness and new-moon dates on this page are computed in your browser from today’s date with low-precision solar and lunar formulae (after Meeus and the Astronomical Almanac). Twilight and moonrise are good to a few minutes and the moment of new moon to a few hours; the office confirms exact times with every booking. Astro dusk and dawn mark the sun 18 degrees below the horizon. All times are camp time, Chile continental.</p>
+    <p class="note" id="seasonNote" data-k="season.note">Sun and moon times, true dark and new-moon dates on this page are computed in your browser from today’s date with low-precision solar and lunar formulae (after Meeus and the Astronomical Almanac). True dark is the astronomical night, the sun 18 degrees or more below the horizon, with the moon down. Twilight and moonrise are good to a few minutes and the moment of new moon to a few hours; the office confirms exact times with every booking. All times are camp time, Chile continental.</p>
   </section>
 
   <!-- CLOSING: the same horizon after dusk -->
@@ -586,7 +596,7 @@ a{color:inherit;text-decoration-thickness:1px;text-underline-offset:.24em}
     </div>
     <div class="night-foot grid">
       <p class="cap" data-k="closing.caption">The same horizon, after astronomical dusk.</p>
-      <p class="data" id="closingData"><span>[ SKY 21.9 MAG/ARCSEC² ]</span></p>
+      <p class="data" id="closingData"><span>[ SKY 21.9 MAG/ARCSEC² ]</span><span>[ BORTLE CLASS 1 ]</span></p>
     </div>
   </section>
 
@@ -625,11 +635,17 @@ const DATA = {
   tonight: {
     darkLong: '{d} of true dark tonight',
     dark: '{d} of true dark',
+    noDark: 'No true dark tonight',
+    noDarkShort: 'No true dark',
+    darkRange: 'True dark {a} to {b} tonight',
     sunset: 'Sunset', dusk: 'Astro dusk', dawn: 'Astro dawn', sunrise: 'Sunrise',
-    moonrise: 'Moonrise', moonset: 'Moonset', moonAll: 'Moon up all night', moonNone: 'No moon tonight', lit: 'lit',
+    until: 'In {d}',
+    moonrise: 'Moonrise', moonset: 'Moonset', moonAll: 'Moon up all night', moonNone: 'Moon down all night', lit: 'lit',
     newMoon: 'new moon', fullMoon: 'full moon',
     now: 'Now',
-    summary: 'Tonight at the camp, {date}: sunset {sunset}, astronomical dusk {dusk}, astronomical dawn {dawn}, sunrise {sunrise}; {d} of true dark. {moon}'
+    darkSay: '{d} of true dark',
+    noDarkSay: 'no true dark, the moon is up from dusk to dawn',
+    summary: 'Tonight at the camp, {date}: sunset {sunset}, astronomical dusk {dusk}, astronomical dawn {dawn}, sunrise {sunrise}; {dark}. {moon}'
   },
   chapter: {
     statement: 'Above four thousand metres the air holds less than a millimetre of water, the nearest streetlight is ninety kilometres away, and on a moonless night the Milky Way is bright enough to throw your shadow on the salt.',
@@ -678,24 +694,31 @@ const DATA = {
   },
   season: {
     statement: 'We travel in the dark of the moon and close the camp when it is full.',
-    heads: ['Departure, six nights', 'Moon', 'True dark, middle night', 'Rate per guest', 'Availability'],
+    heads: ['Departure, six nights', 'Moon', 'True dark, middle night', 'Rate per guest', 'Places', 'Enquire'],
     months: 6,
     nights: 6,
     currency: 'USD',
     rates: { 1: 21600, 2: null, 3: 18400, 4: 16900, 5: 16900, 6: 15400, 7: 15400, 8: 16900, 9: 18400, 10: 18400, 11: 19800, 12: 21600 },
     closedMonths: { 2: 'Closed: altiplanic winter storms' },
-    availability: ['2 of 6 places', 'Full', '4 of 6 places', 'Private charter', '6 of 6 places', '5 of 6 places', '3 of 6 places'],
+    // places still open on each departure, in order (0 = full; 'charter' = the whole camp booked privately)
+    places: [2, 0, 4, 'charter', 6, 5, 3],
+    openText: '{n} of 6 places open',
+    fullText: 'Full',
+    charterText: 'Private charter',
+    enquireText: 'Enquire',
+    waitText: 'Waiting list',
     newText: 'New moon',
     peakText: 'Brightest night {p}% lit',
     darkShort: 'Dark',
     notOffered: 'NOT OFFERED',
     fullMoonText: 'Closed to guests in every full-moon week ({dates}): crew rotation and mirror cleaning.',
-    note: 'Sun and moon times, darkness and new-moon dates on this page are computed in your browser from today’s date with low-precision solar and lunar formulae (after Meeus and the Astronomical Almanac). Twilight and moonrise are good to a few minutes and the moment of new moon to a few hours; the office confirms exact times with every booking. Astro dusk and dawn mark the sun 18 degrees below the horizon. All times are camp time, Chile continental.'
+    note: 'Sun and moon times, true dark and new-moon dates on this page are computed in your browser from today’s date with low-precision solar and lunar formulae (after Meeus and the Astronomical Almanac). True dark is the astronomical night, the sun 18 degrees or more below the horizon, with the moon down. Twilight and moonrise are good to a few minutes and the moment of new moon to a few hours; the office confirms exact times with every booking. All times are camp time, Chile continental.'
   },
-  closing: { caption: 'The same horizon, after astronomical dusk.', data: ['Dark from {dusk} tonight', 'SKY 21.9 MAG/ARCSEC²', 'Bortle class 1'] },
+  closing: { caption: 'The same horizon, after astronomical dusk.', data: ['{dark}', 'SKY 21.9 MAG/ARCSEC²', 'Bortle class 1'] },
   enquire: {
     statement: 'Write to the expedition office. A person answers within a day, with the moon table for your dates.',
-    thanks: 'Received. The expedition office will write to {email} within a day, with the moon table for {dep}.'
+    thanks: 'Received. The expedition office will write to {email} within a day, with the moon table for {dep}.',
+    waitThanks: 'Received. You are on the waiting list for {dep}; the expedition office will write to {email} the day a place opens.'
   },
   footer: {
     office: 'Expedition office, Calle Tocopilla 40, San Pedro de Atacama, Región de Antofagasta, Chile',
@@ -849,75 +872,104 @@ const SKY = (() => {
      TONIGHT: the night that holds this moment, or the coming one
      ================================================================== */
   const L = DATA.site, TN = DATA.tonight;
+  const MIN = 60000;
+  const MOONLIT = '#2B3D6E'; // the moon up inside the astronomical night: one step lighter than true dark
   const nightOf = D => {
     const y = D.getUTCFullYear(), m = D.getUTCMonth(), d = D.getUTCDate();
     const ev = h => SKY.sunEvents(y, m, d, L.lat, L.lon, h);
     const a = ev(-0.833), b = ev(-6), c = ev(-12), e = ev(-18);
     return { sunset: +a.set, civilDusk: +b.set, nautDusk: +c.set, dusk: +e.set, dawn: +e.rise, nautDawn: +c.rise, civilDawn: +b.rise, sunrise: +a.rise };
   };
-  const now = new Date(), nowT = now.getTime();
-  const nowL = local(now);
-  let tonight = dayUTC(nowL.getUTCFullYear(), nowL.getUTCMonth(), nowL.getUTCDate());
-  let NT = nightOf(tonight);
-  { const pv = nightOf(addDays(tonight, -1)); if (nowT < pv.sunrise) { tonight = addDays(tonight, -1); NT = pv; } }
-  const mt = moonAtNight(tonight);
-  const pct = Math.round(mt.frac * 100);
-  // the rules become the hours: the centre rule is the whole hour nearest solar midnight
-  const centre = Math.round((NT.sunset + NT.sunrise) / 2 / HOUR) * HOUR;
-  const T0 = centre - 6 * HOUR, SPAN = 12 * HOUR;
-  // when the moon is above the horizon through the night (5 minute steps, crossings interpolated)
-  const moonUps = [], moonEv = [];
-  {
-    const a = NT.sunset - 2 * HOUR, b = NT.sunrise + 2 * HOUR, STEP = 300000;
+  const durOf = min => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ''}`);
+  // counted in whole displayed minutes, so 'Sunset 19:30, in 10 min' agrees with a clock reading 19:20
+  const untilOf = (to, from) => { const m = Math.max(1, Math.floor(to / MIN) - Math.floor(from / MIN)); return m < 60 ? `${m} min` : durOf(m); };
+
+  // when the moon is above the horizon through a night (5 minute steps, crossings interpolated)
+  function moonSpans(N) {
+    const ups = [], ev = [], STEP = 300000;
+    const a = N.sunset - 2 * HOUR, b = N.sunrise + 2 * HOUR;
     const f = t => SKY.moonUp(SKY.toJd(new Date(t)), L.lat, L.lon);
     let tp = a, vp = f(a), start = vp > 0 ? a : null;
     for (let t = a + STEP; t <= b; t += STEP) {
       const v = f(t);
       if ((v > 0) !== (vp > 0)) {
         const tc = tp + (t - tp) * (vp / (vp - v));
-        if (v > 0) start = tc; else { moonUps.push([start, tc]); start = null; }
-        moonEv.push({ t: tc, rise: v > 0 });
+        if (v > 0) start = tc; else { ups.push([start, tc]); start = null; }
+        ev.push({ t: tc, rise: v > 0 });
       }
       tp = t; vp = v;
     }
-    if (start !== null) moonUps.push([start, tp]);
+    if (start !== null) ups.push([start, tp]);
+    return { ups, ev };
   }
-  const nightMoonEv = moonEv.filter(e => e.t > NT.sunset && e.t < NT.sunrise);
-  const midDark = (NT.dusk + NT.dawn) / 2;
-  const moonUpAt = t => moonUps.some(([a, b]) => t >= a && t <= b);
-  const darkMin = Math.round((NT.dawn - NT.dusk) / 300000) * 5;
-  const durTxt = `${Math.floor(darkMin / 60)} h${darkMin % 60 ? ` ${darkMin % 60} min` : ''}`;
-  const moonLit = pct <= 1 ? TN.newMoon : pct >= 99 ? TN.fullMoon : `${pct}% ${TN.lit}`;
-  const moonIs = pct <= 1 ? 'the moon is new' : pct >= 99 ? 'the moon is full' : `the moon is ${pct} percent lit`;
-
-  // labels in priority order; the layout drops the lowest when space runs out
-  const LABELS = [];
-  const lab = (t, text, align, kind, short) => LABELS.push({ t, text, align, kind, short });
-  lab(NT.dusk, `${TN.dusk} ${hm(NT.dusk)}`, 'start');
-  lab(NT.dawn, `${TN.dawn} ${hm(NT.dawn)}`, 'end');
-  let moonSentence;
-  if (nightMoonEv.length) {
-    nightMoonEv.forEach(e => { const w = `${e.rise ? TN.moonrise : TN.moonset} ${hm(e.t)}`; lab(e.t, `${w}, ${moonLit}`, 'mid', 'moon', w); });
-    moonSentence = nightMoonEv.map(e => `${e.rise ? TN.moonrise : TN.moonset} ${hm(e.t)}`).join(', ') + `; ${moonIs}.`;
-  } else if (moonUpAt(midDark)) {
-    lab(midDark, `${TN.moonAll}, ${moonLit}`, 'mid', 'moon', TN.moonAll);
-    moonSentence = `${TN.moonAll}; ${moonIs}.`;
-  } else {
-    lab(midDark, TN.moonNone, 'mid', 'moon');
-    moonSentence = `${TN.moonNone}.`;
+  // true dark: the astronomical night (sun 18 degrees down) with the moon below the horizon; longest stretch first
+  function trueDark(N, ups) {
+    let segs = [[N.dusk, N.dawn]];
+    ups.forEach(([a, b]) => {
+      segs = segs.flatMap(([s, e]) => (b <= s || a >= e) ? [[s, e]] : [[s, a], [b, e]].filter(([p, q]) => q - p >= MIN));
+    });
+    const min = Math.round(segs.reduce((t, [s, e]) => t + e - s, 0) / 300000) * 5;
+    return { segs: segs.sort((p, q) => (q[1] - q[0]) - (p[1] - p[0])), min };
   }
-  lab(nowT, `${TN.now} ${hm(nowT)}`, 'mid', 'now');
-  lab(NT.sunset, `${TN.sunset} ${hm(NT.sunset)}`, 'start');
-  lab(NT.sunrise, `${TN.sunrise} ${hm(NT.sunrise)}`, 'end');
+  // the rules become tonight's hours: six equal steps of 2 h, 2 h 15 or 2 h 30 from a camp quarter hour.
+  // The smallest step that holds sunset and sunrise between rule 1 and rule 7 with air on both sides wins,
+  // the night as near the middle as the quarter hours allow (whole and half hours preferred)
+  function axisFor(N) {
+    const Q = 15 * MIN, AIR = 10 * MIN;
+    for (const st of [120, 135, 150]) {
+      const SPAN = 6 * st * MIN;
+      let best = null;
+      for (let t = Math.ceil((N.sunrise + AIR - SPAN) / Q) * Q; t <= N.sunset - AIR; t += Q) {
+        const mm = new Date(t).getUTCMinutes(); // camp offsets are whole hours, so UTC minutes are camp minutes
+        const score = Math.abs(N.sunset + N.sunrise - 2 * t - SPAN) / MIN + (mm === 0 ? 0 : mm === 30 ? 8 : 16);
+        if (!best || score < best.score) best = { T0: t, SPAN, score };
+      }
+      if (best) return best;
+    }
+    const SPAN = 15 * HOUR; // unreachable on this plateau (the longest night is 13 h 17 min); centre it anyway
+    return { T0: Math.round((N.sunset + N.sunrise - SPAN) / 2 / Q) * Q, SPAN };
+  }
 
   const tnBand = $('#tnBand'), tnDur = $('#tnDur'), tnLbls = $('#tnLbls'), tnEl = $('#tonight'), hoursEl = $('#hours');
-  tnLbls.innerHTML = LABELS.map(() => '<span class="tn-l"></span>').join('');
-  const lblEls = $$('.tn-l', tnLbls);
-  const moonGlyph = moonSvg(mt.frac, mt.waxing, 12);
-  $('#tonightText').textContent = TN.summary
-    .replace('{date}', `${DAYS[tonight.getUTCDay()]} ${tonight.getUTCDate()} ${MONTHS[tonight.getUTCMonth()]}`)
-    .replace('{sunset}', hm(NT.sunset)).replace('{dusk}', hm(NT.dusk)).replace('{dawn}', hm(NT.dawn)).replace('{sunrise}', hm(NT.sunrise))
-    .replace('{d}', durTxt).replace('{moon}', moonSentence);
+  let nowT = Date.now();
+  const now = new Date(nowT);
+  let tonight, NT, mt, pct, AX, MS, DK, MOONL = [], moonGlyph = '';
+  function computeTonight() {
+    const nowL = local(new Date(nowT));
+    tonight = dayUTC(nowL.getUTCFullYear(), nowL.getUTCMonth(), nowL.getUTCDate());
+    NT = nightOf(tonight);
+    const pv = nightOf(addDays(tonight, -1));
+    if (nowT < pv.sunrise) { tonight = addDays(tonight, -1); NT = pv; }
+    mt = moonAtNight(tonight);
+    pct = Math.round(mt.frac * 100);
+    AX = axisFor(NT);
+    MS = moonSpans(NT);
+    DK = trueDark(NT, MS.ups);
+    moonGlyph = moonSvg(mt.frac, mt.waxing, 12);
+    const moonLit = pct <= 1 ? TN.newMoon : pct >= 99 ? TN.fullMoon : `${pct}% ${TN.lit}`;
+    const moonIs = pct <= 1 ? 'the moon is new' : pct >= 99 ? 'the moon is full' : `the moon is ${pct} percent lit`;
+    // the band labels only the moon's crossings inside the astronomical night (the ones that cut true dark);
+    // otherwise one label in the middle says whether it is up or down until dawn. The sentence keeps them all
+    const evs = MS.ev.filter(e => e.t > NT.sunset && e.t < NT.sunrise);
+    const inNight = evs.filter(e => e.t > NT.dusk && e.t < NT.dawn);
+    const midDark = (NT.dusk + NT.dawn) / 2;
+    const upMid = MS.ups.some(([a, b]) => midDark >= a && midDark <= b);
+    const moonL = (t, text, short) => ({ t, text, align: 'mid', kind: 'moon', short });
+    const cross = e => `${e.rise ? TN.moonrise : TN.moonset} ${hm(e.t)}`;
+    if (inNight.length) MOONL = inNight.map(e => moonL(e.t, `${cross(e)}, ${moonLit}`, cross(e)));
+    else { const w = upMid ? TN.moonAll : TN.moonNone; MOONL = [Object.assign(moonL(midDark, `${w}, ${moonLit}`, w), { tick: false })]; }
+    const moonSentence = evs.length ? `${evs.map(cross).join(', ')}; ${moonIs}.` : `${upMid ? TN.moonAll : TN.moonNone}; ${moonIs}.`;
+    const dark = DK.min >= 5;
+    $('#tonightText').textContent = TN.summary
+      .replace('{date}', `${DAYS[tonight.getUTCDay()]} ${tonight.getUTCDate()} ${MONTHS[tonight.getUTCMonth()]}`)
+      .replace('{sunset}', hm(NT.sunset)).replace('{dusk}', hm(NT.dusk)).replace('{dawn}', hm(NT.dawn)).replace('{sunrise}', hm(NT.sunrise))
+      .replace('{dark}', dark ? TN.darkSay.replace('{d}', durOf(DK.min)) : TN.noDarkSay).replace('{moon}', moonSentence);
+    // the closing plate repeats tonight's true dark
+    const top = DK.segs[0];
+    const darkLine = dark && top ? TN.darkRange.replace('{a}', hm(top[0])).replace('{b}', hm(top[1])) : TN.noDark;
+    $('#closingData').innerHTML = DATA.closing.data.map(d => `<span>[ ${esc(d.replace('{dark}', darkLine))} ]</span>`).join('');
+  }
+  computeTonight();
 
   /* ---------- season: new-moon departures; full moons collapse into one note ---------- */
   const S = DATA.season;
@@ -937,20 +989,6 @@ const SKY = (() => {
     if (nm > horizon) break;
   }
   rows.sort((a, b) => a.start - b.start);
-  let ai = 0, lastYear = todayL.getUTCFullYear();
-  rows.forEach(r => {
-    const m = r.day.getUTCMonth() + 1;
-    const closed = S.closedMonths[m];
-    r.closed = closed || null;
-    r.rate = closed ? null : S.rates[m];
-    r.avail = closed ? closed : S.availability[ai++ % S.availability.length];
-    let mx = 0; for (let n = 0; n < S.nights; n++) mx = Math.max(mx, moonAtNight(addDays(r.start, n)).frac);
-    r.maxMoon = Math.round(mx * 100);
-    const mid = nightOf(r.day); // the new-moon night, the middle of the six
-    const dm = Math.round((mid.dawn - mid.dusk) / 300000) * 5;
-    r.dark = `${Math.floor(dm / 60)} h${dm % 60 ? ` ${dm % 60} min` : ''}`;
-    r.darkFrom = `${hm(mid.dusk)} to ${hm(mid.dawn)}`;
-  });
   const rangeTxt = (a, b) => a.getUTCMonth() === b.getUTCMonth()
     ? `${DOW[a.getUTCDay()]} ${a.getUTCDate()} to ${fmtD(b)}`
     : `${fmtD(a)} to ${fmtD(b)}`;
@@ -958,17 +996,52 @@ const SKY = (() => {
     const t = ds.map(d => `${d.getUTCDate()} ${MON[d.getUTCMonth()]}`);
     return t.length > 1 ? `${t.slice(0, -1).join(', ')} and ${t[t.length - 1]}` : t.join('');
   };
+  const WAIT = ` (${S.waitText.toLowerCase()})`;
+  let ai = 0, lastYear = todayL.getUTCFullYear();
+  rows.forEach(r => {
+    const m = r.day.getUTCMonth() + 1;
+    const closed = S.closedMonths[m];
+    r.closed = closed || null;
+    r.rate = closed ? null : S.rates[m];
+    r.places = closed ? null : S.places[ai++ % S.places.length];
+    r.range = rangeTxt(r.start, r.end);
+    r.opt = r.places === 0 ? r.range + WAIT : r.range; // its line in the enquiry select
+    let mx = 0; for (let n = 0; n < S.nights; n++) mx = Math.max(mx, moonAtNight(addDays(r.start, n)).frac);
+    r.maxMoon = Math.round(mx * 100);
+    const mid = nightOf(r.day); // the new-moon night, the middle of the six
+    const dd = trueDark(mid, moonSpans(mid).ups);
+    r.dark = durOf(dd.min);
+    r.darkFrom = dd.segs[0] ? `${hm(dd.segs[0][0])} to ${hm(dd.segs[0][1])}` : '';
+  });
+  // six places per departure: taken in ink, open as rings (drawn like the moon glyphs)
+  const dots = p => {
+    const open = typeof p === 'number' ? p : 0;
+    let c = '';
+    for (let i = 0; i < 6; i++) c += `<circle cx="${4.5 + i * 11}" cy="4.5" r="3.5" style="fill:${i >= 6 - open ? '#FFFFFF' : INK};stroke:${INK};stroke-width:1"/>`;
+    return `<svg class="pl" width="64" height="9" viewBox="0 0 64 9" aria-hidden="true">${c}</svg>`;
+  };
+  const placesTxt = p => (p === 'charter' ? S.charterText : p > 0 ? S.openText.replace('{n}', p) : S.fullText);
   $('#seasonRows').innerHTML = rows.map(r => {
     const y = r.start.getUTCFullYear();
     const yr = y !== lastYear ? `<span class="yr">${y}</span>` : '';
     lastYear = y;
-    const full = /full|charter/i.test(r.avail) || r.closed;
-    return `<tr${r.closed ? ' class="closed"' : ''}><td class="dep">${rangeTxt(r.start, r.end)}${yr}</td><td class="mo">${moonSvg(0, true, 12)}${esc(S.newText)} ${fmtD(r.day)}<span class="pk">${esc(S.peakText.replace('{p}', r.maxMoon))}</span></td><td class="dk" data-l="${esc(S.darkShort)}">${r.dark}<span class="pk">${r.darkFrom}</span></td><td class="rt"><span class="rate">${r.rate ? money(r.rate) : esc(S.notOffered)}</span></td><td class="av${full ? ' avail-full' : ''}">${esc(r.avail)}</td></tr>`;
-  }).join('') + (fulls.length ? `<tr class="fm"><td colspan="5">${moonSvg(1, true, 12)}${esc(S.fullMoonText.replace('{dates}', listDates(fulls)))}</td></tr>` : '');
+    const full = r.places === 0 || r.places === 'charter';
+    const av = r.closed
+      ? `<td class="av avail-full" colspan="2">${esc(r.closed)}</td>`
+      : `<td class="av${full ? ' avail-full' : ''}">${esc(placesTxt(r.places))}${dots(r.places)}</td>`;
+    const go = r.closed ? ''
+      : r.places === 'charter' ? '<td class="go"></td>'
+      : `<td class="go"><a class="go-l" href="#enquire" data-dep="${esc(r.opt)}" aria-label="${esc(`${r.places === 0 ? S.waitText : S.enquireText}: ${r.range}`)}">${esc(r.places === 0 ? S.waitText : S.enquireText)}</a></td>`;
+    return `<tr${r.closed ? ' class="closed"' : ''}><td class="dep">${r.range}${yr}</td><td class="mo">${moonSvg(0, true, 12)}${esc(S.newText)} ${fmtD(r.day)}<span class="pk">${esc(S.peakText.replace('{p}', r.maxMoon))}</span></td><td class="dk" data-l="${esc(S.darkShort)}">${r.dark}<span class="pk">${r.darkFrom}</span></td><td class="rt"><span class="rate">${r.rate ? money(r.rate) : esc(S.notOffered)}</span></td>${av}${go}</tr>`;
+  }).join('') + (fulls.length ? `<tr class="fm"><td colspan="6">${moonSvg(1, true, 12)}${esc(S.fullMoonText.replace('{dates}', listDates(fulls)))}</td></tr>` : '');
 
-  /* departures in the enquiry select */
-  const open = rows.filter(r => !r.closed && !/full|charter/i.test(r.avail));
-  $('#depSel').innerHTML = open.map(r => `<option>${rangeTxt(r.start, r.end)}</option>`).join('') + '<option>Private dates</option>';
+  /* departures in the enquiry select: open ones, then the waiting lists; a row's link picks its line */
+  const bookable = rows.filter(r => !r.closed && r.places !== 'charter');
+  $('#depSel').innerHTML = bookable.map(r => `<option>${esc(r.opt)}</option>`).join('') + '<option>Private dates</option>';
+  $('#seasonRows').addEventListener('click', e => {
+    const a = e.target.closest('.go-l');
+    if (a) $('#depSel').value = a.dataset.dep;
+  });
 
   /* ---------- the day ledger for the next departure ---------- */
   const next = rows.find(r => !r.closed);
@@ -994,9 +1067,6 @@ const SKY = (() => {
 
   /* ---------- operation facts ---------- */
   $('#facts').innerHTML = DATA.operation.facts.map(f => `<div class="fact sub"><dt>${esc(f.label)}</dt><dd class="f">${esc(f.fact)}</dd><dd class="k data">${esc(f.key)}</dd></div>`).join('');
-
-  /* ---------- closing data, tonight's dusk included ---------- */
-  $('#closingData').innerHTML = DATA.closing.data.map(d => `<span>[ ${esc(d.replace('{dusk}', hm(NT.dusk)))} ]</span>`).join('');
 
   /* ---------- statement split into words for scroll inking; numbers in the margin ---------- */
   const stmt = $('#s-chapter');
@@ -1030,10 +1100,13 @@ const SKY = (() => {
   }
 
   /* ---------- the hours of tonight at the head of each rule ---------- */
+  let hoursKey = '';
   function drawHours() {
     const W = root.clientWidth, n = rx.length;
-    if (hoursEl.children.length !== n) {
-      hoursEl.innerHTML = rx.map((_, i) => `<span style="--n:${i}">${hm(T0 + i * SPAN / (n - 1))}</span>`).join('');
+    const key = `${AX.T0}|${AX.SPAN}|${n}`;
+    if (key !== hoursKey) {
+      hoursKey = key;
+      hoursEl.innerHTML = rx.map((_, i) => `<span style="--n:${i}">${hm(AX.T0 + i * AX.SPAN / (n - 1))}</span>`).join('');
     }
     // every hour starts just right of its rule; the last one hangs left of its rule only when the margin is too narrow
     $$('span', hoursEl).forEach((s, i) => {
@@ -1043,11 +1116,13 @@ const SKY = (() => {
     });
   }
 
-  /* ---------- the band: twilight steps, the dark window, moonlight, now ---------- */
+  /* ---------- the band: twilight steps, true dark, moonlight, now ---------- */
   let groupH = 65, bandH = 30;
   const PADT = 7;
+  const lblEls = [];
   function drawTonight() {
     const W = root.clientWidth, ph = phoneQ.matches;
+    const T0 = AX.T0, SPAN = AX.SPAN;
     const x0 = rx[0], k = (rx[rx.length - 1] - x0) / SPAN;
     const X = t => x0 + (t - T0) * k;
     const sx = t => Math.round(clamp(X(t), -2, W + 2));
@@ -1065,66 +1140,104 @@ const SKY = (() => {
       const xa = sx(a), xb = sx(b);
       if (xb > xa) s += `<rect x="${xa}" y="${PADT}" width="${xb - xa}" height="${BH}" style="fill:${FILL[c]}"/>`;
     });
-    // moonlight: a pale line inset in the band for as long as the moon is up
-    moonUps.forEach(([a, b]) => {
+    // moonlight lifts the astronomical night one step: only true dark stays in full ink
+    MS.ups.forEach(([a, b]) => {
+      const xa = sx(Math.max(a, NT.dusk)), xb = sx(Math.min(b, NT.dawn));
+      if (xb > xa) s += `<rect x="${xa}" y="${PADT}" width="${xb - xa}" height="${BH}" style="fill:${MOONLIT}"/>`;
+    });
+    // and a pale line inset in the band for as long as the moon is up
+    MS.ups.forEach(([a, b]) => {
       const xa = sx(Math.max(a, NT.sunset)), xb = sx(Math.min(b, NT.sunrise));
       if (xb > xa) s += `<rect x="${xa}" y="${PADT + 3}" width="${xb - xa}" height="2" style="fill:#DCE3F0"/>`;
     });
-    // labels: rows below the band, greedy by priority (two rows, three on phones)
+    // the present: on the band through the night; in daylight the ember waits at the start of the band
+    const parked = nowT < NT.sunset;
+    const ex = Math.round(X(parked ? NT.sunset : nowT));
+    // labels in priority order (the layout drops the lowest when space runs out); in daylight the sunset
+    // label carries the countdown on the row beneath it
+    const list = [];
+    const lab = (t, text, align, kind) => list.push({ t, text, align, kind });
+    if (parked) {
+      lab(NT.sunset, `${TN.sunset} ${hm(NT.sunset)}`, 'start', 'sunset');
+      lab(NT.sunset, TN.until.replace('{d}', untilOf(NT.sunset, nowT)), 'start', 'until');
+    }
+    lab(NT.dusk, `${TN.dusk} ${hm(NT.dusk)}`, 'start');
+    lab(NT.dawn, `${TN.dawn} ${hm(NT.dawn)}`, 'end');
+    MOONL.forEach(m => list.push(m));
+    if (!parked) lab(NT.sunset, `${TN.sunset} ${hm(NT.sunset)}`, 'start', 'sunset');
+    lab(NT.sunrise, `${TN.sunrise} ${hm(NT.sunrise)}`, 'end');
+    if (!parked) lab(nowT, `${TN.now} ${hm(nowT)}`, 'mid', 'now');
+    while (lblEls.length < list.length) { const el = document.createElement('span'); el.className = 'tn-l'; tnLbls.appendChild(el); lblEls.push(el); }
+    lblEls.forEach((el, i) => { if (i >= list.length) el.hidden = true; });
+    // rows below the band, greedy by priority (two rows, three on phones), kept between rule 1 and rule 7;
+    // a centred label may also hang from its mark to either side before it drops a row
     const ROW = 18, y1 = lift + yb + 11, rows = ph ? [[], [], []] : [[], []];
+    const xE = rx[rx.length - 1];
+    const free = (row, a, b) => row.every(o => b + 16 <= o.a || a >= o.b + 16);
     let used = 1;
-    const nowX = X(nowT), nowOn = nowX >= 1 && nowX <= W - 1;
-    LABELS.forEach((l, i) => {
+    list.forEach((l, i) => {
       const el = lblEls[i];
-      const x = X(l.t);
-      if (l.kind === 'now' && !nowOn) { el.hidden = true; return; }
+      const x = l.kind === 'now' ? ex : X(l.t);
       el.hidden = false;
       el.innerHTML = (l.kind === 'moon' ? moonGlyph : '') + esc(ph && l.short ? l.short : l.text);
       const w = el.offsetWidth;
-      let left = l.align === 'start' ? x : l.align === 'end' ? x - w : x - w / 2;
-      left = clamp(left, 8, W - 8 - w);
-      const right = left + w;
-      const r = rows.findIndex(row => row.every(o => right + 16 <= o[0] || left >= o[1] + 16));
+      const lefts = (l.align === 'start' ? [x] : l.align === 'end' ? [x - w] : [x - w / 2, x - 6, x - w + 6]).map(v => clamp(v, x0 + 6, xE - 6 - w));
+      let r = -1, left = lefts[0];
+      for (let k = 0; k < rows.length && r < 0; k++) {
+        const f = lefts.find(v => free(rows[k], v, v + w));
+        if (f != null) { r = k; left = f; }
+      }
+      if (r < 0 && l.kind === 'now') { // the present always shows: it takes the last row and hides what it covers
+        r = rows.length - 1;
+        rows[r] = rows[r].filter(o => { const hit = !free([o], left, left + w); if (hit) o.el.hidden = true; return !hit; });
+      }
       if (r < 0) { el.hidden = true; return; }
-      rows[r].push([left, right]);
+      rows[r].push({ a: left, b: left + w, el });
       used = Math.max(used, r + 1);
       el.style.left = Math.round(left) + 'px';
       el.style.top = (y1 + r * ROW) + 'px';
-      if (l.kind !== 'now' && x >= 0 && x <= W) {
+      if (l.tick !== false && l.kind !== 'now' && l.kind !== 'until' && x >= 0 && x <= W) {
         const tx = Math.round(x) + 0.5;
         s += `<line x1="${tx}" y1="${yb}" x2="${tx}" y2="${H}" style="stroke:${INK};stroke-width:1"/>`;
       }
     });
-    if (nowOn) s += `<rect x="${Math.round(nowX) - 1}" y="0" width="2" height="${H}" style="fill:#E4572E"/>`;
+    s += `<rect x="${ex - 1}" y="0" width="2" height="${H}" style="fill:#E4572E"/>`;
     tnBand.setAttribute('width', W); tnBand.setAttribute('height', H);
     tnBand.setAttribute('viewBox', `0 0 ${W} ${H}`);
     tnBand.style.height = H + 'px';
     tnBand.style.marginTop = lift + 'px';
     tnBand.innerHTML = s;
     groupH = y1 + used * ROW;
-    const variants = [TN.darkLong, TN.dark].map(v => v.replace('{d}', durTxt));
-    if (ph) { // above the band, starting where the dark starts
+    // the duration: true dark, or its absence when the moon is up from dusk to dawn
+    const dark = DK.min >= 5;
+    const variants = dark ? [TN.darkLong, TN.dark].map(v => v.replace('{d}', durOf(DK.min))) : [TN.noDark, TN.noDarkShort];
+    const bare = dark ? durOf(DK.min) : TN.noDarkShort;
+    const segX = DK.segs.map(([a, b]) => [sx(a), sx(b)]);
+    if (ph) { // above the band, starting where the true dark starts
       tnDur.textContent = variants[0];
-      tnDur.style.left = Math.round(clamp(sx(NT.dusk), rx[0] + 9, W - 9 - tnDur.offsetWidth)) + 'px';
+      tnDur.style.left = Math.round(clamp(dark ? segX[0][0] : sx(NT.dusk), rx[0] + 9, W - 9 - tnDur.offsetWidth)) + 'px';
       tnDur.style.top = '0px';
       return;
     }
-    // the duration sits in a clean column of the dark window when it can
+    // inside the astronomical night, on or beside the longest true dark: from its start, from a column inside
+    // it, or ending just before it when it is too short to hold the words; otherwise on any clean column
     const xa = sx(NT.dusk) + 12, xb = sx(NT.dawn) - 12;
-    const hitsNow = (a, w) => nowOn && nowX > a - 8 && nowX < a + w + 8;
+    const hitsNow = (a, w) => ex > a - 8 && ex < a + w + 8;
     const hitsRule = (a, w) => rx.some(r => r > a - 6 && r < a + w + 6);
-    const cands = [xa].concat(rx.filter(r => r > xa && r < xb).map(r => r + 10), nowOn && nowX > xa && nowX < xb ? [Math.round(nowX) + 10] : []);
-    // 1. the full sentence in a clean column; 2. the sentence clear of the NOW tick (a faint rule may cross it);
-    // 3. the bare duration in a clean column; 4. the bare duration at the start of the dark
-    const tries = [[variants[0], true], [variants[1], true], [variants[1], false], [durTxt, true]];
+    const L0 = segX[0];
+    const near = w => (L0 ? [Math.max(xa, L0[0] + 12)].concat(rx.filter(r => r > L0[0] && r < L0[1]).map(r => r + 10), ex > L0[0] && ex < L0[1] ? [ex + 10] : [], [L0[0] - 12 - w]) : []);
+    const cols = () => [xa].concat(rx.filter(r => r > xa && r < xb).map(r => r + 10), ex > xa && ex < xb ? [ex + 10] : []);
+    const [v0, v1] = variants;
+    // clean means no rule crosses the words; a faint rule across them beats words far from the dark they count
+    const plan = [[v0, near, 1], [v1, near, 1], [v0, near, 0], [v1, near, 0], [v0, cols, 1], [v1, cols, 1], [v1, cols, 0], [bare, near, 0], [bare, cols, 0]];
     let at = null;
-    for (const [v, clean] of tries) {
+    for (const [v, where, clean] of plan) {
       tnDur.textContent = v;
       const w = tnDur.offsetWidth;
-      at = cands.find(c => c + w <= xb && !hitsNow(c, w) && (!clean || !hitsRule(c, w)));
+      at = where(w).find(c => c >= xa && c + w <= xb && !hitsNow(c, w) && (!clean || !hitsRule(c, w)));
       if (at != null) break;
     }
-    if (at == null) { tnDur.textContent = durTxt; at = xa; }
+    if (at == null) { tnDur.textContent = bare; at = xa; }
     tnDur.style.left = Math.round(at) + 'px';
     tnDur.style.top = (PADT + Math.round((BH - 18) / 2) + 1) + 'px';
   }
@@ -1173,7 +1286,11 @@ const SKY = (() => {
     heroCap.style.bottom = phoneQ.matches ? (H - top + 18) + 'px' : '';
     const night = $('#night');
     fit($('#place2'), { maxCap: phoneQ.matches ? night.offsetHeight * 0.3 : night.offsetHeight * 0.34 });
+    // how far the stage may rise before the hours and the caption would meet the nav words (bottom near 44px)
+    fadeH = Math.max(16, hoursEl.offsetTop - 44);
+    fadeC = Math.max(16, heroCap.offsetTop - 44);
   }
+  let fadeH = 30, fadeC = 74;
 
   /* ---------- margin notes sit on the line of the word they explain ---------- */
   function placeNotes() {
@@ -1195,7 +1312,7 @@ const SKY = (() => {
   /* ---------- scroll: drift, fade to white, linear inking, nav ink ---------- */
   const nav = $('#nav');
   const lightGrounds = $$('[data-ink="light"]');
-  let raf = 0, lastY = 0;
+  let raf = 0, lastY = 0, lastDz = -1, lastOh = -1, lastOc = -1;
   const menu = $('#menu');
   function frame() {
     raf = 0;
@@ -1205,9 +1322,21 @@ const SKY = (() => {
       const p = clamp(y / (0.4 * vh), 0, 1);
       heroImg.style.transform = `translate3d(${(-1.4 * p).toFixed(3)}vw, ${(-5 * p).toFixed(3)}vh, 0)`;
     } else heroImg.style.transform = '';
-    // 2. the photograph fades to white as you leave it
+    // 2. the photograph fades to white as you leave it, its lower edge dissolving instead of cutting:
+    // the mask grows to the last 15 percent of the stage over the first 15vh of its exit
     const f = clamp((y - 0.4 * vh) / (0.72 * vh), 0, 1);
     stage.style.opacity = (1 - f).toFixed(3);
+    const off = Math.max(0, -stage.getBoundingClientRect().top); // how far the stage has left the top
+    const dz = clamp(off / (0.15 * vh), 0, 1);
+    if (dz !== lastDz) {
+      lastDz = dz;
+      stage.style.setProperty('--dz', (dz * 15).toFixed(2) + '%');
+      stage.classList.toggle('dz', dz > 0);
+    }
+    // the hours and the caption fade as the stage carries them up, gone before they reach the nav words
+    const oh = clamp(1 - off / fadeH, 0, 1), oc = clamp(1 - off / fadeC, 0, 1);
+    if (oh !== lastOh) { lastOh = oh; hoursEl.style.opacity = oh === 1 ? '' : oh.toFixed(3); }
+    if (oc !== lastOc) { lastOc = oc; heroCap.style.opacity = oc === 1 ? '' : oc.toFixed(3); }
     // 3. word by word, 12 percent to full ink, tied 1:1 to scroll; each margin note inks with its word
     if (reduce.matches) {
       words.forEach((w, i) => { if (lastT[i] !== 1) { w.style.color = INK; lastT[i] = 1; } });
@@ -1307,9 +1436,25 @@ const SKY = (() => {
     const fm = e.currentTarget;
     if (!fm.reportValidity()) return;
     const em = fm.email.value.trim(), dep = fm.departure.value;
-    $('#status').textContent = DATA.enquire.thanks.replace('{email}', em).replace('{dep}', dep === 'Private dates' ? 'your private dates' : dep);
+    const wait = dep.endsWith(WAIT);
+    $('#status').textContent = (wait ? DATA.enquire.waitThanks : DATA.enquire.thanks)
+      .replace('{email}', em).replace('{dep}', dep === 'Private dates' ? 'your private dates' : dep.replace(WAIT, ''));
     fm.querySelector('.send').textContent = 'Enquiry sent';
   });
+
+  /* ---------- the band stays live: the ember and its countdown move with the minute; after sunrise the
+     next night takes over the rules ---------- */
+  let lastMin = Math.floor(nowT / MIN);
+  setInterval(() => {
+    const t = Date.now(), m = Math.floor(t / MIN);
+    if (m === lastMin) return;
+    lastMin = m; nowT = t;
+    const rolled = nowT >= NT.sunrise;
+    if (rolled) { computeTonight(); drawHours(); }
+    const g = groupH;
+    drawTonight();
+    if (rolled || g !== groupH) placeHero();
+  }, 10000);
 
   /* ---------- boot ---------- */
   relayout();

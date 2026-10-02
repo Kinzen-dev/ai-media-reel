@@ -136,10 +136,10 @@
 
   /* a work two modules long, in Images: the photograph takes the first module flush to its rules, the facts and the label take the second */
   .cell.w .im { top: 0; left: 0; height: 100%; transform: none; }
-  .cell.w .void { border-width: 0 1px 0 0; }
+  .cell.w .void { border-width: 0 1px 0 0; padding-bottom: calc(var(--band) - 8px); } /* its words on the same line as the single voids in the row */
   .fx { position: absolute; top: 0; right: 0; bottom: 0; left: calc(50% + .5px); opacity: 0; transition: opacity .25s linear; }
   .fx .ff { position: absolute; top: 16px; left: 20px; right: 20px; text-wrap: pretty; }
-  .fx .ff > span { display: block; }
+  .fx .ff > span { display: block; padding-left: .9em; text-indent: -.9em; }
   .cell.w .ci > .lab { transition: opacity .25s linear; }
 
   html[data-mode="images"] .dw .pl { opacity: 0; }
@@ -275,6 +275,7 @@
     .lab .cm { display: none; }
     .meta { display: none; }
     .void { padding: 4px; font-size: 12px; line-height: 1.2; }
+    .cell.w .void { padding-bottom: calc(var(--band) - 6px); }
     .fx .ff { top: 8px; left: 10px; right: 10px; font-size: 12.5px; line-height: 1.25; }
 
     .sheet { display: flex; flex-direction: column; --iw: 118px; }
@@ -300,6 +301,10 @@
     .two > *, .three > * { padding: 0 16px; }
     .foot { grid-template-columns: 1fr; gap: 6px; padding: 18px 0 40px; }
     .foot > * { padding: 0 16px; }
+  }
+
+  @media (max-width: 370px) {
+    .fx .ff > span:nth-child(3) { display: none; }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -1169,9 +1174,11 @@ for (const k in PLANS) {
   const OPEN_SCALES = [50, 100, 200, 250, 500, 750, 1000, 2000, 5000];
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const lower1 = s => s.charAt(0).toLowerCase() + s.slice(1);
+  const nb = s => s.replace(/(\d) (?=(?:m²|m|cm|mm)(?![a-z]))/g, '$1 ');   /* a figure never parts from its unit */
   const svgOf = (k, full) => '<svg class="pl" viewBox="0 0 10 10" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">' + (full ? PLANS[k].svgFull : PLANS[k].svg) + '</svg>';
   const labOf = w => '<span class="lab"><span class="l1"><span class="no">' + w.no + '</span> ' + esc(w.name) + '</span><span class="l2"><span class="cm">, </span>' + esc(w.city) + '</span></span>';
   const meta = w => w.status === 'Built' ? w.year + ', built' : w.status === 'On site' ? w.note : lower1(w.note);
+  const metaLine = w => w.status === 'Built' ? w.year + ', built' : w.note;   /* the visible line starts a line, so it keeps its capital */
   const statusLine = w => w.status === 'Built' ? 'Built ' + w.year : w.note;
   const cols = () => getComputedStyle(wall).gridTemplateColumns.split(' ').length;
   let wallD = 500;
@@ -1187,8 +1194,8 @@ for (const k in PLANS) {
       '<span class="dw">' + svgOf(w.plan) + '</span>' +
       '<span class="im">' + media + '</span>' +
       labOf(w) +
-      (wide ? '<span class="fx"><span class="ff">' + w.facts.map(t => '<span>' + esc(t) + '</span>').join('') + '</span>' + labOf(w) + '</span>' : '') +
-      '<span class="meta">' + esc(meta(w)) + '</span>' +
+      (wide ? '<span class="fx"><span class="ff">' + w.facts.map(t => '<span>' + nb(esc(t)) + '</span>').join('') + '</span>' + labOf(w) + '</span>' : '') +
+      '<span class="meta">' + esc(metaLine(w)) + '</span>' +
       '</button></li>';
   }).join('');
   const cells = Array.prototype.slice.call(wall.children);
@@ -1342,7 +1349,7 @@ for (const k in PLANS) {
       '<div class="s-strip">' +
         '<div class="s-f1"><p><span class="no">' + w.no + '</span> ' + esc(w.name) + ', ' + esc(w.city) + '</p><p class="mute">' + esc(statusLine(w)) + '</p>' +
           '<p class="s-sc"><span class="s-sd"></span><span class="bar s-bar" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span><span class="s-bm"></span></p></div>' +
-        '<div class="s-f2">' + w.facts.map(t => '<p>' + esc(t) + '</p>').join('') + '</div>' +
+        '<div class="s-f2">' + w.facts.map(t => '<p>' + nb(esc(t)) + '</p>').join('') + '</div>' +
         '<div class="s-f3"><p class="mute">On the sheet at <span class="s-wd"></span></p><p class="mute">Drawn in metres, north up</p></div>' +
         '<div class="s-f4"><p>Bureau HAV, Ghent</p><p class="mute">Sheet 1, work ' + w.no + '</p></div>' +
       '</div>';

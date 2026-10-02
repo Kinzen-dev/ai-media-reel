@@ -16,10 +16,13 @@
   --paper: #FBFAF6;
   --ink: #111111;
   --ink-2: #55534C;
+  --line: #8F8C84;   /* the pencil grey of the small season drawings: rail edges, balusters */
   --front: #FFFFFF;
-  --top: #F4F2EC;
+  --top: #EDEBE5;    /* tread tops: one step deeper than the paper so the slabs read as stone */
+  --top-2: #E4E1DA;  /* a hovered or opened tread's top, one step deeper again */
   --side: #EDEBE5;
   --edge: #E2E0D9;
+  --shade: #E2DFD8;  /* the newel's shadow side */
   --next: #FFE600;
   --next-edge: #DCC600;
   --serif: 'Tinos', 'Times New Roman', Times, serif;
@@ -75,16 +78,19 @@ time, .num { font-family: var(--sans); font-size: 0.86em; font-variant-numeric: 
   --Rb: calc(var(--W) + 10px);        /* balusters stand just outside the tread ends */
   --stack: 66deg;
   --slide: 24px;
+  --nb: 14px;                         /* the stone band under each riser: the slab's thickness */
+  --vis: 99;                          /* risers higher than this many steps above the reading tread drop their lettering */
   --newel-x: 40%;
-  --eye-y: -12%;
-  --foot: max(156px, 17.4svh);       /* floor line: the foot of the stair */
+  --eye-y: -30%;                      /* a high eye: the tread tops open into real stone surfaces */
+  --foot: max(186px, 20.7svh);       /* floor line: the foot of the stair */
   --read-y: calc(100svh - var(--foot));
   --lift: 30svh;
   --liftf: 0.3;
   /* the step back at the top of the climb, so the whole stair ends inside the stage */
   --Z: 1700px;
   --rb: 55deg;
-  --dy: 12svh;
+  --dy: 50svh;
+  --dx: 0px;
   --pos: 0;
   --c: 0;
   --b: 0;
@@ -109,8 +115,9 @@ time, .num { font-family: var(--sans); font-size: 0.86em; font-variant-numeric: 
 .mast p { margin: 0; font: 400 clamp(17px, 1.5vw, 22px)/1.27 var(--sans); }
 .mast .season { margin-top: 8px; }
 
-/* the stair: one rigid body (newel, treads, rail, landing) */
-.stair, .gstair {
+/* the stair: one rigid body (newel, treads, landing), with its handrail in a layer of its own
+   behind it (same geometry), so the rail can never cut across a tread when the flight turns */
+.stair, .gstair, .rails {
   position: absolute;
   z-index: 1;
   left: var(--newel-x);
@@ -119,12 +126,13 @@ time, .num { font-family: var(--sans); font-size: 0.86em; font-variant-numeric: 
   height: 0;
   transform-style: preserve-3d;
   transform:
-    translate3d(0, calc(var(--c) * var(--lift) * -1 + var(--b) * var(--dy) + var(--sl)), calc(var(--b) * var(--Z) * -1))
+    translate3d(calc(var(--b) * var(--dx)), calc(var(--c) * var(--lift) * -1 + var(--b) * var(--dy) + var(--sl)), calc(var(--b) * var(--Z) * -1))
     rotateY(calc(var(--b) * var(--rb) + var(--srot)));
 }
+.rails { z-index: 0; }
 .gstair { z-index: 5; pointer-events: none; }
 .treads { position: absolute; left: 0; top: 0; margin: 0; padding: 0; list-style: none; transform-style: preserve-3d; }
-.tread, .gtread, .landing {
+.tread, .gtread, .landing, .rtread {
   --rel: calc(var(--i) - var(--pos));
   position: absolute;
   left: 0;
@@ -134,9 +142,9 @@ time, .num { font-family: var(--sans); font-size: 0.86em; font-variant-numeric: 
     translate3d(0, calc(var(--rel) * var(--H) * -1), calc((1 - var(--u)) * -48px))
     rotateY(calc(var(--stack) * (1 - var(--u)) + (var(--base) + var(--rel) * var(--dt)) * var(--u)));
 }
-.tread, .landing { animation: unfold 520ms var(--ease-out) both; animation-delay: calc(160ms + var(--k) * 60ms); }
+.tread, .landing, .rtread { animation: unfold 520ms var(--ease-out) both; animation-delay: calc(160ms + var(--k) * 60ms); }
 .tread { cursor: pointer; }
-.landing, .newel, .rail, .bal { pointer-events: none; }
+.landing, .newel, .rails { pointer-events: none; }
 @keyframes unfold { from { --u: 0; } to { --u: 1; } }
 
 .box, .lseg {
@@ -190,26 +198,48 @@ time, .num { font-family: var(--sans); font-size: 0.86em; font-variant-numeric: 
   grid-template-columns: 24px minmax(0, 1.4fr) minmax(0, 0.95fr) auto;
   column-gap: 16px;
   align-items: center;
-  padding: 0 20px 0 16px;
+  padding: 0 20px var(--nb) 16px;
+  transition: background-color 200ms var(--ease-exit), border-color 200ms var(--ease-exit);
 }
+/* the slab's thickness: a stone band along the foot of every riser, under the lettered face */
+.front::after {
+  content: '';
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  bottom: -1px;
+  height: var(--nb);
+  background: var(--side);
+  border: 1px solid var(--edge);
+  pointer-events: none;
+}
+/* a riser climbing under the phone masthead lets its words go before the masthead edge can slice them
+   (set on the leaf cells: on narrow screens .w is display: contents and cannot carry opacity) */
+.front :is(.n, .t, .d, .sp, .dt) { opacity: clamp(0, calc((var(--vis) - var(--rel)) * 4), 1); transition: opacity 200ms var(--ease-exit); }
 .front:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
 .row:focus-visible { outline-offset: -2px; position: relative; z-index: 1; }
 .tread:hover .box, .tread:focus-within .box, .tread.is-open .box, .gtread .box {
   transform: translateX(var(--slide));
   transition: transform 240ms var(--ease-out);
 }
-.tread:hover .top, .tread:focus-within .top, .tread.is-open .top { --tc: var(--side); }
-.tread.is-next .front { background: var(--next); border-color: var(--next-edge); }
+.tread:hover .top, .tread:focus-within .top, .tread.is-open .top { --tc: var(--top-2); }
+.tread.is-next .front { background-color: var(--next); border-color: var(--next-edge); }
 .lfront { cursor: default; }
 .lfront .t { font-weight: 400; }
+/* while a sheet is open, the opened riser and its sheet are the only lettering on the stair:
+   every other riser keeps its stone but lets its words go (content only; the faces never fade) */
+.stage.has-open .tread:not(.is-open) .front :is(.n, .t, .d, .sp, .dt),
+.stage.has-open .lfront :is(.n, .t, .d, .sp, .dt) { opacity: 0; }
+.stage.has-open .tread.is-next:not(.is-open) .front { background-color: var(--front); border-color: var(--edge); }
 
-/* outer handrail: a baluster on every tread, a rail from baluster top to baluster top */
-.bal, .rail { position: absolute; left: 0; top: 0; background: var(--ink); }
-.bal { background: var(--ink-2); }
+/* outer handrail, in the stair's own material: a pale moulded rail with a pencil edge,
+   a baluster on every tread; it sits in the .rails layer, behind every tread it passes */
+.bal, .rail { position: absolute; left: 0; top: 0; }
 .bal {
-  width: 1.5px;
+  width: 1px;
   height: calc(var(--hr) + var(--H) * 0.5);
-  margin-left: -0.75px;
+  margin-left: -0.5px;
+  background: var(--line);
   transform-origin: 50% 0;
   transform:
     translate3d(calc(var(--Rb) * cos(var(--dt) / 2)), calc((var(--H) + var(--hr)) * -1), calc(var(--Rb) * sin(var(--dt) / 2) * -1))
@@ -219,18 +249,22 @@ time, .num { font-family: var(--sans); font-size: 0.86em; font-variant-numeric: 
 .rail {
   --rise: var(--H);
   --chord: calc(var(--Rb) * sin(var(--dt) / 2) * 2);
-  width: hypot(var(--chord), var(--rise));
-  height: 2px;
-  margin-top: -1px;
-  transform-origin: 0 50%;
+  --rw: 9px;
+  width: calc(hypot(var(--chord), var(--rise)) + 1px);
+  height: var(--rw);
+  background: var(--side);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--edge);
+  transform-origin: 0 0;
   transform:
     translate3d(calc(var(--Rb) * cos(var(--dt) / 2)), calc((var(--H) + var(--hr)) * -1), calc(var(--Rb) * sin(var(--dt) / 2) * -1))
     rotateY(calc(90deg + var(--dt)))
     rotateZ(calc(atan2(var(--rise), var(--chord)) * -1))
     rotateX(var(--rx, 0deg));
 }
-.rail.rh { --rx: 90deg; height: 2px; margin-top: -1px; }
-.landing .rail { --rise: 0px; }
+/* the rail's top face, flat, seen from above */
+.rail.rh { --rx: -90deg; --rw: 7px; background: var(--front); border-top-color: var(--edge); }
+.rland .rail { --rise: 0px; }
 
 /* the newel: an octagonal stone shaft on a plinth, capped above the landing */
 .newel {
@@ -402,21 +436,26 @@ time, .num { font-family: var(--sans); font-size: 0.86em; font-variant-numeric: 
 @media (max-width: 1099px) {
   .stage {
     --W: 82vw;
-    --H: 112px;
+    --H: 100px;
     --dt: 5deg;
     --base: -7.5deg;
     --hr: 64px;
     --Rb: calc(var(--W) + 6px);
     --stack: 40deg;
     --slide: 12px;
+    --nb: 12px;
+    --vis: 5.7;
     --newel-x: calc(6vw + var(--W) * 0.065);
-    --eye-y: 9%;
-    --foot: 26px;
+    --eye-y: -4%;
+    --foot: 56px;
     --lift: 16svh;
     --liftf: 0.16;
-    --Z: 1750px;
+    /* the step back: the whole flight stands in the stage under the masthead, its newel near 30vw
+       (dx is the world shift that lands the newel there at this depth: (33vw - newel) * (900 + Z) / 900) */
+    --Z: 1400px;
     --rb: 24deg;
-    --dy: -6svh;
+    --dy: 10svh;
+    --dx: calc((33vw - var(--newel-x)) * 2.5556);
     perspective: 900px;
   }
   .mast {
@@ -481,9 +520,10 @@ time, .num { font-family: var(--sans); font-size: 0.86em; font-variant-numeric: 
     --hr: 80px;
     --stack: 60deg;
     --newel-x: 24%;
-    --Z: 1900px;
+    --Z: 1500px;
     --rb: 30deg;
-    --dy: -4svh;
+    --dy: 4svh;
+    --dx: calc(15vw * 2.5);  /* newel from 24vw to about 39vw at this depth: the stepped-back stair stands centred */
     perspective: 1000px;
   }
   .stage .mast { padding-left: 24%; }
@@ -498,7 +538,8 @@ time, .num { font-family: var(--sans); font-size: 0.86em; font-variant-numeric: 
 
 /* ---------- reduced motion: no unfold, no pinned rotation ---------- */
 @media (prefers-reduced-motion: reduce) {
-  .tread, .landing { animation: none; }
+  .tread, .landing, .rtread { animation: none; }
+  .front, .front :is(.n, .t, .d, .sp, .dt) { transition: none; }
   .box { transition: none !important; }
   .stage { transition: none; }
   .flight { height: auto; }
@@ -525,6 +566,8 @@ time, .num { font-family: var(--sans); font-size: 0.86em; font-variant-numeric: 
         <p class="season">Season 9, autumn and winter 2026,<br>Carrow Library</p>
         <p class="next" id="next-line">Every other Thursday, doors 18:30</p>
       </header>
+      <!-- the handrail: its own layer, in the stair's geometry, painted behind every tread -->
+      <div class="rails" id="rails" aria-hidden="true"></div>
       <!-- the stair: newel, treads and landing are built from DATA.lectures -->
       <div class="stair" id="stair">
         <div class="newel" id="newel" aria-hidden="true"></div>
@@ -691,12 +734,22 @@ const DATA = {
       `<span class="w"><span class="sp">${esc(l.speaker)}</span><span class="dt">${date}</span></span>`;
   };
 
-  /* ---- build the stair: treads with their rail, the landing, the newel ---- */
+  /* ---- build the stair: treads, the landing, the newel; the handrail in its own layer ---- */
   const stage = $('#stage');
   const stair = $('#stair');
+  const rails = $('#rails');
   const list = $('#treads');
   const LAND = N; /* the reading room landing is the thirteenth step */
-  const RAIL = '<i class="bal"></i><i class="bal b2"></i><i class="rail"></i><i class="rail rh"></i>';
+  const BAL = '<i class="bal"></i><i class="bal b2"></i>';
+  const RAIL = '<i class="rail"></i><i class="rail rh"></i>';
+  const railFor = (i, html) => {
+    const r = document.createElement('div');
+    r.className = 'rtread' + (i === LAND ? ' rland' : '');
+    r.style.setProperty('--i', i);
+    r.style.setProperty('--k', Math.max(0, i - r0));
+    r.innerHTML = html;
+    rails.append(r);
+  };
   const treads = L.map((l, i) => {
     const li = document.createElement('li');
     li.className = 'tread' + (i === next ? ' is-next' : '') + (isPast(i) ? ' is-past' : '');
@@ -707,8 +760,9 @@ const DATA = {
         '<div class="face top" aria-hidden="true"></div>' +
         '<div class="face wall" aria-hidden="true"></div>' +
         `<button class="face front" type="button" aria-controls="sheet" aria-expanded="false">${cells(l, i)}</button>` +
-      '</div>' + RAIL;
+      '</div>';
     list.append(li);
+    railFor(i, BAL + RAIL);
     return li;
   });
 
@@ -718,16 +772,18 @@ const DATA = {
   landing.setAttribute('aria-hidden', 'true');
   landing.style.setProperty('--i', LAND);
   landing.style.setProperty('--k', Math.max(0, LAND - r0));
-  let lh = '';
+  let lh = '', lr = '';
   for (let s = 0; s < 8; s++) {
     lh += `<div class="lseg" style="--s:${s}"><div class="face top"></div><div class="face wall"></div>` +
       (s === 0 ? '<div class="face front lfront"><span class="n"></span><span class="t">The reading room landing</span>' +
         '<span class="d">where the transcripts are shelved</span>' +
         `<span class="w"><span class="sp">${held ? `${held} of ${N} on the shelf` : 'the shelf is waiting'}</span><span class="dt">top of the stair</span></span></div>` : '') +
-      '<i class="bal"></i><i class="bal b2"></i>' + (s < 7 ? '<i class="rail"></i><i class="rail rh"></i>' : '') + '</div>';
+      '</div>';
+    lr += `<div class="lseg" style="--s:${s}">${BAL}${s < 7 ? RAIL : ''}</div>`;
   }
   landing.innerHTML = lh;
   stair.append(landing);
+  railFor(LAND, lr);
 
   const newel = $('#newel');
   let nh = '';
@@ -746,10 +802,10 @@ const DATA = {
   });
 
   /* ---- scroll: the document drives the stair, strictly, no smoothing ----
-     the first 80% of the pinned scroll climbs tread by tread to the landing;
-     the last 20% steps back so the whole stair stands inside the stage before it releases */
+     the first 70% of the pinned scroll climbs tread by tread to the landing; the next 16% steps
+     back until the whole stair stands inside the stage; it holds there, whole, until the stage releases */
   const flight = $('.flight');
-  const CLIMB = 0.8;
+  const CLIMB = 0.7, BACK = 0.86;
   let pos = r0, c = 0, b = 0, ticking = false;
   let DT = 8.5, RB = 34, LIFTF = 0.3, SROT = 0;
   const span = () => Math.max(1, flight.offsetHeight - stage.offsetHeight);
@@ -758,21 +814,89 @@ const DATA = {
     DT = parseFloat(cs.getPropertyValue('--dt')) || 8.5;
     RB = parseFloat(cs.getPropertyValue('--rb')) || 0;
     LIFTF = parseFloat(cs.getPropertyValue('--liftf')) || 0.3;
+    /* on narrow screens the masthead is a floor across the top of the stage: work out how many
+       risers stand clear below it, so the ones climbing under it carry no lettering to be sliced */
+    if (narrow.matches) {
+      const H = parseFloat(cs.getPropertyValue('--H')) || 100;
+      const foot = parseFloat(cs.getPropertyValue('--foot')) || 0;
+      stage.style.setProperty('--vis', ((stage.offsetHeight - foot - mast.offsetHeight) / H - 0.66).toFixed(2));
+    } else stage.style.removeProperty('--vis');
+    fitBack();
   }
-  /* the newel turns with the stair; each face takes its tone from where it faces (light from front left) */
-  const DARK = [228, 225, 217];
+  /* the step back is fitted to whatever stage it lands in: the whole stair, newel cap to foot, stands
+     in the clear space (under the masthead floor on narrow screens), never larger than designed,
+     centred in that space, its newel at a third of the width on narrow screens. The stair's key
+     points are projected through the stage's own perspective to measure it. */
+  const DEG = Math.PI / 180;
+  const rotY = (x, z, a) => [x * Math.cos(a * DEG) + z * Math.sin(a * DEG), z * Math.cos(a * DEG) - x * Math.sin(a * DEG)];
+  function fitBack() {
+    for (const k of ['--Z', '--dx', '--dy']) stage.style.removeProperty(k);
+    if (rm.matches) return;
+    const cs = getComputedStyle(stage);
+    const num = k => parseFloat(cs.getPropertyValue(k)) || 0;
+    const sh = stage.offsetHeight, sw = stage.offsetWidth;
+    const P = parseFloat(cs.perspective) || 1000;
+    const [ox, oy] = cs.perspectiveOrigin.split(' ').map(parseFloat);
+    const f0 = treads[0].querySelector('.front');
+    const R = f0.offsetLeft, W = R + f0.offsetWidth, H = f0.offsetHeight;
+    const dt = num('--dt'), base = num('--base'), rb = num('--rb'), hr = num('--hr');
+    const lift = num('--lift') * sh / 100;
+    const Lx = stair.offsetLeft, Ly = stair.offsetTop;
+    const top = narrow.matches ? mast.offsetHeight : 0;
+    const m = Math.max(18, sh * 0.035);
+    const pts = [];
+    for (let i = 0; i <= LAND; i++) {           /* every riser's four corners */
+      const rel = i - LAND, th = base + rel * dt;
+      for (const x of [R, W]) { const [px, pz] = rotY(x, 0, th); pts.push([px, -rel * H - H, pz], [px, -rel * H, pz]); }
+    }
+    for (let s = 0; s <= 8; s++) {              /* the landing's outer edge and its rail */
+      let [px, pz] = rotY(W, 0, base + s * dt); pts.push([px, -H, pz]);
+      [px, pz] = rotY(W + 10, 0, base + (s - 0.5) * dt); pts.push([px, -H - hr, pz]);
+    }
+    const rc = R * 1.42 * 1.0824, footY = LAND * H, capY = LAND * H - 13 * H - 138;
+    for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) pts.push([sx * rc, footY, sz * rc], [sx * rc, capY, sz * rc]);
+    const box = (Z, dx, dy) => {
+      let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+      for (const [x, y, z] of pts) {
+        const [rx, rz] = rotY(x, z, rb);
+        const k = P / (P - (rz - Z));
+        const sx = ox + (Lx + dx + rx - ox) * k, sy = oy + (Ly - lift + dy + y - oy) * k;
+        x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy);
+      }
+      return { x0, x1, y0, y1 };
+    };
+    let Z = num('--Z');
+    const avail = sh - top - 2 * m;
+    for (let k = 0; k < 8; k++) {
+      const q = box(Z, 0, 0), h = q.y1 - q.y0;
+      if (h <= avail + 0.5) break;
+      Z = (P + Z) * h / avail - P;
+    }
+    const s = P / (P + Z);
+    const dx = narrow.matches ? (sw * 0.33 - ox) / s - (Lx - ox) : 0;
+    let dy = 0;
+    for (let k = 0; k < 4; k++) { const q = box(Z, dx, dy); dy += (top + (sh - top) / 2 - (q.y0 + q.y1) / 2) / s; }
+    stage.style.setProperty('--Z', Z.toFixed(1) + 'px');
+    stage.style.setProperty('--dx', dx.toFixed(1) + 'px');
+    stage.style.setProperty('--dy', dy.toFixed(1) + 'px');
+  }
+  /* the newel turns with the stair; light from the front left splits it into two tones,
+     a lit side and a shadow side, the way a stone shaft reads in a stairwell */
+  const LIT = '#FFFFFF', SHADE = getComputedStyle(document.documentElement).getPropertyValue('--shade').trim() || '#E2DFD8';
+  const toneOf = new Map();
   function shade() {
     const rot = -pos * DT + b * RB + SROT;
     nfaces.forEach((f, j) => {
-      const t = Math.max(0, Math.cos(((j % 8) * 45 + 22.5 + rot + 35) * Math.PI / 180));
-      f.style.backgroundColor = `rgb(${DARK.map(v => Math.round(v + (255 - v) * t)).join(',')})`;
+      const t = Math.cos(((j % 8) * 45 + 22.5 + rot + 35) * Math.PI / 180);
+      const tone = t > 0.62 ? LIT : SHADE;
+      if (toneOf.get(f) !== tone) { toneOf.set(f, tone); f.style.backgroundColor = tone; }
     });
   }
   function update() {
     ticking = false;
     const p = rm.matches ? 0 : clamp((window.scrollY - flight.offsetTop) / span(), 0, 1);
     c = clamp(p / CLIMB, 0, 1);
-    const t = clamp((p - CLIMB) / (1 - CLIMB), 0, 1);
+    const t = clamp((p - CLIMB) / (BACK - CLIMB), 0, 1);
     b = t * t * (3 - 2 * t);
     pos = r0 + c * (LAND - r0);
     stage.style.setProperty('--pos', pos.toFixed(4));
@@ -788,6 +912,7 @@ const DATA = {
     if (openIdx >= 0) close(false);
     stair.inert = red;
     if (red) stair.setAttribute('aria-hidden', 'true'); else stair.removeAttribute('aria-hidden');
+    readGeo();
     update();
   }
 
@@ -886,6 +1011,7 @@ const DATA = {
     sheet.hidden = false;
     sheet.scrollTop = 0;
     if (!rm.matches) {
+      stage.classList.add('has-open');
       if (i < r0) r0 = i;
       openPos = clamp(i - 1.5, r0, LAND);
       settleUntil = performance.now() + 1500;
@@ -907,6 +1033,7 @@ const DATA = {
         { duration: 150, easing: 'cubic-bezier(0.4, 0, 1, 1)' }).onfinish = done;
     } else done();
     if (i >= 0) setExpanded(i, false);
+    stage.classList.remove('has-open');
     stage.style.setProperty('--sl', '0px');
     stage.style.setProperty('--srot', '0deg');
     SROT = 0;
@@ -932,8 +1059,9 @@ const DATA = {
     if (e.key === 'Escape' && !sheet.hidden) { e.preventDefault(); close(true); }
   });
   rm.addEventListener ? rm.addEventListener('change', applyMode) : rm.addListener(applyMode);
-  readGeo();
   applyMode();
+  /* the masthead settles its height once the type has loaded: measure the stage again */
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { readGeo(); update(); });
 
   /* ---- past seasons: tiny stacks of the same slabs ---- */
   const S = 1.5; /* drawing scale */

@@ -218,6 +218,30 @@ world-class"), then loop on it; he wants to see what is new in the current era; 
   of the lane on the gallery; builtBy "Fable 5.1" for both, lane "worldclass").
   Also built under the IDENTITY RULE and now in first judging: overflow-ledger-index, instrument-
   catalogue. Re-judges running: museum, shop / Okapi / salon, Thai.
+- 15:10 BATCH 2 BUILDING (all 5 images in): workflows wf_0eff1496-3f8 (riso-overprint-room + seating-plan-roster),
+  wf_908245b0-873 (shadow-board-toolmaker; tool alpha cleaned + bbox table in brief), wf_5643b9de-677
+  (kiln-spyhole-wordmark), wf_0ab16e48-e91 (jump-hour-dial; brief bans the 3 face photos: small aperture).
+  Museum Kade PASSED 8.5 (elevations running). Re-judge running: gouache-fruit-cafe, reading-line-ruler-manual,
+  thai-script-specimen-bands. Ledger brief corrected (green bar + [ ] filters were the reference's
+  fingerprints) and fix running. Seed shop: cabinet illustrations commissioned (Codex w4) -> then fix agent
+  (judge 7.5: draw the cabinet as furniture in the illustrator's hand). Kagetsu-an fix running with 11 new
+  seasonal heroes.
+- 14:20 STATE. LIVE in lane (5): cropped-wordmark-ledger, sticky-megatype-dossier (deploy 9a81d1a),
+  instrument-catalogue, stretched-slab-navigation, script-splice-salon (deploy 2b7bcd1; 332 total).
+  PASSED, elevation agent running -> catalog when it lands: linocut-ropewalk-dining, warm-paper-agent-window,
+  dark-figure-plate, hairline-cell-ledger-dither. FIX agents running (re-judge after): reading-line-ruler-manual
+  (tag clip), gouache-fruit-cafe (door in painter's hand), thai-script-specimen-bands, opus-plan-index (8, hover
+  bug), riviera-arch-portal (chrome band), spiral-stair-contents (open sheet), technical-plate-specimen (hero as
+  live section A-A), expedition-column-rules (band for every night). RE-JUDGE running: ruled-ticker-museum,
+  overflow-ledger-index, watercolour-shopfront. WAITING ON IMAGES: tategaki-confectioner (11 seasonal heroes,
+  Codex w6) -> then one fix agent (design all 24 term states; judge 7.5).
+  NEXT BATCH (lane batch 2) briefs on disk: jump-hour-dial, kiln-spyhole-wordmark, riso-overprint-room,
+  shadow-board-toolmaker, seating-plan-roster (backlog marked building). Image jobs: kiln w2, watch w3, tools
+  w4+w5, riso then seating on the default worker. Launch _batch-workflow.js with [{slug,name,briefFile}] once
+  the sets are ingested (check showcase/assets/wc/<slug>/).
+  _fix-prompt.md gained 5b STATE SWEEP (20+ scroll positions x states x 1440/390, contact sheet) and 5c SAME
+  HAND, from the judges' lane notes. Lane note to carry into briefs: design EVERY state of a live device
+  (solstices, full moon, other terms, band ends), not just today's.
 - RESUMED 11:50 (new usage window). DEPLOYED deploy commit 9a81d1a (live verified: 329 templates,
   World-Class Now category with cropped-wordmark-ledger + sticky-megatype-dossier; assets/wc/
   served); main repo commit 8dd5cbc. In flight: re-judges of the 12 recompositions (4 judges:

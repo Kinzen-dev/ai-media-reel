@@ -9,7 +9,7 @@ import json, os, subprocess, sys
 
 BAD = {0x2012, 0x2013, 0x2014, 0x2015, 0x2500, 0x2501}
 FIELDS = ["slug", "title", "archetype", "ref", "file", "thumb", "palette", "category", "lane",
-          "whenToUse", "signature", "fps", "status", "builtBy"]
+          "whenToUse", "signature", "fps", "fpsMode", "status", "builtBy"]
 
 def main():
     if len(sys.argv) != 2:

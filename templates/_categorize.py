@@ -8,6 +8,7 @@ import json, sys
 
 # Category display order + names. The gallery renders categories in THIS order.
 ORDER = [
+    ("codex-astra", "Codex 6 Astra · Product Loops"),
     ("worldclass",  "World-Class Now (2026)"),
     ("interaction", "Interaction & Motion"),
     ("spatial",     "3D & Spatial"),
